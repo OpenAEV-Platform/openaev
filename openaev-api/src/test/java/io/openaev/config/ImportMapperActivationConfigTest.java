@@ -196,6 +196,22 @@ class ImportMapperActivationConfigTest {
   }
 
   @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains documents")
+  void prodConfigActivatesDocuments() throws Exception {
+    Properties props = new Properties();
+    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
+      props.load(in);
+    }
+    String active = props.getProperty("openaev.tenant.active-tables", "");
+    assertTrue(
+        active.contains("documents"),
+        "documents must stay in openaev.tenant.active-tables: its v1 @Filter was removed, so"
+            + " dropping it would leave the table with no tenant isolation. Found: '"
+            + active
+            + "'");
+  }
+
+  @Test
   @DisplayName("openaev.tenant.active-tables in application.properties contains widgets")
   void prodConfigActivatesWidgets() throws Exception {
     Properties props = new Properties();
@@ -347,5 +363,116 @@ class ImportMapperActivationConfigTest {
             + " write attribution at all. Found: '"
             + active
             + "'");
+  }
+
+  private void assertActiveTableEntry(String table) throws Exception {
+    Properties props = new Properties();
+    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
+      props.load(in);
+    }
+    String active = props.getProperty("openaev.tenant.active-tables", "");
+    // Entry match, not contains: contains() on the raw property also passes on any table name
+    // that merely embeds this one.
+    assertTrue(
+        Arrays.stream(active.split(",")).map(String::trim).anyMatch(table::equals),
+        table
+            + " must stay in openaev.tenant.active-tables: its v1 @Filter and TenantBaseListener"
+            + " were removed, so dropping it would leave the table with no read isolation and no"
+            + " write attribution at all. Found: '"
+            + active
+            + "'");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains asset_agent_jobs")
+  void prodConfigActivatesAssetAgentJobs() throws Exception {
+    assertActiveTableEntry("asset_agent_jobs");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains custom_domains")
+  void prodConfigActivatesCustomDomains() throws Exception {
+    assertActiveTableEntry("custom_domains");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains collector_types")
+  void prodConfigActivatesCollectorTypes() throws Exception {
+    assertActiveTableEntry("collector_types");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " phishing_email_templates")
+  void prodConfigActivatesPhishingEmailTemplates() throws Exception {
+    assertActiveTableEntry("phishing_email_templates");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains" + " phishing_landing_pages")
+  void prodConfigActivatesPhishingLandingPages() throws Exception {
+    assertActiveTableEntry("phishing_landing_pages");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " attackpath_execution_collector")
+  void prodConfigActivatesAttackPathExecutionCollector() throws Exception {
+    assertActiveTableEntry("attackpath_execution_collector");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " attackpath_execution_remediation")
+  void prodConfigActivatesAttackPathExecutionRemediation() throws Exception {
+    assertActiveTableEntry("attackpath_execution_remediation");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains phishing_results")
+  void prodConfigActivatesPhishingResults() throws Exception {
+    assertActiveTableEntry("phishing_results");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains" + " reporting_schedules")
+  void prodConfigActivatesReportingSchedules() throws Exception {
+    assertActiveTableEntry("reporting_schedules");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains reportings")
+  void prodConfigActivatesReportings() throws Exception {
+    assertActiveTableEntry("reportings");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains" + " reporting_generations")
+  void prodConfigActivatesReportingGenerations() throws Exception {
+    assertActiveTableEntry("reporting_generations");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains datapacks")
+  void prodConfigActivatesDatapacks() throws Exception {
+    assertActiveTableEntry("datapacks");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains teams")
+  void prodConfigActivatesTeams() throws Exception {
+    assertActiveTableEntry("teams");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains attack_patterns")
+  void prodConfigActivatesAttackPatterns() throws Exception {
+    assertActiveTableEntry("attack_patterns");
   }
 }

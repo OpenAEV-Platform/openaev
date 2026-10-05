@@ -864,7 +864,15 @@ public class InjectService {
     }
 
     inject.setTeams(fromIterable(this.teamRepository.findAllById(input.getTeams())));
-    inject.setAssets(fromIterable(this.assetService.assets(input.getAssets())));
+    // Only replace the assets when they change: replacing the collection makes Hibernate delete and
+    // re-insert every injects_assets row, and a trigger then updates each of these assets. Injects
+    // targeting the same assets would otherwise contend on those rows (concurrent updates of
+    // chained injects could deadlock).
+    Set<String> currentAssetIds =
+        inject.getAssets().stream().map(Asset::getId).collect(Collectors.toSet());
+    if (input.getAssets() == null || !currentAssetIds.equals(new HashSet<>(input.getAssets()))) {
+      inject.setAssets(fromIterable(this.assetService.assets(input.getAssets())));
+    }
     inject.setAssetGroups(fromIterable(this.assetGroupService.assetGroups(input.getAssetGroups())));
     inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
 

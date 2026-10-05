@@ -4,6 +4,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.jsonapi.*;
@@ -37,6 +39,8 @@ public class PayloadImportService {
   private final AttackPatternService attackPatternService;
   private final DomainService domainService;
   private final TagService tagService;
+  private final TenantWriteScopeResolver writeScopeResolver;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   @Resource protected ObjectMapper mapper;
 
@@ -64,12 +68,27 @@ public class PayloadImportService {
    *     contract
    */
   public PayloadImportResult importPayload(TxCtx ctx, MultipartFile file) throws Exception {
+    // A payload bundle can carry documents (file drop, executable). Attribute any imported
+    // document to the request's write tenant, so an active documents table gets a valid tenant_id
+    // whatever the ambient TenantContext of the import.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    // The attack patterns, domains and injector contract derived from the bundle are attributed
+    // through the ambient tenant, like the payload itself: keep the whole import in the write
+    // tenant, not only the reflective persist.
+    return ambientTenantBridge.callInTenantChecked(
+        tenantId, () -> importPayloadInTenant(ctx, file, tenantId));
+  }
+
+  private PayloadImportResult importPayloadInTenant(TxCtx ctx, MultipartFile file, String tenantId)
+      throws Exception {
     ZipJsonService.ImportOutput<Payload> response =
-        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null);
+        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null, tenantId);
 
     List<AttackPattern> attackPatterns =
         extractRelationshipObjects(
-            "attack_patterns", this::handleAttackPatternImport, response.sourceDocument());
+            "attack_patterns",
+            object -> handleAttackPatternImport(ctx, object),
+            response.sourceDocument());
     List<Domain> domains =
         extractRelationshipObjects("domains", this::handleDomainImport, response.sourceDocument());
     List<Tag> tags =
@@ -95,7 +114,7 @@ public class PayloadImportService {
   public record PayloadImportResult(
       ZipJsonService.ImportOutput<Payload> payloadOutput, InjectorContract injectorContract) {}
 
-  private AttackPattern handleAttackPatternImport(ResourceObject object) {
+  private AttackPattern handleAttackPatternImport(TxCtx ctx, ResourceObject object) {
     AttackPatternCreateInput input = new AttackPatternCreateInput();
     input.setName(object.attributes().get("attack_pattern_name").toString());
     input.setDescription(object.attributes().get("attack_pattern_description").toString());
@@ -104,7 +123,7 @@ public class PayloadImportService {
     input.setPlatforms(asStringArray(object.attributes().get("attack_pattern_platforms")));
     input.setPermissionsRequired(
         asStringArray(object.attributes().get("attack_pattern_permissions_required")));
-    return attackPatternService.findOrCreate(input);
+    return attackPatternService.findOrCreate(ctx, input);
   }
 
   private Domain handleDomainImport(ResourceObject object) {

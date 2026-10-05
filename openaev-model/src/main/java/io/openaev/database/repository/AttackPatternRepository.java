@@ -21,10 +21,10 @@ public interface AttackPatternRepository
   Optional<AttackPattern> findById(@NotNull String id);
 
   /**
-   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does not apply to {@code
-   * findById} (filters never apply to primary-key loads), so callers resolving an id received from
-   * user input (e.g. import files) must use this method to avoid reading another tenant's attack
-   * pattern.
+   * Primary-key lookup pinned to one tenant. {@code attack_patterns} is on v2, so a plain {@code
+   * findById} is already rewritten against the transaction's scope; this method narrows further to
+   * a single tenant, for callers that resolve an id received from user input (e.g. import files)
+   * inside a broader scope.
    */
   @NotNull
   Optional<AttackPattern> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
@@ -45,13 +45,31 @@ public interface AttackPatternRepository
   List<AttackPattern> findAllByExternalIdInIgnoreCaseAndTenantId(
       List<String> externalIds, String tenantId);
 
+  /**
+   * External-id lookup scoped by the transaction alone. The caller does not name a tenant: the
+   * statement inspector restricts the rows to the request's scope, which is what a read on the
+   * non-prefixed route needs (the v1 thread-local resolves to the default tenant there, so a {@code
+   * ...AndTenantId} variant would silently read nothing).
+   */
+  List<AttackPattern> findAllByExternalIdInIgnoreCase(List<String> externalIds);
+
+  Optional<AttackPattern> findByExternalIdAndTenantId(
+      @NotNull String externalId, @NotNull String tenantId);
+
   Optional<AttackPattern> findByStixId(@NotNull String stixId);
+
+  Optional<AttackPattern> findByStixIdAndTenantId(@NotNull String stixId, @NotNull String tenantId);
 
   @Query(
       value =
           "select ap.*, array_remove(array_agg(apphase.phase_id), NULL) as attack_pattern_kill_chain_phases from attack_patterns ap "
-              + "left join attack_patterns_kill_chain_phases apphase ON ap.attack_pattern_id = apphase.attack_pattern_id WHERE ap.tenant_id = :#{#tenantContext.currentTenant} GROUP BY ap.attack_pattern_id",
+              + "left join attack_patterns_kill_chain_phases apphase ON ap.attack_pattern_id = apphase.attack_pattern_id GROUP BY ap.attack_pattern_id",
       nativeQuery = true)
+  /**
+   * Every attack pattern of the transaction's scope, with its kill chain phase ids. No tenant
+   * predicate of its own: {@code attack_patterns} is the primary FROM item, so the inspector moves
+   * the scope predicate into the WHERE and the {@code GROUP BY} on the primary key stays valid.
+   */
   List<RawAttackPatternIndexing> rawAll();
 
   // -- INDEXING --

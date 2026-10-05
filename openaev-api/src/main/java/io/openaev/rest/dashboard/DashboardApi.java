@@ -43,7 +43,7 @@ public class DashboardApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.dashboardService.count(widgetId, parameters);
+    return this.dashboardService.count(ctx, widgetId, parameters);
   }
 
   @PostMapping("/average/{widgetId}")
@@ -56,7 +56,7 @@ public class DashboardApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.dashboardService.average(widgetId, parameters);
+    return this.dashboardService.average(ctx, widgetId, parameters);
   }
 
   @PostMapping("/series/{widgetId}")
@@ -69,7 +69,7 @@ public class DashboardApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.dashboardService.series(widgetId, parameters);
+    return this.dashboardService.series(ctx, widgetId, parameters);
   }
 
   @PostMapping("/entities/{widgetId}")
@@ -83,6 +83,7 @@ public class DashboardApi extends RestBehavior {
       @PathVariable final String widgetId,
       @RequestBody(required = false) EntitiesPaginationInput input) {
     return this.dashboardService.entities(
+        ctx,
         widgetId,
         input == null ? new HashMap<>() : input.getParameters(),
         input == null ? null : input.getPagination());
@@ -98,7 +99,7 @@ public class DashboardApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable final String widgetId,
       @Valid @RequestBody WidgetToEntitiesInput input) {
-    return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
+    return this.dashboardService.widgetToEntitiesRuntime(ctx, widgetId, input);
   }
 
   @PostMapping("/attack-paths/{widgetId}")
@@ -112,14 +113,14 @@ public class DashboardApi extends RestBehavior {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return this.dashboardService.attackPaths(widgetId, parameters);
+    return this.dashboardService.attackPaths(ctx, widgetId, parameters);
   }
 
   @GetMapping("/search/{search}")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<EsSearch> search(TxCtx ctx, @PathVariable final String search) {
-    return this.dashboardService.search(search);
+    return this.dashboardService.search(ctx, search);
   }
 
   // -- AD-HOC (non-persisted) WIDGET QUERIES --
@@ -132,14 +133,16 @@ public class DashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   public List<EsSeries> adHocSeries(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
-    return this.dashboardService.adHocSeries(input.getWidgetConfiguration(), input.getParameters());
+    return this.dashboardService.adHocSeries(
+        ctx, input.getWidgetConfiguration(), input.getParameters());
   }
 
   @PostMapping("/adhoc/count")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   public EsCountInterval adHocCount(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
-    return this.dashboardService.adHocCount(input.getWidgetConfiguration(), input.getParameters());
+    return this.dashboardService.adHocCount(
+        ctx, input.getWidgetConfiguration(), input.getParameters());
   }
 
   @PostMapping("/adhoc/average")
@@ -147,7 +150,7 @@ public class DashboardApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   public EsAvgs adHocAverage(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
     return this.dashboardService.adHocAverage(
-        input.getWidgetConfiguration(), input.getParameters());
+        ctx, input.getWidgetConfiguration(), input.getParameters());
   }
 
   @PostMapping("/adhoc/entities")
@@ -155,7 +158,7 @@ public class DashboardApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   public EsEntities adHocEntities(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
     return this.dashboardService.adHocEntities(
-        input.getWidgetConfiguration(), input.getParameters(), input.getPagination());
+        ctx, input.getWidgetConfiguration(), input.getParameters(), input.getPagination());
   }
 
   @PostMapping("/adhoc/entities-runtime")
@@ -164,6 +167,6 @@ public class DashboardApi extends RestBehavior {
   public WidgetToEntitiesOutput adHocEntitiesRuntime(
       TxCtx ctx, @Valid @RequestBody AdHocWidgetToEntitiesInput input) {
     return this.dashboardService.adHocEntitiesRuntime(
-        input.getWidgetType(), input.getWidgetConfiguration(), input);
+        ctx, input.getWidgetType(), input.getWidgetConfiguration(), input);
   }
 }

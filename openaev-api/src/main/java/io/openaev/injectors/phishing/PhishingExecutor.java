@@ -127,6 +127,10 @@ public class PhishingExecutor extends Injector {
         injection.getTeams().stream()
             .collect(Collectors.toMap(Team::getName, Team::getId, (first, ignored) -> first));
 
+    // Tenant of the tracking rows, read here rather than inside createResult: that method runs in
+    // its own REQUIRES_NEW transaction, while the inject belongs to this one.
+    String tenantId = inject.getTenant().getId();
+
     for (ExecutionContext userContext : users) {
       try {
         UserContract targetUser = userContext.getUser();
@@ -137,7 +141,7 @@ public class PhishingExecutor extends Injector {
         String teamId = teamName != null ? teamIdByName.get(teamName) : null;
         PhishingResult result =
             phishingTrackingService.createResult(
-                inject, landingPage, targetUser.getId(), teamId, injection.getStepId());
+                inject, tenantId, landingPage, targetUser.getId(), teamId, injection.getStepId());
         // Victim-facing landing URL: e.g. https://security.acme.com/auth/<token> - benign path, no
         // tenant id, resolved back to its tenant from the globally-unique token server-side.
         String landingUrl =

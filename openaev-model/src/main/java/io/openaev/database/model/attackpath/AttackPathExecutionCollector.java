@@ -4,12 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -17,19 +15,21 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 
 /**
  * One row = one collector-result detail line for one attack-path execution. Snapshot-only data used
  * by execution detail views so collector rows remain stable over time.
+ *
+ * <p>This entity is fully switched to v2 tenant isolation (statement inspector + {@code
+ * can_access_tenant}). Keep the v1 {@code @Filter} and {@code TenantBaseListener} removed to avoid
+ * mixed isolation/write-attribution modes; every write stamps {@code tenant} explicitly from the
+ * inject it snapshots (see {@code AttackPathExecutionIngestionService}).
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "attackpath_execution_collector")
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-@EntityListeners(TenantBaseListener.class)
 public class AttackPathExecutionCollector implements TenantBase {
 
   @Id

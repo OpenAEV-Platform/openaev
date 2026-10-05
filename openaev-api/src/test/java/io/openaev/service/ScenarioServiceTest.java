@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.repository.*;
@@ -44,6 +45,7 @@ import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.SecurityCoverageComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -82,6 +84,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
+  @Autowired private TenantRepository tenantRepository;
 
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private InjectComposer injectComposer;
@@ -387,6 +390,36 @@ class ScenarioServiceTest extends IntegrationTest {
             });
     assertEquals(1, scenarioDuplicated.getInjects().size());
     assertEquals(2, scenario.getInjects().getFirst().getTeams().size());
+  }
+
+  @DisplayName(
+      "Should attribute a duplicated contextual team to the scenario's own tenant, not the default one")
+  @Test
+  void given_scenarioOwnedByNonDefaultTenant_should_attributeDuplicatedContextualTeamToItsTenant() {
+    // -- PREPARE --
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("scenario-duplication-tenant"));
+    TenantContext.setCurrentTenant(tenant.getId());
+    try {
+      List<Team> scenarioTeams = new ArrayList<>();
+      Team contextualTeam = this.teamRepository.save(getTeam(null, "fakeTeamName1", true));
+      scenarioTeams.add(contextualTeam);
+      Scenario scenario =
+          this.scenarioRepository.save(ScenarioFixture.getScenario(scenarioTeams, Set.of()));
+      entityManager.flush();
+
+      // -- EXECUTE --
+      Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
+
+      // -- ASSERT --
+      Team duplicatedContextualTeam =
+          scenarioDuplicated.getTeams().stream()
+              .filter(Team::getContextual)
+              .findFirst()
+              .orElseThrow();
+      assertEquals(tenant.getId(), duplicatedContextualTeam.getTenant().getId());
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   @DisplayName("Should skip lesson data during scenario duplication when lessons are disabled")

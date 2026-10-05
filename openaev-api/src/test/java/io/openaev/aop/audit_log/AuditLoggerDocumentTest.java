@@ -89,7 +89,9 @@ class AuditLoggerDocumentTest extends IntegrationTest {
   class DocumentLifecycleAudit {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_DOCUMENTS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_DOCUMENTS},
+        autoJoinDefaultTenant = true)
     void given_newDocumentUpload_should_logUpdateScope() throws Exception {
       // Arrange
       String fileName = "audit-create-" + UUID.randomUUID() + ".txt";
@@ -111,7 +113,9 @@ class AuditLoggerDocumentTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_DOCUMENTS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_DOCUMENTS},
+        autoJoinDefaultTenant = true)
     void given_documentMetadataUpdate_should_notLogChangedInputField() throws Exception {
       // Arrange
       String fileName = "audit-update-" + UUID.randomUUID() + ".txt";
@@ -152,7 +156,9 @@ class AuditLoggerDocumentTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_DOCUMENTS, Capability.DELETE_DOCUMENTS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_DOCUMENTS, Capability.DELETE_DOCUMENTS},
+        autoJoinDefaultTenant = true)
     void given_documentDeletion_should_notAppendAuditEvent() throws Exception {
       // Arrange
       String fileName = "audit-delete-" + UUID.randomUUID() + ".txt";
@@ -172,7 +178,9 @@ class AuditLoggerDocumentTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_DOCUMENTS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_DOCUMENTS},
+        autoJoinDefaultTenant = true)
     void given_noOpDocumentUpdate_should_stillLogUpdateEvent() throws Exception {
       // Arrange
       String fileName = "audit-noop-" + UUID.randomUUID() + ".txt";

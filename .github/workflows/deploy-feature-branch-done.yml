@@ -1,11 +1,13 @@
 name: "[Core] Deploy Feature Branch Done"
 
 # Triggered when the unprivileged build workflow completes.
-# Updates the PR comment with the build result. On success, downstream
-# automation picks up the artifact and handles promotion + deployment.
+# Reports a failed or cancelled build on the PR's GitHub deployment. On
+# success it stays silent: a downstream promotion workflow
+# picks up the artifact, deploys the image and owns the deployment status.
 #
-# SECURITY: This workflow NEVER checks out PR code. It only downloads
-# the metadata artifact and updates the PR comment.
+# SECURITY: This workflow NEVER checks out PR code. The metadata artifact is
+# produced by a run that executed PR code, so its deployment_id is only
+# trusted once the deployment's status log_url matches this build run.
 
 on:
   workflow_run:
@@ -14,11 +16,11 @@ on:
 
 permissions:
   actions: read # to download artifacts
-  pull-requests: write # to update the PR comment
+  deployments: write # to update the deployment status
 
 jobs:
   notify:
-    name: "💬 Update PR comment"
+    name: "🚦 Update deployment status"
     runs-on: ubuntu-latest
     steps:
       - name: Download metadata artifact
@@ -49,25 +51,52 @@ jobs:
           unzip -o metadata.zip -d metadata
           cat metadata/deploy-metadata.json
 
-      - name: Update PR comment with result
+      - name: Update deployment status
         uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
+            const { owner, repo } = context.repo;
             const meta = JSON.parse(fs.readFileSync('metadata/deploy-metadata.json', 'utf8'));
-            const conclusion = context.payload.workflow_run.conclusion;
+            const deploymentId = parseInt(meta.deployment_id, 10);
+            const runId = context.payload.workflow_run.id;
             const runUrl = context.payload.workflow_run.html_url;
+            const conclusion = context.payload.workflow_run.conclusion;
 
-            let body;
             if (conclusion === 'success' && meta.build_result === 'success') {
-              body = `✅ Feature branch build finished — [view run](${runUrl})\n\n⏳ Deployment is ongoing, a new comment will be posted once it completes.`;
-            } else {
-              body = `❌ Feature branch build failed — [view run](${runUrl})`;
+              // Downstream promotion reports progress from here on
+              core.info('Build succeeded, downstream promotion takes over the deployment status.');
+              return;
             }
 
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: parseInt(meta.comment_id, 10),
-              body
+            const { data: deployment } = await github.rest.repos.getDeployment({
+              owner, repo, deployment_id: deploymentId
+            });
+            const statuses = await github.paginate(github.rest.repos.listDeploymentStatuses, {
+              owner, repo, deployment_id: deploymentId, per_page: 100
+            });
+            const runPattern = new RegExp(`/actions/runs/${runId}(/attempts/\\d+)?$`);
+            if (!deployment.environment.startsWith('feature-pr-') ||
+                !statuses.some(s => runPattern.test(s.log_url || ''))) {
+              core.setFailed(`Deployment ${deploymentId} does not belong to build run ${runUrl}`);
+              return;
+            }
+
+            let state, description;
+            if (conclusion === 'cancelled') {
+              // Superseded by a newer commit or /deploy
+              state = 'inactive';
+              description = 'Superseded by a newer deployment';
+            } else {
+              state = 'failure';
+              description = 'Image build failed';
+            }
+
+            await github.rest.repos.createDeploymentStatus({
+              owner, repo,
+              deployment_id: deploymentId,
+              state,
+              log_url: runUrl,
+              description,
+              auto_inactive: false
             });

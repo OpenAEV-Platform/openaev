@@ -1,0 +1,75 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the transformation or mapping.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "time" : {
+      "type" : "timestamp_t",
+      "description" : "Time of the transformation.",
+      "requirement" : "recommended",
+      "caption" : "Event Time",
+      "type_name" : "Timestamp"
+    },
+    "product" : {
+      "type" : "object_t",
+      "description" : "The product or instance used to make the transformation",
+      "requirement" : "optional",
+      "caption" : "Product",
+      "object_type" : "product",
+      "object_name" : "Product"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the mapping or transformation.",
+      "requirement" : "optional",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "lang" : {
+      "type" : "string_t",
+      "description" : "The transformation language used to transform the data.",
+      "references" : [ {
+        "description" : "ISO 639-1",
+        "url" : "https://en.wikipedia.org/wiki/ISO_639-1"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Language",
+      "type_name" : "String"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    },
+    "url_string" : {
+      "type" : "url_t",
+      "description" : "The Uniform Resource Locator String where the mapping or transformation exists.",
+      "requirement" : "recommended",
+      "caption" : "URL String",
+      "type_name" : "URL String"
+    },
+    "time_dt" : {
+      "type" : "datetime_t",
+      "description" : "Time of the transformation.",
+      "requirement" : "optional",
+      "caption" : "Event Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "transformation_info",
+  "description" : "The transformation_info object represents the mapping or transformation used.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Transformation Info",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}

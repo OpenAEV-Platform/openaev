@@ -1,0 +1,140 @@
+{
+  "attributes" : {
+    "version" : {
+      "type" : "string_t",
+      "description" : "The TLS protocol version.",
+      "requirement" : "required",
+      "caption" : "Version",
+      "type_name" : "String"
+    },
+    "alert" : {
+      "type" : "integer_t",
+      "description" : "The integer value of a TLS alert per the TLS specification.",
+      "references" : [ {
+        "description" : "RFC 2246",
+        "url" : "https://datatracker.ietf.org/doc/html/rfc2246"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Client TLS Alert",
+      "type_name" : "Integer"
+    },
+    "key_length" : {
+      "type" : "integer_t",
+      "description" : "The length of the encryption key.",
+      "requirement" : "optional",
+      "caption" : "Key Length",
+      "type_name" : "Integer"
+    },
+    "certificate" : {
+      "type" : "object_t",
+      "description" : "The certificate object containing information about the digital certificate.",
+      "requirement" : "recommended",
+      "caption" : "Certificate",
+      "object_type" : "certificate",
+      "object_name" : "Digital Certificate"
+    },
+    "cipher" : {
+      "type" : "string_t",
+      "description" : "The negotiated cipher suite.",
+      "requirement" : "recommended",
+      "caption" : "Cipher Suite",
+      "type_name" : "String"
+    },
+    "sni" : {
+      "type" : "string_t",
+      "description" : " The Server Name Indication (SNI) extension sent by the client.",
+      "requirement" : "recommended",
+      "caption" : "Server Name Indication",
+      "type_name" : "String"
+    },
+    "certificate_chain" : {
+      "type" : "string_t",
+      "description" : "The Chain of Certificate Serial Numbers field provides a chain of Certificate Issuer Serial Numbers leading to the Root Certificate Issuer.",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Certificate Chain",
+      "type_name" : "String"
+    },
+    "client_ciphers" : {
+      "type" : "string_t",
+      "description" : "The client cipher suites that were exchanged during the TLS handshake negotiation.",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Client Cipher Suites",
+      "type_name" : "String"
+    },
+    "extension_list" : {
+      "type" : "object_t",
+      "description" : "The list of TLS extensions.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Extension List",
+      "object_type" : "tls_extension",
+      "@deprecated" : {
+        "message" : "Use the <code>tls_extension_list</code> attribute instead.",
+        "since" : "1.1.0",
+        "superseded_by" : [ "tls_extension_list" ]
+      },
+      "object_name" : "TLS Extension"
+    },
+    "handshake_dur" : {
+      "type" : "integer_t",
+      "description" : "The amount of total time for the TLS handshake to complete after the TCP connection is established, including client-side delays, in milliseconds.",
+      "requirement" : "optional",
+      "caption" : "Handshake Duration",
+      "type_name" : "Integer"
+    },
+    "ja3_hash" : {
+      "type" : "object_t",
+      "description" : "The MD5 hash of a JA3 string.",
+      "requirement" : "recommended",
+      "caption" : "JA3 Hash",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    },
+    "ja3s_hash" : {
+      "type" : "object_t",
+      "description" : "The MD5 hash of a JA3S string.",
+      "requirement" : "recommended",
+      "caption" : "JA3S Hash",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    },
+    "sans" : {
+      "type" : "object_t",
+      "description" : "The list of subject alternative names that are secured by a specific certificate.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Subject Alternative Names",
+      "object_type" : "san",
+      "@deprecated" : {
+        "message" : "Use <code>tls.certificate.sans</code> attribute instead.",
+        "since" : "1.4.0",
+        "superseded_by" : [ "tls.certificate.sans" ]
+      },
+      "object_name" : "Subject Alternative Name"
+    },
+    "server_ciphers" : {
+      "type" : "string_t",
+      "description" : "The server cipher suites that were exchanged during the TLS handshake negotiation.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Server Cipher Suites",
+      "type_name" : "String"
+    },
+    "tls_extension_list" : {
+      "type" : "object_t",
+      "description" : "The list of TLS extensions.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "TLS Extension List",
+      "object_type" : "tls_extension",
+      "object_name" : "TLS Extension"
+    }
+  },
+  "name" : "tls",
+  "description" : "The Transport Layer Security (TLS) object describes the negotiated TLS protocol used for secure communications over an establish network connection.",
+  "extends" : "object",
+  "caption" : "Transport Layer Security (TLS)",
+  "_links" : [ ]
+}

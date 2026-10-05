@@ -14,6 +14,7 @@ import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.BulkOperationContext;
@@ -33,7 +34,6 @@ import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
@@ -61,6 +61,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -86,6 +87,7 @@ public class ScenarioApi extends RestBehavior {
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final ImportService importService;
   private final ScenarioService scenarioService;
+  private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
   private final ChannelService channelService;
@@ -189,9 +191,9 @@ public class ScenarioApi extends RestBehavior {
       summary = "Duplicate a scenario",
       description =
           "Duplicates a scenario's authored content. A chained scenario also gets a copy of its logic map (workflow, steps and conditions); execution artefacts are never copied. Requires an Enterprise Edition license when the scenario is chained.")
-  public Scenario duplicateScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId)
-      throws ChainingException {
-    return hydrateKillChainPhases(scenarioService.duplicateScenario(scenarioId));
+  public Scenario duplicateScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+    return hydrateForResponse(scenarioService.duplicateScenario(scenarioId));
+
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
@@ -337,7 +339,7 @@ public class ScenarioApi extends RestBehavior {
     } else {
       scenario.setCustomDashboard(null);
     }
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         this.scenarioService.updateScenario(scenario, currentTagList, input.isApplyTagRule()));
   }
 
@@ -388,7 +390,7 @@ public class ScenarioApi extends RestBehavior {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Set<Tag> currentTagList = scenario.getTags();
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         this.scenarioService.updateScenario(scenario, currentTagList, input.isApplyTagRule()));
   }
 
@@ -423,7 +425,8 @@ public class ScenarioApi extends RestBehavior {
   @PostMapping({SCENARIO_URI + "/import", TENANT_SCENARIO_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public ImportResult importScenario(TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
+  public ImportResult importScenario(
+      @RequireTenantSelector TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
     return this.importService.handleFileImport(ctx, file, null, null);
   }
@@ -500,9 +503,9 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         this.scenarioService.enableAddScenarioTeamPlayer(
-            scenarioId, teamId, input.getPlayersIds()));
+            ctx, scenarioId, teamId, input.getPlayersIds()));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -519,7 +522,7 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         this.scenarioService.disablePlayers(scenarioId, teamId, input.getPlayersIds()));
   }
 
@@ -537,8 +540,8 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
-    return hydrateKillChainPhases(
-        this.scenarioService.addScenarioPlayer(scenarioId, teamId, input.getPlayersIds()));
+    return hydrateForResponse(
+        this.scenarioService.addScenarioPlayer(ctx, scenarioId, teamId, input.getPlayersIds()));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -555,14 +558,11 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     team.getUsers().removeAll(fromIterable(teamUsers));
     teamRepository.save(team);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         this.scenarioService.disablePlayers(scenarioId, teamId, input.getPlayersIds()));
   }
 
@@ -596,7 +596,7 @@ public class ScenarioApi extends RestBehavior {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
     }
     scenario.setUpdateAttributes(input);
-    return this.scenarioService.updateScenario(scenario);
+    return hydrateForResponse(this.scenarioService.updateScenario(scenario));
   }
 
   // -- OPTION --
@@ -656,7 +656,7 @@ public class ScenarioApi extends RestBehavior {
     if (input.getLessonsEnabled() != null) {
       scenario.setLessonsEnabled(input.getLessonsEnabled());
     }
-    return hydrateKillChainPhases(scenarioRepository.save(scenario));
+    return hydrateForResponse(scenarioRepository.save(scenario));
   }
 
   @PostMapping({
@@ -831,12 +831,16 @@ public class ScenarioApi extends RestBehavior {
   // end region
 
   /**
-   * {@code scenario_kill_chain_phases} walks the scenario's injects down to the LAZY attack-pattern
-   * phases. See {@link KillChainPhaseInitializer}: hydrate them here, inside the scoped
-   * transaction, or open-in-view rendering serializes an empty list.
+   * Hydrates, inside the scoped transaction, the lazy associations the response serializes, or
+   * open-in-view rendering serializes empty lists. {@code scenario_kill_chain_phases} walks the
+   * scenario's injects down to the LAZY attack-pattern phases, see {@link
+   * KillChainPhaseInitializer}. {@code scenario_teams} is a lazy collection on a tenant-active
+   * table: loaded after the controller returns, the tenant scope is already gone and the
+   * fail-closed read returns nothing.
    */
-  private static Scenario hydrateKillChainPhases(Scenario scenario) {
+  private static Scenario hydrateForResponse(Scenario scenario) {
     KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
+    Hibernate.initialize(scenario.getTeams());
     return scenario;
   }
 }

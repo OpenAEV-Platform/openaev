@@ -9,7 +9,7 @@ strategic levels.
 ### Architecture
 
 - **Backend**: Spring Boot (Java), PostgreSQL, Elasticsearch/OpenSearch, Silo (S3 object storage), RabbitMQ
-- **Frontend**: React, TypeScript, Vite, Material-UI
+- **Frontend**: React, TypeScript, Vite, Filigran Design System (`@filigran/design-system`), Material-UI (legacy, being replaced)
 - **Multi-module Maven project** with 3 modules: `openaev-model`, `openaev-framework`, `openaev-api`
 - ⚠️ **`openaev-framework` is deprecated** — it will be removed. **Never add new code to `openaev-framework`**. Place
   new utilities in `openaev-api` or `openaev-model` instead.
@@ -100,7 +100,7 @@ Conventions are defined in dedicated instruction files that activate automatical
 |--------------------------------------|-------------------------------------------------------------------------------------------|
 | Backend (Java/Spring/Hibernate)      | [backend.instructions.md](.github/instructions/backend.instructions.md)                   |
 | API Layer (controllers/DTOs/swagger) | [api.instructions.md](.github/instructions/api.instructions.md)                           |
-| Frontend (React/TypeScript/MUI)      | [frontend.instructions.md](.github/instructions/frontend.instructions.md)                 |
+| Frontend (React/TS/Design System)    | [frontend.instructions.md](.github/instructions/frontend.instructions.md)                 |
 | Database (schema/migrations/tenancy) | [database.instructions.md](.github/instructions/database.instructions.md)                 |
 | Migrations (Flyway/Java-based)       | [migration.instructions.md](.github/instructions/migration.instructions.md)               |
 | Multi-Tenancy (isolation/filters)    | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md)       |
@@ -119,7 +119,7 @@ Conventions are defined in dedicated instruction files that activate automatical
 | `performance-reviewer`   | Reviews code for N+1, fetch strategy, pagination, indexing, memory      |
 | `orm-reviewer`           | Reviews ORM doctrine: write correctness (listener chain), native-query justification, composite keys, test methodology |
 | `multi-tenancy-reviewer` | Reviews code for tenant isolation, cross-tenant leaks, filter bypasses |
-| `frontend-reviewer`      | Reviews frontend for component patterns, forms, permissions, MUI, i18n   |
+| `frontend-reviewer`      | Reviews frontend for component patterns, design system, forms, permissions, i18n |
 | `test-specialist`        | Creates and maintains tests following project patterns                   |
 
 ## PR & Review Conventions

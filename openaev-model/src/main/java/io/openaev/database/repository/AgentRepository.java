@@ -53,9 +53,16 @@ public interface AgentRepository
   long countByStatus(AgentStatus status);
 
   @Query(
-      "SELECT a FROM Agent a WHERE a.status = :status AND (a.lastSeen IS NULL OR a.lastSeen < :threshold)")
-  List<Agent> findStaleAgentsByStatus(
-      @Param("threshold") Instant threshold, @Param("status") AgentStatus status);
+      """
+      SELECT a FROM Agent a
+        WHERE a.tenant.id = :tenantId
+          AND a.status = :status
+          AND (a.lastSeen IS NULL OR a.lastSeen < :threshold)
+      """)
+  List<Agent> findStaleAgentsByTenantIdAndStatus(
+      @Param("tenantId") String tenantId,
+      @Param("threshold") Instant threshold,
+      @Param("status") AgentStatus status);
 
   @Modifying
   @Query(value = "DELETE FROM agents agent where agent.agent_id = :agentId;", nativeQuery = true)

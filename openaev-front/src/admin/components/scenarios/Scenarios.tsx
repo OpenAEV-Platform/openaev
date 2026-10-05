@@ -1,5 +1,6 @@
+import { Checkbox } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
-import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -85,7 +86,6 @@ const Scenarios = () => {
         <ItemCategory
           category={scenario.scenario_category ?? 'Unknown'}
           label={t(scenario.scenario_category ?? 'Unknown')}
-          size="medium"
         />
       ),
     },
@@ -225,7 +225,13 @@ const Scenarios = () => {
                 </Can>
               )
             }
-            <ToggleButtonGroup value="fake" exclusive>
+            {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
+                which announced a group of choices that never existed. */}
+            <Box sx={{
+              display: 'flex',
+              gap: 1,
+            }}
+            >
               <ExportButton
                 totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
                 exportProps={exportProps}
@@ -233,7 +239,7 @@ const Scenarios = () => {
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
                 <ImportUploaderScenario refresh={() => setReloadCount(count => count + 1)} />
               </Can>
-            </ToggleButtonGroup>
+            </Box>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <ScenarioCreation />
             </Can>
@@ -256,10 +262,9 @@ const Scenarios = () => {
           {canManage && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -329,12 +334,11 @@ const Scenarios = () => {
                           onClick={event => onToggleEntity(scenario, event)}
                         >
                           <Checkbox
-                            edge="start"
+                            aria-label={scenario.scenario_name}
                             checked={
                               (selectAll && !(scenario.scenario_id in (deSelectedElements || {})))
                               || scenario.scenario_id in (selectedElements || {})
                             }
-                            disableRipple
                           />
                         </ListItemIcon>
                       )}

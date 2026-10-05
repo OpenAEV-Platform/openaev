@@ -41,7 +41,7 @@ Key checks: `@Nested` + `@DisplayName` grouping, `given_X_should_Y` naming, AAA 
 > Full rules: [frontend.instructions.md](frontend.instructions.md)
 > Agent: `frontend-reviewer`
 
-Key checks: no MUI for layout (native HTML), `sx` prop only (no `makeStyles`), `t()` called early, auto-generated `api-types.d.ts` (no manual types), feature-flagged behavior uses the correct frontend flag check, and EE-only UI/actions are gated by frontend Enterprise Edition validation (typically `useEnterpriseEdition().isValidated`).
+Key checks: Filigran Design System components wherever the library ships one (no new `@mui/*` import of a replaced component without `fds:keep-mui <reason>`, no local look-alike), no `alpha()` on token colours (use `tint()`), no MUI for layout (native HTML), `sx` on MUI / `style` on library components (no `makeStyles`), `t()` called early, auto-generated `api-types.d.ts` (no manual types), feature-flagged behavior uses the correct frontend flag check, and EE-only UI/actions are gated by frontend Enterprise Edition validation (typically `useEnterpriseEdition().isValidated`).
 
 ## Chaining Engine
 

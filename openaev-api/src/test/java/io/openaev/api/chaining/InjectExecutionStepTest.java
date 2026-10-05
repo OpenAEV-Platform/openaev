@@ -19,6 +19,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -28,6 +30,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
+import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -53,11 +56,21 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Transactional
+// documents is v2-active: the run-path document resolution (getInjectFromDataStep) is scoped by the
+// statement inspector under the run's tenant scope, not by the removed v1 @Filter. The attachment
+// tests below arm the inspector and set that scope with setScopeOnCurrentTransaction, mirroring how
+// the production queue run (TenantScopedTransaction.forTenant) scopes the same JPQL query.
+@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 public class InjectExecutionStepTest extends IntegrationTest {
 
   @MockitoBean private InjectorContractService injectorContractService;
@@ -76,12 +89,14 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @Autowired private TeamRepository teamRepository;
   @Autowired private TenantRepository tenantRepository;
   @Autowired private DocumentRepository documentRepository;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired InjectExecutionStep injectExecutionStep;
   @Autowired AttackPathExecutionIngestionService attackPathExecutionIngestionService;
   ObjectMapper mapper = new ObjectMapper();
   @Autowired private InjectTestHelper injectTestHelper;
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private EntityManager entityManager;
+  @Autowired private PlatformTransactionManager transactionManager;
   String injectInputJson;
   InjectorContract injectorContractSaved;
   Asset savedAsset;
@@ -819,6 +834,71 @@ public class InjectExecutionStepTest extends IntegrationTest {
         injectRepository.findById(idInject).isPresent(), idInject + " should not be persisted");
   }
 
+  @Test
+  void given_noAssetExecuted_should_failInjectAndEndStepWithoutRollback() throws Exception {
+    // Arrange
+    doThrow(new ExecutionExecutorException("No asset executed"))
+        .when(executor)
+        .directExecute(any());
+    Step stepReady = createReadyStepForRun();
+
+    // Act
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+
+    // Assert
+    assertTrue(stepRunOpt.isEmpty(), "the step must be ended, not moved to RUN");
+    Boolean rollbackOnly =
+        new TransactionTemplate(transactionManager).execute(TransactionStatus::isRollbackOnly);
+    assertFalse(rollbackOnly, "the transaction must still be able to commit");
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    InjectStatus injectStatus =
+        injectRepository.findById(injectId).orElseThrow().getStatus().orElseThrow();
+    assertEquals(ExecutionStatus.ERROR, injectStatus.getName());
+    assertTrue(
+        injectStatus.getTraces().stream()
+            .anyMatch(
+                trace ->
+                    ExecutionTraceStatus.ERROR.equals(trace.getStatus())
+                        && "No asset executed".equals(trace.getMessage())),
+        "the failure reason must be kept as an error trace");
+  }
+
+  @Test
+  void given_noAssetExecutedOnRollbackOnlyTransaction_should_throwChainingException()
+      throws Exception {
+    // Arrange: an inner transactional call already doomed the transaction before the executor
+    // gave up, so the failure cannot be recorded and the rollback must be kept
+    doAnswer(
+            invocation -> {
+              TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+              throw new ExecutionExecutorException("No asset executed");
+            })
+        .when(executor)
+        .directExecute(any());
+    Step stepReady = createReadyStepForRun();
+
+    // Act
+    ChainingException ex =
+        assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
+
+    // Assert
+    assertTrue(ex.getMessage().startsWith("Inject execution failed. Inject ID: "));
+    assertInstanceOf(ExecutionExecutorException.class, ex.getCause());
+  }
+
+  private Step createReadyStepForRun() throws JsonProcessingException, ChainingException {
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    Step stepTemplate = injectExecutionStep.create(step, workflowTemplate).orElseThrow();
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    workflowRun.setSimulation(workflowTemplate.getSimulation());
+    return injectExecutionStep
+        .ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun)
+        .orElseThrow();
+  }
+
   // ---------------------------------------------------------------------------
   // resolveAudienceRecipients (tabletop audience: teams, scope players, denylist)
   // ---------------------------------------------------------------------------
@@ -1126,7 +1206,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
     Step readyStep = emailReadyStep(List.of(), List.of(attachment));
 
-    // Act
+    // Act: scope the run-path resolution to the current tenant, as the production queue run does.
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
     Inject inject =
         ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
 
@@ -1150,7 +1231,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     data.putArray("inject_documents").add(attachment.getId());
     readyStep.setData(mapper.writeValueAsString(data));
 
-    // Act
+    // Act: scope the run-path resolution to the current tenant, as the production queue run does.
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
     Inject inject =
         ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
 
@@ -1164,8 +1246,11 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @Test
   void given_stepDataWithDeletedDocument_whenBuildingInject_thenAttachmentIsDropped()
       throws Exception {
-    // Arrange: the document is deleted between step authoring and execution.
+    // Arrange: the document is deleted between step authoring and execution. Scope the transaction
+    // to the current tenant first, as the production queue run does, so both the scoped delete and
+    // the run-path resolution run under it (documents is v2-active: the inspector scopes deletes).
     Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
     Step readyStep = emailReadyStep(List.of(), List.of(attachment));
     documentRepository.delete(attachment);
 
@@ -1182,10 +1267,10 @@ public class InjectExecutionStepTest extends IntegrationTest {
   void given_stepDataWithForeignTenantDocument_whenBuildingInject_thenAttachmentIsDropped()
       throws Exception {
     // Arrange: the step is authored under the current tenant, but its data references a document
-    // persisted under ANOTHER tenant (stale or crafted step id). The document resolution goes
-    // through a JPQL query precisely so Hibernate's tenantFilter applies; this test pins that
-    // guarantee - a future primary-key lookup (filters never apply to those) or a disabled filter
-    // would resolve the foreign document and fail here.
+    // persisted under ANOTHER tenant (stale or crafted step id). documents is v2-active, so the
+    // statement inspector scopes the run-path JPQL resolution to the run's tenant; this test pins
+    // that a foreign-tenant document is not resolved, so a disabled scope or a bypass of the
+    // inspector would resolve it and fail here.
     Step readyStep = emailReadyStep(List.of());
     String currentTenantId = TenantContext.getCurrentTenant();
     // A bare tenant row is enough here (no provisioning side effects): the document only needs a
@@ -1195,7 +1280,11 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Document foreignDocument;
     tenantIsolationTestHelper.switchToTenant(foreignTenant.getId(), entityManager);
     try {
-      foreignDocument = documentRepository.save(DocumentFixture.getDocumentJpeg());
+      // documents is v2-active: the fixture stamps the default tenant, so attribute the foreign
+      // document to the foreign tenant explicitly instead of relying on the removed listener.
+      Document toSave = DocumentFixture.getDocumentJpeg();
+      toSave.setTenant(foreignTenant);
+      foreignDocument = documentRepository.save(toSave);
     } finally {
       tenantIsolationTestHelper.switchToTenant(currentTenantId, entityManager);
     }
@@ -1206,8 +1295,10 @@ public class InjectExecutionStepTest extends IntegrationTest {
     data.putArray("inject_documents").add(link);
     readyStep.setData(mapper.writeValueAsString(data));
 
-    // Act: deserialize through the real scoped run path (the helper re-enabled the tenantFilter
-    // for the current tenant on this session, as the transaction aspect does for the queue run).
+    // Act: deserialize through the real scoped run path. The run scope is the current tenant, set
+    // with setScopeOnCurrentTransaction as the production queue run (TenantScopedTransaction) does,
+    // so the inspector scopes the document JPQL query and drops the foreign-tenant attachment.
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(currentTenantId));
     Inject inject =
         ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
 
@@ -1909,5 +2000,21 @@ public class InjectExecutionStepTest extends IntegrationTest {
     String expectedIndex = AttackPathIds.executionNode("inject-3", "target.local", "agent-1");
     assertTrue(tracesByEndpointSource.containsKey(expectedIndex));
     assertEquals("endpoint ok\n", tracesByEndpointSource.get(expectedIndex).toString());
+  }
+
+  @Test
+  void given_stepCarryingItsInjectId_should_beAlreadyRun() {
+    Step readyStep = new Step();
+    readyStep.setData("{\"inject_title\":\"Scan\",\"inject_id\":\"inject-1\"}");
+
+    assertTrue(injectExecutionStep.isAlreadyRun(readyStep));
+  }
+
+  @Test
+  void given_stepWithoutInjectId_should_notBeAlreadyRun() {
+    Step readyStep = new Step();
+    readyStep.setData("{\"inject_title\":\"Scan\"}");
+
+    assertFalse(injectExecutionStep.isAlreadyRun(readyStep));
   }
 }

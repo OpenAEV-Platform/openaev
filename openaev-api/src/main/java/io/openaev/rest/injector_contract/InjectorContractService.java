@@ -435,7 +435,8 @@ public class InjectorContractService implements DependenciesManager {
    */
   private void attributeToPublisher(InjectorContract contract, Injector injector) {
     contract.setAuthorUser(null);
-    contract.setAuthorOrganization(organizationService.findOrCreateByName(injector.getName()));
+    contract.setAuthorOrganization(
+        organizationService.findOrCreateByName(injector.getName(), injector.getTenantId()));
   }
 
   /** Attributes an interactively created contract to the authenticated human creating it. */
@@ -885,6 +886,16 @@ public class InjectorContractService implements DependenciesManager {
    * injector type and name). Grouping by the unselected injector id would split a contract linked
    * to several injectors into one identical projected row per link, making page content disagree
    * with the distinct count.
+   *
+   * <p>{@code payloads} and {@code collector_types} are both tenant-active tables, so {@code
+   * TenantStatementInspector} wraps each joined table in a filtered derived table. A derived table
+   * carries no primary key, so PostgreSQL cannot infer that a projected column is functionally
+   * dependent on the grouped {@code id} the way it can for a real base table; every column a
+   * selector projects off either join (FULL, THREAT_ARSENAL, THREAT_ARSENAL_CONTENT) must be
+   * grouped explicitly or the statement fails with "column must appear in the GROUP BY clause".
+   * That is why the list below groups the three {@code payloads} columns and {@code
+   * collector_types.name} on top of the two ids: dropping any one of them turns {@code
+   * injector_contracts/search} and {@code threat_arsenals/search} into a 500.
    */
   private List<Expression<?>> getCommonGroupBy(
       @NotNull final Root<InjectorContract> injectorContractRoot,
@@ -892,7 +903,11 @@ public class InjectorContractService implements DependenciesManager {
     return Arrays.asList(
         injectorContractRoot.get("compositeId"),
         ctx.payloadJoin().get("id"),
-        ctx.payloadCollectorTypeJoin().get("id"));
+        ctx.payloadJoin().get("type"),
+        ctx.payloadJoin().get("status"),
+        ctx.payloadJoin().get("executionArch"),
+        ctx.payloadCollectorTypeJoin().get("id"),
+        ctx.payloadCollectorTypeJoin().get("name"));
   }
 
   /**

@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 import { useNavigate } from 'react-router';
@@ -293,21 +294,20 @@ const InjectExpectationResultList = ({
                     {sourceName}
                   </Typography>
                   {agentBreakdown && agentBreakdown.length > 0 && (
-                    <Tooltip
-                      title={renderBreakdownTooltip(agentBreakdown)}
-                      arrow
-                      slotProps={{ tooltip: { sx: { maxWidth: 480 } } }}
-                    >
-                      <InfoOutlined
-                        sx={{
-                          'fontSize': 15,
-                          'flexShrink': 0,
-                          'color': 'text.secondary',
-                          'cursor': 'help',
-                          '&:hover': { color: 'text.primary' },
-                        }}
-                        onClick={e => e.stopPropagation()}
-                      />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoOutlined
+                          sx={{
+                            'fontSize': 15,
+                            'flexShrink': 0,
+                            'color': 'text.secondary',
+                            'cursor': 'help',
+                            '&:hover': { color: 'text.primary' },
+                          }}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </TooltipTrigger>
+                      {renderBreakdownTooltip(agentBreakdown) && <TooltipContent>{renderBreakdownTooltip(agentBreakdown)}</TooltipContent>}
                     </Tooltip>
                   )}
                 </div>

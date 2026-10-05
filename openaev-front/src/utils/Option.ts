@@ -6,6 +6,7 @@ import {
   type Tag,
   type UserTenantOutput,
 } from './api-types';
+import { validHexColor } from './Colors';
 
 interface Country {
   code: string;
@@ -45,7 +46,7 @@ export const tagOptions = (
     tagItem => ({
       id: tagItem.tag_id,
       label: tagItem.tag_name,
-      color: tagItem.tag_color,
+      color: validHexColor(tagItem.tag_color),
     }) as Option,
   );
 

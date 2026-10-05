@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
@@ -29,8 +28,11 @@ import org.hibernate.annotations.*;
 @Data
 @Entity
 @Table(name = "attack_patterns")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
+// attack_patterns is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter and no
+// TenantBaseListener. Neither must come back: the filter would add a second, thread-local source of
+// truth, and the listener would stamp the ambient tenant on a write that forgot to attribute itself
+// instead of failing on the NOT NULL column.
 public class AttackPattern implements TenantBase {
 
   @Id

@@ -144,6 +144,38 @@ public class ExerciseApiTest extends IntegrationTest {
     assertEquals(customDashboardSaved.getId(), newExercise.getCustomDashboard().getId());
   }
 
+  @DisplayName("Create exercise on the non-prefixed route with no ambient tenant")
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void given_noAmbientTenantOnNonPrefixedRoute_should_createExerciseUnderDefaultTenant()
+      throws Exception {
+    // -- PREPARE --
+    // TenantInterceptor never sets an ambient tenant for this route: reproduce that thread state
+    // instead of relying on the test fixture's DefaultTenantExtension.
+    TenantContext.clearCurrentTenant();
+    ExerciseInput exerciseInput = new ExerciseInput();
+    exerciseInput.setName("My non-prefixed exercise");
+
+    // -- EXECUTE --
+    String response =
+        this.mvc
+            .perform(
+                post(EXERCISE_URI)
+                    .content(asJsonString(exerciseInput))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    String newExerciseId = JsonPath.read(response, "$.exercise_id");
+    Exercise newExercise = this.exerciseRepository.findById(newExerciseId).orElseThrow();
+    assertEquals(Tenant.DEFAULT_TENANT_UUID, newExercise.getTenant().getId());
+  }
+
   @DisplayName("Create chained exercise fails without enterprise edition")
   @Test
   @WithMockUser(
@@ -510,7 +542,7 @@ public class ExerciseApiTest extends IntegrationTest {
       User userTom = userRepository.save(UserFixture.getUser("Tom", "RT1", "tom-rt1@fake.email"));
       USER_IDS.add(userTom.getId());
 
-      Team sharedTeam = new Team();
+      Team sharedTeam = TeamFixture.getEmptyTeam();
       sharedTeam.setName("SharedTeam-RT1");
       sharedTeam.setUsers(List.of(userTom));
       teamRepository.save(sharedTeam);
@@ -577,17 +609,17 @@ public class ExerciseApiTest extends IntegrationTest {
     @DisplayName("Replacing teams should update the exercise team list in database")
     void replacingTeamsShouldPersistNewTeamListInDatabase() throws Exception {
       // -- PREPARE --
-      Team teamToRemove = new Team();
+      Team teamToRemove = TeamFixture.getEmptyTeam();
       teamToRemove.setName("TeamToRemove-RT3");
       teamRepository.save(teamToRemove);
       TEAM_IDS.add(teamToRemove.getId());
 
-      Team teamToKeep = new Team();
+      Team teamToKeep = TeamFixture.getEmptyTeam();
       teamToKeep.setName("TeamToKeep-RT3");
       teamRepository.save(teamToKeep);
       TEAM_IDS.add(teamToKeep.getId());
 
-      Team teamToAdd = new Team();
+      Team teamToAdd = TeamFixture.getEmptyTeam();
       teamToAdd.setName("TeamToAdd-RT3");
       teamRepository.save(teamToAdd);
       TEAM_IDS.add(teamToAdd.getId());

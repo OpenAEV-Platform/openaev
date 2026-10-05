@@ -188,7 +188,8 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given a marking from another tenant, should refuse to assign it")
+    @DisplayName(
+        "given a marking from another tenant (the user has no access to), should refuse to assign it")
     void given_markingFromAnotherTenant_should_refuse() throws Exception {
       // -- ARRANGE --
       String otherTenantId = tenantHelper.createTenant("marking-assign-other").getId();
@@ -225,7 +226,7 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
 
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
     return mvc.perform(
-        put(tenantUri(TENANT_GROUP_URI) + "/" + group.getId() + "/markings")
+        put(TENANT_GROUP_URI + "/{groupId}/markings", tenantId, group.getId())
             .content(asJsonString(new GroupUpdateMarkingsInput(markingIds)))
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)

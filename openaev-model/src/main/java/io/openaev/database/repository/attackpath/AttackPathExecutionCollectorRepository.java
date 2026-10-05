@@ -2,15 +2,18 @@ package io.openaev.database.repository.attackpath;
 
 import io.openaev.database.model.attackpath.AttackPathExecutionCollector;
 import java.util.List;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 public interface AttackPathExecutionCollectorRepository
-    extends JpaRepository<AttackPathExecutionCollector, String> {
+    extends CrudRepository<AttackPathExecutionCollector, String> {
 
+  // The tenant predicate below is now redundant with the v2 statement inspector rewrite (the
+  // caller's scope already restricts the rows), kept as an explicit second layer during the
+  // rollout; a follow-up may drop it once every caller runs exclusively under v2.
   @Query(
       "SELECT c FROM AttackPathExecutionCollector c "
           + "WHERE c.executionId = :executionId AND c.tenant.id = :tenantId")

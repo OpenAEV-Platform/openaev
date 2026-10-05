@@ -1,0 +1,16 @@
+name: Generate OCSF Parser
+description: Generates an OCSF parser for a given version
+
+inputs:
+  version:
+    description: Version of the OCSF specification for which to generate the parser
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Invoke the plugin
+      id: invoke-openaev-plugin
+      run: |
+        mvn io.openaev:openaev-maven-plugin:generate-ocsf-parser -Dversion=${{ inputs.version }} && mvn spotless:apply
+      shell: bash

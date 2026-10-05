@@ -106,7 +106,7 @@ public class SecurityCoverageService {
    * @throws IOException there is an issue with serialisation
    */
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#securityCoverageStixId")
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional
   public Scenario handleSecurityCoverageProcessing(
       TxCtx ctx, String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle)
       throws ParsingException, BundleValidationError, ConnectorError, IOException {

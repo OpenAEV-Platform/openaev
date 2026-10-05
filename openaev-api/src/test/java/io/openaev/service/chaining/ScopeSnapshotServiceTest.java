@@ -469,7 +469,7 @@ class ScopeSnapshotServiceTest {
       Workflow run = Workflow.builder().status(WorkflowStatus.RUN).build();
       run.getWorkflowScopeRules().add(rule);
 
-      scopeSnapshotService.freezeEnd(run);
+      scopeSnapshotService.freezeEnd(run, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
 
       // The end photo exists (the run HAS ended) and records the deletion explicitly, keeping the
       // last known launch label - never a raw-id label the diff would misread as a rename.
@@ -523,7 +523,7 @@ class ScopeSnapshotServiceTest {
       Workflow run = Workflow.builder().status(WorkflowStatus.RUN).build();
       run.getWorkflowScopeRules().add(rule);
 
-      scopeSnapshotService.freezeEnd(run);
+      scopeSnapshotService.freezeEnd(run, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
 
       assertNotNull(rule.getSnapshotEnd());
       assertEquals("Renamed server", rule.getSnapshotEnd().getLabel());

@@ -1,6 +1,8 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AttackPatternRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -23,6 +25,11 @@ public class AttackPatternComposer extends ComposerBase<AttackPattern> {
 
     @Override
     public AttackPatternComposer.Composer persist() {
+      // The listener now fails fast on an unattributed write; stamp the ambient tenant here when
+      // the caller left it unset, mirroring EndpointComposer and SecurityPlatformComposer.
+      if (attackPattern.getTenant() == null) {
+        attackPattern.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+      }
       attackPatternRepository.save(attackPattern);
       return this;
     }

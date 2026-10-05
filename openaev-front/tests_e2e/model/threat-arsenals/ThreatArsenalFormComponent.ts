@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import MuiFormHelpers from '../../utils/MuiFormHelpers';
 
@@ -8,6 +8,7 @@ class ThreatArsenalFormComponent {
   // Form tabs
   readonly generalTab: Locator;
   readonly commandsTab: Locator;
+  readonly outputTab: Locator;
 
   // General tab fields
   readonly nameField: Locator;
@@ -37,29 +38,68 @@ class ThreatArsenalFormComponent {
     // Tabs
     this.generalTab = page.getByRole('tab', { name: 'General' });
     this.commandsTab = page.getByRole('tab', { name: 'Commands' });
+    this.outputTab = page.getByRole('tab', { name: 'Output' });
 
     // General fields
-    this.nameField = page.getByRole('textbox', { name: 'Name*' });
+    this.nameField = page.getByRole('textbox', {
+      name: 'Name',
+      exact: true,
+    });
     this.descriptionField = page.getByRole('textbox', { name: 'Description' });
     this.attackPatternsField = page.getByRole('combobox', { name: 'Attack patterns' });
     this.tagsField = page.getByRole('combobox', { name: 'Tags' });
     this.domainsField = page.getByRole('combobox', { name: 'Domains' });
-    this.expectationsField = page.getByRole('combobox', { name: 'Expectations *' });
+    this.expectationsField = page.getByRole('combobox', {
+      // No asterisk in the name: `ComboboxLabel` took a `required` prop (lib
+      // #163), and the site now uses it instead of appending " *" as text. The
+      // marker it draws is `<span aria-hidden="true">*</span>`, excluded from
+      // the accessible name — measured, the name is exactly "Expectations".
+      // `exact` is enough to narrow: its neighbours are named Prevention,
+      // Detection and Vulnerability.
+      name: 'Expectations',
+      exact: true,
+    });
 
     // Commands fields
-    this.typeField = page.getByRole('combobox', { name: 'Type *' });
-    this.architectureField = page.getByRole('combobox', { name: 'Architecture *' });
+    // The library marks a required field with an `aria-hidden` asterisk, so the
+    // accessible name is the label alone — MUI used to fold the marker into it.
+    this.typeField = page.getByRole('combobox', {
+      name: 'Type',
+      exact: true,
+    });
+    this.architectureField = page.getByRole('combobox', {
+      name: 'Architecture',
+      exact: true,
+    });
     this.platformsField = page.getByRole('combobox', { name: 'Platforms' });
     this.argumentBtn = page.getByRole('button', { name: 'New argument' });
     this.prerequisiteBtn = page.getByRole('button', { name: 'New prerequisite' });
-    this.executorField = page.getByRole('combobox', { name: 'Executor *' });
+    this.executorField = page
+      .getByRole('combobox', {
+        name: 'Executor',
+        exact: true,
+      })
+      // The asterisk used to disambiguate this field from another carrying the
+      // same label; the library hides it from the accessible name, so the
+      // requirement itself does the narrowing.
+      .and(page.locator('[aria-required="true"]'));
     this.commandField = page.locator('textarea[name="command_content"]');
     this.documentsAddBtn = page.getByText('Add document');
-    this.hostnameField = page.getByRole('textbox', { name: 'Hostname*' });
+    this.hostnameField = page.getByRole('textbox', {
+      name: 'Hostname',
+      exact: true,
+    });
 
     // Actions
     // Scoped to the action form: the list header hosts a "Create" button too.
-    this.saveButton = page.locator('#actionForm').getByRole('button', { name: 'Create' });
+    // `exact` matters: the form's create-a-related-object ornaments are named
+    // "Create a new tag" and the like, which a substring match also selects.
+    this.saveButton = page
+      .locator('#actionForm')
+      .getByRole('button', {
+        name: 'Create',
+        exact: true,
+      });
   }
 
   // -- Get Locator methods
@@ -79,6 +119,35 @@ class ThreatArsenalFormComponent {
   async switchToGeneralTab() {
     await this.generalTab.click();
   };
+
+  async addTextOutput(name: string, key: string, rule: string) {
+    await this.outputTab.click();
+    await this.page.getByRole('button', { name: 'Add attribute' }).click();
+
+    const outputPrefix = 'action_output_parsers.0.output_parser_contract_output_elements.0';
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_name"]`).fill(name);
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_key"]`).fill(key);
+    const typeSelect = this.page
+      .getByRole('combobox', {
+        name: 'Type',
+        exact: true,
+      })
+      .last();
+    await expect(typeSelect).toBeVisible();
+    await MuiFormHelpers.selectSingleOption(
+      this.page,
+      typeSelect,
+      'Text',
+    );
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_rule"]`).fill(rule);
+    // The regex group row is rendered from the selected type, so it only exists
+    // once that select has actually applied.
+    const regexGroupValue = this.page.getByPlaceholder('$1');
+    await expect(regexGroupValue, 'Output type "Text" was not applied').toBeVisible();
+    await regexGroupValue.fill('$1');
+    // Without this the parser extracts the value but never raises a finding.
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_is_finding"]`).check();
+  }
 
   async selectDomain(domains: string | string[]) {
     const values = Array.isArray(domains) ? domains : [domains];
@@ -133,7 +202,12 @@ class ThreatArsenalFormComponent {
     }
 
     if (data.type) {
-      const typeCombobox = this.page.getByRole('combobox', { name: 'Type *' }).nth(index + 1);
+      const typeCombobox = this.page
+        .getByRole('combobox', {
+          name: 'Type',
+          exact: true,
+        })
+        .nth(index + 1);
       const typeValue = data.type.toLowerCase().replace(/\s+/g, '-');
 
       // Wait for the combobox to be visible and enabled

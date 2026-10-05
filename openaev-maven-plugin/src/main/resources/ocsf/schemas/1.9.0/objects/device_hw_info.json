@@ -1,0 +1,236 @@
+{
+  "attributes" : {
+    "uuid" : {
+      "type" : "uuid_t",
+      "description" : "The device manufacturer assigned universally unique hardware identifier. For SMBIOS compatible devices such as those running Linux and Windows, it is the UUID member of the System Information structure in the SMBIOS information. For macOS devices, it is the Hardware UUID (also known as IOPlatformUUID in the I/O Registry).",
+      "references" : [ {
+        "description" : "SMBIOS Specification",
+        "url" : "https://www.dmtf.org/standards/smbios"
+      }, {
+        "description" : "Linux DMI Table Decoder documentation",
+        "url" : "https://linux.die.net/man/8/dmidecode"
+      }, {
+        "description" : "Windows Win32_ComputerSystemProduct documentation",
+        "url" : "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-computersystemproduct"
+      }, {
+        "description" : "Apple Wiki (Mac Hardware UUID)",
+        "url" : "https://theapplewiki.com/wiki/UDID#Mac"
+      }, {
+        "description" : "macOS I/O Registry source code reference to IOPlatformUUID",
+        "url" : "https://github.com/apple-oss-distributions/xnu/blob/8d741a5de7ff4191bf97d57b9f54c2f6d4a15585/iokit/IOKit/IOKitKeys.h#L264-L265"
+      } ],
+      "requirement" : "optional",
+      "caption" : "UUID",
+      "type_name" : "UUID"
+    },
+    "bios_date" : {
+      "type" : "string_t",
+      "description" : "The BIOS date. For example: <code>03/31/16</code>.",
+      "requirement" : "optional",
+      "caption" : "BIOS Date",
+      "type_name" : "String"
+    },
+    "bios_manufacturer" : {
+      "type" : "string_t",
+      "description" : "The BIOS manufacturer. For example: <code>LENOVO</code>.",
+      "requirement" : "optional",
+      "caption" : "BIOS Manufacturer",
+      "type_name" : "String"
+    },
+    "bios_ver" : {
+      "type" : "string_t",
+      "description" : "The BIOS version. For example: <code>LENOVO G5ETA2WW (2.62)</code>.",
+      "requirement" : "optional",
+      "caption" : "BIOS Version",
+      "type_name" : "String"
+    },
+    "chassis" : {
+      "type" : "string_t",
+      "description" : "The chassis type describes the system enclosure or physical form factor. For example, as described for a Windows chassis type.",
+      "references" : [ {
+        "description" : "Windows Chassis Types",
+        "url" : "https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/win32-systemenclosure"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Chassis",
+      "type_name" : "String"
+    },
+    "cores" : {
+      "type" : "integer_t",
+      "description" : "The total number of processor cores across all installed CPUs on the system. For per-CPU core detail, use <code>cpu_info_list</code>.",
+      "requirement" : "optional",
+      "caption" : "Cores",
+      "type_name" : "Integer"
+    },
+    "cpu_architecture" : {
+      "type" : "string_t",
+      "description" : "The CPU architecture, normalized to the caption of the <code>cpu_architecture_id</code> value. In the case of <code>Other</code>, it is defined by the source.",
+      "requirement" : "optional",
+      "caption" : "CPU Architecture",
+      "@deprecated" : {
+        "message" : "Use <code>cpu_info_list[*].cpu_architecture</code> instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "cpu_info_list[*].cpu_architecture" ]
+      },
+      "type_name" : "String"
+    },
+    "cpu_architecture_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "CPU uses the RISC-V ISA. For bitness, refer to <code>cpu_bits</code>.",
+          "caption" : "RISC-V"
+        },
+        "0" : {
+          "description" : "The CPU architecture is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "CPU uses the x86 ISA. For bitness, refer to <code>cpu_bits</code>.",
+          "caption" : "x86"
+        },
+        "2" : {
+          "description" : "CPU uses the ARM ISA. For bitness, refer to <code>cpu_bits</code>.",
+          "caption" : "ARM"
+        },
+        "99" : {
+          "description" : "The CPU architecture is not mapped. See the <code>cpu_architecture</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized identifier of the CPU architecture.",
+      "requirement" : "optional",
+      "caption" : "CPU Architecture ID",
+      "sibling" : "cpu_architecture",
+      "@deprecated" : {
+        "message" : "Use <code>cpu_info_list[*].cpu_architecture_id</code> instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "cpu_info_list[*].cpu_architecture_id" ]
+      },
+      "type_name" : "Integer"
+    },
+    "cpu_bits" : {
+      "type" : "integer_t",
+      "description" : "The cpu architecture, the number of bits used for addressing in memory. For example: <code>32</code> or <code>64</code>.",
+      "requirement" : "optional",
+      "caption" : "CPU Bits",
+      "@deprecated" : {
+        "message" : "Use <code>cpu_info_list[*].cpu_bits</code> instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "cpu_info_list[*].cpu_bits" ]
+      },
+      "type_name" : "Integer"
+    },
+    "cpu_cores" : {
+      "type" : "integer_t",
+      "description" : "The number of processor cores in all installed processors. For Example: <code>42</code>.",
+      "requirement" : "optional",
+      "caption" : "CPU Cores",
+      "@deprecated" : {
+        "message" : "Use <code>cpu_info_list[*].cores</code> instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "cpu_info_list[*].cores" ]
+      },
+      "type_name" : "Integer"
+    },
+    "cpu_count" : {
+      "type" : "integer_t",
+      "description" : "The number of physical processors on a system. For per-CPU detail, use <code>cpu_info_list</code>.",
+      "requirement" : "optional",
+      "caption" : "CPU Count",
+      "type_name" : "Integer"
+    },
+    "cpu_info_list" : {
+      "type" : "object_t",
+      "description" : "A list of <code>cpu_info</code> objects, each describing a physical CPU package installed in the device. Use with <code>cpu_count</code>.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "CPU Information",
+      "object_type" : "cpu_info",
+      "object_name" : "CPU Information"
+    },
+    "cpu_speed" : {
+      "type" : "integer_t",
+      "description" : "The speed of the processor in Mhz. For Example: <code>4200</code>.",
+      "requirement" : "optional",
+      "caption" : "Processor Speed",
+      "@deprecated" : {
+        "message" : "Use <code>cpu_info_list[*].speed_mhz</code> instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "cpu_info_list[*].speed_mhz" ]
+      },
+      "type_name" : "Integer"
+    },
+    "cpu_type" : {
+      "type" : "string_t",
+      "description" : "The processor type. For example: <code>x86 Family 6 Model 37 Stepping 5</code>.",
+      "requirement" : "optional",
+      "caption" : "Processor Type",
+      "@deprecated" : {
+        "message" : "Use <code>cpu_info_list[*].model</code> and <code>cpu_info_list[*].vendor_name</code> instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "cpu_info_list[*].model", "cpu_info_list[*].vendor_name" ]
+      },
+      "type_name" : "String"
+    },
+    "desktop_display" : {
+      "type" : "object_t",
+      "description" : "The desktop display affiliated with the event",
+      "requirement" : "optional",
+      "caption" : "Desktop Display",
+      "object_type" : "display",
+      "object_name" : "Display"
+    },
+    "gpu_count" : {
+      "type" : "integer_t",
+      "description" : "The number of graphics processors on a system. For per-GPU detail, use <code>gpu_info_list</code>.",
+      "requirement" : "optional",
+      "caption" : "GPU Count",
+      "type_name" : "Integer"
+    },
+    "gpu_info_list" : {
+      "type" : "object_t",
+      "description" : "A list of GPU objects describing the hardware properties of each graphics processor installed on the device. Use with <code>gpu_count</code>.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "GPU information",
+      "object_type" : "gpu_info",
+      "object_name" : "GPU Information"
+    },
+    "keyboard_info" : {
+      "type" : "object_t",
+      "description" : "The keyboard detailed information.",
+      "requirement" : "optional",
+      "caption" : "Keyboard Information",
+      "object_type" : "keyboard_info",
+      "object_name" : "Keyboard Information"
+    },
+    "ram_size" : {
+      "type" : "integer_t",
+      "description" : "The total amount of installed RAM, in Megabytes. For example: <code>2048</code>.",
+      "requirement" : "optional",
+      "caption" : "RAM Size",
+      "type_name" : "Integer"
+    },
+    "serial_number" : {
+      "type" : "string_t",
+      "description" : "The device manufacturer serial number.",
+      "requirement" : "optional",
+      "caption" : "Serial Number",
+      "type_name" : "String",
+      "observable" : 37
+    },
+    "vendor_name" : {
+      "type" : "string_t",
+      "description" : "The device manufacturer.",
+      "requirement" : "optional",
+      "caption" : "Vendor Name",
+      "type_name" : "String"
+    }
+  },
+  "name" : "device_hw_info",
+  "description" : "The Device Hardware Information object contains details and specifications of the physical components that make up a device. This information provides an overview of the hardware capabilities, configuration, and characteristics of the device.",
+  "extends" : "object",
+  "caption" : "Device Hardware Info",
+  "_links" : [ ]
+}

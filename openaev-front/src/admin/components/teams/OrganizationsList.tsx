@@ -1,5 +1,6 @@
+import { Checkbox } from '@filigran/design-system';
 import { DomainOutlined, HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -188,10 +189,9 @@ const OrganizationsList = () => {
           {canManage && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -247,12 +247,11 @@ const OrganizationsList = () => {
                       onClick={event => onToggleEntity(organization, event)}
                     >
                       <Checkbox
-                        edge="start"
+                        aria-label={organization.organization_name}
                         checked={
                           (selectAll && !(organization.organization_id in (deSelectedElements || {})))
                           || organization.organization_id in (selectedElements || {})
                         }
-                        disableRipple
                       />
                     </ListItemIcon>
                   )}

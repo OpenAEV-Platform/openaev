@@ -71,13 +71,15 @@ public class ZipJsonApi<T extends Base> {
       MultipartFile file,
       String nameAttributeKey,
       IncludeOptions includeOptions,
-      Function<T, T> sanityCheck)
+      Function<T, T> sanityCheck,
+      String writeTenantId)
       throws IOException {
     return this.zipJsonService.handleImport(
         file.getBytes(),
         nameAttributeKey,
         includeOptions,
         sanityCheck,
-        IMPORTED_OBJECT_NAME_SUFFIX);
+        IMPORTED_OBJECT_NAME_SUFFIX,
+        writeTenantId);
   }
 }
