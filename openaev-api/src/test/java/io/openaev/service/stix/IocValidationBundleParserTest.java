@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.service.stix.error.BundleValidationError;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -122,6 +123,23 @@ class IocValidationBundleParserTest {
     IocValidationRequest parsed = parser.parse(bundle(request), REQUEST_ID);
     assertThat(parsed.iocs()).hasSize(1);
     assertThat(parsed.pairs()).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("keeps one IOC per indicator, the first, whatever the other test kinds given for it")
+  void given_manyTestKindsForOneIndicator_should_keepTheFirst() throws BundleValidationError {
+    ObjectNode request = request();
+    ArrayNode iocs = (ArrayNode) request.get("iocs");
+    for (String kind : List.of("http_head", "network_traffic", "log_injection", "file_drop")) {
+      ObjectNode copy = iocs.get(0).deepCopy();
+      copy.put("test_kind", kind);
+      iocs.add(copy);
+    }
+    IocValidationRequest parsed = parser.parse(bundle(request), REQUEST_ID);
+    assertThat(parsed.iocs())
+        .singleElement()
+        .satisfies(
+            ioc -> assertThat(ioc.testKind()).isEqualTo(IocValidationTestKind.DNS_RESOLUTION));
   }
 
   @Test
