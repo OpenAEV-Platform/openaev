@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Filters;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
@@ -12,6 +13,7 @@ import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.EsEntities;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -30,6 +32,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
@@ -277,6 +281,176 @@ class EngineServiceIntegrationTest extends IntegrationTest {
       assertThat(allTenantsRead.getEsDatas())
           .extracting(EsBase::getBase_id)
           .containsExactlyInAnyOrder(endpointAId, endpointBId);
+    }
+  }
+
+  @Nested
+  @DisplayName("Free-text search treats its input as a value, never as a query (F408690-40)")
+  class FreeTextSearch {
+
+    // Distinctive tokens: tenant onboarding indexes its own documents (security platforms, ...),
+    // so common words such as "splunk" would not isolate the seeded endpoints.
+    private String tenantA;
+    private String tenantB;
+    private String zorblaxId;
+    private String tenantBZorblaxId;
+
+    @BeforeEach
+    void seedTwoTenants() throws Exception {
+      tenantA = tenantHelper.createTenantWithCurrentUser("engine-search-a").getId();
+      tenantB = tenantHelper.createTenantWithCurrentUser("engine-search-b").getId();
+      zorblaxId = persistEndpointForTenant(tenantA, "zorblax-server");
+      persistEndpointForTenant(tenantA, "quintor-gateway");
+      tenantBZorblaxId = persistEndpointForTenant(tenantB, "zorblax-tenant-b");
+
+      indexAndWait();
+    }
+
+    private List<String> searchIds(String tenantId, String term) {
+      return engineService.search(TxCtx.forTenant(tenantId), ADMIN_USER, term, null).stream()
+          .map(EsSearch::getId)
+          .toList();
+    }
+
+    @Test
+    @DisplayName("a plain term matches the representative of its own tenant's document only")
+    void given_plainTerm_should_matchOwnTenantDocumentOnly() {
+      assertThat(searchIds(tenantA, "zorblax")).containsExactly(zorblaxId);
+      assertThat(searchIds(tenantB, "zorblax")).containsExactly(tenantBZorblaxId);
+    }
+
+    @Test
+    @DisplayName("the last term still matches as a prefix (search-as-you-type)")
+    void given_prefix_should_matchDocument() {
+      assertThat(searchIds(tenantA, "zorb")).containsExactly(zorblaxId);
+    }
+
+    @Test
+    @DisplayName("a whole id matches its document exactly")
+    void given_wholeId_should_matchDocument() {
+      assertThat(searchIds(tenantA, zorblaxId)).containsExactly(zorblaxId);
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @ValueSource(
+        strings = {
+          "*",
+          "?*",
+          "*blax",
+          "zorbl?x",
+          "/.*/",
+          "NOT zorblax",
+          "zorblax OR quintor",
+          "zorblax) OR (*",
+          "base_entity:asset",
+          "base_representative:zorblax",
+          "base_*:*",
+          "_exists_:base_id",
+          "+-=&&||><!(){}[]^\"~*?:\\/"
+        })
+    @DisplayName("Lucene syntax is not evaluated: wildcards, operators and selectors match nothing")
+    void given_luceneSyntax_should_notBeEvaluated(String term) {
+      // With query_string each of these widened the search (match-all, negation, field selector,
+      // leading wildcard); as plain text none of them names a seeded document.
+      assertThat(searchIds(tenantA, term)).isEmpty();
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @ValueSource(
+        strings = {
+          "(((zorblax",
+          "zorblax)))",
+          "\"zorblax",
+          "zorblax~",
+          "-zorblax",
+          "+zorblax",
+          "!zorblax",
+          "zorblax:",
+          "{zorblax]",
+          "zorblax\\"
+        })
+    @DisplayName("reserved characters around a term neither fail nor change what it matches")
+    void given_reservedCharactersAroundTerm_should_matchTermAsText(String term) {
+      // query_string rejected unbalanced grouping/quotes and read "-x" as a negation; as plain text
+      // the decoration is dropped by the analyzer and the term matches as typed.
+      assertThat(searchIds(tenantA, term)).containsExactly(zorblaxId);
+    }
+  }
+
+  @Nested
+  @DisplayName("contains filter matches wildcard characters literally")
+  class ContainsFilter {
+
+    private String zorblaxId;
+    private String metacharId;
+
+    @BeforeEach
+    void seedEndpoints() throws InterruptedException {
+      zorblaxId =
+          endpointComposer
+              .forEndpoint(EndpointFixture.createEndpoint("zorblax-server"))
+              .persist()
+              .get()
+              .getId();
+      metacharId =
+          endpointComposer
+              .forEndpoint(EndpointFixture.createEndpoint("quin*tor?gate\\way"))
+              .persist()
+              .get()
+              .getId();
+
+      indexAndWait();
+    }
+
+    private List<String> filterIds(Filters.FilterOperator operator, String value) {
+      ListConfiguration config = engineService.createListConfiguration("asset", Map.of());
+      config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("asset_name");
+      filter.setMode(Filters.FilterMode.or);
+      filter.setOperator(operator);
+      filter.setValues(List.of(value));
+      config.getPerspective().getFilter().getFilters().add(filter);
+      ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 100));
+      return engineService.entities(TxCtx.allTenants(), ADMIN_USER, runtime).getEsDatas().stream()
+          .map(EsBase::getBase_id)
+          .toList();
+    }
+
+    @Test
+    @DisplayName("a plain value still matches as a substring")
+    void given_plainValue_should_matchSubstring() {
+      assertThat(filterIds(Filters.FilterOperator.contains, "orbla")).containsExactly(zorblaxId);
+    }
+
+    @Test
+    @DisplayName("'*' matches only a name containing a literal '*'")
+    void given_star_should_matchLiteralStarOnly() {
+      assertThat(filterIds(Filters.FilterOperator.contains, "*")).containsExactly(metacharId);
+    }
+
+    @Test
+    @DisplayName("'?' matches only a name containing a literal '?'")
+    void given_questionMark_should_matchLiteralQuestionMarkOnly() {
+      assertThat(filterIds(Filters.FilterOperator.contains, "?")).containsExactly(metacharId);
+    }
+
+    @Test
+    @DisplayName("'?' inside a value is not a single-character wildcard")
+    void given_questionMarkInsideValue_should_notActAsWildcard() {
+      assertThat(filterIds(Filters.FilterOperator.contains, "z?rblax")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a backslash matches literally instead of escaping the next character")
+    void given_backslash_should_matchLiteralBackslash() {
+      assertThat(filterIds(Filters.FilterOperator.contains, "e\\w")).containsExactly(metacharId);
+    }
+
+    @Test
+    @DisplayName("not_contains '*' excludes only the name containing a literal '*'")
+    void given_notContainsStar_should_excludeLiteralStarOnly() {
+      assertThat(filterIds(Filters.FilterOperator.not_contains, "*")).containsExactly(zorblaxId);
     }
   }
 }
