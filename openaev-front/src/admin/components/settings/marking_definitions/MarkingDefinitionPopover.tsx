@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useContext, useMemo, useState } from 'react';
 
 import {
   deleteMarkingDefinition,
@@ -47,13 +47,13 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
   const isProtected = markingDefinition.marking_definition_protected;
   const protectedTooltip = t('This marking definition is protected. It cannot be updated or deleted.');
 
-  const updateInputFromDefinition
-    = (value: MarkingDefinitionOutput): MarkingDefinitionInput => ({
-      marking_definition_type: value.marking_definition_type,
-      marking_definition_definition: value.marking_definition_definition,
-      marking_definition_color: value.marking_definition_color,
-      marking_definition_order: value.marking_definition_order,
-    });
+  // Stable reference: the form resets whenever its default values change.
+  const updateDefaultValues = useMemo<MarkingDefinitionInput>(() => ({
+    marking_definition_type: markingDefinition.marking_definition_type,
+    marking_definition_definition: markingDefinition.marking_definition_definition,
+    marking_definition_color: markingDefinition.marking_definition_color,
+    marking_definition_order: markingDefinition.marking_definition_order,
+  }), [markingDefinition]);
 
   const performUpdate = (input: MarkingDefinitionInput) => {
     return dispatch(updateMarkingDefinition(markingDefinition.marking_definition_id, input))
@@ -120,7 +120,7 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
       <Drawer open={openUpdate} handleClose={() => setOpenUpdate(false)} title={t('Update a marking definition')}>
         <MarkingDefinitionForm
           isEdit
-          defaultValues={updateInputFromDefinition(markingDefinition)}
+          defaultValues={updateDefaultValues}
           onSubmit={submitUpdate}
         />
       </Drawer>
