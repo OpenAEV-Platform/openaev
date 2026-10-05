@@ -1185,8 +1185,11 @@ public class PayloadService {
                 + ", [int]"
                 + port
                 + ").Wait(5000) } catch { } finally { $client.Close() }";
+        // A redirect is never followed (curl without -L neither): its target never went through
+        // the IOC value checks
         case HTTP_HEAD ->
-            "try { Invoke-WebRequest -UseBasicParsing -Method Head -TimeoutSec 10 -Proxy "
+            "try { Invoke-WebRequest -UseBasicParsing -Method Head -MaximumRedirection 0"
+                + " -TimeoutSec 10 -Proxy "
                 + proxy
                 + " -Uri "
                 + url

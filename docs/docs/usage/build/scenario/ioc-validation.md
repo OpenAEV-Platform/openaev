@@ -32,7 +32,7 @@ IOC validation is designed so that nothing dangerous ever runs:
   and HTTP tests can only be allowed once an egress proxy is configured.
 - **Indicator values are checked before they reach a command.** Indicators come from threat-intelligence feeds:
   a value is used only when it matches the format of its test (see [Accepted indicator values](#accepted-indicator-values)),
-  and no test ever targets an internal address. Anything else is refused, never rewritten.
+  and no test is planned towards an internal address. Anything else is refused, never rewritten.
 - **Skipped indicators are explained.** When a test kind is not allowed or does not apply to an indicator, the
   request shows why before anyone approves it.
 
@@ -42,7 +42,7 @@ IOC validation is designed so that nothing dangerous ever runs:
 |------------------|-----------------------------|------------------------------------------------------------------------------------------------|
 | DNS resolution   | Domain names, host names    | Resolves the name. No connection is made to the resolved address; the resolver may query the name servers of the domain. |
 | Network traffic  | IPv4 and IPv6 addresses     | Opens a TCP connection, to the sinkhole when one is set, and closes it at once without payload. |
-| HTTP HEAD request| URLs                        | Sends an HTTP HEAD request through the egress proxy. No content is downloaded.                 |
+| HTTP HEAD request| URLs                        | Sends an HTTP HEAD request through the egress proxy. No content is downloaded and a redirect is never followed. |
 | Benign file drop | Files and artifacts         | Writes a benign text file named after the indicator file name, in a temporary directory created for the test (`openaev-ioc-validation-<run>`). The cleanup removes the file only while it still holds the surrogate of its run (never a directory that carries its name, nor a file that was there before or was put in its place), then the directory only when it is empty: anything else written in it is left in place. Neither the drop nor the cleanup ever follows a link: a run directory or a file path replaced by a symbolic link, a junction or another reparse point stops the drop with an error and is left alone by the cleanup, and so does a run directory that already exists and belongs to another account. The file is always created as a new file: a file already at its path is never written over, and the test then ends with an execution error rather than a missed result, as does any other write failure. Each inject gets its own run identifier; an inject without one is not executed. Before writing or removing anything, the endpoint checks that the run identifier is 32 lowercase hexadecimal characters and that the file name is a plain file name, so files of other applications are never touched. On Windows, a file name that Windows cannot create (a reserved device name such as `CON.txt` or `COM1`, or a name ending with a dot or a space) stops the test with an error before any file operation; the same name still runs on Linux and macOS. |
 | Benign log line  | Any indicator, such as hashes | Writes a log line containing the indicator value to the system log (syslog through `logger` on Linux and macOS, the Application event log on Windows). An endpoint whose system log cannot be written ends the test with an execution error; the line is never written to a file instead. |
 
@@ -65,7 +65,7 @@ made of ASCII characters:
 | Benign file drop  | The base name of the indicator file (a directory part is dropped): ASCII letters, digits, `.`, `_` and `-` only, at most 128 characters. |
 | Benign log line   | The strongest hash of the indicator (SHA-256, then SHA-512, SHA-1, MD5), or its value when it has no hash: hexadecimal, with the 32, 40, 64 or 128 characters of an MD5, SHA-1, SHA-256 or SHA-512 digest (the length of its algorithm when the algorithm is known). It is written in lower case. |
 
-**Internal addresses are never tested.** Network and HTTP HEAD tests refuse unspecified (`0.0.0.0/8`, `::`),
+**Internal addresses are refused.** Network and HTTP HEAD tests refuse unspecified (`0.0.0.0/8`, `::`),
 loopback (`127.0.0.0/8`, `::1`), link-local (`169.254.0.0/16`, `fe80::/10`), private (`10.0.0.0/8`,
 `172.16.0.0/12`, `192.168.0.0/16`), unique local (`fc00::/7`), multicast (`224.0.0.0/4`, `ff00::/8`) and broadcast
 (`255.255.255.255`) addresses. An IPv6 address that embeds an IPv4 address (IPv4-mapped, 6to4, NAT64) is judged by
@@ -76,6 +76,12 @@ the embedded address too. An HTTP HEAD test also refuses:
 - a host name that resolves, from the OpenAEV server, to at least one internal address. The name is resolved again
   at approval, and a test whose host resolves to an internal address by then is dropped with the reason. A name
   that does not resolve from the OpenAEV server is accepted: the request still goes through the egress proxy.
+
+When the test runs, the egress proxy resolves the host name itself and may get another answer than the OpenAEV
+server did: a name that did not resolve from the server, or one whose records changed since the approval. The
+checks above cannot see that answer, so **configure the egress proxy to refuse internal destinations** (the ranges
+above): it is the control that applies at execution. The test never follows a redirect, so the only URL contacted is
+the one that was checked.
 
 **A refused value is shown, not repaired.** The request shows the indicator as *Refused* in the **Test that runs**
 column, with the reason. A character outside the accepted set is written with its code point, so a character that
@@ -89,7 +95,7 @@ refused indicators. Each refusal is written to the platform log and, when audit 
 Go to **Settings > Customization > IOC validation**. You need the *Manage tenant settings* capability.
 
 - **Allowed test kinds**: the tests that may run. Anything else is skipped.
-- **Egress proxy URL**: an absolute http or https URL, without credentials (a URL such as `https://user:password@proxy` is refused, because the URL is shown in the settings and copied into the simulation injects). Required to allow HTTP HEAD tests.
+- **Egress proxy URL**: an absolute http or https URL, without credentials (a URL such as `https://user:password@proxy` is refused, because the URL is shown in the settings and copied into the simulation injects). Required to allow HTTP HEAD tests. The proxy should refuse internal destinations: it resolves the host names of the tests when they run (see [Accepted indicator values](#accepted-indicator-values)).
 - **Sinkhole address**: an IPv4 or IPv6 address. When set, network tests connect to it instead of the indicator.
 - **Network test port**: the TCP port of network tests, 443 by default.
 - **Asset group running the tests**: the endpoints of this group run the benign tests. Approval is refused until

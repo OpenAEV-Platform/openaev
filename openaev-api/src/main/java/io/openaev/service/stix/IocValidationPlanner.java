@@ -46,9 +46,11 @@ import java.util.regex.Pattern;
  * <p>IOC values come from threat-intelligence feeds and end up in the commands of the benign
  * payloads. A value is used only when it is made of an explicit set of ASCII characters (an http or
  * https URL, an IP address, a hexadecimal hash, a plain file name); anything else is refused, never
- * repaired, and the refusal is recorded on the IOC with its reason. No test ever targets an
+ * repaired, and the refusal is recorded on the IOC with its reason. No test is planned towards an
  * internal address: unspecified, loopback, link-local, private, unique local, multicast or
- * broadcast.
+ * broadcast. For a URL host name this is what the OpenAEV server resolves; the egress proxy
+ * resolves the name again when the test runs, so refusing internal destinations at that point is
+ * the proxy's job.
  */
 public final class IocValidationPlanner {
 
@@ -395,7 +397,8 @@ public final class IocValidationPlanner {
    * syntax of {@link #parseHttpUrl}: no credentials, a host that is a public IP literal or a DNS
    * name of at least two labels under a public top-level label, and no address the name resolves to
    * from the OpenAEV server is internal. A name that does not resolve from the server is accepted:
-   * the request still goes through the egress proxy.
+   * the request still goes through the egress proxy, which resolves the name again at execution and
+   * is the control that refuses an internal destination then.
    */
   static Checked<String> normalizeUrl(String value, HostResolver resolver) {
     Checked<URI> parsed = parseHttpUrl(value);

@@ -184,6 +184,17 @@ class IocValidationCommandContentTest {
   }
 
   @Test
+  @DisplayName("the HTTP HEAD test never follows a redirect to a URL that was not checked")
+  void given_httpHead_should_notFollowRedirects() {
+    String windows =
+        PayloadService.iocValidationCommandContent(IocValidationTestKind.HTTP_HEAD, true);
+    String unix =
+        PayloadService.iocValidationCommandContent(IocValidationTestKind.HTTP_HEAD, false);
+    assertThat(windows).contains("Invoke-WebRequest ").contains(" -MaximumRedirection 0 ");
+    assertThat(unix).contains(" curl -sS -I ").doesNotContain(" -L", "--location", "--max-redirs");
+  }
+
+  @Test
   @DisplayName(
       "the file drop run and file name have no default: an inject without its own is refused")
   void given_fileDropArguments_should_haveNoDefaultRun() {

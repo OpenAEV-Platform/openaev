@@ -22,7 +22,6 @@ export const IOC_VALIDATION_TEST_KINDS: readonly IocValidationTestKind[] = [
   'LOG_INJECTION',
 ];
 
-export const DEFAULT_IOC_VALIDATION_TEST_KINDS: IocValidationTestKind[] = ['DNS_RESOLUTION'];
 export const DEFAULT_IOC_VALIDATION_NETWORK_PORT = 443;
 
 export const IOC_VALIDATION_TEST_KIND_LABELS: Record<IocValidationTestKind, string> = {
