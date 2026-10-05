@@ -144,10 +144,11 @@ public class StixApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
   public ResponseEntity<IocValidationImportReport> processIocValidation(
-      TxCtx ctx, @RequestBody CTIEvent ctiEvent) {
+      TxCtx ctx, @RequestBody(required = false) CTIEvent ctiEvent) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    String workId = ctiEvent.getInternal() == null ? null : ctiEvent.getInternal().getWorkId();
-    CTIEvent.Event event = ctiEvent.getEvent();
+    CTIEvent.Internal internal = ctiEvent == null ? null : ctiEvent.getInternal();
+    String workId = internal == null ? null : internal.getWorkId();
+    CTIEvent.Event event = ctiEvent == null ? null : ctiEvent.getEvent();
     String entityId = event == null ? null : event.getEntityId();
     log.debug(
         "IOC validation request received from OpenCTI (workId={}, request={})", workId, entityId);

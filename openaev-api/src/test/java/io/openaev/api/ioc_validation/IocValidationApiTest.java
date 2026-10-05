@@ -335,6 +335,9 @@ class IocValidationApiTest extends IntegrationTest {
       for (ObjectNode event : List.of(noWork, noObjects, empty)) {
         mvc.perform(intake(tenantId, event.toString())).andExpect(status().isOk());
       }
+      // No event at all: a JSON null and an empty body
+      mvc.perform(intake(tenantId, "null")).andExpect(status().isOk());
+      mvc.perform(intake(tenantId, "")).andExpect(status().isOk());
 
       assertThat(recordCount()).isZero();
       verify(openCTIConnectorService)
