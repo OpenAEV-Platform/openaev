@@ -134,7 +134,9 @@ class AmbientTenantBridgeTest extends IntegrationTest {
                 assertEquals(tenantA, TenantContext.getCurrentTenant(), "ambient tenant restored");
                 assertEquals(tenantA, enabledFilterTenant(session), "the filter is back on A");
                 assertEquals(
-                    List.of(scenarioA), visibleScenarios(), "the rest of the transaction reads A again");
+                    List.of(scenarioA),
+                    visibleScenarios(),
+                    "the rest of the transaction reads A again");
                 return null;
               });
     }
@@ -162,7 +164,9 @@ class AmbientTenantBridgeTest extends IntegrationTest {
                     enabledFilterTenant(session),
                     "the filter goes back to the tenant it was armed on, not to the ambient one");
                 assertEquals(
-                    List.of(scenarioA), visibleScenarios(), "the rest of the transaction reads A again");
+                    List.of(scenarioA),
+                    visibleScenarios(),
+                    "the rest of the transaction reads A again");
                 assertFalse(
                     TenantContext.hasCurrentTenant(), "the ambient tenant is cleared again");
                 return null;
