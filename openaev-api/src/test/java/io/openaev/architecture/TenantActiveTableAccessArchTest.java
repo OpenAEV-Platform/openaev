@@ -1769,6 +1769,25 @@ class TenantActiveTableAccessArchTest {
                   + " scoped transaction and be allowlisted here");
 
   @ArchTest
+  static final ArchRule attack_patterns_inject_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Reads inject.getAttackPatterns() in techniqueIds, reached only from
+              // planForSimulation, which refuses to run outside a transaction and is only called
+              // by SecurityCoverageJob inside tenantTx.execute(TxCtx.forTenant(tenantId)) with
+              // TenantContext set:
+              SecurityCoverageHuntValidationService.class)
+          .should()
+          .callMethod(Inject.class, "getAttackPatterns")
+          .because(
+              "attack_patterns is reached through Inject's derived getAttackPatterns(), which"
+                  + " walks InjectorContract's LAZY @ManyToMany WITHOUT touching the repository"
+                  + " and is allowlisted in the InjectorContract rule. A lazy load in an unscoped"
+                  + " context silently reads an EMPTY pattern list. New callers must run inside a"
+                  + " scoped transaction and be allowlisted here");
+
+  @ArchTest
   static final ArchRule challenges_repository_access_is_reviewed =
       noClasses()
           .that()
