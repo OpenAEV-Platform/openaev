@@ -166,7 +166,8 @@ class IocValidationPlannerTest {
       IocValidationPlanner.Plan plan =
           IocValidationPlanner.plan(
               ioc("Url", "https://evil.example.com/payload", IocValidationTestKind.HTTP_HEAD),
-              allowAll("http://proxy.internal:3128", ""));
+              allowAll("http://proxy.internal:3128", ""),
+              host -> List.of());
       assertThat(plan.testKind()).isEqualTo(IocValidationTestKind.HTTP_HEAD);
       assertThat(plan.arguments())
           .containsEntry(IOC_VALIDATION_PROXY_KEY, "http://proxy.internal:3128")
@@ -184,14 +185,26 @@ class IocValidationPlannerTest {
     }
 
     @Test
-    @DisplayName("file drop writes a sanitized surrogate file name")
-    void given_fileName_should_planSanitizedSurrogate() {
+    @DisplayName("file drop names the surrogate after the base name of the IOC file")
+    void given_fileName_should_planSurrogateNamedAfterIt() {
+      IocValidationIoc file = ioc("StixFile", "d41d8cd98f00b204e9800998ecf8427e", null);
+      file.setRequestedTestKind(IocValidationTestKind.FILE_DROP);
+      file.setFileName("C:\\Users\\Public\\invoice.exe");
+      IocValidationPlanner.Plan plan = IocValidationPlanner.plan(file, allowAll("", ""));
+      assertThat(plan.testKind()).isEqualTo(IocValidationTestKind.FILE_DROP);
+      assertThat(plan.arguments()).containsEntry(IOC_VALIDATION_FILE_NAME_KEY, "invoice.exe");
+    }
+
+    @Test
+    @DisplayName("file drop refuses a file name it would have to rewrite")
+    void given_fileNameWithReservedCharacters_should_refuse() {
       IocValidationIoc file = ioc("StixFile", "d41d8cd98f00b204e9800998ecf8427e", null);
       file.setRequestedTestKind(IocValidationTestKind.FILE_DROP);
       file.setFileName("in<voice>.exe");
       IocValidationPlanner.Plan plan = IocValidationPlanner.plan(file, allowAll("", ""));
-      assertThat(plan.testKind()).isEqualTo(IocValidationTestKind.FILE_DROP);
-      assertThat(plan.arguments().get(IOC_VALIDATION_FILE_NAME_KEY)).doesNotContain("<", ">");
+      assertThat(plan.runnable()).isFalse();
+      assertThat(plan.refused()).isTrue();
+      assertThat(plan.message()).startsWith("Refused: ").contains("'<'");
     }
 
     @Test

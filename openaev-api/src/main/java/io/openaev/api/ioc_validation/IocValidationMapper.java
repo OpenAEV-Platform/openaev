@@ -75,7 +75,8 @@ public class IocValidationMapper {
         ioc.getFileName(),
         ioc.getHashes() == null ? null : new LinkedHashMap<>(ioc.getHashes()),
         ioc.getInjectIds() == null ? List.of() : List.copyOf(ioc.getInjectIds()),
-        ioc.getMessage());
+        ioc.getMessage(),
+        ioc.isRefused());
   }
 
   static IocValidationPairOutput toPairOutput(IocValidationPair pair) {

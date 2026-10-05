@@ -30,6 +30,9 @@ IOC validation is designed so that nothing dangerous ever runs:
   of the domain, which can tell its owner that the name was looked up: point the endpoints at a resolver that does
   not forward to the internet if that matters to you. Network tests can be redirected to a sinkhole you control,
   and HTTP tests can only be allowed once an egress proxy is configured.
+- **Indicator values are checked before they reach a command.** Indicators come from threat-intelligence feeds:
+  a value is used only when it matches the format of its test (see [Accepted indicator values](#accepted-indicator-values)),
+  and no test ever targets an internal address. Anything else is refused, never rewritten.
 - **Skipped indicators are explained.** When a test kind is not allowed or does not apply to an indicator, the
   request shows why before anyone approves it.
 
@@ -48,6 +51,38 @@ Each test carries a **Detection** and a **Prevention** expectation for every sec
 After an upgrade, the benign test payloads are brought to the current version the next time a validation is
 approved. Until then, a file drop approved before the upgrade is refused when the agent asks for it, rather than run
 with the earlier version of the test: approve a new validation to run it.
+
+## Accepted indicator values
+
+The value of an indicator ends up in the command of its benign test, so each test accepts only a strict format,
+made of ASCII characters:
+
+| Test kind         | Accepted value |
+|-------------------|----------------|
+| DNS resolution    | A host name: letters, digits, `-` and `_` in each label, at most 253 characters. An international name is converted to its `xn--` form; punctuation, quotes and spaces are refused. |
+| Network traffic   | A single IPv4 or IPv6 address that is not internal. A `/32` or `/128` range counts as its address; any wider range is refused. |
+| HTTP HEAD request | An absolute `http` or `https` URL of at most 2048 characters, made only of the characters of RFC 3986: ASCII letters, digits and `-._~:/?#[]@!$&()*+,;=%`. An apostrophe must be percent-encoded as `%27`, and every `%` must start a percent-encoded byte. The URL carries no credentials, and its host is an IP address that is not internal or a DNS name of at least two labels. |
+| Benign file drop  | The base name of the indicator file (a directory part is dropped): ASCII letters, digits, `.`, `_` and `-` only, at most 128 characters. |
+| Benign log line   | The strongest hash of the indicator (SHA-256, then SHA-512, SHA-1, MD5), or its value when it has no hash: hexadecimal, with the 32, 40, 64 or 128 characters of an MD5, SHA-1, SHA-256 or SHA-512 digest (the length of its algorithm when the algorithm is known). It is written in lower case. |
+
+**Internal addresses are never tested.** Network and HTTP HEAD tests refuse unspecified (`0.0.0.0/8`, `::`),
+loopback (`127.0.0.0/8`, `::1`), link-local (`169.254.0.0/16`, `fe80::/10`), private (`10.0.0.0/8`,
+`172.16.0.0/12`, `192.168.0.0/16`), unique local (`fc00::/7`), multicast (`224.0.0.0/4`, `ff00::/8`) and broadcast
+(`255.255.255.255`) addresses. An IPv6 address that embeds an IPv4 address (IPv4-mapped, 6to4, NAT64) is judged by
+the embedded address too. An HTTP HEAD test also refuses:
+
+- a single-label host name, or a name under a top-level label that only internal resolvers answer (`localhost`,
+  `local`, `localdomain`, `internal`, `intranet`, `lan`, `home`, `corp`, `private`, `arpa`);
+- a host name that resolves, from the OpenAEV server, to at least one internal address. The name is resolved again
+  at approval, and a test whose host resolves to an internal address by then is dropped with the reason. A name
+  that does not resolve from the OpenAEV server is accepted: the request still goes through the egress proxy.
+
+**A refused value is shown, not repaired.** The request shows the indicator as *Refused* in the **Test that runs**
+column, with the reason. A character outside the accepted set is written with its code point, so a character that
+looks like another is visible: a typographic apostrophe appears as `U+2019`. The status of the request counts the
+refused indicators. Each refusal is written to the platform log and, when audit logs are enabled
+(`openaev.audit-logs.transports`, see [Configuration](../../../deployment/configuration.md)), recorded as an
+`IOC_VALUE_REFUSED` audit event.
 
 ## Configure IOC validation
 

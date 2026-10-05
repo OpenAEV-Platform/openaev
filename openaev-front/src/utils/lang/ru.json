@@ -4666,5 +4666,6 @@
   "No test ran: the request was rejected": "Тесты не выполнялись: запрос отклонён",
   "Domain name": "Доменное имя",
   "IPv4 address": "IPv4-адрес",
-  "IPv6 address": "IPv6-адрес"
+  "IPv6 address": "IPv6-адрес",
+  "Refused": "Отклонено"
 }

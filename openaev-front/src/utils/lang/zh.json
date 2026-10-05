@@ -4666,5 +4666,6 @@
   "No test ran: the request was rejected": "未运行任何测试：请求已被拒绝",
   "Domain name": "域名",
   "IPv4 address": "IPv4 地址",
-  "IPv6 address": "IPv6 地址"
+  "IPv6 address": "IPv6 地址",
+  "Refused": "已拒绝"
 }

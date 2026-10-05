@@ -29,6 +29,9 @@ public enum AuditEventScope {
   INJECT_QUEUED,
   INJECT_RESOLVE,
 
+  // Safety controls
+  IOC_VALUE_REFUSED,
+
   // System
   RETENTION_PURGE,
   JOB_EXECUTION,

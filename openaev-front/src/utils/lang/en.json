@@ -4666,5 +4666,6 @@
   "No test ran: the request was rejected": "No test ran: the request was rejected",
   "Domain name": "Domain name",
   "IPv4 address": "IPv4 address",
-  "IPv6 address": "IPv6 address"
+  "IPv6 address": "IPv6 address",
+  "Refused": "Refused"
 }

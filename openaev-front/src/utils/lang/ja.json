@@ -4666,5 +4666,6 @@
   "No test ran: the request was rejected": "テストは実行されていません: リクエストは却下されました",
   "Domain name": "ドメイン名",
   "IPv4 address": "IPv4 アドレス",
-  "IPv6 address": "IPv6 アドレス"
+  "IPv6 address": "IPv6 アドレス",
+  "Refused": "拒否"
 }

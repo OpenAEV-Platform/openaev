@@ -4666,5 +4666,6 @@
   "No test ran: the request was rejected": "실행된 테스트 없음: 요청이 거부되었습니다",
   "Domain name": "도메인 이름",
   "IPv4 address": "IPv4 주소",
-  "IPv6 address": "IPv6 주소"
+  "IPv6 address": "IPv6 주소",
+  "Refused": "거부됨"
 }

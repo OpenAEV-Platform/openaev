@@ -9,6 +9,10 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static org.apache.commons.lang3.StringUtils.stripEnd;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -113,6 +117,7 @@ public class IocValidationService {
   private final OpenCTIConnectorService openCTIConnectorService;
   private final OpenAEVConfig openAEVConfig;
   private final TenantScopedTransaction tenantTx;
+  private final Optional<AuditLogger> auditLogger;
 
   // -- SEARCH --
 
@@ -204,6 +209,7 @@ public class IocValidationService {
         tenantId,
         saved.getIocsCount(),
         saved.getPairsCount());
+    auditRefusals(saved, saved.getIocs(), "intake");
     return saved;
   }
 
@@ -231,6 +237,7 @@ public class IocValidationService {
     List<IocValidationTestKind> shownKinds =
         iocs.stream().map(IocValidationIoc::getTestKind).toList();
     List<String> shownMessages = iocs.stream().map(IocValidationIoc::getMessage).toList();
+    List<Boolean> shownRefusals = iocs.stream().map(IocValidationIoc::isRefused).toList();
     List<String> shownFingerprints =
         iocs.stream().map(IocValidationIoc::getPlanFingerprint).toList();
     IocValidationPlanner.apply(iocs, settings);
@@ -245,8 +252,9 @@ public class IocValidationService {
                 .formatted(ioc.getValue()));
       }
       if (shownKinds.get(index) == null) {
+        ioc.setRefused(shownRefusals.get(index));
         ioc.setMessage(
-            ioc.getTestKind() == null
+            ioc.getTestKind() == null || shownRefusals.get(index)
                 ? shownMessages.get(index)
                 : "Not run: skipped when OpenAEV received the request; a new request from OpenCTI"
                     + " runs it under the current IOC validation settings");
@@ -325,6 +333,13 @@ public class IocValidationService {
           scenario.getId(),
           simulation.getId(),
           injects.size());
+      List<IocValidationIoc> refusedAtApproval = new ArrayList<>();
+      for (int index = 0; index < saved.getIocs().size(); index++) {
+        if (saved.getIocs().get(index).isRefused() && !shownRefusals.get(index)) {
+          refusedAtApproval.add(saved.getIocs().get(index));
+        }
+      }
+      auditRefusals(saved, refusedAtApproval, "approval");
       return saved;
     } finally {
       if (previousTenant == null) {
@@ -649,6 +664,48 @@ public class IocValidationService {
 
   // -- INTERNAL --
 
+  /**
+   * Records every refused IOC value in the application log and, when audit logging is enabled, in
+   * the audit log: a refused value is a value from a feed that could have reached a payload
+   * command.
+   */
+  private void auditRefusals(IocValidation validation, List<IocValidationIoc> iocs, String stage) {
+    for (IocValidationIoc ioc : iocs) {
+      if (!ioc.isRefused()) {
+        continue;
+      }
+      log.warn(
+          "IOC validation {}: the value of indicator {} was refused at {}: {}",
+          validation.getId(),
+          ioc.getIndicatorRef(),
+          stage,
+          ioc.getMessage());
+      auditLogger.ifPresent(
+          logger -> {
+            LinkedHashMap<String, Object> contextData = new LinkedHashMap<>();
+            contextData.put("ioc_validation_external_id", validation.getExternalId());
+            contextData.put("indicator_ref", ioc.getIndicatorRef());
+            contextData.put("observable_type", ioc.getObservableType());
+            contextData.put(
+                "requested_test_kind",
+                ioc.getRequestedTestKind() == null ? null : ioc.getRequestedTestKind().name());
+            contextData.put("stage", stage);
+            contextData.put("reason", ioc.getMessage());
+            logger.logEvent(
+                AuditEvent.builder()
+                    .eventType(EventType.EXECUTION)
+                    .eventScope(AuditEventScope.IOC_VALUE_REFUSED)
+                    .eventStatus(EventStatus.WARNING)
+                    .resourceType(ResourceType.IOC_VALIDATION)
+                    .resourceId(validation.getId())
+                    .message(ioc.getMessage())
+                    .contextData(contextData)
+                    .origin(AuditEventOrigin.SYSTEM)
+                    .build());
+          });
+    }
+  }
+
   private Optional<IocValidationOutcomes.Evaluation> evaluatePair(
       IocValidationPair pair,
       List<IocValidationIoc> iocs,
@@ -758,6 +815,10 @@ public class IocValidationService {
       }
       IocValidationPlanner.Plan plan = IocValidationPlanner.plan(ioc, settings);
       if (!plan.runnable() || plan.testKind() != ioc.getTestKind()) {
+        // The host of a URL may resolve to an internal address since the plan was applied
+        ioc.setTestKind(null);
+        ioc.setRefused(plan.refused());
+        ioc.setMessage(plan.message());
         continue;
       }
       List<Payload> payloads = payloadsByKind.get(plan.testKind());
@@ -1001,13 +1062,18 @@ public class IocValidationService {
 
   private static String intakeMessage(IocValidation validation) {
     long runnable = validation.getIocs().stream().filter(ioc -> ioc.getTestKind() != null).count();
-    long skipped = validation.getIocs().size() - runnable;
+    long refused = validation.getIocs().stream().filter(IocValidationIoc::isRefused).count();
+    long skipped = validation.getIocs().size() - runnable - refused;
     String message =
         "Waiting for approval in OpenAEV: %d %s to test"
             .formatted(runnable, runnable == 1 ? "IOC" : "IOCs");
-    return skipped == 0
-        ? message
-        : message + ", %d skipped by the safety settings".formatted(skipped);
+    if (skipped > 0) {
+      message += ", %d skipped by the safety settings".formatted(skipped);
+    }
+    if (refused > 0) {
+      message += ", %d refused by the value checks".formatted(refused);
+    }
+    return message;
   }
 
   /**

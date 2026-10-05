@@ -125,7 +125,12 @@ const IocValidation = () => {
       key: 'planned',
       label: t('Test that runs'),
       width: '14%',
-      render: ioc => (ioc.ioc_test_kind ? t(iocValidationTestKindLabel(ioc.ioc_test_kind)) : t('Skipped')),
+      render: (ioc) => {
+        if (ioc.ioc_test_kind) {
+          return t(iocValidationTestKindLabel(ioc.ioc_test_kind));
+        }
+        return ioc.ioc_refused ? t('Refused') : t('Skipped');
+      },
     },
     {
       key: 'message',

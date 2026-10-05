@@ -39,4 +39,10 @@ public record IocValidationIocOutput(
         List<String> injectIds,
     @JsonProperty("ioc_message")
         @Schema(description = "Why the IOC was skipped or how it was adapted (sinkhole...)")
-        String message) {}
+        String message,
+    @JsonProperty("ioc_refused")
+        @Schema(
+            description =
+                "Whether the IOC value was refused by the value checks (characters outside the"
+                    + " accepted set, internal address...); the message says why")
+        boolean refused) {}

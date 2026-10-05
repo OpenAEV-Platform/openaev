@@ -52,6 +52,14 @@ public class IocValidationIoc {
   private String message;
 
   /**
+   * Whether the IOC value failed the checks of the planner (a URL, hash or file name outside the
+   * accepted characters, an internal address...): it never reaches a payload, {@link #message} says
+   * why.
+   */
+  @JsonProperty("ioc_refused")
+  private boolean refused;
+
+  /**
    * Digest of the arguments of the planned test (target, port, proxy...), {@code null} when the IOC
    * is skipped: an approval refuses to run a test whose arguments changed since it was shown. A
    * digest and not the arguments, which may hold the proxy credentials.

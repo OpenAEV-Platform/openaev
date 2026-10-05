@@ -7704,6 +7704,8 @@ export interface IocValidationIocOutput {
    * @minLength 1
    */
   ioc_observable_type: string;
+  /** Whether the IOC value was refused by the value checks (characters outside the accepted set, internal address...); the message says why */
+  ioc_refused?: boolean;
   /** Test kind requested by OpenCTI */
   ioc_requested_test_kind?:
     | "DNS_RESOLUTION"
