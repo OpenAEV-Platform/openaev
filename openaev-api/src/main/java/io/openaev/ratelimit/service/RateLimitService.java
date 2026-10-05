@@ -4,17 +4,22 @@ import io.openaev.ratelimit.config.RateLimitConfig;
 import io.openaev.ratelimit.store.Limit;
 import io.openaev.ratelimit.store.StoreProvider;
 import io.openaev.ratelimit.store.request.LimitConsumptionRequest;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class RateLimitService {
+  private final PreviewFeatureService previewFeatureService;
   private final RateLimitConfig rateLimitConfig;
   private final StoreProvider storeProvider;
 
   public Limit consume(LimitConsumptionRequest key) {
-    if (rateLimitConfig.getEnabled()) return storeProvider.getStoreBackend().tryConsume(key);
+    // FIXME: remove feature flag
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.RATE_LIMITING)
+        && rateLimitConfig.getEnabled()) return storeProvider.getStoreBackend().tryConsume(key);
     return bypassLimit();
   }
 

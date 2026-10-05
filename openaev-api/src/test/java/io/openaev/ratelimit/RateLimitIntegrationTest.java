@@ -2,6 +2,7 @@ package io.openaev.ratelimit;
 
 import static io.openaev.ratelimit.config.Limits.REFILL_PERIOD_1000MS;
 import static io.openaev.ratelimit.support.ThrottledEndpoint.*;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.ratelimit.config.RateLimitConfig;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.mockConfig.WithMockRateLimitConfig;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class RateLimitIntegrationTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private RateLimitConfig rateLimitConfig;
+  @MockitoBean private PreviewFeatureService previewFeatureService;
 
   @FunctionalInterface
   interface VoidFunction {
@@ -44,6 +49,7 @@ public class RateLimitIntegrationTest extends IntegrationTest {
     // This allows using the same backend process for all tests, avoiding
     // a context rebuild, thus globally speed up this test suite.
     Thread.sleep(REFILL_PERIOD_1000MS);
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.RATE_LIMITING)).thenReturn(true);
   }
 
   @Test
