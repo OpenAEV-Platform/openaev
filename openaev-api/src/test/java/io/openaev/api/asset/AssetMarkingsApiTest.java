@@ -57,7 +57,12 @@ import org.springframework.transaction.annotation.Transactional;
  * ground truth of what actually reached the column.
  */
 @Transactional
-@WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+@WithMockUser(
+    withCapabilities = {
+      Capability.MANAGE_ASSETS,
+      Capability.ASSIGN_MARKING,
+      Capability.DELETE_MARKING_ASSIGNMENT
+    })
 @DisplayName("Asset markings API")
 class AssetMarkingsApiTest extends IntegrationTest {
 
