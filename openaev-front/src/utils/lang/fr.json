@@ -4567,5 +4567,10 @@
   "YYYY": "AAAA",
   "ZIP must contain a json file": "Le fichier ZIP doit contenir un fichier JSON",
   "Zoom in": "Zoom avant",
-  "Zoom out": "Zoom arriere"
+  "Zoom out": "Zoom arriere",
+  "notification_trigger_name": "Nom",
+  "notification_trigger_type": "Type",
+  "notification_trigger_resource_type": "Type de ressource",
+  "notification_trigger_enabled": "Activé",
+  "notification_trigger_event_types": "Événements"
 }

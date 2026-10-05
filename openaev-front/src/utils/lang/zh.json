@@ -4567,5 +4567,10 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "ZIP 文件必须包含一个 JSON 文件",
   "Zoom in": "放大",
-  "Zoom out": "缩小"
+  "Zoom out": "缩小",
+  "notification_trigger_name": "名称",
+  "notification_trigger_type": "类型",
+  "notification_trigger_resource_type": "资源类型",
+  "notification_trigger_enabled": "已启用",
+  "notification_trigger_event_types": "事件"
 }

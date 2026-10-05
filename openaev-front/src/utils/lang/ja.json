@@ -4567,5 +4567,10 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "ZIPファイルにはjsonファイルが含まれている必要があります",
   "Zoom in": "ズームイン",
-  "Zoom out": "ズームアウト"
+  "Zoom out": "ズームアウト",
+  "notification_trigger_name": "名前",
+  "notification_trigger_type": "タイプ",
+  "notification_trigger_resource_type": "リソースタイプ",
+  "notification_trigger_enabled": "有効",
+  "notification_trigger_event_types": "イベント"
 }

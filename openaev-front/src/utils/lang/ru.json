@@ -4567,5 +4567,10 @@
   "YYYY": "ГГГГ",
   "ZIP must contain a json file": "Архив ZIP должен содержать файл JSON",
   "Zoom in": "Приблизить",
-  "Zoom out": "Отдалить"
+  "Zoom out": "Отдалить",
+  "notification_trigger_name": "Имя",
+  "notification_trigger_type": "Тип",
+  "notification_trigger_resource_type": "Тип ресурса",
+  "notification_trigger_enabled": "Включено",
+  "notification_trigger_event_types": "События"
 }
