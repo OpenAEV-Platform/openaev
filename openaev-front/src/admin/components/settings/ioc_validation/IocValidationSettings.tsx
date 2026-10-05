@@ -95,6 +95,8 @@ const settingsSchema = zodImplement<IocValidationSettingsFormValues>().with({
 });
 
 const ASSET_GROUP_SEARCH_DELAY_MS = 300;
+const NETWORK_FIELD_MIN_WIDTH = 260;
+const NETWORK_FIELD_GAP = 16;
 
 interface AssetGroupFieldProps {
   value: string;
@@ -151,14 +153,19 @@ export const AssetGroupField = ({ value, onChange, onBlur }: AssetGroupFieldProp
     >
       <ComboboxLabel>{t('Asset group running the tests')}</ComboboxLabel>
       <ComboboxField>
-        <ComboboxInput aria-label={t('Asset group running the tests')} onBlur={onBlur} data-testid="ioc-validation-asset-group" />
+        <ComboboxInput
+          aria-label={t('Asset group running the tests')}
+          placeholder={t('Search by name')}
+          onBlur={onBlur}
+          data-testid="ioc-validation-asset-group"
+        />
         <ComboboxControls>
           <ComboboxClear />
           <ComboboxTrigger />
         </ComboboxControls>
       </ComboboxField>
       <ComboboxContent />
-      <ComboboxHelperText>{t('Type to search the asset groups by name.')}</ComboboxHelperText>
+      <ComboboxHelperText>{t('Endpoints of this group run the benign tests.')}</ComboboxHelperText>
     </Combobox>
   );
 };
@@ -266,8 +273,8 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
       <Paper padding={16} title={t('Network safety')}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: 16,
+          gridTemplateColumns: `repeat(auto-fit, minmax(${NETWORK_FIELD_MIN_WIDTH}px, 1fr))`,
+          gap: NETWORK_FIELD_GAP,
         }}
         >
           <Controller
@@ -318,7 +325,12 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
         </div>
       </Paper>
       <Paper padding={16} title={t('Targets')}>
-        <div style={{ maxWidth: 420 }}>
+        {/* The width of one Network safety field while the three share a row (812 px and wider) */}
+        <div style={{
+          width: `max(${NETWORK_FIELD_MIN_WIDTH}px, calc((100% - ${2 * NETWORK_FIELD_GAP}px) / 3))`,
+          maxWidth: '100%',
+        }}
+        >
           <Controller
             control={control}
             name="ioc_validation_asset_group_id"
@@ -327,16 +339,6 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
             )}
           />
         </div>
-        <Text
-          variant="content-compact"
-          className="text-default-secondary"
-          style={{
-            display: 'block',
-            marginTop: 8,
-          }}
-        >
-          {t('Endpoints of this group run the benign tests; the security platforms of the request evaluate them.')}
-        </Text>
       </Paper>
       <div style={{
         display: 'flex',

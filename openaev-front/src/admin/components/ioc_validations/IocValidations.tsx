@@ -26,19 +26,20 @@ import IocValidationDate from './IocValidationDate';
 import IocValidationStatusChip from './IocValidationStatusChip';
 import { IOC_VALIDATION_BASE_URL, IOC_VALIDATION_SETTINGS_URL, iocValidationTestKindLabel } from './iocValidationUtils';
 
-// The status column fits the longest status chip ("Awaiting approval") in every language
+// At 1440 px the status column fits the longest status chip ("Awaiting approval") in every
+// language and the created column its relative date; the text columns ellipsize with a tooltip
 const inlineStyles: Record<string, CSSProperties> = {
-  ioc_validation_name: { width: '13%' },
-  ioc_validation_status: { width: '16%' },
+  ioc_validation_name: { width: '12%' },
+  ioc_validation_status: { width: '17%' },
   ioc_validation_requested_by: { width: '8%' },
-  ioc_validation_requested_test_kinds: { width: '11%' },
+  ioc_validation_requested_test_kinds: { width: '10%' },
   ioc_validation_iocs_count: { width: '5%' },
-  ioc_validation_pairs_count: { width: '12%' },
+  ioc_validation_pairs_count: { width: '11%' },
   ioc_validation_prevented_count: { width: '7%' },
   ioc_validation_detected_count: { width: '7%' },
   ioc_validation_missed_count: { width: '6%' },
   ioc_validation_error_count: { width: '6%' },
-  ioc_validation_created_at: { width: '9%' },
+  ioc_validation_created_at: { width: '11%' },
 };
 
 const AVAILABLE_FILTER_NAMES = ['ioc_validation_status'];

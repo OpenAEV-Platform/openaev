@@ -1,14 +1,17 @@
-import { Alert, Button, Text } from '@filigran/design-system';
+import { Alert, Button, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
 import { useContext, useEffect } from 'react';
 import { Link, useParams } from 'react-router';
 
 import Breadcrumbs from '../../../components/Breadcrumbs';
-import { Field, Section } from '../../../components/common/detail/EntityDetailCommon';
+import { Field, Section, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
+import EllipsisTooltip from '../../../components/common/EllipsisTooltip';
+import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
 import type { IocValidationIocOutput, IocValidationPairOutput } from '../../../utils/api-types';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { emptyFilled } from '../../../utils/String';
 import IocValidationDate from './IocValidationDate';
 import IocValidationDecisionActions from './IocValidationDecisionActions';
 import IocValidationOutcomeChip from './IocValidationOutcomeChip';
@@ -136,14 +139,53 @@ const IocValidation = () => {
       key: 'message',
       label: t('Details'),
       width: '28%',
-      render: ioc => (
-        <>
-          {ioc.ioc_message}
-          {canManageSettings && skippedBySettings(ioc) && (
-            <Link to={IOC_VALIDATION_SETTINGS_URL} style={{ display: 'block' }}>{t('Open the safety settings')}</Link>
-          )}
-        </>
-      ),
+      render: (ioc) => {
+        if (!skippedBySettings(ioc)) {
+          return <EllipsisTooltip>{emptyFilled(ioc.ioc_message)}</EllipsisTooltip>;
+        }
+        // The requested test has its own column; the planner's full sentence goes to the tooltip
+        const reason = (
+          <span
+            tabIndex={ioc.ioc_message ? 0 : undefined}
+            style={{
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {t('Not allowed by the safety settings')}
+          </span>
+        );
+        return (
+          <span style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 8,
+          }}
+          >
+            {ioc.ioc_message
+              ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>{reason}</TooltipTrigger>
+                    <TooltipContent>{ioc.ioc_message}</TooltipContent>
+                  </Tooltip>
+                )
+              : reason}
+            {canManageSettings && (
+              <Link
+                to={IOC_VALIDATION_SETTINGS_URL}
+                style={{
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t('Open settings')}
+              </Link>
+            )}
+          </span>
+        );
+      },
     },
   ];
 
@@ -172,13 +214,13 @@ const IocValidation = () => {
       key: 'reason',
       label: t('Details'),
       width: '28%',
-      render: pair => pair.pair_outcome_reason,
+      render: pair => <EllipsisTooltip>{emptyFilled(pair.pair_outcome_reason)}</EllipsisTooltip>,
     },
     {
       key: 'evaluated',
       label: t('Evaluated'),
       width: '14%',
-      render: pair => (pair.pair_evaluated_at ? <IocValidationDate date={pair.pair_evaluated_at} /> : null),
+      render: pair => (pair.pair_evaluated_at ? <IocValidationDate date={pair.pair_evaluated_at} /> : '-'),
     },
   ];
 
@@ -275,13 +317,9 @@ const IocValidation = () => {
             </div>
           )}
         </Section>
-        <Section title={t('Results')}>
+        <SectionBlock title={t('Results')} centerContent={awaitingApproval || rejected}>
           {awaitingApproval || rejected
-            ? (
-                <Text variant="content-compact" className="text-default-secondary">
-                  {awaitingApproval ? t('Results appear once the simulation runs') : t('No test ran: the request was rejected')}
-                </Text>
-              )
+            ? <Empty message={awaitingApproval ? t('Results appear once the simulation runs') : t('No test ran: the request was rejected')} />
             : (
                 <div style={{
                   display: 'grid',
@@ -318,7 +356,7 @@ const IocValidation = () => {
               )}
             </div>
           )}
-        </Section>
+        </SectionBlock>
       </div>
       <div style={{
         display: 'grid',
