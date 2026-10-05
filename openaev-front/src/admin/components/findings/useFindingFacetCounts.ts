@@ -14,6 +14,7 @@ export interface FindingFacetCounts {
   severities: Record<string, number>;
   types: Record<string, number>;
   cloud_providers: Record<string, number>;
+  triage_statuses: Record<string, number>;
   sources: FindingSourceFacet[];
 }
 

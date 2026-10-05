@@ -55,6 +55,8 @@ class StableFindingReadServiceTest {
           .thenReturn(Map.of("CRITICAL", 2L, "UNKNOWN", 1L));
       when(stableFindingRepository.countByType(any())).thenReturn(Map.of("OCSF", 2L));
       when(stableFindingRepository.countByCloudProvider(any())).thenReturn(Map.of("aws", 2L));
+      when(stableFindingRepository.countByTriageStatus(any()))
+          .thenReturn(Map.of("CONFIRMED", 1L, "UNTRIAGED", 2L));
       when(stableFindingRepository.countBySource(any()))
           .thenReturn(
               Map.of(
@@ -68,6 +70,9 @@ class StableFindingReadServiceTest {
       assertThat(counts.severities()).containsEntry("CRITICAL", 2L);
       assertThat(counts.types()).containsEntry("OCSF", 2L);
       assertThat(counts.cloudProviders()).containsEntry("aws", 2L);
+      assertThat(counts.triageStatuses())
+          .containsEntry("CONFIRMED", 1L)
+          .containsEntry("UNTRIAGED", 2L);
       assertThat(counts.sources())
           .singleElement()
           .satisfies(
@@ -80,6 +85,7 @@ class StableFindingReadServiceTest {
       verify(stableFindingRepository).countBySeverity(any());
       verify(stableFindingRepository).countByType(any());
       verify(stableFindingRepository).countByCloudProvider(any());
+      verify(stableFindingRepository).countByTriageStatus(any());
       verify(stableFindingRepository).countBySource(any());
     }
   }

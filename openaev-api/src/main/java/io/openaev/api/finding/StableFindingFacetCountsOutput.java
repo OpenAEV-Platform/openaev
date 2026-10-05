@@ -14,6 +14,9 @@ public record StableFindingFacetCountsOutput(
     @Schema(description = "Finding counts grouped by cloud provider")
         @JsonProperty("cloud_providers")
         Map<String, Long> cloudProviders,
+    @Schema(description = "Finding counts grouped by triage status")
+        @JsonProperty("triage_statuses")
+        Map<String, Long> triageStatuses,
     @Schema(description = "Finding counts grouped by source") @JsonProperty("sources")
         List<SourceFacetOutput> sources) {
 

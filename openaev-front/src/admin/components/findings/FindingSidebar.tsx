@@ -8,6 +8,7 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import prowlerIcon from '../../../static/images/prowler.png';
 import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
+import { FINDING_TRIAGE_STATUS_KEYS } from '../../../utils/statusUtils';
 import InjectIcon from '../common/injects/InjectIcon';
 import getFindingTypeLabel, { getFindingTypeKey } from './FindingTypeLabel';
 import { type FindingFacetCounts } from './useFindingFacetCounts';
@@ -15,6 +16,7 @@ import { type FindingFacetCounts } from './useFindingFacetCounts';
 const SEVERITY_FILTER_KEY = 'finding_severity';
 const TYPE_FILTER_KEY = 'finding_type';
 const PROVIDER_FILTER_KEY = 'finding_cloud_provider';
+const TRIAGE_FILTER_KEY = 'finding_triage_status';
 const SOURCE_FILTER_KEY = 'finding_source';
 const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'];
 const CLOUD_PROVIDERS = [
@@ -90,6 +92,7 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, facetCounts }: P
     const severityValues = valuesFor(SEVERITY_FILTER_KEY);
     const typeValues = valuesFor(TYPE_FILTER_KEY);
     const providerValues = valuesFor(PROVIDER_FILTER_KEY);
+    const triageValues = valuesFor(TRIAGE_FILTER_KEY);
     const sourceValues = valuesFor(SOURCE_FILTER_KEY);
 
     const severityRows: FacetRow[] = SEVERITIES.map(severity => ({
@@ -98,6 +101,13 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, facetCounts }: P
       count: facetCounts?.severities[severity] ?? 0,
       checked: severityValues.includes(severity),
       onToggle: () => toggle(SEVERITY_FILTER_KEY, severity),
+    }));
+    const triageRows: FacetRow[] = FINDING_TRIAGE_STATUS_KEYS.map(status => ({
+      value: status,
+      label: t(status),
+      count: facetCounts?.triage_statuses?.[status] ?? 0,
+      checked: triageValues.includes(status),
+      onToggle: () => toggle(TRIAGE_FILTER_KEY, status),
     }));
     const typeRows: FacetRow[] = Object.keys(facetCounts?.types ?? {})
       .sort((left, right) => getFindingTypeLabel(t, left).localeCompare(getFindingTypeLabel(t, right)))
@@ -134,6 +144,11 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, facetCounts }: P
         id: 'severity',
         label: t('Severity'),
         rows: severityRows,
+      },
+      {
+        id: 'triage-status',
+        label: t('Triage status'),
+        rows: triageRows,
       },
       {
         id: 'type',

@@ -55,6 +55,7 @@ public class StableFindingReadService {
   private static final String SEVERITY_FILTER = "finding_severity";
   private static final String TYPE_FILTER = "finding_type";
   private static final String PROVIDER_FILTER = "finding_cloud_provider";
+  private static final String TRIAGE_FILTER = "finding_triage_status";
   private static final String SOURCE_FILTER = "finding_source";
 
   private final StableFindingRepository stableFindingRepository;
@@ -98,6 +99,8 @@ public class StableFindingReadService {
         stableFindingRepository.countByType(facetSpecification(input, tenantIds, TYPE_FILTER)),
         stableFindingRepository.countByCloudProvider(
             facetSpecification(input, tenantIds, PROVIDER_FILTER)),
+        stableFindingRepository.countByTriageStatus(
+            facetSpecification(input, tenantIds, TRIAGE_FILTER)),
         stableFindingRepository
             .countBySource(facetSpecification(input, tenantIds, SOURCE_FILTER))
             .values()

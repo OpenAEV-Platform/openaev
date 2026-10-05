@@ -37,6 +37,11 @@ public class StableFindingRepositoryCustomImpl implements StableFindingRepositor
   }
 
   @Override
+  public Map<String, Long> countByTriageStatus(Specification<StableFinding> specification) {
+    return countByProperty(specification, "triageStatus");
+  }
+
+  @Override
   public Map<String, SourceCount> countBySource(Specification<StableFinding> specification) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
     CriteriaQuery<Tuple> query = cb.createTupleQuery();

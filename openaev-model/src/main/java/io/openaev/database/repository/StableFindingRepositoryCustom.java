@@ -14,5 +14,7 @@ public interface StableFindingRepositoryCustom {
 
   Map<String, Long> countByCloudProvider(Specification<StableFinding> specification);
 
+  Map<String, Long> countByTriageStatus(Specification<StableFinding> specification);
+
   Map<String, SourceCount> countBySource(Specification<StableFinding> specification);
 }

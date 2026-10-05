@@ -239,6 +239,26 @@ public class StableFinding implements TenantBase, Auditable {
   @JsonProperty("finding_cloud_provider")
   private String cloudProvider;
 
+  // Mirrors StableFindingMapper: the triage of the latest occurrence's legacy finding, else
+  // UNTRIAGED.
+  @Formula(
+      """
+      (coalesce((
+        select t.finding_triage_status::text
+        from finding_occurrences o
+        left join finding_triages t
+          on t.finding_triage_finding_id = o.finding_occurrence_migrated_from
+         and t.tenant_id = o.tenant_id
+        where o.finding_occurrence_stable_finding_id = stable_finding_id
+          and o.tenant_id = tenant_id
+        order by o.finding_occurrence_observed_at desc, o.finding_occurrence_id desc
+        limit 1
+      ), 'UNTRIAGED'))
+      """)
+  @Queryable(filterable = true, sortable = true, label = "triage status")
+  @JsonProperty("finding_triage_status")
+  private String triageStatus;
+
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "stable_findings_tags",
