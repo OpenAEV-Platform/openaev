@@ -6,6 +6,7 @@ import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_VALU
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.net.InetAddresses;
+import com.google.common.util.concurrent.Uninterruptibles;
 import io.openaev.database.model.IocValidationIoc;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.rest.payload.service.PayloadService;
@@ -20,6 +21,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -516,6 +518,31 @@ class IocValidationValueChecksTest {
 
       assertThat(highest.get()).isBetween(1, IocValidationHostAnswers.THREADS);
       assertThat(hosts).allSatisfy(host -> assertThat(answers.resolve(host)).hasSize(1));
+    }
+
+    @Test
+    @DisplayName("lookups cancelled at the deadline never stay queued behind a silent DNS server")
+    void given_silentResolver_should_leaveNothingQueued() {
+      CountDownLatch release = new CountDownLatch(1);
+      // Like a real lookup, this one ignores interruption: the threads stay busy after the deadline
+      HostResolver silent =
+          host -> {
+            Uninterruptibles.awaitUninterruptibly(release);
+            return List.of(address("8.8.8.8"));
+          };
+      List<String> hosts =
+          IntStream.range(0, 5 * IocValidationHostAnswers.THREADS)
+              .mapToObj(index -> "silent" + index + ".example.com")
+              .toList();
+      try {
+        HostResolver answers =
+            IocValidationHostAnswers.resolve(hosts, silent, Duration.ofMillis(200)).resolver();
+
+        assertThat(IocValidationHostAnswers.queuedLookups()).isZero();
+        assertThat(answers.resolve("silent0.example.com")).isEmpty();
+      } finally {
+        release.countDown();
+      }
     }
 
     @Test

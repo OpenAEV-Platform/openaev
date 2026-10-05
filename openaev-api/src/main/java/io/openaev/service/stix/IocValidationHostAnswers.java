@@ -11,9 +11,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -26,14 +26,16 @@ import java.util.concurrent.TimeUnit;
  * in time counts as a name that does not resolve from the OpenAEV server (the egress proxy resolves
  * it again at execution anyway), and an answer arriving later is ignored. The lookups run on one
  * pool of {@link #THREADS} threads shared by every request: a lookup cannot be interrupted, so the
- * pool is what bounds the threads a slow or silent DNS server can hold.
+ * pool is what bounds the threads a slow or silent DNS server can hold, and its queue is bounded
+ * and purged of the lookups cancelled at each deadline.
  */
 public final class IocValidationHostAnswers {
 
   static final Duration DEADLINE = Duration.ofSeconds(5);
   static final int THREADS = 16;
+  private static final int QUEUE_CAPACITY = 1_000;
 
-  private static final ExecutorService POOL = pool();
+  private static final ThreadPoolExecutor POOL = pool();
 
   private final Set<String> hosts;
   private final Map<String, List<InetAddress>> answers;
@@ -76,6 +78,12 @@ public final class IocValidationHostAnswers {
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+      } catch (RejectedExecutionException e) {
+        // The shared queue is full (DNS server silent for a while): no answer, as after the
+        // deadline
+      } finally {
+        // A cancelled lookup would otherwise stay queued until a resolver thread is free again
+        POOL.purge();
       }
     }
     return new IocValidationHostAnswers(Set.copyOf(names), Map.copyOf(answers), resolver);
@@ -90,14 +98,19 @@ public final class IocValidationHostAnswers {
         hosts.contains(host) ? answers.getOrDefault(host, List.of()) : fallback.resolve(host);
   }
 
-  private static ExecutorService pool() {
+  /** The lookups waiting for a resolver thread. */
+  static int queuedLookups() {
+    return POOL.getQueue().size();
+  }
+
+  private static ThreadPoolExecutor pool() {
     ThreadPoolExecutor pool =
         new ThreadPoolExecutor(
             THREADS,
             THREADS,
             30,
             TimeUnit.SECONDS,
-            new LinkedBlockingQueue<>(),
+            new LinkedBlockingQueue<>(QUEUE_CAPACITY),
             Thread.ofPlatform().daemon().name("ioc-validation-dns-", 0).factory());
     pool.allowCoreThreadTimeOut(true);
     return pool;
