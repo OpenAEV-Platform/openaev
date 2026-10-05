@@ -9,7 +9,7 @@ import {
 } from '@mui/icons-material';
 import { Grid, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
@@ -29,7 +29,7 @@ import { useHelper } from '../../../../store';
 import { type ChallengeInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import { zodImplement } from '../../../../utils/Zod';
@@ -139,7 +139,7 @@ const ChallengeForm: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [documentsSortBy, setDocumentsSortBy] = useState('document_name');
   const [documentsOrderAsc, setDocumentsOrderAsc] = useState(true);

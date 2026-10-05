@@ -1,7 +1,7 @@
 import { Checkbox } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -23,7 +23,7 @@ import PlatformIconGroup from '../../../components/PlatformIconGroup';
 import { type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ToolBar from '../common/ToolBar';
@@ -173,7 +173,7 @@ const Scenarios = () => {
   };
 
   // Bulk selection
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const {
     selectedElements,

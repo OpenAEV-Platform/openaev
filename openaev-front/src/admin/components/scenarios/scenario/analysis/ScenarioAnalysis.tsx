@@ -1,4 +1,4 @@
-import { useCallback, useContext, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
 
 import type { LoggedHelper } from '../../../../../actions/helper';
@@ -21,7 +21,7 @@ import {
   type WidgetToEntitiesInput,
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { type ParameterOption } from '../../../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardWrapper from '../../../workspaces/custom_dashboards/CustomDashboardWrapper';
@@ -30,7 +30,7 @@ import SelectDashboardButton from '../../../workspaces/custom_dashboards/SelectD
 
 const ScenarioAnalysis = () => {
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
 
   const { scenario, tenantSettings }: {
