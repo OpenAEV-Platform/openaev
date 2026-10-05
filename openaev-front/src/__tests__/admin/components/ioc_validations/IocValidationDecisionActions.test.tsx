@@ -72,7 +72,7 @@ describe('IocValidationDecisionActions', () => {
 
   it('shows next to the approval the tests that run and the security platforms expected to see them', () => {
     renderActions(awaitingRequest(2));
-    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve and start the simulation' }));
     const summary = screen.getByTestId('ioc-validation-approval-summary');
     expect(within(summary).getAllByText('Tests that run once approved').length).toBeGreaterThan(0);
     expect(within(summary).getAllByText('evil-0.example').length).toBeGreaterThan(0);
@@ -85,10 +85,20 @@ describe('IocValidationDecisionActions', () => {
 
   it('caps the tests listed in the approval and counts the others', () => {
     renderActions(awaitingRequest(13));
-    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve and start the simulation' }));
     const summary = screen.getByTestId('ioc-validation-approval-summary');
     expect(within(summary).getAllByText('DNS resolution')).toHaveLength(10);
     expect(within(summary).getByText('3 more indicators')).toBeTruthy();
+  });
+
+  it('says so in the approval when the request names no security platform', () => {
+    renderActions({
+      ...awaitingRequest(1),
+      ioc_validation_pairs: [],
+    } as unknown as IocValidationOutput);
+    fireEvent.click(screen.getByRole('button', { name: 'Approve and start the simulation' }));
+    const summary = screen.getByTestId('ioc-validation-approval-summary');
+    expect(within(summary).getByText('None named in the request')).toBeTruthy();
   });
 
   it('offers no decision once the request is decided', () => {
@@ -96,7 +106,7 @@ describe('IocValidationDecisionActions', () => {
       ...awaitingRequest(1),
       ioc_validation_status: 'RUNNING',
     } as IocValidationOutput);
-    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Approve and start the simulation' })).toBeNull();
   });
 });
 

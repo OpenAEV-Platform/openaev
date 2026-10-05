@@ -3,6 +3,7 @@ package io.openaev.service.stix;
 import static io.openaev.helper.UrlHelper.buildFrontSimulationUrl;
 import static io.openaev.helper.UrlHelper.buildTenantUrl;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_POSIX_EXECUTOR;
+import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_RUN_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_WINDOWS_EXECUTOR;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static org.apache.commons.lang3.StringUtils.stripEnd;
@@ -764,7 +765,7 @@ public class IocValidationService {
             injectService.buildInject(
                 contract, injectTitle(ioc, payload), injectDescription(ioc), true);
         ObjectNode content = inject.getContent();
-        plan.arguments().forEach(content::put);
+        injectArguments(plan).forEach(content::put);
         inject.setContent(content);
         inject.setScenario(scenario);
         inject.setAssetGroups(new ArrayList<>(List.of(assetGroup)));
@@ -777,6 +778,20 @@ public class IocValidationService {
     // The IOCs are a JSON column: a new list makes the inject ids visible to dirty checking.
     validation.setIocs(new ArrayList<>(validation.getIocs()));
     return injects;
+  }
+
+  /**
+   * The inject content values of a plan. A file-drop inject also gets its own run seed, from which
+   * the server names the temporary directory its surrogate is written to and removed from (see
+   * {@link PayloadService#iocValidationExecutionContent}).
+   */
+  static Map<String, String> injectArguments(IocValidationPlanner.Plan plan) {
+    if (plan.testKind() != IocValidationTestKind.FILE_DROP) {
+      return plan.arguments();
+    }
+    Map<String, String> arguments = new HashMap<>(plan.arguments());
+    arguments.put(IOC_VALIDATION_RUN_KEY, UUID.randomUUID().toString().replace("-", ""));
+    return arguments;
   }
 
   private List<Payload> payloadsFor(TxCtx ctx, IocValidationTestKind kind, List<String> executors) {

@@ -69,7 +69,7 @@ const IocValidationApprovalSummary: FunctionComponent<{ iocValidation: IocValida
           {t('{count} more indicators', { count: String(planned.length - APPROVAL_SUMMARY_MAX_ROWS) })}
         </Text>
       )}
-      <Field label={t('Security platforms')}>{platforms.join(', ') || '-'}</Field>
+      <Field label={t('Security platforms')}>{platforms.join(', ') || t('None named in the request')}</Field>
     </div>
   );
 };
@@ -154,7 +154,7 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
           disabled={!canLaunch}
           onClick={() => setApproveOpen(true)}
         >
-          {t('Approve')}
+          {t('Approve and start the simulation')}
         </Button>,
       )}
       <DialogConfirmation
@@ -162,7 +162,7 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
         handleClose={() => setApproveOpen(false)}
         handleSubmit={handleApprove}
         text={t('Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.')}
-        submitLabel={t('Approve')}
+        submitLabel={t('Approve and start the simulation')}
         extraContent={<IocValidationApprovalSummary iocValidation={iocValidation} />}
       />
       <DialogConfirmation

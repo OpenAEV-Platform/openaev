@@ -16,6 +16,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -27,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -42,6 +44,7 @@ import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.scheduler.jobs.InjectsExecutionJob;
 import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretsProvider;
@@ -59,6 +62,7 @@ import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.persistence.EntityManager;
+import jakarta.servlet.ServletException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -137,6 +141,9 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private TeamRepository teamRepository;
   @Autowired private FindingRepository findingRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private PayloadRepository payloadRepository;
+  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private PayloadService payloadService;
   @Resource private ObjectMapper objectMapper;
   @MockitoBean private JavaMailSender javaMailSender;
   @MockitoBean private SecretsProviderResolver secretsProviderResolver;
@@ -1071,6 +1078,112 @@ class InjectApiTest extends IntegrationTest {
       assertEquals(
           "OAEV_ARG_ARG_VALUE='Hello world'\necho command name \"$OAEV_ARG_ARG_VALUE\"",
           decodedCommand);
+    }
+
+    private Command iocValidationFileDrop() {
+      return payloadService.getIocValidationCommandPayload(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          IocValidationTestKind.FILE_DROP,
+          PayloadService.IOC_VALIDATION_POSIX_EXECUTOR);
+    }
+
+    private Inject iocValidationFileDropInject(
+        Command fileDrop, String runSeed, AgentComposer.Composer targetAgentWrapper) {
+      InjectorContract contract =
+          injectorContractRepository.findInjectorContractByPayload(fileDrop).orElseThrow();
+      return injectComposer
+          .forInject(
+              InjectFixture.createInjectWithPayloadArg(
+                  contract,
+                  Map.<String, Object>of(
+                      PayloadService.IOC_VALIDATION_RUN_KEY,
+                      runSeed,
+                      PayloadService.IOC_VALIDATION_FILE_NAME_KEY,
+                      "invoice.pdf")))
+          .withEndpoint(
+              endpointComposer
+                  .forEndpoint(EndpointFixture.createEndpoint())
+                  .withAgent(targetAgentWrapper))
+          .persist()
+          .get();
+    }
+
+    @DisplayName(
+        "Get an IOC validation file drop running in the directory derived from its own inject")
+    @Test
+    void given_iocValidationFileDrop_should_runInTheDirectoryDerivedFromItsInject()
+        throws Exception {
+      // -- PREPARE --
+      String runSeed = "0123456789abcdef0123456789abcdef";
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Command fileDrop = iocValidationFileDrop();
+      Inject injectSaved = iocValidationFileDropInject(fileDrop, runSeed, targetAgentWrapper);
+      String run =
+          PayloadService.iocValidationExecutionContent(
+                  injectSaved.getContent(), fileDrop, injectSaved.getId())
+              .get(PayloadService.IOC_VALIDATION_RUN_KEY)
+              .asText();
+      doNothing()
+          .when(injectStatusService)
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertThat(run).matches("[0-9a-f]{32}").isNotEqualTo(runSeed);
+      String command = decodeCommand(JsonPath.read(response, "$.command_content"));
+      String cleanup = decodeCommand(JsonPath.read(response, "$.payload_cleanup_command"));
+      assertThat(command).contains(run, "invoice.pdf").doesNotContain(runSeed);
+      assertThat(cleanup).contains(run, "invoice.pdf").doesNotContain(runSeed);
+    }
+
+    @DisplayName("Refuse to execute an IOC validation file drop payload of an earlier version")
+    @Test
+    void given_outdatedIocValidationFileDrop_should_refuseItsExecution() {
+      // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Command fileDrop = iocValidationFileDrop();
+      // The singleton as an earlier version wrote it, directly in the temporary directory
+      fileDrop.setContent(
+          "printf 'OpenAEV IOC validation benign surrogate\\n' > \"${TMPDIR:-/tmp}/\"#{"
+              + PayloadService.IOC_VALIDATION_FILE_NAME_KEY
+              + "}; true");
+      payloadRepository.save(fileDrop);
+      Inject injectSaved =
+          iocValidationFileDropInject(
+              fileDrop, "0123456789abcdef0123456789abcdef", targetAgentWrapper);
+
+      // -- EXECUTE & ASSERT --
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get(INJECT_URI
+                              + "/"
+                              + injectSaved.getId()
+                              + "/"
+                              + targetAgentWrapper.get().getId()
+                              + "/executable-payload")
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf())))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage(PayloadService.IOC_VALIDATION_OUTDATED_FILE_DROP);
     }
 
     @DisplayName("Should neutralize shell metacharacters carried by an inject argument")
