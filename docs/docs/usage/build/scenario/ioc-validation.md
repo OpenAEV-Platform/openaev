@@ -68,14 +68,19 @@ made of ASCII characters:
 **Internal addresses are refused.** Network and HTTP HEAD tests refuse unspecified (`0.0.0.0/8`, `::`),
 loopback (`127.0.0.0/8`, `::1`), link-local (`169.254.0.0/16`, `fe80::/10`), private (`10.0.0.0/8`,
 `172.16.0.0/12`, `192.168.0.0/16`), unique local (`fc00::/7`), multicast (`224.0.0.0/4`, `ff00::/8`) and broadcast
-(`255.255.255.255`) addresses. An IPv6 address that embeds an IPv4 address (IPv4-mapped, 6to4, NAT64) is judged by
-the embedded address too. An HTTP HEAD test also refuses:
+(`255.255.255.255`) addresses, as well as the other ranges that are not globally reachable: shared address space
+(`100.64.0.0/10`), benchmarking (`198.18.0.0/15`), documentation (`192.0.2.0/24`, `198.51.100.0/24`,
+`203.0.113.0/24`, `2001:db8::/32`, `3fff::/20`), IETF protocol assignments (`192.0.0.0/24`, `2001::/23`), reserved
+(`240.0.0.0/4`), discard-only (`100::/64`) and local-use NAT64 (`64:ff9b:1::/48`). An IPv6 address that embeds an
+IPv4 address (IPv4-mapped, 6to4, NAT64) is judged by the embedded address too. An HTTP HEAD test also refuses:
 
 - a single-label host name, or a name under a top-level label that only internal resolvers answer (`localhost`,
   `local`, `localdomain`, `internal`, `intranet`, `lan`, `home`, `corp`, `private`, `arpa`);
 - a host name that resolves, from the OpenAEV server, to at least one internal address. The name is resolved again
   at approval, and a test whose host resolves to an internal address by then is dropped with the reason. A name
-  that does not resolve from the OpenAEV server is accepted: the request still goes through the egress proxy.
+  that does not resolve from the OpenAEV server is accepted: the request still goes through the egress proxy. The
+  host names of a request are resolved in parallel, and the server waits at most 5 seconds for their answers; a
+  name not answered by then counts as a name that does not resolve.
 
 When the test runs, the egress proxy resolves the host name itself and may get another answer than the OpenAEV
 server did: a name that did not resolve from the server, or one whose records changed since the approval. The

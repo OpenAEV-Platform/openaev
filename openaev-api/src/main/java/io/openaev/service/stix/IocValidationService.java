@@ -240,7 +240,7 @@ public class IocValidationService {
     List<Boolean> shownRefusals = iocs.stream().map(IocValidationIoc::isRefused).toList();
     List<String> shownFingerprints =
         iocs.stream().map(IocValidationIoc::getPlanFingerprint).toList();
-    IocValidationPlanner.apply(iocs, settings);
+    IocValidationPlanner.HostResolver resolved = IocValidationPlanner.apply(iocs, settings);
     for (int index = 0; index < iocs.size(); index++) {
       IocValidationIoc ioc = iocs.get(index);
       String shownFingerprint = shownFingerprints.get(index);
@@ -298,7 +298,13 @@ public class IocValidationService {
       Scenario scenario = createScenario(ctx, validation);
       Set<Inject> injects =
           createInjects(
-              ctx, validation, settings, scenario, assetGroup, executorsOf(runnableEndpoints));
+              ctx,
+              validation,
+              settings,
+              resolved,
+              scenario,
+              assetGroup,
+              executorsOf(runnableEndpoints));
       if (injects.isEmpty()) {
         throw new BadRequestException(
             "Nothing can run: no endpoint of the asset group '%s' runs a platform the planned tests support"
@@ -793,6 +799,7 @@ public class IocValidationService {
       TxCtx ctx,
       IocValidation validation,
       IocValidationSettings settings,
+      IocValidationPlanner.HostResolver resolved,
       Scenario scenario,
       AssetGroup assetGroup,
       List<String> executors) {
@@ -813,9 +820,9 @@ public class IocValidationService {
       if (ioc.getTestKind() == null) {
         continue;
       }
-      IocValidationPlanner.Plan plan = IocValidationPlanner.plan(ioc, settings);
+      // The DNS answers of the approval: the inject runs exactly the plan that was just checked
+      IocValidationPlanner.Plan plan = IocValidationPlanner.plan(ioc, settings, resolved);
       if (!plan.runnable() || plan.testKind() != ioc.getTestKind()) {
-        // The host of a URL may resolve to an internal address since the plan was applied
         ioc.setTestKind(null);
         ioc.setRefused(plan.refused());
         ioc.setMessage(plan.message());

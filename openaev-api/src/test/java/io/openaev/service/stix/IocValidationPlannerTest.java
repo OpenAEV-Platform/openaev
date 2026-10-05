@@ -55,7 +55,7 @@ class IocValidationPlannerTest {
               defaults);
       IocValidationPlanner.Plan network =
           IocValidationPlanner.plan(
-              ioc("IPv4-Addr", "203.0.113.7", IocValidationTestKind.NETWORK_TRAFFIC), defaults);
+              ioc("IPv4-Addr", "8.8.4.4", IocValidationTestKind.NETWORK_TRAFFIC), defaults);
 
       assertThat(dns.runnable()).isTrue();
       assertThat(network.runnable()).isFalse();
@@ -80,8 +80,7 @@ class IocValidationPlannerTest {
     void given_kindNotApplicable_should_skipInsteadOfSwitchingKind() {
       IocValidationPlanner.Plan plan =
           IocValidationPlanner.plan(
-              ioc("IPv4-Addr", "203.0.113.7", IocValidationTestKind.DNS_RESOLUTION),
-              allowAll("", ""));
+              ioc("IPv4-Addr", "8.8.4.4", IocValidationTestKind.DNS_RESOLUTION), allowAll("", ""));
       assertThat(plan.runnable()).isFalse();
       assertThat(plan.testKind()).isNull();
       assertThat(plan.message()).contains("does not apply");
@@ -118,11 +117,10 @@ class IocValidationPlannerTest {
     void given_ipWithoutSinkhole_should_connectToAddress() {
       IocValidationPlanner.Plan plan =
           IocValidationPlanner.plan(
-              ioc("IPv4-Addr", "203.0.113.7", IocValidationTestKind.NETWORK_TRAFFIC),
-              allowAll("", ""));
+              ioc("IPv4-Addr", "8.8.4.4", IocValidationTestKind.NETWORK_TRAFFIC), allowAll("", ""));
       assertThat(plan.testKind()).isEqualTo(IocValidationTestKind.NETWORK_TRAFFIC);
       assertThat(plan.arguments())
-          .containsEntry(IOC_VALIDATION_HOST_KEY, "203.0.113.7")
+          .containsEntry(IOC_VALIDATION_HOST_KEY, "8.8.4.4")
           .containsEntry(IOC_VALIDATION_PORT_KEY, "8443");
       assertThat(plan.message()).isNull();
     }
@@ -132,10 +130,10 @@ class IocValidationPlannerTest {
     void given_sinkhole_should_substituteAddress() {
       IocValidationPlanner.Plan plan =
           IocValidationPlanner.plan(
-              ioc("IPv4-Addr", "203.0.113.7", IocValidationTestKind.NETWORK_TRAFFIC),
+              ioc("IPv4-Addr", "8.8.4.4", IocValidationTestKind.NETWORK_TRAFFIC),
               allowAll("", "192.0.2.10"));
       assertThat(plan.arguments()).containsEntry(IOC_VALIDATION_HOST_KEY, "192.0.2.10");
-      assertThat(plan.arguments()).doesNotContainValue("203.0.113.7");
+      assertThat(plan.arguments()).doesNotContainValue("8.8.4.4");
       assertThat(plan.message()).contains("sinkhole");
     }
 
@@ -248,7 +246,7 @@ class IocValidationPlannerTest {
   @Test
   @DisplayName("the plan fingerprint changes exactly when the test that would run changes")
   void given_settingsChange_should_changeFingerprintOnlyWithThePlan() {
-    IocValidationIoc ioc = ioc("IPv4-Addr", "203.0.113.7", IocValidationTestKind.NETWORK_TRAFFIC);
+    IocValidationIoc ioc = ioc("IPv4-Addr", "8.8.4.4", IocValidationTestKind.NETWORK_TRAFFIC);
 
     IocValidationPlanner.apply(List.of(ioc), allowAll("", "192.0.2.53"));
     String sinkholed = ioc.getPlanFingerprint();

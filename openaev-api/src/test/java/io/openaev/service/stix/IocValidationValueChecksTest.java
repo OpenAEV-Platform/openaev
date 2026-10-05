@@ -13,7 +13,9 @@ import io.openaev.service.stix.IocValidationPlanner.HostResolver;
 import io.openaev.service.stix.IocValidationPlanner.Plan;
 import io.openaev.utils.command.CommandArgumentBinder;
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
@@ -43,7 +45,7 @@ class IocValidationValueChecksTest {
   private static final String SHA256 =
       "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
   private static final String PROXY = "http://proxy.example.net:3128";
-  private static final HostResolver PUBLIC = host -> List.of(address("203.0.113.10"));
+  private static final HostResolver PUBLIC = host -> List.of(address("8.8.8.8"));
 
   private static IocValidationSettings allowAll() {
     return new IocValidationSettings(
@@ -209,10 +211,10 @@ class IocValidationValueChecksTest {
                   "evil" + apostrophe + ".example.com",
                   IocValidationTestKind.DNS_RESOLUTION)));
       assertRefused(
-          plan(
-              ioc("IPv4-Addr", "203.0.113.7" + apostrophe, IocValidationTestKind.NETWORK_TRAFFIC)));
+          plan(ioc("IPv4-Addr", "8.8.4.4" + apostrophe, IocValidationTestKind.NETWORK_TRAFFIC)));
       assertRefused(
-          plan(ioc("IPv6-Addr", "2001:db8::" + apostrophe, IocValidationTestKind.NETWORK_TRAFFIC)));
+          plan(
+              ioc("IPv6-Addr", "2606:4700::" + apostrophe, IocValidationTestKind.NETWORK_TRAFFIC)));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -302,18 +304,41 @@ class IocValidationValueChecksTest {
           "::ffff:10.1.2.3",
           "64:ff9b::a9fe:a9fe",
           "2002:7f00:1::1",
-          "10.0.0.1/32"
+          "10.0.0.1/32",
+          "100.64.0.1",
+          "100.127.255.254",
+          "198.18.0.1",
+          "198.19.255.254",
+          "192.0.0.8",
+          "192.0.2.1",
+          "198.51.100.7",
+          "203.0.113.7",
+          "240.0.0.1",
+          "2001:db8::1",
+          "3fff::1",
+          "100::1",
+          "64:ff9b:1::a",
+          "2001:0:4136:e378:8000:63bf:3fff:fdd2"
         })
-    @DisplayName("a network test refuses an internal address")
+    @DisplayName("a network test refuses an address that is not globally reachable")
     void given_internalAddress_should_refuseNetworkTest(String value) {
       String type = value.contains(":") ? "IPv6-Addr" : "IPv4-Addr";
       Plan plan = plan(ioc(type, value, IocValidationTestKind.NETWORK_TRAFFIC));
       assertRefused(plan);
-      assertThat(plan.message()).contains("internal addresses are never tested");
+      assertThat(plan.message()).contains("only public addresses are tested");
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"203.0.113.7", "172.32.0.1", "8.8.8.8/32", "2001:db8::7"})
+    @ValueSource(
+        strings = {
+          "8.8.4.4",
+          "172.32.0.1",
+          "100.128.0.1",
+          "198.20.0.1",
+          "8.8.8.8/32",
+          "2606:4700:4700::1111",
+          "2001:4860:4860::8888"
+        })
     @DisplayName("a network test accepts a public address")
     void given_publicAddress_should_planNetworkTest(String value) {
       String type = value.contains(":") ? "IPv6-Addr" : "IPv4-Addr";
@@ -332,7 +357,10 @@ class IocValidationValueChecksTest {
           "http://192.168.0.1/",
           "http://[fd00::1]/",
           "http://[::ffff:127.0.0.1]/",
-          "http://0.0.0.0/"
+          "http://0.0.0.0/",
+          "http://100.64.0.1/",
+          "http://198.18.0.1:8080/",
+          "http://[2001:db8::1]/"
         })
     @DisplayName("an HTTP HEAD test refuses a URL whose host is an internal IP literal")
     void given_urlWithInternalIpLiteral_should_refuse(String url) {
@@ -344,7 +372,7 @@ class IocValidationValueChecksTest {
           IocValidationPlanner.plan(
               ioc("Url", url, IocValidationTestKind.HTTP_HEAD), allowAll(), unused);
       assertRefused(plan);
-      assertThat(plan.message()).contains("internal addresses are never tested");
+      assertThat(plan.message()).contains("only public addresses are tested");
     }
 
     @ParameterizedTest(name = "{0}")
@@ -364,10 +392,11 @@ class IocValidationValueChecksTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"10.0.0.5", "127.0.0.1", "169.254.169.254", "fd00::5", "::1"})
+    @ValueSource(
+        strings = {"10.0.0.5", "127.0.0.1", "169.254.169.254", "100.64.1.1", "fd00::5", "::1"})
     @DisplayName("an HTTP HEAD test refuses a host name that resolves to an internal address")
     void given_hostResolvingToInternalAddress_should_refuse(String internal) {
-      HostResolver resolver = host -> List.of(address("203.0.113.10"), address(internal));
+      HostResolver resolver = host -> List.of(address("8.8.8.8"), address(internal));
       Plan plan =
           IocValidationPlanner.plan(
               ioc("Url", "https://intranet.example.com/x", IocValidationTestKind.HTTP_HEAD),
@@ -398,19 +427,82 @@ class IocValidationValueChecksTest {
     @Test
     @DisplayName("a request resolves each host once")
     void given_severalUrlsOfOneHost_should_resolveItOnce() {
-      List<String> lookups = new ArrayList<>();
+      List<String> lookups = Collections.synchronizedList(new ArrayList<>());
       HostResolver counting =
           host -> {
             lookups.add(host);
-            return List.of(address("203.0.113.10"));
+            return List.of(address("8.8.8.8"));
           };
-      IocValidationPlanner.apply(
-          List.of(
-              ioc("Url", "https://evil.example.com/a", IocValidationTestKind.HTTP_HEAD),
-              ioc("Url", "https://evil.example.com/b", IocValidationTestKind.HTTP_HEAD)),
-          allowAll(),
-          counting);
+      HostResolver answers =
+          IocValidationPlanner.apply(
+              List.of(
+                  ioc("Url", "https://evil.example.com/a", IocValidationTestKind.HTTP_HEAD),
+                  ioc("Url", "https://evil.example.com/b", IocValidationTestKind.HTTP_HEAD)),
+              allowAll(),
+              counting);
+      // The approval builds its injects from the same answers, without a second lookup
+      answers.resolve("evil.example.com");
       assertThat(lookups).containsExactly("evil.example.com");
+    }
+
+    @Test
+    @DisplayName("only the host names of HTTP HEAD tests are resolved")
+    void given_mixedIocs_should_resolveOnlyUrlHostNames() {
+      List<String> lookups = Collections.synchronizedList(new ArrayList<>());
+      HostResolver counting =
+          host -> {
+            lookups.add(host);
+            return List.of(address("8.8.8.8"));
+          };
+      IocValidationPlanner.resolveAll(
+          List.of(
+              ioc("Domain-Name", "dns.example.com", IocValidationTestKind.DNS_RESOLUTION),
+              ioc("Url", "https://WEB.example.com/x", IocValidationTestKind.HTTP_HEAD),
+              ioc("Url", "http://8.8.4.4/x", IocValidationTestKind.HTTP_HEAD),
+              ioc("Url", REPRODUCTION, IocValidationTestKind.HTTP_HEAD)),
+          counting,
+          Duration.ofSeconds(5));
+      assertThat(lookups).containsExactly("web.example.com");
+    }
+
+    @Test
+    @DisplayName("a slow DNS answer never holds the request beyond the deadline")
+    void given_slowResolver_should_answerWithinTheDeadline() {
+      HostResolver slow =
+          host -> {
+            if (host.startsWith("slow.")) {
+              try {
+                Thread.sleep(10_000);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              }
+              return List.of(address("10.0.0.1"));
+            }
+            return List.of(address("8.8.8.8"));
+          };
+      long start = System.nanoTime();
+
+      HostResolver answers =
+          IocValidationPlanner.resolveAll(
+              List.of(
+                  ioc("Url", "https://slow.example.com/a", IocValidationTestKind.HTTP_HEAD),
+                  ioc("Url", "https://fast.example.com/a", IocValidationTestKind.HTTP_HEAD)),
+              slow,
+              Duration.ofMillis(500));
+
+      assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(5));
+      // Not answered in time: a name that does not resolve here, whatever the late answer says
+      assertThat(answers.resolve("slow.example.com")).isEmpty();
+      assertThat(answers.resolve("fast.example.com")).containsExactly(address("8.8.8.8"));
+    }
+
+    @Test
+    @DisplayName("a host the request did not announce is resolved directly")
+    void given_unannouncedHost_should_resolveItDirectly() {
+      HostResolver answers =
+          IocValidationPlanner.resolveAll(
+              List.of(), host -> List.of(address("10.0.0.1")), Duration.ofSeconds(1));
+      assertThat(answers.resolve("other.example.com")).containsExactly(address("10.0.0.1"));
     }
   }
 
@@ -508,7 +600,8 @@ class IocValidationValueChecksTest {
                   IocValidationTestKind.HTTP_HEAD)),
           Arguments.of(logLine("ignored", Map.of("SHA-256", SHA256.toUpperCase(Locale.ROOT)))),
           Arguments.of(file("C:\\Users\\Public\\in-voice_2026.v1.exe", Map.of())),
-          Arguments.of(ioc("IPv6-Addr", "2001:db8::7", IocValidationTestKind.NETWORK_TRAFFIC)),
+          Arguments.of(
+              ioc("IPv6-Addr", "2606:4700:4700::1111", IocValidationTestKind.NETWORK_TRAFFIC)),
           Arguments.of(
               ioc("Domain-Name", "b\u00fccher.example.com", IocValidationTestKind.DNS_RESOLUTION)));
     }

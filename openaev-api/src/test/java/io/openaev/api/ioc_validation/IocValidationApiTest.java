@@ -247,8 +247,7 @@ class IocValidationApiTest extends IntegrationTest {
     void given_notAllowedKind_should_previewSkip() throws Exception {
       String id =
           receive(
-              ctiEvent(
-                  UUID.randomUUID().toString(), "IPv4-Addr", "203.0.113.7", "network_traffic"));
+              ctiEvent(UUID.randomUUID().toString(), "IPv4-Addr", "8.8.4.4", "network_traffic"));
 
       String response = validation(id);
       assertThat((List<Object>) JsonPath.read(response, "$.ioc_validation_iocs")).hasSize(1);
@@ -415,8 +414,7 @@ class IocValidationApiTest extends IntegrationTest {
       allow(List.of(IocValidationTestKind.DNS_RESOLUTION), assetGroup);
       String id =
           receive(
-              ctiEvent(
-                  UUID.randomUUID().toString(), "IPv4-Addr", "203.0.113.7", "network_traffic"));
+              ctiEvent(UUID.randomUUID().toString(), "IPv4-Addr", "8.8.4.4", "network_traffic"));
       // Allowed only after the request was shown with its network test skipped
       allow(
           List.of(IocValidationTestKind.DNS_RESOLUTION, IocValidationTestKind.NETWORK_TRAFFIC),
@@ -447,8 +445,7 @@ class IocValidationApiTest extends IntegrationTest {
           .andExpect(status().isOk());
       String id =
           receive(
-              ctiEvent(
-                  UUID.randomUUID().toString(), "IPv4-Addr", "203.0.113.7", "network_traffic"));
+              ctiEvent(UUID.randomUUID().toString(), "IPv4-Addr", "8.8.4.4", "network_traffic"));
       // Shown as a connection to the sinkhole, would now connect to the IOC itself
       allow(kinds, assetGroup);
 

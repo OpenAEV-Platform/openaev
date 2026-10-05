@@ -22,15 +22,24 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -57,6 +66,8 @@ public final class IocValidationPlanner {
   static final int MAX_HOST_LENGTH = 253;
   static final int MAX_URL_LENGTH = 2048;
   static final int MAX_FILE_NAME_LENGTH = 128;
+  static final Duration RESOLUTION_DEADLINE = Duration.ofSeconds(5);
+  private static final int RESOLUTION_THREADS = 16;
 
   private static final Set<String> HOST_TYPES = Set.of("domain-name", "hostname");
   private static final Set<String> ADDRESS_TYPES = Set.of("ipv4-addr", "ipv6-addr");
@@ -192,16 +203,19 @@ public final class IocValidationPlanner {
     };
   }
 
-  /** Applies {@link #plan} to every IOC, recording the kind that runs and the reason otherwise. */
-  public static void apply(List<IocValidationIoc> iocs, IocValidationSettings settings) {
-    apply(iocs, settings, HostResolver.SYSTEM);
+  /**
+   * Applies {@link #plan} to every IOC, recording the kind that runs and the reason otherwise.
+   *
+   * @return the DNS answers the plans were built from, to build the same plans again without a
+   *     second lookup
+   */
+  static HostResolver apply(List<IocValidationIoc> iocs, IocValidationSettings settings) {
+    return apply(iocs, settings, HostResolver.SYSTEM);
   }
 
-  static void apply(
+  static HostResolver apply(
       List<IocValidationIoc> iocs, IocValidationSettings settings, HostResolver resolver) {
-    // One lookup per host and pass: a request often holds several URLs of the same host
-    Map<String, List<InetAddress>> resolved = new HashMap<>();
-    HostResolver once = host -> resolved.computeIfAbsent(host, resolver::resolve);
+    HostResolver once = resolveAll(iocs, resolver, RESOLUTION_DEADLINE);
     for (IocValidationIoc ioc : iocs) {
       Plan plan = plan(ioc, settings, once);
       ioc.setTestKind(plan.testKind());
@@ -209,6 +223,67 @@ public final class IocValidationPlanner {
       ioc.setRefused(plan.refused());
       ioc.setPlanFingerprint(plan.runnable() ? fingerprint(plan) : null);
     }
+    return once;
+  }
+
+  /**
+   * Resolves every host name an HTTP HEAD test of these IOCs would request: once per host, in
+   * parallel, and within {@code deadline} overall, since planning runs inside the transaction of
+   * the intake or the approval. A name not answered in time counts as a name that does not resolve
+   * from the OpenAEV server (the egress proxy resolves it again at execution anyway). A host the
+   * IOCs did not announce is resolved directly.
+   */
+  static HostResolver resolveAll(
+      List<IocValidationIoc> iocs, HostResolver resolver, Duration deadline) {
+    Set<String> hosts = new LinkedHashSet<>();
+    for (IocValidationIoc ioc : iocs) {
+      if (ioc.getRequestedTestKind() == IocValidationTestKind.HTTP_HEAD) {
+        urlHostName(ioc.getValue()).ifPresent(hosts::add);
+      }
+    }
+    Map<String, List<InetAddress>> answers = new HashMap<>();
+    if (!hosts.isEmpty()) {
+      List<String> names = List.copyOf(hosts);
+      ExecutorService pool =
+          Executors.newFixedThreadPool(
+              Math.min(RESOLUTION_THREADS, names.size()),
+              Thread.ofPlatform().daemon().name("ioc-validation-dns-", 0).factory());
+      try {
+        List<Future<List<InetAddress>>> lookups =
+            pool.invokeAll(
+                names.stream()
+                    .map(host -> (Callable<List<InetAddress>>) () -> resolver.resolve(host))
+                    .toList(),
+                deadline.toMillis(),
+                TimeUnit.MILLISECONDS);
+        // Only the answers in time: a lookup cancelled at the deadline never changes the result
+        for (int index = 0; index < names.size(); index++) {
+          Future<List<InetAddress>> lookup = lookups.get(index);
+          if (!lookup.isCancelled()) {
+            try {
+              answers.put(names.get(index), lookup.get());
+            } catch (ExecutionException e) {
+              // a failed lookup counts as a name that does not resolve
+            }
+          }
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } finally {
+        pool.shutdownNow();
+      }
+    }
+    return host ->
+        hosts.contains(host) ? answers.getOrDefault(host, List.of()) : resolver.resolve(host);
+  }
+
+  /** The host name {@link #normalizeUrl} would resolve for a value, empty for an IP literal. */
+  private static Optional<String> urlHostName(String value) {
+    Checked<URI> parsed = parseHttpUrl(value);
+    if (!parsed.isAccepted() || InetAddresses.isUriInetAddress(parsed.value().getHost())) {
+      return Optional.empty();
+    }
+    return normalizeHost(parsed.value().getHost());
   }
 
   /**
@@ -382,7 +457,7 @@ public final class IocValidationPlanner {
     Optional<String> range = internalRange(parsed);
     if (range.isPresent()) {
       return Checked.refused(
-          "'%s' is %s: internal addresses are never tested".formatted(display(value), range.get()));
+          "'%s' is %s: only public addresses are tested".formatted(display(value), range.get()));
     }
     return Checked.accepted(InetAddresses.toAddrString(parsed));
   }
@@ -417,8 +492,7 @@ public final class IocValidationPlanner {
           .<Checked<String>>map(
               range ->
                   Checked.refused(
-                      "'%s' targets %s: internal addresses are never tested"
-                          .formatted(shown, range)))
+                      "'%s' targets %s: only public addresses are tested".formatted(shown, range)))
           .orElseGet(() -> Checked.accepted(url));
     }
     String name = normalizeHost(host).orElseThrow();
@@ -435,14 +509,14 @@ public final class IocValidationPlanner {
     }
     if (INTERNAL_TOP_LEVEL_LABELS.contains(topLevel)) {
       return Checked.refused(
-          "'%s' names a host of an internal network (.%s): internal addresses are never tested"
+          "'%s' names a host of an internal network (.%s): only public addresses are tested"
               .formatted(shown, topLevel));
     }
     for (InetAddress address : resolver.resolve(name)) {
       Optional<String> range = internalRange(address);
       if (range.isPresent()) {
         return Checked.refused(
-            "'%s' resolves to %s, %s: internal addresses are never tested"
+            "'%s' resolves to %s, %s: only public addresses are tested"
                 .formatted(shown, InetAddresses.toAddrString(address), range.get()));
       }
     }
@@ -538,7 +612,46 @@ public final class IocValidationPlanner {
     if (address instanceof Inet4Address && Ints.fromByteArray(bytes) == -1) {
       return Optional.of("the broadcast address");
     }
-    return Optional.empty();
+    return NON_GLOBAL_RANGES.stream()
+        .filter(range -> range.contains(bytes))
+        .map(AddressRange::label)
+        .findFirst();
+  }
+
+  /**
+   * The ranges of the IANA special-purpose registries that are not globally reachable and that the
+   * {@link InetAddress} flags above do not cover.
+   */
+  private static final List<AddressRange> NON_GLOBAL_RANGES =
+      List.of(
+          new AddressRange("100.64.0.0", 10, "a shared address (carrier-grade NAT)"),
+          new AddressRange("192.0.0.0", 24, "an IETF protocol assignment"),
+          new AddressRange("192.0.2.0", 24, "a documentation address"),
+          new AddressRange("198.18.0.0", 15, "a benchmarking address"),
+          new AddressRange("198.51.100.0", 24, "a documentation address"),
+          new AddressRange("203.0.113.0", 24, "a documentation address"),
+          new AddressRange("240.0.0.0", 4, "a reserved address"),
+          new AddressRange("64:ff9b:1::", 48, "a local-use NAT64 address"),
+          new AddressRange("100::", 64, "a discard-only address"),
+          new AddressRange("2001::", 23, "an IETF protocol assignment"),
+          new AddressRange("2001:db8::", 32, "a documentation address"),
+          new AddressRange("3fff::", 20, "a documentation address"));
+
+  private record AddressRange(byte[] network, int prefix, String label) {
+
+    AddressRange(String network, int prefix, String label) {
+      this(InetAddresses.forString(network).getAddress(), prefix, label);
+    }
+
+    boolean contains(byte[] address) {
+      int whole = prefix / 8;
+      if (address.length != network.length
+          || !Arrays.equals(address, 0, whole, network, 0, whole)) {
+        return false;
+      }
+      int mask = (0xff << (8 - prefix % 8)) & 0xff;
+      return prefix % 8 == 0 || (address[whole] & mask) == (network[whole] & mask);
+    }
   }
 
   private static Optional<Inet4Address> embeddedIpv4(Inet6Address address) {
