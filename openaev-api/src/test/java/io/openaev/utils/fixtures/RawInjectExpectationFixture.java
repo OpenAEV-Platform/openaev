@@ -154,6 +154,11 @@ public class RawInjectExpectationFixture {
       return trackingSentDate;
     }
 
+    @Override
+    public Boolean getIoc_validation() {
+      return false;
+    }
+
     public String getTenant_id() {
       return tenantId;
     }

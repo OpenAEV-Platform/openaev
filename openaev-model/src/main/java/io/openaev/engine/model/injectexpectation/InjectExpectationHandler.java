@@ -8,6 +8,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.engine.EsSkipped;
 import io.openaev.engine.Handler;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -22,6 +23,10 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
 
   private final InjectExpectationRepository injectExpectationRepository;
 
+  /** An expectation of an IOC validation run: read past by the cursor, never indexed. */
+  public static final class SkippedInjectExpectation extends EsInjectExpectation
+      implements EsSkipped {}
+
   @Override
   public List<EsInjectExpectation> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
@@ -30,6 +35,12 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
     return forIndexing.stream()
         .map(
             injectExpectation -> {
+              if (Boolean.TRUE.equals(injectExpectation.getIoc_validation())) {
+                EsInjectExpectation skipped = new SkippedInjectExpectation();
+                skipped.setBase_id(injectExpectation.getInject_expectation_id());
+                skipped.setBase_updated_at(injectExpectation.getInject_expectation_updated_at());
+                return skipped;
+              }
               EsInjectExpectation esInjectExpectation = new EsInjectExpectation();
               // Base
               esInjectExpectation.setBase_id(injectExpectation.getInject_expectation_id());
