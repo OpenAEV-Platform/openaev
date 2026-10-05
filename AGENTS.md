@@ -56,7 +56,6 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [review-migration](.github/skills/review-migration/SKILL.md) | Auditing Flyway migration safety and rollout risks |
 | [review-code](.github/skills/review-code/SKILL.md) | General code review of a PR or module |
 | [review-frontend](.github/skills/review-frontend/SKILL.md) | Auditing frontend patterns of a PR or module |
-| [migrate-to-design-system](.github/skills/migrate-to-design-system/SKILL.md) | Replacing MUI components with Filigran Design System ones, or bumping the library |
 | [review-multi-tenancy](.github/skills/review-multi-tenancy/SKILL.md) | Auditing tenant isolation of a PR or module |
 | [review-performance](.github/skills/review-performance/SKILL.md) | Auditing performance of a PR or module |
 | [review-security](.github/skills/review-security/SKILL.md) | Auditing security of a PR or module |

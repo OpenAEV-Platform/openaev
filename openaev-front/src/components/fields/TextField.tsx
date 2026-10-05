@@ -49,7 +49,7 @@ const TextField = <TFieldValues extends FieldValues = FieldValues>({
               type: 'iconButton',
               icon: <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />,
               label: t('Ask AI'),
-              disabled: !askAiAvailable,
+              disabled: !askAiAvailable || !!props.disabled,
               onClick: event => setAskAiAnchor(event.currentTarget),
             }
           : props.endIcon}
