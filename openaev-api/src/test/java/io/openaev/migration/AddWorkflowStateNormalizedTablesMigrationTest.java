@@ -14,10 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Verifies the ADR-007 normalized WorkflowState store migration is applied, additive and
- * idempotent: the two tables ({@code workflow_state_entries}, {@code
- * workflow_state_correlation_progress}) and the {@code workflows.storage_mode} column exist with
- * the expected types/constraints, and re-running the migration is a no-op.
+ * Verifies the ADR-010 normalized WorkflowState store migration is applied, additive and
+ * idempotent: the {@code workflow_state_entries} table and the {@code workflows.storage_mode}
+ * column exist with the expected types/constraints, and re-running the migration is a no-op.
  *
  * <p>{@code @Transactional} so the idempotency test's re-run of the migration rolls back with the
  * test transaction instead of leaking any DDL side effect into the other tests.
@@ -82,10 +81,9 @@ class AddWorkflowStateNormalizedTablesMigrationTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("The two normalized WorkflowState tables exist")
-  void tables_exist() {
+  @DisplayName("The normalized WorkflowState entries table exists")
+  void table_exists() {
     assertThat(tableCount("workflow_state_entries")).isEqualTo(1);
-    assertThat(tableCount("workflow_state_correlation_progress")).isEqualTo(1);
   }
 
   @Test
@@ -95,33 +93,28 @@ class AddWorkflowStateNormalizedTablesMigrationTest extends IntegrationTest {
     assertThat(isNullable("workflow_state_entries", "entry_type")).isEqualTo("NO");
     assertThat(isNullable("workflow_state_entries", "entry_key")).isEqualTo("NO");
     assertThat(isNullable("workflow_state_entries", "entry_value")).isEqualTo("NO");
-    // correlation_hash is optional (only CORRELATED rows carry it).
+    // correlation_hash / correlation_type are optional (only CORRELATED rows carry them).
     assertThat(isNullable("workflow_state_entries", "correlation_hash")).isEqualTo("YES");
-    assertThat(dataType("workflow_state_entries", "correlation_hash")).isEqualTo("bytea");
+    assertThat(isNullable("workflow_state_entries", "correlation_type")).isEqualTo("YES");
+    assertThat(dataType("workflow_state_entries", "workflow_state_id"))
+        .isEqualTo("character varying");
+    assertThat(dataType("workflow_state_entries", "correlation_hash"))
+        .isEqualTo("character varying");
     assertThat(dataType("workflow_state_entries", "entry_value")).isEqualTo("text");
     assertThat(dataType("workflow_state_entries", "created_at"))
         .isEqualTo("timestamp with time zone");
 
-    assertThat(constraintCount("uq_wse_state_type_key_value", "UNIQUE")).isEqualTo(1);
+    assertThat(constraintCount("chk_wse_entry_type", "CHECK")).isEqualTo(1);
     assertThat(indexCount("idx_wse_lookup")).isEqualTo(1);
-    assertThat(indexCount("idx_wse_correlation_hash")).isEqualTo(1);
   }
 
   @Test
-  @DisplayName("workflow_state_correlation_progress is keyed by correlation_hash (BYTEA)")
-  void correlation_progress_columns_and_constraints() {
-    assertThat(dataType("workflow_state_correlation_progress", "correlation_hash"))
-        .isEqualTo("bytea");
-    assertThat(isNullable("workflow_state_correlation_progress", "correlation_hash"))
-        .isEqualTo("NO");
-    assertThat(isNullable("workflow_state_correlation_progress", "workflow_state_id"))
-        .isEqualTo("NO");
-    assertThat(dataType("workflow_state_correlation_progress", "keys_present")).isEqualTo("ARRAY");
-    assertThat(isNullable("workflow_state_correlation_progress", "is_complete")).isEqualTo("NO");
-
-    assertThat(constraintCount("workflow_state_correlation_progress_pkey", "PRIMARY KEY"))
-        .isEqualTo(1);
-    assertThat(indexCount("idx_wscp_ready")).isEqualTo(1);
+  @DisplayName("workflow_state_entries has one partial unique index per entry type")
+  void entries_partial_unique_indexes() {
+    assertThat(indexCount("uq_wse_input")).isEqualTo(1);
+    assertThat(indexCount("uq_wse_hash")).isEqualTo(1);
+    assertThat(indexCount("uq_wse_correlated")).isEqualTo(1);
+    assertThat(tableCount("workflow_state_correlation_progress")).isZero();
   }
 
   @Test

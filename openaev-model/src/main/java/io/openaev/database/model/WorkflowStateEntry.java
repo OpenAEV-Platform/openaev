@@ -6,9 +6,11 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * Normalized WorkflowState entry (ADR-007). Maps 1:1 the {@code workflow_state_entries} table added
- * in the chunk 1 migration. One row = one normalized entry belonging to a {@link WorkflowState},
- * discriminated by {@link EntryType}.
+ * Normalized WorkflowState entry (ADR-010). Maps 1:1 the {@code workflow_state_entries} table added
+ * by the {@code V6_20260908080000000} migration. One row = one normalized entry belonging to a
+ * {@link WorkflowState}, discriminated by {@link EntryType}. A correlated tuple is stored as one
+ * {@link EntryType#CORRELATED} row per field, all sharing the same {@link #correlationHash} and
+ * {@link #correlationType}.
  */
 @Entity
 @Table(name = "workflow_state_entries")
@@ -46,9 +48,16 @@ public class WorkflowStateEntry {
   @Column(name = "entry_value", nullable = false)
   private String entryValue;
 
-  /** Non-null only for {@link EntryType#CORRELATED} rows. */
+  /** MurmurHash3-128 (hex) of the tuple. Non-null only for {@link EntryType#CORRELATED} rows. */
   @Column(name = "correlation_hash")
-  private byte[] correlationHash;
+  private String correlationHash;
+
+  /**
+   * Business type of the tuple ({@code ContractOutputType.name()}). Non-null only for {@link
+   * EntryType#CORRELATED} rows.
+   */
+  @Column(name = "correlation_type")
+  private String correlationType;
 
   @Column(name = "created_at", nullable = false, updatable = false)
   @CreationTimestamp

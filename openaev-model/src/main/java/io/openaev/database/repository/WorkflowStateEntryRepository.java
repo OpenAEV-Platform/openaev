@@ -15,5 +15,11 @@ public interface WorkflowStateEntryRepository extends JpaRepository<WorkflowStat
   List<WorkflowStateEntry> findByWorkflowState_IdAndEntryType(
       String workflowStateId, EntryType entryType);
 
-  List<WorkflowStateEntry> findByCorrelationHash(byte[] correlationHash);
+  /**
+   * Rows of one correlated tuple within one state. Always scoped by state: the hash identifies the
+   * tuple content, so the same tuple (and hash) exists in the global state, in every local state it
+   * was propagated to, and in other runs.
+   */
+  List<WorkflowStateEntry> findByWorkflowState_IdAndCorrelationHash(
+      String workflowStateId, String correlationHash);
 }
