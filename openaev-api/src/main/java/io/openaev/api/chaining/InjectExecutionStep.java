@@ -23,6 +23,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
+import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
@@ -30,6 +31,7 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
@@ -57,6 +59,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 /**
  * Implementation of {@link ActionStep} for executing Inject steps.
@@ -98,6 +101,7 @@ public class InjectExecutionStep implements ActionStep {
   private final ExecutableInjectService executableInjectService;
   private final ExerciseTeamUserService exerciseTeamUserService;
   private final ExecutionContextService executionContextService;
+  private final InjectStatusService injectStatusService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -199,7 +203,10 @@ public class InjectExecutionStep implements ActionStep {
    * Executor}, and updates the step data with inject ID.
    *
    * @param readyStep the step currently in READY status
-   * @return the updated step with execution info, or null if execution fails
+   * @return the updated step with execution info, or an empty Optional if no agent could run the
+   *     inject: the inject is set to ERROR and the caller ends the step without retry
+   * @throws ChainingException on any other failure: the transaction is rolled back and the event is
+   *     retried
    */
   @Override
   @Transactional(rollbackFor = Exception.class)
@@ -248,6 +255,19 @@ public class InjectExecutionStep implements ActionStep {
       executor.directExecute(executableInject);
 
       return Optional.of(readyStep);
+    } catch (ExecutionExecutorException e) {
+      // No agent could run the inject (all inactive, agentless, or every executor call failed).
+      // That outcome is final, not transient: record it on the inject and end the step. Rolling
+      // back instead drops the inject with its traces and makes StepEventService re-publish the
+      // same event, which is what leaves RabbitMQ deliveries unacknowledged. The exception is
+      // thrown by the non-transactional ExecutionExecutorService, so the transaction is still
+      // sound, unless an inner transactional call failed earlier: keep the rollback then.
+      if (TransactionAspectSupport.currentTransactionStatus().isRollbackOnly()) {
+        throw new ChainingException(
+            "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
+      }
+      injectStatusService.failInjectStatus(injectId, e.getMessage());
+      return Optional.empty();
     } catch (Exception e) {
       throw new ChainingException(
           "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);

@@ -30,6 +30,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
+import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -58,7 +59,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Transactional
 // documents is v2-active: the run-path document resolution (getInjectFromDataStep) is scoped by the
@@ -91,6 +96,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @Autowired private InjectTestHelper injectTestHelper;
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private EntityManager entityManager;
+  @Autowired private PlatformTransactionManager transactionManager;
   String injectInputJson;
   InjectorContract injectorContractSaved;
   Asset savedAsset;
@@ -826,6 +832,71 @@ public class InjectExecutionStepTest extends IntegrationTest {
     String idInject = ex.getMessage().replace("Inject execution failed. Inject ID: ", "");
     Assertions.assertFalse(
         injectRepository.findById(idInject).isPresent(), idInject + " should not be persisted");
+  }
+
+  @Test
+  void given_noAssetExecuted_should_failInjectAndEndStepWithoutRollback() throws Exception {
+    // Arrange
+    doThrow(new ExecutionExecutorException("No asset executed"))
+        .when(executor)
+        .directExecute(any());
+    Step stepReady = createReadyStepForRun();
+
+    // Act
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+
+    // Assert
+    assertTrue(stepRunOpt.isEmpty(), "the step must be ended, not moved to RUN");
+    Boolean rollbackOnly =
+        new TransactionTemplate(transactionManager).execute(TransactionStatus::isRollbackOnly);
+    assertFalse(rollbackOnly, "the transaction must still be able to commit");
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    InjectStatus injectStatus =
+        injectRepository.findById(injectId).orElseThrow().getStatus().orElseThrow();
+    assertEquals(ExecutionStatus.ERROR, injectStatus.getName());
+    assertTrue(
+        injectStatus.getTraces().stream()
+            .anyMatch(
+                trace ->
+                    ExecutionTraceStatus.ERROR.equals(trace.getStatus())
+                        && "No asset executed".equals(trace.getMessage())),
+        "the failure reason must be kept as an error trace");
+  }
+
+  @Test
+  void given_noAssetExecutedOnRollbackOnlyTransaction_should_throwChainingException()
+      throws Exception {
+    // Arrange: an inner transactional call already doomed the transaction before the executor
+    // gave up, so the failure cannot be recorded and the rollback must be kept
+    doAnswer(
+            invocation -> {
+              TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+              throw new ExecutionExecutorException("No asset executed");
+            })
+        .when(executor)
+        .directExecute(any());
+    Step stepReady = createReadyStepForRun();
+
+    // Act
+    ChainingException ex =
+        assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
+
+    // Assert
+    assertTrue(ex.getMessage().startsWith("Inject execution failed. Inject ID: "));
+    assertInstanceOf(ExecutionExecutorException.class, ex.getCause());
+  }
+
+  private Step createReadyStepForRun() throws JsonProcessingException, ChainingException {
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    Step stepTemplate = injectExecutionStep.create(step, workflowTemplate).orElseThrow();
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    workflowRun.setSimulation(workflowTemplate.getSimulation());
+    return injectExecutionStep
+        .ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun)
+        .orElseThrow();
   }
 
   // ---------------------------------------------------------------------------
