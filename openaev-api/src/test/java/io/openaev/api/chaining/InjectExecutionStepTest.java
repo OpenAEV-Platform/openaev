@@ -1970,4 +1970,20 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertTrue(tracesByEndpointSource.containsKey(expectedIndex));
     assertEquals("endpoint ok\n", tracesByEndpointSource.get(expectedIndex).toString());
   }
+
+  @Test
+  void given_stepCarryingItsInjectId_should_beAlreadyRun() {
+    Step readyStep = new Step();
+    readyStep.setData("{\"inject_title\":\"Scan\",\"inject_id\":\"inject-1\"}");
+
+    assertTrue(injectExecutionStep.isAlreadyRun(readyStep));
+  }
+
+  @Test
+  void given_stepWithoutInjectId_should_notBeAlreadyRun() {
+    Step readyStep = new Step();
+    readyStep.setData("{\"inject_title\":\"Scan\"}");
+
+    assertFalse(injectExecutionStep.isAlreadyRun(readyStep));
+  }
 }

@@ -84,14 +84,13 @@ import SecurityPlatformIndicator from './SecurityPlatformIndicator';
 import SimulationConfiguration from './SimulationConfiguration';
 
 // Exported for testing: props-driven UI, covered without the store-bound header.
-export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing, isChaining }: {
+export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing }: {
   exerciseId: Exercise['exercise_id'];
   exerciseStatus: Exercise['exercise_status'];
   exerciseName: Exercise['exercise_name'];
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
   isScopeMissing: boolean;
-  isChaining: boolean;
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -133,9 +132,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
         return (<div />);
       }
       case 'RUNNING': {
-        // Chaining has no pause semantics and the backend refuses it, so no CTA.
-        // Resume stays available for a simulation already paused in database.
-        if (permissions.canLaunch && !isChaining) {
+        if (permissions.canLaunch) {
           return (
             <Button type="button" variant="destructive" priority="secondary" startIcon={<PauseOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('PAUSED')} disabled={isLoading}>
               {t('Pause')}
@@ -634,7 +631,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   onLoading={onLoading}
                   isLoading={isLoading}
                   isScopeMissing={isScopeMissing}
-                  isChaining={isSimulationChaining}
                 />
               )}
             </>
