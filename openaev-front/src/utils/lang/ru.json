@@ -4641,6 +4641,8 @@
   "Network test port": "Порт сетевых тестов",
   "Asset group running the tests": "Группа активов, выполняющая тесты",
   "Endpoints of this group run the benign tests.": "Конечные точки этой группы выполняют безопасные тесты.",
+  "The asset groups could not be loaded.": "Не удалось загрузить группы активов.",
+  "The IOC validation settings could not be loaded.": "Не удалось загрузить настройки проверки IOC.",
   "IOC validation settings saved": "Параметры проверки IOC сохранены",
   "The egress proxy must be an absolute http or https URL": "Исходящий прокси должен быть абсолютным URL http или https",
   "The egress proxy URL must not contain credentials": "URL исходящего прокси не должен содержать учетные данные",

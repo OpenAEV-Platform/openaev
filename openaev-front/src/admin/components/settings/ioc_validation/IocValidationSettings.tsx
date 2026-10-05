@@ -16,7 +16,7 @@ import {
   Text,
 } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -111,6 +111,8 @@ export const AssetGroupField = ({ value, onChange, onBlur }: AssetGroupFieldProp
   const [options, setOptions] = useState<AssetGroupOption[]>([]);
   const [selected, setSelected] = useState<AssetGroupOption | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,8 +122,15 @@ export const AssetGroupField = ({ value, onChange, onBlur }: AssetGroupFieldProp
         .then((result: { data: AssetGroupOption[] }) => {
           if (cancelled) return;
           const found = result.data ?? [];
+          setFailed(false);
           setOptions(found);
           setSelected(current => current ?? found.find(option => option.id === value) ?? null);
+        })
+        .catch(() => {
+          // An empty list would read as "no asset group" instead of a failed lookup
+          if (cancelled) return;
+          setFailed(true);
+          setOptions([]);
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -131,10 +140,11 @@ export const AssetGroupField = ({ value, onChange, onBlur }: AssetGroupFieldProp
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [search]);
+  }, [search, attempt]);
 
   return (
     <Combobox<AssetGroupOption>
+      error={failed}
       options={options}
       value={selected}
       onValueChange={(option) => {
@@ -165,7 +175,31 @@ export const AssetGroupField = ({ value, onChange, onBlur }: AssetGroupFieldProp
         </ComboboxControls>
       </ComboboxField>
       <ComboboxContent />
-      <ComboboxHelperText>{t('Endpoints of this group run the benign tests.')}</ComboboxHelperText>
+      <ComboboxHelperText data-testid="ioc-validation-asset-group-helper">
+        {failed
+          ? (
+              <>
+                {`${t('The asset groups could not be loaded.')} `}
+                {/* A text action at the helper's size: a design-system button is taller than the helper line */}
+                <button
+                  type="button"
+                  onClick={() => setAttempt(current => current + 1)}
+                  style={{
+                    font: 'inherit',
+                    color: 'inherit',
+                    background: 'none',
+                    border: 0,
+                    padding: 0,
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('Retry')}
+                </button>
+              </>
+            )
+          : t('Endpoints of this group run the benign tests.')}
+      </ComboboxHelperText>
     </Combobox>
   );
 };
@@ -407,11 +441,33 @@ export const IocValidationReadiness = ({ openctiEnabled, connectorRegistered }: 
 const IocValidationSettings = () => {
   const { t } = useFormatter();
   const [settings, setSettings] = useState<IocValidationSettingsOutput | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  useEffect(() => {
-    fetchIocValidationSettings().then((result: { data: IocValidationSettingsOutput }) => setSettings(result.data));
+  const load = useCallback(() => {
+    setLoadFailed(false);
+    fetchIocValidationSettings()
+      .then((result: { data: IocValidationSettingsOutput }) => setSettings(result.data))
+      .catch(() => setLoadFailed(true));
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loadFailed) {
+    return (
+      <Alert
+        severity="error"
+        data-testid="ioc-validation-settings-load-failed"
+        title={t('The IOC validation settings could not be loaded.')}
+        action={(
+          <Button priority="secondary" size="sm" onClick={load}>
+            {t('Retry')}
+          </Button>
+        )}
+      />
+    );
+  }
   if (!settings) {
     return <Loader />;
   }

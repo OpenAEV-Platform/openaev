@@ -4641,6 +4641,8 @@
   "Network test port": "네트워크 테스트 포트",
   "Asset group running the tests": "테스트를 실행하는 자산 그룹",
   "Endpoints of this group run the benign tests.": "이 그룹의 엔드포인트가 무해한 테스트를 실행합니다.",
+  "The asset groups could not be loaded.": "에셋 그룹을 불러올 수 없습니다.",
+  "The IOC validation settings could not be loaded.": "IOC 검증 설정을 불러올 수 없습니다.",
   "IOC validation settings saved": "IOC 검증 설정이 저장되었습니다",
   "The egress proxy must be an absolute http or https URL": "송신 프록시는 절대 http 또는 https URL이어야 합니다",
   "The egress proxy URL must not contain credentials": "송신 프록시 URL에 자격 증명을 포함할 수 없습니다",

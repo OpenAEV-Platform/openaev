@@ -4641,6 +4641,8 @@
   "Network test port": "ネットワークテストのポート",
   "Asset group running the tests": "テストを実行する資産グループ",
   "Endpoints of this group run the benign tests.": "このグループのエンドポイントが無害なテストを実行します。",
+  "The asset groups could not be loaded.": "アセットグループを読み込めませんでした。",
+  "The IOC validation settings could not be loaded.": "IOC 検証の設定を読み込めませんでした。",
   "IOC validation settings saved": "IOC 検証設定を保存しました",
   "The egress proxy must be an absolute http or https URL": "送信プロキシは絶対 http または https URL である必要があります",
   "The egress proxy URL must not contain credentials": "出力プロキシの URL に認証情報を含めることはできません",

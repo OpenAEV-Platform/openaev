@@ -4641,6 +4641,8 @@
   "Network test port": "Port des tests réseau",
   "Asset group running the tests": "Groupe d'actifs exécutant les tests",
   "Endpoints of this group run the benign tests.": "Les postes de ce groupe exécutent les tests inoffensifs.",
+  "The asset groups could not be loaded.": "Les groupes d'actifs n'ont pas pu être chargés.",
+  "The IOC validation settings could not be loaded.": "Les paramètres de validation d'IOC n'ont pas pu être chargés.",
   "IOC validation settings saved": "Paramètres de validation d'IOC enregistrés",
   "The egress proxy must be an absolute http or https URL": "Le proxy de sortie doit être une URL http ou https absolue",
   "The egress proxy URL must not contain credentials": "L'URL du proxy de sortie ne doit pas contenir d'identifiants",

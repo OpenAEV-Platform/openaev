@@ -4641,6 +4641,8 @@
   "Network test port": "网络测试端口",
   "Asset group running the tests": "运行测试的资产组",
   "Endpoints of this group run the benign tests.": "此组的终端运行良性测试。",
+  "The asset groups could not be loaded.": "无法加载资产组。",
+  "The IOC validation settings could not be loaded.": "无法加载 IOC 验证设置。",
   "IOC validation settings saved": "IOC 验证设置已保存",
   "The egress proxy must be an absolute http or https URL": "出口代理必须是绝对的 http 或 https URL",
   "The egress proxy URL must not contain credentials": "出口代理 URL 不得包含凭据",
