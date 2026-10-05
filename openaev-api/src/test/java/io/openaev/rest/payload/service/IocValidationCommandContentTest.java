@@ -318,6 +318,9 @@ class IocValidationCommandContentTest {
         .contains("> \"./$OAEV_IOC_FILE\"")
         // noclobber: the surrogate is created, never written over an existing file
         .contains("set -C")
+        // in a run directory only the runner can add entries to, and only when nothing is there
+        .contains("[ ! -O . ] || ! chmod 700 .")
+        .contains("if [ -e \"./$OAEV_IOC_FILE\" ] || ! ( set -C;")
         .contains(PayloadService.IOC_VALIDATION_FAILED_FILE_DROP)
         .doesNotContain("; true")
         .doesNotContain("mkdir -p")
@@ -627,6 +630,32 @@ class IocValidationCommandContentTest {
       assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
 
       assertThat(existing).hasContent("not ours");
+    }
+
+    @Test
+    @DisplayName("never opens a FIFO already at the surrogate path: fails at once, writing nothing")
+    void given_fifoAtSurrogatePath_should_failWithoutOpeningIt() throws Exception {
+      Path runDirectory =
+          Files.createDirectories(tmp.resolve("openaev-ioc-validation-" + VALID_RUN));
+      Path fifo = runDirectory.resolve("invoice.pdf");
+      boolean created;
+      try {
+        Process mkfifo =
+            new ProcessBuilder("mkfifo", fifo.toString())
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        created = mkfifo.waitFor(30, TimeUnit.SECONDS) && mkfifo.exitValue() == 0;
+      } catch (IOException e) {
+        created = false;
+      }
+      assumeTrue(created, "requires mkfifo");
+
+      // A drop opening the FIFO would block without a reader: execute bounds it and fails then
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isNotZero();
+
+      assertThat(Files.exists(fifo, LinkOption.NOFOLLOW_LINKS)).isTrue();
+      assertThat(Files.isRegularFile(fifo, LinkOption.NOFOLLOW_LINKS)).isFalse();
     }
 
     @Test

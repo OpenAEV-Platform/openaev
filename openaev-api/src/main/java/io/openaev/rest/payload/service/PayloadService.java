@@ -95,8 +95,8 @@ public class PayloadService {
       "OpenAEV IOC validation: the run must be 32 lowercase hexadecimal characters and the"
           + " surrogate file name a plain file name";
   static final String IOC_VALIDATION_UNSAFE_FILE_DROP =
-      "OpenAEV IOC validation: the run directory or the surrogate path is a link; nothing was"
-          + " written";
+      "OpenAEV IOC validation: the run directory is not owned by the runner, or the run directory"
+          + " or the surrogate path is a link; nothing was written";
   // The surrogate holds this text and its run: the proof, at cleanup, that the drop created it.
   static final String IOC_VALIDATION_SURROGATE_TEXT = "OpenAEV IOC validation benign surrogate";
   static final String IOC_VALIDATION_FAILED_FILE_DROP =
@@ -1074,15 +1074,18 @@ public class PayloadService {
               + "; logger -t openaev-ioc-validation -- \"$OAEV_IOC_MESSAGE\" 2>/dev/null"
               + " || printf '%s\\n' \"$OAEV_IOC_MESSAGE\""
               + " >> \"${TMPDIR:-/tmp}/openaev-ioc-validation.log\"; true";
+      // set -C alone still opens an existing FIFO or device: the run directory must be the
+      // runner's own and closed to everyone else, so that no entry can appear at the surrogate path
+      // between the check that none exists and its creation
       case FILE_DROP ->
           posixRunDirectory()
               + "; mkdir -m 700 \"$OAEV_IOC_DIR\" 2>/dev/null;"
               + " if ! { "
               + POSIX_ENTER_RUN_DIRECTORY
-              + "; } || [ -L \"./$OAEV_IOC_FILE\" ]; then echo '"
+              + "; } || [ ! -O . ] || ! chmod 700 . || [ -L \"./$OAEV_IOC_FILE\" ]; then echo '"
               + IOC_VALIDATION_UNSAFE_FILE_DROP
               + "' >&2; exit 1; fi;"
-              + " if ! ( set -C; printf '"
+              + " if [ -e \"./$OAEV_IOC_FILE\" ] || ! ( set -C; printf '"
               + IOC_VALIDATION_SURROGATE_TEXT
               + " %s\\n' \"$OAEV_IOC_RUN\" > \"./$OAEV_IOC_FILE\" ); then echo '"
               + IOC_VALIDATION_FAILED_FILE_DROP
