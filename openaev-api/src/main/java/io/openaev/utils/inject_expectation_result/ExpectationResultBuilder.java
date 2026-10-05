@@ -113,6 +113,7 @@ public final class ExpectationResultBuilder {
    *
    * <p>* ERROR if no success and all expected sources reported but none matched
    */
+  // TODO: duplicate of computeScore
   public static Double computeResultsScore(
       @NotNull final List<InjectExpectationResult> results,
       @NotNull final BaseInjectExpectation expectation) {
