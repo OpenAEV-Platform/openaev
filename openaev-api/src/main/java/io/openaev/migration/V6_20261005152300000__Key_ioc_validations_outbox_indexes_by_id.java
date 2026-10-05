@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * only, so the rebuild is cheap.
  */
 @Component
-public class V6_20261004163000000__Key_ioc_validations_outbox_indexes_by_id
+public class V6_20261005152300000__Key_ioc_validations_outbox_indexes_by_id
     extends BaseJavaMigration {
 
   @Override

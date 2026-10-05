@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * the validation history survives a cleanup of the generated scenario.
  */
 @Component
-public class V6_20261003110000000__Add_ioc_validations extends BaseJavaMigration {
+public class V6_20261005152000000__Add_ioc_validations extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

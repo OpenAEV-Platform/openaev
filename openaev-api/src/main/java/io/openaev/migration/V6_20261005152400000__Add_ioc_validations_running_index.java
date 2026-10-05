@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * IocValidationRepository.findRunningRefs, status as a literal. Idempotent.
  */
 @Component
-public class V6_20261004164500000__Add_ioc_validations_running_index extends BaseJavaMigration {
+public class V6_20261005152400000__Add_ioc_validations_running_index extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

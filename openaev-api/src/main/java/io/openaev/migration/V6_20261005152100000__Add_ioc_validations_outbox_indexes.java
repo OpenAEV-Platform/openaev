@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * cost follows the pending backlog instead of the whole validation history.
  */
 @Component
-public class V6_20261003170000000__Add_ioc_validations_outbox_indexes extends BaseJavaMigration {
+public class V6_20261005152100000__Add_ioc_validations_outbox_indexes extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -24,7 +24,7 @@ public class V6_20261003170000000__Add_ioc_validations_outbox_indexes extends Ba
               + " OR ioc_validation_opencti_synced_status <> ioc_validation_status");
       // Same literal predicate as IocValidationRepository#findRefsWithPendingResultsPush: rejected,
       // awaiting and running validations never push results and stay out of the index. Kept
-      // identical to V6_20261004103000000, which rebuilds the index where an earlier version of
+      // identical to V6_20261005152200000, which rebuilds the index where an earlier version of
       // this migration created it without the status condition.
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_ioc_validations_results_push_pending"
