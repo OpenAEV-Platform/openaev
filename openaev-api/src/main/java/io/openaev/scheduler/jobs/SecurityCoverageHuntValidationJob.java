@@ -12,7 +12,9 @@ import io.openaev.service.tenants.TenantService;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.DisallowConcurrentExecution;
@@ -46,6 +48,9 @@ public class SecurityCoverageHuntValidationJob implements Job {
       "SecurityCoverageHuntValidationJob";
   public static final String SECURITY_COVERAGE_HUNT_VALIDATION_TRIGGER =
       "securityCoverageHuntValidationTrigger";
+
+  private static final Set<Kind> ACTIONABLE_FAILURES =
+      EnumSet.of(Kind.REFUSED, Kind.UNREACHABLE, Kind.INTERNAL_ERROR);
 
   private final SecurityCoverageHuntValidationService huntValidationService;
   private final TenantScopedTransaction tenantTx;
@@ -109,6 +114,19 @@ public class SecurityCoverageHuntValidationJob implements Job {
         refused,
         expired,
         dueCount - validated - refused - expired,
-        failures.getLast().error());
+        lastError(failures));
+  }
+
+  /**
+   * The error of the latest failure that says something about the delivery (refused, unreachable or
+   * internal error), so that requests deferred after it do not hide it behind their "not tried"
+   * reason; the error of the last failure otherwise.
+   */
+  static String lastError(List<HuntValidationOutcome> failures) {
+    return failures.reversed().stream()
+        .filter(outcome -> ACTIONABLE_FAILURES.contains(outcome.kind()))
+        .findFirst()
+        .orElse(failures.getLast())
+        .error();
   }
 }

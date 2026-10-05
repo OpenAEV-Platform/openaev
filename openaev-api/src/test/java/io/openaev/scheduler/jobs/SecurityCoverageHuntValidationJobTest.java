@@ -86,6 +86,55 @@ class SecurityCoverageHuntValidationJobTest {
     return new HuntValidationOutcome(id, HuntValidationOutcome.Kind.VALIDATED, 1, 1, null, LEASE);
   }
 
+  private static HuntValidationOutcome failed(
+      String id, HuntValidationOutcome.Kind kind, String error) {
+    return new HuntValidationOutcome(id, kind, null, null, error, LEASE);
+  }
+
+  @Test
+  @DisplayName("given a refusal followed by deferred requests should report the refusal")
+  void given_refusalThenDeferred_should_reportRefusalAsLastError() {
+    // Arrange
+    List<HuntValidationOutcome> failures =
+        List.of(
+            failed("1", HuntValidationOutcome.Kind.REFUSED, "Enterprise Edition required"),
+            failed("2", HuntValidationOutcome.Kind.DEFERRED, "Not tried in this run"),
+            failed("3", HuntValidationOutcome.Kind.DEFERRED, "Not tried in this run"));
+
+    // Act + Assert
+    assertThat(SecurityCoverageHuntValidationJob.lastError(failures))
+        .isEqualTo("Enterprise Edition required");
+  }
+
+  @Test
+  @DisplayName("given an unreachable OpenCTI after a refusal should report the latest of the two")
+  void given_refusalThenUnreachable_should_reportLatestActionableError() {
+    // Arrange
+    List<HuntValidationOutcome> failures =
+        List.of(
+            failed("1", HuntValidationOutcome.Kind.REFUSED, "Enterprise Edition required"),
+            failed("2", HuntValidationOutcome.Kind.UNREACHABLE, "Connection refused"),
+            failed("3", HuntValidationOutcome.Kind.EXPIRED, "Not delivered in time"));
+
+    // Act + Assert
+    assertThat(SecurityCoverageHuntValidationJob.lastError(failures))
+        .isEqualTo("Connection refused");
+  }
+
+  @Test
+  @DisplayName("given only deferred or stale requests should report the last of them")
+  void given_noActionableFailure_should_reportLastFailure() {
+    // Arrange
+    List<HuntValidationOutcome> failures =
+        List.of(
+            failed("1", HuntValidationOutcome.Kind.EXPIRED, "Not delivered in time"),
+            failed("2", HuntValidationOutcome.Kind.DEFERRED, "Not tried in this run"));
+
+    // Act + Assert
+    assertThat(SecurityCoverageHuntValidationJob.lastError(failures))
+        .isEqualTo("Not tried in this run");
+  }
+
   @Test
   @DisplayName("given hunt validation disabled should touch neither OpenCTI nor the database")
   void given_disabled_should_doNothing() throws Exception {
