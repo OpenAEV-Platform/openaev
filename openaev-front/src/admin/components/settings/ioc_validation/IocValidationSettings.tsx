@@ -43,6 +43,10 @@ import {
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import CustomizationMenu from '../CustomizationMenu';
 
+export const IOC_VALIDATION_DOCUMENTATION_URL = 'https://docs.openaev.io/latest/usage/build/scenario/ioc-validation/';
+const IOC_VALIDATION_CONFIGURATION_URL = `${IOC_VALIDATION_DOCUMENTATION_URL}#configure-ioc-validation`;
+const OPENCTI_CONNECTION_DOCUMENTATION_URL = 'https://docs.openaev.io/latest/usage/evaluate/xtm-suite-connector/#step-1-configure-openaev-to-connect-to-opencti';
+
 interface AssetGroupOption {
   id: string;
   label: string;
@@ -198,7 +202,17 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
         gap: 16,
       }}
     >
-      <Paper padding={16} title={t('Allowed test kinds')}>
+      <Paper
+        padding={16}
+        title={t('Allowed test kinds')}
+        action={(
+          <Button priority="tertiary" size="sm" asChild>
+            <a href={IOC_VALIDATION_DOCUMENTATION_URL} target="_blank" rel="noopener noreferrer" data-testid="ioc-validation-learn-more">
+              {t('Learn more')}
+            </a>
+          </Button>
+        )}
+      >
         <Text
           variant="content-compact"
           className="text-default-secondary"
@@ -267,7 +281,7 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 error={errorText(errors.ioc_validation_http_proxy_url?.message)}
-                helperText={t('Required to allow HTTP HEAD tests. Example: http://proxy.example.com:3128')}
+                helperText={t('Required to allow HTTP HEAD tests.')}
               />
             )}
           />
@@ -282,7 +296,7 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 error={errorText(errors.ioc_validation_sinkhole_address?.message)}
-                helperText={t('When set, network tests connect to this address instead of the indicator. Example: 192.0.2.10')}
+                helperText={t('Replaces the indicator in network tests.')}
               />
             )}
           />
@@ -297,7 +311,7 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 error={errorText(errors.ioc_validation_network_port?.message)}
-                helperText={t('The TCP port the network tests connect to, from 1 to 65535. 443 by default.')}
+                helperText={t('TCP port of the network tests, 443 by default.')}
               />
             )}
           />
@@ -338,10 +352,6 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
     </form>
   );
 };
-
-export const IOC_VALIDATION_DOCUMENTATION_URL = 'https://docs.openaev.io/latest/usage/build/scenario/ioc-validation/';
-const IOC_VALIDATION_CONFIGURATION_URL = `${IOC_VALIDATION_DOCUMENTATION_URL}#configure-ioc-validation`;
-const OPENCTI_CONNECTION_DOCUMENTATION_URL = 'https://docs.openaev.io/latest/usage/evaluate/xtm-suite-connector/#step-1-configure-openaev-to-connect-to-opencti';
 
 const DocumentationButton = ({ href, label }: {
   href: string;
@@ -414,18 +424,6 @@ const IocValidationSettings = () => {
             current: true,
           }]}
         />
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          marginBottom: 8,
-        }}
-        >
-          <Button priority="tertiary" size="sm" asChild>
-            <a href={IOC_VALIDATION_DOCUMENTATION_URL} target="_blank" rel="noopener noreferrer" data-testid="ioc-validation-learn-more">
-              {t('Learn more')}
-            </a>
-          </Button>
-        </div>
         <IocValidationReadiness
           openctiEnabled={Boolean(settings.ioc_validation_opencti_enabled)}
           connectorRegistered={Boolean(settings.ioc_validation_connector_registered)}

@@ -7,6 +7,7 @@ import { Link } from 'react-router';
 
 import { searchIocValidations } from '../../../actions/ioc_validations/ioc-validation-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
+import EllipsisTooltip from '../../../components/common/EllipsisTooltip';
 import { initSorting } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -25,13 +26,14 @@ import IocValidationDate from './IocValidationDate';
 import IocValidationStatusChip from './IocValidationStatusChip';
 import { IOC_VALIDATION_BASE_URL, IOC_VALIDATION_SETTINGS_URL, iocValidationTestKindLabel } from './iocValidationUtils';
 
+// The status column fits the longest status chip ("Awaiting approval") in every language
 const inlineStyles: Record<string, CSSProperties> = {
-  ioc_validation_name: { width: '15%' },
-  ioc_validation_status: { width: '12%' },
-  ioc_validation_requested_by: { width: '9%' },
+  ioc_validation_name: { width: '13%' },
+  ioc_validation_status: { width: '16%' },
+  ioc_validation_requested_by: { width: '8%' },
   ioc_validation_requested_test_kinds: { width: '11%' },
   ioc_validation_iocs_count: { width: '5%' },
-  ioc_validation_pairs_count: { width: '13%' },
+  ioc_validation_pairs_count: { width: '12%' },
   ioc_validation_prevented_count: { width: '7%' },
   ioc_validation_detected_count: { width: '7%' },
   ioc_validation_missed_count: { width: '6%' },
@@ -63,7 +65,9 @@ const IocValidations = () => {
       field: 'ioc_validation_name',
       label: 'Name',
       isSortable: true,
-      value: (iocValidation: IocValidationSimpleOutput) => iocValidation.ioc_validation_name,
+      value: (iocValidation: IocValidationSimpleOutput) => (
+        <EllipsisTooltip focusable={false}>{iocValidation.ioc_validation_name}</EllipsisTooltip>
+      ),
     },
     {
       field: 'ioc_validation_status',
@@ -75,15 +79,21 @@ const IocValidations = () => {
       field: 'ioc_validation_requested_by',
       label: 'Requested by',
       isSortable: true,
-      value: (iocValidation: IocValidationSimpleOutput) => iocValidation.ioc_validation_requested_by || '-',
+      value: (iocValidation: IocValidationSimpleOutput) => (
+        <EllipsisTooltip focusable={false}>{iocValidation.ioc_validation_requested_by || '-'}</EllipsisTooltip>
+      ),
     },
     {
       field: 'ioc_validation_requested_test_kinds',
       label: 'Requested tests',
       isSortable: false,
-      value: (iocValidation: IocValidationSimpleOutput) => (iocValidation.ioc_validation_requested_test_kinds.length > 0
-        ? iocValidation.ioc_validation_requested_test_kinds.map(kind => t(iocValidationTestKindLabel(kind))).join(', ')
-        : '-'),
+      value: (iocValidation: IocValidationSimpleOutput) => (
+        <EllipsisTooltip focusable={false}>
+          {iocValidation.ioc_validation_requested_test_kinds.length > 0
+            ? iocValidation.ioc_validation_requested_test_kinds.map(kind => t(iocValidationTestKindLabel(kind))).join(', ')
+            : '-'}
+        </EllipsisTooltip>
+      ),
     },
     {
       field: 'ioc_validation_iocs_count',
@@ -131,13 +141,11 @@ const IocValidations = () => {
 
   return (
     <section>
+      {/* The breadcrumb of the Atomic testings tab: both tabs keep the same chrome */}
       <Breadcrumbs
         variant="list"
         elements={[{
           label: t('Atomic testings'),
-          link: '/admin/atomic_testings',
-        }, {
-          label: t('IOC validations'),
           current: true,
         }]}
       />
