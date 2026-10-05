@@ -292,7 +292,7 @@ import org.springframework.data.jpa.repository.Query;
 @AnalyzeClasses(packages = "io.openaev", importOptions = ImportOption.DoNotIncludeTests.class)
 class TenantActiveTableAccessArchTest {
 
-  /** Tables guarded by this test. Must cover every entry of the production allowlist. */
+  /** Tables guarded by this test. Must equal the production allowlist. */
   private static final Set<String> GUARDED_TABLES =
       Set.of(
           "import_mappers",
@@ -365,6 +365,12 @@ class TenantActiveTableAccessArchTest {
             + active.stream().filter(t -> !GUARDED_TABLES.contains(t)).collect(Collectors.toSet())
             + ". Extend the repository/accessor rules and the allowlists (see the"
             + " activate-tenant-table skill, go-live phase).");
+    assertTrue(
+        active.containsAll(GUARDED_TABLES),
+        "every guarded table must stay in openaev.tenant.active-tables; missing: "
+            + GUARDED_TABLES.stream().filter(t -> !active.contains(t)).collect(Collectors.toSet())
+            + ". Branches that each append a table to that line conflict on it: the resolution"
+            + " keeps every table.");
 
     // Membership in GUARDED_TABLES is bookkeeping: it is satisfied by adding a string. What this
     // class actually promises is an accessor rule per table, and for several tables that rule was
