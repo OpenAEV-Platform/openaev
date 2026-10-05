@@ -18,6 +18,7 @@ import io.openaev.engine.model.simulation.EsSimulation;
 import io.openaev.engine.model.simulation.SimulationHandler;
 import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
 import io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler;
+import io.openaev.service.EsIndexingUtils;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -28,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.*;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
@@ -674,12 +676,62 @@ class IndexingRegressionTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
+      List<EsInjectExpectation> results = injectExpectationHandler.fetch(FROM, 5000);
       List<String> indexedIds =
-          injectExpectationHandler.fetch(FROM, 5000).stream()
+          results.stream()
+              .filter(es -> !(es instanceof EsSkipped))
+              .map(EsInjectExpectation::getBase_id)
+              .toList();
+      List<String> skippedIds =
+          results.stream()
+              .filter(es -> es instanceof EsSkipped)
               .map(EsInjectExpectation::getBase_id)
               .toList();
 
       assertThat(indexedIds).contains(regular.getId()).doesNotContain(validation.getId());
+      assertThat(skippedIds).contains(validation.getId()).doesNotContain(regular.getId());
+    }
+
+    @Test
+    @DisplayName("A page holding only expectations of IOC validation runs still moves the cursor")
+    void given_onlyIocValidationExpectations_should_advanceCursorPastThem() {
+      BaseInjectExpectation first = expectationInSimulation(IocValidation.SCENARIO_CATEGORY);
+      BaseInjectExpectation second = expectationInSimulation(IocValidation.SCENARIO_CATEGORY);
+      entityManager.flush();
+      int i = 0;
+      for (BaseInjectExpectation expectation : List.of(first, second)) {
+        Instant ts = FROM.plusSeconds(++i);
+        entityManager
+            .createNativeQuery(
+                "UPDATE injects_expectations SET inject_expectation_updated_at = :ts"
+                    + " WHERE inject_expectation_id = :id")
+            .setParameter("ts", ts)
+            .setParameter("id", expectation.getId())
+            .executeUpdate();
+        entityManager
+            .createNativeQuery(
+                "UPDATE injects SET inject_updated_at = :ts WHERE inject_id = "
+                    + "(SELECT inject_id FROM injects_expectations WHERE inject_expectation_id = :id)")
+            .setParameter("ts", ts)
+            .setParameter("id", expectation.getId())
+            .executeUpdate();
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      List<EsInjectExpectation> page = injectExpectationHandler.fetch(FROM, 2);
+
+      assertThat(page)
+          .extracting(EsInjectExpectation::getBase_id)
+          .containsExactly(first.getId(), second.getId());
+      assertThat(page).allMatch(es -> es instanceof EsSkipped);
+      Instant cursor =
+          EsIndexingUtils.computeNewCursor(
+              page, 2, "expectation-inject", LoggerFactory.getLogger(getClass()));
+      assertThat(cursor).isAfter(FROM);
+      assertThat(injectExpectationHandler.fetch(FROM.plusSeconds(2), 2))
+          .extracting(EsInjectExpectation::getBase_id)
+          .doesNotContain(first.getId(), second.getId());
     }
 
     private BaseInjectExpectation expectationInSimulation(String category) {

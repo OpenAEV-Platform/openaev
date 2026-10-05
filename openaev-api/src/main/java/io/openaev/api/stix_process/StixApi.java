@@ -136,23 +136,47 @@ public class StixApi extends RestBehavior {
       description =
           "Records an OpenCTI IOC validation request. Nothing runs until an operator approves it.")
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "IOC validation request recorded"),
+    @ApiResponse(
+        responseCode = "200",
+        description =
+            "IOC validation request recorded, or a malformed event acknowledged without record"),
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
   public ResponseEntity<IocValidationImportReport> processIocValidation(
-      TxCtx ctx, @RequestBody @Validated CTIEvent ctiEvent) {
+      TxCtx ctx, @RequestBody CTIEvent ctiEvent) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    String workId = ctiEvent.getInternal().getWorkId();
-    String entityId = ctiEvent.getEvent().getEntityId();
+    String workId = ctiEvent.getInternal() == null ? null : ctiEvent.getInternal().getWorkId();
+    CTIEvent.Event event = ctiEvent.getEvent();
+    String entityId = event == null ? null : event.getEntityId();
     log.debug(
         "IOC validation request received from OpenCTI (workId={}, request={})", workId, entityId);
+
+    // The OpenCTI worker delivers an event again on any answer but 200 or 202: a malformed event is
+    // answered 200 (acknowledged in error when it names its work), never rejected by validation.
+    boolean noWork = workId == null || workId.isBlank();
+    if (noWork
+        || event == null
+        || event.getStixObjects() == null
+        || event.getStixObjects().isBlank()) {
+      String reason =
+          noWork ? "the event names no OpenCTI work" : "the event carries no STIX objects";
+      log.error(
+          "OpenAEV ignored a malformed IOC validation event (request={}): {}", entityId, reason);
+      if (!noWork) {
+        openCTIService.acknowledgeReceivedOfIocValidation(
+            workId, "OpenAEV received the IOC validation request", tenantId);
+        openCTIService.acknowledgeProcessedOfIocValidation(
+            workId, "OpenAEV did not record the IOC validation request: " + reason, true, tenantId);
+      }
+      return ResponseEntity.status(HttpStatus.OK).build();
+    }
 
     openCTIService.acknowledgeReceivedOfIocValidation(
         workId, "OpenAEV received the IOC validation request", tenantId);
     try {
       IocValidation validation =
-          iocValidationService.receiveRequest(ctx, ctiEvent.getEvent().getStixObjects(), entityId);
+          iocValidationService.receiveRequest(ctx, event.getStixObjects(), entityId);
       openCTIService.acknowledgeProcessedOfIocValidation(
           workId,
           IocValidationService.intakeAcknowledgement(validation.getStatus()),

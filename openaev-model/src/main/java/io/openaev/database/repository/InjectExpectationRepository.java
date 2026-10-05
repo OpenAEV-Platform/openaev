@@ -494,27 +494,27 @@ public interface InjectExpectationRepository
         JOIN injects i ON i.inject_id = ie.inject_id
         LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
                                         AND ic.tenant_id = i.tenant_id
-        LEFT JOIN exercises ex ON ex.exercise_id = i.inject_exercise
         WHERE GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, COALESCE(ic.injector_contract_updated_at, ie.inject_expectation_updated_at)) > :from
-          -- IOC validation runs (IocValidation.SCENARIO_CATEGORY) never feed the coverage
-          -- statistics. Filtered before the LIMIT so a page of them cannot stall the cursor.
-          AND ex.exercise_category IS DISTINCT FROM 'ioc-validation'
         ORDER BY sort_ts ASC
         LIMIT :limit
     ),
     base AS (
         -- One row per ranked expectation (1:1 joins only — no fan-out).
+        -- IOC validation runs (IocValidation.SCENARIO_CATEGORY) never feed the coverage statistics:
+        -- their rows stay in the page, flagged, so the handler skips them and the cursor moves past.
         SELECT ie.inject_expectation_id, ie.inject_expectation_name, ie.inject_expectation_description, ie.inject_expectation_type,
                ie.inject_expectation_results, ie.inject_expectation_score, ie.inject_expectation_expected_score, ie.inject_expiration_time,
                ie.inject_expectation_group, ie.inject_expectation_created_at,
                ie.exercise_id, ie.inject_id, ie.user_id, ie.team_id, ie.agent_id, ie.asset_id, ie.asset_group_id,
                i.tenant_id, i.inject_title, i.inject_injector_contract AS contract_id,
-               GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, COALESCE(ic.injector_contract_updated_at, ie.inject_expectation_updated_at)) AS inject_expectation_updated_at
+               GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, COALESCE(ic.injector_contract_updated_at, ie.inject_expectation_updated_at)) AS inject_expectation_updated_at,
+               ex.exercise_category IS NOT DISTINCT FROM 'ioc-validation' AS ioc_validation
         FROM injects_expectations ie
         JOIN ranked_expectations re ON ie.inject_expectation_id = re.inject_expectation_id
         LEFT JOIN injects i ON i.inject_id = ie.inject_id
         LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
                                         AND ic.tenant_id = i.tenant_id
+        LEFT JOIN exercises ex ON ex.exercise_id = i.inject_exercise
     ),
     ap_agg AS (
         SELECT ic_ap.injector_contract_id, array_agg(DISTINCT ic_ap.attack_pattern_id) AS attack_pattern_ids
@@ -587,7 +587,8 @@ public interface InjectExpectationRepository
            apa.attack_pattern_ids,
            da.domain_ids,
            sa.scenario_id,
-           COALESCE(spself.ids, ARRAY[]::text[]) || COALESCE(asp.security_platform_ids, ARRAY[]::text[]) AS security_platform_ids
+           COALESCE(spself.ids, ARRAY[]::text[]) || COALESCE(asp.security_platform_ids, ARRAY[]::text[]) AS security_platform_ids,
+           b.ioc_validation
     FROM base b
     LEFT JOIN ap_agg apa ON apa.injector_contract_id = b.contract_id
     LEFT JOIN dom_agg da ON da.injector_contract_id = b.contract_id

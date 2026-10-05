@@ -6,6 +6,11 @@ import static io.openaev.api.stix_process.StixApi.TENANT_STIX_URI;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_FILE_NAME_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_RUN_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -312,6 +317,31 @@ class IocValidationApiTest extends IntegrationTest {
       mvc.perform(intake(tenantId, event.toString())).andExpect(status().isOk());
 
       assertThat(recordCount()).isZero();
+    }
+
+    @Test
+    @DisplayName(
+        "answers OK to an event without work or STIX objects, which OpenCTI would redeliver")
+    void given_malformedEvent_should_answerOkWithoutRecord() throws Exception {
+      ObjectNode noWork = mapper.createObjectNode();
+      noWork.putObject("internal").put("work_id", " ");
+      noWork.putObject("event").put("stix_objects", "{\"type\":\"bundle\",\"objects\":[]}");
+      String workId = "work_" + UUID.randomUUID();
+      ObjectNode noObjects = mapper.createObjectNode();
+      noObjects.putObject("internal").put("work_id", workId);
+      noObjects.putObject("event").put("entity_id", UUID.randomUUID().toString());
+      ObjectNode empty = mapper.createObjectNode();
+
+      for (ObjectNode event : List.of(noWork, noObjects, empty)) {
+        mvc.perform(intake(tenantId, event.toString())).andExpect(status().isOk());
+      }
+
+      assertThat(recordCount()).isZero();
+      verify(openCTIConnectorService)
+          .acknowledgeProcessedOfIocValidation(
+              eq(workId), contains("no STIX objects"), eq(true), anyString());
+      verify(openCTIConnectorService, never())
+          .acknowledgeReceivedOfIocValidation(eq(" "), anyString(), anyString());
     }
   }
 
