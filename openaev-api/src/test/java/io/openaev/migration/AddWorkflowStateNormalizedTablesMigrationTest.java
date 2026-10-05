@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 class AddWorkflowStateNormalizedTablesMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20260908080000000__Add_workflow_state_normalized_tables migration;
+  @Autowired private V6_20261005105200000__Add_workflow_state_normalized_tables migration;
 
   private long tableCount(String table) {
     return ((Number)

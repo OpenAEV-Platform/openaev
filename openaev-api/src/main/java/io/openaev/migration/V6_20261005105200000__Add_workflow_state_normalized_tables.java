@@ -32,7 +32,7 @@ import org.springframework.stereotype.Component;
  * <p>Idempotent throughout ({@code IF NOT EXISTS}), so re-running it is a no-op.
  */
 @Component
-public class V6_20260908080000000__Add_workflow_state_normalized_tables extends BaseJavaMigration {
+public class V6_20261005105200000__Add_workflow_state_normalized_tables extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
