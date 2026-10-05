@@ -15,23 +15,26 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.cookie.BasicCookieStore;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
 
@@ -44,6 +47,12 @@ public class OpenCTIClient {
 
   /** Cancels the bounded requests that outlive their timeout. */
   private final ScheduledExecutorService requestDeadlines = requestDeadlineExecutor();
+
+  /**
+   * The bounded no-retry clients, one per timeout, kept so that bounded calls reuse their
+   * connections; closed at shutdown.
+   */
+  private final Map<Duration, CloseableHttpClient> boundedClients = new ConcurrentHashMap<>();
 
   private static ScheduledExecutorService requestDeadlineExecutor() {
     ScheduledThreadPoolExecutor executor =
@@ -65,8 +74,10 @@ public class OpenCTIClient {
 
   public Response execute(String url, String authToken, String mutationBody, JsonNode variables)
       throws IOException {
-    return execute(
-        buildRequest(url, authToken, mutationBody, variables), httpClientFactory::httpClientCustom);
+    HttpPost request = buildRequest(url, authToken, mutationBody, variables);
+    try (CloseableHttpClient client = httpClientFactory.httpClientCustom()) {
+      return execute(request, client);
+    }
   }
 
   /**
@@ -75,24 +86,41 @@ public class OpenCTIClient {
    * once it has run for that long in total (a response trickling in never extends it), and it is
    * never retried automatically. For background callers that must not stall on an unreachable
    * OpenCTI. A cancelled request fails with an {@link IOException}.
+   *
+   * <p>The calls with the same timeout share one client, so they reuse its pooled connections
+   * instead of paying a new TCP connect and TLS handshake each.
    */
   public Response execute(String url, String authToken, Mutation mutation, Duration timeout)
       throws IOException {
-    Timeout bound = Timeout.of(Objects.requireNonNull(timeout, "timeout"));
+    Objects.requireNonNull(timeout, "timeout");
+    CloseableHttpClient client =
+        boundedClients.computeIfAbsent(
+            timeout, bound -> httpClientFactory.httpClientNoRetry(Timeout.of(bound)));
     HttpPost request =
         buildRequest(url, authToken, mutation.getQueryText(), mutation.getVariables());
     ScheduledFuture<?> deadline =
         requestDeadlines.schedule(request::cancel, timeout.toMillis(), TimeUnit.MILLISECONDS);
     try {
-      return execute(request, () -> httpClientFactory.httpClientNoRetry(bound));
+      return execute(request, client);
     } finally {
       deadline.cancel(false);
     }
   }
 
   @PreDestroy
-  void stopRequestDeadlines() {
+  void stop() {
     requestDeadlines.shutdownNow();
+    closeBoundedClients();
+  }
+
+  /** Closes the bounded clients; the next bounded call opens a new one. */
+  void closeBoundedClients() {
+    for (Duration timeout : List.copyOf(boundedClients.keySet())) {
+      CloseableHttpClient boundedClient = boundedClients.remove(timeout);
+      if (boundedClient != null) {
+        boundedClient.close(CloseMode.GRACEFUL);
+      }
+    }
   }
 
   private HttpPost buildRequest(
@@ -137,12 +165,16 @@ public class OpenCTIClient {
 
   public record ExtractedData(int status, String body) {}
 
-  private Response execute(ClassicHttpRequest request, Supplier<CloseableHttpClient> httpClient)
+  private Response execute(ClassicHttpRequest request, CloseableHttpClient client)
       throws IOException {
-    try (CloseableHttpClient client = httpClient.get()) {
+    // A client is shared by the tenants: every request keeps its own cookies
+    HttpClientContext context = HttpClientContext.create();
+    context.setCookieStore(new BasicCookieStore());
+    try {
       ExtractedData ed =
           client.execute(
               request,
+              context,
               classicResponse -> {
                 HttpEntity entity = classicResponse.getEntity();
                 return new ExtractedData(
