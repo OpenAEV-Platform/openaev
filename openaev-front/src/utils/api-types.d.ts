@@ -12702,15 +12702,30 @@ export interface TenantSettingsUpdateInput {
 }
 
 export interface ThemeInput {
-  /** Accent color of the theme */
+  /**
+   * Accent color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   accent_color?: string;
-  /** Background color of the theme */
+  /**
+   * Background color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   background_color?: string;
-  /** Solid color of the login page aside */
+  /**
+   * Solid color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_color?: string;
-  /** Gradient end color of the login page aside */
+  /**
+   * Gradient end color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_gradient_end?: string;
-  /** Gradient start color of the login page aside */
+  /**
+   * Gradient start color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_gradient_start?: string;
   /** Url of the login page aside background image */
   login_aside_image?: string;
@@ -12720,15 +12735,30 @@ export interface ThemeInput {
   logo_url?: string;
   /** 'true' if the logo needs to be collapsed */
   logo_url_collapsed?: string;
-  /** Navigation color of the theme */
+  /**
+   * Navigation color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   navigation_color?: string;
-  /** Paper color of the theme */
+  /**
+   * Paper color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   paper_color?: string;
-  /** Primary color of the theme */
+  /**
+   * Primary color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   primary_color?: string;
-  /** Secondary color of the theme */
+  /**
+   * Secondary color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   secondary_color?: string;
-  /** Text color of the theme */
+  /**
+   * Text color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   text_color?: string;
 }
 
