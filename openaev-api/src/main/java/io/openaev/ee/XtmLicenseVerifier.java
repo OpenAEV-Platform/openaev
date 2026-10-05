@@ -8,17 +8,23 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.Signature;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
+import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.x509.Certificate;
 
 /**
  * Verifies the Filigran XTM license certificate that XTM One returns at registration ({@code
@@ -32,6 +38,10 @@ import javax.naming.ldap.Rdn;
  * validation, which is why the PKIX check of this platform's own license is not reused: it would
  * also refuse the grace period and the early renewals XTM One accepts. Then come the product, the
  * type, XTM One's validity rule and this product's own sub-license extension.
+ *
+ * <p>Two checks are stricter than XTM One's: the signature algorithm outside the signed part must
+ * be the one inside it (RFC 5280, 4.1.1.2), and a {@code ci} license never ends after the
+ * certificate's own {@code notAfter} nor counts from an instance creation date in the future.
  */
 public final class XtmLicenseVerifier {
 
@@ -47,8 +57,8 @@ public final class XtmLicenseVerifier {
   static final String GLOBAL_GRANT = XtmLicense.GLOBAL_GRANT;
 
   /**
-   * A {@code ci} license ends at {@code min(instance creation + 45 minutes, start + 365 days)},
-   * whatever its {@code notAfter} says: it must not outlive the pipeline that created the instance.
+   * A {@code ci} license ends at {@code min(instance creation + 45 minutes, start + 365 days,
+   * notAfter)}: it must not outlive the pipeline that created the instance, nor the certificate.
    */
   static final Duration CI_INSTANCE_WINDOW = Duration.ofMinutes(45);
 
@@ -78,7 +88,8 @@ public final class XtmLicenseVerifier {
    * @param platformId the platform id this platform registers with; when blank, only a {@code
    *     global} grant covers it
    * @param instanceCreationDate this instance's creation date, which bounds a {@code ci} license;
-   *     {@code null} when unknown, which refuses a {@code ci} license
+   *     {@code null} when unknown; a {@code ci} license is refused when it is unknown or after
+   *     {@code now}
    * @param now the instant the validity rule is applied at
    * @return the verified license
    * @throws XtmLicenseException with the reason, when the certificate grants nothing
@@ -121,6 +132,10 @@ public final class XtmLicenseVerifier {
 
   private static void verifySignature(X509Certificate certificate, PublicKey caPublicKey)
       throws XtmLicenseException {
+    if (!signatureAlgorithmsMatch(certificate)) {
+      throw new XtmLicenseException(
+          "its signature algorithm differs from the one inside its signed part");
+    }
     String algorithm = PKCS1_V15_SIGNATURES.get(certificate.getSigAlgOID());
     if (algorithm == null || !(caPublicKey instanceof RSAPublicKey)) {
       throw new XtmLicenseException("its signature algorithm is not RSASSA-PKCS1-v1_5 with SHA-2");
@@ -137,6 +152,23 @@ public final class XtmLicenseVerifier {
     if (!verified) {
       throw new XtmLicenseException(
           "its signature does not verify against the Filigran XTM CA pinned in this build");
+    }
+  }
+
+  /**
+   * Whether the {@code signatureAlgorithm} of the certificate and the {@code signature} field of
+   * its TBS certificate are the same DER bytes. The signature is verified with the outer one, over
+   * the TBS bytes, so nothing else compares them: the certificate factory of this build does it
+   * only in {@code verify}, which is not used.
+   */
+  private static boolean signatureAlgorithmsMatch(X509Certificate certificate) {
+    try {
+      Certificate parsed = Certificate.getInstance(certificate.getEncoded());
+      return Arrays.equals(
+          parsed.getSignatureAlgorithm().getEncoded(ASN1Encoding.DER),
+          parsed.getTBSCertificate().getSignature().getEncoded(ASN1Encoding.DER));
+    } catch (CertificateEncodingException | IOException | IllegalArgumentException e) {
+      return false;
     }
   }
 
@@ -162,9 +194,16 @@ public final class XtmLicenseVerifier {
             "it is a ci license and the creation date of this instance, which bounds it, is"
                 + " unknown");
       }
-      Instant instanceWindowEnd = instanceCreationDate.plus(CI_INSTANCE_WINDOW);
-      Instant maximumEnd = start.plus(CI_MAX_VALIDITY);
-      end = instanceWindowEnd.isBefore(maximumEnd) ? instanceWindowEnd : maximumEnd;
+      if (instanceCreationDate.isAfter(now)) {
+        throw new XtmLicenseException(
+            "it is a ci license and the creation date of this instance ("
+                + instanceCreationDate
+                + ") is in the future");
+      }
+      end =
+          Stream.of(instanceCreationDate.plus(CI_INSTANCE_WINDOW), start.plus(CI_MAX_VALIDITY), end)
+              .min(Comparator.naturalOrder())
+              .orElseThrow();
     }
     List<String> grants = subLicensedPlatformIds(certificate);
     boolean globalGrant = grants.contains(GLOBAL_GRANT);
@@ -193,7 +232,8 @@ public final class XtmLicenseVerifier {
       case "ci" ->
           "this ci license expired on "
               + license.expirationDate()
-              + " (45 minutes after this instance was created, at most 365 days after its start)";
+              + " (45 minutes after this instance was created, at most 365 days after its start"
+              + " and never after its notAfter)";
       default ->
           "this "
               + license.type()

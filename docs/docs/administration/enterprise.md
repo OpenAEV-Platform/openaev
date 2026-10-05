@@ -44,8 +44,11 @@ takes precedence.
 OpenAEV does not take XTM One's word for it: at every registration heartbeat (every 5 minutes), it verifies the
 Filigran-signed XTM license certificate returned by XTM One against the Filigran certificate authority built into
 OpenAEV, then applies the license validity dates (90 days of grace for standard, LTS and NFR licenses, none for trial
-and CI licenses). If the certificate is missing, does not verify or has expired, the platform is back in Community
-Edition, unless it has its own OpenAEV license. While XTM One cannot be reached, the last verified certificate keeps
+and CI licenses). A CI license ends 45 minutes after this OpenAEV instance was created, and never after the
+expiration date of its certificate. The instance creation date is recorded at the first start, in UTC, and is
+never reset afterwards, even when the configured instance id changes; a CI license is refused while that date is
+missing, unreadable or in the future. If the certificate is missing, does not verify or has expired, the platform is
+back in Community Edition, unless it has its own OpenAEV license. While XTM One cannot be reached, the last verified certificate keeps
 applying, within its validity dates. This requires XTM One 1.261001.0 or later, which returns the license certificate;
 with an older XTM One, only the OpenAEV license applies and a warning is logged.
 
