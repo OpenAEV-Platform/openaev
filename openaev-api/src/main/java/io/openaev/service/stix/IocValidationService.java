@@ -213,7 +213,7 @@ public class IocValidationService {
       return existing.get();
     }
 
-    IocValidationSettings settings = settingsService.settings(tenantId);
+    IocValidationSettings settings = decisionSettings(tenantId);
     IocValidation validation = new IocValidation();
     validation.setTenant(new Tenant(tenantId));
     validation.setExternalId(request.requestId());
@@ -267,7 +267,7 @@ public class IocValidationService {
     IocValidation validation = lockedIocValidation(id);
     requireAwaitingApproval(validation);
 
-    IocValidationSettings settings = settingsService.settings(tenantId);
+    IocValidationSettings settings = decisionSettings(tenantId);
     // The approval starts at most what the operator was shown: a setting narrowed since the request
     // arrived drops a test, a setting widened since never turns a skipped IOC into a test.
     List<IocValidationIoc> iocs = validation.getIocs();
@@ -449,7 +449,7 @@ public class IocValidationService {
    * @return whether the validation reached a final status
    */
   boolean computeResults(String id, Instant now) {
-    IocValidation validation = iocValidationRepository.findById(id).orElse(null);
+    IocValidation validation = iocValidationRepository.findByIdForUpdate(id).orElse(null);
     if (validation == null || validation.getStatus() != IocValidationStatus.RUNNING) {
       return false;
     }
@@ -547,7 +547,7 @@ public class IocValidationService {
           continue;
         }
         openCTIConnectorService.pushIocValidationStixBundle(bundle.get(), tenantId);
-        inTenant(tenantId, () -> markResultsPushed(ref.getId(), Instant.now()));
+        markResultsPushed(tenantId, ref.getId(), Instant.now());
       } catch (IOException e) {
         log.warn(
             "OpenCTI unreachable while pushing the results of IOC validation {} for tenant {}"
@@ -638,7 +638,7 @@ public class IocValidationService {
     openCTIConnectorService.updateIocValidationRequestStatus(update.get(), tenantId);
     IocValidationStatus reported =
         IocValidationStatus.valueOf(update.get().getStatus().toUpperCase(Locale.ROOT));
-    inTenant(tenantId, () -> markSynced(id, reported));
+    markSynced(tenantId, id, reported);
     return true;
   }
 
@@ -671,24 +671,40 @@ public class IocValidationService {
     return Optional.of(update.build());
   }
 
-  private void markResultsPushed(String id, Instant now) {
-    iocValidationRepository
-        .findById(id)
-        .ifPresent(
-            validation -> {
-              validation.setResultsPushedAt(now);
-              iocValidationRepository.save(validation);
-            });
+  /**
+   * Records that OpenCTI received the result bundle, in its own short transaction. The row is
+   * loaded with its lock, as by every other write of a validation: the entity is saved whole, so an
+   * unlocked snapshot could write back the state another transaction is changing.
+   */
+  void markResultsPushed(String tenantId, String id, Instant now) {
+    inTenant(
+        tenantId,
+        () ->
+            iocValidationRepository
+                .findByIdForUpdate(id)
+                .ifPresent(
+                    validation -> {
+                      validation.setResultsPushedAt(now);
+                      iocValidationRepository.save(validation);
+                    }));
   }
 
-  private void markSynced(String id, IocValidationStatus reported) {
-    iocValidationRepository
-        .findById(id)
-        .ifPresent(
-            validation -> {
-              validation.setLifecycleSyncedStatus(reported);
-              iocValidationRepository.save(validation);
-            });
+  /**
+   * Records the status OpenCTI acknowledged, in its own short transaction, under the row lock (see
+   * {@link #markResultsPushed}). A status that moved on meanwhile stays pending and is reported on
+   * the next run.
+   */
+  void markSynced(String tenantId, String id, IocValidationStatus reported) {
+    inTenant(
+        tenantId,
+        () ->
+            iocValidationRepository
+                .findByIdForUpdate(id)
+                .ifPresent(
+                    validation -> {
+                      validation.setLifecycleSyncedStatus(reported);
+                      iocValidationRepository.save(validation);
+                    }));
   }
 
   // -- OPTIONS --
@@ -707,6 +723,26 @@ public class IocValidationService {
   }
 
   // -- INTERNAL --
+
+  /**
+   * The settings an intake or an approval decides with: the tenant settings and the hosts of the
+   * platform, which no test may target.
+   */
+  private IocValidationSettings decisionSettings(String tenantId) {
+    IocValidationSettings settings = settingsService.settings(tenantId);
+    List<String> urls = new ArrayList<>();
+    urls.add(openAEVConfig.getBaseUrl());
+    urls.add(openAEVConfig.getBaseUrlForAgent());
+    urls.add(settings.httpProxyUrl());
+    openCTIConnectorService
+        .getIocValidationConnector(tenantId)
+        .ifPresent(
+            connector -> {
+              urls.add(connector.getUrl());
+              urls.add(connector.getApiUrl());
+            });
+    return settings.withPlatformHosts(IocValidationPlanner.platformHosts(urls));
+  }
 
   /**
    * Records every refused IOC value in the application log and, when audit logging is enabled, in

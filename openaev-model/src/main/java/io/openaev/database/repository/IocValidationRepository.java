@@ -30,8 +30,10 @@ public interface IocValidationRepository
   Integer lockRequestIntake(@Param("key") long key);
 
   /**
-   * Loads a validation with a row lock held until the transaction ends: concurrent approve and
-   * reject decisions are serialized, and the second one sees the status the first one set.
+   * Loads a validation with a row lock held until the transaction ends. Every write of an existing
+   * validation loads it this way (decisions, results, outbox markers): the entity is saved with all
+   * its columns, so the writes are serialized and each one starts from the state the previous one
+   * committed.
    */
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select v from IocValidation v where v.id = :id")

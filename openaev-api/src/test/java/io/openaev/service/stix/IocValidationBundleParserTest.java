@@ -9,9 +9,15 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.service.stix.error.BundleValidationError;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("IOC validation request bundle parser")
 class IocValidationBundleParserTest {
@@ -114,26 +120,133 @@ class IocValidationBundleParserTest {
     assertThat(parser.parse(bundle(request), REQUEST_ID).requestId()).isEqualTo(REQUEST_ID);
   }
 
-  @Test
-  @DisplayName(
-      "rejects a request id longer than the stored external id, from the event or the bundle")
-  void given_overlongRequestId_should_throw() throws BundleValidationError {
-    String longest = "r".repeat(IocValidationBundleParser.MAX_REQUEST_ID_LENGTH);
-    String overlong = longest + "r";
+  /** Values that are not a lower-case version 4 or 5 UUID, the only ids OpenCTI generates. */
+  private static Stream<String> malformedUuids() {
+    return Stream.of(
+        "not-a-uuid",
+        "../../dashboard/settings",
+        "5c7f0a2e-1111-4a2b-9c3d-123456789abc/../x",
+        "5C7F0A2E-1111-4A2B-9C3D-123456789ABC",
+        "5c7f0a2e-1111-1a2b-9c3d-123456789abc",
+        "5c7f0a2e-1111-3a2b-9c3d-123456789abc",
+        "5c7f0a2e-1111-4a2b-cc3d-123456789abc",
+        "5c7f0a2e11114a2b9c3d123456789abc",
+        "5c7f0a2e-1111-4a2b-9c3d-123456789abcd",
+        "5c7f0a2e-1111-4a2b-9c3d-123456789ab\u0441",
+        "5c7f0a2e-1111-4a2b-9c3d-123456789abc'",
+        "r".repeat(256));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("malformedUuids")
+  @DisplayName("rejects a request id that is not an OpenCTI id, from the event or the bundle")
+  void given_malformedRequestId_should_throw(String malformed) {
     ObjectNode withoutExtension = request();
     withoutExtension.remove("extensions");
-    ObjectNode overlongExtension = request();
+    ObjectNode malformedExtension = request();
     ((ObjectNode)
-            overlongExtension.path("extensions").path(IocValidationBundleParser.OPENCTI_EXTENSION))
-        .put("id", overlong);
+            malformedExtension.path("extensions").path(IocValidationBundleParser.OPENCTI_EXTENSION))
+        .put("id", malformed);
 
-    assertThat(parser.parse(bundle(withoutExtension), longest).requestId()).isEqualTo(longest);
-    assertThatThrownBy(() -> parser.parse(bundle(withoutExtension), overlong))
+    assertThatThrownBy(() -> parser.parse(bundle(withoutExtension), malformed))
         .isInstanceOf(BundleValidationError.class)
-        .hasMessageContaining("exceeds " + IocValidationBundleParser.MAX_REQUEST_ID_LENGTH);
-    assertThatThrownBy(() -> parser.parse(bundle(overlongExtension), null))
+        .hasMessageContaining("version 4 or 5 UUID");
+    assertThatThrownBy(() -> parser.parse(bundle(malformedExtension), null))
         .isInstanceOf(BundleValidationError.class)
-        .hasMessageContaining("exceeds " + IocValidationBundleParser.MAX_REQUEST_ID_LENGTH);
+        .hasMessageContaining("version 4 or 5 UUID");
+  }
+
+  @Test
+  @DisplayName("accepts the name-based ids OpenCTI generates for its objects")
+  void given_version5Ids_should_parseRequest() throws BundleValidationError {
+    String indicator = "indicator--2ee671b4-b671-5c38-9e29-72e52d135ece";
+    String platform = "identity--b2a8fbec-b4fb-563c-a052-7b5b4ab23070";
+    String deployedOn = "relationship--6ed368e7-88c7-5b2e-a495-1702f14cbc2e";
+    ObjectNode request = request();
+    ((ObjectNode) request.get("iocs").get(0)).put("indicator_ref", indicator);
+    ((ObjectNode) request.get("pairs").get(0))
+        .put("indicator_ref", indicator)
+        .put("platform_ref", platform)
+        .put("deployed_on_ref", deployedOn);
+    ObjectNode identity = mapper.createObjectNode();
+    identity.put("type", "identity");
+    identity.put("id", platform);
+    identity.put("name", "CrowdStrike Falcon");
+
+    IocValidationRequest parsed = parser.parse(bundle(request, identity), REQUEST_ID);
+
+    assertThat(parsed.pairs())
+        .containsExactly(new IocValidationRequest.Pair(indicator, platform, deployedOn));
+  }
+
+  /**
+   * Values that are not a STIX identifier of the type: the id of another object type, a malformed
+   * prefix or UUID, or a look-alike character.
+   */
+  private static Stream<String> notStixIdsOf(String type, String idOfAnotherType) {
+    String uuid = "5c7f0a2e-1111-4a2b-9c3d-123456789abc";
+    return Stream.concat(
+        Stream.of(
+            idOfAnotherType,
+            type,
+            type + "--",
+            type + "-" + uuid,
+            type.toUpperCase(Locale.ROOT) + "--" + uuid,
+            "x-" + type + "--" + uuid,
+            type.replace('i', '\u0456') + "--" + uuid,
+            " " + type + "--" + uuid + " " + type + "--" + uuid),
+        malformedUuids().map(malformed -> type + "--" + malformed));
+  }
+
+  private static Stream<Arguments> malformedPairRefs() {
+    return Stream.of(
+            Map.entry("indicator_ref", notStixIdsOf("indicator", PLATFORM)),
+            Map.entry("platform_ref", notStixIdsOf("identity", INDICATOR)),
+            Map.entry(
+                "deployed_on_ref",
+                notStixIdsOf("relationship", "sighting--9b1d3f5a-3333-4c4d-9e5f-fedcbafedcba")))
+        .flatMap(entry -> entry.getValue().map(value -> Arguments.of(entry.getKey(), value)));
+  }
+
+  private static Stream<String> malformedIndicatorRefs() {
+    return notStixIdsOf("indicator", DEPLOYED_ON);
+  }
+
+  @ParameterizedTest(name = "pair {0} = {1}")
+  @MethodSource("malformedPairRefs")
+  @DisplayName("rejects a pair ref that is not a STIX identifier of its object type")
+  void given_malformedPairRef_should_throw(String field, String value) {
+    ObjectNode request = request();
+    ((ObjectNode) request.get("pairs").get(0)).put(field, value);
+
+    assertThatThrownBy(() -> parser.parse(bundle(request), REQUEST_ID))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining("'" + field + "' must be a STIX identifier");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("malformedIndicatorRefs")
+  @DisplayName("rejects an IOC whose indicator_ref is not a STIX indicator identifier")
+  void given_malformedIocIndicatorRef_should_throw(String value) {
+    ObjectNode request = request();
+    ((ObjectNode) request.get("iocs").get(0)).put("indicator_ref", value);
+
+    assertThatThrownBy(() -> parser.parse(bundle(request), REQUEST_ID))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining("'indicator_ref' must be a STIX identifier indicator--<UUID>");
+  }
+
+  @Test
+  @DisplayName("shows a rejected ref with its invisible characters spelled out")
+  void given_refWithLookAlikeCharacter_should_spellItOut() {
+    ObjectNode request = request();
+    ((ObjectNode) request.get("pairs").get(0))
+        .put("platform_ref", "\u0456dentity--1e2f6bb1-31b1-4b8a-9d36-3b3b3a1f0e22");
+
+    assertThatThrownBy(() -> parser.parse(bundle(request), REQUEST_ID))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining("<U+0456>dentity--")
+        .hasMessageNotContaining("\u0456");
   }
 
   @Test

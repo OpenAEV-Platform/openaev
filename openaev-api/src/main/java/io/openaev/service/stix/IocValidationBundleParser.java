@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -31,10 +32,15 @@ public class IocValidationBundleParser {
   public static final String OPENCTI_EXTENSION =
       "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba";
   static final int MAX_NAME_LENGTH = 255;
-  // The request id is stored in ioc_validation_external_id VARCHAR(255)
-  static final int MAX_REQUEST_ID_LENGTH = 255;
   static final int MAX_VALUE_LENGTH = 8192;
   static final int MAX_HASHES = 10;
+  static final String INDICATOR_TYPE = "indicator";
+  static final String IDENTITY_TYPE = "identity";
+  static final String RELATIONSHIP_TYPE = "relationship";
+  // OpenCTI generates every id it sends as a lower-case RFC 4122 UUID of version 4 (random) or 5
+  // (name-based); the result bundle writes the refs back as STIX identifiers OpenCTI resolves
+  private static final Pattern OPENCTI_UUID =
+      Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[45][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
 
   private final ObjectMapper mapper;
 
@@ -97,8 +103,9 @@ public class IocValidationBundleParser {
   /**
    * The OpenCTI id of the request, from the event or the OpenCTI extension of the request object.
    * When both are present they must be equal: the lifecycle reported back to OpenCTI must target
-   * the request whose IOCs are executed. An id longer than {@link #MAX_REQUEST_ID_LENGTH} makes the
-   * bundle malformed.
+   * the request whose IOCs are executed. An id that is not an OpenCTI internal id (a version 4 or 5
+   * UUID in lower case) makes the bundle malformed: it is stored, put in the link to the request in
+   * OpenCTI and sent back with every status.
    */
   static String resolveRequestId(JsonNode request, String entityId) throws BundleValidationError {
     String eventId = requestIdOrNull(entityId);
@@ -124,10 +131,11 @@ public class IocValidationBundleParser {
       return null;
     }
     String trimmed = id.trim();
-    if (trimmed.length() > MAX_REQUEST_ID_LENGTH) {
+    if (!OPENCTI_UUID.matcher(trimmed).matches()) {
       throw new BundleValidationError(
-          "The OpenCTI id of the IOC validation request exceeds %d characters"
-              .formatted(MAX_REQUEST_ID_LENGTH));
+          ("The OpenCTI id of the IOC validation request must be a lower-case version 4 or 5"
+                  + " UUID, found '%s'")
+              .formatted(IocValidationPlanner.display(trimmed)));
     }
     return trimmed;
   }
@@ -142,7 +150,7 @@ public class IocValidationBundleParser {
     // an indicator are ignored, so a request never runs more tests than it has indicators
     Set<String> seenIndicators = new LinkedHashSet<>();
     for (JsonNode node : iocsNode) {
-      String indicatorRef = required(node, "indicator_ref");
+      String indicatorRef = requiredStixId(node, "indicator_ref", INDICATOR_TYPE);
       if (!seenIndicators.add(indicatorRef)) {
         continue;
       }
@@ -210,9 +218,9 @@ public class IocValidationBundleParser {
     for (JsonNode node : pairsNode) {
       IocValidationRequest.Pair pair =
           new IocValidationRequest.Pair(
-              required(node, "indicator_ref"),
-              required(node, "platform_ref"),
-              required(node, "deployed_on_ref"));
+              requiredStixId(node, "indicator_ref", INDICATOR_TYPE),
+              requiredStixId(node, "platform_ref", IDENTITY_TYPE),
+              requiredStixId(node, "deployed_on_ref", RELATIONSHIP_TYPE));
       String couple = pair.indicatorRef() + "|" + pair.platformRef();
       if (!seenDeployments.contains(pair.deployedOnRef()) && seenCouples.add(couple)) {
         seenDeployments.add(pair.deployedOnRef());
@@ -293,6 +301,31 @@ public class IocValidationBundleParser {
           "The IOC validation request is missing the required field '%s'".formatted(field));
     }
     return value.trim();
+  }
+
+  /**
+   * A required STIX identifier of the given object type, as OpenCTI generates it: {@code
+   * <type>--<UUID>} with a lower-case version 4 or 5 UUID. Anything else is a malformed request:
+   * the refs are stored and written back in the result bundle, which OpenCTI would refuse on every
+   * retry.
+   */
+  private static String requiredStixId(JsonNode node, String field, String type)
+      throws BundleValidationError {
+    String id = required(node, field);
+    if (!isStixId(id, type)) {
+      throw new BundleValidationError(
+          ("The IOC validation request field '%s' must be a STIX identifier %s--<UUID>, with a"
+                  + " lower-case version 4 or 5 UUID, found '%s'")
+              .formatted(field, type, IocValidationPlanner.display(id)));
+    }
+    return id;
+  }
+
+  static boolean isStixId(String id, String type) {
+    String prefix = type + "--";
+    return id != null
+        && id.startsWith(prefix)
+        && OPENCTI_UUID.matcher(id.substring(prefix.length())).matches();
   }
 
   private static String text(JsonNode node, String field) {

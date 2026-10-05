@@ -15,13 +15,17 @@ import java.util.Set;
  *     none
  * @param networkPort TCP port of network tests
  * @param assetGroupId asset group targeted by validation injects, blank when none
+ * @param platformHosts host names and IP literals of the platform (OpenAEV, the OpenCTI of the
+ *     tenant, the egress proxy) in the form {@link IocValidationPlanner#platformHosts} gives them;
+ *     no test targets them
  */
 public record IocValidationSettings(
     Set<IocValidationTestKind> allowedTestKinds,
     String httpProxyUrl,
     String sinkholeAddress,
     int networkPort,
-    String assetGroupId) {
+    String assetGroupId,
+    Set<String> platformHosts) {
 
   public static final int DEFAULT_NETWORK_PORT = 443;
 
@@ -30,6 +34,23 @@ public record IocValidationSettings(
         allowedTestKinds == null || allowedTestKinds.isEmpty()
             ? Collections.unmodifiableSet(EnumSet.noneOf(IocValidationTestKind.class))
             : Collections.unmodifiableSet(EnumSet.copyOf(allowedTestKinds));
+    platformHosts = platformHosts == null ? Set.of() : Set.copyOf(platformHosts);
+  }
+
+  /** The stored settings, before the host names of the platform are known. */
+  public IocValidationSettings(
+      Set<IocValidationTestKind> allowedTestKinds,
+      String httpProxyUrl,
+      String sinkholeAddress,
+      int networkPort,
+      String assetGroupId) {
+    this(allowedTestKinds, httpProxyUrl, sinkholeAddress, networkPort, assetGroupId, Set.of());
+  }
+
+  /** The same settings, with the host names of the platform no test may target. */
+  public IocValidationSettings withPlatformHosts(Set<String> hosts) {
+    return new IocValidationSettings(
+        allowedTestKinds, httpProxyUrl, sinkholeAddress, networkPort, assetGroupId, hosts);
   }
 
   public boolean allows(IocValidationTestKind kind) {

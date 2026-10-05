@@ -1,5 +1,6 @@
 package io.openaev.service.stix;
 
+import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_FILE_NAME_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_URL_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_VALUE_KEY;
@@ -16,6 +17,7 @@ import io.openaev.utils.command.CommandArgumentBinder;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -681,6 +683,213 @@ class IocValidationValueChecksTest {
             .map(IocValidationValueChecksTest::plan)
             .forEach(IocValidationValueChecksTest::assertRefused);
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Look-alike characters")
+  class LookAlikeCharacters {
+
+    private static Stream<Arguments> lookAlikeUrls() {
+      return Stream.of(
+          Arguments.of("Cyrillic a", "http://\u0430pple.com/"),
+          Arguments.of("Cyrillic o", "https://g\u043e\u043egle.com/login"),
+          Arguments.of("Greek omicron", "https://micr\u03bfsoft.com/"),
+          Arguments.of("fullwidth letters", "https://\uff45\uff58ample.com/"),
+          Arguments.of("fullwidth solidus", "https://example.com\uff0fadmin"),
+          Arguments.of("ideographic full stop", "https://example\u3002com/"),
+          Arguments.of("zero-width space", "https://example.com/\u200blogin"),
+          Arguments.of("right-to-left override", "https://example.com/\u202efdp.exe"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("lookAlikeUrls")
+    @DisplayName("an HTTP HEAD test refuses a URL with a character that imitates an ASCII one")
+    void given_urlWithLookAlike_should_refuse(String name, String url) {
+      Plan plan = plan(ioc("Url", url, IocValidationTestKind.HTTP_HEAD));
+      assertRefused(plan);
+      assertThat(plan.message()).containsPattern("U\\+[0-9A-F]{4}");
+    }
+
+    private static Stream<Arguments> lookAlikeAddresses() {
+      return Stream.of(
+          Arguments.of("fullwidth digits", "\uff18.\uff18.\uff18.\uff18"),
+          Arguments.of("Arabic-Indic digits", "\u0668.\u0668.\u0664.\u0664"),
+          Arguments.of("Devanagari digits", "\u096e.\u096e.\u096e.\u096e"),
+          Arguments.of("one fullwidth digit", "8.8.4.\uff14"),
+          Arguments.of("fullwidth loopback", "\uff11\uff12\uff17.0.0.1"),
+          Arguments.of("fullwidth full stop", "8\uff0e8.8.8"),
+          Arguments.of("fullwidth digit in IPv6", "2606:4700:4700::\uff11111"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("lookAlikeAddresses")
+    @DisplayName("a network test refuses an address written with digits that are not ASCII")
+    void given_addressWithNonAsciiDigits_should_refuse(String name, String value) {
+      String type = value.contains(":") ? "IPv6-Addr" : "IPv4-Addr";
+      Plan plan = plan(ioc(type, value, IocValidationTestKind.NETWORK_TRAFFIC));
+      assertRefused(plan);
+      assertThat(plan.message()).containsPattern("U\\+[0-9A-F]{4}").contains("ASCII digits");
+    }
+
+    @Test
+    @DisplayName("the sinkhole setting refuses an address written with digits that are not ASCII")
+    void given_sinkholeWithNonAsciiDigits_should_refuse() {
+      String fullwidth = "\uff11.\uff11.\uff11.\uff11";
+      // Control: the address parser alone reads these digits as ASCII ones
+      assertThat(InetAddresses.isInetAddress(fullwidth)).isTrue();
+      assertThat(IocValidationPlanner.isIpLiteral(fullwidth)).isFalse();
+      assertThat(IocValidationPlanner.isIpLiteral("8.8.4.\uff14")).isFalse();
+      assertThat(IocValidationPlanner.isIpLiteral("fe80::1%eth0")).isFalse();
+      assertThat(IocValidationPlanner.isIpLiteral("1.1.1.1")).isTrue();
+      assertThat(IocValidationPlanner.isIpLiteral(" 2606:4700:4700::1111 ")).isTrue();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        strings = {
+          "e3b0c44298fc1c149afbf4c8996fb92427\u0430e41e4649b934ca495991b7852b855",
+          "d41d8cd98f00b204e9800998ecf8427\u0435",
+          "d41d8cd98f00b204e9800998ecf8427\uff45",
+          "d41d8cd98f00b204e9800998ecf842\uff17\uff45",
+          "d41d8cd98f00b204e9800998ecf8\u200b427e"
+        })
+    @DisplayName("a log line test refuses a hash with a character that imitates a hexadecimal one")
+    void given_hashWithLookAlike_should_refuse(String hash) {
+      assertRefused(plan(logLine(hash, Map.of())));
+      assertRefused(plan(logLine("ignored", Map.of("SHA-256", hash))));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        strings = {
+          "invoic\u0435.exe",
+          "invoice\uff0eexe",
+          "\u0456nvoice.exe",
+          "invoice\u202efdp.exe",
+          "invoice\u00a0.exe"
+        })
+    @DisplayName("a file drop test refuses a file name with a character that imitates an ASCII one")
+    void given_fileNameWithLookAlike_should_refuse(String fileName) {
+      Plan plan = plan(file(fileName, Map.of()));
+      assertRefused(plan);
+      assertThat(plan.message()).containsPattern("U\\+[0-9A-F]{4}");
+    }
+
+    @Test
+    @DisplayName("a DNS test resolves an international name only in its ASCII form")
+    void given_internationalHostName_should_planItsAsciiForm() {
+      Plan plan = plan(ioc("Domain-Name", "\u0430pple.com", IocValidationTestKind.DNS_RESOLUTION));
+      // The look-alike name is looked up as itself, never as the name it imitates
+      assertThat(plan.arguments().get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY))
+          .matches("xn--[a-z0-9-]+\\.com")
+          .isNotEqualTo("apple.com");
+    }
+
+    private static Stream<Arguments> lookAlikesInEveryTestType() {
+      return Stream.of(
+              "\u0430pple.com",
+              "http://\u0430pple.com/",
+              "\uff18.\uff18.\uff18.\uff18",
+              "invoic\u0435.exe",
+              "d41d8cd98f00b204e9800998ecf8427\u0435",
+              "b\u00fccher.example.com")
+          .flatMap(IocValidationValueChecksTest::everyTestType);
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @MethodSource("lookAlikesInEveryTestType")
+    @DisplayName("never hands a payload an argument outside printable ASCII")
+    void given_lookAlikeValue_should_neverPlanANonAsciiArgument(
+        IocValidationTestKind kind, IocValidationIoc ioc) {
+      Plan plan = plan(ioc);
+      plan.arguments()
+          .values()
+          .forEach(
+              argument ->
+                  assertThat(argument.chars().allMatch(c -> c > 0x20 && c < 0x7f))
+                      .as(argument)
+                      .isTrue());
+    }
+  }
+
+  @Nested
+  @DisplayName("Hosts of the platform")
+  class PlatformHosts {
+
+    private static IocValidationSettings withPlatformHosts() {
+      return allowAll()
+          .withPlatformHosts(
+              IocValidationPlanner.platformHosts(
+                  List.of(
+                      "https://openaev.example.com",
+                      "https://opencti.example.org/",
+                      PROXY,
+                      "https://1.1.1.1:8443",
+                      "http://[2606:4700:4700::1111]:8080")));
+    }
+
+    private static Plan planWithPlatformHosts(IocValidationIoc ioc) {
+      return IocValidationPlanner.plan(ioc, withPlatformHosts(), PUBLIC);
+    }
+
+    @Test
+    @DisplayName("are read from the platform URLs as lower-case names and canonical addresses")
+    void given_platformUrls_should_readTheirHosts() {
+      assertThat(
+              IocValidationPlanner.platformHosts(
+                  Arrays.asList(
+                      "https://OpenAEV.Example.com:8443/api",
+                      "opencti.example.org:4000",
+                      "http://[2606:4700:4700:0:0:0:0:1111]:8080",
+                      "",
+                      null,
+                      "http://exa mple.com")))
+          .containsExactlyInAnyOrder(
+              "openaev.example.com", "opencti.example.org", "2606:4700:4700::1111");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        strings = {
+          "https://openaev.example.com/api/settings",
+          "https://OPENAEV.Example.com./",
+          "http://openaev.example.com:8080/",
+          "https://opencti.example.org/graphql",
+          "http://proxy.example.net:3128/squid-internal-mgr/info",
+          "https://1.1.1.1/",
+          "http://[2606:4700:4700:0:0:0:0:1111]/"
+        })
+    @DisplayName("an HTTP HEAD test refuses a URL whose host is a host of the platform")
+    void given_urlOfThePlatform_should_refuse(String url) {
+      Plan plan = planWithPlatformHosts(ioc("Url", url, IocValidationTestKind.HTTP_HEAD));
+      assertRefused(plan);
+      assertThat(plan.message()).contains("a host of this platform");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"1.1.1.1", "1.1.1.1/32", "2606:4700:4700:0::1111"})
+    @DisplayName("a network test refuses an address of the platform")
+    void given_addressOfThePlatform_should_refuseNetworkTest(String value) {
+      String type = value.contains(":") ? "IPv6-Addr" : "IPv4-Addr";
+      Plan plan = planWithPlatformHosts(ioc(type, value, IocValidationTestKind.NETWORK_TRAFFIC));
+      assertRefused(plan);
+      assertThat(plan.message()).contains("a host of this platform");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        strings = {
+          "https://openaev.example.com.evil.example.net/",
+          "https://evil-openaev.example.com/",
+          "https://evil.example.com/?next=https://openaev.example.com/",
+          "https://1.1.1.2/"
+        })
+    @DisplayName("an HTTP HEAD test accepts a host that only contains a host of the platform")
+    void given_urlMentioningThePlatform_should_planHttpHead(String url) {
+      Plan plan = planWithPlatformHosts(ioc("Url", url, IocValidationTestKind.HTTP_HEAD));
+      assertThat(plan.runnable()).isTrue();
+      assertThat(plan.refused()).isFalse();
     }
   }
 }

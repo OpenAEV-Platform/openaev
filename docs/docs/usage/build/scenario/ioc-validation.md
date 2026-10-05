@@ -60,7 +60,7 @@ made of ASCII characters:
 | Test kind         | Accepted value |
 |-------------------|----------------|
 | DNS resolution    | A host name: letters, digits, `-` and `_` in each label, at most 253 characters. An international name is converted to its `xn--` form; punctuation, quotes and spaces are refused. |
-| Network traffic   | A single IPv4 or IPv6 address that is not internal. A `/32` or `/128` range counts as its address; any wider range is refused. |
+| Network traffic   | A single IPv4 or IPv6 address that is not internal, written with ASCII digits (an address written with fullwidth digits such as `U+FF18`, or with the digits of another script, is refused). A `/32` or `/128` range counts as its address; any wider range is refused. |
 | HTTP HEAD request | An absolute `http` or `https` URL of at most 2048 characters, made only of the characters of RFC 3986: ASCII letters, digits and `-._~:/?#[]@!$&()*+,;=%`. An apostrophe must be percent-encoded as `%27`, and every `%` must start a percent-encoded byte. The URL carries no credentials, and its host is an IP address that is not internal or a DNS name of at least two labels. |
 | Benign file drop  | The base name of the indicator file (a directory part is dropped): ASCII letters, digits, `.`, `_` and `-` only, at most 128 characters. |
 | Benign log line   | The strongest hash of the indicator (SHA-256, then SHA-512, SHA-1, MD5), or its value when it has no hash: hexadecimal, with the 32, 40, 64 or 128 characters of an MD5, SHA-1, SHA-256 or SHA-512 digest (the length of its algorithm when the algorithm is known). It is written in lower case. |
@@ -88,6 +88,18 @@ checks above cannot see that answer, so **configure the egress proxy to refuse i
 above): it is the control that applies at execution. The test never follows a redirect, so the only URL contacted is
 the one that was checked.
 
+**The hosts of the platform are refused.** No HTTP HEAD or network test targets OpenAEV itself (the hosts of its base
+URL and agent URL), the OpenCTI the tenant is connected to, or the egress proxy: a URL whose host is one of these
+names or addresses, or a network test towards one of these addresses, is refused, whatever the address the name
+resolves to. A host that only contains one of these names, such as `openaev.example.com.attacker.net`, is not a host
+of the platform.
+
+**Malformed requests are not recorded.** Every reference of a request must be the STIX identifier of its object type,
+as OpenCTI generates it: `indicator--`, `identity--` (the security platform) or `relationship--` (the deployment),
+followed by a lower-case version 4 or 5 UUID; the request itself is named by its OpenCTI id, a UUID of the same form.
+A request with any other value is acknowledged in error to OpenCTI, with the field and the value, and nothing is
+recorded: its results could not be written back to OpenCTI.
+
 **A refused value is shown, not repaired.** The request shows the indicator as *Refused* in the **Test that runs**
 column, with the reason. A character outside the accepted set is written with its code point, so a character that
 looks like another is visible: a typographic apostrophe appears as `U+2019`. The status of the request counts the
@@ -101,7 +113,7 @@ Go to **Settings > Customization > IOC validation**. You need the *Manage tenant
 
 - **Allowed test kinds**: the tests that may run. Anything else is skipped.
 - **Egress proxy URL**: an absolute http or https URL, without credentials (a URL such as `https://user:password@proxy` is refused, because the URL is shown in the settings and copied into the simulation injects). Required to allow HTTP HEAD tests. The proxy should refuse internal destinations: it resolves the host names of the tests when they run (see [Accepted indicator values](#accepted-indicator-values)).
-- **Sinkhole address**: an IPv4 or IPv6 address. When set, network tests connect to it instead of the indicator.
+- **Sinkhole address**: an IPv4 or IPv6 address, written with ASCII digits. When set, network tests connect to it instead of the indicator.
 - **Network test port**: the TCP port of network tests, 443 by default.
 - **Asset group running the tests**: the endpoints of this group run the benign tests. Approval is refused until
   an asset group is set and at least one of its endpoints has an active agent: without one no test would run, and

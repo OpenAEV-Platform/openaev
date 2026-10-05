@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -49,8 +50,9 @@ import java.util.regex.Pattern;
  * payloads. A value is used only when it is made of an explicit set of ASCII characters (an http or
  * https URL, an IP address, a hexadecimal hash, a plain file name); anything else is refused, never
  * repaired, and the refusal is recorded on the IOC with its reason. No test is planned towards an
- * internal address: unspecified, loopback, link-local, private, unique local, multicast or
- * broadcast. For a URL host name this is what the OpenAEV server resolves; the egress proxy
+ * internal address (unspecified, loopback, link-local, private, unique local, multicast or
+ * broadcast) nor towards a host of the platform itself (OpenAEV, the OpenCTI of the tenant, the
+ * egress proxy). For a URL host name this is what the OpenAEV server resolves; the egress proxy
  * resolves the name again when the test runs, so refusing internal destinations at that point is
  * the proxy's job.
  */
@@ -93,6 +95,9 @@ public final class IocValidationPlanner {
   private static final Pattern URL_FORBIDDEN =
       Pattern.compile("[^A-Za-z0-9\\-._~:/?#\\[\\]@!$&()*+,;=%]");
   private static final Pattern PERCENT_WITHOUT_HEX = Pattern.compile("%(?![0-9A-Fa-f]{2})");
+  // InetAddresses reads any Unicode digit (fullwidth U+FF18, Arabic-Indic U+0668...) as an ASCII
+  // one, which would rewrite the value instead of refusing it
+  private static final Pattern ADDRESS_FORBIDDEN = Pattern.compile("[^0-9A-Fa-f.:/]");
   private static final Pattern FILE_NAME_FORBIDDEN = Pattern.compile("[^A-Za-z0-9._-]");
   private static final Pattern HEX = Pattern.compile("^[0-9A-Fa-f]+$");
 
@@ -285,6 +290,9 @@ public final class IocValidationPlanner {
     if (!address.isAccepted()) {
       return Plan.refuse(address.refusal());
     }
+    if (settings.platformHosts().contains(address.value())) {
+      return Plan.refuse(platformHostRefusal(ioc.getValue(), address.value()));
+    }
     Map<String, String> arguments = new LinkedHashMap<>();
     String message = null;
     if (settings.hasSinkhole()) {
@@ -319,6 +327,10 @@ public final class IocValidationPlanner {
     Checked<String> url = normalizeUrl(ioc.getValue(), resolver);
     if (!url.isAccepted()) {
       return Plan.refuse(url.refusal());
+    }
+    Optional<String> host = urlHost(url.value());
+    if (host.isPresent() && settings.platformHosts().contains(host.get())) {
+      return Plan.refuse(platformHostRefusal(url.value(), host.get()));
     }
     return new Plan(
         IocValidationTestKind.HTTP_HEAD,
@@ -394,6 +406,13 @@ public final class IocValidationPlanner {
       return Checked.refused("the IOC has no IP address");
     }
     String address = value.trim();
+    Matcher forbidden = ADDRESS_FORBIDDEN.matcher(address);
+    if (forbidden.find()) {
+      return Checked.refused(
+          ("'%s' contains %s: an IP address is written only with ASCII digits, the letters a to f,"
+                  + " '.' and ':'")
+              .formatted(display(value), characterName(address.codePointAt(forbidden.start()))));
+    }
     int slash = address.indexOf('/');
     if (slash >= 0) {
       String prefix = address.substring(slash + 1);
@@ -417,9 +436,65 @@ public final class IocValidationPlanner {
     return Checked.accepted(InetAddresses.toAddrString(parsed));
   }
 
-  /** Whether the value is an IP literal; used to validate the sinkhole setting. */
+  /**
+   * Whether the value is an IP literal written in ASCII; used to validate the sinkhole setting,
+   * which network tests copy into their command.
+   */
   public static boolean isIpLiteral(String value) {
-    return value != null && InetAddresses.isInetAddress(value.trim());
+    if (value == null) {
+      return false;
+    }
+    String address = value.trim();
+    return !ADDRESS_FORBIDDEN.matcher(address).find()
+        && address.indexOf('/') < 0
+        && InetAddresses.isInetAddress(address);
+  }
+
+  /**
+   * The hosts of the platform's own URLs (OpenAEV, the OpenCTI of the tenant, the egress proxy), as
+   * the checks compare them: a lower-case ASCII host name, or an IP literal in its canonical form.
+   * Blank and unparseable URLs are ignored.
+   */
+  public static Set<String> platformHosts(Collection<String> urls) {
+    Set<String> hosts = new LinkedHashSet<>();
+    for (String url : urls) {
+      if (url == null || url.isBlank()) {
+        continue;
+      }
+      String value = url.trim();
+      try {
+        String host = new URI(value.contains("://") ? value : "http://" + value).getHost();
+        if (host == null) {
+          continue;
+        }
+        if (InetAddresses.isUriInetAddress(host)) {
+          hosts.add(InetAddresses.toAddrString(InetAddresses.forUriString(host)));
+        } else {
+          normalizeHost(host).ifPresent(hosts::add);
+        }
+      } catch (URISyntaxException e) {
+        // not a URL: it names no host to protect
+      }
+    }
+    return hosts;
+  }
+
+  /** The host of an accepted URL, in the form {@link #platformHosts} gives. */
+  private static Optional<String> urlHost(String url) {
+    Checked<URI> parsed = parseHttpUrl(url);
+    if (!parsed.isAccepted()) {
+      return Optional.empty();
+    }
+    String host = parsed.value().getHost();
+    return InetAddresses.isUriInetAddress(host)
+        ? Optional.of(InetAddresses.toAddrString(InetAddresses.forUriString(host)))
+        : normalizeHost(host);
+  }
+
+  private static String platformHostRefusal(String value, String host) {
+    return ("'%s' targets %s, a host of this platform: IOC validation tests never target OpenAEV,"
+            + " the OpenCTI it is connected to or the egress proxy")
+        .formatted(display(value), host);
   }
 
   /**
@@ -746,7 +821,7 @@ public final class IocValidationPlanner {
    * A value as shown in a refusal: every character outside printable ASCII written {@code
    * <U+XXXX>}, so an invisible or look-alike character is visible, then shortened.
    */
-  private static String display(String value) {
+  static String display(String value) {
     if (value == null) {
       return "";
     }

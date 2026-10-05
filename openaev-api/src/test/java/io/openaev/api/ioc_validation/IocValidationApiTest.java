@@ -9,8 +9,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -28,6 +30,7 @@ import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.IocValidationTestKind;
+import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.stix.IocValidationBundleParser;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -43,6 +46,7 @@ import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -317,6 +321,56 @@ class IocValidationApiTest extends IntegrationTest {
       mvc.perform(intake(tenantId, event.toString())).andExpect(status().isOk());
 
       assertThat(recordCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("acknowledges in error a request whose ref is the STIX identifier of another type")
+    void given_typeConfusedRef_should_answerOkWithoutRecord() throws Exception {
+      String body =
+          ctiEvent(
+                  UUID.randomUUID().toString(), "Domain-Name", "evil.example.com", "dns_resolution")
+              .replace(INDICATOR, "relationship--6d2f6bb1-31b1-4b8a-9d36-3b3b3a1f0e11");
+
+      mvc.perform(intake(tenantId, body)).andExpect(status().isOk());
+
+      assertThat(recordCount()).isZero();
+      verify(openCTIConnectorService)
+          .acknowledgeProcessedOfIocValidation(
+              anyString(),
+              contains("'indicator_ref' must be a STIX identifier indicator--<UUID>"),
+              eq(true),
+              anyString());
+    }
+
+    @Test
+    @DisplayName("refuses a URL that targets the OpenCTI the tenant is connected to")
+    void given_urlOfTheConnectedOpenCti_should_recordItRefused() throws Exception {
+      ConnectorBase connector = mock(ConnectorBase.class);
+      when(connector.getUrl()).thenReturn("https://1.1.1.1:4000");
+      when(openCTIConnectorService.getIocValidationConnector(tenantId))
+          .thenReturn(Optional.of(connector));
+      mvc.perform(
+              putSettings(
+                  mapper.writeValueAsString(
+                      new IocValidationSettingsInput(
+                          List.of(IocValidationTestKind.HTTP_HEAD),
+                          "http://proxy.example.net:3128",
+                          "",
+                          443,
+                          ""))))
+          .andExpect(status().isOk());
+
+      // An IP literal host is never resolved: the intake needs no DNS server
+      String id =
+          receive(
+              ctiEvent(
+                  UUID.randomUUID().toString(), "Url", "https://1.1.1.1/graphql", "http_head"));
+
+      String response = validation(id);
+      assertThat((Boolean) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_refused"))
+          .isTrue();
+      assertThat((String) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_message"))
+          .contains("targets 1.1.1.1, a host of this platform");
     }
 
     @Test
