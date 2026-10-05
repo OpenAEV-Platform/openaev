@@ -28,13 +28,24 @@ A translation key is the English text itself: the component calls `t('Add tags')
     yarn extract-translation
     ```
 
-    The script only detects literal `t('…')` calls in `.js`, `.jsx` and `.tsx` files. Add by hand the keys passed as a prop or an object property that a component translates later (`title="Import a scenario"`, `label: 'Seen'`).
+    The script only detects `t('…')` calls with a single-quoted text and no other argument, in `.js`, `.jsx` and `.tsx` files. Add these keys to `en.json` by hand:
+
+    | Not detected | Example |
+    |---|---|
+    | A call with options or placeholder values | `t('{count} injects', { count })` |
+    | A double-quoted text, or an escaped quote | `t("Add tags")`, `t('It\'s done')` |
+    | A call in a `.ts` file | `asset-categories.ts`, `sampleData.ts` |
+    | A text passed as a prop or an object property that a component translates later | `title="Import a scenario"`, `label: 'Seen'` |
+
+    `yarn i18n-checker` (step 5) detects the first three cases: run it before pushing to find the keys you missed.
 
 3. Translate the new keys into the eight other languages with DeepL:
 
     ```bash
     SUBSCRIPTION_KEY=<your DeepL key> yarn auto-translation:all
     ```
+
+    Pass the DeepL key through the `SUBSCRIPTION_KEY` environment variable, on the command line as above or in the run configuration of your IDE.
 
     Only the keys missing from a language file are sent to DeepL: existing translations are never overwritten.
 
@@ -45,17 +56,13 @@ A translation key is the English text itself: the component calls `t('Add tags')
     yarn i18n-checker
     ```
 
-!!! warning "DeepL key"
-
-    `auto-translation:all` uses a DeepL API Free key, limited to 500,000 characters per month. Pass it as an environment variable only: never commit it, and never write it in a file of the repository.
-
 ## Scripts
 
 All scripts run from `openaev-front/`.
 
 | Script | What it does |
 |---|---|
-| `yarn extract-translation` | Adds to `en.json` the keys of the literal `t('…')` calls that are missing. |
+| `yarn extract-translation` | Adds to `en.json` the missing keys of the simple `t('…')` calls. Some calls must be added by hand, see [How to add or change a translation](#how-to-add-or-change-a-translation). |
 | `yarn auto-translation:all` | Translates with DeepL the keys missing from each language file, adjusts the case of the first letter to the source, then sorts the files. |
 | `yarn sort-translation` | Sorts the keys of every language file. |
 | `yarn i18n-checker` | Runs every check listed in [Checks run by the CI](#checks-run-by-the-ci). |
