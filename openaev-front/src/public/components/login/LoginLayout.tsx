@@ -11,6 +11,7 @@ import logoDark from '../../../static/images/logo_text_dark.png';
 import logoLight from '../../../static/images/logo_text_light.png';
 import { useHelper } from '../../../store';
 import { type PlatformSettings, type ThemeInput } from '../../../utils/api-types';
+import { sanitizeThemeColors } from '../../../utils/Colors';
 import { fileUri } from '../../../utils/Environment';
 import { isNotEmptyField } from '../../../utils/utils';
 
@@ -86,9 +87,9 @@ const LoginLayout: FunctionComponent<Props> = ({ children }) => {
   const theme = useTheme();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
 
-  const themeSettings = theme.palette.mode === 'dark'
+  const themeSettings = sanitizeThemeColors(theme.palette.mode === 'dark'
     ? settings.platform_dark_theme
-    : settings.platform_light_theme;
+    : settings.platform_light_theme);
 
   const isWhitemarkEnable = settings.platform_whitemark === 'true'
     && settings.platform_license?.license_is_validated === true;

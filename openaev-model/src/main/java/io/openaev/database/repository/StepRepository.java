@@ -2,17 +2,28 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
+import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface StepRepository extends JpaRepository<Step, String> {
+
+  /**
+   * Reads a step under a row lock (SELECT ... FOR UPDATE), held until the caller's transaction
+   * ends. Two READY requests for the same step then run one after the other, so the second sees
+   * what the first committed (see ActionStep#isAlreadyRun). Only requests for the same step wait.
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT s FROM Step s WHERE s.id = :id")
+  Optional<Step> findForUpdateById(@Param("id") String id);
 
   // STEP TEMPLATE
 

@@ -309,6 +309,36 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       // Assert
       assertTrue(result.stream().anyMatch(w -> w.getId().equals(justExpired.getId())));
     }
+
+    @Test
+    @DisplayName("given_accumulatedPauseTime_should_postponeExpiration")
+    void given_accumulatedPauseTime_should_postponeExpiration() {
+      // Arrange — past createdAt + timeout, but 30s of pause push the deadline to now + 29s
+      Workflow paused =
+          createPersistedRunWorkflowWithTimeout(
+              true, 60L, Instant.now().minus(61, ChronoUnit.SECONDS), 30L);
+
+      // Act
+      List<Workflow> result = workflowEndService.findAllExpiredRunWorkflows();
+
+      // Assert
+      assertTrue(result.stream().noneMatch(w -> w.getId().equals(paused.getId())));
+    }
+
+    @Test
+    @DisplayName("given_deadlineIncludingPauseTimeCrossed_should_returnIt")
+    void given_deadlineIncludingPauseTimeCrossed_should_returnIt() {
+      // Arrange — just past createdAt + timeout + pauseSecond (same 1s clock-skew buffer as above)
+      Workflow expired =
+          createPersistedRunWorkflowWithTimeout(
+              true, 60L, Instant.now().minus(91, ChronoUnit.SECONDS), 30L);
+
+      // Act
+      List<Workflow> result = workflowEndService.findAllExpiredRunWorkflows();
+
+      // Assert
+      assertTrue(result.stream().anyMatch(w -> w.getId().equals(expired.getId())));
+    }
   }
 
   // ========================================================================
@@ -419,9 +449,15 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
 
   private Workflow createPersistedRunWorkflowWithTimeout(
       boolean timeoutEnabled, Long timeoutSeconds, Instant createdAt) {
+    return createPersistedRunWorkflowWithTimeout(timeoutEnabled, timeoutSeconds, createdAt, 0L);
+  }
+
+  private Workflow createPersistedRunWorkflowWithTimeout(
+      boolean timeoutEnabled, Long timeoutSeconds, Instant createdAt, long pauseSecond) {
     Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
     workflowRun.setTimeoutEnabled(timeoutEnabled);
     workflowRun.setTimeoutSeconds(timeoutSeconds);
+    workflowRun.setPauseSecond(pauseSecond);
 
     ExerciseComposer.Composer simComposer =
         exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise());

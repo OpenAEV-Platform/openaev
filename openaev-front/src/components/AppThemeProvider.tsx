@@ -5,6 +5,7 @@ import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } 
 import { type LoggedHelper } from '../actions/helper';
 import { useHelper } from '../store';
 import { type PlatformSettings, type TenantSettingsOutput, type User } from '../utils/api-types';
+import { sanitizeThemeColors } from '../utils/Colors';
 import useFdsThemeScope, { type FdsCustomTheme, FdsThemeContext, type FdsThemeMode } from '../utils/hooks/useFdsThemeScope';
 import { useFormatter } from './i18n';
 import themeDark from './ThemeDark';
@@ -59,9 +60,10 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
   // SSE reconnect, and each fetch stores a new object identity even when nothing
   // changed. Rebuilding the theme for that re-rendered (blinked) the entire app and
   // refetched every dashboard widget once the fetches landed.
-  const activeThemeConfig = theme === 'light'
+  // Colours are sanitized because a stored value that is not a colour makes createTheme throw.
+  const activeThemeConfig = sanitizeThemeColors(theme === 'light'
     ? tenantSettings?.platform_light_theme ?? settings.platform_light_theme
-    : tenantSettings?.platform_dark_theme ?? settings.platform_dark_theme;
+    : tenantSettings?.platform_dark_theme ?? settings.platform_dark_theme);
   const activeThemeKey = [
     activeThemeConfig?.logo_url,
     activeThemeConfig?.logo_url_collapsed,

@@ -26,6 +26,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -103,6 +104,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private UrlAccessTokenService urlAccessTokenService;
 
   @Autowired private WorkflowService workflowService;
+  @Autowired private WorkflowPauseService workflowPauseService;
   @Autowired private WorkflowRepository workflowRepository;
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
   @Autowired private ApplicationEventPublisher eventPublisher;
@@ -157,6 +159,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
+            workflowPauseService,
             pauseExerciseService,
             fileService,
             stepService,
