@@ -90,7 +90,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           TxCtx.forTenant(tenantId),
           () ->
               stepRepository
-                  .findById(stepEvent.getStepId())
+                  .findForUpdateById(stepEvent.getStepId())
                   .ifPresentOrElse(
                       this::run,
                       () ->
@@ -132,12 +132,14 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * @param stepReady step ready to run
    */
   void run(Step stepReady) {
-    // Guard: ignore if workflow run has already ended (e.g. timeout).
-    // Reads fresh status from DB to catch concurrent timeout completion.
+    // Guard: ignore if workflow run is not runnable (END or STOP).
+    // Reads fresh status from DB to catch concurrent timeout/pause completion.
     Workflow workflowRun = stepReady.getWorkflow();
-    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
+    if (workflowRun != null
+        && (workflowService.isWorkflowEnded(workflowRun.getId())
+            || workflowService.isWorkflowStopped(workflowRun.getId()))) {
       log.info(
-          "[Chaining] Ignoring run request for step {} because workflow run {} has ended.",
+          "[Chaining] Ignoring run request for step {} because workflow run {} is not runnable (END/STOP).",
           stepReady.getId(),
           workflowRun.getId());
       return;
@@ -147,6 +149,16 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     try {
       ActionStep actionStep =
           stepService.factoryAction(stepReady.getStepAction(), stepReady.getId());
+      // A step runs once. A second READY request for it (published twice, e.g. still queued when
+      // resume republished it) must neither run its inject again nor touch the step: the first
+      // execution owns it. The step was read under its row lock, so a concurrent duplicate waits
+      // for that execution to commit and sees it here.
+      if (actionStep.isAlreadyRun(stepReady)) {
+        log.warn(
+            "[Chaining] Ready consume: step {} already ran, duplicate READY request dropped.",
+            stepReady.getId());
+        return;
+      }
       stepRun =
           actionStep
               .run(stepReady)
