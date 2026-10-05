@@ -133,6 +133,19 @@ public class AssetGroupService {
         .orElseThrow(() -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
   }
 
+  /**
+   * The asset group of the given tenant, with its dynamic assets. The tenant is part of the lookup:
+   * the scope of a request spans every tenant its user can access, so a primary-key load alone can
+   * return the group of another tenant.
+   */
+  public AssetGroup tenantAssetGroup(
+      @NotBlank final String tenantId, @NotBlank final String assetGroupId) {
+    return this.assetGroupRepository
+        .findByIdAndTenantId(assetGroupId, tenantId)
+        .map(this::computeDynamicAssets)
+        .orElseThrow(() -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
+  }
+
   public Optional<AssetGroup> findByExternalReference(String externalReference, String tenantId) {
     return this.assetGroupRepository.findByExternalReferenceAndTenantId(
         externalReference, tenantId);

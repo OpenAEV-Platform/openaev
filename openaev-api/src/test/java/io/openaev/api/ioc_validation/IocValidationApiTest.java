@@ -30,8 +30,10 @@ import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.IocValidationTestKind;
+import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.stix.IocValidationBundleParser;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -92,6 +94,7 @@ class IocValidationApiTest extends IntegrationTest {
   @Autowired private AgentComposer agentComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private TenantSettingsService tenantSettingsService;
 
   // No OpenCTI is configured in tests: acknowledgements and status reports become no-ops, and the
   // lifecycle stays pending until a connector is registered.
@@ -872,6 +875,62 @@ class IocValidationApiTest extends IntegrationTest {
       String response = assetGroupOptions(otherTenantId, "");
 
       assertThat((List<String>) JsonPath.read(response, "$[*].id")).doesNotContain(group.getId());
+    }
+
+    @Test
+    @DisplayName("refuses the asset group of another tenant")
+    void given_assetGroupOfAnotherTenant_should_refuse() throws Exception {
+      otherTenantId =
+          tenantHelper.createTenantWithCurrentUser("ioc-validation-" + UUID.randomUUID()).getId();
+      AssetGroup foreign = persistAssetGroup(otherTenantId, "IOC validation targets");
+
+      mvc.perform(
+              putSettings(
+                  mapper.writeValueAsString(
+                      new IocValidationSettingsInput(
+                          List.of(IocValidationTestKind.DNS_RESOLUTION),
+                          "",
+                          "",
+                          443,
+                          foreign.getId()))))
+          .andExpect(status().isBadRequest());
+
+      String settings =
+          mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/settings", tenantId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat((String) JsonPath.read(settings, "$.ioc_validation_asset_group_id")).isNull();
+    }
+
+    @Test
+    @DisplayName("refuses an approval on the asset group of another tenant stored in the settings")
+    void given_storedAssetGroupOfAnotherTenant_should_refuseApproval() throws Exception {
+      // Before any request: a MockMvc request clears the security context of the test thread
+      otherTenantId =
+          tenantHelper.createTenantWithCurrentUser("ioc-validation-" + UUID.randomUUID()).getId();
+      AssetGroup foreign = persistAssetGroup(otherTenantId, "IOC validation targets");
+      allowTestKindOnValidationTargets(IocValidationTestKind.DNS_RESOLUTION);
+      // A value saved before the settings checked the tenant of the group
+      tenantSettingsService.updateSettingValue(
+          tenantId, TenantSettingKeys.IOC_VALIDATION_ASSET_GROUP, foreign.getId());
+      String id = receiveDnsRequest();
+
+      String refusal =
+          mvc.perform(decide(id, "approve"))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(refusal).contains("The IOC validation asset group no longer exists");
+      assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
+          .isEqualTo("AWAITING_APPROVAL");
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM injects WHERE tenant_id = ?", Integer.class, tenantId))
+          .isZero();
     }
   }
 

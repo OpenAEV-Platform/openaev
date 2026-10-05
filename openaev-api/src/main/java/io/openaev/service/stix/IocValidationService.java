@@ -307,7 +307,7 @@ public class IocValidationService {
               + " longer allowed by the IOC validation settings. Reject the request and ask for a"
               + " new validation from OpenCTI.");
     }
-    AssetGroup assetGroup = requireAssetGroup(settings);
+    AssetGroup assetGroup = requireAssetGroup(settings, tenantId);
     List<Endpoint> endpoints =
         assetGroupService
             .assetsFromAssetGroupMap(List.of(assetGroup))
@@ -1023,14 +1023,14 @@ public class IocValidationService {
     return executors;
   }
 
-  private AssetGroup requireAssetGroup(IocValidationSettings settings) {
+  private AssetGroup requireAssetGroup(IocValidationSettings settings, String tenantId) {
     if (!settings.hasAssetGroup()) {
       throw new BadRequestException(
           "Choose the asset group that runs the validation tests in the IOC validation settings"
               + " before approving");
     }
     try {
-      return assetGroupService.assetGroup(settings.assetGroupId());
+      return assetGroupService.tenantAssetGroup(tenantId, settings.assetGroupId());
     } catch (ElementNotFoundException e) {
       throw new BadRequestException(
           "The IOC validation asset group no longer exists: choose another one in the settings");

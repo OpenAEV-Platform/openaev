@@ -102,7 +102,7 @@ public class IocValidationSettingsService {
     }
     if (!assetGroupId.isEmpty()) {
       try {
-        assetGroupService.assetGroup(assetGroupId);
+        assetGroupService.tenantAssetGroup(tenantId, assetGroupId);
       } catch (ElementNotFoundException e) {
         throw new InputValidationException(ASSET_GROUP_FIELD, "The asset group does not exist");
       }
