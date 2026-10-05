@@ -4455,7 +4455,7 @@
   "Warning": "警告",
   "was previously": "（之前为 {previous_number}）",
   "We detected that your change will trigger an {assetrule}. Would you like to apply the defined asset groups on your current existing injects?": "我们检测到您的更改将触发 {assetrule}。您想在现有注入上应用已定义的资产组吗？",
-  "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href='${lessons_uri}'>${lessons_uri}</a>.": "感谢您参与此次模拟活动.请您填写这份经验教训调查问卷 : <a href='${lessons_uri}'>${lessons_uri}</a>.",
+  "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href=\"${lessons_uri}\">${lessons_uri}</a>.": "感谢您参与此次模拟活动.请您填写这份经验教训调查问卷 : '<a href=\"${lessons_uri}\">${lessons_uri}</a>'.",
   "Weak posture": "态势薄弱",
   "Weakness Enumeration": "弱点列举",
   "Web App": "Web 应用",
