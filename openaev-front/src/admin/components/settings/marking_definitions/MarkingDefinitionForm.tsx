@@ -9,6 +9,7 @@ import ColorPickerField from '../../../../components/ColorPickerField';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { type MarkingDefinitionInput } from '../../../../utils/api-types';
+import { FORM_HEX_COLOR_REGEX } from '../../../../utils/Colors';
 
 interface Props {
   defaultValues?: MarkingDefinitionInput;
@@ -16,7 +17,8 @@ interface Props {
   onSubmit: SubmitHandler<MarkingDefinitionInput>;
 }
 
-const HEX_COLOR_REGEX = /^#([0-9a-fA-F]{6})$/;
+const TEXT_MAX_LENGTH = 255;
+const ORDER_MAX = 2147483647;
 
 const DEFAULT_VALUES: MarkingDefinitionInput = {
   marking_definition_type: '',
@@ -40,17 +42,24 @@ const MarkingDefinitionForm: FunctionComponent<Props> = ({
       .coerce
       .number({ message: t('Should not be empty') })
       .int({ message: t('Order must be an integer') })
-      .min(0, { message: t('Order must be greater than or equal to 0') }),
+      .min(0, { message: t('Order must be greater than or equal to 0') })
+      .max(ORDER_MAX, { message: t('Order must be less than or equal to {max}', { max: ORDER_MAX.toString() }) }),
   ) as unknown as z.ZodType<MarkingDefinitionInput['marking_definition_order']>;
 
+  const requiredText = z
+    .string()
+    .trim()
+    .min(1, { message: t('Should not be empty') })
+    .max(TEXT_MAX_LENGTH, { message: t('Should not exceed {max_length} characters', { max_length: TEXT_MAX_LENGTH.toString() }) });
+
   const schema = z.object({
-    marking_definition_type: z.string().min(1, { message: t('Should not be empty') }),
-    marking_definition_definition: z.string().min(1, { message: t('Should not be empty') }),
+    marking_definition_type: requiredText,
+    marking_definition_definition: requiredText,
     marking_definition_color: z
       .string()
       .trim()
       .min(1, { message: t('Should not be empty') })
-      .refine(value => HEX_COLOR_REGEX.test(value), { message: t('Color must be a valid hex value, e.g. #4CAF50') }),
+      .refine(value => FORM_HEX_COLOR_REGEX.test(value), { message: t('Color must be a valid hex value, e.g. #4CAF50') }),
     marking_definition_order: orderNumber,
   });
 

@@ -1,6 +1,7 @@
 import { ProductSwitcher } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect } from 'react';
+import { Link } from 'react-router';
 
 import { type LoggedHelper } from '../../../actions/helper';
 import { fetchXtmHubRegistration } from '../../../actions/xtmhub/xtmhub-actions';
@@ -94,6 +95,8 @@ const LeftBarHeader: FunctionComponent = () => {
       // See fds-migration/LIBRARY-FEEDBACK.md.
       logoHref={`${computeTenantBasename()}/admin`}
       logoLabel={t('Home')}
+      // Options given a `to` route through the router, which keeps the tenant basename.
+      linkComponent={Link}
       options={[
         {
           id: 'opencti',

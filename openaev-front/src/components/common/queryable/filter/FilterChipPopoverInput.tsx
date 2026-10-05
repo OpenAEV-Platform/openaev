@@ -17,7 +17,7 @@ import DateField from '../../../fields/DateField';
 import { useFormatter } from '../../../i18n';
 import { FilterContext } from './context';
 import { type FilterHelpers } from './FilterHelpers';
-import { getSelectedOptions } from './FilterUtils';
+import { getSelectedOptions, isNumericProperty } from './FilterUtils';
 import useRetrieveOptions from './useRetrieveOptions';
 import useSearchOptions, { type SearchOptionsConfig } from './useSearchOptions';
 import wordsToExcludeFromTranslation from './WordsToExcludeFromTranslation';
@@ -28,20 +28,24 @@ interface Props {
   contextId?: string; // used to give contextual information to the searchOptions function
 }
 
-export const BasicTextInput: FunctionComponent<Props> = ({
+const NUMBER_REGEX = /^-?\d+(\.\d+)?$/;
+
+export const BasicTextInput: FunctionComponent<Props & { numeric?: boolean }> = ({
   filter,
   helpers,
+  numeric = false,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
   const [inputValue, setInputValue] = useState('');
   const values = filter.values ?? [];
+  const isValid = (value: string) => !numeric || NUMBER_REGEX.test(value.trim());
   // Free-text filters accept several values (chips), like select-based filters:
   // "Value != 443 and 80" reads as NOT IN (443, 80) on the backend.
   const commit = (newValues: string[]) => {
     helpers.handleUpdateValuesById(
       filter.id,
-      Array.from(new Set(newValues.map(v => v.trim()).filter(v => v.length > 0))),
+      Array.from(new Set(newValues.map(v => v.trim()).filter(v => v.length > 0 && isValid(v)))),
     );
   };
   return (
@@ -57,8 +61,9 @@ export const BasicTextInput: FunctionComponent<Props> = ({
         if (meta.cause === 'type') setInputValue(search);
       }}
       onValueChange={(newValues) => {
+        const rejected = (newValues as string[]).find(v => !values.includes(v) && !isValid(v));
         commit(newValues as string[]);
-        setInputValue('');
+        setInputValue(rejected ?? '');
       }}
       keepInputOnBlur
     >
@@ -66,12 +71,13 @@ export const BasicTextInput: FunctionComponent<Props> = ({
         <ComboboxChips />
         <ComboboxInput
           aria-label={t(filter.key)}
-          placeholder={t(filter.key)}
+          placeholder={numeric ? t('Enter a number') : t(filter.key)}
+          aria-invalid={!isValid(inputValue)}
           autoFocus
           onBlur={() => {
             // Clicking away with pending text must still register the value
             // (historical single-value behavior of this input).
-            if (inputValue.trim().length > 0) {
+            if (inputValue.trim().length > 0 && isValid(inputValue)) {
               commit([...values, inputValue]);
               setInputValue('');
             }
@@ -248,7 +254,7 @@ export const FilterChipPopoverInput: FunctionComponent<Props & { propertySchema:
       return (<BasicSelectInput propertySchema={propertySchema} filter={filter} helpers={helpers} contextId={contextId} />);
     }
     // Simple text field
-    return (<BasicTextInput filter={filter} helpers={helpers} contextId={contextId} />);
+    return (<BasicTextInput filter={filter} helpers={helpers} contextId={contextId} numeric={isNumericProperty(propertySchema)} />);
   };
   return (choice());
 };

@@ -1,4 +1,5 @@
 import {
+  CenterFocusStrongOutlined,
   DomainOutlined,
   GroupsOutlined,
   HomeWorkOutlined,
@@ -136,7 +137,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   if (!isPlatform && canAccessMarkingDefinitions) {
     entries.push({
       path: `${SECURITY_BASE}/marking_definitions`,
-      icon: () => (<SecurityOutlined />),
+      icon: () => (<CenterFocusStrongOutlined />),
       label: 'Marking definitions',
     });
   }

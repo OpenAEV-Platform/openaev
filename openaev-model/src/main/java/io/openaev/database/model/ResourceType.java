@@ -23,6 +23,7 @@ public enum ResourceType {
   SECURITY_PLATFORM,
   CREDENTIAL,
   MARKING_DEFINITION,
+  MARKING_ASSIGNMENT,
   DOCUMENT,
   CHANNEL,
   PHISHING_LANDING_PAGE,
@@ -63,6 +64,7 @@ public enum ResourceType {
   PLATFORM_USER,
   XTM_HUB_REGISTRATION,
   NEWS_FEED,
+  SNAPSHOT_OBSERVATION,
   // Special resource types
   UNKNOWN,
   SIMULATION_OR_SCENARIO, // Used to represent either a simulation or a scenario.
