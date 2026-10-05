@@ -9,7 +9,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.collector.service.CollectorService;
@@ -19,6 +18,7 @@ import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import java.util.HashSet;
 import java.util.List;
@@ -44,7 +44,7 @@ public class PayloadUpsertService {
   private final PayloadRepository payloadRepository;
   private final CollectorService collectorService;
   private final CollectorTypeRepository collectorTypeRepository;
-  private final OrganizationRepository organizationRepository;
+  private final OrganizationService organizationService;
   private final InjectorContractRepository injectorContractRepository;
   private final DocumentService documentService;
   private final DomainService domainService;
@@ -100,18 +100,7 @@ public class PayloadUpsertService {
         collector.getAuthor() != null && !collector.getAuthor().isBlank()
             ? collector.getAuthor()
             : collector.getName();
-    if (name == null || name.isBlank()) {
-      return null;
-    }
-    return organizationRepository.findByNameIgnoreCase(name).stream()
-        .findFirst()
-        .orElseGet(
-            () -> {
-              Organization organization = new Organization();
-              organization.setName(name);
-              organization.setTenant(new Tenant(tenantId));
-              return organizationRepository.save(organization);
-            });
+    return organizationService.findOrCreateByName(name, tenantId);
   }
 
   private Payload createPayloadFromUpsert(

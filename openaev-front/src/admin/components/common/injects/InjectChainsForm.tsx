@@ -924,7 +924,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                   <Button
                     type="button"
                     priority="tertiary"
-                    aria-label="Add"
+                    aria-label={t('Add')}
                     onClick={() => {
                       addConditionParent(parent);
                     }}
@@ -993,7 +993,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
               <Select
                 value={childrenList.find(childrenSearch => children.index === childrenSearch.index)?.inject
                   ? childrenList.find(childrenSearch => children.index === childrenSearch.index)?.inject?.inject_id : ''}
-                onValueChange={value => handleChangeChildren(index, value)}
+                onValueChange={value => handleChangeChildren(children.index, value)}
               >
                 <SelectLabel>{t('Inject')}</SelectLabel>
                 <SelectTrigger className="w-full">
@@ -1036,7 +1036,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                   <Button
                     type="button"
                     priority="tertiary"
-                    aria-label="Add"
+                    aria-label={t('Add')}
                     onClick={() => {
                       addConditionChildren(children);
                     }}

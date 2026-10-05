@@ -356,6 +356,8 @@ public class OpenSearchDriver {
                   return newStatus;
                 });
     status.setLastIndexing(Instant.EPOCH);
+    // The keyset id belongs to the position being abandoned, not to epoch.
+    status.setLastId(null);
     indexingStatusRepository.save(status);
   }
 

@@ -160,7 +160,7 @@ const WidgetSeriesSelection: FunctionComponent<{
             <IconButton
               icon={<CancelOutlined fontSize="small" />}
               disabled={index === 0}
-              aria-label="Delete"
+              aria-label={t('Delete')}
               onClick={handleRemoveSeries}
               priority="tertiary"
               size="sm"

@@ -61,10 +61,9 @@ const ExerciseInjects: FunctionComponent = () => {
 
   const { permissions } = useContext(PermissionsContext);
 
-  const { exercise, teams, articles, variables } = useHelper(
+  const { teams, articles, variables } = useHelper(
     (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper & TeamsHelper) => {
       return {
-        exercise: helper.getExercise(exerciseId),
         teams: helper.getExerciseTeams(exerciseId),
         articles: helper.getExerciseArticles(exerciseId),
         variables: helper.getExerciseVariables(exerciseId),
@@ -78,7 +77,7 @@ const ExerciseInjects: FunctionComponent = () => {
   });
 
   const articleContext = articleContextForExercise(exerciseId);
-  const teamContext = teamContextForExercise(exerciseId, exercise.exercise_teams_users, exercise.exercise_all_users_number, exercise.exercise_users_number);
+  const teamContext = teamContextForExercise(exerciseId);
   const endpointContext = endpointContextForExercise(exerciseId);
   // Stable context identities so the whole injects list does not re-render on each update
   const challengeContext = useMemo(() => ({ fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) }), [dispatch, exerciseId]);

@@ -81,7 +81,7 @@ public interface ExpectationBehavior<T extends BaseInjectExpectation> {
     List<? extends BaseInjectExpectation> leaves = getLeaves(expectation);
     for (BaseInjectExpectation leaf : leaves) {
       addResult(leaf, input, resolveResultLabel(leaf, input.getScore()));
-      leaf.setScore(computeResultsScore(leaf.getResults()));
+      leaf.setScore(computeResultsScore(leaf.getResults(), leaf));
     }
     return leaves;
   }
