@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { CheckOutlined, OpenInNewOutlined } from '@mui/icons-material';
-import { Alert, Button, CircularProgress, Typography } from '@mui/material';
+import { Alert, CircularProgress, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Link } from 'react-router';
 
@@ -63,15 +64,11 @@ const LoaderDialog = ({
             <Alert icon={<CheckOutlined fontSize="inherit" />} severity="success">
               {successMessage}
             </Alert>
-            <Button
-              sx={{ marginTop: theme.spacing(1) }}
-              component={Link}
-              to={redirectLink}
-              variant="outlined"
-              endIcon={<OpenInNewOutlined />}
-              onClick={() => onClose()}
-            >
-              {redirectButtonLabel}
+            <Button asChild priority="secondary" onClick={() => onClose()} style={{ marginTop: theme.spacing(1) }}>
+              <Link to={redirectLink}>
+                {redirectButtonLabel}
+                <OpenInNewOutlined fontSize="small" />
+              </Link>
             </Button>
           </>
         )}

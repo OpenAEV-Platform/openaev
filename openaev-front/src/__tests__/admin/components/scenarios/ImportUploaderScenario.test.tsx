@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
@@ -19,9 +20,11 @@ const theme = createTheme();
 const renderComponent = () =>
   render(
     <ThemeProvider theme={theme}>
-      <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
-        <ImportUploaderScenario refresh={refreshMock} />
-      </IntlProvider>
+      <TooltipProvider>
+        <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
+          <ImportUploaderScenario refresh={refreshMock} />
+        </IntlProvider>
+      </TooltipProvider>
     </ThemeProvider>,
   );
 

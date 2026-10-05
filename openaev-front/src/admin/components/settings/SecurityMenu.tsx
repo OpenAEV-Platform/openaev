@@ -8,6 +8,7 @@ import {
   PublicOutlined,
   SecurityOutlined,
 } from '@mui/icons-material';
+// fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
 import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, memo, useContext } from 'react';
@@ -127,7 +128,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
       path: `${SECURITY_BASE}/tenants`,
       icon: () => (<HomeWorkOutlined />),
       label: 'Tenants',
-      chip: !isEnterpriseEdition ? (<EEChip clickable />) : undefined,
+      chip: !isEnterpriseEdition ? (<EEChip />) : undefined,
       onClick: !isEnterpriseEdition ? () => openDialog() : undefined,
     });
   }

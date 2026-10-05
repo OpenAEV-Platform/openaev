@@ -132,6 +132,46 @@ public class WidgetFixture {
     return widget;
   }
 
+  /**
+   * The attack-path widget the front builds: the security-coverage series plus the simulation
+   * filter {@code EsAttackPathService#extractSimulationIdFromSeriesFilter} reads the simulation id
+   * from, aggregated on {@code base_attack_patterns_side}.
+   */
+  public static Widget createAttackPathWidget(
+      final String simulationId, final BaseInjectExpectation.EXPECTATION_TYPE type) {
+    Widget widget = createWidgetWithDefaultTenant();
+    widget.setType(ATTACK_PATH);
+    StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
+    widgetConfig.setSeries(
+        List.of(
+            withSimulationFilter(
+                createSecurityCoverageSerie(type, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                simulationId),
+            withSimulationFilter(
+                createSecurityCoverageSerie(type, BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
+                simulationId)));
+    widgetConfig.setTitle("Attack path");
+    widgetConfig.setField("base_attack_patterns_side");
+    widgetConfig.setDateAttribute("base_created_at");
+    widgetConfig.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
+    widget.setWidgetConfiguration(widgetConfig);
+    widget.setLayout(new WidgetLayout());
+    return widget;
+  }
+
+  private static WidgetConfigurationWithSeries.Series withSimulationFilter(
+      WidgetConfigurationWithSeries.Series serie, final String simulationId) {
+    List<Filters.Filter> filters = new ArrayList<>(serie.getFilter().getFilters());
+    filters.add(
+        createFilter(
+            "base_simulation_side",
+            Filters.FilterMode.and,
+            Filters.FilterOperator.eq,
+            List.of(simulationId)));
+    serie.getFilter().setFilters(filters);
+    return serie;
+  }
+
   public static Widget createSecurityDomainWidget(
       CustomDashboardTimeRange timeRange, String dateAttribute) {
     Widget widget = createWidgetWithDefaultTenant();

@@ -72,12 +72,13 @@ public class PayloadApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
   public PayloadOutput createPayload(
-      // unused directly: signals the transaction aspect so the read of the v2-scoped
-      // `injectors` table inside PayloadService#synchroniseInjectorContractBasedOnPayload
-      // (via InjectorRepository#findAllByPayloads) resolves the caller's tenant scope.
+      // resolves the tenant the new payload is attributed to, and signals the transaction
+      // aspect so the read of the v2-scoped `injectors` table inside
+      // PayloadService#synchroniseInjectorContractBasedOnPayload (via
+      // InjectorRepository#findAllByPayloads) resolves the caller's tenant scope.
       TxCtx ctx, @Valid @RequestBody PayloadCreateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(input);
+        this.payloadCreationService.createPayload(ctx, input);
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
   }
 
@@ -117,11 +118,8 @@ public class PayloadApi extends RestBehavior {
   @PostMapping({PAYLOAD_URI + "/upsert", TENANT_PAYLOAD_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
-  public Payload upsertPayload(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
-      TxCtx ctx, @Valid @RequestBody PayloadUpsertInput input) {
-    return this.payloadUpsertService.upsertPayload(input);
+  public Payload upsertPayload(TxCtx ctx, @Valid @RequestBody PayloadUpsertInput input) {
+    return this.payloadUpsertService.upsertPayload(ctx, input);
   }
 
   @DeleteMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})

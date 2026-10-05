@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
@@ -6,6 +6,7 @@ import { Form } from 'react-final-form';
 import DeprecatedColorPickerField from '../../../../components/DeprecatedColorPickerField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
+import { validHexColor } from '../../../../utils/Colors';
 
 class TagFormComponent extends Component {
   validate(values) {
@@ -17,6 +18,10 @@ class TagFormComponent extends Component {
         errors[field] = t('This field is required.');
       }
     });
+    // The picker also accepts typed text: an invalid color would be stored and then rendered wrong.
+    if (values.tag_color && !validHexColor(values.tag_color)) {
+      errors.tag_color = t('Color must be a valid hex value, e.g. #4CAF50');
+    }
     return errors;
   }
 
@@ -33,36 +38,23 @@ class TagFormComponent extends Component {
           <form id="tagForm" onSubmit={handleSubmit}>
             <OldTextField
               name="tag_name"
-              fullWidth
               label={t('Value')}
               style={{ marginTop: 10 }}
             />
             <DeprecatedColorPickerField
               name="tag_color"
-              fullWidth
               label={t('Color')}
-              style={{ marginTop: 20 }}
+              className="w-full mt-5"
             />
             <div style={{
               float: 'right',
               marginTop: 20,
             }}
             >
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={handleClose.bind(this)}
-                style={{ marginRight: 10 }}
-                disabled={submitting}
-              >
+              <Button type="button" priority="secondary" onClick={handleClose.bind(this)} disabled={submitting} style={{ marginRight: 10 }}>
                 {t('Cancel')}
               </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                disabled={pristine || submitting}
-              >
+              <Button type="submit" disabled={pristine || submitting}>
                 {editing ? t('Update') : t('Create')}
               </Button>
             </div>

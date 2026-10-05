@@ -1,13 +1,11 @@
 package io.openaev.database.model.attackpath;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -17,19 +15,21 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
  * Snapshot of payload remediations frozen at step execution time for attack-path execution detail.
+ *
+ * <p>This entity is fully switched to v2 tenant isolation (statement inspector + {@code
+ * can_access_tenant}). Keep the v1 {@code @Filter} and {@code TenantBaseListener} removed to avoid
+ * mixed isolation/write-attribution modes; every write stamps {@code tenant} explicitly from the
+ * inject it snapshots (see {@code AttackPathExecutionIngestionService}).
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "attackpath_execution_remediation")
-@EntityListeners(TenantBaseListener.class)
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class AttackPathExecutionRemediation implements TenantBase {
 
   @Id

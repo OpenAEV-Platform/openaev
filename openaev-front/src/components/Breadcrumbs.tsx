@@ -1,9 +1,6 @@
-import { Breadcrumbs as MUIBreadcrumbs, Tooltip, Typography } from '@mui/material';
+import { Breadcrumbs, type BreadcrumbsItem } from '@filigran/design-system';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { Link } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
-
-import { truncate } from '../utils/String';
 
 export const BACK_LABEL = 'backlabel';
 export const BACK_URI = 'backuri';
@@ -20,53 +17,32 @@ interface BreadcrumbsProps {
   style?: CSSProperties;
 }
 
-const useStyles = makeStyles()(() => ({
-  breadcrumbsList: {
-    marginTop: -5,
-    marginBottom: 15,
-  },
-  breadcrumbsObject: {
-    marginTop: -5,
-    marginBottom: 15,
-  },
-  breadcrumbsStandard: { marginTop: -5 },
-}));
-
-const Breadcrumbs: FunctionComponent<BreadcrumbsProps> = ({ elements, variant, style = {} }) => {
-  const { classes } = useStyles();
-  let className = classes.breadcrumbsStandard;
-  if (variant === 'list') {
-    className = classes.breadcrumbsList;
-  } else if (variant === 'object') {
-    className = classes.breadcrumbsObject;
-  }
+// Thin adapter over the design system's breadcrumb: the call sites keep the
+// `elements` / `variant` shape they have always used, and the component owns
+// the markup (nav > ol > li), the separators, the truncation with its title
+// attribute and `aria-current`.
+const ProductBreadcrumbs: FunctionComponent<BreadcrumbsProps> = ({ elements, variant, style = {} }) => {
+  const items: BreadcrumbsItem[] = elements.map(({ label, link, current }) => ({
+    label,
+    // A destination on the current entry is ignored by the component, with a
+    // dev warning: only an ancestor carries one.
+    ...(link && !current ? { to: link } : {}),
+    ...(current ? { current } : {}),
+  }));
 
   return (
-    <MUIBreadcrumbs style={style} classes={{ root: className }}>
-      {elements.map((element) => {
-        const text = truncate(element.label, 26);
-        if (element.current) {
-          return (
-            <Tooltip key={element.label} title={element.label} aria-label={element.label}>
-              <Typography color="text.primary">{text}</Typography>
-            </Tooltip>
-          );
-        }
-        if (!element.link) {
-          return (
-            <Tooltip key={element.label} title={element.label} aria-label={element.label}>
-              <Typography color="inherit">{text}</Typography>
-            </Tooltip>
-          );
-        }
-        return (
-          <Tooltip key={element.label} title={element.label} aria-label={element.label}>
-            <Link to={element.link}>{text}</Link>
-          </Tooltip>
-        );
-      })}
-    </MUIBreadcrumbs>
+    <Breadcrumbs
+      items={items}
+      linkComponent={Link}
+      style={{
+        marginTop: -5,
+        // A standard breadcrumb is followed by its own page header; the list
+        // and object variants sit directly above content and keep their gap.
+        ...(variant === 'standard' ? {} : { marginBottom: 16 }),
+        ...style,
+      }}
+    />
   );
 };
 
-export default Breadcrumbs;
+export default ProductBreadcrumbs;

@@ -21,7 +21,8 @@ const AssetCategoryPicker: FunctionComponent<Props> = ({ onSelect }) => {
       {ASSET_FORM_CATEGORIES.map((category) => {
         const def = getCategoryDef(category);
         return (
-          <Card key={category} variant="outlined">
+          // A choice card in a dialog carries no outline.
+          <Card key={category} variant="outlined" sx={{ borderColor: 'transparent' }}>
             <CardActionArea
               onClick={() => onSelect(category)}
               style={{

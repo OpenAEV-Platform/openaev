@@ -1,6 +1,7 @@
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Hero, HeroBody, HeroHeader, Paper, Text, Thumbnail, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type ComponentType, type ReactNode } from 'react';
+import { type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { compactNumber } from '../../../utils/number';
@@ -8,37 +9,50 @@ import { compactNumber } from '../../../utils/number';
 // not trip react-refresh/only-export-components on this component file.
 import { SECTION_LABEL_SX } from './detailStyles';
 
-// A single labelled field inside an information section.
 export const Field = ({ label, children }: {
   label: string;
   children: ReactNode;
 }) => (
   <div>
-    <Typography variant="h3" gutterBottom sx={{ fontSize: 12 }}>{label}</Typography>
-    <div>{children}</div>
+    <Typography
+      variant="h3"
+      sx={{
+        fontSize: 12,
+        color: 'text.secondary',
+        marginBottom: 1,
+      }}
+    >
+      {label}
+    </Typography>
+    <Typography component="div" sx={{ fontSize: 14 }}>{children}</Typography>
   </div>
 );
 
-// A titled section with an outlined paper body (mirrors AssetGroupDetail). The
-// wrapper fills the grid cell height so side-by-side sections align at the
-// bottom (the Paper stretches to match the taller sibling).
+// A titled section whose body fills its grid cell, so siblings align at the bottom.
 export const Section = ({ title, children }: {
   title: string;
   children: ReactNode;
 }) => (
+  // GRID, not flex-column: with `title` set, `style` reaches the library SURFACE,
+  // never the wrapper it draws around header + surface, so a flex column leaves
+  // that wrapper at content height (measured 58px against 130px).
   <div style={{
-    display: 'flex',
-    flexDirection: 'column',
+    display: 'grid',
+    // `minmax(0, 1fr)`, not `1fr`: an implicit column is max-content sized, so the
+    // wrapper grew past its track (354px in 340px) and the title overflowed.
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gridTemplateRows: '1fr',
     height: '100%',
+    minHeight: 0,
   }}
   >
-    <Typography sx={SECTION_LABEL_SX}>{title}</Typography>
     <Paper
-      variant="outlined"
-      sx={{
-        padding: 2,
-        borderRadius: 1,
+      padding={16}
+      title={title}
+      data-testid="section-paper"
+      style={{
         flex: 1,
+        minHeight: 0,
       }}
     >
       {children}
@@ -46,58 +60,36 @@ export const Section = ({ title, children }: {
   </div>
 );
 
-// An information grid section (auto-fitting labelled fields), packed densely
-// into as many columns as fit - the compact, OpenCTI-style overview card.
-// The optional `action` slot renders right-aligned in a 32px header row (the
-// ConfigurationSection height); pass `action={null}` to adopt the taller
-// header without an action, so the Paper top-aligns with an action-bearing
-// sibling column in the same grid row.
+// The library header row is a CONSTANT 24px with or without an `action`, so
+// siblings top-align for free; `action={null}` at call sites does nothing.
 export const InformationGrid = ({ title, action, children }: {
   title: string;
   action?: ReactNode;
   children: ReactNode;
 }) => (
-  // Flex column + Paper flex:1 so that, when several InformationGrids sit side by
-  // side in a stretched DetailSections row, every Paper fills the row height and
-  // shares the same bottom edge (matching SectionBlock everywhere in the app).
+  // See Section: grid, not flex, once `title` is set.
   <div style={{
-    display: 'flex',
-    flexDirection: 'column',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gridTemplateRows: '1fr',
     height: '100%',
+    minHeight: 0,
   }}
   >
-    {action !== undefined
-      ? (
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            minHeight: 32,
-            marginBottom: 1.5,
-          }}
-          >
-            <Typography sx={{
-              ...SECTION_LABEL_SX,
-              marginBottom: 0,
-            }}
-            >
-              {title}
-            </Typography>
-            <div style={{ flex: 1 }} />
-            {action}
-          </Box>
-        )
-      : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
+    {/* padding=16 (iso): the surface IS the grid, +8px would drop a column
+        (tracks are minmax(180px, 1fr)). */}
     <Paper
-      variant="outlined"
-      sx={{
-        padding: 2,
-        borderRadius: 1,
+      padding={16}
+      title={title}
+      action={action ?? undefined}
+      data-testid="information-grid-paper"
+      style={{
         flex: 1,
+        minHeight: 0,
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: 1.5,
-        rowGap: 2,
+        gap: 12,
+        rowGap: 16,
         alignContent: 'start',
       }}
     >
@@ -106,12 +98,7 @@ export const InformationGrid = ({ title, action, children }: {
   </div>
 );
 
-// Lays the related-entity sections in an adaptive multi-column grid: two (or
-// more) sections sit side by side on wide screens, while a lone section spans
-// the full width (auto-fit collapses the empty track). An explicit `columns`
-// template (e.g. '2fr 2fr 1fr') overrides the equal split on large screens
-// when the sections have known, unequal content densities; smaller screens
-// keep the adaptive wrap.
+// `columns` overrides the equal split on wide screens; narrow screens keep the wrap.
 export const DetailSections = ({ children, columns }: {
   children: ReactNode;
   columns?: string;
@@ -132,65 +119,40 @@ export const DetailSections = ({ children, columns }: {
   </Box>
 );
 
-// A full-width titled block: uppercase overline label above an outlined Paper.
-// Use for embedded lists (injects played, findings) on overview pages so the
-// section-title styling stays consistent and is defined once.
-// Standalone section label (same look as the SectionBlock title) for sections
-// that must render flat on the page background, without the Paper wrapper
-// (e.g. standard entity lists on detail pages).
 export const SectionLabel = ({ children }: { children: ReactNode }) => (
   <Typography sx={SECTION_LABEL_SX}>{children}</Typography>
 );
 
 export const SectionBlock = ({ title, action, children, disablePadding, centerContent }: {
   title: string;
-  // Right-aligned node in a 32px header row (same geometry as the
-  // InformationGrid action slot). Pass `action={null}` to adopt the taller
-  // header without an action, so the Paper top-aligns with an action-bearing
-  // sibling column in the same grid row.
   action?: ReactNode;
   children: ReactNode;
   disablePadding?: boolean;
-  // Vertically centers the content when a side-by-side sibling stretches the
-  // Paper taller than the content (grid alignItems: stretch). A plain
-  // `height: 100%` on the child does not resolve inside the flex-grown Paper,
-  // so the Paper itself must become the centering flex container.
+  // The Paper itself centers: `height: 100%` on the child does not resolve
+  // inside a flex-grown Paper.
   centerContent?: boolean;
 }) => (
+  // See Section: grid, not flex, once `title` is set.
   <div style={{
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gridTemplateRows: '1fr',
+    // No `height: 100%`: inside a flex column every block claimed the whole
+    // height and they drew on top of each other.
+    minHeight: 0,
   }}
   >
-    {action !== undefined
-      ? (
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            minHeight: 32,
-            marginBottom: 1.5,
-          }}
-          >
-            <Typography sx={{
-              ...SECTION_LABEL_SX,
-              marginBottom: 0,
-            }}
-            >
-              {title}
-            </Typography>
-            <div style={{ flex: 1 }} />
-            {action}
-          </Box>
-        )
-      : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
+    {/* padding=16 (iso), 0 under `disablePadding`. The 16+16 cumulation with
+        the row gutters is REPRODUCED as-is: correcting it is a density decision
+        outside this wave — PAPER-GAP-INVENTORY §5.7. */}
     <Paper
-      variant="outlined"
-      sx={{
-        padding: disablePadding ? 0 : 2,
-        borderRadius: 1,
+      padding={disablePadding ? 0 : 16}
+      title={title}
+      action={action ?? undefined}
+      data-testid="section-block-paper"
+      style={{
         flex: 1,
+        minHeight: 0,
         ...(centerContent && {
           display: 'flex',
           alignItems: 'center',
@@ -202,10 +164,6 @@ export const SectionBlock = ({ title, action, children, disablePadding, centerCo
   </div>
 );
 
-// A single headline stat rendered in the entity hero, mirroring the custom
-// dashboard NumberWidget look & feel: a tinted rounded icon box next to a big
-// Geologica number with an uppercase caption beneath it. When `to` is set the
-// whole stat becomes a pivot link.
 export const HeroStat = ({ icon: Icon, label, value, color, to }: {
   icon: ComponentType<{ sx?: object }>;
   label: string;
@@ -215,8 +173,6 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
 }) => {
   const theme = useTheme();
   const accent = color ?? theme.palette.primary.main;
-  // Numeric values are shortened ("70.9K") with the exact count in a tooltip;
-  // non-numeric values (percentages, custom nodes) render untouched.
   const isCompacted = typeof value === 'number' && Math.abs(value) >= 1000;
   const displayValue = typeof value === 'number' ? compactNumber(value) : value;
   const content = (
@@ -226,10 +182,11 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
         alignItems: 'center',
         gap: 1,
         minWidth: 0,
-        padding: 0.5,
+        padding: 1,
+        borderRadius: 1,
+        border: '1px solid var(--border-elevation-subtle-soft)',
         ...(to
           ? {
-              'borderRadius': 1,
               'transition': 'background-color 120ms',
               '&:hover': { backgroundColor: alpha(accent, 0.06) },
             }
@@ -240,202 +197,165 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 30,
-        height: 30,
-        borderRadius: 1,
         flexShrink: 0,
         color: accent,
-        background: alpha(accent, 0.1),
-        boxShadow: `inset 0 0 12px ${alpha(accent, 0.13)}`,
       }}
       >
-        <Icon sx={{ fontSize: 16 }} />
+        <Icon sx={{ fontSize: 24 }} />
       </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{
-          fontFamily: '"Geologica", sans-serif',
-          fontSize: 18,
-          fontWeight: 500,
-          lineHeight: 1.05,
-          color: 'text.primary',
-        }}
-        >
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
+        minWidth: 0,
+      }}
+      >
+        <Text variant="content-base-bold" className="text-default-primary">
           {isCompacted
             ? (
-                <Tooltip title={(value as number).toLocaleString()}>
-                  <span>{displayValue}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>{displayValue}</span>
+                  </TooltipTrigger>
+                  {(value as number).toLocaleString() && <TooltipContent>{(value as number).toLocaleString()}</TooltipContent>}
                 </Tooltip>
               )
             : displayValue}
-        </Typography>
-        <Typography sx={{
-          fontSize: 9.5,
-          fontWeight: 600,
-          letterSpacing: '0.07em',
-          textTransform: 'uppercase',
-          color: 'text.secondary',
-        }}
-        >
+        </Text>
+        <Text variant="content-compact" className="text-default-secondary">
           {label}
-        </Typography>
+        </Text>
       </Box>
     </Box>
   );
   return to
     ? (
-        <Link to={to} style={{ textDecoration: 'none' }}>
+        <Box
+          component={Link}
+          to={to}
+          onKeyDown={(event) => {
+            if (event.key === ' ') {
+              event.preventDefault();
+              event.currentTarget.click();
+            }
+          }}
+          sx={{
+            'textDecoration': 'none',
+            'display': 'block',
+            'borderRadius': 1,
+            'outline': 'none',
+            '&:focus-visible': { boxShadow: `0 0 0 2px ${alpha(accent, 0.3)}` },
+            '&:focus-visible > div': {
+              borderColor: accent,
+              backgroundColor: alpha(accent, 0.08),
+            },
+          }}
+        >
           {content}
-        </Link>
+        </Box>
       )
     : content;
 };
 
-// A horizontal cluster of hero stats separated by hairline dividers and
-// wrapping on narrow viewports. With `spread`, every stat takes an equal
-// share of the row so the cluster fills the full available width (used by
-// standalone stat bars, e.g. the simulation Execution tab).
+// With `spread`, every tile takes an equal share so the cluster fills the width.
 export const HeroStats = ({ children, spread }: {
   children: ReactNode;
   spread?: boolean;
-}) => {
-  const theme = useTheme();
-  return (
-    <Box sx={{
-      'display': 'flex',
-      'alignItems': 'center',
-      'flexWrap': 'wrap',
-      'columnGap': 4,
-      'rowGap': 1,
-      '& > *:not(:last-child)': {
-        paddingRight: 4,
-        borderRight: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-      },
-      ...(spread
-        ? {
-            '& > *': {
-              flex: 1,
-              minWidth: 150,
-            },
-          }
-        : {}),
-    }}
-    >
-      {children}
-    </Box>
-  );
-};
+}) => (
+  <Box sx={{
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 1,
+    ...(spread
+      ? {
+          '& > *': {
+            flex: 1,
+            minWidth: 150,
+          },
+        }
+      : {}),
+  }}
+  >
+    {children}
+  </Box>
+);
 
-// The hero header shared by ALL entity detail pages (scenario, simulation,
-// atomic testing, assets, teams, persons, findings, connectors...). When
-// `stats` is set, the headline metrics render as a second row of tiny
-// HeroStats inside the hero.
-//
-// The `action` node is wrapped in a normalized cluster: every top-level
-// Button / ToggleButton / IconButton is forced to the same 32px control
-// height so the top-right of every hero in the app looks identical.
-export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, action, stats, footer }: {
+/** The hero's icon square (Figma 7910:12881). */
+const HERO_ICON_SIZE = 54;
+
+export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, subtitle, chips, chipsInline, action, stats, bodyAction, footer }: {
   icon?: ComponentType<{
     color?: 'primary';
     sx?: object;
   }>;
   /** Custom node rendered inside the icon box (e.g. a brand logo), overrides `icon`. */
   iconNode?: ReactNode;
+  /** The node is an image that fills the square itself: no thumbnail chrome around it. */
+  iconFills?: boolean;
   /** Small uppercase label rendered above the title (e.g. entity type). */
   overline?: ReactNode;
   title: string;
+  /** One line under the title, in the secondary ink (e.g. a channel's subtitle). */
+  subtitle?: ReactNode;
   chips?: ReactNode;
+  /** Chips share the title's line instead of taking a row of their own. */
+  chipsInline?: boolean;
   action?: ReactNode;
   /** Tiny headline stats rendered as a second hero row (wrap in HeroStat). */
   stats?: ReactNode;
+  /** Controls belonging to the body row, right-aligned beside the stats. */
+  bodyAction?: ReactNode;
   /** Free-form extra hero row rendered after the stats (e.g. meta items). */
   footer?: ReactNode;
 }) => {
-  const theme = useTheme();
-  const accent = theme.palette.primary.main;
-  return (
-    <Paper
-      variant="outlined"
-      data-testid="detail-hero"
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
-        padding: 2,
-        borderRadius: 1,
-        background: `linear-gradient(135deg, ${alpha(accent, 0.08)}, transparent 60%)`,
-      }}
+  // Artwork fills the square: the thumbnail's frame exists to hold a glyph.
+  const filledIcon = (
+    <Box sx={{
+      'width': HERO_ICON_SIZE,
+      'height': HERO_ICON_SIZE,
+      'borderRadius': 1,
+      'overflow': 'hidden',
+      'flexShrink': 0,
+      '& > *': {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+        display: 'block',
+      },
+    }}
     >
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2,
+      {iconNode}
+    </Box>
+  );
+  // Thumbnail renders a library Paper, which re-declares `--bg-elevation-default`
+  // on ITSELF, so a `.layer-2` wrapper loses: repoint the variable instead.
+  const framedIcon = (
+    <span style={{ '--bg-elevation-default-layer-1': 'var(--bg-elevation-default-layer-2)' } as CSSProperties}>
+      {/* The library's Thumbnail is fixed at 48 and paints Paper's
+          `subtle-soft` border; the hero asks for 54 and the plain
+          `subtle` one (LIBRARY-FEEDBACK.md 68). */}
+      <Thumbnail style={{
+        width: HERO_ICON_SIZE,
+        height: HERO_ICON_SIZE,
+        borderColor: 'var(--border-elevation-subtle)',
       }}
       >
-        <Box
-          sx={{
-            width: 52,
-            height: 52,
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            backgroundColor: alpha(accent, 0.12),
-            border: `1px solid ${alpha(accent, 0.3)}`,
-          }}
-        >
-          {iconNode ?? (Icon ? <Icon color="primary" /> : null)}
-        </Box>
-        <Box sx={{
-          minWidth: 0,
-          flex: 1,
-        }}
-        >
-          {overline && (
-            <Typography sx={{
-              fontFamily: '"Geologica", sans-serif',
-              fontWeight: 600,
-              fontSize: 11,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              color: 'primary.main',
-            }}
-            >
-              {overline}
-            </Typography>
-          )}
-          <Tooltip title={title} placement="bottom-start">
-            <Typography
-              variant="h1"
-              sx={{
-                margin: 0,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                // Shrink the anchor to the actual title width (capped at the
-                // column) so the tooltip sits under the text instead of the
-                // center of a full-width block.
-                width: 'fit-content',
-                maxWidth: '100%',
-              }}
-            >
-              {title}
-            </Typography>
-          </Tooltip>
-          {chips && (
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              marginTop: 0.5,
-              flexWrap: 'wrap',
-            }}
-            >
-              {chips}
-            </Box>
-          )}
-        </Box>
-        {action && (
+        {iconNode ?? (Icon ? <Icon color="primary" /> : null)}
+      </Thumbnail>
+    </span>
+  );
+
+  let heroIcon;
+  if (iconNode || Icon) {
+    heroIcon = iconFills ? filledIcon : framedIcon;
+  }
+
+  return (
+    <Hero data-testid="detail-hero">
+      <HeroHeader
+        icon={heroIcon}
+        action={action && (
           <Box sx={{
             'display': 'flex',
             'alignItems': 'center',
@@ -443,12 +363,9 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
             'flexShrink': 0,
             'flexWrap': 'wrap',
             'justifyContent': 'flex-end',
-            // One control geometry for every hero across the app: identical
-            // height, font, line-height and padding for all text buttons
-            // (outlined or contained), so no CTA ever looks smaller than its
-            // neighbors.
+            // One control geometry for every hero, so no CTA looks smaller.
             '& .MuiButton-root': {
-              height: 32,
+              height: 36,
               fontSize: 13,
               fontWeight: 500,
               lineHeight: '21px',
@@ -458,14 +375,13 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
             },
             '& .MuiButton-root .MuiButton-startIcon .MuiSvgIcon-root': { fontSize: 18 },
             '& .MuiToggleButton-root': {
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
             },
-            // Only normalize IconButtons sitting directly in the cluster
-            // (custom nested toolbars keep their own internal sizing).
+            // Direct children only: nested toolbars keep their own sizing.
             '& > .MuiIconButton-root': {
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
               borderRadius: 1,
             },
             '& > .MuiIconButton-root .MuiSvgIcon-root': { fontSize: 20 },
@@ -474,9 +390,108 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
             {action}
           </Box>
         )}
-      </Box>
-      {stats && <HeroStats>{stats}</HeroStats>}
-      {footer}
-    </Paper>
+      >
+        <Box sx={{
+          minWidth: 0,
+          flex: 1,
+        }}
+        >
+          {overline && (
+            <Text variant="content-base-medium" className="block text-filigran-brand-primary">
+              {overline}
+            </Text>
+          )}
+          {/* Inline: title and chips are one line, 4px apart. Otherwise the
+              chips take their own row under the title. */}
+          <Box sx={{
+            display: 'flex',
+            alignItems: chipsInline ? 'center' : 'stretch',
+            flexDirection: chipsInline ? 'row' : 'column',
+            gap: chipsInline ? 0.5 : 0,
+            minWidth: 0,
+            flexWrap: chipsInline ? 'wrap' : 'nowrap',
+          }}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Text
+                  variant="title-md"
+                  as="h1"
+                  style={{
+                    margin: 0,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    // Anchor on the title width, so the tooltip sits under the text.
+                    width: 'fit-content',
+                    maxWidth: '100%',
+                  }}
+                >
+                  {title}
+                </Text>
+              </TooltipTrigger>
+              {title && <TooltipContent side="bottom" align="start">{title}</TooltipContent>}
+            </Tooltip>
+            {chips && (
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: chipsInline ? 0.5 : 1,
+                marginTop: chipsInline ? 0 : 0.5,
+                minWidth: 0,
+                flexWrap: 'wrap',
+              }}
+              >
+                {chips}
+              </Box>
+            )}
+          </Box>
+          {subtitle && (
+            <Text variant="content-base" className="block text-default-secondary">
+              {subtitle}
+            </Text>
+          )}
+        </Box>
+      </HeroHeader>
+      {(stats || bodyAction || footer) && (
+        <HeroBody>
+          {/* HeroBody lays its children in a row, so a footer put beside the
+              stats gets pushed to the far right and reads as a stray caption.
+              The two rows are stacked here instead. */}
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%',
+            minWidth: 0,
+            gap: 2,
+          }}
+          >
+            <Box sx={{
+              display: 'flex',
+              width: '100%',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap',
+            }}
+            >
+              {stats ? <HeroStats>{stats}</HeroStats> : <span />}
+              {bodyAction && (
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  flexShrink: 0,
+                }}
+                >
+                  {bodyAction}
+                </Box>
+              )}
+            </Box>
+            {footer}
+          </Box>
+        </HeroBody>
+      )}
+    </Hero>
   );
 };

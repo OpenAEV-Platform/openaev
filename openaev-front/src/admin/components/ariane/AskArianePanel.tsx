@@ -79,9 +79,15 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   // system messages) so the panel never slides under the header when a banner
   // is shown.
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  const topOffset = 64 + bannerHeightNumber;
+  const headerHeight = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--fds-header-height'),
+  );
+  const topOffset = (Number.isFinite(headerHeight) ? headerHeight : 68) + bannerHeightNumber;
   const firstName = me.user_email?.split('@')[0] ?? 'User';
-  const accentColor = theme.palette.ai?.main ?? '#B286FF';
+  // `ai` is a required PaletteColor (components/Theme.ts), so the literal
+  // fallback was unreachable — and it carried the DARK value, which would
+  // have been wrong in light mode had it ever been reached.
+  const accentColor = theme.palette.ai.main;
   // Guarded by the shared http(s)-only helper: the URL is forwarded to the
   // chatbot widget as `agentDashboardUrl` (an anchor href), so a misconfigured
   // scheme must never reach it.

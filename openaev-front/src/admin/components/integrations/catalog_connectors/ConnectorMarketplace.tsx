@@ -22,7 +22,8 @@ import useCatalogFilters from './useCatalogFilters';
 interface Props {
   items: ConnectorItem[];
   /** Right side of each card footer (deploy button, instance status...). */
-  renderFooterAction?: (item: ConnectorItem) => ReactNode;
+  /** The view is passed on: a card's footer shares its row with the use-case chips, a line's does not. */
+  renderFooterAction?: (item: ConnectorItem, view: 'card' | 'line') => ReactNode;
   searchPlaceholder?: string;
 }
 
@@ -227,7 +228,7 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
                     <CatalogConnectorLine
                       key={item.id}
                       connector={item}
-                      footerAction={renderFooterAction?.(item)}
+                      footerAction={renderFooterAction?.(item, 'line')}
                     />
                   ))}
                 </Box>
@@ -252,7 +253,7 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
                     <CatalogConnectorCard
                       key={item.id}
                       connector={item}
-                      footerAction={renderFooterAction?.(item)}
+                      footerAction={renderFooterAction?.(item, 'card')}
                     />
                   ))}
                 </Box>
