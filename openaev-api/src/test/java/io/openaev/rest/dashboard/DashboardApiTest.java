@@ -1074,12 +1074,13 @@ class DashboardApiTest extends IntegrationTest {
     @Test
     @DisplayName("Given security coverage widget should return list of inject expectations")
     void given_securityCoverageWidget_should_returnListOfInjectExpectations() throws Exception {
+      String tenantId = TenantContext.getCurrentTenant();
       AttackPattern attackPattern1 =
-          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern(tenantId));
       AttackPattern attackPattern2 =
-          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern(tenantId));
       AttackPattern attackPattern3 =
-          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern(tenantId));
       Inject inject1 =
           createTechnicalInject(
               null,

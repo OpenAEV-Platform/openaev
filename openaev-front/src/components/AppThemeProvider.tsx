@@ -5,6 +5,7 @@ import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } 
 import { type LoggedHelper } from '../actions/helper';
 import { useHelper } from '../store';
 import { type PlatformSettings, type TenantSettingsOutput, type User } from '../utils/api-types';
+import useFdsThemeScope, { type FdsCustomTheme, FdsThemeContext, type FdsThemeMode } from '../utils/hooks/useFdsThemeScope';
 import { useFormatter } from './i18n';
 import themeDark from './ThemeDark';
 import themeLight from './ThemeLight';
@@ -70,7 +71,27 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
     activeThemeConfig?.primary_color,
     activeThemeConfig?.secondary_color,
     activeThemeConfig?.accent_color,
+    activeThemeConfig?.text_color,
   ].join('|');
+  // Single writer of the `.light` / `.dark` class and of every customer colour the
+  // library reads: the MUI palette does not drive CSS custom properties, so a
+  // colour that is not written there keeps the library's own value.
+  const mode: FdsThemeMode = theme === 'light' ? 'light' : 'dark';
+  const custom: FdsCustomTheme = useMemo(() => ({
+    background: activeThemeConfig?.background_color,
+    paper: activeThemeConfig?.paper_color,
+    nav: activeThemeConfig?.navigation_color,
+    primary: activeThemeConfig?.primary_color,
+    secondary: activeThemeConfig?.secondary_color,
+    accent: activeThemeConfig?.accent_color,
+    text: activeThemeConfig?.text_color,
+  }), [activeThemeKey]);
+  useFdsThemeScope(mode, custom);
+  const fdsTheme = useMemo(() => ({
+    mode,
+    custom,
+  }), [mode, custom]);
+
   const muiTheme = useMemo(() => {
     const buildTheme = theme === 'light' ? themeLight : themeDark;
     return createTheme(
@@ -85,12 +106,17 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
           activeThemeConfig?.primary_color,
           activeThemeConfig?.secondary_color,
           activeThemeConfig?.accent_color,
+          activeThemeConfig?.text_color || undefined,
         ),
       },
       muiLocale,
     );
   }, [theme, muiLocale, activeThemeKey]);
-  return <ThemeProvider theme={muiTheme}>{children}</ThemeProvider>;
+  return (
+    <FdsThemeContext.Provider value={fdsTheme}>
+      <ThemeProvider theme={muiTheme}>{children}</ThemeProvider>
+    </FdsThemeContext.Provider>
+  );
 };
 
 const ConnectedThemeProvider = AppThemeProvider;

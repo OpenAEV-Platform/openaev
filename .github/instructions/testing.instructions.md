@@ -74,7 +74,17 @@ For entities with nullable `tenant_id` (Settings, User, Role, Group):
 - **AAA pattern**: Arrange / Act / Assert (same as backend)
 - Clean up shared state in `beforeEach` / `afterEach` (e.g. `localStorage.clear()`, `vi.restoreAllMocks()`)
 
+### Design system components in unit tests
+
+- A component rendering a library `Tooltip` must be wrapped in `<TooltipProvider>` (from `@filigran/design-system`) in the test — the app mounts it once in `index.tsx`
+- Assert design-system adoption with the helpers of `src/__tests__/utils/designSystemAssertions.tsx`: `expectLibraryStyled` / `expectLibraryButton` / `expectLibraryIconButton` / `expectLibrarySearchField` (carries the library's state classes) and `expectNoMuiControls` (no `Mui*-` class except icon glyphs). Run them on a real subtree — a guard over mocked-out children asserts nothing, so also assert the subtree rendered something
+- Accessibility via `@testing-library/jest-dom`: `toHaveAccessibleName` / `toHaveAccessibleDescription`, never `textContent` (it cannot tell "in the DOM" from "announced", e.g. inside an `aria-hidden` icon slot)
+- jsdom does not apply the library stylesheet: assert **structure** (slots, classes, attributes), never computed style. Pixel values are measured in a real browser
+- Library `TabsTrigger` activates on pointer down: fire `mouseDown`, not `click`
+
 ## Frontend E2E Tests (Playwright)
 
 - Playwright for E2E: `yarn test:e2e`
 - E2E config: `tests_e2e/`, fixtures in `tests_e2e/fixtures/`
+- Locate by role and accessible name (`getByRole(..., { name, exact: true })` — the name match is a substring otherwise), not by `Mui*` classes: library fields have a different DOM. Field errors go through `MuiFormHelpers.getFieldError` (`tests_e2e/utils/MuiFormHelpers.ts`), which handles both MUI and library shapes
+- E2E is the only gate that sees some regressions (e.g. a `<button>` that became a submit inside a form) — run the relevant specs when converting interactive components

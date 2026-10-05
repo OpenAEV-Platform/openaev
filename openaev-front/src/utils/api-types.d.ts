@@ -7835,6 +7835,7 @@ export interface License {
   license_is_valid_product?: boolean;
   license_is_validated?: boolean;
   license_platform?: string;
+  license_source?: "openaev" | "xtm_one";
   /** @format date-time */
   license_start_date?: string;
   license_type?: "trial" | "nfr" | "standard" | "lts";
@@ -12469,6 +12470,8 @@ export interface ThemeInput {
   primary_color?: string;
   /** Secondary color of the theme */
   secondary_color?: string;
+  /** Text color of the theme */
+  text_color?: string;
 }
 
 export interface ThreatArsenalAction {

@@ -1,30 +1,18 @@
+import { Button, Paper, Switch } from '@filigran/design-system';
 import { BallotOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, VisibilityOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  FormControlLabel,
-  Paper,
-  Switch,
-  Typography,
-  useTheme,
-} from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
-import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
-import { Field, InformationGrid } from '../../../../components/common/detail/EntityDetailCommon';
+import { Field } from '../../../../components/common/detail/EntityDetailCommon';
+import LibHeaderRow from '../../../../components/common/LibHeaderRow';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsTemplate, type Objective, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import ConfigurationSection from '../../common/ConfigurationSection';
+import ConfigurationSection, { SECTION_HEADER_WITH_ACTION_HEIGHT } from '../../common/ConfigurationSection';
 import { LessonContext, PermissionsContext } from '../../common/Context';
 import CreateLessonsCategory from '../categories/CreateLessonsCategory';
 import CreateObjective from '../CreateObjective';
@@ -54,6 +42,14 @@ interface Props {
   lessonsTemplates: LessonsTemplate[];
 }
 
+const PARAMETERS_GRID_SX = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: '12px',
+  rowGap: '16px',
+  alignContent: 'start',
+} as const;
+
 const Lessons: FunctionComponent<Props> = ({
   source,
   objectives,
@@ -64,7 +60,6 @@ const Lessons: FunctionComponent<Props> = ({
   lessonsTemplates,
 }) => {
   // Standard hooks
-  const theme = useTheme();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const { permissions } = useContext(PermissionsContext);
@@ -101,7 +96,7 @@ const Lessons: FunctionComponent<Props> = ({
     <Box sx={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 2,
+      gap: 3,
       paddingBottom: 5,
     }}
     >
@@ -116,73 +111,59 @@ const Lessons: FunctionComponent<Props> = ({
         alignItems: 'stretch',
       }}
       >
-        {/* action={null} adopts the 32px action-row header so the Paper
-            top-aligns with the Objectives column (which carries a create
-            button in its header). */}
-        <InformationGrid title={t('Parameters')} action={null}>
-          {permissions.canManage && (
-            <Field label={t('Questionnaire mode')}>
-              <FormControlLabel
-                control={(
-                  <Switch
-                    checked={source.lessons_anonymized}
-                    onChange={() => {
-                      if (!source.lessons_anonymized) {
-                        setOpenAnonymize(true);
-                      } else {
-                        toggleAnonymize();
-                      }
-                    }}
-                    name="anonymized"
-                    size="small"
-                  />
-                )}
-                label={t('Anonymize answers')}
-              />
-            </Field>
-          )}
-          {canApplyTemplate && (
-            <Field label={t('Template')}>
-              <Button
-                variant="outlined"
-                size="small"
-                color="primary"
-                startIcon={<ContentPasteGoOutlined />}
-                onClick={() => setOpenApplyTemplate(true)}
-              >
-                {t('Apply')}
+        <ConfigurationSection
+          title={t('Parameters')}
+          withSurface
+          padding={16}
+          headerMinHeight={SECTION_HEADER_WITH_ACTION_HEIGHT}
+        >
+          <Box sx={PARAMETERS_GRID_SX}>
+            {permissions.canManage && (
+              <Field label={t('Questionnaire mode')}>
+                <Switch
+                  name="anonymized"
+                  checked={source.lessons_anonymized}
+                  onCheckedChange={() => {
+                    if (!source.lessons_anonymized) {
+                      setOpenAnonymize(true);
+                    } else {
+                      toggleAnonymize();
+                    }
+                  }}
+                  label={t('Anonymize answers')}
+                />
+              </Field>
+            )}
+            {canApplyTemplate && (
+              <Field label={t('Template')}>
+                <Button type="button" priority="secondary" size="sm" startIcon={<ContentPasteGoOutlined fontSize="small" />} onClick={() => setOpenApplyTemplate(true)}>
+                  {t('Apply')}
+                </Button>
+              </Field>
+            )}
+            <Field label={t('Check')}>
+              <Button asChild priority="secondary" size="sm">
+                <a href={`/lessons/${source.type}/${source.id}?preview=true`}>
+                  <VisibilityOutlined fontSize="small" />
+                  {t('Preview')}
+                </a>
               </Button>
             </Field>
-          )}
-          <Field label={t('Check')}>
-            <Button
-              variant="outlined"
-              size="small"
-              color="primary"
-              startIcon={<VisibilityOutlined />}
-              href={`/lessons/${source.type}/${source.id}?preview=true`}
-            >
-              {t('Preview')}
-            </Button>
-          </Field>
-          {permissions.canManage && (
-            <Field label={t('Categories and questions')}>
-              <Button
-                variant="outlined"
-                size="small"
-                color="error"
-                startIcon={<DeleteSweepOutlined />}
-                onClick={() => setOpenEmptyLessons(true)}
-              >
-                {t('Clear out')}
-              </Button>
-            </Field>
-          )}
-        </InformationGrid>
+            {permissions.canManage && (
+              <Field label={t('Categories and questions')}>
+                <Button type="button" variant="destructive" priority="secondary" size="sm" startIcon={<DeleteSweepOutlined fontSize="small" />} onClick={() => setOpenEmptyLessons(true)}>
+                  {t('Clear out')}
+                </Button>
+              </Field>
+            )}
+          </Box>
+        </ConfigurationSection>
         <ConfigurationSection
           title={t('Objectives')}
           count={objectives.length}
           action={source.isUpdatable ? <CreateObjective /> : undefined}
+          withSurface
+          headerMinHeight={SECTION_HEADER_WITH_ACTION_HEIGHT}
         >
           <LessonsObjectives
             objectives={objectives}
@@ -194,44 +175,35 @@ const Lessons: FunctionComponent<Props> = ({
 
       {/* Categories and questions */}
       <section>
-        <header style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing(1),
-          marginBottom: theme.spacing(1.5),
-        }}
+        <LibHeaderRow
+          title={t('Categories and questions')}
+          action={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+              <CreateLessonsCategory />
+            </Can>
+          )}
         >
-          <Typography sx={{
-            ...SECTION_LABEL_SX,
-            marginBottom: 0,
-          }}
-          >
-            {t('Categories and questions')}
-          </Typography>
-          <div style={{ flex: 1 }} />
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-            <CreateLessonsCategory />
-          </Can>
-        </header>
-        {lessonsCategories.length === 0 ? (
-          <Paper
-            variant="outlined"
-            sx={{ borderRadius: 1 }}
-          >
-            <LessonsPlaceholder
-              icon={BallotOutlined}
-              message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
+          {lessonsCategories.length === 0 ? (
+          /* padding=32 carried by the Paper, and the placeholder's own 32px
+             dropped HERE, at the call site: the shared component keeps its
+             default rendering for its other consumers — PAPER-GAP-INVENTORY §5.6. */
+            <Paper padding={32}>
+              <LessonsPlaceholder
+                disablePadding
+                icon={BallotOutlined}
+                message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
+              />
+            </Paper>
+          ) : (
+            <LessonsCategories
+              lessonsCategories={lessonsCategories}
+              lessonsQuestions={lessonsQuestions}
+              teamsMap={teamsMap}
+              teams={teams}
+              isReport={false}
             />
-          </Paper>
-        ) : (
-          <LessonsCategories
-            lessonsCategories={lessonsCategories}
-            lessonsQuestions={lessonsQuestions}
-            teamsMap={teamsMap}
-            teams={teams}
-            isReport={false}
-          />
-        )}
+          )}
+        </LibHeaderRow>
       </section>
 
       {/* Dialogs */}
@@ -274,10 +246,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenEmptyLessons(false)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenEmptyLessons(false)}>
             {t('Cancel')}
           </Button>
-          <Button variant="contained" color="primary" onClick={emptyLessons}>
+          <Button type="button" onClick={emptyLessons}>
             {t('Clear out')}
           </Button>
         </DialogActions>
@@ -294,10 +266,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenAnonymize(false)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenAnonymize(false)}>
             {t('Cancel')}
           </Button>
-          <Button variant="contained" color="primary" onClick={toggleAnonymize}>
+          <Button type="button" onClick={toggleAnonymize}>
             {t('Anonymize')}
           </Button>
         </DialogActions>

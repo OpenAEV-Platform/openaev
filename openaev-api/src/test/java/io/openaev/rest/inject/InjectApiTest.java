@@ -188,7 +188,7 @@ class InjectApiTest extends IntegrationTest {
     DOCUMENT1 = documentRepository.save(document1);
     DOCUMENT2 = documentRepository.save(document2);
 
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setName("team");
     TEAM = teamRepository.save(team);
 

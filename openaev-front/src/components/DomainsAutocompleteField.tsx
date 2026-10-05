@@ -68,7 +68,6 @@ const DomainsAutocompleteField = ({
     <AutocompleteField
       style={{ marginTop: theme.spacing(2) }}
       label={label}
-      variant="standard"
       multiple
       disabled={disabled}
       options={mappedOptions}
@@ -76,12 +75,7 @@ const DomainsAutocompleteField = ({
       error={meta.touched && meta.error}
       onInputChange={() => {}}
       onChange={handleChange}
-      renderOption={(props, option) => {
-        if (option.id === toClassifyDomain?.domain_id) {
-          return null;
-        }
-        return undefined;
-      }}
+      hideOption={option => option.id === toClassifyDomain?.domain_id}
     />
   );
 };

@@ -13,6 +13,7 @@ import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.custom_dashboard.CustomDashboardApiExporter;
 import io.openaev.api.custom_dashboard.CustomDashboardApiImporter;
 import io.openaev.api.custom_domain.CustomDomainService;
+import io.openaev.api.detection_remediation.DetectionRemediationApi;
 import io.openaev.api.marking_definition.MarkingDefinitionApi;
 import io.openaev.api.notification.NotificationApi;
 import io.openaev.api.notification_trigger.NotificationTriggerMapper;
@@ -36,6 +37,7 @@ import io.openaev.database.model.Vulnerability;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.AssetAgentJobRepository;
+import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CollectorRepository;
@@ -68,6 +70,7 @@ import io.openaev.database.repository.ReportingScheduleRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.database.repository.WidgetRepository;
@@ -78,6 +81,7 @@ import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
+import io.openaev.engine.model.attackpattern.AttackPatternHandler;
 import io.openaev.engine.model.finding.FindingHandler;
 import io.openaev.engine.model.securitydomain.SecurityDomainHandler;
 import io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler;
@@ -126,6 +130,7 @@ import io.openaev.rest.asset.endpoint.EndpointApi;
 import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.attack_pattern.AttackPatternApi;
+import io.openaev.rest.attack_pattern.AttackPatternInitializer;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.challenge.ChallengeApi;
 import io.openaev.rest.challenge.ScenarioChallengeApi;
@@ -236,9 +241,12 @@ import io.openaev.telemetry.metric_collectors.PlatformAdoptionMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
 import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.ResultUtils;
 import io.openaev.utils.mapper.DocumentMapper;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.mapper.InjectMapper;
+import io.openaev.utils.mapper.PayloadMapper;
+import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
 import io.openaev.xtmhub.XtmHubService;
 import java.io.FileInputStream;
@@ -325,7 +333,9 @@ class TenantActiveTableAccessArchTest {
           "reporting_schedules",
           "reportings",
           "reporting_generations",
-          "datapacks");
+          "datapacks",
+          "teams",
+          "attack_patterns");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -1611,6 +1621,83 @@ class TenantActiveTableAccessArchTest {
                   + " transaction and be allowlisted here");
 
   @ArchTest
+  static final ArchRule attack_patterns_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              AttackPatternApi.class,
+              MitigationApi.class,
+              // Services behind wired handlers; every lookup names the tenant it writes to, or
+              // relies on the handler's scope:
+              AttackPatternService.class,
+              InjectorContractService.class,
+              PayloadCreationService.class,
+              PayloadUpdateService.class,
+              PayloadUpsertService.class,
+              PhishingLandingPageService.class,
+              // Registration path: resolves the attack patterns of a contract within the
+              // injector's own tenant, which it passes explicitly:
+              InjectorService.class,
+              // Import path: resolves the write tenant explicitly and stamps rows before save:
+              V1_DataImporter.class,
+              // Indexing: the sweep runs under TxCtx.allTenants(), and findForIndexing is
+              // deliberately cross-tenant:
+              AttackPatternHandler.class,
+              // Attack-path widget: findAllById resolves the ids Elasticsearch returned, on the
+              // request thread after both detached futures are joined, so it runs under the
+              // scope of the @Transactional endpoint that called it. Proved through the real
+              // endpoint by DashboardAttackPathIsolationTest:
+              EsAttackPathService.class,
+              // Background telemetry: counts across all tenants explicitly (countAcrossAllTenants):
+              ProductInventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AttackPatternRepository.class)
+          .because(
+              "attack_patterns is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule attack_patterns_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Hydrate the association inside the TxCtx-scoped transaction, before the
+              // open-in-view JSON rendering (the #7026 shape applied to this table):
+              AttackPatternInitializer.class,
+              KillChainPhaseInitializer.class,
+              // Derived *_attack_patterns getters on the aggregates themselves:
+              Inject.class,
+              InjectorContract.class,
+              // Map or hydrate patterns inside the scoped transactions of wired handlers:
+              AttackPathGraphService.class,
+              CapabilityResolverService.class,
+              DetectionRemediationApi.class,
+              InjectHelper.class,
+              InjectService.class,
+              InjectorContractFullOutput.class,
+              InjectorContractService.class,
+              MapperService.class,
+              PayloadMapper.class,
+              PayloadService.class,
+              ResultUtils.class,
+              ScenarioService.class,
+              SecurityCoverageService.class,
+              ThreatArsenalMapper.class,
+              V1_DataImporter.class,
+              V20260725_Fix_starter_pack_payload_contracts.class,
+              WorkflowExportInitializer.class)
+          .should()
+          .callMethod(InjectorContract.class, "getAttackPatterns")
+          .because(
+              "attack_patterns is reached through InjectorContract's LAZY @ManyToMany WITHOUT"
+                  + " touching the repository. The tenant scope is transaction-local and"
+                  + " open-in-view renders after the commit, so a lazy load at rendering time"
+                  + " silently serializes an EMPTY pattern list. New callers must run inside a"
+                  + " scoped transaction and be allowlisted here");
+
+  @ArchTest
   static final ArchRule challenges_repository_access_is_reviewed =
       noClasses()
           .that()
@@ -2054,4 +2141,57 @@ class TenantActiveTableAccessArchTest {
           .because(
               "datapacks is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule teams_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              io.openaev.rest.team.TeamApi.class,
+              io.openaev.rest.exercise.ExerciseApi.class,
+              io.openaev.rest.scenario.ScenarioApi.class,
+              io.openaev.rest.comcheck.ComcheckApi.class,
+              io.openaev.rest.lessons.ExerciseLessonsApi.class,
+              io.openaev.rest.lessons.ScenarioLessonsApi.class,
+              // Owns the by-id read for every team path: reads inside the request scope and is
+              // fail-closed on an empty one:
+              io.openaev.service.TeamService.class,
+              // Services behind the entrypoints above; their team reads run in the scoped
+              // transaction the entrypoint opened:
+              io.openaev.rest.exercise.service.ExerciseService.class,
+              io.openaev.rest.finding.FindingService.class,
+              io.openaev.rest.inject.service.InjectService.class,
+              io.openaev.rest.inject.service.SimulationInjectService.class,
+              io.openaev.rest.user.PlayerService.class,
+              io.openaev.search.FullTextSearchService.class,
+              io.openaev.service.AtomicTestingService.class,
+              io.openaev.service.ExerciseTeamUserService.class,
+              io.openaev.service.InjectSearchService.class,
+              io.openaev.service.scenario.ScenarioService.class,
+              io.openaev.service.ScenarioToExerciseService.class,
+              io.openaev.service.targets.search.TeamTargetSearchAdaptor.class,
+              io.openaev.utils.mapper.ExerciseMapper.class,
+              io.openaev.injectors.phishing.service.PhishingTrackingService.class,
+              // Import paths: every team create stamps the tenant resolved for the import, every
+              // read is keyed on it:
+              io.openaev.importer.V1_DataImporter.class,
+              io.openaev.service.InjectImportService.class,
+              // Creates the wrapper team in the run's own tenant, validated when the run was
+              // created:
+              io.openaev.service.autonomous.AutonomousRunService.class,
+              // Chaining engine: reads the scope's teams inside the transaction the engine opened:
+              io.openaev.service.chaining.ScopeService.class,
+              io.openaev.service.chaining.ScopeSnapshotService.class,
+              io.openaev.service.chaining.WorkflowService.class,
+              // Export path, HTTP-only in practice, still keyed on the legacy ambient tenant:
+              io.openaev.export.WorkflowExportInitializer.class,
+              // Indexing fetch, under the sweep's allTenants() scope:
+              io.openaev.engine.model.team.TeamHandler.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(TeamRepository.class)
+          .because(
+              "teams is tenant-active: an accessor without a tenant scope silently reads zero rows."
+                  + " New accessors must carry a scope and be allowlisted here");
 }

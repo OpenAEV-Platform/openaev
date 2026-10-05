@@ -347,6 +347,7 @@ public class InjectImportServiceTest {
               scenarioRepository,
               importService,
               null,
+              null,
               null);
     }
 
@@ -435,7 +436,7 @@ public class InjectImportServiceTest {
     void shouldGenerateUniqueImportId() throws Exception {
       // -------- Prepare --------
       InjectImportService service =
-          new InjectImportService(null, null, null, null, null, null, null, null, null, null);
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
       MultipartFile file = mock(MultipartFile.class);
       Workbook wb = new XSSFWorkbook();
       wb.createSheet("Sheet1");

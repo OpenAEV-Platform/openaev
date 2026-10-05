@@ -1,9 +1,9 @@
-import { TravelExploreOutlined } from '@mui/icons-material';
-import { CircularProgress, FormHelperText, IconButton, InputAdornment, TextField, Tooltip } from '@mui/material';
+import { Icon, IconButton, Spinner, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
 import { type CSSProperties, type FormEventHandler, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { useFormatter } from '../i18n';
+import TextFieldFds from './TextFieldFds';
 
 interface Props {
   name: string;
@@ -51,54 +51,43 @@ const AddressesFieldComponent = ({ name, label, style = {}, disabled = false, re
             setResolving(false);
           }
         };
+        const resolveLabel = resolveTooltip ?? t('Resolve');
+        // The library Textarea has no end slot; the action sits in the label row's slot instead.
+        const resolveAction = onResolve
+          ? (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <IconButton
+                      aria-label={resolveLabel}
+                      icon={resolving ? <Spinner size="sm" tone="inherit" /> : <Icon name="locate" size={16} aria-hidden />}
+                      variant="default"
+                      priority="tertiary"
+                      size="sm"
+                      disabled={disabled || resolveDisabled || resolving}
+                      onClick={handleResolve}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>{resolveLabel}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )
+          : undefined;
         return (
-          <>
-            <TextField
-              variant="standard"
-              fullWidth
-              multiline
-              rows={3}
-              label={label}
-              style={style}
-              error={!!error}
-              disabled={disabled}
-              helperText={error ? error.message : null}
-              onChange={onChange2}
-              onBlur={onBlur}
-              value={value2}
-              required={required}
-              slotProps={onResolve
-                ? {
-                    input: {
-                      endAdornment: (
-                        <InputAdornment
-                          position="end"
-                          sx={{
-                            alignSelf: 'flex-start',
-                            marginTop: 1,
-                          }}
-                        >
-                          <Tooltip title={resolveTooltip ?? ''}>
-                            <span>
-                              <IconButton
-                                size="small"
-                                edge="end"
-                                disabled={disabled || resolveDisabled || resolving}
-                                onClick={handleResolve}
-                                aria-label={resolveTooltip ?? t('Resolve')}
-                              >
-                                {resolving ? (<CircularProgress size={16} />) : (<TravelExploreOutlined fontSize="small" />)}
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        </InputAdornment>
-                      ),
-                    },
-                  }
-                : undefined}
-            />
-            <FormHelperText>{t(helperText)}</FormHelperText>
-          </>
+          <TextFieldFds
+            multiline
+            rows={3}
+            label={label}
+            style={style}
+            error={error?.message}
+            helperText={t(helperText)}
+            disabled={disabled}
+            onChange={onChange2}
+            onBlur={onBlur}
+            value={value2}
+            required={required}
+            infoTooltip={resolveAction}
+          />
         );
       }}
     />

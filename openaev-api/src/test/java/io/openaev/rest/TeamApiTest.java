@@ -32,6 +32,7 @@ import io.openaev.utils.fixtures.ExerciseTeamUserFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -53,11 +54,16 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
+// Arms teams for this class so the main team API is exercised on v2 isolation, which the test
+// classpath otherwise switches off entirely (it declares no active-tables line). Only teams is
+// armed: the control for any measurement on this class is the same list minus teams.
+@TestPropertySource(properties = "openaev.tenant.active-tables=teams")
 class TeamApiTest extends IntegrationTest {
 
   private static final String SEARCH_INPUT = "search input";
@@ -77,7 +83,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team input, should create a team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validTeamInput_should_createTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -103,12 +109,14 @@ class TeamApiTest extends IntegrationTest {
   @DisplayName(
       "Given no ambient tenant on the non-prefixed route, should create the team under the default tenant")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_noAmbientTenantOnNonPrefixedRoute_should_createTeamUnderDefaultTenant()
       throws Exception {
     // --PREPARE--
     // TenantInterceptor never sets an ambient tenant for this route: reproduce that thread state
-    // instead of relying on the test fixture's DefaultTenantExtension.
+    // instead of relying on the test fixture's DefaultTenantExtension. The write tenant now comes
+    // from the request scope, which for this single-tenant caller is the default tenant, so the
+    // outcome is the same and no longer depends on the listener's fallback.
     TenantContext.clearCurrentTenant();
     TeamCreateInput teamInput = createTeam();
 
@@ -133,10 +141,10 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given existing team name input, should throw an exception")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_existingTeamNameInput_should_throwAnException() throws Exception {
     // --PREPARE--
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setName(TEAM_NAME);
     this.teamRepository.save(team);
 
@@ -163,7 +171,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid contextual team input, should create a contextual team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validContextualTeamInput_should_createContextualTeamSuccessfully() throws Exception {
     // -- PREPARE --
     Exercise exercise = ExerciseFixture.getExercise();
@@ -190,12 +198,12 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given existing contextual team name input, should throw an exception")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_existingContextualTeamNameInput_should_throwAnException() throws Exception {
     // -- PREPARE --
     Exercise exercise = ExerciseFixture.getExercise();
     exercise = this.exerciseService.createExercise(exercise);
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setName(CONTEXTUAL_TEAM_NAME);
     team.setContextual(true);
     team.setExercises(List.of(exercise));
@@ -224,12 +232,12 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team ID and input, should update team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validTeamIdAndInput_should_updateTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
 
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setUpdateAttributes(teamInput);
     team = teamRepository.save(team);
     String newName = "updatedName";
@@ -333,12 +341,12 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team ID and input, should upsert team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validTeamIdAndInput_should_upsertTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
 
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setUpdateAttributes(teamInput);
     teamRepository.save(team);
     String newName = "updatedName";
@@ -365,7 +373,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given non existing and team input, should upsert team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_nonExistingTeamInput_should_upsertTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -389,7 +397,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given contextual team input with multiple exercise, should throw an exception")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_contextualTeamWithMultipleExercise_should_throwAnException() {
     // -- PREPARE --
     Exercise exercise1 = ExerciseFixture.getExercise();
@@ -423,7 +431,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a team linked to injects, should delete the team and keep the injects")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_teamLinkedToInjects_should_deleteTeamSuccessfully() throws Exception {
     // --PREPARE--
     Team team = this.teamRepository.save(createTeamWithName(TEAM_NAME + "-linked"));
@@ -441,7 +449,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given teams linked to injects, should bulk delete the teams and keep the injects")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_teamsLinkedToInjects_should_bulkDeleteTeamsSuccessfully() throws Exception {
     // --PREPARE--
     Team firstTeam = this.teamRepository.save(createTeamWithName(TEAM_NAME + "-bulk-1"));
@@ -487,16 +495,16 @@ class TeamApiTest extends IntegrationTest {
 
   private Inject prepareOptionsEndpointTestData() {
     // Teams
-    Team team1input = new Team();
+    Team team1input = TeamFixture.getEmptyTeam();
     team1input.setName(TEAM_NAME + "1");
     Team team1 = this.teamRepository.save(team1input);
-    Team team2input = new Team();
+    Team team2input = TeamFixture.getEmptyTeam();
     team2input.setName(TEAM_NAME + "2");
     Team team2 = this.teamRepository.save(team2input);
-    Team team3input = new Team();
+    Team team3input = TeamFixture.getEmptyTeam();
     team3input.setName(TEAM_NAME + "3");
     Team team3 = this.teamRepository.save(team3input);
-    Team team4input = new Team();
+    Team team4input = TeamFixture.getEmptyTeam();
     team4input.setName(TEAM_NAME + "4");
     Team team4 = this.teamRepository.save(team4input);
     Exercise exInput = ExerciseFixture.getExercise();
@@ -541,7 +549,7 @@ class TeamApiTest extends IntegrationTest {
   @DisplayName("Test optionsByName")
   @ParameterizedTest
   @MethodSource("optionsByNameTestParameters")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void optionsByNameTest(
       String searchText, Boolean simulationOrScenarioId, Integer expectedNumberOfResults)
       throws Exception {
@@ -578,7 +586,7 @@ class TeamApiTest extends IntegrationTest {
   @DisplayName("Test optionsById")
   @ParameterizedTest
   @MethodSource("optionsByIdTestParameters")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void optionsByIdTest(Integer numberOfTeamToProvide, Integer expectedNumberOfResults)
       throws Exception {
     // --PREPARE--
@@ -951,13 +959,15 @@ class TeamApiTest extends IntegrationTest {
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
-      // Reference the team from an inject (in tenant X) so it matches the EXISTS clause
+      // Reference the team from an inject (in tenant X) so it matches the EXISTS clause. The link
+      // is written with a native insert rather than through inject.setTeams(teamRepository
+      // .findById(...)): on an active teams table that read runs on the bare test thread, which
+      // has no scope, so the row the test just seeded is invisible to it.
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
-      Team team = teamRepository.findById(teamId).orElseThrow();
       Inject inject =
           getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
-      inject.setTeams(new ArrayList<>(List.of(team)));
       injectRepository.save(inject);
+      linkTeamToInject(teamId, inject.getId());
 
       entityManager.flush();
       entityManager.clear();
@@ -1001,12 +1011,15 @@ class TeamApiTest extends IntegrationTest {
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
+      // Reference the team from an inject (in tenant X) so it matches the EXISTS clause. The link
+      // is written with a native insert rather than through inject.setTeams(teamRepository
+      // .findById(...)): on an active teams table that read runs on the bare test thread, which
+      // has no scope, so the row the test just seeded is invisible to it.
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
-      Team team = teamRepository.findById(teamId).orElseThrow();
       Inject inject =
           getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
-      inject.setTeams(new ArrayList<>(List.of(team)));
       injectRepository.save(inject);
+      linkTeamToInject(teamId, inject.getId());
 
       entityManager.flush();
       entityManager.clear();
@@ -1026,5 +1039,116 @@ class TeamApiTest extends IntegrationTest {
       List<String> sameTenantIds = JsonPath.read(sameTenantResponse, "$[*].id");
       assertTrue(sameTenantIds.contains(teamId));
     }
+
+    @DisplayName(
+        "Given the non-prefixed route selecting a tenant by header, should create the team in that"
+            + " tenant")
+    @Test
+    // Admin so the capability check, which still resolves the caller's role in the AMBIENT tenant,
+    // cannot be what this test measures; member of the default tenant too so the header selector
+    // narrows a genuinely multi-tenant caller.
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_headerRouteSelectingTenantX_should_createTeamInTenantX() throws Exception {
+      // --PREPARE--
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      // The fixture leaves the default tenant on the thread while the header pins tenant X: that
+      // divergence is the whole point, the listener's fallback and the request scope disagree.
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+      TeamCreateInput teamInput = createTeam();
+      teamInput.setName("HeaderRouteTeam");
+
+      // --EXECUTE--
+      String response =
+          mvc.perform(
+                  post(TEAM_URI)
+                      .header("X-Tenant-Ids", tenantX.getId())
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // --ASSERT--
+      String teamId = JsonPath.read(response, "$.team_id");
+      entityManager.flush();
+      assertEquals(
+          tenantX.getId(),
+          persistedTenantId(teamId),
+          "the write tenant must be the tenant the request scope pins, not the default tenant the"
+              + " listener falls back to");
+    }
+
+    @DisplayName(
+        "Given a team in another tenant, the non-prefixed route selecting a tenant by header should"
+            + " not read it")
+    @Test
+    void given_teamOutsideTheHeaderScope_should_notBeReadableOnTheNonPrefixedRoute()
+        throws Exception {
+      // --PREPARE--
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "OutOfScopeTeam")
+          .setParameter("tenant", Tenant.DEFAULT_TENANT_UUID)
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
+      // The fixture leaves the default tenant on the thread, which is exactly the mismatch under
+      // test: the ambient tenant owns the row while the request scope pins another tenant.
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+
+      // --EXECUTE--
+      int responseStatus =
+          mvc.perform(
+                  get(TEAM_URI + "/" + teamId)
+                      .header("X-Tenant-Ids", tenantX.getId())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // --ASSERT--
+      assertEquals(
+          HttpStatus.NOT_FOUND.value(),
+          responseStatus,
+          "the by-id read must be keyed on the request scope, not on the ambient tenant the"
+              + " non-prefixed route never sets in production");
+    }
+
+    private String persistedTenantId(String teamId) {
+      return (String)
+          entityManager
+              .createNativeQuery("SELECT cast(tenant_id as varchar) FROM teams WHERE team_id = :id")
+              .setParameter("id", teamId)
+              .getSingleResult();
+    }
+  }
+
+  /**
+   * Links a seeded team to an inject with a native insert. Going through the entity would need a
+   * scoped read of teams, which the bare test thread does not have.
+   */
+  private void linkTeamToInject(String teamId, String injectId) {
+    entityManager.flush();
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO injects_teams (inject_id, team_id) VALUES (:injectId, :teamId)")
+        .setParameter("injectId", injectId)
+        .setParameter("teamId", teamId)
+        .executeUpdate();
   }
 }

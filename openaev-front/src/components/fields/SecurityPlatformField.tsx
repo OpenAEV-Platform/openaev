@@ -1,4 +1,12 @@
-import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { type FieldErrors } from 'react-hook-form';
@@ -69,53 +77,51 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
   const selectedValue = securityPlatformsOptions.find(option => option.id === fieldValue) || null;
 
   return (
-    <div style={{ position: 'relative' }}>
-      <MuiAutocomplete
-        value={selectedValue}
-        size="small"
-        selectOnFocus
-        autoHighlight
-        clearOnBlur={false}
-        clearOnEscape={false}
+    <div style={{
+      ...style,
+      position: 'relative',
+    }}
+    >
+      <Combobox
         options={securityPlatformsOptions}
+        value={selectedValue}
+        onValueChange={(value) => {
+          fieldOnChange((value as { id: string } | null)?.id ?? '');
+        }}
         getOptionLabel={option => option ? `${option.label} (${securityPlatformTypeLabel(option.type)})` : ''}
-        disabled={editing}
-        onChange={(_, value) => {
-          fieldOnChange(value?.id ?? '');
-        }}
-        renderOption={(props, option) => {
-          return (
-            <Box component="li" {...props} key={option.id}>
-              <div className={classes.icon}>
-                <img
-                  src={buildTenantApiPath(`/api/images/security_platforms/id/${option.id}/${theme.palette.mode}`)}
-                  alt={option.label}
-                  style={{
-                    width: 25,
-                    height: 25,
-                    borderRadius: 4,
-                  }}
-                />
-              </div>
-              <div className={classes.text}>
-                {`${option.label} (${securityPlatformTypeLabel(option.type)})`}
-              </div>
-            </Box>
-          );
-        }}
         isOptionEqualToValue={(option, value) => option.id === value.id}
-        renderInput={params => (
-          <TextField
-            {...params}
-            label={label}
-            variant="standard"
-            fullWidth
-            style={style}
-            error={!!errors[name]}
-          />
+        disabled={editing}
+        error={!!errors[name]}
+        // The MUI field hid its clear control via a `classes` override.
+        clearable={false}
+        renderOption={option => (
+          <>
+            <div className={classes.icon}>
+              <img
+                src={buildTenantApiPath(`/api/images/security_platforms/id/${option.id}/${theme.palette.mode}`)}
+                alt={option.label}
+                style={{
+                  width: 25,
+                  height: 25,
+                  borderRadius: 4,
+                }}
+              />
+            </div>
+            <div className={classes.text}>
+              {`${option.label} (${securityPlatformTypeLabel(option.type)})`}
+            </div>
+          </>
         )}
-        classes={{ clearIndicator: classes.autoCompleteIndicator }}
-      />
+      >
+        <ComboboxLabel>{label}</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent />
+      </Combobox>
     </div>
   );
 };

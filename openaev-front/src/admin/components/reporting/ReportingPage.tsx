@@ -1,5 +1,7 @@
+// fds:keep-mui the generate split button (main action + format menu) stays a MUI ButtonGroup until the library offers a split button
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDropDownOutlined, FileDownloadOutlined } from '@mui/icons-material';
-import { Box, Button, ButtonGroup, Chip, CircularProgress, IconButton, Menu, MenuItem, Tooltip, Typography } from '@mui/material';
+import { Box, Button, ButtonGroup, CircularProgress, Menu, MenuItem, Typography } from '@mui/material';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -202,73 +204,70 @@ const ReportingPage = () => {
           },
         ]}
       />
+      {/* Two columns, two rows: the actions sit beside the title and the subtitle keeps
+          the first column underneath. */}
       <Box sx={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: 2,
+        display: 'grid',
+        gridTemplateColumns: '1fr auto',
+        alignItems: 'start',
+        columnGap: 2,
       }}
       >
-        <Box sx={{ minWidth: 0 }}>
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            flexWrap: 'wrap',
-          }}
-          >
-            <Typography variant="h1" sx={{ margin: 0 }}>
-              {reporting.reporting_name}
-            </Typography>
-            <Chip
-              icon={<ContextIcon fontSize="small" />}
-              label={subjectName ? `${contextLabel} - ${subjectName}` : contextLabel}
-              size="small"
-              variant="outlined"
-            />
-            <ReportingFormatFragment format={defaultFormat} />
-            <Chip label={t(TIME_RANGE_LABELS[reporting.reporting_time_range ?? 'LAST_30_DAYS'])} size="small" variant="outlined" />
-          </Box>
-          {reporting.reporting_description && (
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'text.secondary',
-                marginTop: 0.5,
-              }}
-            >
-              {reporting.reporting_description}
-            </Typography>
-          )}
-          <Typography
-            variant="body2"
-            sx={{
-              color: 'text.secondary',
-              fontSize: 12,
-              marginTop: 0.5,
-            }}
-          >
-            {`${t('Updated at')} ${fldt(reporting.reporting_updated_at)}`}
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          flexWrap: 'wrap',
+          minWidth: 0,
+        }}
+        >
+          <Typography variant="h1" sx={{ margin: 0 }}>
+            {reporting.reporting_name}
           </Typography>
+          <Chip
+            startIcon={<ContextIcon fontSize="small" />}
+            label={subjectName ? `${contextLabel} - ${subjectName}` : contextLabel}
+          />
+          <ReportingFormatFragment format={defaultFormat} />
+          <Chip label={t(TIME_RANGE_LABELS[reporting.reporting_time_range ?? 'LAST_30_DAYS'])} />
         </Box>
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
           gap: 1,
           flexShrink: 0,
+          // Centred on the TITLE's line, not on the row: the chips beside a long title wrap
+          // underneath it and the actions would sink with them. The box is exactly the
+          // title's line (`1lh` at its font size and line height) and centres its controls
+          // on it, whatever their height.
+          fontSize: theme => theme.typography.h1.fontSize,
+          lineHeight: theme => theme.typography.h1.lineHeight,
+          height: '1lh',
         }}
         >
           {latestDownloadable && (
-            <Tooltip title={`${t('Download latest generation')} (${latestDownloadable.reporting_generation_format ?? ''})`}>
-              <IconButton
-                color="primary"
-                component="a"
-                href={downloadReportingGenerationUrl(latestDownloadable.reporting_generation_id)}
-              >
-                <FileDownloadOutlined />
-              </IconButton>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <IconButton
+                  asChild
+                  icon={<FileDownloadOutlined />}
+                  aria-label={`${t('Download latest generation')} (${latestDownloadable.reporting_generation_format ?? ''})`}
+                  priority="tertiary"
+                  size="md"
+                >
+                  <a href={downloadReportingGenerationUrl(latestDownloadable.reporting_generation_id)} />
+                </IconButton>
+              </TooltipTrigger>
+              <TooltipContent>{`${t('Download latest generation')} (${latestDownloadable.reporting_generation_format ?? ''})`}</TooltipContent>
             </Tooltip>
           )}
+          {/* The overflow menu precedes the generate button so the primary action
+              closes the row. */}
+          <ReportingPopover
+            reporting={reporting}
+            onUpdate={result => setReporting(result)}
+            onDelete={() => navigate('/admin/reporting')}
+          />
           {canManage && (
             <>
               <ButtonGroup variant="contained" size="small" disabled={generating}>
@@ -299,12 +298,21 @@ const ReportingPage = () => {
               </Menu>
             </>
           )}
-          <ReportingPopover
-            reporting={reporting}
-            onUpdate={result => setReporting(result)}
-            onDelete={() => navigate('/admin/reporting')}
-          />
         </Box>
+        {/* One subtitle line: the description, then when it exists, the timestamp after it. */}
+        <Typography
+          variant="body2"
+          sx={{
+            gridColumn: 1,
+            color: 'text.secondary',
+            fontSize: 12,
+            marginTop: 0.5,
+          }}
+        >
+          {[reporting.reporting_description, `${t('Updated at')} ${fldt(reporting.reporting_updated_at)}`]
+            .filter(Boolean)
+            .join(' - ')}
+        </Typography>
       </Box>
 
       <Box sx={{ marginTop: 2 }}>

@@ -15,7 +15,7 @@ following project conventions: fixtures, composers, integration tests, and cover
 
 1. **Read `AGENTS.md`** for architecture overview and module structure
 2. **Read `.github/copilot-instructions.md`** for build, test commands, and coverage requirements
-3. **Read `.github/instructions/testing.instructions.md`** for conventions (naming, AAA, fixtures, composers)
+3. **Read `.github/instructions/testing.instructions.md`** for conventions (naming, AAA, fixtures, composers) — for frontend tests on design-system components, its *Design system components in unit tests* section (`TooltipProvider`, `designSystemAssertions.tsx`, accessible-name matchers)
 4. **Read `.github/instructions/backend.instructions.md`** for layering and DTO patterns (to understand what to test)
 5. **Read `.github/instructions/multi-tenancy.instructions.md`** for tenant isolation test patterns — required when writing isolation tests
 6. **Follow `.github/skills/add-test/SKILL.md`** for the step-by-step procedure

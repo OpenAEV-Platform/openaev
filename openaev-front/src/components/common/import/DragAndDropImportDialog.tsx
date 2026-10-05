@@ -1,5 +1,6 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { CloudUploadOutlined, DeleteOutline } from '@mui/icons-material';
-import { Box, Button, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type ChangeEvent, type DragEvent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -222,7 +223,7 @@ const DragAndDropImportDialog = ({ open, onClose, onImport, maxFiles }: Props) =
             </Typography>
             <div className={classes.actionRow}>
               <Button
-                variant="contained"
+                type="button"
                 disabled={isLimitReached}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -250,27 +251,23 @@ const DragAndDropImportDialog = ({ open, onClose, onImport, maxFiles }: Props) =
                   <Typography variant="body2">{file.name}</Typography>
                 </div>
                 <IconButton
+                  icon={<DeleteOutline fontSize="small" />}
+                  variant="destructive"
                   aria-label={t('Remove file')}
-                  size="small"
                   onClick={() => removeFile(index)}
-                >
-                  <DeleteOutline color="primary" fontSize="small" />
-                </IconButton>
+                  priority="tertiary"
+                  size="md"
+                />
               </div>
             ))}
           </div>
         )}
 
         <div className={classes.footerButtons}>
-          <Button onClick={handleClose} disabled={uploading}>
+          <Button type="button" priority="tertiary" onClick={handleClose} disabled={uploading}>
             {t('Cancel')}
           </Button>
-          <Button
-            color="primary"
-            variant="contained"
-            onClick={handleSubmit}
-            disabled={selectedFiles.length === 0 || uploading}
-          >
+          <Button type="button" onClick={handleSubmit} disabled={selectedFiles.length === 0 || uploading}>
             {t('Import')}
           </Button>
         </div>

@@ -1,4 +1,5 @@
-import { ButtonBase, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useMemo } from 'react';
 
@@ -214,15 +215,18 @@ const SecurityDomainCardWidget: FunctionComponent<Props> = ({
             }}
           >
             {(hasData ? esDomainDatas.data : DEFAULT_EMPTY_EXPECTATIONS).map(data => (
-              <Tooltip key={`${domainName}-icon-${data.label}`} title={t(capitalize(data.label))}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    color: data.color,
-                  }}
-                >
-                  {expectationIconByType(data.label, { fontSize: 14 })}
-                </span>
+              <Tooltip key={`${domainName}-icon-${data.label}`}>
+                <TooltipTrigger asChild>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      color: data.color,
+                    }}
+                  >
+                    {expectationIconByType(data.label, { fontSize: 14 })}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{t(capitalize(data.label))}</TooltipContent>
               </Tooltip>
             ))}
           </div>
@@ -287,26 +291,29 @@ const SecurityDomainCardWidget: FunctionComponent<Props> = ({
                       {rowTitle}
                     </Typography>
                     {rows.map(d => (
-                      <Tooltip key={`${label}-${d.key}`} title={`${d.label} - ${t('click to investigate')}`}>
-                        <ButtonBase
-                          onClick={() => onPercentClick(label, d.key)}
-                          sx={{
+                      <Tooltip key={`${label}-${d.key}`}>
+                        <TooltipTrigger asChild>
+                          <ButtonBase
+                            onClick={() => onPercentClick(label, d.key)}
+                            sx={{
                             // fixed width keeps the score tiles vertically aligned across rows
-                            'width': 42,
-                            'justifyContent': 'center',
-                            'height': 20,
-                            'borderRadius': 0.75,
-                            'fontSize': 11,
-                            'fontWeight': 700,
-                            'fontFamily': '"Geologica", sans-serif',
-                            'color': d.color,
-                            'backgroundColor': alpha(d.color ?? theme.palette.text.disabled, 0.12),
-                            'transition': 'background-color 0.15s ease',
-                            '&:hover': { backgroundColor: alpha(d.color ?? theme.palette.text.disabled, 0.28) },
-                          }}
-                        >
-                          {formatPercentage(d.percentage ?? 0)}
-                        </ButtonBase>
+                              'width': 42,
+                              'justifyContent': 'center',
+                              'height': 20,
+                              'borderRadius': 0.75,
+                              'fontSize': 11,
+                              'fontWeight': 700,
+                              'fontFamily': '"Geologica", sans-serif',
+                              'color': d.color,
+                              'backgroundColor': alpha(d.color ?? theme.palette.text.disabled, 0.12),
+                              'transition': 'background-color 0.15s ease',
+                              '&:hover': { backgroundColor: alpha(d.color ?? theme.palette.text.disabled, 0.28) },
+                            }}
+                          >
+                            {formatPercentage(d.percentage ?? 0)}
+                          </ButtonBase>
+                        </TooltipTrigger>
+                        <TooltipContent>{`${d.label} - ${t('click to investigate')}`}</TooltipContent>
                       </Tooltip>
                     ))}
                   </div>

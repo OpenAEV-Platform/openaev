@@ -563,7 +563,13 @@ public class BackgroundEntrypointTenantScopeArchTest {
     return fileTables.get();
   }
 
-  private static Set<String> activeTablesFromFile() {
+  /**
+   * The allowlist {@code main} ships, ignoring any system property. {@link
+   * TenantTableActivationCoverageArchTest} reads this one rather than {@link
+   * #effectiveActiveTables()}: it judges the checked-in configuration, so a shadow run that arms a
+   * different list must not change its verdict.
+   */
+  static Set<String> activeTablesFromFile() {
     Properties props = new Properties();
     try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
       props.load(in);

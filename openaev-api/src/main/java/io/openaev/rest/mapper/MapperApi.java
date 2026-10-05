@@ -228,7 +228,7 @@ public class MapperApi extends RestBehavior {
       // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
       // tenant scope for this read (importInjectIntoScenarioFromXLS reads InjectorContract#
       // getFirstInjector() to attach an injector to each previewed inject).
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportTestInput input) {
     ImportMapper importMapper = mapperService.createImportMapper(input.getImportMapper());
@@ -244,7 +244,7 @@ public class MapperApi extends RestBehavior {
     Scenario scenario = new Scenario();
     scenario.setRecurrenceStart(Instant.now());
     return injectImportService.importInjectIntoScenarioFromXLS(
-        scenario, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
+        ctx, scenario, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
   }
 
   // -- IMPORT --

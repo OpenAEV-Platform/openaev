@@ -846,8 +846,18 @@ class BackgroundEntrypointDetectionTest {
     // now goes through the primitive (TxCtx.forTenant / TxCtx.allTenants() via
     // TenantScopedJobRunner
     // and TenantScopedTransaction), so neither reaches any table outside it any more.
+    // EsAttackPathService is no longer tagged either: its one JPA read of attack_patterns runs on
+    // the request thread, after both detached futures are joined, and all four entry points into
+    // it are REST endpoints carrying @Transactional with a TxCtx, so the read is inside the
+    // request's v2 scope rather than outside the primitive. Both halves of that are held by a
+    // machine: EndpointTransactionalRule refuses a mapped handler without @Transactional at
+    // compile time, and TenantScopedEntrypointsTxCtxArchTest pins the TxCtx parameter on
+    // DashboardApi#attackPaths, TenantSettingsApi#homeDashboardAttackPaths and the two
+    // dashboardAttackPaths handlers. A tag here would also contradict
+    // no_baseline_waiver_outlives_its_table now that the table is active. What the tag protected is
+    // asserted behaviourally instead, through the real endpoint, by
+    // DashboardAttackPathIsolationTest.
     Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
-    assertUntilActive(baseline, "io.openaev.service.EsAttackPathService", "attack_patterns");
     assertUntilActive(baseline, "io.openaev.rest.stream.StreamApi", "injects");
   }
 

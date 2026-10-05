@@ -12,6 +12,7 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.raw.RawInjectorsContracts;
+import io.openaev.rest.attack_pattern.AttackPatternInitializer;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
@@ -163,7 +164,7 @@ public class InjectorContractApi extends RestBehavior {
       resourceType = ResourceType.INJECTOR_CONTRACT)
   // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
   public InjectorContract injectorContract(TxCtx ctx, @PathVariable String injectorContractId) {
-    return injectorContractService.injectorContract(injectorContractId);
+    return hydrated(injectorContractService.injectorContract(injectorContractId));
   }
 
   /**
@@ -178,7 +179,7 @@ public class InjectorContractApi extends RestBehavior {
   public InjectorContract createInjectorContract(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody InjectorContractAddInput input) {
     writeScopeResolver.tenantForWrite(ctx, null);
-    return injectorContractService.createNewInjectorContract(input);
+    return hydrated(injectorContractService.createNewInjectorContract(input));
   }
 
   /**
@@ -202,7 +203,7 @@ public class InjectorContractApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateInput input) {
-    return injectorContractService.updateInjectorContract(injectorContractId, input);
+    return hydrated(injectorContractService.updateInjectorContract(injectorContractId, input));
   }
 
   /**
@@ -226,8 +227,8 @@ public class InjectorContractApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateMappingInput input) {
-    return injectorContractService.updateInjectorContractTTPDomainsAndTags(
-        injectorContractId, input);
+    return hydrated(
+        injectorContractService.updateInjectorContractTTPDomainsAndTags(injectorContractId, input));
   }
 
   /**
@@ -249,5 +250,14 @@ public class InjectorContractApi extends RestBehavior {
   // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
   public void deleteInjectorContract(TxCtx ctx, @PathVariable String injectorContractId) {
     this.injectorContractService.deleteInjectorContract(injectorContractId);
+  }
+
+  /**
+   * See {@link AttackPatternInitializer}: the contract's attack patterns are serialized after the
+   * scoped transaction closed, so they are hydrated here while the scope is still set.
+   */
+  private InjectorContract hydrated(InjectorContract injectorContract) {
+    AttackPatternInitializer.initializeFromContract(injectorContract);
+    return injectorContract;
   }
 }
