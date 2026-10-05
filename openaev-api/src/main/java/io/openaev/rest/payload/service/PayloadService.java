@@ -98,6 +98,10 @@ public class PayloadService {
   static final String IOC_VALIDATION_UNSAFE_FILE_DROP =
       "OpenAEV IOC validation: the run directory is not owned by the runner, or the run directory"
           + " or the surrogate path is a link; nothing was written";
+  static final String IOC_VALIDATION_NO_TCP_TOOL =
+      "OpenAEV IOC validation: neither nc nor bash is available to attempt the connection";
+  static final String IOC_VALIDATION_NO_HTTP_TOOL =
+      "OpenAEV IOC validation: curl is not available to send the request";
   // The surrogate holds this text and its run: the proof, at cleanup, that the drop created it.
   static final String IOC_VALIDATION_SURROGATE_TEXT = "OpenAEV IOC validation benign surrogate";
   static final String IOC_VALIDATION_FAILED_FILE_DROP =
@@ -1077,23 +1081,31 @@ public class PayloadService {
     }
     return switch (kind) {
       case NETWORK_TRAFFIC ->
+          // A refused or blocked connection is an outcome for the security platform to report;
+          // an endpoint with no tool to attempt it fails, so the test is never taken for run.
           "if command -v nc >/dev/null 2>&1; then nc -z -w 5 "
               + host
               + " "
               + port
-              + "; else bash -c 'exec 3<>\"/dev/tcp/$1/$2\" && exec 3<&-' openaev "
+              + "; true; elif command -v bash >/dev/null 2>&1; then"
+              + " bash -c 'exec 3<>\"/dev/tcp/$1/$2\" && exec 3<&-' openaev "
               + host
               + " "
               + port
-              + "; fi; true";
+              + "; true; else echo '"
+              + IOC_VALIDATION_NO_TCP_TOOL
+              + "' >&2; exit 1; fi";
       case HTTP_HEAD ->
           // --noproxy '' overrides NO_PROXY / no_proxy: the request never bypasses the egress
           // proxy.
-          "curl -sS -I -o /dev/null --connect-timeout 5 --max-time 10 --noproxy '' --proxy "
+          "if command -v curl >/dev/null 2>&1; then"
+              + " curl -sS -I -o /dev/null --connect-timeout 5 --max-time 10 --noproxy '' --proxy "
               + proxy
               + " "
               + url
-              + "; true";
+              + "; true; else echo '"
+              + IOC_VALIDATION_NO_HTTP_TOOL
+              + "' >&2; exit 1; fi";
       case LOG_INJECTION ->
           "OAEV_IOC_MESSAGE=\"OpenAEV IOC validation marker: \""
               + value

@@ -3,7 +3,11 @@ package io.openaev.rest.payload.service;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.DETECTION;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_FILE_NAME_KEY;
+import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_HOST_KEY;
+import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_PORT_KEY;
+import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_PROXY_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_RUN_KEY;
+import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_URL_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -55,6 +59,26 @@ class IocValidationCommandContentTest {
         PayloadService.iocValidationCommandContent(IocValidationTestKind.HTTP_HEAD, false);
     assertThat(content).contains("--noproxy ''").contains("--proxy ");
     assertThat(content.indexOf("--noproxy ''")).isLessThan(content.indexOf("--proxy "));
+  }
+
+  @Test
+  @DisplayName(
+      "the Unix network tests accept a refused connection but fail without a tool to attempt it")
+  void given_networkTestsOnUnix_should_failWithoutTool() {
+    String tcp =
+        PayloadService.iocValidationCommandContent(IocValidationTestKind.NETWORK_TRAFFIC, false);
+    String http =
+        PayloadService.iocValidationCommandContent(IocValidationTestKind.HTTP_HEAD, false);
+    assertThat(tcp)
+        .contains("elif command -v bash >/dev/null 2>&1; then")
+        .contains(PayloadService.IOC_VALIDATION_NO_TCP_TOOL)
+        .endsWith("exit 1; fi");
+    assertThat(http)
+        .startsWith("if command -v curl >/dev/null 2>&1; then")
+        .contains(PayloadService.IOC_VALIDATION_NO_HTTP_TOOL)
+        .endsWith("exit 1; fi");
+    assertThat(tcp.split("; true;", -1)).hasSize(3);
+    assertThat(http.split("; true;", -1)).hasSize(2);
   }
 
   @Test
@@ -562,6 +586,31 @@ class IocValidationCommandContentTest {
 
     private static String drop() {
       return PayloadService.iocValidationCommandContent(IocValidationTestKind.FILE_DROP, false);
+    }
+
+    @Test
+    @DisplayName("fails the network tests on an endpoint without nc, bash nor curl")
+    void given_noNetworkTool_should_fail() throws Exception {
+      for (IocValidationTestKind kind :
+          List.of(IocValidationTestKind.NETWORK_TRAFFIC, IocValidationTestKind.HTTP_HEAD)) {
+        CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("sh");
+        binder.bind(IOC_VALIDATION_HOST_KEY, "127.0.0.1");
+        binder.bind(IOC_VALIDATION_PORT_KEY, "9");
+        binder.bind(IOC_VALIDATION_URL_KEY, "http://127.0.0.1:9/");
+        binder.bind(IOC_VALIDATION_PROXY_KEY, "http://127.0.0.1:9");
+        ProcessBuilder builder =
+            new ProcessBuilder(
+                "/bin/sh",
+                "-c",
+                binder.render(PayloadService.iocValidationCommandContent(kind, false)));
+        // An empty PATH: command -v finds none of the tools
+        builder.environment().put("PATH", Files.createDirectories(tmp.resolve("empty")).toString());
+        builder.redirectErrorStream(true);
+        builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+        Process process = builder.start();
+        assertThat(process.waitFor(30, TimeUnit.SECONDS)).isTrue();
+        assertThat(process.exitValue()).as(kind.name()).isNotZero();
+      }
     }
 
     private static String cleanup() {
