@@ -207,6 +207,21 @@ class InjectApiTest extends IntegrationTest {
   @DisplayName("Inject lifecycle cleanup")
   class InjectLifecycleCleanupTest {
 
+    private BatchQueueService<InjectExecutionCallback> savedQueueService;
+
+    @BeforeEach
+    void setUpSyncPath() {
+      // Force the synchronous callback path so the assertions run after the processing
+      savedQueueService = injectApi.getInjectTraceQueueService();
+      injectApi.setInjectTraceQueueService(null);
+    }
+
+    @AfterEach
+    void restoreSyncPath() {
+      // injectApi is a shared singleton: restore it so later tests keep the async path
+      injectApi.setInjectTraceQueueService(savedQueueService);
+    }
+
     @Test
     @WithMockUser(isAdmin = true)
     @DisplayName(
@@ -235,8 +250,6 @@ class InjectApiTest extends IntegrationTest {
       input.setStatus("SUCCESS");
       input.setMessage("completed");
       input.setDuration(0);
-
-      injectApi.setInjectTraceQueueService(null);
 
       entityManager.flush();
       entityManager.clear();

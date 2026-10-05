@@ -72,9 +72,7 @@ public class InjectExecutionService {
         processInjectExecutionWithAgent(inject, agent, input);
       }
     } catch (ElementNotFoundException e) {
-      if (inject != null) {
-        injectStatusService.failInjectStatus(inject, e.getMessage());
-      }
+      handleInjectExecutionError(inject, e);
     }
   }
 
@@ -158,5 +156,27 @@ public class InjectExecutionService {
     return injectRepository
         .findById(injectId)
         .orElseThrow(() -> new ElementNotFoundException("Inject not found: " + injectId));
+  }
+
+  public void handleInjectExecutionError(Inject inject, Exception e) {
+    log.error(e.getMessage(), e);
+    if (inject != null) {
+      inject
+          .getStatus()
+          .ifPresent(
+              status -> {
+                ExecutionTrace trace =
+                    new ExecutionTrace(
+                        status,
+                        ExecutionTraceStatus.ERROR,
+                        null,
+                        e.getMessage(),
+                        ExecutionTraceAction.COMPLETE,
+                        null,
+                        Instant.now());
+                status.addTrace(trace);
+              });
+      injectRepository.save(inject);
+    }
   }
 }

@@ -376,8 +376,8 @@ public class InjectStatusService {
     return saved;
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public InjectStatus persistErrorStatusOutOfTransaction(
+  @Transactional(propagation = Propagation.MANDATORY)
+  public InjectStatus persistErrorStatusInTransaction(
       @NotNull String injectId, @Nullable String message) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
     return failInjectStatus(inject, message);

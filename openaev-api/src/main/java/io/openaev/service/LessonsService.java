@@ -49,7 +49,6 @@ public class LessonsService {
             .toList();
     if (!lessonsAnswers.isEmpty()) {
       lessonsAnswerRepository.deleteAllLessonsAnswersQuestionsCategoriesByExerciseId(simulationId);
-      lessonsAnswerRepository.deleteAll(lessonsAnswers);
     }
   }
 

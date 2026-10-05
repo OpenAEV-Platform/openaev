@@ -92,11 +92,7 @@ class InjectCallbackContractTest {
     // Can't use @InjectMocks: batchingService needs the spy, not a plain mock
     batchingService =
         new BatchingInjectStatusService(
-            injectRepository,
-            agentRepository,
-            injectExecutionService,
-            injectStatusService,
-            tenantTx);
+            injectRepository, agentRepository, injectExecutionService, tenantTx);
     batchingService.setInjectTraceQueueService(injectTraceQueueService);
 
     // The batch path now scopes each callback under its inject's tenant. Resolve every inject to a
@@ -218,11 +214,11 @@ class InjectCallbackContractTest {
     InjectExecutionInput input = createInput(InjectExecutionAction.command_execution);
     CallbackInvoker invoker = invokerFor(path);
 
-    // Both paths should handle the missing inject without uncaught exceptions.
+    // Both paths should handle the missing inject without uncaught exceptions
     assertDoesNotThrow(() -> invoker.invoke("missing-inject", null, input));
 
-    // A missing inject cannot be finalized because there is no entity to update.
-    verify(injectStatusService, never()).failInjectStatus(any(Inject.class), anyString());
+    // Both paths should call handleInjectExecutionError
+    verify(injectExecutionService).handleInjectExecutionError(isNull(), any(Exception.class));
   }
 
   // ========================================================================
@@ -245,9 +241,8 @@ class InjectCallbackContractTest {
     // Both paths should handle the missing agent without uncaught exceptions
     assertDoesNotThrow(() -> invoker.invoke("inject-1", "missing-agent", input));
 
-    // Both paths should finalize the inject as an ERROR with the missing-agent error.
-    verify(injectStatusService)
-        .failInjectStatus(eq(inject), contains("Agent not found: missing-agent"));
+    // Both paths should call handleInjectExecutionError
+    verify(injectExecutionService).handleInjectExecutionError(eq(inject), any(Exception.class));
   }
 
   // ========================================================================
