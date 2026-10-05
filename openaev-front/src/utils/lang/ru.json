@@ -4455,7 +4455,7 @@
   "Warning": "Предупреждение",
   "was previously": "({previous_number} ранее)",
   "We detected that your change will trigger an {assetrule}. Would you like to apply the defined asset groups on your current existing injects?": "Мы обнаружили, что ваше изменение вызовет {assetrule}. Хотите ли вы применить определенные группы активов к существующим инъекциям?",
-  "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href='${lessons_uri}'>${lessons_uri}</a>.": "Мы благодарим вас за участие в этом моделировании. Просим вас заполнить этот вопросник об извлеченных уроках: <a href='${lessons_uri}'>${lessons_uri}</a>.",
+  "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href=\"${lessons_uri}\">${lessons_uri}</a>.": "Мы благодарим вас за участие в этом моделировании. Просим вас заполнить этот вопросник об извлеченных уроках: '<a href=\"${lessons_uri}\">${lessons_uri}</a>'.",
   "Weak posture": "Слабая защищённость",
   "Weakness Enumeration": "Перечисление слабых сторон",
   "Web App": "Веб-приложение",
