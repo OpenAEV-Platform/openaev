@@ -54,14 +54,25 @@ class IocValidationCommandContentTest {
   private static final String FILE_NAME = "#{" + IOC_VALIDATION_FILE_NAME_KEY + "}";
 
   @Test
-  @DisplayName("the log injection test fails when neither the log nor its fallback file is written")
-  void given_logInjection_should_keepTheFallbackWriteStatus() {
+  @DisplayName(
+      "the log injection test fails when the system log is unavailable, with no fallback file")
+  void given_logInjection_should_failWithoutSystemLog() {
     String posix =
         PayloadService.iocValidationCommandContent(IocValidationTestKind.LOG_INJECTION, false);
     String windows =
         PayloadService.iocValidationCommandContent(IocValidationTestKind.LOG_INJECTION, true);
-    assertThat(posix).endsWith("/openaev-ioc-validation.log\"").doesNotContain("; true");
-    assertThat(windows).contains("-Value $message -ErrorAction Stop }");
+    assertThat(posix)
+        .contains("logger -t openaev-ioc-validation -- \"$OAEV_IOC_MESSAGE\" || {")
+        .contains(PayloadService.IOC_VALIDATION_NO_SYSTEM_LOG)
+        .endsWith("exit 1; }")
+        .doesNotContain("; true")
+        .doesNotContain(">>")
+        .doesNotContain("TMPDIR")
+        .doesNotContain("/tmp");
+    assertThat(windows)
+        .endsWith("catch { throw '" + PayloadService.IOC_VALIDATION_NO_SYSTEM_LOG + "' }")
+        .doesNotContain("Add-Content")
+        .doesNotContain("GetTempPath");
   }
 
   @ParameterizedTest

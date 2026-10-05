@@ -298,11 +298,13 @@ public class IocValidationService {
       }
       scenario.setInjects(injects);
       scenarioService.throwIfScenarioNotLaunchable(scenario);
-      Exercise simulation =
-          scenarioToExerciseService.toExercise(
+      ScenarioToExerciseService.ScenarioSimulation launched =
+          scenarioToExerciseService.toSimulation(
               scenario,
               Instant.now().truncatedTo(ChronoUnit.MINUTES).plus(1, ChronoUnit.MINUTES),
               true);
+      Exercise simulation = launched.simulation();
+      trackSimulationInjects(validation, launched.simulationInjectIdsByScenarioInjectId());
 
       Instant now = Instant.now();
       validation.setScenarioId(scenario.getId());
@@ -792,6 +794,34 @@ public class IocValidationService {
     // The IOCs are a JSON column: a new list makes the inject ids visible to dirty checking.
     validation.setIocs(new ArrayList<>(validation.getIocs()));
     return injects;
+  }
+
+  /**
+   * Points every IOC at the simulation injects copied from its scenario injects: the simulation
+   * injects get new ids, and the expectations the outcomes are read from belong to them only.
+   */
+  static void trackSimulationInjects(
+      IocValidation validation, Map<String, String> simulationInjectIdsByScenarioInjectId) {
+    for (IocValidationIoc ioc : validation.getIocs()) {
+      if (ioc.getInjectIds() == null) {
+        continue;
+      }
+      ioc.setInjectIds(
+          ioc.getInjectIds().stream()
+              .map(
+                  scenarioInjectId -> {
+                    String simulationInjectId =
+                        simulationInjectIdsByScenarioInjectId.get(scenarioInjectId);
+                    if (simulationInjectId == null) {
+                      throw new IllegalStateException(
+                          "The validation simulation has no copy of the scenario inject %s"
+                              .formatted(scenarioInjectId));
+                    }
+                    return simulationInjectId;
+                  })
+              .collect(Collectors.toCollection(ArrayList::new)));
+    }
+    validation.setIocs(new ArrayList<>(validation.getIocs()));
   }
 
   /**

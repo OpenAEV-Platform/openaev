@@ -476,9 +476,19 @@ class IocValidationApiTest extends IntegrationTest {
 
       assertThat((String) JsonPath.read(response, "$.ioc_validation_status")).isEqualTo("RUNNING");
       assertThat((String) JsonPath.read(response, "$.ioc_validation_scenario_id")).isNotBlank();
-      assertThat((String) JsonPath.read(response, "$.ioc_validation_simulation_id")).isNotBlank();
-      assertThat((List<String>) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_inject_ids"))
-          .isNotEmpty();
+      String simulationId = JsonPath.read(response, "$.ioc_validation_simulation_id");
+      assertThat(simulationId).isNotBlank();
+      List<String> injectIds = JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_inject_ids");
+      assertThat(injectIds).isNotEmpty();
+      // The expectations of the run belong to the simulation injects, not the scenario ones
+      for (String injectId : injectIds) {
+        assertThat(
+                jdbc.queryForObject(
+                    "SELECT inject_exercise FROM injects WHERE inject_id = ?",
+                    String.class,
+                    injectId))
+            .isEqualTo(simulationId);
+      }
     }
 
     @Test

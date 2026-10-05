@@ -102,6 +102,9 @@ public class PayloadService {
       "OpenAEV IOC validation: neither nc nor bash is available to attempt the connection";
   static final String IOC_VALIDATION_NO_HTTP_TOOL =
       "OpenAEV IOC validation: curl is not available to send the request";
+  static final String IOC_VALIDATION_NO_SYSTEM_LOG =
+      "OpenAEV IOC validation: the marker could not be written to the system log; nothing was"
+          + " written elsewhere";
   // The surrogate holds this text and its run: the proof, at cleanup, that the drop created it.
   static final String IOC_VALIDATION_SURROGATE_TEXT = "OpenAEV IOC validation benign surrogate";
   static final String IOC_VALIDATION_FAILED_FILE_DROP =
@@ -1183,8 +1186,9 @@ public class PayloadService {
                 + "; try { if (-not [System.Diagnostics.EventLog]::SourceExists('OpenAEV')) {"
                 + " [System.Diagnostics.EventLog]::CreateEventSource('OpenAEV', 'Application') };"
                 + " [System.Diagnostics.EventLog]::WriteEntry('OpenAEV', $message, 'Information',"
-                + " 4242) } catch { Add-Content -Path (Join-Path ([System.IO.Path]::GetTempPath())"
-                + " 'openaev-ioc-validation.log') -Value $message -ErrorAction Stop }";
+                + " 4242) } catch { throw '"
+                + IOC_VALIDATION_NO_SYSTEM_LOG
+                + "' }";
         case FILE_DROP ->
             windowsRunDirectory()
                 + "; "
@@ -1249,12 +1253,14 @@ public class PayloadService {
               + "; true; else echo '"
               + IOC_VALIDATION_NO_HTTP_TOOL
               + "' >&2; exit 1; fi";
+      // No fallback file: a file at a fixed path of a shared temporary directory can be
+      // pre-created as a link by another local user, and the agent would then write through it
       case LOG_INJECTION ->
           "OAEV_IOC_MESSAGE=\"OpenAEV IOC validation marker: \""
               + value
-              + "; logger -t openaev-ioc-validation -- \"$OAEV_IOC_MESSAGE\" 2>/dev/null"
-              + " || printf '%s\\n' \"$OAEV_IOC_MESSAGE\""
-              + " >> \"${TMPDIR:-/tmp}/openaev-ioc-validation.log\"";
+              + "; logger -t openaev-ioc-validation -- \"$OAEV_IOC_MESSAGE\" || { echo '"
+              + IOC_VALIDATION_NO_SYSTEM_LOG
+              + "' >&2; exit 1; }";
       // set -C alone still opens an existing FIFO or device: the run directory must be the
       // runner's own and closed to everyone else, so that no entry can appear at the surrogate path
       // between the check that none exists and its creation
@@ -1278,10 +1284,9 @@ public class PayloadService {
 
   /**
    * The cleanup of a kind, {@code null} when no cleanup is defined: only the file drop defines one.
-   * The log injection leaves its marker line in the system log or, when that log is unavailable, in
-   * the {@code openaev-ioc-validation.log} file of the temporary directory: the line is the
-   * evidence the security platform is expected to collect, and the file is shared by every run, so
-   * no cleanup removes it. The file-drop cleanup removes the surrogate, then the run directory only
+   * The log injection leaves its marker line in the system log, and fails when that log is
+   * unavailable: the line is the evidence the security platform is expected to collect, so no
+   * cleanup removes it. The file-drop cleanup removes the surrogate, then the run directory only
    * when it is empty: it never deletes anything it did not create. The surrogate carries its run,
    * so a file at its path is removed only when it holds exactly the surrogate of this run: a file
    * that was there before a failed creation, or put in its place since, is left alone.

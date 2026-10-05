@@ -50,8 +50,25 @@ public class ScenarioToExerciseService {
   private final TenantScopedTransaction tenantTx;
   @Resource protected ObjectMapper mapper;
 
+  /**
+   * A simulation created from a scenario, with the id of the simulation inject copied from each
+   * scenario inject (keyed by the scenario inject id).
+   */
+  public record ScenarioSimulation(
+      Exercise simulation, Map<String, String> simulationInjectIdsByScenarioInjectId) {}
+
   @Transactional(rollbackFor = Exception.class)
   public Exercise toExercise(
+      @NotBlank final Scenario scenario, @Nullable final Instant start, final boolean isRunning) {
+    return toSimulation(scenario, start, isRunning).simulation();
+  }
+
+  /**
+   * Same as {@link #toExercise}, also returning which simulation inject each scenario inject
+   * became: the simulation injects get new ids, and only they carry the expectations of the run.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public ScenarioSimulation toSimulation(
       @NotBlank final Scenario scenario, @Nullable final Instant start, final boolean isRunning) {
     Exercise exercise = new Exercise();
     exercise.setScenario(scenario);
@@ -332,7 +349,11 @@ public class ScenarioToExerciseService {
     this.variableService.copyVariableFromScenarioForSimulation(
         scenario.getId(), exerciseSaved.getId());
 
-    return exerciseSaved;
+    Map<String, String> simulationInjectIds = new HashMap<>();
+    mapExerciseInjectsByScenarioInject.forEach(
+        (scenarioInjectId, exerciseInject) ->
+            simulationInjectIds.put(scenarioInjectId, exerciseInject.getId()));
+    return new ScenarioSimulation(exerciseSaved, simulationInjectIds);
   }
 
   private List<Document> addExerciseToDocuments(
