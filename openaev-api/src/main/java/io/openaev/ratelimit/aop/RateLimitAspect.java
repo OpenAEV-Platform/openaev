@@ -28,7 +28,7 @@ public class RateLimitAspect {
   private final RateLimitService rateLimitService;
   private final RateLimitConfig rateLimitConfig;
 
-  @Before("this(io.openaev.rest.helper.RestBehavior)")
+  @Before("@within(org.springframework.web.bind.annotation.RestController)")
   public void applyDefaultRateLimit(JoinPoint joinPoint) {
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();
 
