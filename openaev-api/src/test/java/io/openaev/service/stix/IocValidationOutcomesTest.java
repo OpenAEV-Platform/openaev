@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.DetectionInjectExpectation;
+import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
+import io.openaev.database.model.InjectStatus;
 import io.openaev.database.model.IocValidationOutcome;
 import io.openaev.database.model.IocValidationPair;
 import io.openaev.database.model.IocValidationStatus;
@@ -40,6 +43,20 @@ class IocValidationOutcomesTest {
         .score(score)
         .result("r")
         .build();
+  }
+
+  private static Inject injectWithStatus(ExecutionStatus status) {
+    Inject inject = new Inject();
+    inject.setId(status.name().toLowerCase());
+    InjectStatus injectStatus = new InjectStatus();
+    injectStatus.setName(status);
+    inject.setStatus(injectStatus);
+    return inject;
+  }
+
+  private static <T extends BaseInjectExpectation> T withInject(T expectation, Inject inject) {
+    expectation.setInject(inject);
+    return expectation;
   }
 
   private static IocValidationPair pair(IocValidationOutcome outcome) {
@@ -133,6 +150,39 @@ class IocValidationOutcomesTest {
           .map(IocValidationOutcomes.Evaluation::outcome)
           .contains(IocValidationOutcome.MISSED);
       assertThat(evaluation.get().reason()).contains("reported nothing");
+    }
+
+    @Test
+    @DisplayName("expectations expiring after a failed inject are an error, never a miss")
+    void given_failedInjectWithExpiredExpectations_should_beError() {
+      Inject failed = injectWithStatus(ExecutionStatus.ERROR);
+      List<BaseInjectExpectation> expectations =
+          List.of(
+              withInject(
+                  expectation(new DetectionInjectExpectation(), 0.0, result(PLATFORM_ID, 0.0)),
+                  failed),
+              withInject(
+                  expectation(new PreventionInjectExpectation(), 0.0, result(PLATFORM_ID, 0.0)),
+                  failed));
+      Optional<IocValidationOutcomes.Evaluation> evaluation =
+          IocValidationOutcomes.evaluate(expectations, PLATFORM_ID, false);
+      assertThat(evaluation)
+          .map(IocValidationOutcomes.Evaluation::outcome)
+          .contains(IocValidationOutcome.ERROR);
+      assertThat(evaluation.get().reason()).contains("did not run");
+    }
+
+    @Test
+    @DisplayName("expectations expiring after an inject executed on part of its targets are a miss")
+    void given_partiallyExecutedInjectWithExpiredExpectations_should_beMissed() {
+      Inject partial = injectWithStatus(ExecutionStatus.PARTIAL);
+      List<BaseInjectExpectation> expectations =
+          List.of(
+              withInject(expectation(new DetectionInjectExpectation(), 0.0), partial),
+              withInject(expectation(new PreventionInjectExpectation(), 0.0), partial));
+      assertThat(IocValidationOutcomes.evaluate(expectations, PLATFORM_ID, true))
+          .map(IocValidationOutcomes.Evaluation::outcome)
+          .contains(IocValidationOutcome.MISSED);
     }
 
     @Test

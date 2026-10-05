@@ -112,6 +112,17 @@ public class PayloadService {
           + " -band [System.IO.FileAttributes]::ReparsePoint) }"
           + " catch [System.IO.FileNotFoundException], [System.IO.DirectoryNotFoundException]"
           + " { $false } catch { $true } }";
+  // CreateFileW opens a file without following a link (FILE_FLAG_OPEN_REPARSE_POINT), with the
+  // read and delete rights and a read-only share; SetFileInformationByHandle with the file
+  // disposition class (4) deletes that file when its handle closes.
+  static final String WINDOWS_FILE_HANDLE_TYPE =
+      "Add-Type -Namespace OaevIoc -Name Native -MemberDefinition"
+          + " '[DllImport(\"kernel32.dll\", CharSet = CharSet.Unicode, SetLastError = true)]"
+          + " public static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string"
+          + " name, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr"
+          + " template); [DllImport(\"kernel32.dll\", SetLastError = true)] public static extern"
+          + " bool SetFileInformationByHandle(Microsoft.Win32.SafeHandles.SafeFileHandle handle,"
+          + " int infoClass, ref byte info, uint size);'";
   // Enters the run directory and checks its physical path: a run directory replaced by a symbolic
   // link is never followed, and the file operations then use paths relative to that directory.
   private static final String POSIX_ENTER_RUN_DIRECTORY =
@@ -1125,22 +1136,28 @@ public class PayloadService {
       return null;
     }
     if (windows) {
-      // File.Delete never removes a directory (Remove-Item would remove an empty one); a run
-      // directory or a surrogate path that is a link is left alone. The surrogate stays open from
-      // the link checks to its deletion: a directory holding an open file cannot be renamed, so the
-      // run directory cannot be swapped for a link between the content check and the deletion.
-      // The file is compared byte for byte with the bytes the drop wrote: a text reader would skip
-      // a byte-order mark and take a replacement starting with one for the surrogate
+      // Directory.Delete never removes a non-empty directory; a run directory or a surrogate path
+      // that is a link is left alone. The surrogate is opened once, without following a link and
+      // sharing reads only: while it is open no one can rename, replace or write it, and a
+      // directory holding an open file cannot be renamed. It is deleted through that same handle
+      // (file disposition), so the file removed is the file whose bytes were checked. The file is
+      // compared byte for byte with the bytes the drop wrote: a text reader would skip a
+      // byte-order mark and take a replacement starting with one for the surrogate
       return windowsRunDirectory()
           + "; "
           + WINDOWS_LINK_TEST
           + "; $oaevIocPath = Join-Path $oaevIocDir $oaevIocFile;"
           + " if ((Test-Path -LiteralPath $oaevIocDir -PathType Container)"
           + " -and -not (Test-OaevLink $oaevIocDir)) {"
-          + " if (-not (Test-OaevLink $oaevIocPath)) { $oaevIocStream = $null; try {"
-          + " $oaevIocStream = [System.IO.File]::Open($oaevIocPath, [System.IO.FileMode]::Open,"
-          + " [System.IO.FileAccess]::Read,"
-          + " ([System.IO.FileShare]::Read -bor [System.IO.FileShare]::Delete));"
+          + " if (-not (Test-OaevLink $oaevIocPath)) { $oaevIocHandle = $null; $oaevIocStream = $null;"
+          + " try { "
+          + WINDOWS_FILE_HANDLE_TYPE
+          + "; $oaevIocHandle = [OaevIoc.Native]::CreateFileW($oaevIocPath,"
+          + " [uint32]2147549184, [uint32]1, [IntPtr]::Zero, [uint32]3, [uint32]2097152,"
+          + " [IntPtr]::Zero);"
+          + " if (-not $oaevIocHandle.IsInvalid) {"
+          + " $oaevIocStream = New-Object System.IO.FileStream($oaevIocHandle,"
+          + " [System.IO.FileAccess]::Read);"
           + " $oaevIocBytes = [System.Text.Encoding]::UTF8.GetBytes('"
           + IOC_VALIDATION_SURROGATE_TEXT
           + " ' + $oaevIocRun + [Environment]::NewLine);"
@@ -1152,8 +1169,10 @@ public class PayloadService {
           + " if ($oaevIocChunk -le 0) { break }; $oaevIocCount += $oaevIocChunk };"
           + " if ($oaevIocCount -eq $oaevIocBytes.Length -and [System.Convert]::ToBase64String("
           + "$oaevIocRead) -ceq [System.Convert]::ToBase64String($oaevIocBytes)) {"
-          + " [System.IO.File]::Delete($oaevIocPath) } }"
-          + " } catch { } finally { if ($oaevIocStream) { $oaevIocStream.Dispose() } } };"
+          + " [byte]$oaevIocDelete = 1; [void][OaevIoc.Native]::SetFileInformationByHandle("
+          + "$oaevIocHandle, 4, [ref]$oaevIocDelete, 1) } } }"
+          + " } catch { } finally { if ($oaevIocStream) { $oaevIocStream.Dispose() }"
+          + " elseif ($oaevIocHandle) { $oaevIocHandle.Dispose() } } };"
           + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { } }";
     }
     // Only a regular file of the run directory entered is removed (rm never follows a link), then

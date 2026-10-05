@@ -2,7 +2,9 @@ package io.openaev.service.stix;
 
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.InjectExpectationResult;
+import io.openaev.database.model.InjectStatus;
 import io.openaev.database.model.IocValidationOutcome;
 import io.openaev.database.model.IocValidationPair;
 import io.openaev.database.model.IocValidationStatus;
@@ -10,6 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Turns the expectations of the injects built for one indicator into the outcome of one (indicator,
@@ -25,6 +28,9 @@ import java.util.Optional;
  * of a multi-platform request and never decides a pair before the simulation ends.
  */
 public final class IocValidationOutcomes {
+
+  private static final Set<ExecutionStatus> RAN_STATUSES =
+      Set.of(ExecutionStatus.EXECUTED, ExecutionStatus.PARTIAL);
 
   private IocValidationOutcomes() {}
 
@@ -82,6 +88,13 @@ public final class IocValidationOutcomes {
               IocValidationOutcome.ERROR,
               "The simulation ended before the security platform results were evaluated"));
     }
+    if (testDidNotRun(relevant, finalizing)) {
+      return Optional.of(
+          new Evaluation(
+              IocValidationOutcome.ERROR,
+              "The test did not run successfully on the endpoint: the expectations expired"
+                  + " without proving the security platform missed it"));
+    }
     boolean reported =
         relevant.stream()
             .anyMatch(expectation -> !platformResults(expectation, securityPlatformId).isEmpty());
@@ -109,6 +122,26 @@ public final class IocValidationOutcomes {
       return IocValidationStatus.FAILED;
     }
     return evaluated == pairs.size() ? IocValidationStatus.COMPLETED : IocValidationStatus.PARTIAL;
+  }
+
+  // An expiration scores every unanswered expectation, including those of an inject whose execution
+  // failed: a miss needs one inject of the pair executed, fully or on part of its targets.
+  private static boolean testDidNotRun(
+      List<BaseInjectExpectation> expectations, boolean finalizing) {
+    List<ExecutionStatus> statuses =
+        expectations.stream()
+            .map(BaseInjectExpectation::getInject)
+            .filter(Objects::nonNull)
+            .distinct()
+            .map(inject -> inject.getStatus().map(InjectStatus::getName).orElse(null))
+            .toList();
+    if (statuses.isEmpty()) {
+      return false;
+    }
+    if (statuses.stream().anyMatch(RAN_STATUSES::contains)) {
+      return false;
+    }
+    return finalizing || statuses.stream().allMatch(status -> status == ExecutionStatus.ERROR);
   }
 
   private static boolean succeeded(

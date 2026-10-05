@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -414,31 +415,33 @@ class IocValidationCommandContentTest {
   void given_fileDropCleanupOnWindows_should_removeOnlyWhatTheRunCreated() {
     String cleanup =
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
-    // A surrogate path that is a directory is never removed: File.Delete refuses directories; a
-    // run directory or a surrogate path that is a link is left alone
+    // The surrogate is deleted through its handle, never by path; a run directory or a surrogate
+    // path that is a link is left alone, and only an empty run directory is removed
+    String deleteByHandle = "SetFileInformationByHandle($oaevIocHandle, 4";
     assertThat(cleanup)
         .contains("-and -not (Test-OaevLink $oaevIocDir)")
         .contains("if (-not (Test-OaevLink $oaevIocPath))")
-        .contains("[System.IO.File]::Delete($oaevIocPath)")
+        .contains(deleteByHandle)
         .contains("[System.IO.Directory]::Delete($oaevIocDir)")
+        .doesNotContain("[System.IO.File]::Delete")
         .doesNotContain("Remove-Item")
         .doesNotContain("-Recurse");
-    assertThat(cleanup.indexOf("throw")).isLessThan(cleanup.indexOf("[System.IO.File]::Delete"));
+    assertThat(cleanup.indexOf("throw")).isLessThan(cleanup.indexOf(deleteByHandle));
     assertThat(cleanup.indexOf("Test-OaevLink $oaevIocDir"))
-        .isLessThan(cleanup.indexOf("[System.IO.File]::Delete"));
+        .isLessThan(cleanup.indexOf(deleteByHandle));
   }
 
   @Test
   @DisplayName(
-      "the Windows cleanup keeps the surrogate open from its checks to its deletion, pinning the"
-          + " run directory")
+      "the Windows cleanup checks and deletes the surrogate through one handle no one can rename"
+          + " it through")
   void given_fileDropCleanupOnWindows_should_checkAndDeleteTheOpenSurrogate() {
     String cleanup =
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
-    int open = cleanup.indexOf("[System.IO.File]::Open($oaevIocPath");
+    int open = cleanup.indexOf("[OaevIoc.Native]::CreateFileW($oaevIocPath");
     int recheck = cleanup.indexOf("(Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)");
     int read = cleanup.indexOf("$oaevIocStream.Read($oaevIocRead");
-    int delete = cleanup.indexOf("[System.IO.File]::Delete($oaevIocPath)");
+    int delete = cleanup.indexOf("SetFileInformationByHandle($oaevIocHandle, 4");
     int close = cleanup.indexOf("$oaevIocStream.Dispose()");
 
     assertThat(open).isPositive();
@@ -446,9 +449,14 @@ class IocValidationCommandContentTest {
     assertThat(read).isGreaterThan(recheck);
     assertThat(delete).isGreaterThan(read);
     assertThat(close).isGreaterThan(delete);
+    // GENERIC_READ | DELETE rights, FILE_SHARE_READ only (no rename, write nor delete by others),
+    // OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT
     assertThat(cleanup)
-        .contains("[System.IO.FileShare]::Read -bor [System.IO.FileShare]::Delete")
+        .contains(
+            "CreateFileW($oaevIocPath, [uint32]2147549184, [uint32]1, [IntPtr]::Zero, [uint32]3,"
+                + " [uint32]2097152,")
         .contains("$oaevIocStream.Length -eq $oaevIocBytes.Length")
+        .doesNotContain("FileShare]::Delete")
         .doesNotContain("ReadAllText")
         .doesNotContain("StreamReader");
   }
@@ -853,8 +861,34 @@ class IocValidationCommandContentTest {
       assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
       assertThat(runDirectory.resolve("invoice.pdf")).exists();
 
+      requireWindows();
       assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
       assertThat(runDirectory).doesNotExist();
+    }
+
+    @Test
+    @DisplayName(
+        "keeps at cleanup a surrogate another process holds open, so it can neither change nor"
+            + " rename it once checked")
+    void given_surrogateHeldOpenForWriting_should_keepItAtCleanup() throws Exception {
+      requireWindows();
+      Path surrogate = tmp.resolve("openaev-ioc-validation-" + VALID_RUN).resolve("invoice.pdf");
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
+      byte[] dropped = Files.readAllBytes(surrogate);
+
+      try (var writer = Files.newOutputStream(surrogate, StandardOpenOption.APPEND)) {
+        assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+        assertThat(surrogate).hasBinaryContent(dropped);
+      }
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+      assertThat(surrogate).doesNotExist();
+    }
+
+    // The cleanup deletes the surrogate through a Windows file handle: elsewhere it removes nothing
+    private static void requireWindows() {
+      assumeTrue(
+          System.getProperty("os.name", "").startsWith("Windows"),
+          "deletes through a Windows file handle");
     }
 
     @Test

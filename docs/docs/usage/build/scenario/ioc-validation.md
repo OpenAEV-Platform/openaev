@@ -114,7 +114,7 @@ When the simulation ends, every indicator and security platform pair gets an out
 | Prevented | The security platform blocked the benign test.                 |
 | Detected  | The security platform raised an alert for the benign test.     |
 | Missed    | The security platform did neither.                             |
-| Error     | The test could not run, so the pair could not be evaluated.    |
+| Error     | The test could not run, so the pair could not be evaluated. An inject whose execution failed is an error even once its expectations expire: a miss needs the test executed, at least on part of its targets. |
 
 The request ends in status *Completed* when every pair was evaluated, *Partial* when some pairs ended in error,
 and *Failed* when no pair could be evaluated. A running validation is closed after seven days even if the
