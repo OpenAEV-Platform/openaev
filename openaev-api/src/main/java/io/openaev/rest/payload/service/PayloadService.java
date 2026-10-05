@@ -18,6 +18,7 @@ import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -122,6 +123,11 @@ public class PayloadService {
       "^(CON|PRN|AUX|NUL|CONIN\\$|CONOUT\\$"
           + "|COM[0-9\\u00b9\\u00b2\\u00b3]|LPT[0-9\\u00b9\\u00b2\\u00b3]) *(\\.|$)";
   static final String IOC_VALIDATION_INVALID_RUN = "invalid-run";
+  // A separator: refused as a file name by both endpoint checks, and kept by the binder
+  static final String IOC_VALIDATION_INVALID_FILE_NAME = "invalid/file-name";
+  // The characters CommandArgumentBinder removes from a bound value (tab is kept).
+  private static final Pattern CHARACTERS_STRIPPED_BY_BINDER =
+      Pattern.compile("[\\u0000-\\u0008\\u000A-\\u001F\\u007F\\u0085\\u2028\\u2029]");
   public static final String IOC_VALIDATION_OUTDATED_FILE_DROP =
       "OpenAEV IOC validation: this file drop payload predates the per-inject run directory and is"
           + " refused; approve a new validation to bring it to the current template";
@@ -890,9 +896,11 @@ public class PayloadService {
    * empty, so the mandatory run argument is refused before dispatch; a non-empty malformed seed is
    * replaced with {@link #IOC_VALIDATION_INVALID_RUN}, which no binder sanitization (control
    * characters stripped) can turn into a valid run, so the endpoint refuses it before any file
-   * operation. The payload default is never used: the execution guard refuses a singleton whose
-   * arguments were edited. Every other payload, including a user payload with an argument of the
-   * same name, runs with the content unchanged.
+   * operation; a file name holding a character the binder strips is likewise replaced with {@link
+   * #IOC_VALIDATION_INVALID_FILE_NAME}, which the endpoint refuses, instead of being written once
+   * the binder removed that character. The payload default is never used: the execution guard
+   * refuses a singleton whose arguments were edited. Every other payload, including a user payload
+   * with an argument of the same name, runs with the content unchanged.
    */
   public static ObjectNode iocValidationExecutionContent(
       ObjectNode content, Payload payload, String injectId) {
@@ -913,6 +921,13 @@ public class PayloadService {
       run = IOC_VALIDATION_INVALID_RUN;
     }
     bound.put(IOC_VALIDATION_RUN_KEY, run);
+    // The binder strips these characters, which would turn a refused file name into an accepted one
+    JsonNode fileName = bound.get(IOC_VALIDATION_FILE_NAME_KEY);
+    if (fileName != null
+        && fileName.isTextual()
+        && CHARACTERS_STRIPPED_BY_BINDER.matcher(fileName.asText()).find()) {
+      bound.put(IOC_VALIDATION_FILE_NAME_KEY, IOC_VALIDATION_INVALID_FILE_NAME);
+    }
     return bound;
   }
 

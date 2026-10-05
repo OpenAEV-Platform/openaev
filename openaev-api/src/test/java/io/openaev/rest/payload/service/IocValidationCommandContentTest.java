@@ -149,6 +149,31 @@ class IocValidationCommandContentTest {
     assertThat(content.get(IOC_VALIDATION_RUN_KEY).asText()).isEqualTo(seed);
   }
 
+  @ParameterizedTest
+  @ValueSource(
+      strings = {"invo\nice.pdf", "invoice\r.pdf", "\u0000invoice.pdf", "invoice.pdf\u2028"})
+  @DisplayName(
+      "a file name the binder would strip a character from is replaced with one the endpoint refuses")
+  void given_fileNameWithStrippedCharacter_should_stayInvalidOnceBound(String fileName) {
+    Command payload = fileDropPayload(PayloadService.IOC_VALIDATION_WINDOWS_EXECUTOR, "tenant-a");
+    ObjectNode content = JsonNodeFactory.instance.objectNode();
+    content.put(IOC_VALIDATION_RUN_KEY, "0123456789abcdef0123456789abcdef");
+    content.put(IOC_VALIDATION_FILE_NAME_KEY, fileName);
+
+    ObjectNode bound = PayloadService.iocValidationExecutionContent(content, payload, "inject-a");
+
+    assertThat(bound.get(IOC_VALIDATION_FILE_NAME_KEY).asText())
+        .isEqualTo(PayloadService.IOC_VALIDATION_INVALID_FILE_NAME);
+    assertThat(content.get(IOC_VALIDATION_FILE_NAME_KEY).asText()).isEqualTo(fileName);
+    // A plain name and one holding a tab, which the binder keeps, are left for the endpoint check
+    content.put(IOC_VALIDATION_FILE_NAME_KEY, "invoice.pdf");
+    assertThat(
+            PayloadService.iocValidationExecutionContent(content, payload, "inject-a")
+                .get(IOC_VALIDATION_FILE_NAME_KEY)
+                .asText())
+        .isEqualTo("invoice.pdf");
+  }
+
   @Test
   @DisplayName("only a file drop payload running the current template may be executed")
   void given_fileDropPayload_should_recogniseTheCurrentTemplate() {
@@ -565,7 +590,15 @@ class IocValidationCommandContentTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"../outside.txt", "..", ".", "nested/invoice.pdf", ""})
+    @ValueSource(
+        strings = {
+          "../outside.txt",
+          "..",
+          ".",
+          "nested/invoice.pdf",
+          "",
+          PayloadService.IOC_VALIDATION_INVALID_FILE_NAME
+        })
     @DisplayName("refuses a file name that is not a plain name and writes nothing")
     void given_invalidFileName_should_failWithoutWriting(String invalidFileName) throws Exception {
       assertThat(execute(drop(), VALID_RUN, invalidFileName)).isNotZero();
@@ -822,6 +855,24 @@ class IocValidationCommandContentTest {
 
       assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
       assertThat(runDirectory).doesNotExist();
+    }
+
+    @Test
+    @DisplayName(
+        "refuses a file name holding a line break, as the server binds it, writing nothing")
+    void given_fileNameWithLineBreak_should_failWithoutWriting() throws Exception {
+      ObjectNode content = JsonNodeFactory.instance.objectNode();
+      content.put(IOC_VALIDATION_RUN_KEY, VALID_RUN);
+      content.put(IOC_VALIDATION_FILE_NAME_KEY, "invo\nice.pdf");
+      Command payload = fileDropPayload(PayloadService.IOC_VALIDATION_WINDOWS_EXECUTOR, "tenant-a");
+      String fileName =
+          PayloadService.iocValidationExecutionContent(content, payload, "inject-a")
+              .get(IOC_VALIDATION_FILE_NAME_KEY)
+              .asText();
+
+      assertThat(execute(drop(), VALID_RUN, fileName)).isNotZero();
+
+      assertThat(tmp.resolve("openaev-ioc-validation-" + VALID_RUN)).doesNotExist();
     }
 
     @Test
