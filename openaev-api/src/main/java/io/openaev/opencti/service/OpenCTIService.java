@@ -251,7 +251,8 @@ public class OpenCTIService {
    * @param timeout bound of the connect, the TLS handshake and every read of the call
    * @return the hunt validation OpenCTI started (possibly zero hunts)
    * @throws ConnectorError OpenCTI answered with GraphQL errors (Enterprise Edition required,
-   *     unknown technique, mutation missing on an older OpenCTI) or without a hunt validation
+   *     unknown technique, mutation missing on an older OpenCTI), without a hunt validation or with
+   *     one that does not match the contract
    * @throws ConnectorUnavailableError the connector is not registered yet, or OpenCTI rate limited
    *     the call
    * @throws IOException OpenCTI could not be reached or answered a server error
@@ -290,8 +291,14 @@ public class OpenCTIService {
                       .filter(Objects::nonNull)
                       .collect(Collectors.joining("; "))));
     }
-    ValidateHuntFromEmulation.ResponsePayload payload =
-        mapper.convertValue(r.getData(), ValidateHuntFromEmulation.ResponsePayload.class);
+    ValidateHuntFromEmulation.ResponsePayload payload;
+    try {
+      payload = mapper.convertValue(r.getData(), ValidateHuntFromEmulation.ResponsePayload.class);
+    } catch (IllegalArgumentException e) {
+      throw new ConnectorError(
+          "OpenCTI at %s returned a malformed hunt validation: %s"
+              .formatted(connector.getApiUrl(), e.getMessage()));
+    }
     if (payload == null || payload.getHuntValidation() == null) {
       throw new ConnectorError(
           "OpenCTI at %s returned no hunt validation".formatted(connector.getApiUrl()));

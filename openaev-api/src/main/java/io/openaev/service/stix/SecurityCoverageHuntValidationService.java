@@ -289,7 +289,10 @@ public class SecurityCoverageHuntValidationService {
    * <p>Must run with no transaction open, so that no pooled connection waits on OpenCTI. Stops at
    * the first call that cannot reach OpenCTI (or whose connector is not registered): that request
    * and the rest of the batch are reported unreachable without being sent, so they are postponed
-   * without costing an attempt instead of hammering a host that is down.
+   * without costing an attempt instead of hammering a host that is down. A call that fails on an
+   * unexpected error of OpenAEV is no answer of OpenCTI either: it is logged with its stack trace
+   * and postponed without costing an attempt, and the batch goes on, so the outcomes of the calls
+   * already made are still recorded.
    *
    * <p>No call is started once {@link #TENANT_SEND_BUDGET} is spent: the requests left are reported
    * deferred, so their claim is released and they are due again at the next run. Right before its
@@ -364,8 +367,17 @@ public class SecurityCoverageHuntValidationService {
             .subList(index, requests.size())
             .forEach(pending -> outcomes.add(HuntValidationOutcome.unreachable(pending, error)));
         break;
-      } catch (ConnectorError | RuntimeException e) {
+      } catch (ConnectorError e) {
         outcomes.add(HuntValidationOutcome.refused(request, describe(e)));
+      } catch (RuntimeException e) {
+        log.error(
+            "Unexpected error while sending the OpenCTI hunt validation of technique {} of inject {}"
+                + " on security platform {}",
+            request.techniqueId(),
+            request.injectId(),
+            request.securityPlatformName(),
+            e);
+        outcomes.add(HuntValidationOutcome.internalError(request, describe(e)));
       }
     }
     resultsMetricCollector.recordCoverageHuntValidationsSent(
@@ -382,6 +394,8 @@ public class SecurityCoverageHuntValidationService {
    *       reaches the maximum number of attempts, then given up;
    *   <li>one that could not reach OpenCTI is postponed without spending an attempt: an outage says
    *       nothing about the validation, and must not exhaust the attempts of every row it lasts;
+   *   <li>one whose call failed on an unexpected error of OpenAEV is postponed the same way, for
+   *       the same reason;
    *   <li>one that was not tried is released: due again at the next run, no attempt spent;
    *   <li>one that turned stale before its call is given up, OpenCTI was not contacted.
    * </ul>
@@ -437,7 +451,7 @@ public class SecurityCoverageHuntValidationService {
             validation.setNextAttemptAt(now.plus(retryDelay(validation.getAttempts())));
           }
         }
-        case UNREACHABLE -> {
+        case UNREACHABLE, INTERNAL_ERROR -> {
           validation.setLastError(StringUtils.abbreviate(outcome.error(), MAX_ERROR_LENGTH));
           if (isExpired(validation, now)) {
             validation.setStatus(Status.FAILED);
@@ -651,6 +665,11 @@ public class SecurityCoverageHuntValidationService {
       /** OpenCTI could not be reached or answered a server error: postponed, no attempt spent. */
       UNREACHABLE,
       /**
+       * An unexpected error on the OpenAEV side, not an answer of OpenCTI: logged with its stack
+       * trace, postponed like an unreachable OpenCTI, no attempt spent.
+       */
+      INTERNAL_ERROR,
+      /**
        * Not tried, the send budget of the run was spent or the call could outlive its claim:
        * released, no attempt spent.
        */
@@ -691,6 +710,11 @@ public class SecurityCoverageHuntValidationService {
     static HuntValidationOutcome unreachable(HuntValidationRequest request, String error) {
       return new HuntValidationOutcome(
           request.id(), Kind.UNREACHABLE, null, null, error, request.leaseUntil());
+    }
+
+    static HuntValidationOutcome internalError(HuntValidationRequest request, String error) {
+      return new HuntValidationOutcome(
+          request.id(), Kind.INTERNAL_ERROR, null, null, error, request.leaseUntil());
     }
 
     static HuntValidationOutcome deferred(HuntValidationRequest request) {

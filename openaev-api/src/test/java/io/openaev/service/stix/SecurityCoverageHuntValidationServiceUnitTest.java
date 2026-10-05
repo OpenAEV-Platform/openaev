@@ -652,7 +652,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       // Arrange
       when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
           .thenThrow(new ConnectorError("Enterprise edition is not enabled"))
-          .thenThrow(new IllegalArgumentException("unexpected payload"))
+          .thenThrow(new ConnectorError("OpenCTI returned a malformed hunt validation"))
           .thenReturn(huntValidation(0, 0));
 
       // Act
@@ -668,6 +668,37 @@ class SecurityCoverageHuntValidationServiceUnitTest {
               HuntValidationOutcome.Kind.VALIDATED);
       assertThat(outcomes.getFirst().error()).isEqualTo("Enterprise edition is not enabled");
       verify(resultsMetricCollector).recordCoverageHuntValidationsSent(1L);
+    }
+
+    @Test
+    @DisplayName(
+        "given an unexpected error should report it as internal, not a refusal, and keep sending")
+    void given_unexpectedError_should_reportInternalErrorAndKeepSending() throws Exception {
+      // Arrange
+      when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
+          .thenReturn(huntValidation(1, 1))
+          .thenThrow(new NullPointerException("request field missing"))
+          .thenReturn(huntValidation(0, 0));
+
+      // Act
+      List<HuntValidationOutcome> outcomes =
+          service.send(TENANT_ID, List.of(request("1"), request("2"), request("3")));
+
+      // Assert
+      assertThat(outcomes)
+          .containsExactly(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.VALIDATED, 1, 1, null, SENT),
+              new HuntValidationOutcome(
+                  "2",
+                  HuntValidationOutcome.Kind.INTERNAL_ERROR,
+                  null,
+                  null,
+                  "request field missing",
+                  SENT),
+              new HuntValidationOutcome(
+                  "3", HuntValidationOutcome.Kind.VALIDATED, 0, 0, null, SENT));
+      verify(resultsMetricCollector).recordCoverageHuntValidationsSent(2L);
     }
 
     @Test
@@ -1205,6 +1236,34 @@ class SecurityCoverageHuntValidationServiceUnitTest {
           .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS - 1);
       assertThat(validation.getNextAttemptAt()).isEqualTo(NOW.plus(RETRY_BASE_DELAY));
       assertThat(validation.getLastError()).isEqualTo("Connection refused");
+    }
+
+    @Test
+    @DisplayName("given an internal error on the last attempt should postpone, never give up")
+    void given_internalErrorOnLastAttempt_should_postponeWithoutSpendingAttempt() {
+      // Arrange
+      SecurityCoverageHuntValidation validation =
+          pendingValidation("1", SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS - 1);
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1",
+                  HuntValidationOutcome.Kind.INTERNAL_ERROR,
+                  null,
+                  null,
+                  "request field missing",
+                  SENT)),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.PENDING);
+      assertThat(validation.getAttempts())
+          .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS - 1);
+      assertThat(validation.getNextAttemptAt()).isEqualTo(NOW.plus(RETRY_BASE_DELAY));
+      assertThat(validation.getLastError()).isEqualTo("request field missing");
     }
 
     @Test

@@ -102,7 +102,8 @@ public class SecurityCoverageHuntValidationJob implements Job {
     long expired = failures.stream().filter(outcome -> outcome.kind() == Kind.EXPIRED).count();
     log.warn(
         "OpenCTI hunt validations for tenant {}: {} sent, {} refused, {} given up as stale, {}"
-            + " postponed (OpenCTI unreachable or not tried this run); last error: {}",
+            + " postponed (OpenCTI unreachable, an internal error or not tried this run); last"
+            + " error: {}",
         tenantId,
         validated,
         refused,

@@ -488,6 +488,27 @@ public class OpenCTIServiceTest extends IntegrationTest {
       }
 
       @Test
+      @DisplayName("given a hunt validation off the contract should throw a connector error")
+      void given_malformedValidation_should_throwConnectorError() throws Exception {
+        // Arrange
+        Response okResponse = ResponseFixture.getOkResponse();
+        okResponse.setData(
+            (ObjectNode)
+                mapper.readTree("{\"huntValidateFromEmulation\": {\"hunts_count\": \"many\"}}"));
+        when(mockOpenCTIClient.execute(
+                any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class)))
+            .thenReturn(okResponse);
+
+        // Act + Assert
+        assertThatThrownBy(
+                () ->
+                    openCTIService.validateHuntFromEmulation(
+                        registeredConnector(), input(), TIMEOUT))
+            .isInstanceOf(ConnectorError.class)
+            .hasMessageContaining("returned a malformed hunt validation");
+      }
+
+      @Test
       @DisplayName("given a connector not registered yet should not call OpenCTI")
       void given_connectorNotRegistered_should_notCallOpenCti() throws Exception {
         // Arrange
