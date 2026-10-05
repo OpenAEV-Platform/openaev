@@ -52,6 +52,7 @@ const InjectContractCard: FunctionComponent<Props> = ({
   }, [contract.injector_contract_domains, allDomains]);
 
   const primaryDomain = domains[0];
+  const secondaryDomainsLabel = domains.slice(1).map(d => t(d.domain_name)).join(', ');
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
   const name = tPick(contract.injector_contract_labels);
 
@@ -223,7 +224,7 @@ const InjectContractCard: FunctionComponent<Props> = ({
               <TooltipTrigger asChild>
                 <Chip label={`+${domains.length - 1}`} />
               </TooltipTrigger>
-              {domains.slice(1).map(d => t(d.domain_name)).join(', ') && <TooltipContent>{domains.slice(1).map(d => d.domain_name).join(', ')}</TooltipContent>}
+              {secondaryDomainsLabel && <TooltipContent>{secondaryDomainsLabel}</TooltipContent>}
             </Tooltip>
           )}
         </Box>

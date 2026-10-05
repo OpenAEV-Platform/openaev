@@ -61,6 +61,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   }, [action.action_domains_ids, allDomains]);
 
   const primaryDomain = domains[0];
+  const secondaryDomainsLabel = domains.slice(1).map(d => t(d.domain_name)).join(', ');
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
   const status = action.action_payload?.payload_status;
   const statusColor = getStatusColor(theme, status);
@@ -292,7 +293,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
               <TooltipTrigger asChild>
                 <Chip label={`+${domains.length - 1}`} />
               </TooltipTrigger>
-              {domains.slice(1).map(d => t(d.domain_name)).join(', ') && <TooltipContent>{domains.slice(1).map(d => d.domain_name).join(', ')}</TooltipContent>}
+              {secondaryDomainsLabel && <TooltipContent>{secondaryDomainsLabel}</TooltipContent>}
             </Tooltip>
           )}
         </Box>
