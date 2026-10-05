@@ -214,8 +214,9 @@ public class IocValidationService {
    * the request arrived drops a test, a setting widened since never adds one), builds the
    * validation scenario and launches its simulation.
    *
-   * @throws BadRequestException when the request is no longer awaiting approval, or when nothing
-   *     can run (no allowed test, no asset group, no endpoint with an active agent)
+   * @throws BadRequestException when the request is no longer awaiting approval, when a test shown
+   *     to the operator would now run with other arguments, or when nothing can run (no allowed
+   *     test, no asset group, no endpoint with an active agent)
    */
   @Transactional(rollbackFor = Exception.class)
   public IocValidation approve(TxCtx ctx, @NotBlank final String id, @NotNull final User decider) {
@@ -230,9 +231,19 @@ public class IocValidationService {
     List<IocValidationTestKind> shownKinds =
         iocs.stream().map(IocValidationIoc::getTestKind).toList();
     List<String> shownMessages = iocs.stream().map(IocValidationIoc::getMessage).toList();
+    List<String> shownFingerprints =
+        iocs.stream().map(IocValidationIoc::getPlanFingerprint).toList();
     IocValidationPlanner.apply(iocs, settings);
     for (int index = 0; index < iocs.size(); index++) {
       IocValidationIoc ioc = iocs.get(index);
+      String shownFingerprint = shownFingerprints.get(index);
+      if (shownFingerprint != null
+          && ioc.getPlanFingerprint() != null
+          && !shownFingerprint.equals(ioc.getPlanFingerprint())) {
+        throw new BadRequestException(
+            "The test planned for '%s' changed with the IOC validation settings since the request was shown. Reject the request and ask for a new validation from OpenCTI."
+                .formatted(ioc.getValue()));
+      }
       if (shownKinds.get(index) == null) {
         ioc.setMessage(
             ioc.getTestKind() == null

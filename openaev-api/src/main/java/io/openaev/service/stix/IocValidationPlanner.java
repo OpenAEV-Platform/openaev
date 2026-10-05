@@ -14,12 +14,17 @@ import io.openaev.database.model.IocValidationTestKind;
 import java.net.IDN;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 /**
@@ -98,6 +103,25 @@ public final class IocValidationPlanner {
       Plan plan = plan(ioc, settings);
       ioc.setTestKind(plan.testKind());
       ioc.setMessage(plan.message());
+      ioc.setPlanFingerprint(plan.runnable() ? fingerprint(plan) : null);
+    }
+  }
+
+  /**
+   * SHA-256 of the test kind and its arguments sorted by key: equal exactly when the same test
+   * would run.
+   */
+  static String fingerprint(Plan plan) {
+    StringBuilder canonical = new StringBuilder(plan.testKind().name()).append('\n');
+    new TreeMap<>(plan.arguments())
+        .forEach((key, value) -> canonical.append(key).append('=').append(value).append('\n'));
+    try {
+      return HexFormat.of()
+          .formatHex(
+              MessageDigest.getInstance("SHA-256")
+                  .digest(canonical.toString().getBytes(StandardCharsets.UTF_8)));
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 is not available", e);
     }
   }
 

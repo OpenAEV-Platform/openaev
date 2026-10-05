@@ -1132,7 +1132,7 @@ public class PayloadService {
                 + " [System.Diagnostics.EventLog]::CreateEventSource('OpenAEV', 'Application') };"
                 + " [System.Diagnostics.EventLog]::WriteEntry('OpenAEV', $message, 'Information',"
                 + " 4242) } catch { Add-Content -Path (Join-Path ([System.IO.Path]::GetTempPath())"
-                + " 'openaev-ioc-validation.log') -Value $message }";
+                + " 'openaev-ioc-validation.log') -Value $message -ErrorAction Stop }";
         case FILE_DROP ->
             windowsRunDirectory()
                 + "; "
@@ -1202,7 +1202,7 @@ public class PayloadService {
               + value
               + "; logger -t openaev-ioc-validation -- \"$OAEV_IOC_MESSAGE\" 2>/dev/null"
               + " || printf '%s\\n' \"$OAEV_IOC_MESSAGE\""
-              + " >> \"${TMPDIR:-/tmp}/openaev-ioc-validation.log\"; true";
+              + " >> \"${TMPDIR:-/tmp}/openaev-ioc-validation.log\"";
       // set -C alone still opens an existing FIFO or device: the run directory must be the
       // runner's own and closed to everyone else, so that no entry can appear at the surrogate path
       // between the check that none exists and its creation

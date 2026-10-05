@@ -54,6 +54,17 @@ class IocValidationCommandContentTest {
   private static final String FILE_NAME = "#{" + IOC_VALIDATION_FILE_NAME_KEY + "}";
 
   @Test
+  @DisplayName("the log injection test fails when neither the log nor its fallback file is written")
+  void given_logInjection_should_keepTheFallbackWriteStatus() {
+    String posix =
+        PayloadService.iocValidationCommandContent(IocValidationTestKind.LOG_INJECTION, false);
+    String windows =
+        PayloadService.iocValidationCommandContent(IocValidationTestKind.LOG_INJECTION, true);
+    assertThat(posix).endsWith("/openaev-ioc-validation.log\"").doesNotContain("; true");
+    assertThat(windows).contains("-Value $message -ErrorAction Stop }");
+  }
+
+  @Test
   @DisplayName("an edited IOC validation DNS payload is no longer the template, and is restored")
   void given_editedDnsPayload_should_beRestoredToTheTemplate() {
     DnsResolution payload = new DnsResolution();

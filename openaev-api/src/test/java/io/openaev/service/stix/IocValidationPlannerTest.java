@@ -228,6 +228,25 @@ class IocValidationPlannerTest {
     assertThat(runnable.getMessage()).isNull();
     assertThat(skipped.getTestKind()).isNull();
     assertThat(skipped.getMessage()).isNotBlank();
+    assertThat(runnable.getPlanFingerprint()).hasSize(64);
+    assertThat(skipped.getPlanFingerprint()).isNull();
+  }
+
+  @Test
+  @DisplayName("the plan fingerprint changes exactly when the test that would run changes")
+  void given_settingsChange_should_changeFingerprintOnlyWithThePlan() {
+    IocValidationIoc ioc = ioc("IPv4-Addr", "203.0.113.7", IocValidationTestKind.NETWORK_TRAFFIC);
+
+    IocValidationPlanner.apply(List.of(ioc), allowAll("", "192.0.2.53"));
+    String sinkholed = ioc.getPlanFingerprint();
+    IocValidationPlanner.apply(
+        List.of(ioc), allowAll("http://proxy.example.com:3128", "192.0.2.53"));
+    String sinkholedWithProxy = ioc.getPlanFingerprint();
+    IocValidationPlanner.apply(List.of(ioc), allowAll("", ""));
+    String direct = ioc.getPlanFingerprint();
+
+    assertThat(sinkholedWithProxy).isEqualTo(sinkholed);
+    assertThat(direct).isNotNull().isNotEqualTo(sinkholed);
   }
 
   @Test

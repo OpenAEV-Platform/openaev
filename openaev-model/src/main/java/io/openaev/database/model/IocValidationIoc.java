@@ -50,4 +50,12 @@ public class IocValidationIoc {
   /** Why the IOC was skipped, or how it was adapted (sinkhole, DNS fallback). */
   @JsonProperty("ioc_message")
   private String message;
+
+  /**
+   * Digest of the arguments of the planned test (target, port, proxy...), {@code null} when the IOC
+   * is skipped: an approval refuses to run a test whose arguments changed since it was shown. A
+   * digest and not the arguments, which may hold the proxy credentials.
+   */
+  @JsonProperty("ioc_plan_fingerprint")
+  private String planFingerprint;
 }

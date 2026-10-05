@@ -433,6 +433,34 @@ class IocValidationApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("an approval refuses a test whose target changed since the request was shown")
+    void given_sinkholeRemovedAfterIntake_should_refuseApproval() throws Exception {
+      injectorFixture.getWellKnownOaevImplantInjector();
+      AssetGroup assetGroup = validationTargets();
+      List<IocValidationTestKind> kinds = List.of(IocValidationTestKind.NETWORK_TRAFFIC);
+      mvc.perform(
+              putSettings(
+                  mapper.writeValueAsString(
+                      new IocValidationSettingsInput(
+                          kinds, "", "192.0.2.53", 443, assetGroup.getId()))))
+          .andExpect(status().isOk());
+      String id =
+          receive(
+              ctiEvent(
+                  UUID.randomUUID().toString(), "IPv4-Addr", "203.0.113.7", "network_traffic"));
+      // Shown as a connection to the sinkhole, would now connect to the IOC itself
+      allow(kinds, assetGroup);
+
+      mvc.perform(decide(id, "approve")).andExpect(status().isBadRequest());
+
+      String response = validation(id);
+      assertThat((String) JsonPath.read(response, "$.ioc_validation_status"))
+          .isEqualTo("AWAITING_APPROVAL");
+      assertThat((List<String>) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_inject_ids"))
+          .isNullOrEmpty();
+    }
+
+    @Test
     @DisplayName("an approval builds and launches the validation simulation")
     void given_assetGroup_should_launchSimulation() throws Exception {
       allowTestKindOnValidationTargets(IocValidationTestKind.DNS_RESOLUTION);
