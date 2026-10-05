@@ -113,8 +113,20 @@ public final class ExpectationResultBuilder {
    *
    * <p>* ERROR if no success and all expected sources reported but none matched
    */
-  public static Double computeResultsScore(@NotNull final List<InjectExpectationResult> results) {
-    if (hasNoResults(results) || hasAnyEmptyResult(results)) {
+  public static Double computeResultsScore(
+      @NotNull final List<InjectExpectationResult> results,
+      @NotNull final BaseInjectExpectation expectation) {
+    if (hasNoResults(results)) {
+      return null;
+    }
+    final Double expectedScore = expectation.getExpectedScore();
+    // TODO: improve the expectation type check in the inject refactor
+    if (expectedScore != null
+        && isSettledByAnySource(expectation)
+        && hasAnyScoreReaching(results, expectedScore)) {
+      return maxScore(results);
+    }
+    if (hasAnyEmptyResult(results)) {
       return null;
     }
 
