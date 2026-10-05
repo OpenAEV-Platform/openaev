@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Command;
+import io.openaev.database.model.DnsResolution;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.Payload;
@@ -51,6 +52,30 @@ class IocValidationCommandContentTest {
 
   private static final String RUN = "#{" + IOC_VALIDATION_RUN_KEY + "}";
   private static final String FILE_NAME = "#{" + IOC_VALIDATION_FILE_NAME_KEY + "}";
+
+  @Test
+  @DisplayName("an edited IOC validation DNS payload is no longer the template, and is restored")
+  void given_editedDnsPayload_should_beRestoredToTheTemplate() {
+    DnsResolution payload = new DnsResolution();
+    PayloadService.applyIocValidationDnsTemplate(payload);
+    assertThat(PayloadService.isIocValidationDnsTemplate(payload)).isTrue();
+
+    payload.setHostname("example.org");
+    assertThat(PayloadService.isIocValidationDnsTemplate(payload)).isFalse();
+    PayloadService.applyIocValidationDnsTemplate(payload);
+
+    payload.setArguments(new ArrayList<>());
+    assertThat(PayloadService.isIocValidationDnsTemplate(payload)).isFalse();
+    PayloadService.applyIocValidationDnsTemplate(payload);
+
+    payload.setExpectations(new EXPECTATION_TYPE[] {DETECTION});
+    assertThat(PayloadService.isIocValidationDnsTemplate(payload)).isFalse();
+    PayloadService.applyIocValidationDnsTemplate(payload);
+
+    assertThat(PayloadService.isIocValidationDnsTemplate(payload)).isTrue();
+    assertThat(payload.getHostname())
+        .isEqualTo(PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE);
+  }
 
   @Test
   @DisplayName("the HTTP HEAD test always goes through the egress proxy, whatever NO_PROXY says")

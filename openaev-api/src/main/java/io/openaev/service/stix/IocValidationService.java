@@ -799,7 +799,7 @@ public class IocValidationService {
 
   private List<Payload> payloadsFor(TxCtx ctx, IocValidationTestKind kind, List<String> executors) {
     if (kind == IocValidationTestKind.DNS_RESOLUTION) {
-      return List.of(payloadService.getDynamicDnsResolutionPayload(ctx));
+      return List.of(payloadService.getIocValidationDnsResolutionPayload(ctx));
     }
     return executors.stream()
         .<Payload>map(

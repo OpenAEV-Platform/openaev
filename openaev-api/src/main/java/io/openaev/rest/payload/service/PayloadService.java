@@ -152,6 +152,8 @@ public class PayloadService {
     BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
   };
   public static final String IOC_VALIDATION_POSIX_EXECUTOR = "sh";
+  // The DNS resolution payload runs through the implant's own resolver, on every executor
+  private static final String IOC_VALIDATION_DNS_EXECUTOR = "dns";
   private static final String IOC_VALIDATION_PAYLOAD_NAMESPACE =
       "6f6d2a7b-6c90-4a3a-8d2b-2f2c9a0d7e10";
 
@@ -749,6 +751,89 @@ public class PayloadService {
   }
 
   /**
+   * Upserts the per-tenant DNS resolution payload of IOC validation. It is apart from the shared
+   * dynamic DNS resolution payload, which stays editable for security coverage, and is brought back
+   * to its template on every use: an edited hostname, argument or expectation would resolve another
+   * host, or measure nothing, while results are reported for the requested IOC.
+   */
+  public DnsResolution getIocValidationDnsResolutionPayload(TxCtx ctx) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
+    String payloadId =
+        iocValidationPayloadId(
+            IocValidationTestKind.DNS_RESOLUTION, IOC_VALIDATION_DNS_EXECUTOR, writeTenant);
+    lockPayloadCreation(payloadId);
+    DnsResolution payload =
+        payloadRepository.findById(payloadId).map(DnsResolution.class::cast).orElse(null);
+    if (payload != null && isIocValidationDnsTemplate(payload)) {
+      synchroniseIocValidationContract(ctx, payload, payload.getTenant().getId());
+      return payload;
+    }
+    if (payload == null) {
+      payload = new DnsResolution();
+      payload.setId(payloadId);
+      payload.setTenant(new Tenant(writeTenant));
+      payload.setName("IOC validation - DNS resolution");
+      payload.setDescription(
+          "Benign OpenCTI IOC validation test ("
+              + IocValidationTestKind.DNS_RESOLUTION.toStix()
+              + ") resolving the IOC domain");
+      payload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+      payload.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+      payload.setType(DnsResolution.DNS_RESOLUTION_TYPE);
+    }
+    applyIocValidationDnsTemplate(payload);
+    DnsResolution saved = payloadRepository.save(payload);
+    synchroniseIocValidationContract(ctx, saved, saved.getTenant().getId());
+    return saved;
+  }
+
+  /**
+   * Whether a DNS resolution payload is exactly the IOC validation template: the hostname taken
+   * from the inject argument, that single argument, no prerequisite, cleanup or elevation, the
+   * prevention and detection expectations open to every security platform, and every platform.
+   */
+  static boolean isIocValidationDnsTemplate(DnsResolution payload) {
+    List<String> arguments =
+        payload.getArguments() == null
+            ? List.of()
+            : payload.getArguments().stream().map(PayloadService::argumentSignature).toList();
+    return DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE.equals(payload.getHostname())
+        && List.of(argumentSignature(iocValidationDnsArgument())).equals(arguments)
+        && (payload.getPrerequisites() == null || payload.getPrerequisites().isEmpty())
+        && payload.getCleanupExecutor() == null
+        && payload.getCleanupCommand() == null
+        && !payload.isElevationRequired()
+        && payload.getExpectations() != null
+        && Arrays.stream(payload.getExpectations())
+            .collect(Collectors.toSet())
+            .equals(Set.of(IOC_VALIDATION_EXPECTATIONS))
+        && (payload.getExpectedSecurityPlatforms() == null
+            || payload.getExpectedSecurityPlatforms().isEmpty())
+        && payload.getPlatforms() != null
+        && Arrays.stream(payload.getPlatforms())
+            .collect(Collectors.toSet())
+            .equals(Set.of(ALL_PLATFORMS))
+        && payload.getExecutionArch() == Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
+  }
+
+  static void applyIocValidationDnsTemplate(DnsResolution payload) {
+    payload.setHostname(DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE);
+    payload.setArguments(new ArrayList<>(List.of(iocValidationDnsArgument())));
+    payload.setPrerequisites(new ArrayList<>());
+    payload.setCleanupExecutor(null);
+    payload.setCleanupCommand(null);
+    payload.setElevationRequired(false);
+    payload.setExpectations(IOC_VALIDATION_EXPECTATIONS.clone());
+    payload.setExpectedSecurityPlatforms(new HashMap<>());
+    payload.setPlatforms(ALL_PLATFORMS.clone());
+    payload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+  }
+
+  private static PayloadArgument iocValidationDnsArgument() {
+    return textArgument(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, "filigran.io");
+  }
+
+  /**
    * A payload created by an earlier version, or edited since, keeps running its old command: it is
    * brought back to the current template (executors, content, cleanup and arguments) the next time
    * a validation uses it. Its injector contract is edited apart from it, so it is reconciled on
@@ -859,7 +944,7 @@ public class PayloadService {
   }
 
   /** Brings the injector contract of an IOC validation payload back to what the payload defines. */
-  private void synchroniseIocValidationContract(TxCtx ctx, Command payload, String tenantId) {
+  private void synchroniseIocValidationContract(TxCtx ctx, Payload payload, String tenantId) {
     synchroniseInjectorContractBasedOnPayload(
         payload,
         List.of(),

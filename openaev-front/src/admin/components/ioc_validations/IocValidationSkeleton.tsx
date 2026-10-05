@@ -1,3 +1,4 @@
+// fds:keep-mui the library ships no loading placeholder (skeleton) component yet
 import { Skeleton } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
