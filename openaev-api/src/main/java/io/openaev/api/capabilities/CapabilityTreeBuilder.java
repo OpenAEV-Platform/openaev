@@ -19,12 +19,17 @@ public final class CapabilityTreeBuilder {
    * permission whose endpoints answer 404.
    */
   private static final Map<Capability, PreviewFeature> FEATURE_GATES =
-      Map.of(
-          Capability.ACCESS_CREDENTIALS, PreviewFeature.CREDENTIAL_ASSET,
-          Capability.MANAGE_CREDENTIALS, PreviewFeature.CREDENTIAL_ASSET,
-          Capability.DELETE_CREDENTIALS, PreviewFeature.CREDENTIAL_ASSET,
-          Capability.RESOLVE_INJECT_SECRET, PreviewFeature.CREDENTIAL_ASSET,
-          Capability.ACCESS_SNAPSHOT_OBSERVATION, PreviewFeature.BULK_SNAPSHOT_EXPORT);
+      Map.ofEntries(
+          Map.entry(Capability.ACCESS_CREDENTIALS, PreviewFeature.CREDENTIAL_ASSET),
+          Map.entry(Capability.MANAGE_CREDENTIALS, PreviewFeature.CREDENTIAL_ASSET),
+          Map.entry(Capability.DELETE_CREDENTIALS, PreviewFeature.CREDENTIAL_ASSET),
+          Map.entry(Capability.RESOLVE_INJECT_SECRET, PreviewFeature.CREDENTIAL_ASSET),
+          Map.entry(Capability.ACCESS_SNAPSHOT_OBSERVATION, PreviewFeature.BULK_SNAPSHOT_EXPORT),
+          Map.entry(Capability.ACCESS_MARKING_DEFINITION, PreviewFeature.MARKING),
+          Map.entry(Capability.MANAGE_MARKING_DEFINITION, PreviewFeature.MARKING),
+          Map.entry(Capability.DELETE_MARKING_DEFINITION, PreviewFeature.MARKING),
+          Map.entry(Capability.ASSIGN_MARKING, PreviewFeature.MARKING),
+          Map.entry(Capability.DELETE_MARKING_ASSIGNMENT, PreviewFeature.MARKING));
 
   private static final Set<PreviewFeature> ALL_GATES =
       Collections.unmodifiableSet(EnumSet.copyOf(FEATURE_GATES.values()));
