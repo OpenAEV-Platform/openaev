@@ -1,3 +1,4 @@
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AutoAwesome,
   CancelOutlined,
@@ -16,17 +17,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -92,16 +83,14 @@ import ExerciseStatus from './ExerciseStatus';
 import SecurityPlatformIndicator from './SecurityPlatformIndicator';
 import SimulationConfiguration from './SimulationConfiguration';
 
-// Exported for testing: the lifecycle CTAs are pure props-driven UI, so they are covered on their
-// own rather than through the whole (store/router-bound) header.
-export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing, isChaining }: {
+// Exported for testing: props-driven UI, covered without the store-bound header.
+export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing }: {
   exerciseId: Exercise['exercise_id'];
   exerciseStatus: Exercise['exercise_status'];
   exerciseName: Exercise['exercise_name'];
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
   isScopeMissing: boolean;
-  isChaining: boolean;
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -114,11 +103,8 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
     onLoading(true);
     try {
       await dispatch(updateExerciseStatus(exerciseId, { exercise_status: status.exercise_status ?? undefined }));
-      // Stop (CANCELED) and Reset (SCHEDULED) both delete injects server-side
-      // (a chained simulation drops its run injects, a reset always clears the
-      // outcome). The merge-only entity store never evicts on refetch, so
-      // reconcile it explicitly or the Execution screens keep showing the
-      // deleted injects as completed until a full page reload.
+      // Stop and Reset delete injects server-side, and the merge-only store never
+      // evicts on refetch — reconcile it or Execution keeps showing them.
       if (status.exercise_status === 'CANCELED' || status.exercise_status === 'SCHEDULED') {
         await dispatch(reconcileExerciseInjects(exerciseId));
       }
@@ -131,41 +117,24 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'SCHEDULED': {
         if (permissions.canLaunch) {
           return (
-            <Tooltip
-              title={isScopeMissing ? t('A chained simulation requires a defined scope.') : ''}
-            >
-              <span style={{ display: 'inline-flex' }}>
-                <Button
-                  startIcon={<PlayArrowOutlined />}
-                  variant="contained"
-                  size="small"
-                  color="primary"
-                  onClick={() => setOpenChangeStatus('RUNNING')}
-                  disabled={isLoading || isScopeMissing}
-                >
-                  {t('Start now')}
-                </Button>
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span style={{ display: 'inline-flex' }}>
+                  <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('RUNNING')} disabled={isLoading || isScopeMissing}>
+                    {t('Start now')}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {(isScopeMissing ? t('A chained simulation requires a defined scope.') : '') && <TooltipContent>{isScopeMissing ? t('A chained simulation requires a defined scope.') : ''}</TooltipContent>}
             </Tooltip>
           );
         }
         return (<div />);
       }
       case 'RUNNING': {
-        // Chaining does not support pausing (the queue-based engine has no pause semantics), so
-        // the CTA simply does not exist for a chained simulation - the backend refuses it too.
-        // Resume ('PAUSED' below) stays available so a simulation already paused in database can
-        // still be resumed. Stop remains offered by dangerousButton().
-        if (permissions.canLaunch && !isChaining) {
+        if (permissions.canLaunch) {
           return (
-            <Button
-              startIcon={<PauseOutlined />}
-              variant="outlined"
-              color="warning"
-              size="small"
-              onClick={() => setOpenChangeStatus('PAUSED')}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<PauseOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('PAUSED')} disabled={isLoading}>
               {t('Pause')}
             </Button>
           );
@@ -175,14 +144,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <Button
-              variant="outlined"
-              startIcon={<PlayArrowOutlined />}
-              color="success"
-              size="small"
-              onClick={() => setOpenChangeStatus('RUNNING')}
-              disabled={isLoading}
-            >
+            <Button type="button" priority="secondary" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('RUNNING')} disabled={isLoading}>
               {t('Resume')}
             </Button>
           );
@@ -200,14 +162,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <Button
-              variant="outlined"
-              startIcon={<CancelOutlined />}
-              color="error"
-              size="small"
-              onClick={() => setOpenChangeStatus('CANCELED')}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<CancelOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('CANCELED')} disabled={isLoading}>
               {t('Stop')}
             </Button>
           );
@@ -218,14 +173,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'CANCELED': {
         if (permissions.canLaunch) {
           return (
-            <Button
-              variant="outlined"
-              startIcon={<RestartAltOutlined />}
-              color="warning"
-              size="small"
-              onClick={() => setOpenChangeStatus('SCHEDULED')}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<RestartAltOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('SCHEDULED')} disabled={isLoading}>
               {t('Reset')}
             </Button>
           );
@@ -269,14 +217,10 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenChangeStatus(null)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenChangeStatus(null)}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}
-          >
+          <Button type="button" onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}>
             {t('Confirm')}
           </Button>
         </DialogActions>
@@ -444,9 +388,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   if (isAutonomous) {
     // Observe-only: no manual edit / duplicate, and deletion (which tears down the run) is a
     // parent-scenario control, so the simulation overflow offers only a read-only Export.
+    // "Give me an editable copy of this AI run" is covered by convert-to-manual on the scenario.
     actions = ['Export'];
-  } else if (isSimulationChaining) {
-    actions = ['Update', 'Export', 'Delete'];
   }
   const canDisplaySimulationActions = permissions.canManage || permissions.canLaunch || permissions.canDelete;
 
@@ -498,40 +441,38 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   either way - control lives on the parent scenario). */}
               {exercise.exercise_autonomous && (
                 <Chip
-                  size="small"
-                  variant="outlined"
-                  icon={<AutoAwesome sx={{ fontSize: 14 }} />}
+                  startIcon={<AutoAwesome sx={{ fontSize: 14 }} />}
                   label={t('Autonomous')}
-                  sx={{
-                    'borderRadius': 1,
-                    'height': 22,
-                    'fontSize': 11,
-                    'color': theme.palette.ai?.main ?? theme.palette.primary.main,
-                    'borderColor': theme.palette.ai?.main ?? theme.palette.primary.main,
-                    '& .MuiChip-icon': { color: 'inherit' },
-                  }}
+                  severity="info"
                 />
               )}
-              <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
-              <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
               {exercise.exercise_category && (
                 <ItemCategory
                   category={exercise.exercise_category}
                   label={t(exercise.exercise_category)}
-                  size="small"
                 />
               )}
+              <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
+              {/* The launch facts read as one pair: when it runs, then in which state.
+                  Same severity so the two share a background. */}
               <Chip
-                size="small"
-                variant="outlined"
                 label={exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-                sx={{
-                  borderRadius: 1,
-                  height: 22,
-                  fontSize: 11,
-                  color: theme.palette.text.secondary,
-                  borderColor: theme.palette.divider,
-                }}
+                severity="info"
+              />
+              <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
+            </>
+          )}
+          // The alert-toned controls sit in the body row, right-aligned, where the
+          // design file draws them (Figma 7929:13294). Each self-hides when healthy.
+          bodyAction={permissions.canManage && !isAutonomous && (
+            <>
+              <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
+              <ExpectationsDriftIndicator
+                drift={expectationsDrift}
+                variant="simulation"
+                onRealign={onRealignExpectations}
+                onDismiss={onDismissExpectations}
+                placement="warning"
               />
             </>
           )}
@@ -544,44 +485,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 workflowId={exerciseWorkflowId}
                 launched={exercise.exercise_status !== 'SCHEDULED'}
               />
-              {/* Contextual configuration alert - self-hides when healthy. Autonomous runs are
-                  scoped and driven by the AI, so the "configure scope" nudge never applies. */}
-              {permissions.canManage && !isAutonomous && (
-                <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
-              )}
-              {/* Expectation drift warning - self-hides when aligned or dismissed. */}
-              {permissions.canManage && !isAutonomous && (
-                <ExpectationsDriftIndicator
-                  drift={expectationsDrift}
-                  variant="simulation"
-                  onRealign={onRealignExpectations}
-                  onDismiss={onDismissExpectations}
-                  placement="warning"
-                />
-              )}
-              {/* Configuration promoted to a first-class button (not buried in the
-                  overflow) so teams/players setup is discoverable, with an
-                  explicit tooltip describing what it configures. */}
-              {canOpenConfiguration && (
-                <Tooltip
-                  title={t('Configure the teams, players and audience involved in this simulation')}
-                >
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    size="small"
-                    startIcon={<TuneOutlined />}
-                    onClick={() => {
-                      setConfigurationInitialTab(SimulationConfigurationTab.TEAMS);
-                      setOpenConfiguration(true);
-                    }}
-                  >
-                    {t('Configuration')}
-                  </Button>
-                </Tooltip>
-              )}
-              {/* Dismissed drift downgraded to a discreet icon after Configuration -
-                  the drift is acknowledged but still reviewable. */}
+              {/* Dismissed drift downgraded to a discreet icon - the drift is
+                  acknowledged but still reviewable. */}
               {permissions.canManage && !isAutonomous && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
@@ -598,80 +503,57 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
               {/* Visible as soon as one inject uses a challenge - opens the
                   player-facing challenges page in a new tab. */}
               {hasChallenges && (
-                <Tooltip title={t('Preview challenges page')}>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    component={Link}
-                    to={`/admin/simulations/${exerciseId}/challenges`}
-                    target="_blank"
-                  >
-                    <EmojiEventsOutlined fontSize="small" />
-                  </IconButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <IconButton
+                      asChild
+                      icon={<EmojiEventsOutlined fontSize="small" />}
+                      aria-label={t('Preview challenges page')}
+                      priority="tertiary"
+                      size="md"
+                    >
+                      <Link to={`/admin/simulations/${exerciseId}/challenges`} target="_blank" />
+                    </IconButton>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Preview challenges page')}</TooltipContent>
                 </Tooltip>
               )}
               {permissions.canManage && !isAutonomous && (
                 <>
-                  <Tooltip title={t('Modify the scheduling')}>
-                    <span style={{ display: 'inline-flex' }}>
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={() => setOpenDateDialog(true)}
-                        disabled={exercise.exercise_status !== 'SCHEDULED'}
-                      >
-                        <UpdateOutlined fontSize="small" />
-                      </IconButton>
-                    </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      {/* One wrapper, not two: a disabled button fires no pointer event, so the
+                          tooltip needs a host — and the spacing rule between quiet controls
+                          matches a span whose DIRECT child is the button. */}
+                      <span style={{ display: 'inline-flex' }}>
+                        <IconButton
+                          icon={<UpdateOutlined fontSize="small" />}
+                          aria-label={t('Scheduling')}
+                          onClick={() => setOpenDateDialog(true)}
+                          disabled={exercise.exercise_status !== 'SCHEDULED'}
+                          priority="tertiary"
+                          size="md"
+                        />
+                      </span>
+                    </TooltipTrigger>
+                    {/* A disabled control that never says why reads as broken. Stop leaves the
+                        simulation CANCELED, which does NOT reopen the date: only Reset returns it
+                        to SCHEDULED, and it clears the results. Say both. */}
+                    <TooltipContent>
+                      {exercise.exercise_status === 'SCHEDULED'
+                        ? t('Modify the scheduling')
+                        : t('The scheduling can only be changed before the simulation starts. Resetting it reopens the date and clears the collected results.')}
+                    </TooltipContent>
                   </Tooltip>
                 </>
               )}
-              {/* Lifecycle CTAs (start / pause / resume / stop / reset) for a manual simulation. An
-                  autonomous run exposes none of them here: the simulation is observe-only and all
-                  control lives on the parent scenario. */}
-              {!isAutonomous && (
-                <Buttons
-                  exerciseId={exercise.exercise_id}
-                  exerciseStatus={exercise.exercise_status}
-                  exerciseName={exercise.exercise_name}
-                  onLoading={onLoading}
-                  isLoading={isLoading}
-                  isScopeMissing={isScopeMissing}
-                  isChaining={isSimulationChaining}
-                />
-              )}
               {/* Unified parent-scenario pivot: whenever a simulation was run from a scenario (manual
-                  or autonomous), the top-right hero action is an outlined button carrying the scenario
-                  name. For autonomous runs the parent scenario is also where the full control surface
+                  or autonomous), the hero offers a quiet link back to it - a redirect, not an
+                  action, so it carries a fixed label rather than the scenario's name, which
+                  truncated and moved the row. For autonomous runs the parent scenario is also
+                  where the full control surface
                   (pause / resume / stop / steer) lives; once stopped, relaunch happens from the
                   scenario's Normal / Autonomous launch buttons - there is no restart. */}
-              {parentScenarioId && (
-                <Tooltip title={parentScenario?.scenario_name ?? t('Parent scenario')}>
-                  <span style={{ display: 'inline-flex' }}>
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      size="small"
-                      startIcon={<RouteOutlined />}
-                      component={canAccessParentScenario ? Link : 'button'}
-                      to={canAccessParentScenario ? `${SCENARIO_BASE_URL}/${parentScenarioId}` : undefined}
-                      disabled={!canAccessParentScenario}
-                      sx={{ maxWidth: 220 }}
-                    >
-                      <Box
-                        component="span"
-                        sx={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {parentScenario?.scenario_name ?? t('Parent scenario')}
-                      </Box>
-                    </Button>
-                  </span>
-                </Tooltip>
-              )}
               {/* Entity-scoped reports - self-hides without the reporting access capability. Kept
                   right next to the overflow menu so the two "meta" actions sit together. */}
               <EntityReportsPanel
@@ -685,6 +567,69 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   exercise={exercise}
                   actions={actions}
                   onDelete={() => navigate('/admin/simulations')}
+                />
+              )}
+              {/* Trial placement: the redirect back to the parent scenario, immediately
+                  after the overflow menu. A fixed label, so the row keeps one geometry; the
+                  scenario's name stays in the tooltip. */}
+              {parentScenarioId && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span style={{ display: 'inline-flex' }}>
+                      {canAccessParentScenario
+                        ? (
+                            <Button priority="tertiary" asChild>
+                              <Link to={`${SCENARIO_BASE_URL}/${parentScenarioId}`}>
+                                <RouteOutlined fontSize="small" aria-hidden />
+                                {t('View in scenario')}
+                              </Link>
+                            </Button>
+                          )
+                        : (
+                            <Button type="button" priority="tertiary" startIcon={<RouteOutlined fontSize="small" />} disabled>
+                              {t('View in scenario')}
+                            </Button>
+                          )}
+                    </span>
+                  </TooltipTrigger>
+                  {/* The destination names itself; the label stays fixed so the action
+                      row keeps one geometry from one simulation to the next. */}
+                  <TooltipContent>{parentScenario?.scenario_name ?? t('Parent scenario')}</TooltipContent>
+                </Tooltip>
+              )}
+              {/* Configuration promoted to a first-class button (not buried in the
+                  overflow) so teams/players setup is discoverable, with an
+                  explicit tooltip describing what it configures. */}
+              {canOpenConfiguration && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      priority="secondary"
+                      startIcon={<TuneOutlined fontSize="small" />}
+                      onClick={() => {
+                        setConfigurationInitialTab(SimulationConfigurationTab.TEAMS);
+                        setOpenConfiguration(true);
+                      }}
+                    >
+                      {t('Configuration')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Configure the teams, players and audience involved in this simulation')}</TooltipContent>
+                </Tooltip>
+              )}
+              {/* Lifecycle CTAs (start / pause / resume / stop / reset) for a manual simulation. An
+                  autonomous run exposes none of them here: the simulation is observe-only and all
+                  control lives on the parent scenario. They close the cluster: the primary action
+                  is always the rightmost control. */}
+              {!isAutonomous && (
+                <Buttons
+                  exerciseId={exercise.exercise_id}
+                  exerciseStatus={exercise.exercise_status}
+                  exerciseName={exercise.exercise_name}
+                  onLoading={onLoading}
+                  isLoading={isLoading}
+                  isScopeMissing={isScopeMissing}
                 />
               )}
             </>

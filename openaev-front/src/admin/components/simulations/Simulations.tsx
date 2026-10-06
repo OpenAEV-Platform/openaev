@@ -1,4 +1,4 @@
-import { Alert, Box, ToggleButtonGroup } from '@mui/material';
+import { Alert, Box } from '@mui/material';
 import { useContext, useState } from 'react';
 
 import { bulkDeleteExercises, searchExercises } from '../../../actions/Exercise';
@@ -64,14 +64,11 @@ const Simulations = () => {
   };
 
   const secondaryAction = (exercise: ExerciseSimple) => {
-    const isChaining = !!(exercise as unknown as Record<string, unknown>).exercise_workflow_id;
     const isAutonomous = !!autonomousRuns.bySimulation(exercise.exercise_id);
 
     let exerciseActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Export', 'Delete'];
     if (isAutonomous) {
       exerciseActions = ['Export'];
-    } else if (isChaining) {
-      exerciseActions = ['Export', 'Delete'];
     }
 
     return (
@@ -149,7 +146,13 @@ const Simulations = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <Box display="flex" gap={1} alignItems="center">
-            <ToggleButtonGroup value="fake" exclusive>
+            {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
+                which announced a group of choices that never existed. */}
+            <Box sx={{
+              display: 'flex',
+              gap: 1,
+            }}
+            >
               <ExportButton
                 totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
                 exportProps={exportProps}
@@ -157,7 +160,7 @@ const Simulations = () => {
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
                 <ImportUploaderExercise refresh={() => setReloadCount(count => count + 1)} />
               </Can>
-            </ToggleButtonGroup>
+            </Box>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <ExerciseCreation />
             </Can>

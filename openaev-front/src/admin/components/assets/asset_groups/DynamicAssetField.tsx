@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { InputLabel, Tooltip } from '@mui/material';
+import { InputLabel } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import FilterField from '../../../../components/common/queryable/filter/FilterField';
@@ -45,12 +46,15 @@ const DynamicAssetField: FunctionComponent<Props> = ({
       }}
       >
         <InputLabel id="dynamic-asset-filter">{t('Rule')}</InputLabel>
-        <Tooltip title={t('Filter allowing assets to be added dynamically to this group')}>
-          <InfoOutlined
-            fontSize="small"
-            color="primary"
-            style={{ marginTop: 8 }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoOutlined
+              fontSize="small"
+              color="primary"
+              style={{ marginTop: 8 }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Filter allowing assets to be added dynamically to this group')}</TooltipContent>
         </Tooltip>
       </div>
       <FilterField

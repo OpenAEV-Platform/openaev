@@ -154,8 +154,17 @@ public class EnterpriseEditionService {
   }
 
   public boolean isLicenseActive(License license) {
+    return isLicenseActiveAt(license, Instant.now());
+  }
+
+  /**
+   * Whether {@code license} grants Enterprise Edition at {@code now}. The expiration instant still
+   * belongs to the license, as for a certificate (RFC 5280), for {@code license_is_expired} and for
+   * XTM One, so that the gate and the license never disagree at that instant.
+   */
+  public static boolean isLicenseActiveAt(License license, Instant now) {
     return license.isLicenseValidated()
-        && (Instant.now().isBefore(license.getExpirationDate()) || license.isExtraExpiration());
+        && (!now.isAfter(license.getExpirationDate()) || license.isExtraExpiration());
   }
 
   public boolean isEnterpriseLicenseInactive(License license) {

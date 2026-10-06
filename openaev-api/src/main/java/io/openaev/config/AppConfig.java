@@ -57,6 +57,9 @@ public class AppConfig {
   public static final String PHONE_FORMAT =
       "This field must start with '+' character and country identifier.";
   public static final String PHONE_REGEXP = "^$|^\\+[\\d\\s\\-.()]+$";
+  public static final String HEX_COLOR_FORMAT = "Color must be a valid hex value, e.g. #4CAF50";
+  public static final String HEX_COLOR_REGEXP = "^#[0-9a-fA-F]{6}$";
+  public static final String OPTIONAL_HEX_COLOR_REGEXP = "^$|^#[0-9a-fA-F]{6}$";
   public static final String MAX_255_MESSAGE = "This field must be 255 characters or less.";
 
   @Resource private OpenAEVConfig openAEVConfig;

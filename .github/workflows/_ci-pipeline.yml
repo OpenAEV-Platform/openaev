@@ -159,6 +159,30 @@ jobs:
         with:
           no-cache: ${{ inputs.no-cache }}
 
+  fds-conformity:
+    name: "🎨 FDS Conformity"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/fds-conformity
+
+  # Pull requests only: the gate reads what a PR adds against its target branch, and a push or a
+  # scheduled run has no target branch. Skipped counts as passed in the Pipeline Gate.
+  fds-mui-regression:
+    name: "🎨 FDS MUI Regression"
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The gate diffs against the merge base with the target branch.
+          fetch-depth: 0
+      - uses: ./.github/actions/fds-mui-regression
+        with:
+          base: origin/${{ github.base_ref }}
+
   # ════════════════════════════════════════════════════════════════════
   # API Tests — matrix passed from caller
   # ════════════════════════════════════════════════════════════════════
@@ -583,6 +607,8 @@ jobs:
       - spotless-check
       - bom-override-guard
       - frontend-quality
+      - fds-conformity
+      - fds-mui-regression
       - api-tests
       - e2e-tests
       - api-types-check

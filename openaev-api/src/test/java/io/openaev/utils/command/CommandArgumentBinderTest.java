@@ -32,6 +32,12 @@ class CommandArgumentBinderTest {
         "> /tmp/pwned",
         "' ; whoami ; '",
         "\" ; whoami ; \"",
+        // PowerShell also closes a single-quoted string on a typographic apostrophe.
+        LEFT_SINGLE_QUOTE + " ; whoami ; " + LEFT_SINGLE_QUOTE,
+        RIGHT_SINGLE_QUOTE + " ; whoami ; " + RIGHT_SINGLE_QUOTE,
+        SINGLE_LOW_9_QUOTE + " ; whoami ; " + SINGLE_LOW_9_QUOTE,
+        SINGLE_HIGH_REVERSED_9_QUOTE + " ; whoami ; " + SINGLE_HIGH_REVERSED_9_QUOTE,
+        TYPOGRAPHIC_DOUBLE_QUOTES + " ; whoami ; " + TYPOGRAPHIC_DOUBLE_QUOTES,
         // A value carrying the cmd statement separator: a test locating the prologue by searching
         // for that separator would land inside the value instead of at the real boundary.
         "a & whoami",
@@ -61,6 +67,30 @@ class CommandArgumentBinderTest {
   private static final String BYTE_ORDER_MARK = Character.toString(0xFEFF);
 
   /**
+   * The typographic apostrophes PowerShell reads as single-quote delimiters, as it does the ASCII
+   * one (PowerShell language specification, section 2.3.5.2).
+   */
+  private static final String LEFT_SINGLE_QUOTE = "\u2018";
+
+  private static final String RIGHT_SINGLE_QUOTE = "\u2019";
+  private static final String SINGLE_LOW_9_QUOTE = "\u201A";
+  private static final String SINGLE_HIGH_REVERSED_9_QUOTE = "\u201B";
+
+  /** Every character PowerShell reads as a single-quote delimiter. */
+  private static final String POWERSHELL_SINGLE_QUOTES =
+      "'"
+          + LEFT_SINGLE_QUOTE
+          + RIGHT_SINGLE_QUOTE
+          + SINGLE_LOW_9_QUOTE
+          + SINGLE_HIGH_REVERSED_9_QUOTE;
+
+  /**
+   * The typographic double quotes PowerShell reads as double-quote delimiters. They mean nothing
+   * inside a single-quoted string, nor to the other engines.
+   */
+  private static final String TYPOGRAPHIC_DOUBLE_QUOTES = "\u201C\u201D\u201E";
+
+  /**
    * Characters a hostile value is built from: every metacharacter, escape, quote, separator and
    * line terminator the three engines give meaning to, plus filler.
    */
@@ -70,6 +100,8 @@ class CommandArgumentBinderTest {
               + LINE_SEPARATOR
               + PARAGRAPH_SEPARATOR
               + BYTE_ORDER_MARK
+              + POWERSHELL_SINGLE_QUOTES
+              + TYPOGRAPHIC_DOUBLE_QUOTES
               + "abcXY01")
           .toCharArray();
 
@@ -205,14 +237,98 @@ class CommandArgumentBinderTest {
     return true;
   }
 
+  /** A single-quoted PowerShell string literal: its content and the index right after it. */
+  private record PowerShellLiteral(String content, int end) {}
+
+  /**
+   * Reads the single-quoted string literal opening at {@code start} as PowerShell's tokenizer does:
+   * any of the {@link #POWERSHELL_SINGLE_QUOTES} opens and closes it, whichever one opened it, and
+   * two of them in a row stand for the second one. Unlike a search for the ASCII apostrophe, this
+   * finds where PowerShell itself ends the string.
+   */
+  private static PowerShellLiteral readPowerShellLiteral(String source, int start) {
+    assertThat(isPowerShellSingleQuote(source.charAt(start)))
+        .as("a single-quoted string must open at index %d of %s", start, readable(source))
+        .isTrue();
+    StringBuilder content = new StringBuilder();
+    int index = start + 1;
+    while (index < source.length()) {
+      char current = source.charAt(index);
+      if (isPowerShellSingleQuote(current)) {
+        boolean doubled =
+            index + 1 < source.length() && isPowerShellSingleQuote(source.charAt(index + 1));
+        if (!doubled) {
+          return new PowerShellLiteral(content.toString(), index + 1);
+        }
+        content.append(source.charAt(index + 1));
+        index += 2;
+        continue;
+      }
+      content.append(current);
+      index++;
+    }
+    throw new AssertionError("unterminated single-quoted string in " + readable(source));
+  }
+
+  private static boolean isPowerShellSingleQuote(char c) {
+    return POWERSHELL_SINGLE_QUOTES.indexOf(c) >= 0;
+  }
+
+  private static long occurrences(String subject, char c) {
+    return subject.chars().filter(current -> current == c).count();
+  }
+
+  /**
+   * Asserts the structural invariant for PowerShell. The declaration is read with {@link
+   * #readPowerShellLiteral}, so a typographic apostrophe closing the string early is caught, and
+   * the literal must end exactly where the declaration line does. Every quote of the value must
+   * also reach the literal as itself: doubling with the ASCII apostrophe would keep the string
+   * closed but change the value.
+   */
   private static boolean assertPowerShellContainment(String value) {
-    return assertSingleQuotedContainment(
-        "psh",
-        "Write-Output #{target}",
-        "Write-Output ${OAEV_ARG_TARGET}",
-        "$OAEV_ARG_TARGET = ",
-        "''",
-        value);
+    CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("psh");
+    if (isRefused(binder, value)) {
+      return false;
+    }
+    String rendered = binder.render("Write-Output #{target}");
+    String expectedTail = "Write-Output ${OAEV_ARG_TARGET}";
+    String context = "value " + readable(value);
+
+    assertThat(rendered).as("%s must not alter the command", context).endsWith(expectedTail);
+    assertThat(rendered.indexOf(expectedTail))
+        .as("%s must not smuggle a second copy of the command", context)
+        .isEqualTo(rendered.length() - expectedTail.length());
+
+    String assignment = "$OAEV_ARG_TARGET = ";
+    String prologue = rendered.substring(0, rendered.length() - expectedTail.length());
+    assertThat(prologue)
+        .as("%s must stay inside its declaration", context)
+        .startsWith(assignment)
+        .endsWith("\n");
+
+    PowerShellLiteral literal = readPowerShellLiteral(prologue, assignment.length());
+    assertThat(literal.end())
+        .as("%s must not close its declaration early", context)
+        .isEqualTo(prologue.length() - "\n".length());
+    for (char quote : POWERSHELL_SINGLE_QUOTES.toCharArray()) {
+      assertThat(occurrences(literal.content(), quote))
+          .as("%s must keep every %s as itself", context, readable(String.valueOf(quote)))
+          .isEqualTo(occurrences(value, quote));
+    }
+    assertNoLineSeparator(literal.content(), context, "its declaration");
+    return true;
+  }
+
+  /** The declared value, as PowerShell reads it back from the first line of the rendering. */
+  private static String powerShellDeclaredValue(String rendered) {
+    String assignment = "$OAEV_ARG_A = ";
+    String declaration = rendered.substring(0, rendered.indexOf('\n'));
+    assertThat(declaration).startsWith(assignment);
+    PowerShellLiteral literal = readPowerShellLiteral(declaration, assignment.length());
+    assertThat(literal.end())
+        .as("the declaration %s must be one single-quoted string", readable(declaration))
+        .isEqualTo(declaration.length());
+    return literal.content();
   }
 
   /**
@@ -283,6 +399,18 @@ class CommandArgumentBinderTest {
     }
 
     @Test
+    @DisplayName("given typographic quotes should keep them as plain data")
+    void given_typographic_quotes_should_keep_them_as_data() {
+      // POSIX shells delimit with the ASCII apostrophe alone: nothing to escape here.
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+      String value = POWERSHELL_SINGLE_QUOTES.substring(1) + TYPOGRAPHIC_DOUBLE_QUOTES;
+
+      binder.bind("a", value);
+
+      assertThat(binder.render("echo #{a}")).startsWith("OAEV_ARG_A='" + value + "'\n");
+    }
+
+    @Test
     @DisplayName("given a quoted placeholder should not double quote it")
     void given_quoted_placeholder_should_not_double_quote() {
       CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
@@ -332,6 +460,108 @@ class CommandArgumentBinderTest {
       binder.bind("a", "it's ok");
 
       assertThat(binder.render("echo #{a}")).startsWith("$OAEV_ARG_A = 'it''s ok'");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = {
+          LEFT_SINGLE_QUOTE,
+          RIGHT_SINGLE_QUOTE,
+          SINGLE_LOW_9_QUOTE,
+          SINGLE_HIGH_REVERSED_9_QUOTE
+        })
+    @DisplayName("given a typographic apostrophe should double it with itself")
+    void given_typographic_apostrophe_should_double_it(String apostrophe) {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("powershell");
+
+      binder.bind("a", "it" + apostrophe + "s ok");
+
+      String rendered = binder.render("echo #{a}");
+      assertThat(rendered).startsWith("$OAEV_ARG_A = 'it" + apostrophe + apostrophe + "s ok'\n");
+      assertThat(powerShellDeclaredValue(rendered)).isEqualTo("it" + apostrophe + "s ok");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = {
+          LEFT_SINGLE_QUOTE,
+          RIGHT_SINGLE_QUOTE,
+          SINGLE_LOW_9_QUOTE,
+          SINGLE_HIGH_REVERSED_9_QUOTE
+        })
+    @DisplayName("given a typographic apostrophe closing the string should keep the rest as data")
+    void given_typographic_apostrophe_breakout_should_stay_data(String apostrophe) {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("pwsh");
+      String value = apostrophe + "; Start-Process calc; " + apostrophe;
+
+      binder.bind("a", value);
+
+      String rendered = binder.render("Write-Output #{a}");
+      assertThat(powerShellDeclaredValue(rendered)).isEqualTo(value);
+      assertThat(rendered).endsWith("\nWrite-Output ${OAEV_ARG_A}");
+    }
+
+    @Test
+    @DisplayName("given ASCII and typographic apostrophes mixed should double each with itself")
+    void given_mixed_apostrophes_should_double_each_with_itself() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("psh");
+      String value =
+          "a'b"
+              + LEFT_SINGLE_QUOTE
+              + "c"
+              + RIGHT_SINGLE_QUOTE
+              + "d"
+              + SINGLE_LOW_9_QUOTE
+              + "e"
+              + SINGLE_HIGH_REVERSED_9_QUOTE
+              + "f''"
+              + RIGHT_SINGLE_QUOTE
+              + LEFT_SINGLE_QUOTE
+              + TYPOGRAPHIC_DOUBLE_QUOTES;
+
+      binder.bind("a", value);
+
+      String rendered = binder.render("echo #{a}");
+      assertThat(rendered)
+          .startsWith(
+              "$OAEV_ARG_A = 'a''b"
+                  + LEFT_SINGLE_QUOTE.repeat(2)
+                  + "c"
+                  + RIGHT_SINGLE_QUOTE.repeat(2)
+                  + "d"
+                  + SINGLE_LOW_9_QUOTE.repeat(2)
+                  + "e"
+                  + SINGLE_HIGH_REVERSED_9_QUOTE.repeat(2)
+                  + "f''''"
+                  + RIGHT_SINGLE_QUOTE.repeat(2)
+                  + LEFT_SINGLE_QUOTE.repeat(2)
+                  + TYPOGRAPHIC_DOUBLE_QUOTES
+                  + "'\n");
+      assertThat(powerShellDeclaredValue(rendered)).isEqualTo(value);
+    }
+
+    @Test
+    @DisplayName("given a value made only of apostrophes should still be one string")
+    void given_only_apostrophes_should_still_be_one_string() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("psh");
+      String value = POWERSHELL_SINGLE_QUOTES + POWERSHELL_SINGLE_QUOTES;
+
+      binder.bind("a", value);
+
+      assertThat(powerShellDeclaredValue(binder.render("echo #{a}"))).isEqualTo(value);
+    }
+
+    @Test
+    @DisplayName("the test tokenizer ends a string on a lone typographic apostrophe")
+    void the_test_tokenizer_ends_a_string_on_a_typographic_apostrophe() {
+      // Guards the oracle itself: an apostrophe left undoubled must read as closing the string.
+      String unescaped =
+          "$OAEV_ARG_A = '" + RIGHT_SINGLE_QUOTE + "; calc; " + RIGHT_SINGLE_QUOTE + "'";
+
+      PowerShellLiteral literal = readPowerShellLiteral(unescaped, "$OAEV_ARG_A = ".length());
+
+      assertThat(literal.content()).isEmpty();
+      assertThat(literal.end()).isLessThan(unescaped.length());
     }
   }
 
@@ -386,6 +616,20 @@ class CommandArgumentBinderTest {
 
       assertThat(binder.render("run #{a}"))
           .isEqualTo("set \"OAEV_ARG_A=C:\\Program Files\\app.exe\" & run \"!OAEV_ARG_A!\"");
+    }
+
+    @Test
+    @DisplayName("given typographic quotes should accept them as plain data")
+    void given_typographic_quotes_should_accept_them_as_data() {
+      // cmd delimits with the ASCII double quote alone: a typographic one is neither refused nor
+      // escaped.
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
+      String value = POWERSHELL_SINGLE_QUOTES + TYPOGRAPHIC_DOUBLE_QUOTES;
+
+      binder.bind("a", value);
+
+      assertThat(binder.render("run #{a}"))
+          .isEqualTo("set \"OAEV_ARG_A=" + value + "\" & run \"!OAEV_ARG_A!\"");
     }
 
     @Test

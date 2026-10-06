@@ -85,6 +85,10 @@ public class ScenarioSimulationApi {
     TENANT_SCENARIO_URI + "/{scenarioId}/simulations/options"
   })
   @Transactional
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> optionsByName(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,

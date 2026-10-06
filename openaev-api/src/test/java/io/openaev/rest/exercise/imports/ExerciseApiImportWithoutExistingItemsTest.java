@@ -244,7 +244,11 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
 
     for (Team expected : teamComposer.generatedItems) {
       Optional<Team> teamFromDb =
-          teamRepository.findAllByNameIgnoreCase(expected.getName()).stream().findFirst();
+          teamRepository
+              .findAllByNameIgnoreCaseAndTenantIdIn(
+                  expected.getName(), List.of(Tenant.DEFAULT_TENANT_UUID))
+              .stream()
+              .findFirst();
       if (teamFromDb.isEmpty()) {
         Assertions.fail("Team " + expected.getName() + " not found");
       }
@@ -377,7 +381,10 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
 
     for (Organization expected : organizationComposer.generatedItems) {
       Optional<Organization> orgFromDb =
-          organizationRepository.findByNameIgnoreCase(expected.getName()).stream().findFirst();
+          organizationRepository
+              .findByNameIgnoreCaseAndTenantId(expected.getName(), Tenant.DEFAULT_TENANT_UUID)
+              .stream()
+              .findFirst();
       if (orgFromDb.isEmpty()) {
         Assertions.fail("Organization " + expected.getName() + " not found");
       }

@@ -287,7 +287,7 @@ public class ConditionServiceTest {
     private WorkflowStateEntries entries(
         List<WorkflowStateEntries.Input> inputs, List<WorkflowStateEntries.Correlated> correlated) {
       return new WorkflowStateEntries(
-          new ArrayList<>(inputs), new ArrayList<>(correlated), new HashSet<>(), new HashSet<>());
+          new ArrayList<>(inputs), new ArrayList<>(correlated), new HashSet<>());
     }
 
     private WorkflowStateEntries entries(
@@ -295,16 +295,12 @@ public class ConditionServiceTest {
         List<WorkflowStateEntries.Correlated> correlated,
         Set<String> hashExecution) {
       return new WorkflowStateEntries(
-          new ArrayList<>(inputs),
-          new ArrayList<>(correlated),
-          new HashSet<>(hashExecution),
-          new HashSet<>());
+          new ArrayList<>(inputs), new ArrayList<>(correlated), new HashSet<>(hashExecution));
     }
 
     private String hashCombo(Map<String, String> combo) {
       WorkflowStateEntries temp =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
       return temp.hashCombo(combo);
     }
 
@@ -1227,11 +1223,11 @@ public class ConditionServiceTest {
           + key
           + "\",\"values\":"
           + valuesJson
-          + "}],\"correlated\":[],\"hashExecution\":[],\"executionKeys\":[]}";
+          + "}],\"correlated\":[],\"hashExecution\":[]}";
     }
 
     private String buildEmptyStateEntriesJson() {
-      return "{\"inputs\":[],\"correlated\":[],\"hashExecution\":[],\"executionKeys\":[]}";
+      return "{\"inputs\":[],\"correlated\":[],\"hashExecution\":[]}";
     }
 
     @Test

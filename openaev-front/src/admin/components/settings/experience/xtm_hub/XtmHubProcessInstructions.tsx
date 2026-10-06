@@ -1,4 +1,5 @@
-import { Box, Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Box } from '@mui/material';
 import type React from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -35,7 +36,7 @@ const XtmHubProcessInstructions: React.FC<ProcessInstructionsProps> = ({
         width: '100%',
       }}
       >
-        <Button onClick={onContinue}>
+        <Button type="button" priority="tertiary" onClick={onContinue}>
           {t('Continue')}
         </Button>
       </div>

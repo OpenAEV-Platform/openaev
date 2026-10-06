@@ -179,6 +179,26 @@ public class PermissionServiceTest extends IntegrationTest {
   }
 
   @Test
+  public void test_hasPermission_snapshotObservation_WHEN_has_capa() {
+    User user = getUser(USER_ID, false);
+    user.setGroups(List.of(getGroup(Capability.ACCESS_SNAPSHOT_OBSERVATION)));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), "", ResourceType.SNAPSHOT_OBSERVATION, Action.SEARCH));
+  }
+
+  // Regression test: SNAPSHOT_OBSERVATION must never be added to RESOURCES_MANAGED_BY_GRANTS or
+  // RESOURCES_USING_PARENT_PERMISSION, both of which unconditionally allow Action.SEARCH — that
+  // would make the capability check below unreachable.
+  @Test
+  public void test_hasPermission_snapshotObservation_WHEN_no_capa() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), "", ResourceType.SNAPSHOT_OBSERVATION, Action.SEARCH));
+  }
+
+  @Test
   public void test_hasPermission_read_WHEN_has_bypass_capa() {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.BYPASS)));
@@ -238,6 +258,22 @@ public class PermissionServiceTest extends IntegrationTest {
     assertFalse(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.TEAM, Action.WRITE));
+  }
+
+  @Test
+  public void test_hasPermission_read_news_feed_WHEN_has_no_capa() {
+    User user = getUser(USER_ID, false);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.NEWS_FEED, Action.READ));
+  }
+
+  @Test
+  public void test_hasPermission_write_news_feed_WHEN_has_no_capa() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.NEWS_FEED, Action.WRITE));
   }
 
   @Test

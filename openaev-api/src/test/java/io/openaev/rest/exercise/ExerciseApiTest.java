@@ -542,7 +542,7 @@ public class ExerciseApiTest extends IntegrationTest {
       User userTom = userRepository.save(UserFixture.getUser("Tom", "RT1", "tom-rt1@fake.email"));
       USER_IDS.add(userTom.getId());
 
-      Team sharedTeam = new Team();
+      Team sharedTeam = TeamFixture.getEmptyTeam();
       sharedTeam.setName("SharedTeam-RT1");
       sharedTeam.setUsers(List.of(userTom));
       teamRepository.save(sharedTeam);
@@ -609,17 +609,17 @@ public class ExerciseApiTest extends IntegrationTest {
     @DisplayName("Replacing teams should update the exercise team list in database")
     void replacingTeamsShouldPersistNewTeamListInDatabase() throws Exception {
       // -- PREPARE --
-      Team teamToRemove = new Team();
+      Team teamToRemove = TeamFixture.getEmptyTeam();
       teamToRemove.setName("TeamToRemove-RT3");
       teamRepository.save(teamToRemove);
       TEAM_IDS.add(teamToRemove.getId());
 
-      Team teamToKeep = new Team();
+      Team teamToKeep = TeamFixture.getEmptyTeam();
       teamToKeep.setName("TeamToKeep-RT3");
       teamRepository.save(teamToKeep);
       TEAM_IDS.add(teamToKeep.getId());
 
-      Team teamToAdd = new Team();
+      Team teamToAdd = TeamFixture.getEmptyTeam();
       teamToAdd.setName("TeamToAdd-RT3");
       teamRepository.save(teamToAdd);
       TEAM_IDS.add(teamToAdd.getId());

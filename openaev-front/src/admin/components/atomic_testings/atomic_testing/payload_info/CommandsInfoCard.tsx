@@ -24,7 +24,7 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
   const theme = useTheme();
 
   const headerCellSx = {
-    fontWeight: 700,
+    fontWeight: 400,
     textTransform: 'uppercase',
     fontSize: 10.5,
     color: 'text.secondary',
@@ -110,7 +110,7 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
             >
               <Table
                 size="small"
-                aria-label="Table to show payload's arguments"
+                aria-label={t('Table to show payload\'s arguments')}
                 sx={{
                   'minWidth': 650,
                   '& .MuiTableCell-root': {

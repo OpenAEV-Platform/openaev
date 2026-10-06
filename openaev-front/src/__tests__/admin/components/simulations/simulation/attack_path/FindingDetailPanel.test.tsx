@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
@@ -30,18 +31,20 @@ const action = (ref: string): ProducingAction => ({
 const renderPanel = (props: Partial<Parameters<typeof FindingDetailPanel>[0]> = {}): ReactElement => {
   const element = (
     <ThemeProvider theme={createTheme()}>
-      <FindingDetailPanel
-        value="445"
-        type="port"
-        simulationId="sim-1"
-        endpointLabel="CORP-HOST"
-        endpointName="CORP-HOST"
-        actions={[action('exec-1')]}
-        activeRef={null}
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-        {...props}
-      />
+      <TooltipProvider>
+        <FindingDetailPanel
+          value="445"
+          type="port"
+          simulationId="sim-1"
+          endpointLabel="CORP-HOST"
+          endpointName="CORP-HOST"
+          actions={[action('exec-1')]}
+          activeRef={null}
+          onSelect={vi.fn()}
+          onClose={vi.fn()}
+          {...props}
+        />
+      </TooltipProvider>
     </ThemeProvider>
   );
   render(element);
@@ -83,17 +86,19 @@ describe('FindingDetailPanel value clamping', () => {
     // open already expanded because the first one's toggle left the state on.
     const panel = (value: string) => (
       <ThemeProvider theme={createTheme()}>
-        <FindingDetailPanel
-          value={value}
-          type="port"
-          simulationId="sim-1"
-          endpointLabel="CORP-HOST"
-          endpointName="CORP-HOST"
-          actions={[action('exec-1')]}
-          activeRef={null}
-          onSelect={vi.fn()}
-          onClose={vi.fn()}
-        />
+        <TooltipProvider>
+          <FindingDetailPanel
+            value={value}
+            type="port"
+            simulationId="sim-1"
+            endpointLabel="CORP-HOST"
+            endpointName="CORP-HOST"
+            actions={[action('exec-1')]}
+            activeRef={null}
+            onSelect={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </TooltipProvider>
       </ThemeProvider>
     );
     const { rerender } = render(panel(LONG_VALUE));

@@ -1,23 +1,43 @@
 package io.openaev.service.organization;
 
+import static io.openaev.database.specification.OrganizationSpecification.byName;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
+import static java.time.Instant.now;
 
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Organization;
+import io.openaev.database.model.Tag;
+import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
+import io.openaev.database.raw.RawOrganization;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.organization.form.OrganizationBulkProcessingInput;
+import io.openaev.rest.organization.form.OrganizationCreateInput;
+import io.openaev.rest.organization.form.OrganizationUpdateInput;
+import io.openaev.rest.tag.TagService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -27,27 +47,105 @@ import org.springframework.util.CollectionUtils;
 public class OrganizationService {
 
   private final OrganizationRepository organizationRepository;
-
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final TagService tagService;
 
   /**
-   * Finds an organization by name within the current tenant, creating it if missing. Single source
-   * of truth for attributing connector-authored arsenal content (collector payloads and injector
-   * contracts) to a publisher organization named after the declared author.
+   * Returns a list of raw organizations based on the tenant context.
    *
+   * @param ctx the transaction context containing tenant information
+   * @return a list of raw organizations for the tenants in the context
+   */
+  public List<RawOrganization> organizations(TxCtx ctx) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    return tenantIds.isEmpty() ? List.of() : organizationRepository.rawAll(tenantIds);
+  }
+
+  /**
+   * Finds an organization by id, throwing an exception if not found.
+   *
+   * @param organizationId the id of the organization to find
+   * @return the found organization
+   */
+  public Organization findById(String organizationId) {
+    return organizationRepository
+        .findById(organizationId)
+        .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /**
+   * Finds organizations with pagination based on the provided search and pagination input.
+   *
+   * @param searchPaginationInput the input containing search and pagination parameters
+   * @return a page of organizations matching the search criteria
+   */
+  public Page<Organization> organizationPagination(
+      @NotNull SearchPaginationInput searchPaginationInput) {
+    return buildPaginationJPA(
+        organizationRepository::findAll, searchPaginationInput, Organization.class);
+  }
+
+  /**
+   * Creates a new organization with the provided input and tenant id.
+   *
+   * @param input the input containing organization details
+   * @param tenantId the id of the tenant to which the organization belongs
+   * @return the created organization
+   */
+  public Organization createOrganization(OrganizationCreateInput input, @NotBlank String tenantId) {
+    Set<Tag> tags = resolveTags(input.getTagIds(), tenantId);
+    Organization organization = new Organization();
+    organization.setUpdateAttributes(input);
+    organization.setTenant(new Tenant(tenantId));
+    organization.setTags(tags);
+    return organizationRepository.save(organization);
+  }
+
+  /**
+   * Updates an existing organization with the provided input.
+   *
+   * @param organizationId the id of the organization to update
+   * @param input the input containing updated organization details
+   * @return the updated organization
+   */
+  public Organization updateOrganization(String organizationId, OrganizationUpdateInput input) {
+    Organization organization = findById(organizationId);
+    Set<Tag> tags = resolveTags(input.getTagIds(), organization.getTenant().getId());
+    organization.setUpdateAttributes(input);
+    organization.setUpdatedAt(now());
+    organization.setTags(tags);
+    return organizationRepository.save(organization);
+  }
+
+  /**
+   * Deletes an organization by its id.
+   *
+   * @param organizationId the id of the organization to delete
+   */
+  public void deleteOrganization(String organizationId) {
+    organizationRepository.delete(findById(organizationId));
+  }
+
+  /**
+   * Finds an organization by name within the specified tenant, creating it if missing. . Single
+   * source of truth for attributing connector-authored arsenal content (collector payloads and
+   * injector contracts) to a publisher organization named after the declared author.
+   *
+   * @param name the name of the organization
+   * @param tenantId the id of the tenant
    * @return the resolved organization, or {@code null} when {@code name} is blank
    */
-  public Organization findOrCreateByName(final String name) {
+  public Organization findOrCreateByName(final String name, @NotBlank String tenantId) {
     if (name == null || name.isBlank()) {
       return null;
     }
-    return organizationRepository.findByNameIgnoreCase(name).stream()
+    return organizationRepository.findByNameIgnoreCaseAndTenantId(name, tenantId).stream()
         .findFirst()
         .orElseGet(
             () -> {
               Organization organization = new Organization();
               organization.setName(name);
-              organization.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+              organization.setTenant(new Tenant(tenantId));
               return organizationRepository.save(organization);
             });
   }
@@ -73,6 +171,7 @@ public class OrganizationService {
       throw new BadRequestException(
           "Either organization_ids_to_process or search_pagination_input must be provided, and not both at the same time");
     }
+    Specification<Organization> scope = inTenantScope(ctx);
     List<String> organizationIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
             ctx,
@@ -93,7 +192,7 @@ public class OrganizationService {
                 specification =
                     specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
               }
-              return organizationRepository.findAll(specification).stream()
+              return organizationRepository.findAll(scope.and(specification)).stream()
                   .map(Organization::getId)
                   .toList();
             });
@@ -101,17 +200,120 @@ public class OrganizationService {
         ctx,
         "organizations",
         organizationIdsToDelete,
-        chunk -> organizationRepository.deleteAll(organizationRepository.findAllById(chunk)));
+        chunk ->
+            organizationRepository.deleteAll(
+                organizationRepository.findAll(scope.and(SpecificationUtils.hasIdIn(chunk)))));
   }
 
-  public Page<Organization> organizationPagination(
-      @NotNull SearchPaginationInput searchPaginationInput) {
-    // Visibility is capability-gated at the API layer (@AccessControl SEARCH) and tenant-scoped by
-    // the Hibernate tenant filter, like every other organization endpoint (raw list, options,
-    // single read). The former per-group grant scoping joined Organization.groups, a mapping
-    // removed along with the groups_organizations table (V4_38): keeping it made every non-admin
-    // search fail with "Could not resolve attribute 'groups'".
-    return buildPaginationJPA(
-        this.organizationRepository::findAll, searchPaginationInput, Organization.class);
+  /**
+   * Resolves the organizations of the given users and teams that belong to {@code tenantId}, for
+   * content exported in the context of that tenant.
+   *
+   * <p>A user is platform-level and may belong to an organization owned by another tenant: that
+   * organization is left out rather than exported. The ids are read from the lazy references
+   * without initializing them, since initializing an organization outside the transaction's scope
+   * throws instead of returning nothing.
+   *
+   * @param users the exported users
+   * @param teams the exported teams
+   * @param tenantId the tenant owning the exported content
+   * @return the distinct organizations of {@code tenantId} referenced by the users and teams
+   */
+  public List<Organization> organizationsInTenant(
+      Collection<User> users, Collection<Team> teams, @NotBlank String tenantId) {
+    Set<String> organizationIds =
+        Stream.concat(
+                users.stream().map(User::getOrganization),
+                teams.stream().map(Team::getOrganization))
+            .filter(Objects::nonNull)
+            .map(Organization::getId)
+            .collect(Collectors.toSet());
+    if (organizationIds.isEmpty()) {
+      return List.of();
+    }
+    return organizationRepository.findAllByIdInAndTenantId(organizationIds, tenantId);
+  }
+
+  /**
+   * Resolves, by id, the organizations of the given users that belong to {@code tenantId}, for a
+   * user output produced in the context of that tenant: another tenant's organization is left out.
+   *
+   * @param users the users to map
+   * @param tenantId the tenant the output is produced for
+   * @return the organizations of {@code tenantId} referenced by the users, keyed by id
+   */
+  public Map<String, Organization> usersOrganizationsInTenant(
+      Collection<User> users, @NotBlank String tenantId) {
+    return organizationsInTenant(users, List.of(), tenantId).stream()
+        .collect(Collectors.toMap(Organization::getId, Function.identity()));
+  }
+
+  /**
+   * Resolves, by id, the organizations of the given users visible in the transaction's scope, for
+   * platform-level outputs. Ids are read from the lazy references, which does not initialize them.
+   *
+   * @param users the users to map
+   * @return the organizations visible in the current scope referenced by the users, keyed by id
+   */
+  public Map<String, Organization> usersOrganizationsInScope(Collection<User> users) {
+    Set<String> organizationIds =
+        users.stream()
+            .map(User::getOrganization)
+            .filter(Objects::nonNull)
+            .map(Organization::getId)
+            .collect(Collectors.toSet());
+    if (organizationIds.isEmpty()) {
+      return Map.of();
+    }
+    return organizationRepository
+        .findAll(SpecificationUtils.hasIdIn(List.copyOf(organizationIds)))
+        .stream()
+        .collect(Collectors.toMap(Organization::getId, Function.identity()));
+  }
+
+  /**
+   * Returns a list of organization options based on the provided search text.
+   *
+   * @param searchText the text to search for in organization names
+   * @return a list of organization options matching the search text
+   */
+  public List<FilterUtilsJpa.Option> optionsByName(String searchText) {
+    return organizationRepository
+        .findAll(byName(searchText), Sort.by(Sort.Direction.ASC, "name"))
+        .stream()
+        .map(
+            organization -> new FilterUtilsJpa.Option(organization.getId(), organization.getName()))
+        .toList();
+  }
+
+  /**
+   * Returns a list of organization options based on the provided organization IDs.
+   *
+   * @param ids the IDs of the organizations to retrieve options for
+   * @return a list of organization options matching the provided IDs
+   */
+  public List<FilterUtilsJpa.Option> optionsById(List<String> ids) {
+    return organizationRepository.findAll(SpecificationUtils.hasIdIn(ids)).stream()
+        .map(
+            organization -> new FilterUtilsJpa.Option(organization.getId(), organization.getName()))
+        .toList();
+  }
+
+  private Specification<Organization> inTenantScope(TxCtx ctx) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    return (root, query, cb) ->
+        tenantIds.isEmpty() ? cb.disjunction() : root.get("tenant").get("id").in(tenantIds);
+  }
+
+  private Set<Tag> resolveTags(List<String> tagIds, @NotNull String tenantId) {
+    if (tagIds == null) {
+      throw new BadRequestException("organization_tags must not be null");
+    }
+    Set<Tag> tags = tagService.tagSet(tagIds);
+    if (tags.size() != new HashSet<>(tagIds).size()
+        || tags.stream().anyMatch(tag -> !tenantId.equals(tag.getTenant().getId()))) {
+      throw new ElementNotFoundException();
+    }
+    return tags;
   }
 }
