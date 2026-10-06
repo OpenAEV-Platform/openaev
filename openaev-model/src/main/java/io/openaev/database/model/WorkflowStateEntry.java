@@ -6,7 +6,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * Normalized WorkflowState entry (ADR-010). Maps 1:1 the {@code workflow_state_entries} table added
+ * Normalized WorkflowState entry (ADR-011). Maps 1:1 the {@code workflow_state_entries} table added
  * by the {@code V6_20261005105200000} migration. One row = one normalized entry belonging to a
  * {@link WorkflowState}, discriminated by {@link EntryType}. A correlated tuple is stored as one
  * {@link EntryType#CORRELATED} row per field, all sharing the same {@link #correlationHash} and

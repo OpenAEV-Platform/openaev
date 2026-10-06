@@ -2987,7 +2987,7 @@ class WorkflowServiceTest {
       verify(stepService).endActiveStepsByWorkflowId("wf-run-1", cause);
       verify(stepDelayQueueService).deleteAllByWorkflowRun(run, cause);
       verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-1", TENANT);
-      verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-1");
+      verify(workflowStateRepository).deleteAllBySimulationId("sim-1");
       verify(workflowRepository).save(run);
       verifyNoInteractions(exerciseRepository);
     }
@@ -3023,8 +3023,8 @@ class WorkflowServiceTest {
       verify(stepService).endActiveStepsByWorkflowId("wf-run-2", cause);
       verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-1", TENANT);
       verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-2", TENANT);
-      verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-1");
-      verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-2");
+      verify(workflowStateRepository).deleteAllBySimulationId("sim-1");
+      verify(workflowStateRepository).deleteAllBySimulationId("sim-2");
       verify(workflowRepository).save(run1);
       verify(workflowRepository).save(run2);
     }

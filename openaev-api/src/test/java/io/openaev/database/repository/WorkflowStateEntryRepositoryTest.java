@@ -20,7 +20,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * JPA slice tests (ADR-010) for {@link WorkflowStateEntryRepository}. Persists a workflow run + a
+ * JPA slice tests (ADR-011) for {@link WorkflowStateEntryRepository}. Persists a workflow run + a
  * workflow state, then exercises every finder method and the per-entry-type deduplication enforced
  * by the partial unique indexes of {@code workflow_state_entries}.
  */
@@ -50,7 +50,6 @@ class WorkflowStateEntryRepositoryTest extends IntegrationTest {
             .get();
     WorkflowState state = new WorkflowState();
     state.setWorkflowExecution(workflow);
-    state.setEntries("{}");
     return workflowStateRepository.save(state);
   }
 

@@ -485,8 +485,8 @@ public class StepService {
         }
       }
     }
-    List<Step> stepReadys = new ArrayList<>();
-    Set<String> committedHashes = new HashSet<>();
+    List<ConditionService.ExecutionBatch> proceedingBatches = new ArrayList<>();
+    Set<String> hashesToCommit = new HashSet<>();
     int localPending = pendingCount;
 
     for (ConditionService.ExecutionBatch batch : executionBatches) {
@@ -496,17 +496,27 @@ public class StepService {
           persistedTemplate, batch.inputString(), workflowRun, localPending)) {
         continue;
       }
-
-      stepReadys.add(createReadyStepFromBatch(actionStep, persistedTemplate, workflowRun, batch));
-
+      proceedingBatches.add(batch);
       if (batch.hash() != null) {
-        committedHashes.add(batch.hash());
+        hashesToCommit.add(batch.hash());
       }
       localPending++;
     }
 
-    // Commit only the hashes of batches that were actually turned into READY steps.
-    conditionService.commitHashes(persistedTemplate, workflowRun, committedHashes);
+    // Anti-replay guard (ADR-011): commit the hashes first, then create a READY step only for the
+    // hashes this call actually committed. A hash already committed — e.g. by a concurrent
+    // evaluation of the same step — means its combination was already executed.
+    Set<String> committedHashes =
+        new HashSet<>(
+            conditionService.commitHashes(persistedTemplate, workflowRun, hashesToCommit));
+
+    List<Step> stepReadys = new ArrayList<>();
+    for (ConditionService.ExecutionBatch batch : proceedingBatches) {
+      // remove() also guarantees a single READY step per hash within this call.
+      if (batch.hash() == null || committedHashes.remove(batch.hash())) {
+        stepReadys.add(createReadyStepFromBatch(actionStep, persistedTemplate, workflowRun, batch));
+      }
+    }
 
     return stepReadys;
   }

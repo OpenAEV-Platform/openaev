@@ -1,4 +1,4 @@
-# ADR-010: WorkflowState storage refactor — normalized rows replacing the JSONB blob
+# ADR-011: WorkflowState storage refactor — normalized rows replacing the JSONB blob
 
 |  |                                                                               |
 | --- |-------------------------------------------------------------------------------|
@@ -29,7 +29,7 @@ These costs are architectural: they are inherent to storing structured, growing 
 2. **Read cost bounded by what is read** — the anti-replay check and the correlated-tuple lookup must not require deserializing unrelated data.
 3. **Concurrency safety** — no read-modify-write race window; duplicate detection must be guaranteed at the database level, not by application code that a race can outrun.
 4. **Operational safety of the migration** — no simulation actively producing chaining state may be disrupted mid-flight; no state may be silently lost for a run that is actively relying on it (anti-replay is safety-critical: a lost hash can mean replaying a real exploit).
-5. **No dead code/schema left behind** — once the transition window closes, every legacy artifact (column, code path, tests) must be removed, not just bypassed.
+5. **No dead code/schema left behind** — every legacy artifact (code path, mapping, tests) must be removed, not just bypassed; the legacy column only survives one release as a safety net.
 
 ## 3. Considered options
 
@@ -45,7 +45,7 @@ Instead of `SELECT` → Gson deserialize → mutate → Gson serialize → `UPDA
 Split `WorkflowStateEntries` into individual rows in a single table (`workflow_state_entries`): one row per input value, one row per correlated-tuple field (all fields of a tuple sharing the tuple's `correlation_hash`), one row per execution hash. Correlated tuples are reconstructed at read time by grouping rows on `correlation_hash`.
 
 **Pros**: addresses all decision drivers — a new entry is a single-row `INSERT` whose cost does not depend on history size; reads target only the needed entry type and keys through indexes; deduplication and anti-replay are enforced by `UNIQUE` indexes with `ON CONFLICT DO NOTHING` (not application code); cascade deletion is native (`ON DELETE CASCADE`).
-**Cons**: requires a routing layer during the coexistence window (see Decision); reading a correlated tuple means reading several rows instead of one JSON object (see §4.2 — validated by a dedicated load test).
+**Cons**: the state of in-flight runs must be converted at deployment (see §4.3); reading a correlated tuple means reading several rows instead of one JSON object (see §4.2 — validated by a dedicated load test).
 
 ### Option B': Option B plus a synthesis table tracking per-tuple key presence and completeness
 
@@ -93,61 +93,56 @@ CREATE UNIQUE INDEX uq_wse_hash ON workflow_state_entries(workflow_state_id, ent
 CREATE UNIQUE INDEX uq_wse_correlated ON workflow_state_entries(workflow_state_id, correlation_hash, entry_key, md5(entry_value))
     WHERE entry_type = 'CORRELATED';
 
-ALTER TABLE workflows ADD COLUMN storage_mode VARCHAR(20) NOT NULL DEFAULT 'LEGACY_JSONB';
-COMMENT ON COLUMN workflows.storage_mode IS
-   'TEMPORARY — dual-run routing flag for ADR-010 (LEGACY_JSONB / NORMALIZED). Set once at run
-   creation in WorkflowService.copyWorkflowTemplateToRun(), never mutated afterwards. To be
-   dropped entirely, along with all LEGACY_JSONB code paths, once the coexistence window closes
-   (see ADR-010 §4.4 cleanup ticket).';
+-- One global state per run (the (execution, step_template) constraint does not apply to NULL step templates).
+CREATE UNIQUE INDEX uq_workflow_state_global ON workflow_states(workflow_execution_id)
+    WHERE workflow_step_template_id IS NULL;
+
+-- Legacy JSONB column: no longer read nor written, dropped in the next release (§4.4).
+ALTER TABLE workflow_states ALTER COLUMN workflow_state_entries DROP NOT NULL;
 ```
+
+The table was created by `V6_20261005105200000`; the global-state uniqueness, the legacy column change and the conversion of in-flight states (§4.3) are done by `V6_20261005160000000`. The first migration also added a `workflows.storage_mode` dual-run routing flag, from an earlier version of this ADR planning a coexistence window; it was never used by any code and is dropped by the second one.
 
 Notes justified by driver trade-offs:
 - **One partial unique index per entry type**, because each type has its own identity: an input value is unique per key; an execution hash is unique per state; a correlated field is unique *within its tuple*. A single `UNIQUE (workflow_state_id, entry_type, entry_key, entry_value)` would be wrong for `CORRELATED` rows: `{IPv4=10.0.0.1, Port=80}` and `{IPv4=10.0.0.1, Port=443}` share the row `IPv4=10.0.0.1`, and `ON CONFLICT DO NOTHING` would silently drop it from the second tuple.
 - **`md5(entry_value)` in the input and correlated unique indexes**: values are free text of unbounded length, and a raw value larger than the B-tree entry size limit (~2.7 kB) would make the insert fail. Execution hashes have a fixed length and are indexed raw.
-- **`correlation_hash`**: MurmurHash3, 128-bit (`Hashing.murmur3_128()`, Guava), hex-encoded — the exact output format of the existing `WorkflowStateEntries.hashCombo()`, so no new hashing convention is introduced and execution hashes and correlation hashes share one representation. Non-cryptographic collision risk is accepted as debt (values come from internal engine outputs, not adversary-controlled input).
+- **`correlation_hash`**: MurmurHash3, 128-bit (`Hashing.murmur3_128()`, Guava), hex-encoded — the output format of the existing execution-hash function, so execution hashes and correlation hashes share one representation. Both live in `ChainingHashUtils`: `hashCombo()` (execution hashes, format unchanged, since committed hashes are compared with freshly computed ones) and `hashTuple()` (tuples: pairs sorted by key then value, so the hash does not depend on iteration order and a tuple with two fields of the same key keeps both). Non-cryptographic collision risk is accepted as debt (values come from internal engine outputs, not adversary-controlled input).
 - **`correlation_type`** carries `Correlated.type` (`ContractOutputType.name()`), which the JSONB model stores per tuple.
 - `idx_wse_lookup` serves key-based reads of every entry type and, through its leading `workflow_state_id` column, the foreign key (cascade deletes).
 - **Every tuple lookup is scoped by `workflow_state_id`**, and there is deliberately no index on `correlation_hash` alone. The hash identifies the tuple *content*: the same tuple, hence the same hash, exists in the global state, in every local state it was propagated to, and in other runs (including other tenants' simulations). A lookup by hash alone would mix the rows of all these states; per-state lookups are served by the `uq_wse_correlated` prefix.
 - `executionKeys` (currently a `@NotNull @NotEmpty Set<String>` field on `WorkflowStateEntries`) is **dropped entirely** — the anti-replay mechanism is carried by `hashExecution` and no production usage of `executionKeys` exists. No equivalent column or `entry_type` is introduced for it.
-- Table names are plural, consistent with the rest of the schema (`workflow_states`, `workflows`), even though `WorkflowStateEntries` (the Java class) is not itself renamed by this ADR.
+- **One global state per run** (`uq_workflow_state_global`): two concurrent first writes on a run could previously create two global states. States are now created with an atomic `INSERT ... ON CONFLICT DO NOTHING` followed by a lookup.
+- Table names are plural, consistent with the rest of the schema (`workflow_states`, `workflows`). `WorkflowStateEntries` (the Java class) is kept, as the in-memory view of a state (§4.2).
 
-### 4.2 Read and write patterns (`NORMALIZED` runs)
+### 4.2 Read and write patterns
 
-- **Writes** are single-row `INSERT ... ON CONFLICT DO NOTHING` statements, issued as native queries: JPA cannot express `ON CONFLICT`, and the rows are neither indexed, audited nor streamed, so bypassing the persistence context loses no side effect. Propagating a value or a tuple from the global state to a local state is an insert into that local state, with the same O(1) cost.
-- **Correlated tuples** are read in two indexed steps: the hashes of the candidate tuples (`entry_type = 'CORRELATED' AND entry_key = ANY(:requiredKeys)`, served by `idx_wse_lookup`), then the rows of these tuples (served by `uq_wse_correlated`), grouped by `correlation_hash` in the application. No completeness check is needed in SQL: candidate selection and completion from the pools stay in the engine, unchanged.
-- **Execution hashes** are read once per step evaluation (one indexed query on the step's local state, as `ConditionService.getCommittedHashes()` does today) and checked in memory. They are never queried once per candidate combination, which would turn one read into hundreds of round trips.
-- **Anti-replay** relies on the `uq_wse_hash` unique index, and is effective only if creating a READY step depends on the insert result: hashes are committed with `INSERT ... ON CONFLICT DO NOTHING RETURNING entry_value`, and READY steps are kept only for the hashes actually returned, in the same transaction. Otherwise two concurrent evaluations of the same step would both create the step.
+`WorkflowStateStore` is the only component aware of the row layout. The services exchange `WorkflowStateEntries` objects with it: *deltas* to append on the write side, *views* restricted to the keys they need on the read side.
+
+- **Writes never read the state.** A sync builds, in memory, the delta of the values and tuples accepted from the output (same validation, subnet expansion and all-or-nothing tuple semantics as before), then appends it with one `INSERT ... SELECT FROM unnest(...) ON CONFLICT DO NOTHING` per entry type, issued as native queries: JPA cannot express `ON CONFLICT`, and the rows are neither indexed, audited nor streamed, so bypassing the persistence context loses no side effect. Propagating values or tuples to a local state is an append to that local state, with the same cost.
+- **Reads are restricted to the keys an evaluation reads.** Filter evaluation reads the input values of the keys of its conditions' leaves; mapper evaluation reads the input values of the mappers' source keys and the correlated tuples holding at least one of them. The view holds nothing else, while the combination logic of `ConditionService` (candidate selection, completion from the pools, cartesian fallback) is unchanged.
+- **Correlated tuples** are read in two indexed queries: the hashes of the candidate tuples (`entry_type = 'CORRELATED' AND entry_key IN (:keys)`, served by `idx_wse_lookup`), then all the rows of these tuples (`correlation_hash = ANY(:hashes)`, a single array parameter, served by `uq_wse_correlated`), regrouped by `correlation_hash` in the application. A single query with an `IN (subquery)` was measured and rejected: once PostgreSQL switches to a *generic plan* for the prepared statement, it scans every correlated row of the state even when only a few tuples match (see §5).
+- **`entry_type` is always filtered with a literal**, never a bind parameter, so that PostgreSQL can match the partial indexes on generic plans too.
+- **Execution hashes** are read once per mapper evaluation (one indexed query on the step's local state) and checked in memory. They are never queried once per candidate combination, which would turn one read into hundreds of round trips.
+- **Anti-replay** relies on the `uq_wse_hash` unique index, and is effective only because creating a READY step depends on the insert result: `StepService.createReadySteps()` commits the hashes of the batches that pass the rate limit with `INSERT ... ON CONFLICT DO NOTHING RETURNING entry_value`, then creates a READY step only for the hashes actually returned, in the same transaction. A concurrent evaluation of the same step that committed a hash first blocks the second insert on the unique index, which then returns nothing for it.
 - **Re-arming a step** (`WorkflowStateService.clearExecutionHashes()`, used when an already-executed step is edited in place so that it re-fires) deletes the `HASH_EXECUTION` rows of the step's local state. The table is therefore append-mostly rather than strictly append-only.
 
-### 4.3 Dual-run coexistence (migration strategy)
+### 4.3 Migration strategy: conversion at deployment
 
-No historical data migration is performed. Instead, both storage paths coexist for a transition window of **one week to one month**:
+The JSONB state of in-flight runs is converted into rows by `V6_20261005160000000`, at application start, before the engine runs. From then on the engine only reads and writes the normalized store: there is a single implementation, no routing and no coexistence window. The migration, in a single transaction:
 
-- `storage_mode` is set **once**, at run creation, in `WorkflowService.copyWorkflowTemplateToRun()` — the single private method that actually builds a `Workflow` with `status(WorkflowStatus.RUN)`, called only from `launchWorkflowSimulation()` — and never modified afterwards. `creationWorkflow()` and `startWorkflowBySimulationId()` are deliberately *not* used as the anchor point: they only build/manage `Workflow` entities in `TEMPLATE` status, with no associated `WorkflowState`.
-- The mode given to new runs is read from a configuration property (`LEGACY_JSONB` or `NORMALIZED`). Switching it back to `LEGACY_JSONB` stops creating `NORMALIZED` runs without a redeployment, should the normalized path misbehave; runs keep the mode they were created with.
-- Workflows existing at deployment time get `LEGACY_JSONB` (the column's default).
-- `WorkflowStateService` becomes a router: every method branches on `workflowRun.getStorageMode()` to either the existing Gson/JSONB path or the new repository-backed path against `workflow_state_entries`.
-- Rolling the application back to a version predating this refactor makes the state of in-flight `NORMALIZED` runs invisible to the old code; such a rollback must only happen when no `NORMALIZED` run is in progress.
+1. Deletes the states of runs that are neither `RUN` nor `STOP` (paused, hence resumable). States of ended runs are deleted at end of run (see below); the remaining ones predate that cleanup.
+2. Converts every remaining JSONB document: one `INPUT` row per value, one `CORRELATED` row per tuple field (with the tuple's hash and type, computed exactly as at runtime), one `HASH_EXECUTION` row per committed hash. Duplicate global states of a run are merged into the oldest one, then deleted.
+3. Creates `uq_workflow_state_global` (superseding the non-unique `idx_wf_state_global_lookup`), makes the JSONB column nullable and drops `workflows.storage_mode`.
 
-This avoids any migration of in-flight execution state (driver 4) at the cost of maintaining two code paths for the duration of the coexistence window — an explicit, scoped, temporary complexity, not a permanent one.
+A dual-run coexistence (new runs on the normalized store, in-flight runs finishing on JSONB) was considered first: it avoids converting data, but maintains two code paths for weeks and defers the removal of the legacy one to a later ticket. It was rejected: in-flight states are few (ended runs have no state left) and their conversion is mechanical, while two engines' worth of storage code is a lasting source of divergence.
 
-**Terminal-state cleanup needs no new code.** Every path that ends or removes a run already deletes its `workflow_states` rows, and `ON DELETE CASCADE` extends the deletion to `workflow_state_entries`: `WorkflowEndService.manageWorkflowEnd()` → `endActiveWorkflow()` → `deleteWorkflowStatesBySimulationId()` for the `TIMEOUT`, `CANCELED`, `NO_MORE_PROGRESS` and `CANCELED_BY_SIMULATION_DELETION` end causes, and the simulation reset/deletion flows.
+**Rollback.** The JSONB column is kept one release as a *safety net*, to diagnose or repair a conversion bug from the original data — not as a rollback path: from the first sync after deployment, the JSONB of a run is stale. Rolling the application back to a version predating this refactor is therefore only safe when no simulation is running.
 
-### 4.4 Post-coexistence cleanup (separate ticket, executed after the window closes)
+**Terminal-state cleanup.** Every path that ends or removes a run already deletes its states, and `ON DELETE CASCADE` extends the deletion to `workflow_state_entries`: `WorkflowEndService.manageWorkflowEnd()` → `endActiveWorkflow()` → `deleteWorkflowStatesBySimulationId()` for the `TIMEOUT`, `CANCELED`, `NO_MORE_PROGRESS` and `CANCELED_BY_SIMULATION_DELETION` end causes, and the `workflows` → `workflow_states` cascade for the simulation reset/deletion flows. That deletion is now a single bulk `DELETE` (previously a derived query loading every state, JSONB included, before deleting them one by one). Pausing a run (`STOP`) keeps its state, since it is needed on resume.
 
-Once the coexistence window has elapsed **and** the guard query below returns zero, a separate ticket (tracked, not executed as part of this refactor) removes, in a single pass:
+### 4.4 Next release: drop the legacy column
 
-```sql
-SELECT COUNT(*) FROM workflows WHERE storage_mode = 'LEGACY_JSONB' AND status IN ('RUN', 'STOP');
--- must be 0 before proceeding (TEMPLATE workflows also carry the column default and END runs no longer have state)
-```
-
-- The JSONB column `workflow_state_entries` (mapped as `entries` in the Java entity) on `workflow_states`.
-- The `storage_mode` column on `workflows` and the configuration property selecting it (dropped immediately with the rest — not kept as a historical trace).
-- All `LEGACY_JSONB` code paths in `WorkflowStateService` (the Gson serialize/deserialize branch).
-- The `entries` field on the `WorkflowState` entity.
-- The unreachable `WorkflowStateRepositoryCustom` / `WorkflowStateRepositoryCustomImpl` (`jsonb_set` prototype never wired into `WorkflowStateRepository`).
-- All tests exercising the legacy JSONB path specifically.
+Once this release has been deployed and its conversion verified, a follow-up migration drops `workflow_states.workflow_state_entries`. Nothing else remains: the JSONB mapping, the Gson (de)serialization paths, the unreachable `WorkflowStateRepositoryCustom` / `WorkflowStateRepositoryCustomImpl` (`jsonb_set` prototype never wired into `WorkflowStateRepository`), the dead `WorkflowStateService.newOutput()` and the tests of the JSONB path are all removed by this refactor.
 
 ## 5. Consequences
 
@@ -157,16 +152,22 @@ SELECT COUNT(*) FROM workflows WHERE storage_mode = 'LEGACY_JSONB' AND status IN
 - Anti-replay lookups read only the step's execution hashes through an index instead of deserializing the whole state.
 - Correlated tuples are read through indexes, restricted to the tuples sharing a required key.
 - Deduplication, anti-replay and cascade deletion are enforced natively by Postgres, removing the lost-update race of the application-level JSONB merge.
-- No migration of historical data required; no risk to state of runs actively executing at deployment time.
+- A single storage implementation from deployment on: no dual code path, no routing flag.
+- One global state per run, guaranteed by the database.
 
 ### Negative / trade-offs
 
-- Two storage code paths (`LEGACY_JSONB` / `NORMALIZED`) coexist in `WorkflowStateService` for 1 week to 1 month — real, temporary complexity, requiring discipline to keep both paths correct until cleanup.
+- The state of in-flight runs is converted at deployment: the migration time grows with the number of in-flight states, and rolling the application back is only safe when no simulation is running (§4.3).
 - A correlated tuple is read as several rows and regrouped in the application, instead of one JSON object.
 - `executionKeys` is removed from the model with no replacement column — any code currently relying on it must be adapted or confirmed unaffected.
 - The figures in §1 are estimates derived from the design targets and the verified code pattern, not measurements: the actual cost of the JSONB approach in production, and therefore the actual gain of this refactor, have not been measured.
-- The `EXPLAIN ANALYZE`-verified performance of the two-step correlated-tuple read (§4.2) at stress volume (10,000 endpoints) remains to be validated by a dedicated load test.
+- Load test on synthetic data at stress volume (5 to 6.3 million rows; states of 10,000 endpoints, i.e. 50,000 correlated tuples), on a developer laptop — the absolute timings are indicative, the plans and WAL volumes are the meaningful part:
+  - **Writes do not depend on history**: appending 100 inputs costs the same WAL (~0.5 MB, ~505 records) into an empty state as into a state of 111,000 rows. The legacy path rewrote a ~5.4 MB document (518 kB stored) for *each* new entry: ~0.9 MB of WAL and ~100 ms per entry, before any Gson work.
+  - **Reads go through the indexes, generic plans included** (bind parameters, literal `entry_type`): inputs by key ~2 ms for 11,000 values; execution hashes ~0.5 ms for 500 hashes; anti-replay commit of 100 hashes (50 already committed) ~1 ms.
+  - **Candidate tuples**: ~2.4 ms when 20 tuples of 50,000 match, ~190 ms in the worst case where all 50,000 match (100,000 rows returned), versus ~290 ms in both cases for the rejected single-query form.
+  - Not covered: production hardware, concurrency at the 50-simulation scale, and the end-to-end engine time (which also includes the out-of-scope cartesian combination cost).
 - The cartesian combination cost is unchanged by this refactor (out of scope, see §1).
+- Minor behavior changes, without functional effect: an identical tuple produced twice is stored once in the global state (duplicates were already merged when building execution batches); under contention, the rate-limit counter of an evaluation may count a batch whose hash was committed concurrently, delaying another batch by one cycle.
 
 ### Neutral
 

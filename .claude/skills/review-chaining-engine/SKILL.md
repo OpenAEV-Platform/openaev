@@ -51,7 +51,8 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 ### 4. State Management
 - [ ] Global state updated via `WorkflowStateService.syncState()` BEFORE propagation
 - [ ] Local state propagation uses `propagateToLocalStates()`
-- [ ] State entries are properly serialized/deserialized (Gson)
+- [ ] State is written and read only through `WorkflowStateStore` (append-only deltas, views restricted to the keys actually read — never a full-state load or rewrite)
+- [ ] Execution hashes are committed with `commitHashes()` and a READY step is created only for the hashes it returned (anti-replay, ADR-011)
 
 ### 5. Conditions
 - [ ] Conditions evaluated BEFORE step execution

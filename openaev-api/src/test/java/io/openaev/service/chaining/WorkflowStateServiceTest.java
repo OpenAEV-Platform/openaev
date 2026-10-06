@@ -3,12 +3,10 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
-import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.validator.IpAddressUtils;
 import java.util.*;
@@ -24,333 +22,156 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayName("WorkflowStateService Tests")
 class WorkflowStateServiceTest {
 
-  @Mock private WorkflowStateRepository workflowStateRepository;
+  @Mock private WorkflowStateStore workflowStateStore;
   @Mock private ConditionRepository conditionRepository;
   @Mock private ConditionUtils conditionUtils;
   @Mock private PrimitiveValidationContextBuilder primitiveValidationContextBuilder;
 
   @InjectMocks private WorkflowStateService workflowStateService;
 
-  private final Gson gson = new Gson();
+  /**
+   * Stubs the store so that every delta appended to the global state of {@code workflowRun} is
+   * accumulated into the returned view, which then reflects what the sync persisted.
+   */
+  private WorkflowStateEntries captureGlobalAppends(Workflow workflowRun) {
+    String stateId = "global-" + workflowRun.getId();
+    lenient().when(workflowStateStore.getOrCreateGlobalStateId(workflowRun)).thenReturn(stateId);
+    return captureAppends(stateId);
+  }
 
-  // ========================================================================
-  // getLocalStateByWorkflowAndStep Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("getLocalStateByWorkflowAndStep")
-  class GetLocalStateByWorkflowAndStepTests {
+  /** Same as {@link #captureGlobalAppends} for the local state of a step template. */
+  private WorkflowStateEntries captureLocalAppends(Step stepTemplate, Workflow workflowRun) {
+    String stateId = "local-" + stepTemplate.getId();
+    lenient()
+        .when(workflowStateStore.getOrCreateLocalStateId(stepTemplate, workflowRun))
+        .thenReturn(stateId);
+    return captureAppends(stateId);
+  }
 
-    @Test
-    @DisplayName("should return local state when found")
-    void given_existingState_should_returnLocalState() {
-      // Arrange
-      String stepTemplateId = UUID.randomUUID().toString();
-      Step stepTemplate = Step.builder().id(stepTemplateId).build();
-      String workflowExecutionId = UUID.randomUUID().toString();
-      Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
+  private WorkflowStateEntries captureAppends(String stateId) {
+    WorkflowStateEntries persisted = WorkflowStateEntries.empty();
+    lenient()
+        .doAnswer(
+            inv -> {
+              WorkflowStateEntries delta = inv.getArgument(1);
+              delta
+                  .getInputs()
+                  .forEach(
+                      input ->
+                          persisted
+                              .getInputByKey(input.getKey())
+                              .getValues()
+                              .addAll(input.getValues()));
+              persisted.getCorrelated().addAll(delta.getCorrelated());
+              return null;
+            })
+        .when(workflowStateStore)
+        .append(eq(stateId), any(WorkflowStateEntries.class));
+    return persisted;
+  }
 
-      WorkflowState expected = mock(WorkflowState.class);
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepTemplateId, workflowExecutionId))
-          .thenReturn(expected);
-
-      // Act
-      WorkflowState result =
-          workflowStateService.loadOrBuildLocalState(stepTemplate, workflowExecution);
-
-      // Assert
-      assertSame(expected, result);
-      verify(workflowStateRepository)
-          .findByStepTemplate_IdAndWorkflowExecution_Id(stepTemplateId, workflowExecutionId);
-    }
-
-    @Test
-    @DisplayName("should initialize local state when not found")
-    void given_noExistingState_should_initializeLocalState() {
-      // Arrange
-      String stepTemplateId = UUID.randomUUID().toString();
-      Step stepTemplate = Step.builder().id(stepTemplateId).build();
-      String workflowExecutionId = UUID.randomUUID().toString();
-      Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
-
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepTemplateId, workflowExecutionId))
-          .thenReturn(null);
-
-      // Act
-      WorkflowState result =
-          workflowStateService.loadOrBuildLocalState(stepTemplate, workflowExecution);
-
-      // Assert
-      assertNotNull(result);
-      assertEquals(workflowExecution, result.getWorkflowExecution());
-      assertEquals(stepTemplate, result.getStepTemplate());
-    }
+  private static PrimitiveValidationContext emptyValidationContext() {
+    return new PrimitiveValidationContext(
+        Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+        Set.of());
   }
 
   // ========================================================================
-  // getGlobalStateByWorkflowId Tests
+  // Read side and execution hashes
   // ========================================================================
+
   @Nested
-  @DisplayName("getGlobalStateByWorkflowId")
-  class GetGlobalStateByWorkflowIdTests {
+  @DisplayName("read side and execution hashes")
+  class ReadSideAndHashesTests {
+
+    private final Step stepTemplate = Step.builder().id("step-template").build();
+    private final Workflow workflowRun = Workflow.builder().id("workflow-run").build();
 
     @Test
-    @DisplayName("should return global state when found")
-    void given_existingGlobalState_should_returnIt() {
-      // Arrange
-      String workflowId = UUID.randomUUID().toString();
-      WorkflowState expected = mock(WorkflowState.class);
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(expected);
+    @DisplayName("loadGlobalEntries returns an empty view when the run has no global state")
+    void givenNoGlobalState_loadGlobalEntries_shouldReturnEmptyView() {
+      when(workflowStateStore.findGlobalStateId("workflow-run")).thenReturn(Optional.empty());
 
-      // Act
-      WorkflowState result = workflowStateService.getGlobalStateByWorkflowId(workflowId);
+      WorkflowStateEntries view =
+          workflowStateService.loadGlobalEntries(workflowRun, Set.of("IPv4"));
 
-      // Assert
-      assertSame(expected, result);
-      verify(workflowStateRepository).findByStepTemplateIsNullAndWorkflowExecutionId(workflowId);
+      assertTrue(view.getInputs().isEmpty());
+      assertTrue(view.getCorrelated().isEmpty());
+      verify(workflowStateStore, never()).load(any(), any(), anyBoolean());
     }
 
     @Test
-    @DisplayName("should return null when no global state exists")
-    void given_noGlobalState_should_returnNull() {
-      // Arrange
-      String workflowId = UUID.randomUUID().toString();
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(null);
+    @DisplayName("loadGlobalEntries loads only the requested keys, without hashes")
+    void givenGlobalState_loadGlobalEntries_shouldLoadRequestedKeysWithoutHashes() {
+      WorkflowStateEntries expected = WorkflowStateEntries.empty();
+      when(workflowStateStore.findGlobalStateId("workflow-run")).thenReturn(Optional.of("g"));
+      when(workflowStateStore.load("g", Set.of("IPv4"), false)).thenReturn(expected);
 
-      // Act
-      WorkflowState result = workflowStateService.getGlobalStateByWorkflowId(workflowId);
-
-      // Assert
-      assertNull(result);
-    }
-  }
-
-  // ========================================================================
-  // save Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("save")
-  class SaveTests {
-
-    @Test
-    @DisplayName("should delegate directly to the repository")
-    void given_state_should_delegateToRepository() {
-      // Arrange
-      WorkflowState state = mock(WorkflowState.class);
-
-      // Act
-      workflowStateService.save(state);
-
-      // Assert
-      verify(workflowStateRepository).save(state);
-      verifyNoMoreInteractions(workflowStateRepository);
-    }
-  }
-
-  // ========================================================================
-  // newOutput Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("newOutput")
-  class NewOutputTests {
-
-    @Test
-    @DisplayName("should add new value to input when path is not correlated")
-    void given_nonCorrelatedPath_should_addNewValue() {
-      // Arrange
-      String key = "stdout";
-      String path = "outputs.message.stdout";
-      String output = "{\"outputs\":{\"message\":{\"stdout\":\"test-value\"}}}";
-
-      WorkflowStateEntries.Input input = new WorkflowStateEntries.Input(key, new HashSet<>());
-      List<WorkflowStateEntries.Input> inputs = new ArrayList<>();
-      inputs.add(input);
-
-      WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
-
-      // Act
-      workflowStateService.newOutput(stateEntries, output, path, key);
-
-      // Assert
-      assertTrue(input.getValues().contains("test-value"));
+      assertSame(expected, workflowStateService.loadGlobalEntries(workflowRun, Set.of("IPv4")));
     }
 
     @Test
-    @DisplayName("should not add duplicate value to input")
-    void given_existingValue_should_notAddDuplicate() {
-      // Arrange
-      String key = "stdout";
-      String path = "outputs.message.stdout";
-      String output = "{\"outputs\":{\"message\":{\"stdout\":\"existing-value\"}}}";
+    @DisplayName("loadLocalEntries forwards the keys and the hash flag")
+    void givenLocalState_loadLocalEntries_shouldForwardKeysAndHashFlag() {
+      WorkflowStateEntries expected = WorkflowStateEntries.empty();
+      when(workflowStateStore.findLocalStateId("step-template", "workflow-run"))
+          .thenReturn(Optional.of("l"));
+      when(workflowStateStore.load("l", Set.of("Port"), true)).thenReturn(expected);
 
-      Set<String> existingValues = new HashSet<>();
-      existingValues.add("existing-value");
-      WorkflowStateEntries.Input input = new WorkflowStateEntries.Input(key, existingValues);
-      List<WorkflowStateEntries.Input> inputs = new ArrayList<>();
-      inputs.add(input);
-
-      WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
-
-      // Act
-      workflowStateService.newOutput(stateEntries, output, path, key);
-
-      // Assert
-      assertEquals(1, input.getValues().size());
+      assertSame(
+          expected,
+          workflowStateService.loadLocalEntries(stepTemplate, workflowRun, Set.of("Port"), true));
     }
 
     @Test
-    @DisplayName("should handle correlated path")
-    void given_correlatedPath_should_handleIt() {
-      // Arrange
-      String path = "outputs.message.ip+outputs.message.port";
-      String output = "{\"outputs\":{\"message\":{\"ip\":\"192.168.1.1\",\"port\":\"8080\"}}}";
-      String key = "ip+port";
+    @DisplayName("getCommittedHashes returns an empty set when the step has no local state")
+    void givenNoLocalState_getCommittedHashes_shouldReturnEmpty() {
+      when(workflowStateStore.findLocalStateId("step-template", "workflow-run"))
+          .thenReturn(Optional.empty());
 
-      List<String> correlatedPaths = List.of("outputs.message.ip", "outputs.message.port");
-
-      WorkflowStateEntries stateEntries = mock(WorkflowStateEntries.class);
-      when(stateEntries.isPathCorrelated(path)).thenReturn(true);
-      when(stateEntries.pathCorrelated(path)).thenReturn(correlatedPaths);
-      when(stateEntries.getIndexCorrelatedInput()).thenReturn(new HashMap<>());
-      when(stateEntries.getCorrelated()).thenReturn(new ArrayList<>());
-
-      // Act
-      workflowStateService.newOutput(stateEntries, output, path, key);
-
-      // Assert
-      verify(stateEntries).isPathCorrelated(path);
-      verify(stateEntries).pathCorrelated(path);
+      assertTrue(workflowStateService.getCommittedHashes(stepTemplate, workflowRun).isEmpty());
     }
 
     @Test
-    @DisplayName("should not add correlated when already exists")
-    void given_existingCorrelated_should_notAddDuplicate() {
-      // Arrange
-      String path = "outputs.message.ip+outputs.message.port";
-      String output = "{\"outputs\":{\"message\":{\"ip\":\"192.168.1.1\",\"port\":\"8080\"}}}";
-      String key = "ip+port";
+    @DisplayName("commitHashes with no hash neither creates a state nor writes")
+    void givenNoHash_commitHashes_shouldDoNothing() {
+      assertTrue(workflowStateService.commitHashes(stepTemplate, workflowRun, Set.of()).isEmpty());
 
-      List<String> correlatedPaths = List.of("outputs.message.ip", "outputs.message.port");
-
-      Set<WorkflowStateEntries.Pair> existingPairs = new HashSet<>();
-      existingPairs.add(new WorkflowStateEntries.Pair("ip", "192.168.1.1"));
-      existingPairs.add(new WorkflowStateEntries.Pair("port", "8080"));
-
-      Map<Set<WorkflowStateEntries.Pair>, WorkflowStateEntries.Correlated> existingIndex =
-          new HashMap<>();
-      existingIndex.put(existingPairs, new WorkflowStateEntries.Correlated(existingPairs, null));
-
-      WorkflowStateEntries stateEntries = mock(WorkflowStateEntries.class);
-      when(stateEntries.isPathCorrelated(path)).thenReturn(true);
-      when(stateEntries.pathCorrelated(path)).thenReturn(correlatedPaths);
-      when(stateEntries.getIndexCorrelatedInput()).thenReturn(existingIndex);
-
-      // Act
-      workflowStateService.newOutput(stateEntries, output, path, key);
-
-      // Assert
-      verify(stateEntries, never()).getCorrelated();
-    }
-  }
-
-  // ========================================================================
-  // getValues Tests (tested indirectly through newOutput)
-  // ========================================================================
-  @Nested
-  @DisplayName("getValues (private method - tested via newOutput)")
-  class GetValuesTests {
-
-    @Test
-    @DisplayName("should extract primitive string value")
-    void given_stringOutput_should_extractValue() {
-      // Arrange
-      String key = "message";
-      String path = "outputs.message";
-      String output = "{\"outputs\":{\"message\":\"hello world\"}}";
-
-      WorkflowStateEntries.Input input = new WorkflowStateEntries.Input(key, new HashSet<>());
-      List<WorkflowStateEntries.Input> inputs = new ArrayList<>();
-      inputs.add(input);
-
-      WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
-
-      // Act
-      workflowStateService.newOutput(stateEntries, output, path, key);
-
-      // Assert
-      assertTrue(input.getValues().contains("hello world"));
+      verifyNoInteractions(workflowStateStore);
     }
 
     @Test
-    @DisplayName("should handle null value in output")
-    void given_nullOutput_should_handleGracefully() {
-      // Arrange
-      String key = "message";
-      String path = "outputs.message";
-      String output = "{\"outputs\":{\"message\":null}}";
+    @DisplayName("commitHashes returns only the hashes the store actually committed")
+    void givenHashes_commitHashes_shouldReturnCommittedSubset() {
+      when(workflowStateStore.getOrCreateLocalStateId(stepTemplate, workflowRun)).thenReturn("l");
+      when(workflowStateStore.commitExecutionHashes("l", Set.of("h1", "h2")))
+          .thenReturn(Set.of("h2"));
 
-      WorkflowStateEntries.Input input = new WorkflowStateEntries.Input(key, new HashSet<>());
-      List<WorkflowStateEntries.Input> inputs = new ArrayList<>();
-      inputs.add(input);
-
-      WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
-
-      // Act
-      workflowStateService.newOutput(stateEntries, output, path, key);
-
-      // Assert
-      assertTrue(input.getValues().isEmpty() || input.getValues().contains(null));
+      assertEquals(
+          Set.of("h2"),
+          workflowStateService.commitHashes(stepTemplate, workflowRun, Set.of("h1", "h2")));
     }
 
     @Test
-    @DisplayName("should extract numeric value as string")
-    void given_numericOutput_should_extractAsString() {
-      // Arrange
-      String key = "count";
-      String path = "outputs.count";
-      String output = "{\"outputs\":{\"count\":42}}";
+    @DisplayName("clearExecutionHashes is a no-op when the step has no local state")
+    void givenNoLocalState_clearExecutionHashes_shouldDoNothing() {
+      when(workflowStateStore.findLocalStateId("step-template", "workflow-run"))
+          .thenReturn(Optional.empty());
 
-      WorkflowStateEntries.Input input = new WorkflowStateEntries.Input(key, new HashSet<>());
-      List<WorkflowStateEntries.Input> inputs = new ArrayList<>();
-      inputs.add(input);
+      workflowStateService.clearExecutionHashes(stepTemplate, workflowRun);
 
-      WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
-
-      // Act
-      workflowStateService.newOutput(stateEntries, output, path, key);
-
-      // Assert
-      assertTrue(input.getValues().contains("42"));
+      verify(workflowStateStore, never()).clearExecutionHashes(any());
     }
 
     @Test
-    @DisplayName("should extract boolean value as string")
-    void given_booleanOutput_should_extractAsString() {
-      // Arrange
-      String key = "enabled";
-      String path = "outputs.enabled";
-      String output = "{\"outputs\":{\"enabled\":true}}";
+    @DisplayName("clearExecutionHashes clears the hashes of the step's local state")
+    void givenLocalState_clearExecutionHashes_shouldClearThem() {
+      when(workflowStateStore.findLocalStateId("step-template", "workflow-run"))
+          .thenReturn(Optional.of("l"));
 
-      WorkflowStateEntries.Input input = new WorkflowStateEntries.Input(key, new HashSet<>());
-      List<WorkflowStateEntries.Input> inputs = new ArrayList<>();
-      inputs.add(input);
+      workflowStateService.clearExecutionHashes(stepTemplate, workflowRun);
 
-      WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
-
-      // Act
-      workflowStateService.newOutput(stateEntries, output, path, key);
-
-      // Assert
-      assertTrue(input.getValues().contains("true"));
+      verify(workflowStateStore).clearExecutionHashes("l");
     }
   }
 
@@ -370,13 +191,7 @@ class WorkflowStateServiceTest {
 
       Workflow workflow = Workflow.builder().id(workflowId).build();
 
-      WorkflowStateEntries initialEntries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-      WorkflowState globalState =
-          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
-
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(globalState);
+      WorkflowStateEntries globalState = captureGlobalAppends(workflow);
 
       PrimitiveValidationContext validationContext =
           new PrimitiveValidationContext(
@@ -422,8 +237,7 @@ class WorkflowStateServiceTest {
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 
-      WorkflowStateEntries persistedEntries =
-          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      WorkflowStateEntries persistedEntries = globalState;
 
       Set<String> ipv4Values = persistedEntries.getInputByKey("IPv4").getValues();
       assertEquals(253, ipv4Values.size());
@@ -445,13 +259,7 @@ class WorkflowStateServiceTest {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
 
-      WorkflowStateEntries initialEntries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-      WorkflowState globalState =
-          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
-
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(globalState);
+      WorkflowStateEntries globalState = captureGlobalAppends(workflow);
       when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
           .thenReturn(
               new PrimitiveValidationContext(
@@ -474,8 +282,7 @@ class WorkflowStateServiceTest {
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 
-      WorkflowStateEntries persistedEntries =
-          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      WorkflowStateEntries persistedEntries = globalState;
       Set<String> expectedExpanded = new HashSet<>(IpAddressUtils.expandSubnetToHostIps(subnet));
 
       assertEquals(Set.of(subnet), persistedEntries.getInputByKey("IpSubnet").getValues());
@@ -488,13 +295,7 @@ class WorkflowStateServiceTest {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
 
-      WorkflowStateEntries initialEntries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-      WorkflowState globalState =
-          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
-
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(globalState);
+      WorkflowStateEntries globalState = captureGlobalAppends(workflow);
       when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
           .thenReturn(
               new PrimitiveValidationContext(
@@ -525,8 +326,7 @@ class WorkflowStateServiceTest {
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 
-      WorkflowStateEntries persistedEntries =
-          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      WorkflowStateEntries persistedEntries = globalState;
 
       assertEquals(Set.of(subnet), persistedEntries.getInputByKey("IpSubnet").getValues());
       assertEquals(
@@ -539,13 +339,7 @@ class WorkflowStateServiceTest {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
 
-      WorkflowStateEntries initialEntries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-      WorkflowState globalState =
-          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
-
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(globalState);
+      WorkflowStateEntries globalState = captureGlobalAppends(workflow);
       when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
           .thenReturn(
               new PrimitiveValidationContext(
@@ -584,8 +378,7 @@ class WorkflowStateServiceTest {
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 
-      WorkflowStateEntries persistedEntries =
-          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      WorkflowStateEntries persistedEntries = globalState;
 
       assertTrue(inputValuesByKey(persistedEntries, "VulnerabilityName").contains("vuln-name"));
       assertTrue(inputValuesByKey(persistedEntries, "VulnerabilityStatus").contains("open"));
@@ -601,265 +394,113 @@ class WorkflowStateServiceTest {
   @DisplayName("syncState - correlated tuple propagation")
   class CorrelatedTuplePropagationTests {
 
-    @Test
-    @DisplayName(
-        "when a correlated tuple field matches step event, full tuple should be in local correlated")
-    void givenComplexOutput_whenFieldMatchesStepEvent_shouldPropagateFullTupleToLocal() {
-      // Arrange
-      String workflowId = UUID.randomUUID().toString();
-      String stepTemplateId = "step-template-1";
-      String workflowTemplateId = "wf-template-1";
+    private final Step stepTemplate = Step.builder().id("step-template").build();
+    private final Workflow workflowTemplate = Workflow.builder().id("wf-template").build();
+    private final Workflow workflowRun =
+        Workflow.builder().id("wf-run").workflowTemplate(workflowTemplate).build();
 
-      Step stepTemplate = Step.builder().id(stepTemplateId).build();
-      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
-      Workflow workflowRun =
-          Workflow.builder().id(workflowId).workflowTemplate(workflowTemplate).build();
+    private final Map<String, ChainingMappedType> portScanMappings =
+        Map.of(
+            "portscan",
+            ChainingMappedType.complex(
+                List.of(PrimitiveType.Host, PrimitiveType.Port), ContractOutputType.PortsScan));
 
-      // Global state — empty
-      WorkflowStateEntries globalEntries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-      WorkflowState globalState =
-          WorkflowState.builder().entries(gson.toJson(globalEntries)).build();
+    private JsonObject portScanOutput() {
+      return JsonParser.parseString(
+              """
+              {
+                "portscan": [
+                  {"host": "10.0.0.1", "port": "22"}
+                ]
+              }
+              """)
+          .getAsJsonObject();
+    }
 
-      // Local state for step — empty
-      WorkflowStateEntries localEntries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-      WorkflowState localState =
-          WorkflowState.builder()
-              .stepTemplate(stepTemplate)
-              .workflowExecution(workflowRun)
-              .entries(gson.toJson(localEntries))
-              .build();
-
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(globalState);
-      when(workflowStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
-          .thenReturn(emptyValidationContext());
-
-      // Event condition on Host key type: matches "10.0.0.1"
+    /** Links an event on the Host key type to {@link #stepTemplate}. */
+    private void givenStepEventOnHost() {
       Condition leafCondition =
           Condition.builder()
               .keyTypes(List.of(PrimitiveType.Host))
               .value("10.0.0.1")
               .type(ConditionType.EQ)
               .build();
-      ConditionStep cs1 = new ConditionStep();
-      cs1.setStep(stepTemplate);
+      ConditionStep conditionStep = new ConditionStep();
+      conditionStep.setStep(stepTemplate);
       Condition rootCondition =
           Condition.builder()
               .conditionChildren(List.of(leafCondition))
-              .conditionSteps(List.of(cs1))
+              .conditionSteps(List.of(conditionStep))
               .build();
-
-      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq("wf-template"), anySet()))
           .thenReturn(List.of(rootCondition));
+    }
 
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepTemplateId, workflowId))
-          .thenReturn(localState);
+    @Test
+    @DisplayName("global state receives the tuple and its fields decomposed as inputs")
+    void givenComplexOutput_shouldAppendTupleAndInputsToGlobal() {
+      WorkflowStateEntries global = captureGlobalAppends(workflowRun);
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
+          .thenReturn(emptyValidationContext());
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq("wf-template"), anySet()))
+          .thenReturn(List.of());
 
-      // conditionUtils.matchesAnyLeafCondition: return true when val == "10.0.0.1"
+      workflowStateService.syncState(portScanOutput(), portScanMappings, workflowRun);
+
+      assertEquals(1, global.getCorrelated().size());
+      assertEquals("PortsScan", global.getCorrelated().getFirst().getType());
+      assertEquals(Set.of("10.0.0.1"), global.getInputByKey("Host").getValues());
+      assertEquals(Set.of("22"), global.getInputByKey("Port").getValues());
+    }
+
+    @Test
+    @DisplayName(
+        "when a correlated tuple field matches step event, full tuple should be in local correlated")
+    void givenComplexOutput_whenFieldMatchesStepEvent_shouldPropagateFullTupleToLocal() {
+      captureGlobalAppends(workflowRun);
+      WorkflowStateEntries local = captureLocalAppends(stepTemplate, workflowRun);
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
+          .thenReturn(emptyValidationContext());
+      givenStepEventOnHost();
       when(conditionUtils.matchesAnyLeafCondition(eq("10.0.0.1"), any(), any())).thenReturn(true);
       when(conditionUtils.matchesAnyLeafCondition(eq("22"), any(), any())).thenReturn(false);
 
-      // Complex output: PortScan {host, port}
-      JsonObject dataToSync =
-          JsonParser.parseString(
-                  """
-                  {
-                    "portscan": [
-                      {"host": "10.0.0.1", "port": "22"}
-                    ]
-                  }
-                  """)
-              .getAsJsonObject();
+      workflowStateService.syncState(portScanOutput(), portScanMappings, workflowRun);
 
-      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
-      typeMappings.put(
-          "portscan",
-          ChainingMappedType.complex(
-              List.of(PrimitiveType.Host, PrimitiveType.Port), ContractOutputType.PortsScan));
-
-      // Act
-      workflowStateService.syncState(dataToSync, typeMappings, workflowRun);
-
-      // Assert — local state must contain the full tuple {Host, Port}
-      WorkflowStateEntries persisted =
-          gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
-      assertEquals(1, persisted.getCorrelated().size(), "full tuple should be propagated");
-      Set<WorkflowStateEntries.Pair> pairs = persisted.getCorrelated().getFirst().getValues();
-      assertTrue(
-          pairs.stream().anyMatch(p -> p.key().equals("Host") && p.value().equals("10.0.0.1")));
-      assertTrue(pairs.stream().anyMatch(p -> p.key().equals("Port") && p.value().equals("22")));
+      assertEquals(1, local.getCorrelated().size(), "full tuple should be propagated");
+      Set<WorkflowStateEntries.Pair> pairs = local.getCorrelated().getFirst().getValues();
+      assertTrue(pairs.contains(new WorkflowStateEntries.Pair("Host", "10.0.0.1")));
+      assertTrue(pairs.contains(new WorkflowStateEntries.Pair("Port", "22")));
+      assertEquals(Set.of("10.0.0.1"), local.getInputByKey("Host").getValues());
     }
 
     @Test
     @DisplayName(
         "when no correlated tuple field matches step event, no tuple should be in local correlated")
     void givenComplexOutput_whenNoFieldMatchesStepEvent_shouldNotPropagateToLocal() {
-      // Arrange
-      String workflowId = UUID.randomUUID().toString();
-      String stepTemplateId = "step-template-2";
-      String workflowTemplateId = "wf-template-2";
-
-      Step stepTemplate = Step.builder().id(stepTemplateId).build();
-      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
-      Workflow workflowRun =
-          Workflow.builder().id(workflowId).workflowTemplate(workflowTemplate).build();
-
-      WorkflowStateEntries globalEntries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-      WorkflowState globalState =
-          WorkflowState.builder().entries(gson.toJson(globalEntries)).build();
-
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(globalState);
-      when(workflowStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      captureGlobalAppends(workflowRun);
       when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
           .thenReturn(emptyValidationContext());
-
-      // Event condition on Host: expects "192.168.1.1" — no field in the tuple matches
-      Condition leafCondition =
-          Condition.builder()
-              .keyTypes(List.of(PrimitiveType.Host))
-              .value("192.168.1.1")
-              .type(ConditionType.EQ)
-              .build();
-      ConditionStep cs2 = new ConditionStep();
-      cs2.setStep(stepTemplate);
-      Condition rootCondition =
-          Condition.builder()
-              .conditionChildren(List.of(leafCondition))
-              .conditionSteps(List.of(cs2))
-              .build();
-
-      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
-          .thenReturn(List.of(rootCondition));
-
-      // no matchesAnyLeafCondition returns true
+      givenStepEventOnHost();
       when(conditionUtils.matchesAnyLeafCondition(anyString(), any(), any())).thenReturn(false);
 
-      JsonObject dataToSync =
-          JsonParser.parseString(
-                  """
-                  {
-                    "portscan": [
-                      {"host": "10.0.0.1", "port": "22"}
-                    ]
-                  }
-                  """)
-              .getAsJsonObject();
+      workflowStateService.syncState(portScanOutput(), portScanMappings, workflowRun);
 
-      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
-      typeMappings.put(
-          "portscan",
-          ChainingMappedType.complex(
-              List.of(PrimitiveType.Host, PrimitiveType.Port), ContractOutputType.PortsScan));
-
-      // Act
-      workflowStateService.syncState(dataToSync, typeMappings, workflowRun);
-
-      // Assert — local state repository should never be queried
-      verify(workflowStateRepository, never())
-          .findByStepTemplate_IdAndWorkflowExecution_Id(anyString(), anyString());
+      verify(workflowStateStore, never()).getOrCreateLocalStateId(any(), any());
     }
 
     @Test
-    @DisplayName("when same tuple already present in local state, should not add duplicate")
-    void givenTupleAlreadyInLocalState_shouldNotAddDuplicate() {
-      // Arrange
-      String workflowId = UUID.randomUUID().toString();
-      String stepTemplateId = "step-template-3";
-      String workflowTemplateId = "wf-template-3";
-
-      Step stepTemplate = Step.builder().id(stepTemplateId).build();
-      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
-      Workflow workflowRun =
-          Workflow.builder().id(workflowId).workflowTemplate(workflowTemplate).build();
-
-      // Pre-existing correlated tuple in local state (same pair-set that will be produced)
-      Set<WorkflowStateEntries.Pair> existingPairs = new HashSet<>();
-      existingPairs.add(new WorkflowStateEntries.Pair("Host", "10.0.0.1"));
-      existingPairs.add(new WorkflowStateEntries.Pair("Port", "22"));
-      WorkflowStateEntries.Correlated existingTuple =
-          new WorkflowStateEntries.Correlated(existingPairs, "PortsScan");
-
-      List<WorkflowStateEntries.Correlated> preExistingCorrelated = new ArrayList<>();
-      preExistingCorrelated.add(existingTuple);
-
-      WorkflowStateEntries localEntries =
-          new WorkflowStateEntries(new ArrayList<>(), preExistingCorrelated, new HashSet<>());
-      WorkflowState localState =
-          WorkflowState.builder()
-              .stepTemplate(stepTemplate)
-              .workflowExecution(workflowRun)
-              .entries(gson.toJson(localEntries))
-              .build();
-
-      WorkflowStateEntries globalEntries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-      WorkflowState globalState =
-          WorkflowState.builder().entries(gson.toJson(globalEntries)).build();
-
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(globalState);
-      when(workflowStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+    @DisplayName("when no value is accepted, no state is created nor written")
+    void givenNoAcceptedValue_shouldNotTouchTheStore() {
       when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
           .thenReturn(emptyValidationContext());
 
-      Condition leafCondition =
-          Condition.builder()
-              .keyTypes(List.of(PrimitiveType.Host))
-              .value("10.0.0.1")
-              .type(ConditionType.EQ)
-              .build();
-      ConditionStep cs3 = new ConditionStep();
-      cs3.setStep(stepTemplate);
-      Condition rootCondition =
-          Condition.builder()
-              .conditionChildren(List.of(leafCondition))
-              .conditionSteps(List.of(cs3))
-              .build();
+      workflowStateService.syncState(
+          JsonParser.parseString("{\"unmapped\": [\"x\"]}").getAsJsonObject(),
+          portScanMappings,
+          workflowRun);
 
-      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
-          .thenReturn(List.of(rootCondition));
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepTemplateId, workflowId))
-          .thenReturn(localState);
-      when(conditionUtils.matchesAnyLeafCondition(eq("10.0.0.1"), any(), any())).thenReturn(true);
-      when(conditionUtils.matchesAnyLeafCondition(eq("22"), any(), any())).thenReturn(false);
-
-      JsonObject dataToSync =
-          JsonParser.parseString(
-                  """
-                  {
-                    "portscan": [
-                      {"host": "10.0.0.1", "port": "22"}
-                    ]
-                  }
-                  """)
-              .getAsJsonObject();
-
-      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
-      typeMappings.put(
-          "portscan",
-          ChainingMappedType.complex(
-              List.of(PrimitiveType.Host, PrimitiveType.Port), ContractOutputType.PortsScan));
-
-      // Act
-      workflowStateService.syncState(dataToSync, typeMappings, workflowRun);
-
-      // Assert — still only 1 correlated entry (no duplicate)
-      WorkflowStateEntries persisted =
-          gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
-      assertEquals(1, persisted.getCorrelated().size(), "should not duplicate existing tuple");
-    }
-
-    private PrimitiveValidationContext emptyValidationContext() {
-      return new PrimitiveValidationContext(
-          Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
-          Set.of());
+      verifyNoInteractions(workflowStateStore);
     }
   }
 

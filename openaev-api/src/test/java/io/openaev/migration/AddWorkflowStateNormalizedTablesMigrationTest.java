@@ -14,9 +14,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Verifies the ADR-010 normalized WorkflowState store migration is applied, additive and
- * idempotent: the {@code workflow_state_entries} table and the {@code workflows.storage_mode}
- * column exist with the expected types/constraints, and re-running the migration is a no-op.
+ * Verifies the ADR-011 normalized WorkflowState store migration is applied, additive and
+ * idempotent: the {@code workflow_state_entries} table exists with the expected types/constraints,
+ * and re-running the migration is a no-op. (The {@code workflows.storage_mode} column it also added
+ * is dropped by {@code V6_20261005160000000}, see {@link
+ * MigrateWorkflowStateToNormalizedEntriesMigrationTest}.)
  *
  * <p>{@code @Transactional} so the idempotency test's re-run of the migration rolls back with the
  * test transaction instead of leaking any DDL side effect into the other tests.
@@ -115,21 +117,6 @@ class AddWorkflowStateNormalizedTablesMigrationTest extends IntegrationTest {
     assertThat(indexCount("uq_wse_hash")).isEqualTo(1);
     assertThat(indexCount("uq_wse_correlated")).isEqualTo(1);
     assertThat(tableCount("workflow_state_correlation_progress")).isZero();
-  }
-
-  @Test
-  @DisplayName("workflows.storage_mode exists, NOT NULL, defaults to LEGACY_JSONB")
-  void storage_mode_column_exists() {
-    assertThat(isNullable("workflows", "storage_mode")).isEqualTo("NO");
-    assertThat(dataType("workflows", "storage_mode")).isEqualTo("character varying");
-    String columnDefault =
-        (String)
-            entityManager
-                .createNativeQuery(
-                    "SELECT column_default FROM information_schema.columns "
-                        + "WHERE table_name = 'workflows' AND column_name = 'storage_mode'")
-                .getSingleResult();
-    assertThat(columnDefault).contains("LEGACY_JSONB");
   }
 
   @Test

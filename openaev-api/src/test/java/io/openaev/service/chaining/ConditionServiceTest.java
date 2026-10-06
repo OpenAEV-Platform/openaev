@@ -299,15 +299,7 @@ public class ConditionServiceTest {
     }
 
     private String hashCombo(Map<String, String> combo) {
-      WorkflowStateEntries temp =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-      return temp.hashCombo(combo);
-    }
-
-    private WorkflowState stateFromEntries(WorkflowStateEntries entries) {
-      WorkflowState state = new WorkflowState();
-      state.setEntries(gson.toJson(entries));
-      return state;
+      return ChainingHashUtils.hashCombo(combo);
     }
 
     private JsonObject inputJson(ConditionService.ExecutionBatch batch) {
@@ -319,7 +311,6 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-no-correlated");
 
       List<Condition> mappers =
           List.of(
@@ -332,10 +323,11 @@ public class ConditionServiceTest {
               List.of());
       WorkflowStateEntries localEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-no-correlated"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -359,7 +351,6 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-multi-key-types");
 
       List<Condition> mappers =
           List.of(
@@ -369,10 +360,11 @@ public class ConditionServiceTest {
           entries(List.of(input("IPv4", "10.0.0.1"), input("Service", "ssh")), List.of());
       WorkflowStateEntries localEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-multi-key-types"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -399,7 +391,6 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-subset");
 
       List<Condition> mappers =
           List.of(
@@ -413,10 +404,11 @@ public class ConditionServiceTest {
               List.of(correlated("LocalIp", new WorkflowStateEntries.Pair("IPv4", "10.0.0.1"))));
       WorkflowStateEntries globalEntries = entries(List.of(input("Port", "80", "443")), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-subset"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -437,7 +429,6 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-local-priority");
 
       List<Condition> mappers =
           List.of(
@@ -456,10 +447,11 @@ public class ConditionServiceTest {
       WorkflowStateEntries globalEntries =
           entries(List.of(input("Host", "0.0.0.0", "1.1.1.1", "2.2.2.2", "3.3.3.3")), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-priority"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -484,7 +476,6 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-local-correlated-only");
 
       List<Condition> mappers =
           List.of(
@@ -501,10 +492,11 @@ public class ConditionServiceTest {
                       new WorkflowStateEntries.Pair("Port", "5040"),
                       new WorkflowStateEntries.Pair("Service", "TCP"))));
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-correlated-only"))
-          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(entries(List.of(), List.of()));
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -523,7 +515,6 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-local-port-global-host");
 
       List<Condition> mappers =
           List.of(
@@ -541,10 +532,11 @@ public class ConditionServiceTest {
       WorkflowStateEntries globalEntries =
           entries(List.of(input("Host", "1.1.1.1", "2.2.2.2")), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-port-global-host"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -568,7 +560,6 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-local-priority-executed");
 
       List<Condition> mappers =
           List.of(
@@ -595,10 +586,11 @@ public class ConditionServiceTest {
       WorkflowStateEntries globalEntries =
           entries(List.of(input("Host", "0.0.0.0", "1.1.1.1", "2.2.2.2", "3.3.3.3")), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-priority-executed"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -622,7 +614,6 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-superset");
 
       List<Condition> mappers =
           List.of(
@@ -640,10 +631,11 @@ public class ConditionServiceTest {
                       new WorkflowStateEntries.Pair("Text", "folder-A"))));
       WorkflowStateEntries localEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-superset"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -662,7 +654,6 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-dedup");
 
       List<Condition> mappers =
           List.of(
@@ -679,10 +670,11 @@ public class ConditionServiceTest {
                       new WorkflowStateEntries.Pair("Port", "8443"))));
       WorkflowStateEntries localEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-dedup"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -700,17 +692,17 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-default-only");
 
       List<Condition> mappers =
           List.of(
               mapper(MappingType.DEFAULT, PrimitiveType.Text, "admin"),
               mapper(MappingType.DEFAULT, PrimitiveType.Host, "worker-01"));
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-default-only"))
-          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(entries(List.of(), List.of()));
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(entries(List.of(), List.of()));
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -732,7 +724,6 @@ public class ConditionServiceTest {
       // value2=B vs value=B/value2=A) into the same hash, dropping one and duplicating another.
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-shared-type");
 
       Condition valueMapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
       valueMapper.setKey("value");
@@ -743,10 +734,11 @@ public class ConditionServiceTest {
       WorkflowStateEntries localEntries = entries(List.of(input("Text", "key", "pass")), List.of());
       WorkflowStateEntries globalEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-shared-type"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -786,7 +778,6 @@ public class ConditionServiceTest {
       // same hash.
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-shared-type-executed");
 
       Condition valueMapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
       valueMapper.setKey("value");
@@ -804,10 +795,11 @@ public class ConditionServiceTest {
           entries(List.of(input("Text", "key", "pass")), List.of(), Set.of(executedHash));
       WorkflowStateEntries globalEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-shared-type-executed"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -840,7 +832,6 @@ public class ConditionServiceTest {
       // still be used as one more candidate in the generated combinations, not discarded.
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-defined-plus-linked-type");
 
       Condition mapperWithDefinedValue =
           mapper(MappingType.LOCAL, PrimitiveType.Text, "manual-value");
@@ -851,10 +842,11 @@ public class ConditionServiceTest {
           entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
       WorkflowStateEntries globalEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-defined-plus-linked-type"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -877,7 +869,6 @@ public class ConditionServiceTest {
       // not be added a second time (would otherwise execute the exact same effective value twice).
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-defined-value-collision");
 
       Condition mapperWithDefinedValue = mapper(MappingType.LOCAL, PrimitiveType.Text, "pool-a");
       mapperWithDefinedValue.setKey("value");
@@ -887,10 +878,11 @@ public class ConditionServiceTest {
           entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
       WorkflowStateEntries globalEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-defined-value-collision"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -910,7 +902,6 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-port-leading-zero-defined-value");
 
       Condition portMapper = mapper(MappingType.LOCAL, PrimitiveType.Port, "22");
       portMapper.setKey("portValue");
@@ -919,10 +910,11 @@ public class ConditionServiceTest {
       WorkflowStateEntries localEntries = entries(List.of(input("Port", "05", "445")), List.of());
       WorkflowStateEntries globalEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-port-leading-zero-defined-value"))
-          .thenReturn(stateFromEntries(globalEntries));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(localEntries));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalEntries);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(localEntries);
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -942,17 +934,17 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-default-plus-missing-linked");
 
       List<Condition> mappers =
           List.of(
               mapper(MappingType.DEFAULT, PrimitiveType.Text, "admin"),
               mapper(MappingType.LOCAL, PrimitiveType.Host, null));
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-default-plus-missing-linked"))
-          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(entries(List.of(), List.of()));
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(entries(List.of(), List.of()));
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -983,17 +975,17 @@ public class ConditionServiceTest {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-all-linked-missing");
 
       List<Condition> mappers =
           List.of(
               mapper(MappingType.LOCAL, PrimitiveType.IPv4, null),
               mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
 
-      when(workflowStateService.getGlobalStateByWorkflowId("wf-all-linked-missing"))
-          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
-          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(entries(List.of(), List.of()));
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+          .thenReturn(entries(List.of(), List.of()));
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> batches =
@@ -1204,30 +1196,18 @@ public class ConditionServiceTest {
   @Nested
   class CheckConditionFilterEq {
 
-    private WorkflowState buildWorkflowState(String entries) {
-      WorkflowState state = new WorkflowState();
-      state.setEntries(entries);
-      return state;
+    private WorkflowStateEntries buildWorkflowState(WorkflowStateEntries entries) {
+      return entries;
     }
 
-    private String buildStateEntriesJson(String key, Set<String> values) {
-      StringBuilder valuesJson = new StringBuilder("[");
-      boolean first = true;
-      for (String v : values) {
-        if (!first) valuesJson.append(",");
-        valuesJson.append("\"").append(v).append("\"");
-        first = false;
-      }
-      valuesJson.append("]");
-      return "{\"inputs\":[{\"key\":\""
-          + key
-          + "\",\"values\":"
-          + valuesJson
-          + "}],\"correlated\":[],\"hashExecution\":[]}";
+    private WorkflowStateEntries buildStateEntriesJson(String key, Set<String> values) {
+      WorkflowStateEntries entries = WorkflowStateEntries.empty();
+      entries.getInputByKey(key).getValues().addAll(values);
+      return entries;
     }
 
-    private String buildEmptyStateEntriesJson() {
-      return "{\"inputs\":[],\"correlated\":[],\"hashExecution\":[]}";
+    private WorkflowStateEntries buildEmptyStateEntriesJson() {
+      return WorkflowStateEntries.empty();
     }
 
     @Test
@@ -1237,10 +1217,8 @@ public class ConditionServiceTest {
       Workflow workflowRun = mock(Workflow.class);
 
       String stepId = UUID.randomUUID().toString();
-      String workflowId = UUID.randomUUID().toString();
 
       when(stepTemplate.getId()).thenReturn(stepId);
-      when(workflowRun.getId()).thenReturn(workflowId);
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
@@ -1249,12 +1227,14 @@ public class ConditionServiceTest {
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
 
-      WorkflowState globalState =
+      WorkflowStateEntries globalState =
           buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
-      WorkflowState localState = buildWorkflowState(buildEmptyStateEntriesJson());
+      WorkflowStateEntries localState = buildWorkflowState(buildEmptyStateEntriesJson());
 
-      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalState);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1274,10 +1254,8 @@ public class ConditionServiceTest {
       Workflow workflowRun = mock(Workflow.class);
 
       String stepId = UUID.randomUUID().toString();
-      String workflowId = UUID.randomUUID().toString();
 
       when(stepTemplate.getId()).thenReturn(stepId);
-      when(workflowRun.getId()).thenReturn(workflowId);
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
@@ -1286,12 +1264,14 @@ public class ConditionServiceTest {
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
 
-      WorkflowState globalState =
+      WorkflowStateEntries globalState =
           buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("192.168.0.1")));
-      WorkflowState localState = buildWorkflowState(buildEmptyStateEntriesJson());
+      WorkflowStateEntries localState = buildWorkflowState(buildEmptyStateEntriesJson());
 
-      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalState);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1310,10 +1290,8 @@ public class ConditionServiceTest {
       Workflow workflowRun = mock(Workflow.class);
 
       String stepId = UUID.randomUUID().toString();
-      String workflowId = UUID.randomUUID().toString();
 
       when(stepTemplate.getId()).thenReturn(stepId);
-      when(workflowRun.getId()).thenReturn(workflowId);
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
@@ -1322,12 +1300,14 @@ public class ConditionServiceTest {
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
 
-      WorkflowState globalState = buildWorkflowState(buildEmptyStateEntriesJson());
-      WorkflowState localState =
+      WorkflowStateEntries globalState = buildWorkflowState(buildEmptyStateEntriesJson());
+      WorkflowStateEntries localState =
           buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
 
-      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalState);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1346,10 +1326,8 @@ public class ConditionServiceTest {
       Workflow workflowRun = mock(Workflow.class);
 
       String stepId = UUID.randomUUID().toString();
-      String workflowId = UUID.randomUUID().toString();
 
       when(stepTemplate.getId()).thenReturn(stepId);
-      when(workflowRun.getId()).thenReturn(workflowId);
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
@@ -1358,11 +1336,13 @@ public class ConditionServiceTest {
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
 
-      WorkflowState localState =
+      WorkflowStateEntries localState =
           buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
 
-      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(null);
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(null);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1381,10 +1361,8 @@ public class ConditionServiceTest {
       Workflow workflowRun = mock(Workflow.class);
 
       String stepId = UUID.randomUUID().toString();
-      String workflowId = UUID.randomUUID().toString();
 
       when(stepTemplate.getId()).thenReturn(stepId);
-      when(workflowRun.getId()).thenReturn(workflowId);
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
@@ -1394,12 +1372,14 @@ public class ConditionServiceTest {
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
 
       // State has a different key — IPv4 won't be found
-      WorkflowState globalState =
+      WorkflowStateEntries globalState =
           buildWorkflowState(buildStateEntriesJson("Portscan", Set.of("445")));
-      WorkflowState localState = buildWorkflowState(buildEmptyStateEntriesJson());
+      WorkflowStateEntries localState = buildWorkflowState(buildEmptyStateEntriesJson());
 
-      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalState);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1419,10 +1399,8 @@ public class ConditionServiceTest {
       Workflow workflowRun = mock(Workflow.class);
 
       String stepId = UUID.randomUUID().toString();
-      String workflowId = UUID.randomUUID().toString();
 
       when(stepTemplate.getId()).thenReturn(stepId);
-      when(workflowRun.getId()).thenReturn(workflowId);
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
@@ -1431,13 +1409,15 @@ public class ConditionServiceTest {
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
 
-      WorkflowState globalState =
+      WorkflowStateEntries globalState =
           buildWorkflowState(
               buildStateEntriesJson("IPv4", Set.of("192.168.0.1", "10.0.0.1", "172.16.0.1")));
-      WorkflowState localState = buildWorkflowState(buildEmptyStateEntriesJson());
+      WorkflowStateEntries localState = buildWorkflowState(buildEmptyStateEntriesJson());
 
-      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalState);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1457,10 +1437,8 @@ public class ConditionServiceTest {
       Workflow workflowRun = mock(Workflow.class);
 
       String stepId = UUID.randomUUID().toString();
-      String workflowId = UUID.randomUUID().toString();
 
       when(stepTemplate.getId()).thenReturn(stepId);
-      when(workflowRun.getId()).thenReturn(workflowId);
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
@@ -1469,12 +1447,14 @@ public class ConditionServiceTest {
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
 
-      WorkflowState globalState =
+      WorkflowStateEntries globalState =
           buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
-      WorkflowState localState = buildWorkflowState(buildEmptyStateEntriesJson());
+      WorkflowStateEntries localState = buildWorkflowState(buildEmptyStateEntriesJson());
 
-      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
-      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+          .thenReturn(globalState);
+      when(workflowStateService.loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------

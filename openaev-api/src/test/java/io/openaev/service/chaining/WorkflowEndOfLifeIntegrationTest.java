@@ -456,11 +456,7 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
 
   private WorkflowState createPersistedWorkflowState(Workflow workflowRun, Step stepTemplate) {
     WorkflowState state =
-        WorkflowState.builder()
-            .workflowExecution(workflowRun)
-            .stepTemplate(stepTemplate)
-            .entries("{}")
-            .build();
+        WorkflowState.builder().workflowExecution(workflowRun).stepTemplate(stepTemplate).build();
     return workflowStateRepository.save(state);
   }
 

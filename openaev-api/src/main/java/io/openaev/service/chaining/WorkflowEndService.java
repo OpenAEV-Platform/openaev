@@ -296,13 +296,14 @@ public class WorkflowEndService {
   }
 
   /**
-   * Deletes all workflow states associated with workflows of the given simulation.
+   * Deletes all workflow states (global and local) associated with workflows of the given
+   * simulation, in a single statement; their entries are removed by the database cascade.
    *
    * @param simulationId the ID of the simulation whose workflow states should be cleared
    * @param cause the reason the workflow is ending, used for logging
    */
   public void deleteWorkflowStatesBySimulationId(String simulationId, WORKFLOW_END_CAUSE cause) {
-    int count = workflowStateRepository.deleteAllByWorkflowExecution_Simulation_Id(simulationId);
+    int count = workflowStateRepository.deleteAllBySimulationId(simulationId);
     log.info(
         "[Chaining] {} workflow states of simulation {} have been deleted due to {}",
         count,
