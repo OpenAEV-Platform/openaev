@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.service.stix.error.BundleValidationError;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -34,6 +35,20 @@ public class IocValidationBundleParser {
   static final int MAX_NAME_LENGTH = 255;
   static final int MAX_VALUE_LENGTH = 8192;
   static final int MAX_HASHES = 10;
+
+  /**
+   * Checked before the bundle is parsed, so an oversized payload is never materialized. OpenCTI
+   * sends at most 2,211 objects (see {@link #MAX_OBJECTS}); 16 Mi characters leave room for long
+   * indicator descriptions.
+   */
+  static final int MAX_BUNDLE_LENGTH = 16 * 1024 * 1024;
+
+  /** OpenCTI sends one pair per (indicator, security platform) couple. */
+  static final int MAX_PAIRS = MAX_INDICATORS * MAX_PLATFORMS;
+
+  /** The request, its indicators, its security platforms and one deployment per pair. */
+  static final int MAX_OBJECTS = 1 + MAX_INDICATORS + MAX_PLATFORMS + MAX_PAIRS;
+
   static final String INDICATOR_TYPE = "indicator";
   static final String IDENTITY_TYPE = "identity";
   static final String RELATIONSHIP_TYPE = "relationship";
@@ -54,8 +69,13 @@ public class IocValidationBundleParser {
    */
   public IocValidationRequest parse(String stixJson, String entityId) throws BundleValidationError {
     JsonNode bundle = readBundle(stixJson);
-    List<JsonNode> objects =
-        StreamSupport.stream(bundle.get("objects").spliterator(), false).toList();
+    JsonNode objectsNode = bundle.get("objects");
+    if (objectsNode.size() > MAX_OBJECTS) {
+      throw new BundleValidationError(
+          "An IOC validation bundle is limited to %d objects, found %d"
+              .formatted(MAX_OBJECTS, objectsNode.size()));
+    }
+    List<JsonNode> objects = StreamSupport.stream(objectsNode.spliterator(), false).toList();
     List<JsonNode> requests =
         objects.stream().filter(object -> REQUEST_TYPE.equals(text(object, "type"))).toList();
     if (requests.size() != 1) {
@@ -86,6 +106,11 @@ public class IocValidationBundleParser {
   }
 
   private JsonNode readBundle(String stixJson) throws BundleValidationError {
+    if (stixJson != null && stixJson.length() > MAX_BUNDLE_LENGTH) {
+      throw new BundleValidationError(
+          "An IOC validation bundle is limited to %d characters, found %d"
+              .formatted(MAX_BUNDLE_LENGTH, stixJson.length()));
+    }
     JsonNode bundle;
     try {
       bundle = stixJson == null ? null : mapper.readTree(stixJson);
@@ -145,6 +170,11 @@ public class IocValidationBundleParser {
     if (!iocsNode.isArray()) {
       throw new BundleValidationError("The IOC validation request has no iocs array");
     }
+    if (iocsNode.size() > MAX_INDICATORS) {
+      throw new BundleValidationError(
+          "An IOC validation request is limited to %d IOCs, found %d"
+              .formatted(MAX_INDICATORS, iocsNode.size()));
+    }
     List<IocValidationRequest.Ioc> iocs = new ArrayList<>();
     // One test per indicator, the first IOC given for it, as OpenCTI sends them: further entries of
     // an indicator are ignored, so a request never runs more tests than it has indicators
@@ -190,18 +220,15 @@ public class IocValidationBundleParser {
     if (!hashesNode.isObject()) {
       return hashes;
     }
-    hashesNode
-        .fields()
-        .forEachRemaining(
-            entry -> {
-              if (hashes.size() < MAX_HASHES
-                  && entry.getValue().isTextual()
-                  && !entry.getValue().asText().isBlank()) {
-                hashes.put(
-                    truncate(entry.getKey(), MAX_NAME_LENGTH),
-                    truncate(entry.getValue().asText().trim(), MAX_NAME_LENGTH));
-              }
-            });
+    Iterator<Map.Entry<String, JsonNode>> fields = hashesNode.fields();
+    while (hashes.size() < MAX_HASHES && fields.hasNext()) {
+      Map.Entry<String, JsonNode> entry = fields.next();
+      if (entry.getValue().isTextual() && !entry.getValue().asText().isBlank()) {
+        hashes.put(
+            truncate(entry.getKey(), MAX_NAME_LENGTH),
+            truncate(entry.getValue().asText().trim(), MAX_NAME_LENGTH));
+      }
+    }
     return hashes;
   }
 
@@ -209,6 +236,11 @@ public class IocValidationBundleParser {
       throws BundleValidationError {
     if (!pairsNode.isArray()) {
       throw new BundleValidationError("The IOC validation request has no pairs array");
+    }
+    if (pairsNode.size() > MAX_PAIRS) {
+      throw new BundleValidationError(
+          "An IOC validation request is limited to %d (indicator, security platform) pairs, found %d"
+              .formatted(MAX_PAIRS, pairsNode.size()));
     }
     List<IocValidationRequest.Pair> pairs = new ArrayList<>();
     Set<String> seenDeployments = new LinkedHashSet<>();
@@ -239,11 +271,6 @@ public class IocValidationBundleParser {
       List<IocValidationRequest.Pair> pairs,
       Map<String, String> platformNames)
       throws BundleValidationError {
-    if (iocs.size() > MAX_INDICATORS) {
-      throw new BundleValidationError(
-          "An IOC validation request is limited to %d IOCs, found %d"
-              .formatted(MAX_INDICATORS, iocs.size()));
-    }
     // OpenCTI builds every pair from an IOC of the request and sends the named identity of every
     // paired security platform, the only way a platform is matched here: a pair without either
     // could never be tested and is a malformed request

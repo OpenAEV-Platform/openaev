@@ -1,8 +1,10 @@
 package io.openaev.service.stix;
 
+import static io.openaev.database.model.IocValidation.MAX_INDICATORS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -345,6 +347,62 @@ class IocValidationBundleParserTest {
     assertThatThrownBy(() -> parser.parse(bundle(request), REQUEST_ID))
         .isInstanceOf(BundleValidationError.class)
         .hasMessageContaining("has no named identity");
+  }
+
+  @Test
+  @DisplayName("rejects an oversized bundle before parsing it")
+  void given_oversizedBundle_should_throwBeforeParsing() {
+    // Not even JSON: the length is checked first, so the payload is never materialized
+    String oversized = "x".repeat(IocValidationBundleParser.MAX_BUNDLE_LENGTH + 1);
+    assertThatThrownBy(() -> parser.parse(oversized, REQUEST_ID))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining(
+            "limited to %d characters".formatted(IocValidationBundleParser.MAX_BUNDLE_LENGTH));
+  }
+
+  @Test
+  @DisplayName("rejects a bundle with more objects than a request can carry")
+  void given_tooManyObjects_should_throw() {
+    ObjectNode[] objects = new ObjectNode[IocValidationBundleParser.MAX_OBJECTS + 1];
+    objects[0] = request();
+    for (int i = 1; i < objects.length; i++) {
+      objects[i] = mapper.createObjectNode().put("type", "identity").put("id", PLATFORM);
+    }
+    assertThatThrownBy(() -> parser.parse(bundle(objects), REQUEST_ID))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining(
+            "limited to %d objects".formatted(IocValidationBundleParser.MAX_OBJECTS));
+  }
+
+  @Test
+  @DisplayName("rejects more IOC entries than the indicator limit, duplicates included")
+  void given_tooManyIocEntries_should_throw() {
+    ObjectNode request = request();
+    ArrayNode iocs = (ArrayNode) request.get("iocs");
+    JsonNode ioc = iocs.get(0);
+    while (iocs.size() <= MAX_INDICATORS) {
+      iocs.add(ioc.deepCopy());
+    }
+    assertThatThrownBy(() -> parser.parse(bundle(request), REQUEST_ID))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining(
+            "limited to %d IOCs, found %d".formatted(MAX_INDICATORS, MAX_INDICATORS + 1));
+  }
+
+  @Test
+  @DisplayName("rejects more pair entries than one per indicator and security platform")
+  void given_tooManyPairEntries_should_throw() {
+    ObjectNode request = request();
+    ArrayNode pairs = (ArrayNode) request.get("pairs");
+    JsonNode pair = pairs.get(0);
+    while (pairs.size() <= IocValidationBundleParser.MAX_PAIRS) {
+      pairs.add(pair.deepCopy());
+    }
+    assertThatThrownBy(() -> parser.parse(bundle(request), REQUEST_ID))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining(
+            "limited to %d (indicator, security platform) pairs"
+                .formatted(IocValidationBundleParser.MAX_PAIRS));
   }
 
   @Test
