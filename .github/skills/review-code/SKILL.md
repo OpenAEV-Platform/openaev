@@ -20,9 +20,9 @@ git diff --stat HEAD~1
 ## Step 2 — Check PR metadata
 
 Verify:
-- ☐ PR title follows conventional commits (`type(scope?): description (#issue)` — NO `[context]` prefix; `[context]` is for commit messages only)
+- ☐ PR title follows conventional commits (`type(scope?): description (#issue)` — NO `[context]` prefix; `[context]` is for commit messages only); omit `(#issue)` when the related issue is in a private repository
 - ☐ PR description explains WHAT and WHY
-- ☐ Linked issue/ticket exists
+- ☐ A public issue/ticket is linked, or the PR is tracked from its related private issue without exposing that issue in the PR
 
 ## Step 3 — Check build
 
@@ -112,4 +112,3 @@ Apply these checks based on past review feedback:
 
 Generate the Code Review Summary following the output format
 defined in `code-reviewer.agent.md`.
-
