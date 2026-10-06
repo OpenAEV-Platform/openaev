@@ -530,18 +530,19 @@ class IocValidationCommandContentTest {
   }
 
   @Test
-  @DisplayName("the Unix cleanup checks its arguments and removes only what the run created")
-  void given_fileDropCleanupOnUnix_should_removeOnlyWhatTheRunCreated() {
+  @DisplayName("the Unix cleanup checks its arguments and removes only an empty run directory")
+  void given_fileDropCleanupOnUnix_should_removeOnlyAnEmptyRunDirectory() {
     String cleanup =
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, false);
     assertThat(cleanup)
-        .contains("[ \"$(pwd -P)\" = \"$OAEV_IOC_DIR\" ]")
-        .contains("[ -f \"./$OAEV_IOC_FILE\" ] && [ ! -L \"./$OAEV_IOC_FILE\" ]")
-        .contains("rm -f -- \"./$OAEV_IOC_FILE\"")
+        .contains("*[!0123456789abcdef]*")
+        .contains("\"${#OAEV_IOC_RUN}\" -ne 32")
         .contains("rmdir -- \"openaev-ioc-validation-$OAEV_IOC_RUN\"")
-        .doesNotContain("rm -rf");
-    assertThat(cleanup.indexOf("exit 1")).isLessThan(cleanup.indexOf("rm -f"));
-    assertThat(cleanup.indexOf("pwd -P")).isLessThan(cleanup.indexOf("rm -f"));
+        // A shell removes a file by path only, after any check of its bytes: the surrogate stays
+        .doesNotContain("rm -f")
+        .doesNotContain("rm -rf")
+        .doesNotContain("unlink");
+    assertThat(cleanup.indexOf("exit 1")).isLessThan(cleanup.indexOf("rmdir"));
   }
 
   @Test
@@ -737,12 +738,26 @@ class IocValidationCommandContentTest {
     }
 
     @Test
-    @DisplayName("writes the surrogate in the run directory and cleans both up")
-    void given_validArguments_should_writeThenCleanUp() throws Exception {
+    @DisplayName("writes the surrogate in the run directory and leaves it in place at cleanup")
+    void given_validArguments_should_writeThenKeepTheSurrogate() throws Exception {
+      Path surrogate = tmp.resolve("openaev-ioc-validation-" + VALID_RUN).resolve("invoice.pdf");
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
+      String written = Files.readString(surrogate);
+
+      // A shell can only remove a file by path once it checked it: the surrogate stays
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+      assertThat(surrogate).hasContent(written);
+    }
+
+    @Test
+    @DisplayName("removes the run directory at cleanup once the surrogate is gone")
+    void given_quarantinedSurrogate_should_removeTheEmptyRunDirectory() throws Exception {
       Path runDirectory = tmp.resolve("openaev-ioc-validation-" + VALID_RUN);
 
       assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
-      assertThat(runDirectory.resolve("invoice.pdf")).exists();
+      // as a security platform quarantining the file does
+      Files.delete(runDirectory.resolve("invoice.pdf"));
 
       assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
       assertThat(runDirectory).doesNotExist();
@@ -868,7 +883,7 @@ class IocValidationCommandContentTest {
     }
 
     @Test
-    @DisplayName("removes at cleanup only the surrogate of its run, not a file put in its place")
+    @DisplayName("keeps at cleanup a file put in the place of the surrogate")
     void given_replacedSurrogate_should_keepItAtCleanup() throws Exception {
       Path surrogate = tmp.resolve("openaev-ioc-validation-" + VALID_RUN).resolve("invoice.pdf");
 

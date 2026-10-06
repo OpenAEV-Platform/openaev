@@ -1306,10 +1306,12 @@ public class PayloadService {
    * The cleanup of a kind, {@code null} when no cleanup is defined: only the file drop defines one.
    * The log injection leaves its marker line in the system log, and fails when that log is
    * unavailable: the line is the evidence the security platform is expected to collect, so no
-   * cleanup removes it. The file-drop cleanup removes the surrogate, then the run directory only
-   * when it is empty: it never deletes anything it did not create. The surrogate carries its run,
-   * so a file at its path is removed only when it holds exactly the surrogate of this run: a file
-   * that was there before a failed creation, or put in its place since, is left alone.
+   * cleanup removes it. The file-drop cleanup never deletes anything it did not create. On Windows
+   * it removes the surrogate only when it holds exactly the surrogate of this run (the surrogate
+   * carries its run), checked and deleted through one handle, so a file that was there before a
+   * failed creation, or put in its place since, is left alone; then the run directory when it is
+   * empty. On Linux and macOS, where a file can only be removed by path once checked, it leaves the
+   * surrogate in place and removes the run directory only when it is empty.
    */
   static String iocValidationCleanupCommand(IocValidationTestKind kind, boolean windows) {
     if (kind != IocValidationTestKind.FILE_DROP) {
@@ -1359,19 +1361,13 @@ public class PayloadService {
           + " elseif ($oaevIocHandle) { $oaevIocHandle.Dispose() } } };"
           + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { } }";
     }
-    // Only a regular file of the run directory entered is removed (rm never follows a link), then
-    // the run directory itself when it is empty (rmdir refuses a link). The file is compared byte
-    // for byte with the text the drop wrote (a command substitution would drop trailing newlines)
+    // A shell removes a file by path only: between a check of its bytes and its removal, another
+    // process of the runner could put a file in its place, and that file would be removed. The
+    // surrogate is left in place, and the run directory is removed only when it is empty (rmdir
+    // refuses a link and a directory holding anything), as once a security platform quarantined it
     return posixRunDirectory()
-        + "; if "
-        + POSIX_ENTER_RUN_DIRECTORY
-        + "; then if [ -f \"./$OAEV_IOC_FILE\" ] && [ ! -L \"./$OAEV_IOC_FILE\" ]"
-        + " && printf '"
-        + IOC_VALIDATION_SURROGATE_TEXT
-        + " %s\\n' \"$OAEV_IOC_RUN\" | cmp -s - \"./$OAEV_IOC_FILE\";"
-        + " then rm -f -- \"./$OAEV_IOC_FILE\"; fi;"
-        + " cd \"$OAEV_IOC_BASE\" && rmdir -- \"openaev-ioc-validation-$OAEV_IOC_RUN\" 2>/dev/null;"
-        + " fi; true";
+        + "; cd \"$OAEV_IOC_BASE\" && rmdir -- \"openaev-ioc-validation-$OAEV_IOC_RUN\" 2>/dev/null;"
+        + " true";
   }
 
   /**
