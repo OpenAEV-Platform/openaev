@@ -314,11 +314,12 @@ public class IocValidationService {
     // preview plans on the validation detached from the session
     entityManager.detach(validation);
     ApprovalPlan plan = planApproval(validation, tenantId, hostAnswers);
-    String blocker =
+    ApprovalTargets targets =
         plan.blocker() != null
-            ? plan.blocker()
-            : approvalTargets(validation, plan.settings(), tenantId).blocker();
-    return new ApprovalPreview(validation, approvalFingerprint(validation), blocker);
+            ? ApprovalTargets.blocked(plan.blocker())
+            : approvalTargets(validation, plan.settings(), tenantId);
+    return new ApprovalPreview(
+        validation, approvalFingerprint(validation, targets), targets.blocker());
   }
 
   /**
@@ -330,9 +331,10 @@ public class IocValidationService {
    * @param previewFingerprint the fingerprint of the {@link #approvalPreview} the operator
    *     confirmed
    * @throws BadRequestException when the request is no longer awaiting approval, when a test shown
-   *     to the operator would now run with other arguments, when the approval now plans other tests
-   *     or security platforms than the confirmed preview, or when nothing can run (no allowed test,
-   *     no asset group, no endpoint with an active agent)
+   *     to the operator would now run with other arguments, when nothing can run (no allowed test,
+   *     no asset group, no endpoint with an active agent), or when the approval now plans other
+   *     tests, security platforms or targets (asset group, its endpoints with an active agent and
+   *     their operating systems) than the confirmed preview
    */
   @Transactional(rollbackFor = Exception.class)
   public IocValidation approve(
@@ -349,18 +351,18 @@ public class IocValidationService {
     if (plan.blocker() != null) {
       throw new BadRequestException(plan.blocker());
     }
-    if (!approvalFingerprint(validation).equals(previewFingerprint)) {
-      throw new BadRequestException(
-          "The tests or security platforms of this approval changed since it was shown (IOC"
-              + " validation settings, DNS answers or security platforms). Review them again,"
-              + " then approve.");
-    }
     IocValidationSettings settings = plan.settings();
     IocValidationPlanner.HostResolver resolved = plan.resolved();
     List<Boolean> shownRefusals = plan.shownRefusals();
     ApprovalTargets targets = approvalTargets(validation, settings, tenantId);
     if (targets.blocker() != null) {
       throw new BadRequestException(targets.blocker());
+    }
+    if (!approvalFingerprint(validation, targets).equals(previewFingerprint)) {
+      throw new BadRequestException(
+          "The tests, security platforms or targets of this approval changed since it was shown"
+              + " (IOC validation settings, DNS answers, security platforms, the asset group or"
+              + " its endpoints with an active agent). Review them again, then approve.");
     }
     AssetGroup assetGroup = targets.assetGroup();
     List<Endpoint> runnableEndpoints = targets.runnableEndpoints();
@@ -526,14 +528,38 @@ public class IocValidationService {
     return new ApprovalTargets(assetGroup, runnableEndpoints, null);
   }
 
+  private static String approvalFingerprint(IocValidation validation, ApprovalTargets targets) {
+    return approvalFingerprint(
+        validation,
+        targets.assetGroup() == null ? null : targets.assetGroup().getId(),
+        targets.runnableEndpoints().stream().map(Endpoint::getId).toList(),
+        executorsOf(targets.runnableEndpoints()));
+  }
+
   /**
-   * Fingerprint of what the approval of a planned validation starts: the test of each IOC with its
-   * plan fingerprint (kind and arguments), and the OpenAEV security platform of each pair of the
-   * IOCs that run. An approval runs only with the fingerprint of the preview the operator
-   * confirmed.
+   * Fingerprint of what the approval of a planned validation starts: where its tests run (the asset
+   * group, its endpoints with an active agent, and their executor families, which decide the
+   * injects), the test of each IOC with its plan fingerprint (kind and arguments), and the OpenAEV
+   * security platform of each pair of the IOCs that run. An approval runs only with the fingerprint
+   * of the preview the operator confirmed.
+   *
+   * @param assetGroupId the asset group the injects target, null when none can be resolved
+   * @param endpointIds the endpoints of that asset group with an active agent
+   * @param executors the executor families of {@link #executorsOf}
    */
-  static String approvalFingerprint(IocValidation validation) {
-    StringBuilder canonical = new StringBuilder("v1");
+  static String approvalFingerprint(
+      IocValidation validation,
+      String assetGroupId,
+      Collection<String> endpointIds,
+      Collection<String> executors) {
+    StringBuilder canonical = new StringBuilder("v2");
+    canonical.append("\ntarget\t").append(Objects.toString(assetGroupId, ""));
+    endpointIds.stream()
+        .sorted()
+        .forEach(endpointId -> canonical.append("\nendpoint\t").append(endpointId));
+    executors.stream()
+        .sorted()
+        .forEach(executor -> canonical.append("\nexecutor\t").append(executor));
     Set<String> planned = new HashSet<>();
     for (IocValidationIoc ioc : validation.getIocs()) {
       canonical

@@ -15,6 +15,10 @@ import org.junit.jupiter.api.Test;
 @DisplayName("IOC validation approval fingerprint")
 class IocValidationApprovalFingerprintTest {
 
+  private static final String ASSET_GROUP = "asset-group-a";
+  private static final List<String> ENDPOINTS = List.of("endpoint-linux", "endpoint-windows");
+  private static final List<String> EXECUTORS = List.of("psh", "sh");
+
   private static IocValidationIoc ioc(String indicator, IocValidationTestKind kind, String plan) {
     IocValidationIoc ioc = new IocValidationIoc();
     ioc.setIndicatorRef(indicator);
@@ -48,16 +52,25 @@ class IocValidationApprovalFingerprintTest {
     return validation;
   }
 
+  private static String fingerprint(IocValidation validation) {
+    return IocValidationService.approvalFingerprint(validation, ASSET_GROUP, ENDPOINTS, EXECUTORS);
+  }
+
+  private static String fingerprintOn(
+      String assetGroup, List<String> endpoints, List<String> executors) {
+    return IocValidationService.approvalFingerprint(validation(), assetGroup, endpoints, executors);
+  }
+
   private static String fingerprintAfter(Consumer<IocValidation> change) {
     IocValidation validation = validation();
     change.accept(validation);
-    return IocValidationService.approvalFingerprint(validation);
+    return fingerprint(validation);
   }
 
   @Test
   @DisplayName("is the same for the same plan, whatever the order of the pairs")
   void given_samePlan_should_giveTheSameFingerprint() {
-    String fingerprint = IocValidationService.approvalFingerprint(validation());
+    String fingerprint = fingerprint(validation());
 
     assertThat(fingerprint).matches("[0-9a-f]{64}");
     assertThat(fingerprintAfter(v -> v.setPairs(new ArrayList<>(v.getPairs().reversed()))))
@@ -73,7 +86,7 @@ class IocValidationApprovalFingerprintTest {
   @Test
   @DisplayName("changes with the test of an IOC, its arguments, or a platform of a test that runs")
   void given_otherPlan_should_giveAnotherFingerprint() {
-    String fingerprint = IocValidationService.approvalFingerprint(validation());
+    String fingerprint = fingerprint(validation());
 
     assertThat(fingerprintAfter(v -> v.getIocs().get(0).setTestKind(null)))
         .isNotEqualTo(fingerprint);
@@ -86,5 +99,34 @@ class IocValidationApprovalFingerprintTest {
     assertThat(fingerprintAfter(v -> v.getPairs().get(1).setSecurityPlatformId("platform-siem")))
         .isNotEqualTo(fingerprint);
     assertThat(fingerprintAfter(v -> v.getPairs().remove(0))).isNotEqualTo(fingerprint);
+  }
+
+  @Test
+  @DisplayName(
+      "changes with the asset group, its endpoints with an active agent or their executors")
+  void given_otherTargets_should_giveAnotherFingerprint() {
+    String fingerprint = fingerprint(validation());
+
+    assertThat(fingerprintOn("asset-group-b", ENDPOINTS, EXECUTORS)).isNotEqualTo(fingerprint);
+    assertThat(fingerprintOn(ASSET_GROUP, List.of("endpoint-linux"), EXECUTORS))
+        .isNotEqualTo(fingerprint);
+    assertThat(
+            fingerprintOn(
+                ASSET_GROUP,
+                List.of("endpoint-linux", "endpoint-windows", "endpoint-macos"),
+                EXECUTORS))
+        .isNotEqualTo(fingerprint);
+    assertThat(fingerprintOn(ASSET_GROUP, List.of("endpoint-linux", "endpoint-other"), EXECUTORS))
+        .isNotEqualTo(fingerprint);
+    assertThat(fingerprintOn(ASSET_GROUP, ENDPOINTS, List.of("psh"))).isNotEqualTo(fingerprint);
+    assertThat(fingerprintOn(null, List.of(), List.of())).isNotEqualTo(fingerprint);
+    // An endpoint id is never read as an executor family, nor the other way around
+    assertThat(fingerprintOn(ASSET_GROUP, List.of("endpoint-linux", "psh"), List.of("sh")))
+        .isNotEqualTo(fingerprintOn(ASSET_GROUP, List.of("endpoint-linux"), List.of("psh", "sh")));
+    // The order the endpoints and executor families are listed in is not a change
+    assertThat(
+            fingerprintOn(
+                ASSET_GROUP, List.of("endpoint-windows", "endpoint-linux"), List.of("sh", "psh")))
+        .isEqualTo(fingerprint);
   }
 }

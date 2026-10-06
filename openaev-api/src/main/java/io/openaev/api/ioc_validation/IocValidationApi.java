@@ -177,7 +177,8 @@ public class IocValidationApi extends RestBehavior {
     @ApiResponse(
         responseCode = "400",
         description =
-            "Not awaiting approval, the approval now plans other tests than the confirmed preview,"
+            "Not awaiting approval, the approval now plans other tests or targets than the"
+                + " confirmed preview,"
                 + " or nothing can run with the current settings"),
     @ApiResponse(responseCode = "404", description = "IOC validation not found")
   })

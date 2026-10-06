@@ -600,6 +600,48 @@ class IocValidationApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("an approval refuses a preview whose asset group changed since it was shown")
+    void given_assetGroupChangedAfterPreview_should_refuseApproval() throws Exception {
+      allowTestKindOnValidationTargets(IocValidationTestKind.DNS_RESOLUTION);
+      String id = receiveDnsRequest();
+      String fingerprint =
+          JsonPath.read(approvalPreview(id), "$.ioc_validation_preview_fingerprint");
+      allow(List.of(IocValidationTestKind.DNS_RESOLUTION), validationTargets());
+
+      mvc.perform(approve(id, fingerprint)).andExpect(status().isBadRequest());
+      assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
+          .isEqualTo("AWAITING_APPROVAL");
+
+      mvc.perform(approve(id)).andExpect(status().isOk());
+      assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
+          .isEqualTo("RUNNING");
+    }
+
+    @Test
+    @DisplayName(
+        "an approval refuses a preview whose endpoints with an active agent changed since it was"
+            + " shown")
+    void given_runnableEndpointsChangedAfterPreview_should_refuseApproval() throws Exception {
+      injectorFixture.getWellKnownOaevImplantInjector();
+      Agent dormant = AgentFixture.createInactiveAgent();
+      AssetGroup assetGroup = validationTargets(AgentFixture.createDefaultAgentService(), dormant);
+      allow(List.of(IocValidationTestKind.DNS_RESOLUTION), assetGroup);
+      String id = receiveDnsRequest();
+      String fingerprint =
+          JsonPath.read(approvalPreview(id), "$.ioc_validation_preview_fingerprint");
+      // Same asset group and same operating system: only the endpoints the tests run on change
+      jdbc.update("UPDATE agents SET agent_status = 'ACTIVE' WHERE agent_id = ?", dormant.getId());
+
+      mvc.perform(approve(id, fingerprint)).andExpect(status().isBadRequest());
+      assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
+          .isEqualTo("AWAITING_APPROVAL");
+
+      mvc.perform(approve(id)).andExpect(status().isOk());
+      assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
+          .isEqualTo("RUNNING");
+    }
+
+    @Test
     @DisplayName("refuses an approval without asset group to run the tests on")
     void given_noAssetGroup_should_refuseApproval() throws Exception {
       String id = receiveDnsRequest();
@@ -857,17 +899,20 @@ class IocValidationApiTest extends IntegrationTest {
     return validationTargets(AgentFixture.createDefaultAgentService());
   }
 
-  private AssetGroup validationTargets(Agent agent) {
+  /** An asset group with one endpoint per agent. */
+  private AssetGroup validationTargets(Agent... agents) {
     TenantContext.setCurrentTenant(tenantId);
     try {
-      return assetGroupComposer
-          .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("IOC validation targets"))
-          .withAsset(
-              endpointComposer
-                  .forEndpoint(EndpointFixture.createEndpoint())
-                  .withAgent(agentComposer.forAgent(agent)))
-          .persist()
-          .get();
+      AssetGroupComposer.Composer assetGroup =
+          assetGroupComposer.forAssetGroup(
+              AssetGroupFixture.createDefaultAssetGroup("IOC validation targets"));
+      for (Agent agent : agents) {
+        assetGroup.withAsset(
+            endpointComposer
+                .forEndpoint(EndpointFixture.createEndpoint())
+                .withAgent(agentComposer.forAgent(agent)));
+      }
+      return assetGroup.persist().get();
     } finally {
       TenantContext.clearCurrentTenant();
     }
