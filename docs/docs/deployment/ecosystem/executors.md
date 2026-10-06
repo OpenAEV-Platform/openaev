@@ -626,13 +626,15 @@ synced: devices that MDE merely discovered on the network (`CanBeOnboarded`) hav
     `DeviceInfo`, `DeviceEvents`, `DeviceNetworkEvents` and `DeviceProcessEvents` tables. `DeviceInfo` alone is only a
     snapshot written about once an hour, so it is not enough to tell whether a device is up.
 
-    - Activity in the last **90 minutes**: the agent is considered seen at the time of the sync, so its **Last seen**
-      shows the time of the latest sync rather than the exact time of the last event.
+    - Activity within the **tolerance** (70 minutes plus one register interval, so **90 minutes** with the default
+      1200 s): the agent is considered seen at the time of the sync, so its **Last seen** shows the time of the latest
+      sync rather than the exact time of the last event.
     - Older activity: **Last seen** keeps that real timestamp, and the agent turns inactive once it is more than one hour
       old.
 
-    With the default register interval (1200 s), a device that goes offline is therefore shown as inactive within
-    about two hours. A healthy device stays active between two syncs.
+    With the default register interval, a device that goes offline is therefore shown as inactive within about two
+    hours. A healthy device stays active between two syncs. Keep the register interval under one hour: the agent active
+    threshold is one hour, so a longer interval lets any agent age out between two syncs.
 
 !!! note "Where to see executions on the Microsoft side"
 
