@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
@@ -72,7 +73,7 @@ public class V6_20261005160000000__Migrate_workflow_state_to_normalized_entries
                 "SELECT workflow_state_entries::text FROM workflow_states"
                     + " WHERE workflow_state_id = ?");
         PreparedStatement insert = connection.prepareStatement(INSERT_ENTRY)) {
-      int pending = 0;
+      EntryBatch batch = new EntryBatch(insert);
       for (String[] state : states) {
         String stateId = state[0];
         String targetStateId =
@@ -80,17 +81,11 @@ public class V6_20261005160000000__Migrate_workflow_state_to_normalized_entries
         select.setString(1, stateId);
         try (ResultSet rs = select.executeQuery()) {
           if (rs.next() && rs.getString(1) != null) {
-            pending += addEntries(insert, targetStateId, rs.getString(1));
+            addEntries(batch, targetStateId, rs.getString(1));
           }
         }
-        if (pending >= BATCH_SIZE) {
-          insert.executeBatch();
-          pending = 0;
-        }
       }
-      if (pending > 0) {
-        insert.executeBatch();
-      }
+      batch.flush();
     }
 
     try (Statement statement = connection.createStatement()) {
@@ -155,15 +150,14 @@ public class V6_20261005160000000__Migrate_workflow_state_to_normalized_entries
     return result;
   }
 
-  /** Adds the rows of one legacy JSONB document to the batch; returns the number of rows added. */
-  private static int addEntries(PreparedStatement insert, String stateId, String json)
-      throws Exception {
+  /** Adds the rows of one legacy JSONB document to the batch. */
+  private static void addEntries(EntryBatch batch, String stateId, String json)
+      throws SQLException {
     JsonElement root = JsonParser.parseString(json);
     if (!root.isJsonObject()) {
-      return 0;
+      return;
     }
     JsonObject document = root.getAsJsonObject();
-    int added = 0;
 
     for (JsonElement inputElement : array(document, "inputs")) {
       if (!inputElement.isJsonObject()) {
@@ -175,7 +169,7 @@ public class V6_20261005160000000__Migrate_workflow_state_to_normalized_entries
       }
       for (JsonElement value : array(inputElement.getAsJsonObject(), "values")) {
         if (value.isJsonPrimitive()) {
-          added += addRow(insert, stateId, "INPUT", key, value.getAsString(), null, null);
+          batch.add(stateId, "INPUT", key, value.getAsString(), null, null);
         }
       }
     }
@@ -200,55 +194,72 @@ public class V6_20261005160000000__Migrate_workflow_state_to_normalized_entries
       }
       String hash = hashTuple(pairs);
       for (String[] pair : pairs) {
-        added += addRow(insert, stateId, "CORRELATED", pair[0], pair[1], hash, type);
+        batch.add(stateId, "CORRELATED", pair[0], pair[1], hash, type);
       }
     }
 
     for (JsonElement hash : array(document, "hashExecution")) {
       if (hash.isJsonPrimitive()) {
-        added +=
-            addRow(
-                insert,
-                stateId,
-                "HASH_EXECUTION",
-                "HASH_EXECUTION",
-                hash.getAsString(),
-                null,
-                null);
+        batch.add(stateId, "HASH_EXECUTION", "HASH_EXECUTION", hash.getAsString(), null, null);
       }
     }
-    return added;
   }
 
-  private static int addRow(
-      PreparedStatement insert,
-      String stateId,
-      String type,
-      String key,
-      String value,
-      String correlationHash,
-      String correlationType)
-      throws Exception {
-    insert.setString(1, stateId);
-    insert.setString(2, type);
-    insert.setString(3, key);
-    insert.setString(4, value);
-    insert.setString(5, correlationHash);
-    insert.setString(6, correlationType);
-    insert.addBatch();
-    return 1;
+  /**
+   * JDBC insert batch executed every {@link #BATCH_SIZE} rows while rows are being added, so that
+   * its size stays bounded whatever the size of a single legacy document.
+   */
+  private static final class EntryBatch {
+    private final PreparedStatement insert;
+    private int pending;
+
+    private EntryBatch(PreparedStatement insert) {
+      this.insert = insert;
+    }
+
+    void add(
+        String stateId,
+        String type,
+        String key,
+        String value,
+        String correlationHash,
+        String correlationType)
+        throws SQLException {
+      insert.setString(1, stateId);
+      insert.setString(2, type);
+      insert.setString(3, key);
+      insert.setString(4, value);
+      insert.setString(5, correlationHash);
+      insert.setString(6, correlationType);
+      insert.addBatch();
+      if (++pending >= BATCH_SIZE) {
+        flush();
+      }
+    }
+
+    void flush() throws SQLException {
+      if (pending > 0) {
+        insert.executeBatch();
+        pending = 0;
+      }
+    }
   }
 
   /**
    * Content hash of a correlated tuple. Frozen copy of {@code ChainingHashUtils.hashTuple} (a
    * migration must not change behavior when application code evolves): pairs sorted by key then
-   * value, {@code key=value|} concatenated, MurmurHash3-128 hex.
+   * value, each key and value length-prefixed ({@code <length>:<text>}) so that no value can forge
+   * a field boundary, MurmurHash3-128 hex.
    */
   static String hashTuple(List<String[]> pairs) {
     StringBuilder sb = new StringBuilder();
     pairs.stream()
         .sorted(Comparator.<String[], String>comparing(p -> p[0]).thenComparing(p -> p[1]))
-        .forEach(p -> sb.append(p[0]).append("=").append(p[1]).append("|"));
+        .forEach(
+            p -> {
+              sb.append(p[0].length()).append(':').append(p[0]);
+              sb.append(p[1].length()).append(':').append(p[1]);
+            });
     return Hashing.murmur3_128().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
   }
 

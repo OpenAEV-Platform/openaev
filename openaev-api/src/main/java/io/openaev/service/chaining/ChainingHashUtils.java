@@ -34,6 +34,14 @@ public final class ChainingHashUtils {
    * Fingerprint of a correlated tuple, identifying it by content. Pairs are sorted by key then
    * value, so the hash does not depend on iteration order, and a tuple holding several pairs with
    * the same key (e.g. two IPv4 fields) keeps all of them.
+   *
+   * <p>Each key and value is length-prefixed ({@code <length>:<text>}) rather than joined with
+   * separators: values come from the outputs of targeted machines and may contain any character, so
+   * a separator-based encoding would let a value forge a field boundary and make two different
+   * tuples share a hash (e.g. {@code [(IPv4, "x|Port=y")]} vs {@code [(IPv4, "x"), (Port, "y")]}).
+   *
+   * <p>Must stay identical to the copy frozen in the migration that converted the legacy JSONB
+   * state ({@code V6_20261005160000000}).
    */
   public static String hashTuple(Collection<WorkflowStateEntries.Pair> pairs) {
     StringBuilder sb = new StringBuilder();
@@ -45,8 +53,21 @@ public final class ChainingHashUtils {
                 .thenComparing(
                     WorkflowStateEntries.Pair::value,
                     Comparator.nullsFirst(Comparator.naturalOrder())))
-        .forEach(p -> sb.append(p.key()).append("=").append(p.value()).append("|"));
+        .forEach(
+            p -> {
+              appendField(sb, p.key());
+              appendField(sb, p.value());
+            });
     return murmur3(sb.toString());
+  }
+
+  /** Appends {@code <length>:<text>}, or {@code -1:} for {@code null}. */
+  private static void appendField(StringBuilder sb, String field) {
+    if (field == null) {
+      sb.append("-1:");
+    } else {
+      sb.append(field.length()).append(':').append(field);
+    }
   }
 
   private static String murmur3(String canonical) {

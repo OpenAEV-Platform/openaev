@@ -17,6 +17,8 @@ import java.sql.Connection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
@@ -169,6 +171,23 @@ class MigrateWorkflowStateToNormalizedEntriesMigrationTest extends IntegrationTe
                     + runtimeHash
                     + "'"))
         .isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("converts a document holding more rows than one insert batch")
+  void convertsDocumentLargerThanOneBatch() {
+    Workflow run = persistRun(WorkflowStatus.RUN);
+    String values =
+        IntStream.rangeClosed(1, 2500)
+            .mapToObj(i -> "\"10.1." + (i / 256) + "." + (i % 256) + "\"")
+            .collect(Collectors.joining(","));
+    String stateId =
+        insertLegacyState(
+            run, null, "{\"inputs\": [{\"key\": \"IPv4\", \"values\": [" + values + "]}]}");
+
+    runMigration();
+
+    assertThat(workflowStateStore.loadInputValues(stateId, Set.of("IPv4"))).hasSize(2500);
   }
 
   @Test
