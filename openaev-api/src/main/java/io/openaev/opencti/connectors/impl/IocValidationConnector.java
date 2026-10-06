@@ -22,6 +22,7 @@ import lombok.Setter;
 @Getter
 public class IocValidationConnector extends ConnectorBase {
 
+  public static final String NAME = "OpenAEV IOC Validation";
   public static final String SCOPE = "ioc-validation-request";
   public static final String CALLBACK_PATH = "/stix/process-ioc-validation";
 
@@ -34,6 +35,12 @@ public class IocValidationConnector extends ConnectorBase {
   @Setter private OpenCTIConfig openCTIConfig;
   @Setter private OpenAEVConfig openAEVConfig;
 
+  /**
+   * Shown after {@link #NAME} when several tenants connect to OpenCTI, null when only one does. The
+   * tenant id stays in {@link #getId()}, never in the name people read.
+   */
+  @Setter private String tenantName;
+
   private final ConnectorType type = ConnectorType.INTERNAL_ENRICHMENT;
 
   public IocValidationConnector() {
@@ -44,7 +51,7 @@ public class IocValidationConnector extends ConnectorBase {
 
   @Override
   public String getName() {
-    return "OpenAEV IOC Validation - " + this.getTenantId();
+    return tenantName == null ? NAME : NAME + " - " + tenantName;
   }
 
   @Override

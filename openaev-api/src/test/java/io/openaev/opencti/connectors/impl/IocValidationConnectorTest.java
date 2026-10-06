@@ -40,7 +40,8 @@ class IocValidationConnectorTest extends IntegrationTest {
 
     assertThat(iocValidation).isInstanceOf(IocValidationConnector.class);
     assertThat(iocValidation.getId()).isNotEqualTo(coverage.getId());
-    assertThat(iocValidation.getName()).contains("OpenAEV IOC Validation");
+    // One tenant connects to OpenCTI: a readable name, the tenant id stays in the connector id
+    assertThat(iocValidation.getName()).isEqualTo(IocValidationConnector.NAME);
     assertThat(iocValidation.shouldRegister()).isTrue();
   }
 

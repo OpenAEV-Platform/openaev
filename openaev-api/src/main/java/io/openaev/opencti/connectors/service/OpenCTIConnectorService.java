@@ -1,6 +1,8 @@
 package io.openaev.opencti.connectors.service;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.opencti.client.mutations.IocValidationRequestStatusUpdate;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
@@ -29,9 +31,11 @@ public class OpenCTIConnectorService {
   private static final Duration REGISTER_OR_PING_BACKOFF = Duration.ofMinutes(5);
 
   @Getter private List<ConnectorBase> connectors = Collections.emptyList();
+  private boolean severalTenants = false;
   private final XtmConfig xtmConfig;
   private final OpenAEVConfig openAEVConfig;
   private final OpenCTIService openCTIService;
+  private final TenantRepository tenantRepository;
   private final ConcurrentHashMap<String, Instant> registerOrPingBackoffUntil =
       new ConcurrentHashMap<>();
 
@@ -67,6 +71,13 @@ public class OpenCTIConnectorService {
               }
             });
     this.connectors = List.copyOf(configured);
+    this.severalTenants =
+        configured.stream()
+                .filter(ConnectorBase::shouldRegister)
+                .map(ConnectorBase::getTenantId)
+                .distinct()
+                .count()
+            > 1;
   }
 
   private IocValidationConnector buildIocValidationConnector(
@@ -126,6 +137,7 @@ public class OpenCTIConnectorService {
       }
       try {
         if (!c.isRegistered()) {
+          nameAfterTenant(c);
           openCTIService.registerConnector(c);
         } else {
           openCTIService.pingConnector(c);
@@ -136,6 +148,22 @@ public class OpenCTIConnectorService {
         logRegisterOrPingFailure(c, e);
       }
     }
+  }
+
+  /**
+   * When several tenants connect to OpenCTI, their IOC validation connectors are told apart there
+   * by the tenant name, read when the connector registers.
+   */
+  private void nameAfterTenant(ConnectorBase connector) {
+    if (!severalTenants || !(connector instanceof IocValidationConnector iocValidation)) {
+      return;
+    }
+    iocValidation.setTenantName(
+        tenantRepository
+            .findById(connector.getTenantId())
+            .map(Tenant::getName)
+            .filter(name -> !name.isBlank())
+            .orElse(connector.getTenantId()));
   }
 
   private static String registerOrPingBackoffKey(ConnectorBase connector) {

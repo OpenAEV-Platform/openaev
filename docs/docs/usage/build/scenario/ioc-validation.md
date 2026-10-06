@@ -126,7 +126,8 @@ OpenCTI. The IOC validation settings show a warning when either is missing, with
   [Configure OpenAEV to connect to OpenCTI](../../evaluate/xtm-suite-connector.md#step-1-configure-openaev-to-connect-to-opencti)),
   then restart OpenAEV. Users who cannot change the platform configuration are asked to contact their administrator.
 - **Connector not registered**: OpenAEV registers the IOC validation connector in OpenCTI with the OpenCTI account of
-  the connection. In OpenCTI, give that account the *Connector* role, with the *Update knowledge* and *Connectors API
+  the connection. OpenCTI lists it as *OpenAEV IOC Validation*, followed by the tenant name when several tenants
+  connect to OpenCTI. In OpenCTI, give that account the *Connector* role, with the *Update knowledge* and *Connectors API
   usage* capabilities.
 
 Each field of the settings gives an example value, and **Learn more** opens this page.
