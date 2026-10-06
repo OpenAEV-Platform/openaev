@@ -1,8 +1,9 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useCallback, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, type ReactNode, type SyntheticEvent, useCallback, useState } from 'react';
 
 interface Props {
-  children: string;
+  // Text, or inline elements around it (a code value): a block child would not ellipse.
+  children: ReactNode;
   style?: CSSProperties;
   /** False inside a link or a button, which already takes the focus and carries the full text. */
   focusable?: boolean;

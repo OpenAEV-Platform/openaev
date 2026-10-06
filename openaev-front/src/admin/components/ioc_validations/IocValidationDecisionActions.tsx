@@ -6,6 +6,7 @@ import { type FunctionComponent, type ReactElement, useContext, useRef, useState
 import { approveIocValidation, fetchIocValidationApprovalPreview, rejectIocValidation } from '../../../actions/ioc_validations/ioc-validation-actions';
 import { Field } from '../../../components/common/detail/EntityDetailCommon';
 import DialogConfirmation from '../../../components/common/DialogConfirmation';
+import EllipsisTooltip from '../../../components/common/EllipsisTooltip';
 import { useFormatter } from '../../../components/i18n';
 import { type IocValidationApprovalPreviewOutput, type IocValidationIocOutput, type IocValidationOutput } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
@@ -36,24 +37,27 @@ const IocValidationApprovalSummary: FunctionComponent<{
     gap: theme.spacing(1.5),
     marginTop: standalone ? 0 : theme.spacing(2),
   };
+  // Cells on one line (the full text in a tooltip) in rows of one height, the same while the plan loads
+  const rowHeight = theme.spacing(4.5);
   const columns: IocValidationTableColumn<IocValidationIocOutput>[] = [
     {
       key: 'indicator',
       label: t('Indicator'),
       width: '34%',
-      render: ioc => ioc.ioc_indicator_name || ioc.ioc_indicator_ref,
+      render: ioc => <EllipsisTooltip>{ioc.ioc_indicator_name || ioc.ioc_indicator_ref}</EllipsisTooltip>,
     },
     {
       key: 'value',
       label: t('Observable'),
       width: '38%',
-      render: ioc => <Text variant="content-code">{ioc.ioc_value}</Text>,
+      // Inline, the padding of a code value leaves the height of the row as it is
+      render: ioc => <EllipsisTooltip><Text variant="content-code">{ioc.ioc_value}</Text></EllipsisTooltip>,
     },
     {
       key: 'test',
       label: t('Test that runs'),
       width: '28%',
-      render: ioc => t(iocValidationTestKindLabel(ioc.ioc_test_kind)),
+      render: ioc => <EllipsisTooltip>{t(iocValidationTestKindLabel(ioc.ioc_test_kind))}</EllipsisTooltip>,
     },
   ];
   const moreIndicators = (count: number) => count > APPROVAL_SUMMARY_MAX_ROWS && (
@@ -85,13 +89,12 @@ const IocValidationApprovalSummary: FunctionComponent<{
             key: column.key,
             label: column.label,
             width: column.width,
-            render: () => (column.key === 'value'
-              ? <Text variant="content-code"><TextSkeleton width="10em" inline /></Text>
-              : <TextSkeleton />),
+            render: () => <TextSkeleton width={column.key === 'value' ? '10em' : undefined} />,
           }))}
           rows={Array.from({ length: Math.min(shownPlanned, APPROVAL_SUMMARY_MAX_ROWS) }, () => null)}
           rowKey={(_, index) => `loading-${index}`}
           emptyMessage=""
+          rowHeight={rowHeight}
         />
         {moreIndicators(shownPlanned)}
         <Field label={t('Security platforms')}><TextSkeleton width="40%" /></Field>
@@ -122,9 +125,12 @@ const IocValidationApprovalSummary: FunctionComponent<{
         rows={planned.slice(0, APPROVAL_SUMMARY_MAX_ROWS)}
         rowKey={(ioc, index) => `${ioc.ioc_indicator_ref}-${ioc.ioc_test_kind ?? 'none'}-${index}`}
         emptyMessage={t('No test would run now.')}
+        rowHeight={rowHeight}
       />
       {moreIndicators(planned.length)}
-      <Field label={t('Security platforms')}>{emptyFilled(platforms.join(', '))}</Field>
+      <Field label={t('Security platforms')}>
+        <EllipsisTooltip>{emptyFilled(platforms.join(', '))}</EllipsisTooltip>
+      </Field>
     </div>
   );
 };

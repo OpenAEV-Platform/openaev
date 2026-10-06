@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -79,9 +80,11 @@ const previewOf = (request: IocValidationOutput, changes: Partial<IocValidationA
 };
 
 const renderActions = (iocValidation: IocValidationOutput) => render(
-  <AbilityContext.Provider value={{ can: () => true } as unknown as AppAbility}>
-    <IocValidationDecisionActions iocValidation={iocValidation} onUpdate={vi.fn()} onRefresh={vi.fn()} />
-  </AbilityContext.Provider>,
+  <TooltipProvider>
+    <AbilityContext.Provider value={{ can: () => true } as unknown as AppAbility}>
+      <IocValidationDecisionActions iocValidation={iocValidation} onUpdate={vi.fn()} onRefresh={vi.fn()} />
+    </AbilityContext.Provider>
+  </TooltipProvider>,
 );
 
 const openApproval = (iocValidation: IocValidationOutput, preview: IocValidationApprovalPreviewOutput) => {
@@ -160,6 +163,28 @@ describe('IocValidationDecisionActions', () => {
     const summary = openPendingApproval(awaitingRequest(13));
     expect(within(summary).getAllByRole('row')).toHaveLength(11);
     expect(within(summary).getByText('3 more indicators')).toBeTruthy();
+  });
+
+  it('keeps every row of the summary at one height on one line, while the preview loads and once it lands', async () => {
+    const request = awaitingRequest(2);
+    let land: (value: unknown) => void = () => {};
+    vi.mocked(fetchIocValidationApprovalPreview).mockReturnValue(new Promise((resolve) => {
+      land = resolve;
+    }) as never);
+    renderActions(request);
+    fireEvent.click(screen.getByRole('button', { name: 'Approve and start the simulation' }));
+    const summary = () => screen.getByTestId('ioc-validation-approval-summary');
+    const bodyRowHeights = () => within(summary()).getAllByRole('row').slice(1).map(row => row.style.height);
+    const loading = bodyRowHeights();
+    land({ data: previewOf(request) });
+    await waitFor(() => expect(summary().getAttribute('aria-busy')).toBeNull());
+    expect(loading).toHaveLength(2);
+    expect(loading[0]).not.toBe('');
+    expect(bodyRowHeights()).toEqual(loading);
+    // A value longer than its column ellipses instead of wrapping
+    const cells = within(summary()).getAllByRole('cell');
+    expect(cells).toHaveLength(6);
+    cells.forEach(cell => expect((cell.firstElementChild as HTMLElement).style.whiteSpace).toBe('nowrap'));
   });
 
   it('shows at once the warning of a request without planned test, while its preview loads', () => {

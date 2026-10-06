@@ -16,9 +16,12 @@ interface Props<T> {
   rows: T[];
   rowKey: (row: T, index: number) => string;
   emptyMessage: string;
+  // Height of every body row, for cells that never wrap: a table of the same rows then keeps its height whatever it
+  // shows (loading placeholders or values).
+  rowHeight?: CSSProperties['height'];
 }
 
-const IocValidationTable = <T, >({ caption, columns, rows, rowKey, emptyMessage }: Props<T>) => {
+const IocValidationTable = <T, >({ caption, columns, rows, rowKey, emptyMessage, rowHeight }: Props<T>) => {
   const theme = useTheme();
 
   if (rows.length === 0) {
@@ -61,7 +64,7 @@ const IocValidationTable = <T, >({ caption, columns, rows, rowKey, emptyMessage 
       </thead>
       <tbody>
         {rows.map((row, index) => (
-          <tr key={rowKey(row, index)}>
+          <tr key={rowKey(row, index)} style={rowHeight === undefined ? undefined : { height: rowHeight }}>
             {columns.map(column => (
               <td key={column.key} className="content-compact text-default-primary" style={cellStyle}>
                 {column.render(row)}

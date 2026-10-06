@@ -13,23 +13,9 @@ const FieldSkeleton: FunctionComponent = () => (
   </div>
 );
 
-/**
- * One line of the enclosing text, for the cells and values of a loading state; inline inside inline text (a code
- * value), so it keeps that text on one line.
- */
-export const TextSkeleton: FunctionComponent<{
-  width?: string;
-  inline?: boolean;
-}> = ({ width = '70%', inline = false }) => (
-  <Skeleton
-    variant="text"
-    component="span"
-    width={width}
-    sx={inline ? {
-      display: 'inline-block',
-      verticalAlign: 'middle',
-    } : undefined}
-  />
+/** One line of the enclosing text, for the cells and values of a loading state. */
+export const TextSkeleton: FunctionComponent<{ width?: string }> = ({ width = '70%' }) => (
+  <Skeleton variant="text" component="span" width={width} />
 );
 
 const RowsSkeleton: FunctionComponent<{ rows: number }> = ({ rows }) => (
