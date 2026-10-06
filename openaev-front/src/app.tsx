@@ -1,3 +1,4 @@
+import { Button } from '@mui/material';
 import { Provider } from 'react-redux';
 import { BrowserRouter, Route, Routes } from 'react-router';
 
@@ -18,6 +19,7 @@ const App = () => {
             <Route path="/*" element={<Root />} />
             {/* Not found */}
             <Route path="*" element={<NotFound />} />
+            <Button variant="text">Text</Button>
           </Routes>
         </RedirectManager>
       </BrowserRouter>
