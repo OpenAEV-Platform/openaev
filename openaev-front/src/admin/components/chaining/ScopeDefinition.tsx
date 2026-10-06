@@ -1,6 +1,6 @@
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useCallback, useContext } from 'react';
+import { useCallback } from 'react';
 
 import { fetchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { fetchEndpoints } from '../../../actions/assets/endpoint-actions';
@@ -18,7 +18,7 @@ import type { ScopeVariableInput, WorkflowConfigurationInput, WorkflowScopeRuleI
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import useLivePolling from '../../../utils/hooks/useLivePolling';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ChainingUpdatedBanner from './ChainingUpdatedBanner';
 import ScopeExecutionLimits from './ScopeExecutionLimits';
@@ -47,7 +47,7 @@ const ScopeDefinition = ({
   // Standard hooks
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   // A user only granted on the parent simulation/scenario has no global asset capability:
   // fall back to the workflow-scoped inventory so the scope screen still resolves asset labels.
   const canAccessAssets = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS);

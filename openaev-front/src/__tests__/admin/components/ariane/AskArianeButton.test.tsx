@@ -9,8 +9,8 @@ import { ChatbotContext, type ChatbotContextType } from '../../../../admin/compo
 import EnterpriseEditionContext from '../../../../components/EnterpriseEditionContext';
 import { type PlatformSettings, type User } from '../../../../utils/api-types';
 import { UserContext, type UserContextType } from '../../../../utils/hooks/useAuth';
-import { type AppAbility } from '../../../../utils/permissions/ability';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { defineAbility } from '../../../../utils/permissions/ability';
+import { AbilityProvider } from '../../../../utils/permissions/permissionsContext';
 import { expectLibraryButton, expectNoMuiControls } from '../../../utils/designSystemAssertions';
 
 const theme = createTheme({
@@ -56,7 +56,7 @@ const enterpriseEditionContext = {
   setEEFeatureDetectedInfo: vi.fn(),
 };
 
-const ability = { can: () => true } as unknown as AppAbility;
+const ability = defineAbility([], {}, true);
 
 const renderButton = (settingsOverrides: Partial<PlatformSettings> = {}) => {
   const userContext: UserContextType = {
@@ -77,11 +77,11 @@ const renderButton = (settingsOverrides: Partial<PlatformSettings> = {}) => {
       <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
         <UserContext.Provider value={userContext}>
           <EnterpriseEditionContext.Provider value={enterpriseEditionContext}>
-            <AbilityContext.Provider value={ability}>
+            <AbilityProvider value={ability}>
               <ChatbotContext.Provider value={chatbotContext}>
                 {children}
               </ChatbotContext.Provider>
-            </AbilityContext.Provider>
+            </AbilityProvider>
           </EnterpriseEditionContext.Provider>
         </UserContext.Provider>
       </IntlProvider>
