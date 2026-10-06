@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AtomicTestingsTabs from '../../../../admin/components/atomic_testings/AtomicTestingsTabs';
 import { type AppAbility } from '../../../../utils/permissions/ability';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { AbilityProvider } from '../../../../utils/permissions/permissionsContext';
 
 vi.mock('../../../../components/i18n', async (importOriginal) => {
   const original = await importOriginal();
@@ -15,11 +15,15 @@ vi.mock('../../../../components/i18n', async (importOriginal) => {
 });
 
 const renderTabs = (path: string, canAccessAssessment = true) => render(
-  <AbilityContext.Provider value={{ can: () => canAccessAssessment } as unknown as AppAbility}>
+  <AbilityProvider value={{
+    can: () => canAccessAssessment,
+    on: () => () => {},
+  } as unknown as AppAbility}
+  >
     <MemoryRouter initialEntries={[path]}>
       <AtomicTestingsTabs />
     </MemoryRouter>
-  </AbilityContext.Provider>,
+  </AbilityProvider>,
 );
 
 describe('AtomicTestingsTabs', () => {

@@ -7,7 +7,7 @@ import IocValidationDecisionActions from '../../../../admin/components/ioc_valid
 import IocValidationSkeleton from '../../../../admin/components/ioc_validations/IocValidationSkeleton';
 import { type IocValidationApprovalPreviewOutput, type IocValidationOutput } from '../../../../utils/api-types';
 import { type AppAbility } from '../../../../utils/permissions/ability';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { AbilityProvider } from '../../../../utils/permissions/permissionsContext';
 
 vi.mock('../../../../components/i18n', async (importOriginal) => {
   const original = await importOriginal();
@@ -81,9 +81,13 @@ const previewOf = (request: IocValidationOutput, changes: Partial<IocValidationA
 
 const renderActions = (iocValidation: IocValidationOutput) => render(
   <TooltipProvider>
-    <AbilityContext.Provider value={{ can: () => true } as unknown as AppAbility}>
+    <AbilityProvider value={{
+      can: () => true,
+      on: () => () => {},
+    } as unknown as AppAbility}
+    >
       <IocValidationDecisionActions iocValidation={iocValidation} onUpdate={vi.fn()} onRefresh={vi.fn()} />
-    </AbilityContext.Provider>
+    </AbilityProvider>
   </TooltipProvider>,
 );
 

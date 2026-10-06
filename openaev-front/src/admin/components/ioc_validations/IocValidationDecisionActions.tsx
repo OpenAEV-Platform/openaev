@@ -1,7 +1,7 @@
 import { Alert, Button, Text, Textarea, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckCircleOutlined, DoNotDisturbOnOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactElement, useContext, useRef, useState } from 'react';
+import { type FunctionComponent, type ReactElement, useRef, useState } from 'react';
 
 import { approveIocValidation, fetchIocValidationApprovalPreview, rejectIocValidation } from '../../../actions/ioc_validations/ioc-validation-actions';
 import { Field } from '../../../components/common/detail/EntityDetailCommon';
@@ -11,7 +11,7 @@ import { useFormatter } from '../../../components/i18n';
 import { type IocValidationApprovalPreviewOutput, type IocValidationIocOutput, type IocValidationOutput } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../utils/fdsLayer';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../utils/permissions/types';
 import { emptyFilled } from '../../../utils/String';
 import { TextSkeleton } from './IocValidationSkeleton';
@@ -144,7 +144,7 @@ interface Props {
 const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation, onUpdate, onRefresh }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
 
   const [approveOpen, setApproveOpen] = useState(false);

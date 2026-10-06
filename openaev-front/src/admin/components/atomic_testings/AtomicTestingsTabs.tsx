@@ -1,9 +1,8 @@
 import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
-import { useContext } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { IOC_VALIDATION_BASE_URL } from '../ioc_validations/iocValidationUtils';
 
@@ -12,7 +11,7 @@ const ATOMIC_TESTINGS_BASE_URL = '/admin/atomic_testings';
 const AtomicTestingsTabs = () => {
   const { t } = useFormatter();
   const location = useLocation();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const onIocValidations = location.pathname === IOC_VALIDATION_BASE_URL || location.pathname.startsWith(`${IOC_VALIDATION_BASE_URL}/`);
   const tabValue = onIocValidations ? IOC_VALIDATION_BASE_URL : ATOMIC_TESTINGS_BASE_URL;

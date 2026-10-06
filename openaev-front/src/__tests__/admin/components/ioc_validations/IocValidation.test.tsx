@@ -7,7 +7,7 @@ import IocValidation from '../../../../admin/components/ioc_validations/IocValid
 import { IOC_VALIDATION_FOCUS_RING_CLASS, IOC_VALIDATION_SETTINGS_URL } from '../../../../admin/components/ioc_validations/iocValidationUtils';
 import { type IocValidationOutput } from '../../../../utils/api-types';
 import { type AppAbility } from '../../../../utils/permissions/ability';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { AbilityProvider } from '../../../../utils/permissions/permissionsContext';
 import { SUBJECTS } from '../../../../utils/permissions/types';
 
 const hook = vi.hoisted(() => ({
@@ -88,13 +88,17 @@ const renderDetail = (iocValidation: IocValidationOutput, can: boolean | ((actio
   hook.iocValidation = iocValidation;
   const check = typeof can === 'function' ? can : () => can;
   return render(
-    <AbilityContext.Provider value={{ can: check } as unknown as AppAbility}>
+    <AbilityProvider value={{
+      can: check,
+      on: () => () => {},
+    } as unknown as AppAbility}
+    >
       <TooltipProvider>
         <MemoryRouter>
           <IocValidation />
         </MemoryRouter>
       </TooltipProvider>
-    </AbilityContext.Provider>,
+    </AbilityProvider>,
   );
 };
 

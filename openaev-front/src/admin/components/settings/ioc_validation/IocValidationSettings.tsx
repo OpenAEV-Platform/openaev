@@ -16,7 +16,7 @@ import {
   Text,
 } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -30,7 +30,7 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import type { IocValidationSettingsInput, IocValidationSettingsOutput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { zodImplement } from '../../../../utils/Zod';
 import {
@@ -396,7 +396,7 @@ export const IocValidationReadiness = ({ openctiEnabled, connectorRegistered }: 
   connectorRegistered: boolean;
 }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   // The OpenCTI connection is part of the platform configuration
   const canConfigurePlatform = ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
   if (!openctiEnabled) {

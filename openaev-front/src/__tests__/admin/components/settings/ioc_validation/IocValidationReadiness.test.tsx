@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { IOC_VALIDATION_DOCUMENTATION_URL, IocValidationReadiness } from '../../../../../admin/components/settings/ioc_validation/IocValidationSettings';
 import { type AppAbility } from '../../../../../utils/permissions/ability';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { AbilityProvider } from '../../../../../utils/permissions/permissionsContext';
 
 vi.mock('../../../../../components/i18n', async (importOriginal) => {
   const original = await importOriginal();
@@ -20,9 +20,13 @@ vi.mock('../../../../../actions/ioc_validations/ioc-validation-actions', () => (
 }));
 
 const renderReadiness = (openctiEnabled: boolean, connectorRegistered: boolean, canConfigurePlatform = true) => render(
-  <AbilityContext.Provider value={{ can: () => canConfigurePlatform } as unknown as AppAbility}>
+  <AbilityProvider value={{
+    can: () => canConfigurePlatform,
+    on: () => () => {},
+  } as unknown as AppAbility}
+  >
     <IocValidationReadiness openctiEnabled={openctiEnabled} connectorRegistered={connectorRegistered} />
-  </AbilityContext.Provider>,
+  </AbilityProvider>,
 );
 
 describe('IocValidationReadiness', () => {

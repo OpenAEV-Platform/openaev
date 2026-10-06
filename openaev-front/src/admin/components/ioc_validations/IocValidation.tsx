@@ -1,6 +1,6 @@
 import { Alert, Button, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
-import { useContext, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Link, useParams } from 'react-router';
 
 import Breadcrumbs from '../../../components/Breadcrumbs';
@@ -9,7 +9,7 @@ import EllipsisTooltip from '../../../components/common/EllipsisTooltip';
 import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
 import type { IocValidationIocOutput, IocValidationPairOutput } from '../../../utils/api-types';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { emptyFilled } from '../../../utils/String';
 import IocValidationDate from './IocValidationDate';
@@ -34,7 +34,7 @@ import useIocValidation from './useIocValidation';
 
 const IocValidation = () => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManageSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
   const canAccessSecurityPlatforms = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
   const { iocValidationId } = useParams() as { iocValidationId: string };
