@@ -78,9 +78,10 @@ IPv4 address (IPv4-mapped, 6to4, NAT64) is judged by the embedded address too. A
   `local`, `localdomain`, `internal`, `intranet`, `lan`, `home`, `corp`, `private`, `arpa`);
 - a host name that resolves, from the OpenAEV server, to at least one internal address. The name is resolved again
   at approval, and a test whose host resolves to an internal address by then is dropped with the reason. A name
-  that does not exist for the DNS of the OpenAEV server is accepted: the request still goes through the egress
-  proxy. The host names of a request are resolved in parallel, before the request is recorded or approved, and the
-  server waits at most 5 seconds for their answers. A lookup that gets no answer by then, or fails, says nothing
+  that does not exist for the DNS of the OpenAEV server (a NXDOMAIN answer) is accepted: the request still goes
+  through the egress proxy. The host names of a request are resolved in parallel, before the request is recorded or
+  approved, and the server waits at most 5 seconds for their answers. A lookup that gets no answer by then, or fails
+  (the DNS server answers with an error or cannot be reached, or the name exists without resolving), says nothing
   about the addresses of the name: its HTTP HEAD test does not run, and says why. The same goes for the host names
   of the platform: while one of them gets no answer, no network or HTTP HEAD test runs.
 

@@ -5,6 +5,7 @@ import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_FILE
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_URL_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_VALUE_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.net.InetAddresses;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -14,7 +15,13 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.stix.IocValidationPlanner.HostResolver;
 import io.openaev.service.stix.IocValidationPlanner.Plan;
 import io.openaev.utils.command.CommandArgumentBinder;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -542,7 +549,8 @@ class IocValidationValueChecksTest {
 
       assertThat(ioc.getTestKind()).isNull();
       assertThat(ioc.isRefused()).isFalse();
-      assertThat(ioc.getMessage()).contains("did not resolve in time from the OpenAEV server");
+      assertThat(ioc.getMessage())
+          .contains("from the OpenAEV server failed or did not answer in time");
     }
 
     @Test
@@ -1066,6 +1074,192 @@ class IocValidationValueChecksTest {
           planWithResolvedPlatformHosts(
               ioc("Url", "https://unrelated.example.net/", IocValidationTestKind.HTTP_HEAD));
       assertThat(plan.runnable()).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("The resolver of the OpenAEV server")
+  class ServerResolver {
+
+    @Test
+    @DisplayName("resolves a name with the resolver of the operating system")
+    void given_localhost_should_resolveItsLoopbackAddresses() {
+      assertThat(IocValidationSystemResolver.SERVER.resolve("localhost"))
+          .isNotEmpty()
+          .allSatisfy(address -> assertThat(address.isLoopbackAddress()).isTrue());
+    }
+
+    @Test
+    @DisplayName("asks the DNS nothing more when the name resolves")
+    void given_resolvedName_should_returnItsAddressesWithoutAnotherQuery() throws Exception {
+      try (FakeDnsServer dns = FakeDnsServer.answering(FakeDnsServer.NXDOMAIN)) {
+        IocValidationSystemResolver resolver =
+            dns.resolver(host -> new InetAddress[] {address("8.8.8.8")});
+
+        assertThat(resolver.resolve("public.example.com")).containsExactly(address("8.8.8.8"));
+        assertThat(dns.queries()).isZero();
+      }
+    }
+
+    @Test
+    @DisplayName("answers no address for a name the DNS says does not exist, and the test runs")
+    void given_nxdomain_should_answerNoAddress() throws Exception {
+      try (FakeDnsServer dns = FakeDnsServer.answering(FakeDnsServer.NXDOMAIN)) {
+        HostResolver answers =
+            IocValidationHostAnswers.resolve(
+                    List.of("missing.example.com"), dns.resolver(UNRESOLVED), Duration.ofSeconds(5))
+                .resolver();
+        IocValidationIoc ioc =
+            ioc("Url", "https://missing.example.com/a", IocValidationTestKind.HTTP_HEAD);
+
+        IocValidationPlanner.apply(List.of(ioc), allowAll(), answers);
+
+        assertThat(dns.queries()).isEqualTo(1);
+        assertThat(answers.answered("missing.example.com")).isTrue();
+        assertThat(answers.resolve("missing.example.com")).isEmpty();
+        // The egress proxy resolves it again at execution
+        assertThat(ioc.getTestKind()).isEqualTo(IocValidationTestKind.HTTP_HEAD);
+      }
+    }
+
+    @ParameterizedTest(name = "response code {0}")
+    @ValueSource(ints = {FakeDnsServer.NOERROR, FakeDnsServer.SERVFAIL, FakeDnsServer.REFUSED})
+    @DisplayName(
+        "fails the lookup when the DNS does not say the name does not exist, and the test does not"
+            + " run")
+    void given_otherDnsAnswer_should_leaveTheNameUnanswered(int responseCode) throws Exception {
+      try (FakeDnsServer dns = FakeDnsServer.answering(responseCode)) {
+        IocValidationSystemResolver resolver = dns.resolver(UNRESOLVED);
+        assertThatThrownBy(() -> resolver.resolve("failing.example.com"))
+            .isInstanceOf(UncheckedIOException.class)
+            .hasCauseInstanceOf(UnknownHostException.class);
+
+        HostResolver answers =
+            IocValidationHostAnswers.resolve(
+                    List.of("failing.example.com"), resolver, Duration.ofSeconds(5))
+                .resolver();
+        IocValidationIoc ioc =
+            ioc("Url", "https://failing.example.com/a", IocValidationTestKind.HTTP_HEAD);
+        IocValidationPlanner.apply(List.of(ioc), allowAll(), answers);
+
+        assertThat(answers.answered("failing.example.com")).isFalse();
+        assertThat(ioc.getTestKind()).isNull();
+        assertThat(ioc.isRefused()).isFalse();
+        assertThat(ioc.getMessage())
+            .contains("from the OpenAEV server failed or did not answer in time");
+      }
+    }
+
+    @Test
+    @DisplayName("fails the lookup when no DNS server answers")
+    void given_silentDns_should_failTheLookup() throws Exception {
+      try (FakeDnsServer dns = FakeDnsServer.silent()) {
+        IocValidationSystemResolver resolver = dns.resolver(UNRESOLVED);
+
+        assertThatThrownBy(() -> resolver.resolve("silent.example.com"))
+            .isInstanceOf(UncheckedIOException.class);
+        assertThat(dns.queries()).isPositive();
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "never takes a single-label name as missing, the system also tried its search domains")
+    void given_singleLabelName_should_failTheLookup() throws Exception {
+      try (FakeDnsServer dns = FakeDnsServer.answering(FakeDnsServer.NXDOMAIN)) {
+        IocValidationSystemResolver resolver = dns.resolver(UNRESOLVED);
+
+        assertThatThrownBy(() -> resolver.resolve("opencti"))
+            .isInstanceOf(UncheckedIOException.class);
+        assertThat(dns.queries()).isZero();
+      }
+    }
+  }
+
+  private static final IocValidationSystemResolver.AddressLookup UNRESOLVED =
+      host -> {
+        throw new UnknownHostException(host);
+      };
+
+  /** A DNS server on the loopback giving every query the same response code and no record. */
+  private static final class FakeDnsServer implements AutoCloseable {
+
+    static final int NOERROR = 0;
+    static final int SERVFAIL = 2;
+    static final int NXDOMAIN = 3;
+    static final int REFUSED = 5;
+    private static final int SILENT = -1;
+    private static final int HEADER_LENGTH = 12;
+
+    private final DatagramSocket socket;
+    private final int responseCode;
+    private final AtomicInteger queries = new AtomicInteger();
+    private final Thread thread;
+
+    private FakeDnsServer(int responseCode) throws SocketException {
+      this.socket = new DatagramSocket(0, address("127.0.0.1"));
+      this.responseCode = responseCode;
+      this.thread = Thread.ofPlatform().daemon().start(this::serve);
+    }
+
+    static FakeDnsServer answering(int responseCode) throws SocketException {
+      return new FakeDnsServer(responseCode);
+    }
+
+    static FakeDnsServer silent() throws SocketException {
+      return new FakeDnsServer(SILENT);
+    }
+
+    /** The resolver of the server, asking this DNS server whether a name exists. */
+    IocValidationSystemResolver resolver(IocValidationSystemResolver.AddressLookup addresses) {
+      return new IocValidationSystemResolver(
+          addresses, "127.0.0.1:" + socket.getLocalPort(), Duration.ofMillis(200));
+    }
+
+    int queries() {
+      return queries.get();
+    }
+
+    private void serve() {
+      byte[] buffer = new byte[512];
+      while (!socket.isClosed()) {
+        DatagramPacket query = new DatagramPacket(buffer, buffer.length);
+        try {
+          socket.receive(query);
+        } catch (IOException e) {
+          return;
+        }
+        queries.incrementAndGet();
+        if (responseCode == SILENT) {
+          continue;
+        }
+        byte[] response = Arrays.copyOf(query.getData(), questionEnd(query.getData()));
+        // A response, recursion desired as asked, recursion available, the response code
+        response[2] = (byte) (0x80 | (response[2] & 0x01));
+        response[3] = (byte) (0x80 | responseCode);
+        // The question only: no answer, authority or additional record
+        Arrays.fill(response, 6, HEADER_LENGTH, (byte) 0);
+        try {
+          socket.send(new DatagramPacket(response, response.length, query.getSocketAddress()));
+        } catch (IOException e) {
+          return;
+        }
+      }
+    }
+
+    /** The end of the one question of a query: its labels, the root label, its type and class. */
+    private static int questionEnd(byte[] message) {
+      int offset = HEADER_LENGTH;
+      while (message[offset] != 0) {
+        offset += message[offset] + 1;
+      }
+      return offset + 5;
+    }
+
+    @Override
+    public void close() throws InterruptedException {
+      socket.close();
+      thread.join(1_000);
     }
   }
 }

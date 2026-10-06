@@ -71,7 +71,7 @@ io.openaev.service.EsAttackPathService  # delegates-to-EsAttackPathService#attac
 
 # --- Messaging / queue infrastructure: brokers and thread pools, no entity access -----------------
 io.openaev.service.RabbitmqService  # touches-no-tenant-table: @PostConstruct only sizes the publish thread pool; the class talks to the RabbitMQ broker, not the DB
-io.openaev.service.stix.IocValidationHostAnswers  # touches-no-tenant-table: the shared pool only runs DNS lookups (InetAddress.getAllByName) of IOC URL host names, before the intake or approval transaction; no DB access on the pool threads
+io.openaev.service.stix.IocValidationHostAnswers  # touches-no-tenant-table: the shared pool only runs DNS lookups of IOC URL host names (InetAddress.getAllByName, then one JNDI DNS query telling a missing name from a failed lookup), before the intake or approval transaction; no DB access on the pool threads
 io.openaev.service.chaining.QueueChainingService  # touches-no-tenant-table: @PostConstruct only declares broker batch queues; no TenantBase access
 io.openaev.service.chaining.QueueChainingServiceCallbackRegistrar  # touches-no-tenant-table: @PostConstruct only wires stepEventService method references as queue callbacks; no DB access
 io.openaev.service.queue.BatchQueueService  # delegates-to-QueueExecution#perform: the executor only invokes the injected queue callback; the tenant scope is that callback's responsibility

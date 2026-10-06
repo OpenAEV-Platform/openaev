@@ -46,7 +46,7 @@ public final class IocValidationHostAnswers {
 
   /** Resolves the host names with the resolver of the OpenAEV server. */
   public static IocValidationHostAnswers resolve(Collection<String> hostNames) {
-    return resolve(hostNames, HostResolver.SYSTEM, DEADLINE);
+    return resolve(hostNames, IocValidationSystemResolver.SERVER, DEADLINE);
   }
 
   static IocValidationHostAnswers resolve(

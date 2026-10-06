@@ -20,7 +20,6 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -158,18 +157,12 @@ public final class IocValidationPlanner {
     }
   }
 
-  /** Every address a host name resolves to; empty when the name does not resolve. */
+  /**
+   * Every address a host name resolves to; empty when the name does not exist. A lookup that fails
+   * throws.
+   */
   @FunctionalInterface
   interface HostResolver {
-
-    HostResolver SYSTEM =
-        host -> {
-          try {
-            return List.of(InetAddress.getAllByName(host));
-          } catch (UnknownHostException e) {
-            return List.of();
-          }
-        };
 
     List<InetAddress> resolve(String host);
 
@@ -184,7 +177,7 @@ public final class IocValidationPlanner {
 
   /** Plans the requested test of one IOC under the given settings. */
   public static Plan plan(IocValidationIoc ioc, IocValidationSettings settings) {
-    return plan(ioc, settings, HostResolver.SYSTEM);
+    return plan(ioc, settings, IocValidationSystemResolver.SERVER);
   }
 
   static Plan plan(IocValidationIoc ioc, IocValidationSettings settings, HostResolver resolver) {
@@ -210,7 +203,7 @@ public final class IocValidationPlanner {
 
   /** Applies {@link #plan} to every IOC with the resolver of the OpenAEV server. */
   static HostResolver apply(List<IocValidationIoc> iocs, IocValidationSettings settings) {
-    return apply(iocs, settings, HostResolver.SYSTEM);
+    return apply(iocs, settings, IocValidationSystemResolver.SERVER);
   }
 
   /**
@@ -416,8 +409,9 @@ public final class IocValidationPlanner {
         && !InetAddresses.isInetAddress(host.get())
         && !resolver.answered(host.get())) {
       return Plan.skip(
-          ("Not run: the host name of '%s' did not resolve in time from the OpenAEV server, so its"
-                  + " addresses could not be checked. Ask for a new validation from OpenCTI")
+          ("Not run: the DNS lookup of the host name of '%s' from the OpenAEV server failed or did"
+                  + " not answer in time, so its addresses could not be checked. Ask for a new"
+                  + " validation from OpenCTI")
               .formatted(display(url.value())));
     }
     // Another name of the platform: the name resolves to one of its addresses
@@ -619,9 +613,9 @@ public final class IocValidationPlanner {
     }
     return Optional.of(
         Plan.skip(
-            ("Not run: %s, a host of this platform, did not resolve in time from the OpenAEV"
-                    + " server, so this test could not be kept off the addresses of the platform."
-                    + " Ask for a new validation from OpenCTI")
+            ("Not run: the DNS lookup of %s, a host of this platform, from the OpenAEV server"
+                    + " failed or did not answer in time, so this test could not be kept off the"
+                    + " addresses of the platform. Ask for a new validation from OpenCTI")
                 .formatted(String.join(", ", settings.unansweredPlatformHosts()))));
   }
 
