@@ -87,7 +87,8 @@ IPv4 address (IPv4-mapped, 6to4, NAT64) is judged by the embedded address too. A
 When the test runs, the egress proxy resolves the host name itself and may get another answer than the OpenAEV
 server did: a name that did not resolve from the server, or one whose records changed since the approval. The
 checks above cannot see that answer, so **configure the egress proxy to refuse internal destinations** (the ranges
-above): it is the control that applies at execution. The test never follows a redirect, so the only URL contacted is
+above) **and the hosts of the platform**: it is the control that applies at execution, and OpenAEV cannot apply it in
+its place, since only the proxy sees the address it connects to. The test never follows a redirect, so the only URL contacted is
 the one that was checked.
 
 **The hosts of the platform are refused.** No HTTP HEAD or network test targets OpenAEV itself (the hosts of its base

@@ -4633,7 +4633,7 @@
   "Allowed test kinds": "허용된 테스트 유형",
   "Every request needs an approval, and only the test kinds allowed here run: none is allowed until you choose it.": "모든 요청에는 승인이 필요하며 여기에서 허용된 테스트 유형만 실행됩니다. 선택하기 전까지는 어떤 유형도 허용되지 않습니다.",
   "DNS resolution tests never connect to the indicator, but the resolver of the endpoints may query the name servers of its domain, which can tell their owner that the name was looked up. Point the endpoints at a resolver that does not forward to the internet to avoid it.": "DNS 확인 테스트는 지표에 연결하지 않지만, 엔드포인트의 리졸버가 해당 도메인의 네임 서버에 질의할 수 있어 이름이 조회되었다는 사실이 소유자에게 알려질 수 있습니다. 이를 피하려면 인터넷으로 전달하지 않는 리졸버를 엔드포인트에 설정하세요.",
-  "Network and HTTP tests reach the indicator infrastructure. Use a sinkhole for network tests and an egress proxy you control for HTTP tests.": "네트워크 및 HTTP 테스트는 지표 인프라에 도달합니다. 네트워크 테스트에는 싱크홀을, HTTP 테스트에는 직접 관리하는 송신 프록시를 사용하세요.",
+  "Network and HTTP tests reach the indicator infrastructure. Use a sinkhole for network tests and an egress proxy you control for HTTP tests, set to refuse internal addresses and the hosts of this platform: it resolves each URL again when the test runs.": "네트워크 및 HTTP 테스트는 지표 인프라에 도달합니다. 네트워크 테스트에는 싱크홀을, HTTP 테스트에는 내부 주소와 이 플랫폼의 호스트를 거부하도록 설정한, 직접 관리하는 송신 프록시를 사용하세요. 프록시는 테스트 실행 시 각 URL의 호스트 이름을 다시 해석합니다.",
   "Network safety": "네트워크 안전",
   "Egress proxy URL": "송신 프록시 URL",
   "Sinkhole address": "싱크홀 주소",

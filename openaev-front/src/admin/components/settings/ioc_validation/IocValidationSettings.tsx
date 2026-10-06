@@ -283,7 +283,7 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
         {contactsInfrastructure && (
           <Alert
             severity="warning"
-            title={t('Network and HTTP tests reach the indicator infrastructure. Use a sinkhole for network tests and an egress proxy you control for HTTP tests.')}
+            title={t('Network and HTTP tests reach the indicator infrastructure. Use a sinkhole for network tests and an egress proxy you control for HTTP tests, set to refuse internal addresses and the hosts of this platform: it resolves each URL again when the test runs.')}
             style={{ marginTop: 12 }}
           />
         )}

@@ -4633,7 +4633,7 @@
   "Allowed test kinds": "允许的测试类型",
   "Every request needs an approval, and only the test kinds allowed here run: none is allowed until you choose it.": "每个请求都需要审批，并且只运行此处允许的测试类型：在您选择之前，不允许任何类型。",
   "DNS resolution tests never connect to the indicator, but the resolver of the endpoints may query the name servers of its domain, which can tell their owner that the name was looked up. Point the endpoints at a resolver that does not forward to the internet to avoid it.": "DNS 解析测试从不连接到指标，但终端的解析器可能会查询其域名的名称服务器，从而让其所有者得知该名称被查询过。要避免这种情况，请让终端使用不转发到互联网的解析器。",
-  "Network and HTTP tests reach the indicator infrastructure. Use a sinkhole for network tests and an egress proxy you control for HTTP tests.": "网络和 HTTP 测试会访问指标的基础设施。网络测试请使用 sinkhole，HTTP 测试请使用您控制的出口代理。",
+  "Network and HTTP tests reach the indicator infrastructure. Use a sinkhole for network tests and an egress proxy you control for HTTP tests, set to refuse internal addresses and the hosts of this platform: it resolves each URL again when the test runs.": "网络和 HTTP 测试会访问指标的基础设施。网络测试请使用 sinkhole，HTTP 测试请使用您控制的出口代理，并将其配置为拒绝内部地址和本平台的主机：测试运行时，它会重新解析每个 URL 的主机名。",
   "Network safety": "网络安全",
   "Egress proxy URL": "出口代理 URL",
   "Sinkhole address": "Sinkhole 地址",
