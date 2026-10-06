@@ -40,6 +40,8 @@ import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
@@ -120,6 +122,8 @@ public class IocValidationService {
   private final OpenAEVConfig openAEVConfig;
   private final TenantScopedTransaction tenantTx;
   private final Optional<AuditLogger> auditLogger;
+
+  @PersistenceContext private EntityManager entityManager;
 
   // -- SEARCH --
 
@@ -305,8 +309,10 @@ public class IocValidationService {
             .findById(id)
             .orElseThrow(() -> new ElementNotFoundException("IOC validation not found"));
     requireAwaitingApproval(validation);
-    // The plan changes the loaded validation in memory only: a read-only transaction never writes
-    // it back
+    // The plan changes the IOCs, kinds and pairs it is given, and with open-in-view the session
+    // outlives this read-only transaction: a later write on it would flush the plan, so the
+    // preview plans on the validation detached from the session
+    entityManager.detach(validation);
     ApprovalPlan plan = planApproval(validation, tenantId, hostAnswers);
     String blocker =
         plan.blocker() != null

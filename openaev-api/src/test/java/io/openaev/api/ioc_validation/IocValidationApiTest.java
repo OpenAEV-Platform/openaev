@@ -27,6 +27,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.ioc_validation.dto.IocValidationApproveInput;
 import io.openaev.api.ioc_validation.dto.IocValidationSettingsInput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Capability;
@@ -36,6 +38,8 @@ import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.stix.IocValidationBundleParser;
+import io.openaev.service.stix.IocValidationHostAnswers;
+import io.openaev.service.stix.IocValidationService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetGroupFixture;
@@ -99,6 +103,8 @@ class IocValidationApiTest extends IntegrationTest {
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantSettingsService tenantSettingsService;
+  @Autowired private IocValidationService iocValidationService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   // No OpenCTI is configured in tests: acknowledgements and status reports become no-ops, and the
   // lifecycle stays pending until a connector is registered.
@@ -550,6 +556,29 @@ class IocValidationApiTest extends IntegrationTest {
       assertThat((String) JsonPath.read(preview, "$.ioc_validation_preview_blocker"))
           .startsWith("Nothing can run");
       mvc.perform(approve(id)).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+        "the approval preview never stores its plan, even when a write follows on its session")
+    void given_writeAfterPreviewOnTheSameSession_should_keepTheShownRequest() throws Exception {
+      injectorFixture.getWellKnownOaevImplantInjector();
+      AssetGroup assetGroup = validationTargets();
+      allow(List.of(IocValidationTestKind.DNS_RESOLUTION), assetGroup);
+      String id = receiveDnsRequest();
+      allow(List.of(IocValidationTestKind.NETWORK_TRAFFIC), assetGroup);
+      String before = validation(id);
+      TxCtx ctx = TxCtx.forTenant(tenantId);
+      IocValidationHostAnswers hostAnswers =
+          IocValidationHostAnswers.resolve(iocValidationService.hostNames(ctx, id));
+
+      // As with open-in-view: the session of the preview stays open after its read-only
+      // transaction, and a read-write transaction on that session flushes what it still manages
+      IocValidationService.ApprovalPreview preview =
+          tenantTx.execute(ctx, () -> iocValidationService.approvalPreview(ctx, id, hostAnswers));
+
+      assertThat(preview.validation().getIocs().getFirst().getTestKind()).isNull();
+      assertThat(validation(id)).isEqualTo(before);
     }
 
     @Test
