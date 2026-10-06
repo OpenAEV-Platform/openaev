@@ -1122,6 +1122,7 @@ class InjectApiTest extends IntegrationTest {
           agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       Command fileDrop = iocValidationFileDrop();
       Inject injectSaved = iocValidationFileDropInject(fileDrop, runSeed, targetAgentWrapper);
+      approveAsIocValidationTest(injectSaved);
       String run =
           PayloadService.iocValidationExecutionContent(
                   injectSaved.getContent(), fileDrop, injectSaved.getId())
@@ -1217,6 +1218,47 @@ class InjectApiTest extends IntegrationTest {
           .isInstanceOf(ServletException.class)
           .hasRootCauseInstanceOf(IllegalStateException.class)
           .hasRootCauseMessage(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST);
+    }
+
+    @DisplayName(
+        "Refuse to execute an IOC validation payload outside of an approved IOC validation")
+    @Test
+    void given_iocValidationPayloadOutsideAValidation_should_refuseItsExecution() {
+      // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Inject injectSaved =
+          iocValidationFileDropInject(
+              iocValidationFileDrop(), "0123456789abcdef0123456789abcdef", targetAgentWrapper);
+      String executablePayloadUri =
+          INJECT_URI
+              + "/"
+              + injectSaved.getId()
+              + "/"
+              + targetAgentWrapper.get().getId()
+              + "/executable-payload";
+
+      // -- EXECUTE & ASSERT: as an atomic testing --
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get(executablePayloadUri).accept(MediaType.APPLICATION_JSON).with(csrf())))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage(
+              IocValidationDispatchGuard.IOC_VALIDATION_PAYLOAD_OUTSIDE_VALIDATION);
+
+      // -- EXECUTE & ASSERT: in a simulation no IOC validation created --
+      injectSaved.setExercise(exerciseRepository.save(ExerciseFixture.createDefaultExercise()));
+      injectRepository.saveAndFlush(injectSaved);
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get(executablePayloadUri).accept(MediaType.APPLICATION_JSON).with(csrf())))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage(
+              IocValidationDispatchGuard.IOC_VALIDATION_PAYLOAD_OUTSIDE_VALIDATION);
     }
 
     @DisplayName("Refuse to execute an IOC validation file drop payload of an earlier version")

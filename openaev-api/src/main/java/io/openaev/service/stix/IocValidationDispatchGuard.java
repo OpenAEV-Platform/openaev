@@ -11,11 +11,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Refuses to dispatch a test of an IOC validation whose inject no longer runs what the operator
- * approved. The injects of a validation simulation stay editable after the approval, while the
- * checks of the planner (public targets, hosts of the platform, egress proxy) hold only for the
- * approved values: each test inject must still run an IOC validation payload, with the arguments
- * whose fingerprint the approval recorded.
+ * Refuses to dispatch an IOC validation test that runs anything but what an operator approved. The
+ * injects of a validation simulation stay editable after the approval, and the IOC validation
+ * payloads can be picked in any inject, while the checks of the planner (public targets, hosts of
+ * the platform, egress proxy) hold only for the approved values: an inject runs an IOC validation
+ * payload only as the test of an IOC validation of its simulation, with the payload of the approved
+ * kind and the arguments whose fingerprint the approval recorded.
  */
 @Component
 @RequiredArgsConstructor
@@ -26,30 +27,45 @@ public class IocValidationDispatchGuard {
           + " arguments the operator approved, so it is not executed. Reject the request and ask for"
           + " a new validation from OpenCTI.";
 
+  public static final String IOC_VALIDATION_PAYLOAD_OUTSIDE_VALIDATION =
+      "This inject runs an IOC validation payload outside of an approved IOC validation, so it is"
+          + " not executed: IOC validation payloads only run in the simulation of an IOC validation"
+          + " request approved in OpenAEV.";
+
   private final IocValidationRepository iocValidationRepository;
 
   /**
    * @param inject the inject about to be dispatched
    * @param payload the payload of its injector contract
    * @throws IllegalStateException when the inject is a test of an IOC validation and differs from
-   *     its approved plan
+   *     its approved plan, or runs an IOC validation payload without being such a test
    */
   public void refuseUnapprovedTest(Inject inject, Payload payload) {
+    Optional<IocValidationIoc> test = validationTest(inject);
+    if (test.isPresent()) {
+      if (!isApproved(test.get(), inject, payload)) {
+        throw new IllegalStateException(IOC_VALIDATION_UNAPPROVED_TEST);
+      }
+    } else if (PayloadService.isIocValidationPayload(payload)) {
+      throw new IllegalStateException(IOC_VALIDATION_PAYLOAD_OUTSIDE_VALIDATION);
+    }
+  }
+
+  /** The IOC whose test the inject is, in an IOC validation of its simulation. */
+  private Optional<IocValidationIoc> validationTest(Inject inject) {
     if (inject.getExercise() == null || inject.getTenant() == null) {
-      return;
+      return Optional.empty();
     }
     for (IocValidation validation :
         iocValidationRepository.findBySimulationIdAndTenantId(
             inject.getExercise().getId(), inject.getTenant().getId())) {
       for (IocValidationIoc ioc : validation.getIocs()) {
         if (ioc.getInjectIds() != null && ioc.getInjectIds().contains(inject.getId())) {
-          if (!isApproved(ioc, inject, payload)) {
-            throw new IllegalStateException(IOC_VALIDATION_UNAPPROVED_TEST);
-          }
-          return;
+          return Optional.of(ioc);
         }
       }
     }
+    return Optional.empty();
   }
 
   private static boolean isApproved(IocValidationIoc ioc, Inject inject, Payload payload) {

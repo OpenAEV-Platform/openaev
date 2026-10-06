@@ -168,7 +168,8 @@ skipped because the safety settings do not allow its test, its row reads *Not al
 - **Approve and start the simulation** builds a scenario with one benign inject per indicator on the configured asset group and starts
   a simulation at once. The confirmation lists the tests that run and the security platforms expected to see them.
   The injects run exactly what was approved: an inject of the validation simulation whose payload or arguments are
-  changed afterwards is not executed and ends with an error.
+  changed afterwards is not executed and ends with an error, and so is an IOC validation payload used anywhere else
+  (an atomic testing, another simulation).
 - **Reject** closes the request without running anything. The optional reason is reported to OpenCTI.
 
 ![Approval confirmation listing the tests that run once approved and the security platforms](assets/ioc-validation-approve-dialog.png)
