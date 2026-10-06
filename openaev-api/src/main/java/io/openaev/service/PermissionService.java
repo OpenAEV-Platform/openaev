@@ -43,7 +43,8 @@ public class PermissionService {
           // notification triggers; write operations stay gated by tenant settings capabilities
           // and notifier_configuration is masked in outputs for users without those capabilities
           // (see NotifierApi).
-          ResourceType.NOTIFIER);
+          ResourceType.NOTIFIER,
+          ResourceType.NEWS_FEED);
 
   private static final EnumSet<ResourceType> RESOURCES_MANAGED_BY_GRANTS =
       EnumSet.of(

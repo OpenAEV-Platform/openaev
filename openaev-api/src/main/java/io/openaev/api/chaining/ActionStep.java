@@ -34,7 +34,10 @@ public interface ActionStep {
    * Executes a Ready step. Changes the status from READY to RUN.
    *
    * @param readyStep the step currently in READY status
-   * @return the step after being set to RUN
+   * @return the step to set to RUN, or an empty Optional if the step failed for good: the caller
+   *     then ends it without retry
+   * @throws ChainingException if the execution fails: the transaction is rolled back and the event
+   *     is retried
    */
   Optional<Step> run(Step readyStep) throws ChainingException;
 

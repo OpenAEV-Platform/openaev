@@ -268,6 +268,22 @@ public class PermissionServiceTest extends IntegrationTest {
   }
 
   @Test
+  public void test_hasPermission_read_news_feed_WHEN_has_no_capa() {
+    User user = getUser(USER_ID, false);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.NEWS_FEED, Action.READ));
+  }
+
+  @Test
+  public void test_hasPermission_write_news_feed_WHEN_has_no_capa() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.NEWS_FEED, Action.WRITE));
+  }
+
+  @Test
   public void test_hasPermission_create_WHEN_has_create_capa() {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
