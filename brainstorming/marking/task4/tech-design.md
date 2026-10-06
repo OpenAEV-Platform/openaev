@@ -51,12 +51,40 @@ a faithful translation of TLP into an access model for **reads**; it says nothin
 
 ---
 
-## Design options for launch behavior
+## Two options under evaluation
+
+Task 4 is being explored through two alternative answers to one question: *what does a user see of, and
+do with, a parent entity (Asset Group, Scenario, Simulation, Atomic Testing) that holds an asset they
+have no clearance for?*
+
+| | [Option 1: fine granularity](#1--option-1-fine-granularity) | [Option 2: hide parents](#2--option-2-hide-parents) |
+|---|---|---|
+| **In one line** | The parent stays visible; restricted assets are filtered out of it in depth, including partial/scoped execution | Any parent that holds a restricted asset is completely hidden from that user |
+| **Status** | PoC on the `task4-poc` branch (execution side) | Design exploration (C-1 / C-2 / C-3 variants), not implemented |
+
+§3 compares the two side by side, shows which part of the Option 2 design Option 1 reuses for findings,
+and records the current leaning.
+
+> **Naming note.** §1 contains its own sub-choice between "launch variant A" (partial/scoped launch,
+> chosen) and "launch variant B" (run on all targets, ruled out). Those variants are internal to
+> Option 1. They are not the same thing as Option 1 / Option 2 above. Likewise, C-1 / C-2 / C-3 in §2 are
+> implementation variants of Option 2, all built on Task 3's Option C.
+
+---
+
+## 1 / Option 1: fine granularity
+
+The parent entity stays visible to every user who could see it before Task 4. Inside it, each restricted
+asset is filtered out everywhere it appears (targets, results, scores, findings, remediations), and
+launches run in **partial/scoped mode**, executing only the targets the resolved actor is cleared for.
+Everything in this section was designed and partly implemented on the `task4-poc` branch.
+
+### Design options for launch behavior
 
 The user-stories doc's "Impact of asset markings" table (Row 3) already frames the two candidate
 behaviors for manual and scheduled execution alike:
 
-### Option 1 — Partial / scoped launch (✅ chosen)
+#### Launch variant A — Partial / scoped launch (✅ chosen)
 
 The launch, or the scheduled job, runs with the effective markings of a resolved actor (see
 [Data model changes](#data-model-changes) below). It executes **only** the targets that actor can
@@ -72,7 +100,7 @@ see; a restricted target is skipped entirely — not run, not touched, not queue
   make clear to a higher-clearance viewer that a given run only covered a subset of targets, so
   results aren't misread as "everything was tested."
 
-### Option 2 — Run on all targets, filter only the read side (❌ ruled out)
+#### Launch variant B — Run on all targets, filter only the read side (❌ ruled out)
 
 The launch runs on every target regardless of the launcher's clearance; markings only filter what
 the launcher can *read* back in the results (targets, scores, findings).
@@ -88,23 +116,23 @@ the launcher can *read* back in the results (targets, scores, findings).
 - Also inconsistent with the core Task 4 principle itself: "a restricted asset does not exist for the
   user" cannot be squared with that same user's action reaching into it.
 
-**Decision: Option 1.** Recorded in the Decisions Log addition below.
+**Decision: variant A.** Recorded in the Decisions Log addition below.
 
 A third, stricter variant was considered and also rejected: hard-blocking the *entire* launch
 whenever *any* referenced target is restricted, regardless of other visible targets. This was
 rejected because it contradicts the existing worked example in the user-stories doc (which allows
 launch once a visible target exists) and is materially more disruptive for no additional security
-benefit over Option 1 — under Option 1 the restricted asset is never touched either way.
+benefit over variant A — under variant A the restricted asset is never touched either way.
 
 ---
 
-## Why "last edited/updated user" cannot be the resolved actor
+### Why "last edited/updated user" cannot be the resolved actor
 
-Before landing on Option 1's mechanism, we considered resolving the gating actor from an existing
+Before landing on variant A's mechanism, we considered resolving the gating actor from an existing
 "who last touched this" field (`Scenario`'s last editor, or the pre-existing `Inject.user` /
 `inject_user` column). Both fail, for related but distinct reasons.
 
-### 1. There usually isn't a live user at the moment an asset is actually touched
+#### 1. There usually isn't a live user at the moment an asset is actually touched
 
 A manual launch *does* have a live, authenticated user — but only at the moment the `Exercise` (or,
 for Atomic Testing, the `Inject`) is created. The moment an asset is actually dispatched against is
@@ -128,7 +156,7 @@ So the only point where an actor identity can still be captured is at `Exercise`
 time — after that, it's gone. Whatever field gates execution has to be written there, deliberately,
 not inferred later from session state that no longer exists.
 
-### 2. "Last touched" reintroduces the same escalation, pointed the other way
+#### 2. "Last touched" reintroduces the same escalation, pointed the other way
 
 If a background job's clearance were resolved from "whoever last edited the Scenario," an unrelated,
 incidental edit — an admin fixing a typo, updating a description — would silently change *whose*
@@ -137,7 +165,7 @@ automated runs could start being executed with no one having intended to grant t
 shape of escalation the PO just ruled out for manual launch, just introduced through the back door of
 metadata edits instead of the launch action itself.
 
-### 3. The one field that already exists for this (`inject_user`) demonstrably has the wrong semantics
+#### 3. The one field that already exists for this (`inject_user`) demonstrably has the wrong semantics
 
 `Inject.user` / the `inject_user` column looked, at first, like it might already serve this purpose.
 Tracing its actual behavior rules that out:
@@ -170,9 +198,9 @@ or defaulted to, a general-purpose "last modified" attribute.
 
 ---
 
-## Execution architecture: today's flow, and where Task 4's new calls land
+### Execution architecture: today's flow, and where Task 4's new calls land
 
-### Scenario → Exercise, and the Exercise/Inject link for time-based scheduling (current flow, unchanged)
+#### Scenario → Exercise, and the Exercise/Inject link for time-based scheduling (current flow, unchanged)
 
 ```mermaid
 sequenceDiagram
@@ -245,7 +273,7 @@ sequenceDiagram
     Note over EX: From here, dispatch reads Exercise.launchedBy exactly<br/>as shown in the Atomic Testing diagram below.
 ```
 
-### Atomic Testing (current flow, plus where Task 4 adds new writes and a new check)
+#### Atomic Testing (current flow, plus where Task 4 adds new writes and a new check)
 
 - `POST /atomic-testings/{id}/launch` → `AtomicTestingService.launch()` (`AtomicTestingService.java:231-234`)
   and `POST /atomic-testings/{id}/relaunch` → `relaunch()`/`doRelaunch()`
@@ -301,7 +329,7 @@ with the Scenario/Exercise path rather than specific to Atomic Testing.
 
 ---
 
-## Execution dispatch has three independent asset-resolution paths, not one
+### Execution dispatch has three independent asset-resolution paths, not one
 
 Manual e2e validation (launch an Atomic Testing targeting one unmarked, agentless asset and one
 `TLP:RED` agent, as a `TLP:GREEN` user) found that the `TLP:RED` agent **actually executed** — not just
@@ -311,12 +339,12 @@ data was all correct — `launched_by` was the right user, that user's clearance
 only, the agent's asset was correctly marked `TLP:RED` — yet it ran anyway.
 
 Root cause: `Executor.execute()` → `ExecutableInject` → `resolveAllAssetsToExecute()` is **one of three
-separate places** that independently decide "which assets does this inject concern." Per the Option 1
+separate places** that independently decide "which assets does this inject concern." Per the launch variant A
 decision (partial/scoped execution), the marking filter must apply consistently at all three — at the
 time of this finding, it was wired into only one of them. The three paths and how each one now applies
 (or, for one documented exception, doesn't yet apply) the filter are described below.
 
-### 1 — Expectation / finding computation
+#### 1 — Expectation / finding computation
 
 `InjectService.resolveAllAssetsToExecute()`, called from `InjectsExecutionJob.executeInject()`
 (`InjectsExecutionJob.java:149`) and again from `OpenAEVImplantExecutor.process()`
@@ -347,7 +375,7 @@ This explains why the overview didn't show `ASSET_RED` as a target — but it do
 Finding showing `DDD`, because that Finding came from the asset that actually ran, which this path
 never controls.
 
-### 2 — Agent-routing dispatch (the path manual testing caught)
+#### 2 — Agent-routing dispatch (the path manual testing caught)
 
 `Executor.execute()` calls `ExecutionExecutorService.launchExecutorContext(inject)`
 **unconditionally**, before branching into `executeInternal`/`executeExternal`, whenever
@@ -384,7 +412,7 @@ Scenario-linked or Atomic Testing) and runs before the internal/external split, 
 both Scenario/Simulation and Atomic Testing, and however an injector is classified (internal or
 external), in one place.
 
-### 3 — External-push dispatch payload (non-agent connectors)
+#### 3 — External-push dispatch payload (non-agent connectors)
 
 For an injector classified `isExternal()` (e.g. email, SMS, OpenCTI — not agent-based), `executeExternal()`
 builds the published payload via `ExecutableInjectDTOMapper.toExecutableInjectDTO()`. Its `.assets(...)`
@@ -427,7 +455,7 @@ This path doesn't involve `Agent`/`Endpoint` extraction at all, so it's genuinel
 filtering one does not filter the other. Any injector type that isn't agent-based still needs its own
 asset list filtered for the design to hold across *all* injector types, not just agent ones.
 
-### How Option 1 holds across all three paths
+#### How launch variant A holds across all three paths
 
 The partial/scoped execution decision is a property of the inject's dispatch as a whole, not of any one
 method — so it must hold at every point that independently resolves "which assets does this concern."
@@ -439,7 +467,7 @@ currently filter.
 
 ---
 
-## Data model changes
+### Data model changes
 
 Four new columns, following one consistent naming convention (`scheduled_by` = who owns/configured
 a recurring schedule; `launched_by` = whose clearance gates one specific run):
@@ -462,7 +490,7 @@ deny-by-default fallback consistent with the rest of Task 4's global acceptance 
 (`exercise == null && scenario == null`). A Scenario-linked inject never gets its own copy — its
 clearance is resolved through `inject.getExercise().getLaunchedBy()`.
 
-### Implementation trap to guard against explicitly
+#### Implementation trap to guard against explicitly
 
 `InjectUtils.duplicateInject()` (`InjectUtils.java:335`) currently copies `inject.user` forward on
 relaunch (`duplicatedInject.setUser(injectOrigin.getUser())`). If `launched_by` is added to the same
@@ -478,7 +506,7 @@ This flags the corresponding checkbox in the Task 4 "Important Flags" — **Data
 
 ---
 
-## Clearance resolution at dispatch time
+### Clearance resolution at dispatch time
 
 Whichever field is read (`Exercise.launched_by`, `Inject.launched_by`), the rule is the same:
 
@@ -500,7 +528,7 @@ Whichever field is read (`Exercise.launched_by`, `Inject.launched_by`), the rule
 
 ---
 
-## Interaction with the existing marking bypass (service account) — unchanged
+### Interaction with the existing marking bypass (service account) — unchanged
 
 Task 3's read-filtering mechanism (Option C) already has a "sees everything" bypass, used today so
 the per-tenant agent/implant service account never loses sight of its own host asset once that asset
@@ -615,9 +643,9 @@ sequenceDiagram
 
 ---
 
-## Direction
+### Direction
 
-**Decided: Option 1 — partial/scoped launch**, backed by four new `scheduled_by`/`launched_by`
+**Decided (within Option 1): launch variant A — partial/scoped launch**, backed by four new `scheduled_by`/`launched_by`
 columns captured explicitly at the point of the security-relevant action, resolved live against
 current group markings at dispatch time, never inferred from a general "last modified" field.
 
@@ -625,26 +653,335 @@ Decisions Log addition (to be reflected in [`../user-stories.md`](../user-storie
 
 | Date | Decision | Owner |
 | --- | --- | --- |
-| 2026-09-30 | Launch/relaunch/scheduled execution runs in **partial/scoped mode** (Option 1): only targets visible to the resolved actor are executed; restricted targets are skipped, never run. Running on all targets and hiding the result (Option 2) is rejected as a privilege-escalation vector. | Soumaya Boussaha (PO) |
+| 2026-09-30 | Launch/relaunch/scheduled execution runs in **partial/scoped mode** (launch variant A): only targets visible to the resolved actor are executed; restricted targets are skipped, never run. Running on all targets and hiding the result (launch variant B) is rejected as a privilege-escalation vector. | Soumaya Boussaha (PO) |
 | 2026-09-30 | The actor whose clearance gates a run is captured explicitly at launch/relaunch/recurrence-configuration time (`Exercise.launched_by`, `Scenario.scheduled_by`, `Inject.launched_by`, `Inject.scheduled_by`) — never inferred from a "last edited/updated" field. | — |
 | 2026-10-01 | Manual e2e validation found the PoC's initial enforcement point (`resolveAllAssetsToExecute`, path 1) filters expectations/findings but not real dispatch. Scope expanded to all three independent asset-resolution paths (see "Execution dispatch has three independent asset-resolution paths, not one") — path 2 (agent routing) is the primary fix, path 3 (external-push payload) required for non-agent connectors. | — |
 
 ---
 
-## Open items carried forward
+### Open items carried forward
 
 These remain open in [`../user-stories.md`](../user-stories.md) and are not resolved by this
 document:
 
-1. **Asset Group behaviour (US1)** — Option 1 (filter) vs Option 2 (hide the whole group) vs Option 3
-   (manual group marking). Partial/scoped launch works under either, but changes what "a target the
+1. **Asset Group behaviour (US1)** — user-stories Option 1 (filter) vs Option 2 (hide the whole group) vs
+   Option 3 (manual group marking). [§2 Option 2](#2--option-2-hide-parents) explores the "hide" answer. Partial/scoped launch works under either, but changes what "a target the
    actor cannot see" means when the target is a group rather than a single asset.
 2. **Whether the parent entity itself is hidden or filtered (Row 2)** when it has mixed
    visible/restricted targets — this document only settles what happens *at execution time*, not
    whether `USER_GREEN` sees the Scenario/Simulation/Atomic Testing at all in lists and detail pages.
+   [§2 Option 2](#2--option-2-hide-parents) explores the "hide" answer.
 3. **Should a Finding inherit its asset's marking?** (Q4) — affects whether `launched_by`'s clearance
    check needs to extend past execution into Findings/Remediations read paths, or whether that's
    already covered by ordinary asset-marking read filtering.
 4. **Reporting a partial run clearly** — a higher-clearance viewer (e.g. `FULL_ADMIN`) must be able to
    tell that a given run only covered a subset of targets, so scores/findings aren't misread as
    covering assets that were actually skipped. No UI/API shape decided yet.
+
+---
+
+## 2 / Option 2: hide parents
+
+> **Status: design exploration, nothing implemented.** This section records the design discussion so
+> far. Nothing here exists on the `task4-poc` branch.
+
+### 2.1 The rule (from the PO)
+
+- An **Atomic Testing** (a root `inject`), a **Scenario**, a **Simulation** (`exercise`) or an **Asset Group**
+  that holds at least one asset outside the user's clearance is **completely hidden** from that user:
+  lists, counts, search, target pickers, and direct URL/API (`404`). Example: an asset group is hidden from
+  a `TLP:GREEN` user as soon as one of its members is `TLP:RED`.
+- A hidden Scenario or Simulation cannot be launched by that user, so no Exercise is ever created from it
+  on their behalf.
+- Objects **generated at execution time** (findings, `findings_assets`, expectations, traces, attack-path
+  rows) from a hidden parent are hidden too.
+- **The user never sets a marking on the Scenario.** The parent is hidden *implicitly*, derived from the
+  assets it holds.
+
+### 2.2 Tables related to assets
+
+Inventory taken from the foreign keys of the dev database, plus asset references that have no FK.
+
+| Category | Tables | How they relate to assets |
+|---|---|---|
+| **Marked source** (Task 3) | `assets` (endpoints and security platforms) | `marking_ids text[]` |
+| Belong to an asset | `agents` (`agent_asset`), `asset_agent_jobs`, `assets_tags` | FK to `assets` |
+| **Parents to hide** (PO) | `asset_groups` | static: `asset_groups_assets`; **dynamic: `asset_group_dynamic_filter`, evaluated in Java (`AssetGroupService.computeDynamicAssets`), never stored** |
+| | `injects` (Atomic Testing, and every scenario/simulation inject) | `injects_assets`, `injects_asset_groups` |
+| | `scenarios` / `exercises` | their injects (`injects.inject_scenario` / `injects.inject_exercise`) |
+| **Generated at execution** | `findings` + `findings_assets` | `findings_assets.asset_id`; parent `finding_inject_id` |
+| | `injects_expectations` | `asset_id`, `agent_id`, `asset_group_id`; parents `inject_id`, `exercise_id` |
+| | `injects_statuses` / `injects_tests_statuses` → `execution_traces` | `execution_agent_id` |
+| | `injects_expectations_traces` | `inject_expectation_trace_source_id` → security platform asset |
+| | `attackpath_execution`, `attackpath_execution_collector`, `attackpath_finding` | `source/target_asset_id`, `agent_id`, `endpoint_id`, copies of hostname/IP: **no FK**; parent `simulation_id` |
+| Other configuration (scope to decide) | `autonomous_runs.autonomous_run_scope_asset_group_id` (no FK), `tag_rule_asset_groups`, `injectors`/`collectors`/`detection_remediations` (`*_security_platform`), `workflows`, `security_coverages` | FK or plain id |
+| Children of a scenario/simulation with no asset data | `logs`, `pauses`, `objectives`, `articles`, `variables`, `lessons_categories`, document/team/tag links | FK to the parent only |
+| **Outside Postgres** | `EsAsset`, `EsAssetGroup`, `EsInject`, `EsScenario`, `EsSimulation`, `EsFinding`, `EsInjectExpectation`, `EsVulnerableEndpoint`, `EsSecurityPlatform` | Elasticsearch documents (dashboards); never covered by the SQL rewrite |
+
+### 2.3 Where the filter goes: still Task 3's Option C
+
+Task 3 compared three ways to enforce markings: A (service layer), B (explicit repository query) and C
+(the statement inspector rewrites the SQL). Option 2 makes the case for C stronger, not weaker:
+
+- **Parents are read from far more places than assets.** That includes scenario/simulation/inject lists,
+  chaining, autonomous runs, reporting and import/export. With A or B, every one of those reads must
+  remember to filter.
+- **A breaks pagination.** A page of 50 scenarios would come back with 30.
+- **A cannot even see the restricted asset.** Inside the user's transaction the inspector has already
+  removed `ASSET_RED` from every query, so Java code computing a dynamic group's members sees an
+  all-green group.
+
+**Hiding a parent does not hide its children.** The inspector wraps every joined marked table in a
+filtered sub-query (`ScopeStatementInspector.java:271-345`). As a result:
+
+- `FROM findings f LEFT JOIN injects i` still returns the finding, with a `NULL` inject.
+- `WHERE f.inject.id = :injectId` never touches `injects` at all.
+
+So **every derived table needs its own predicate**. Which tables need one is therefore a design input,
+not an afterthought.
+
+The open question is **how the predicate on a parent learns what that parent holds**. Three variants were
+explored. All of them keep Option C as the enforcement point, and `assets.marking_ids` stays as Task 3
+designed it.
+
+| | **C-1: derived marking set stored on each parent** | **C-2: read-time check through SQL functions** | **C-3: C-2 + stored marked dynamic members** |
+|---|---|---|---|
+| **Principle** | `parent.marking_ids = own_marking_ids ∪ markings of everything it holds`, kept up to date on write; the predicate stays `is_marking_set_allowed(t.marking_ids)` | No new column. The predicate on a parent table is a SQL function (`can_see_scenario(id)`, …) that follows the links down to `assets.marking_ids` | Same as C-2, plus a table that stores which **marked** assets match each dynamic group's filter |
+| **New columns** | `marking_ids` on every parent / derived table (+ `own_marking_ids` when a table becomes markable itself) | none | one table: `asset_group_marked_dynamic_members` |
+| **Dynamic asset groups** | ✅ evaluated in Java at write time | ❌ **not seen.** The SQL check only sees `asset_groups_assets`, so for dynamic groups C-2 falls back to Option 1 behaviour (group visible, red member filtered) | ✅ |
+| **What must be kept up to date on write** | the whole chain: groups → injects → scenarios / simulations → findings, expectations, … | nothing | one level: which marked assets match which dynamic group |
+| **Read cost** | none (one-column test) | a correlated `EXISTS` chain on every candidate row, including `COUNT(*)` | same as C-2 |
+| **Stale-data risk** | a missed trigger leaves a parent visible → leak | none | only dynamic membership can go stale |
+| **Elasticsearch** | ✅ index the same column | ❌ needs a separately computed set at indexing time | ❌ same |
+| **Can express "visible if *any* linked asset is visible"** | ❌ a single set with `<@` always means "hidden if *any* is restricted" | ✅ | ✅ |
+
+#### C-1: derived marking set stored on each parent
+
+- **Formula.** `marking_ids = own_marking_ids ∪ markings of everything held`. Assets hold nothing, so for
+  them *own = effective*, and `assets.marking_ids` keeps its Task 3 meaning. `own_marking_ids` is only
+  added to a table that becomes markable itself (e.g. a Scenario later).
+- **When it is recomputed.** On every write that changes what a parent holds: an asset's marking, the
+  attributes of a *marked* asset (it can enter or leave a dynamic group), a group's members or filter, an
+  inject's targets, Exercise creation, deletion of a marking definition. Only marked assets matter: an
+  unmarked asset adds `{}` to a union, so agent inventory updates on unmarked assets trigger nothing.
+- **Pitfalls.**
+  1. The recompute must read **with system clearance**. Otherwise a `TLP:GREEN` user's edit computes
+     `{}` for a group holding a `TLP:RED` member.
+  2. A change that **adds** a marking must be recomputed **in the same transaction**, because a stale
+     value leaves the parent visible. A change that removes one can be deferred.
+  3. A reconciliation job is the safety net.
+- **Two kinds of link once more entities become markable.**
+  - A **reference** to a shared entity (join table: inject → asset, inject → group, group → asset)
+    propagates **up only**.
+  - **Ownership** (FK with cascade: scenario → injects → findings) propagates **both ways**, so a
+    scenario and everything it owns share one set.
+  - Marking a scenario would therefore hide its injects and findings, but never the shared assets or
+    groups it targets.
+
+#### C-2: read-time check through SQL functions
+
+- **Same rewrite moment as today.** `ScopeStatementInspector` asks each `ScopeDimension` for its predicate,
+  for each table in each statement. C-2 adds a **third dimension**, `DerivedMarkingDimension`, next to
+  `TenantDimension` and `MarkingDimension` in `ScopeFilteringConfig`:
+
+  ```sql
+  SELECT … FROM scenarios s
+  WHERE can_access_tenant(s.tenant_id)      -- TenantDimension
+    AND can_see_scenario(s.scenario_id)     -- DerivedMarkingDimension (new)
+  ```
+
+- **Why a separate dimension.**
+  - `MarkingDimension` finds its tables from the schema (a `marking_ids text[]` column). Derived tables
+    have no such column.
+  - The two dimensions **compose**. If a Scenario later gets its own `marking_ids`, both dimensions cover
+    it and the inspector ANDs them. That is exactly *own ∪ inherited*, with no code change.
+- **Each function ANDs one check per link.** All columns used by these joins are already indexed.
+
+  ```sql
+  -- an inject is visible if none of its target assets, and none of its target groups, is restricted
+  CREATE FUNCTION can_see_inject(iid varchar) RETURNS boolean LANGUAGE sql STABLE AS $$
+    SELECT NOT EXISTS (
+             SELECT 1 FROM injects_assets ia
+             JOIN assets a ON a.asset_id = ia.asset_id
+             WHERE ia.inject_id = iid AND NOT is_marking_set_allowed(a.marking_ids))
+       AND NOT EXISTS (
+             SELECT 1 FROM injects_asset_groups iag
+             WHERE iag.inject_id = iid AND NOT can_see_asset_group(iag.asset_group_id))
+  $$;
+
+  -- a scenario is visible if all its injects are visible
+  CREATE FUNCTION can_see_scenario(sid varchar) RETURNS boolean LANGUAGE sql STABLE AS $$
+    SELECT NOT EXISTS (
+             SELECT 1 FROM injects i
+             WHERE i.inject_scenario = sid AND NOT can_see_inject(i.inject_id))
+  $$;
+  ```
+
+- **These must be real database functions, not SQL text inlined into the query.** The inspector never
+  rewrites a function body, so the function sees `ASSET_RED` even in `USER_GREEN`'s transaction. That is
+  what lets it *detect* the restricted asset. Inlined SQL could itself be filtered, and would then
+  silently answer "nothing restricted".
+
+#### C-3: C-2 + stored marked dynamic members
+
+- **What is stored.** `asset_group_marked_dynamic_members(asset_group_id, asset_id)` lists only the
+  *marked* assets that match each group's filter. Unmarked members can never change the answer.
+- **How it is kept up to date.** Java maintains it with system clearance:
+  - when a marked asset is written: `assetGroupsOfAsset(asset)`;
+  - when a group's filter is edited: re-evaluate the filter on marked assets only.
+
+#### Declaring which tables are derived: a link registry, not groups
+
+A flat `openaev.marking.derived-tables=…` list cannot say *why* a table is filtered. Grouping per marked
+table does not work either: once `secret_references` is marked, `injects` depends on both `assets` and
+`secret_references`.
+
+Instead, each derived table declares its **direct links** in a Java registry. Each link has a **mode**:
+
+```yaml
+asset_groups: [asset_groups_assets → assets (ALL), asset_group_marked_dynamic_members → assets (ALL)]
+injects:      [injects_assets → assets (ALL), injects_asset_groups → asset_groups (ALL),
+               injects_secret_references → secret_references (ALL)]    # one line when that table is marked
+scenarios:    [children injects.inject_scenario → injects (ALL)]
+exercises:    [children injects.inject_exercise → injects (ALL)]
+findings:     [parent finding_inject_id → injects (ALL), findings_assets → assets (ALL)]
+```
+
+- **ALL**: hidden if *any* linked row is restricted (`NOT EXISTS … NOT allowed`).
+- **ANY**: visible if *at least one* linked row is visible (`EXISTS … allowed`). See §3.1.
+- **Derived from the graph.** The SQL functions come from the registry, either hand-written in Flyway
+  migrations with a consistency test, or generated by a repeatable Java migration. The "marked table →
+  derived tables" view is also computed and logged at startup, not maintained by hand.
+- **Startup checks.**
+  - Every target is a marked or registered table.
+  - No cycles.
+  - Every active derived table reaches at least one active marked table.
+  - Links to an inactive marked table are dropped.
+  - Link columns are indexed.
+- **On/off switch.** The property only lists which derived tables are active, the way `active-tables` does
+  today.
+
+### 2.4 Open points specific to Option 2
+
+1. **Elasticsearch / dashboards (US0).** Not covered by C-2/C-3. Documents need a marking set computed at
+   indexing time, which brings back C-1's propagation problem for ES.
+2. **Read cost of C-2/C-3.** Benchmark scenario, simulation and especially findings lists, including
+   `COUNT(*)`. Two shortcuts to evaluate: skip the check for bypass users, and skip it when the tenant has
+   no marked asset.
+3. **Scheduled runs.** A recurrence configured on an all-green scenario keeps firing after a `TLP:RED`
+   target is added. The cron runs without any user's clearance, so `scheduled_by` / `launched_by` (from
+   §1) are still needed as an all-or-nothing gate.
+4. **Blast radius.** One marked asset matching a broad dynamic group (e.g. "All endpoints") hides every
+   group, test, scenario and simulation using it, from every user without that clearance. That includes
+   the author's own work and past simulations, retroactively.
+5. **Rule for findings.** Its inject's set ∪ its own assets. This hides a finding on `ASSET_GREEN` when it
+   came from a run that also included a red asset (to confirm with the PO).
+6. **Scope.** Decide which of `autonomous_runs`, `detection_remediations`, `injectors`/`collectors` and the
+   attack-path tables are in scope, and how to protect children that carry no asset data (`logs`,
+   `pauses`, …).
+
+---
+
+## 3 / Comparison: Option 1 vs. Option 2
+
+### 3.1 Common ground: the C-2 mechanism also serves Option 1's findings
+
+> 💡 **Reusable whichever option is chosen.** Option 1 also has to filter the objects generated at
+> execution, and the `DerivedMarkingDimension` + link registry + SQL functions designed for Option 2
+> (C-2) is the right tool for that too.
+
+**Why Option 1 needs it.** `findings` has a unique key on `(finding_inject_id, finding_type,
+finding_value, finding_field)`, so **one finding row is shared by every asset it was observed on**
+(through `findings_assets`). Task 3 alone filters the red asset out of the join, but never the finding
+row itself:
+
+| Finding | `findings_assets` | `USER_GREEN` with Task 3 only |
+|---|---|---|
+| port 445 open | `ASSET_GREEN`, `ASSET_RED` | finding listing only `ASSET_GREEN` ✅ |
+| CVE-2024-xxxx | `ASSET_RED` only | **the finding, with an empty asset list** ❌ reveals that a hidden target was vulnerable |
+
+**Same mechanism, different link modes.**
+
+| Derived table | Option 1: fine granularity | Option 2: hide parents |
+|---|---|---|
+| `findings` | `findings_assets → assets`, **ANY** (visible if ≥ 1 visible asset; findings with no asset stay visible) | + parent `→ injects`, ALL; assets ALL |
+| `injects_expectations` (asset / agent rows) | `asset_id → assets`, `agent_id → agents → assets` | + parent `→ injects`, ALL |
+| `execution_traces` | `execution_agent_id → agents → assets` | + parent status `→ injects`, ALL |
+| `attackpath_finding` / `attackpath_execution` | `endpoint_id` / `target_asset_id → assets` | + `simulation_id → exercises`, ALL |
+| `asset_groups`, `injects`, `scenarios`, `exercises` | **not registered** (they stay visible) | registered, ALL |
+
+Consequences:
+
+- **C-2 is enough for Option 1.** These links are stored (`findings_assets`, `asset_id`, `agent_id`), so no
+  dynamic membership is involved. C-3's table is only needed when Option 2 registers `asset_groups`.
+- **C-1 cannot serve Option 1.** A single stored set cannot express ANY, because the result depends on
+  which assets *this* viewer can see.
+- **Low-risk first step.** Build the dimension + registry and register `findings` (ANY), then
+  `injects_expectations` and `execution_traces`. This closes Option 1's open Q4 leak today, and it is the
+  foundation Option 2 would extend with ALL links on containers.
+
+### 3.2 Pros and cons
+
+| Dimension | Option 1: fine granularity | Option 2: hide parents |
+|---|---|---|
+| **Core rule** | Parent stays visible; restricted assets are filtered out of it everywhere | Parent holding any restricted asset is entirely invisible |
+| **User-story choices** | Row 1 Option 1 (filter groups) · Row 2 Option 2 (filter in depth) · Q2 (b) | Row 1 Option 2 (hide groups) · Row 2 Option 1 (hide entity) · Q2 (d) |
+| **Status** | PoC on `task4-poc`: execution side done (launch, relaunch, scheduled, 3 dispatch paths) | Design exploration only (§2) |
+| **Usability for lower-clearance users** | ✅ They keep working with shared scenarios, groups and results that mix clearances | ❌ One restricted asset anywhere in the chain removes the whole parent, including the author's own work and past simulations |
+| **Growth with more marked entities** | ✅ **Each new marked entity hides only itself.** Visibility shrinks in proportion to what is actually restricted | ❌ **Each new marked entity hides every parent that reaches it.** Visibility shrinks with each new marked type (assets, then secret references, then …) |
+| **Blast radius of marking one asset** | ✅ Local | ❌ Transitive, including through broad dynamic groups |
+| **Manual launch** | ⚠️ Partial run on visible targets; empty state when nothing is visible | ✅ Visible ⇒ fully cleared ⇒ runs on all targets |
+| **Scheduled runs** | Partial run under `scheduled_by`'s live clearance (built) | All-or-nothing gate on `scheduled_by` / `launched_by` (still needed) |
+| **Clarity of a partial run** | ❌ Needs UI guidance for higher-clearance viewers (§3.4) | ✅ Runs are never partial |
+| **Generated objects (findings, expectations, traces)** | C-2 derived dimension, ANY links (§3.1) | Same mechanism, ALL links + parent links |
+| **Aggregated values (scores, status counts, group-level expectations)** | ⚠️ Mostly automatic. A partial run guarantees no asset outside the **launcher's** clearance is in the results, so a viewer whose clearance covers the launcher's needs nothing. A viewer with *less* clearance than the launcher (e.g. an admin ran it), or with a clearance that cannot be compared, or after an asset is re-marked, must not see restricted results. Global scores are computed at read time from per-asset `injects_expectations` rows (`ResultUtils.computeGlobalExpectationResults`), so once that table is a derived table (§3.1) they exclude restricted assets on their own. Only **stored** aggregates need explicit work: the asset-group parent expectation row (verdict rolled up from all members, `InjectExpectationRepository.java:397-402`), inject status counts, and Elasticsearch-indexed results. | ✅ A visible parent never contains a restricted asset, so aggregates are correct as-is |
+| **Containers (groups, injects, scenarios, simulations)** | Not filtered as rows; their *content* is filtered by Task 3 | Need C-1 or C-3 (dynamic groups) |
+| **Read cost** | Per-asset filtering on target/result lists + C-2 on derived tables | C-2/C-3 chains on every parent list, or C-1 with no read cost |
+| **Write cost** | Low: `launched_by` / `scheduled_by` stamping | C-1: propagation along the whole chain. C-3: dynamic membership of marked assets |
+| **Main correctness risk** | A **missed read or dispatch path** leaks a restricted asset inside a visible parent (one dispatch path was already missed and fixed) | A **stale derived set** (C-1/C-3), or C-2 without C-3 missing dynamic groups, shows a whole parent |
+| **Elasticsearch / dashboards** | Filter per asset in indexed documents | Indexed documents need a derived marking set |
+| **Incremental delivery** | Per surface; findings / expectations next (§3.1) | Per table via the registry; `asset_groups` alone first |
+
+### 3.3 Direction (leaning, to confirm with the PO)
+
+**Leaning towards Option 1: fine granularity**, mainly because it holds up as more marked entities are
+added.
+
+- **Visibility tracks what is actually restricted.** Option 2's cost grows with every new marked type:
+  each one adds new paths through which a parent becomes hidden. The share of the platform a
+  lower-clearance user can work with keeps shrinking, even though most of the content they would see is
+  not restricted. Option 1 hides only the restricted pieces, which scales with the marking model instead
+  of against it.
+- **Much of the work is already done or shared.** The execution side of Option 1 is built and verified on
+  `task4-poc`. Its next step (findings, expectations, traces) reuses the C-2 mechanism designed for
+  Option 2 (§3.1). The `scheduled_by` / `launched_by` columns are needed under both options.
+- **Its real weaknesses are known and addressable:**
+  1. stored aggregates (asset-group expectation rows, status counts, Elasticsearch) must be recomputed or
+     hidden for viewers with less clearance than the launcher. Read-time scores follow from filtering
+     `injects_expectations`;
+  2. every read and dispatch surface must be covered (the derived dimension moves most of that into
+     Option C's "can't forget" model);
+  3. partial runs must be explained to higher-clearance viewers (§3.4).
+
+### 3.4 Option 1 follow-up: making partial runs understandable
+
+With more marked entities, partial runs become the norm rather than the exception. A viewer with higher
+clearance, e.g. an admin opening a Scenario, a Simulation or an Atomic Testing, must be able to tell that a
+run covered only part of the targets, and why. Otherwise scores and findings get misread as "everything
+was tested".
+
+- **Show who launched the run, and on whose clearance.** Display `launched_by` (and `scheduled_by` for
+  recurring runs) on Simulations and Atomic Testing, e.g. "Launched by *jdoe*", "Scheduled by *jdoe*".
+- **Show marking chips on every asset list.** Target lists, result tables, findings and asset-group
+  members should all carry them, so a viewer immediately sees which targets are marked and at which level.
+- **Give each skipped target an explicit status for viewers who can see it.** For example "Not executed:
+  outside the launcher's clearance", instead of the target looking simply absent or pending.
+  - **How to record it.** Write a trace or status row per skipped asset at dispatch time.
+  - **Why it does not leak.** That row is linked to the restricted asset, so it is itself a derived row
+    filtered by the same C-2 mechanism. A `TLP:GREEN` viewer never sees it, and a `TLP:RED` viewer
+    does.
+- **Show a run-level indicator, computed per viewer.** For example "Partial run: 2 of 5 targets were not
+  executed". Show it **only** to viewers who can see at least one skipped target. A viewer with the same
+  clearance as the launcher sees no indicator, which preserves "a restricted asset does not exist".
+- **Label scores clearly.** State that a score covers the targets that actually ran. Read-time scores
+  already reflect what the viewer can see once `injects_expectations` is filtered (§3.2).
