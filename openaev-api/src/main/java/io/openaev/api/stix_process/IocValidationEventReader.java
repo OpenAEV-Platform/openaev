@@ -3,6 +3,7 @@ package io.openaev.api.stix_process;
 import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.opencti.dto.CTIEvent;
 import java.io.FilterInputStream;
@@ -58,7 +59,13 @@ final class IocValidationEventReader {
         return new Read(null, null, null);
       }
       content.unread(first);
-      return new Read(mapper.readValue(content, CTIEvent.class), null, null);
+      // Read to the end of the body, so whatever follows the event counts towards the bound
+      CTIEvent event =
+          mapper
+              .readerFor(CTIEvent.class)
+              .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+              .readValue(content);
+      return new Read(event, null, null);
     } catch (IOException e) {
       if (!bounded.exceeded && !(e instanceof JacksonException)) {
         throw e;

@@ -7,6 +7,7 @@ import io.openaev.api.stix_process.IocValidationEventReader.Read;
 import io.openaev.helper.ObjectMapperHelper;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.DisplayName;
@@ -85,6 +86,36 @@ class IocValidationEventReaderTest {
     assertThat(read.workId()).isEqualTo("work_1");
     // Jackson reads in chunks of a few kilobytes: one chunk at most past the bound
     assertThat(served.get()).isGreaterThan(limit).isLessThan(limit + 64 * 1024);
+  }
+
+  @Test
+  @DisplayName(
+      "reads what follows a valid event too: padding past the bound or another value is refused")
+  void given_validEventFollowedByMore_should_refuseIt() throws Exception {
+    String event = HEAD + "{}\"}}";
+    InputStream padded =
+        new SequenceInputStream(
+            bytes(event),
+            new InputStream() {
+              @Override
+              public int read() {
+                return ' ';
+              }
+            });
+    Read tooLarge = IocValidationEventReader.read(padded, -1, MAPPER, 100_000);
+    assertThat(tooLarge.event()).isNull();
+    assertThat(tooLarge.refusal()).isEqualTo(IocValidationEventReader.TOO_LARGE);
+    assertThat(tooLarge.workId()).isEqualTo("work_1");
+
+    String twoValues = event + " {\"internal\":{\"work_id\":\"work_9\"}}";
+    Read trailing = IocValidationEventReader.read(bytes(twoValues), twoValues.length(), MAPPER);
+    assertThat(trailing.event()).isNull();
+    assertThat(trailing.refusal()).isEqualTo(IocValidationEventReader.NOT_AN_EVENT);
+
+    String newline = event + "\n";
+    Read accepted = IocValidationEventReader.read(bytes(newline), newline.length(), MAPPER);
+    assertThat(accepted.refusal()).isNull();
+    assertThat(accepted.event().getInternal().getWorkId()).isEqualTo("work_1");
   }
 
   @Test
