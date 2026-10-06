@@ -1,4 +1,4 @@
-import { Chip } from '@filigran/design-system';
+import { Chip } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -14,15 +14,15 @@ const AssetStatus: FunctionComponent<Props> = ({ status = 'Active' }) => {
   switch (status) {
     case 'Inactive':
       return (
-        <Chip label={t('Inactive')} severity="critical" />
+        <Chip label={t('Inactive')} />
       );
     case 'Agentless':
       return (
-        <Chip label={t('Agentless')} severity="medium" />
+        <Chip label={t('Agentless')} />
       );
     default:
       return (
-        <Chip label={t('Active')} severity="low" />
+        <Chip label={t('Active')} />
       );
   }
 };
