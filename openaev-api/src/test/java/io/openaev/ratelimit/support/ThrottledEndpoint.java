@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ThrottledEndpoint extends RestBehavior {
   /** Path prefix for rate limit test endpoints */
-  public static final String RATELIMIT_ENDPOINT_PATH_PREFIX = "/ratelimit-tests";
+  public static final String RATELIMIT_ENDPOINT_PATH_PREFIX = "/api/ratelimit-tests";
 
   /** Assertion helper for simple get endpoints */
   public static final String SIMPLE_GET_RESPONSE_BODY = "Got the GET";
@@ -22,9 +22,9 @@ public class ThrottledEndpoint extends RestBehavior {
   public static final long THROTTLED_ENDPOINT_AUTHED_RPS = 25L;
 
   // endpoint paths
-  public static final String AUTHED_SIMPLE_GET = RATELIMIT_ENDPOINT_PATH_PREFIX + "/simple-get";
+  public static final String AUTHED_SIMPLE_GET = RATELIMIT_ENDPOINT_PATH_PREFIX + "/api/simple-get";
   public static final String AUTHED_SIMPLE_GET_SKIP_RBAC =
-      RATELIMIT_ENDPOINT_PATH_PREFIX + "/simple-get-skip-rbac";
+      RATELIMIT_ENDPOINT_PATH_PREFIX + "/api/simple-get-skip-rbac";
   // this endpoint piggybacks on the AppSecurityConfig setting of `permitAll()` on "/api/reset/**"
   public static final String OPEN_SIMPLE_GET = "/api/reset/ratelimit-integration-test";
 

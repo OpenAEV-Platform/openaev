@@ -26,7 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-@WithMockRateLimitConfig(enabled = true)
+@WithMockRateLimitConfig(enabled = true, defaultRps = 10L)
 public class RateLimitIntegrationTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private RateLimitConfig rateLimitConfig;

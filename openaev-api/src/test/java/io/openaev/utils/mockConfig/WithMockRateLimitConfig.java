@@ -8,4 +8,6 @@ import org.springframework.boot.test.autoconfigure.properties.PropertyMapping;
 @PropertyMapping("openaev.ratelimit")
 public @interface WithMockRateLimitConfig {
   boolean enabled() default false;
+
+  long defaultRps() default 10L;
 }
