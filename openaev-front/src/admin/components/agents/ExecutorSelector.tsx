@@ -22,6 +22,10 @@ const useStyles = makeStyles()(theme => ({
     padding: theme.spacing(0),
     textAlign: 'center',
     height: '100%',
+    // Column layout so the platform buttons sit at the same height on every card, whether the
+    // "Install <executor>" title takes one line or wraps to two (e.g. Microsoft Defender for Endpoint).
+    display: 'flex',
+    flexDirection: 'column',
   },
 }));
 
@@ -55,7 +59,9 @@ const ExecutorSelector: React.FC<ExecutorSelectorProps> = ({ executor, setSelect
             variant="h6"
             sx={{
               fontSize: 15,
-              padding: theme.spacing(2, 0, 1),
+              lineHeight: 1.4,
+              padding: theme.spacing(0.5, 2),
+              flex: 1,
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
@@ -70,6 +76,7 @@ const ExecutorSelector: React.FC<ExecutorSelectorProps> = ({ executor, setSelect
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              paddingBottom: theme.spacing(2),
             }}
           >
             {platforms.map((platform, index) => (
