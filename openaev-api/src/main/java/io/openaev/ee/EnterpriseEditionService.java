@@ -19,6 +19,7 @@ import static io.openaev.database.model.SettingKeys.PLATFORM_ENTERPRISE_LICENSE;
 import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE;
 import static io.openaev.ee.Pem.*;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
@@ -53,7 +54,8 @@ public class EnterpriseEditionService {
           CROWDSTRIKE_EXECUTOR_NAME,
           TANIUM_EXECUTOR_NAME,
           SENTINELONE_EXECUTOR_NAME,
-          PALOALTOCORTEX_EXECUTOR_NAME);
+          PALOALTOCORTEX_EXECUTOR_NAME,
+          MDE_EXECUTOR_NAME);
 
   @Resource private OpenAEVConfig openAEVConfig;
 

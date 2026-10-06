@@ -83,7 +83,8 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
           && (executor?.executor_type === 'openaev_tanium'
             || executor?.executor_type === 'openaev_crowdstrike_executor'
             || executor?.executor_type === 'openaev_sentinelone_executor'
-            || executor?.executor_type === 'openaev_paloaltocortex_executor');
+            || executor?.executor_type === 'openaev_paloaltocortex_executor'
+            || executor?.executor_type === 'openaev_mde_executor');
         return (
           <Box
             key={agent.agent_id}

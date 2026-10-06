@@ -23,6 +23,7 @@ const OPENAEV_CROWDSTRIKE = 'openaev_crowdstrike_executor';
 const OPENAEV_TANIUM = 'openaev_tanium';
 const OPENAEV_SENTINELONE = 'openaev_sentinelone_executor';
 const OPENAEV_PALOALTOCORTEX = 'openaev_paloaltocortex_executor';
+const OPENAEV_MDE = 'openaev_mde_executor';
 
 const Executors = () => {
   // Standard hooks
@@ -55,7 +56,8 @@ const Executors = () => {
   const needInformationStepper = (selectedExecutor?.executor_type === OPENAEV_AGENT || selectedExecutor?.executor_type === OPENAEV_CALDERA);
   const showEEChip = (executor: ExecutorOutput) => !settings.platform_license?.license_is_validated
     && (executor.executor_type === OPENAEV_TANIUM || executor.executor_type === OPENAEV_CROWDSTRIKE
-      || executor.executor_type === OPENAEV_SENTINELONE || executor.executor_type === OPENAEV_PALOALTOCORTEX);
+      || executor.executor_type === OPENAEV_SENTINELONE || executor.executor_type === OPENAEV_PALOALTOCORTEX
+      || executor.executor_type === OPENAEV_MDE);
 
   // -- Manage Dialogs
   const steps = [t('Choose your platform'), t('Installation Instructions')];
