@@ -24,7 +24,9 @@ import type {
   RelatedFindingOutput,
   StableFindingSummaryOutput,
 } from '../../../utils/api-types';
+import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { emptyFilled } from '../../../utils/String';
+import EEChip from '../common/entreprise_edition/EEChip';
 import AlsoDetectedOnPanel from './AlsoDetectedOnPanel';
 import FindingComments from './FindingComments';
 import FindingContextLink from './FindingContextLink';
@@ -86,6 +88,7 @@ const TAB_ACTIVITY_LOG = 'Activity log';
 const FindingOverview = () => {
   const { t, fldt } = useFormatter();
   const theme = useTheme();
+  const { isValidated: isEE } = useEnterpriseEdition();
   const { findingId } = useParams() as { findingId: string };
 
   const [finding, setFinding] = useState<FindingDetailOutput | null>(null);
@@ -348,8 +351,20 @@ const FindingOverview = () => {
             </Field>
           </InformationGrid>
           <div style={{ marginTop: theme.spacing(1) }}>
-            <SectionBlock title={t('Remediation')}>
-              <OCSFRemediationTab remediation={finding.finding_remediation} />
+            {/* OCSF findings come from the Prowler injector, planned as an Enterprise Edition
+                integration: gate remediation like the CVE one, which also covers a tenant whose
+                license lapses after such findings were ingested. */}
+            <SectionBlock
+              title={t('Remediation')}
+              action={isEE ? undefined : <EEChip clickable featureDetectedInfo={t('Remediation')} />}
+            >
+              {isEE
+                ? <OCSFRemediationTab remediation={finding.finding_remediation} />
+                : (
+                    <Typography variant="body2" color="textSecondary">
+                      {t('Remediation guidance is available with the Enterprise Edition.')}
+                    </Typography>
+                  )}
             </SectionBlock>
           </div>
         </>
