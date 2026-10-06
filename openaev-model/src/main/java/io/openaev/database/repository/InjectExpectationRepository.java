@@ -440,10 +440,17 @@ public interface InjectExpectationRepository
       @Param("injectIds") Set<String> injectIds);
 
   // Leaf technical rows (agents, and assets without agent rows): collectors write their per-source
-  // results there, asset and asset group parents only receive the rolled-up scores.
+  // results there, asset and asset group parents only receive the rolled-up scores. The inject
+  // comes
+  // along with its status, read by every evaluation, and with the relations Hibernate would
+  // otherwise load one inject at a time: the inverse one-to-one authorisation, the contract and
+  // injector, joined on their tenant as well as their id, and the eager dependencies.
   @Query(
       value =
-          "select i from InjectExpectation i where i.inject.id in :injectIds"
+          "select i from InjectExpectation i join fetch i.inject j left join fetch j.status"
+              + " left join fetch j.authorisation left join fetch j.injectorContract"
+              + " left join fetch j.injector left join fetch j.dependsOn"
+              + " where j.id in :injectIds"
               + " and i.user is null and i.team is null"
               + " and (i.agent is not null or (i.asset is not null and not exists"
               + "   (select c.id from InjectExpectation c where c.inject.id = i.inject.id"
