@@ -10,6 +10,7 @@ import type { LoggedHelper } from '../../../../../actions/helper';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type AgentOutput } from '../../../../../utils/api-types';
+import { isEnterpriseExecutorType } from '../../../../../utils/executors';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
@@ -80,11 +81,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
         const executorId = agent.agent_executor?.executor_id;
         const executor = executorId ? executorsMap[executorId] : undefined;
         const showEEChip = !settings.platform_license?.license_is_validated
-          && (executor?.executor_type === 'openaev_tanium'
-            || executor?.executor_type === 'openaev_crowdstrike_executor'
-            || executor?.executor_type === 'openaev_sentinelone_executor'
-            || executor?.executor_type === 'openaev_paloaltocortex_executor'
-            || executor?.executor_type === 'openaev_mde_executor');
+          && isEnterpriseExecutorType(executor?.executor_type);
         return (
           <Box
             key={agent.agent_id}
