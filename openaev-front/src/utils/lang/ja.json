@@ -10,7 +10,6 @@
   "Ask your administrator to configure the OpenCTI connection of this tenant.": "このテナントの OpenCTI 接続を設定するよう管理者に依頼してください。",
   "Configure the OpenCTI connection": "OpenCTI 接続を設定",
   "How to configure IOC validation": "IOC 検証の設定方法",
-  "None named in the request": "リクエストに指定されていません",
   "OpenAEV registers it in OpenCTI with the OpenCTI account of the connection. In OpenCTI, give that account the Connector role, with the Update knowledge and Connectors API usage capabilities.": "OpenAEV は接続の OpenCTI アカウントで OpenCTI に登録します。OpenCTI で、そのアカウントに \"Update knowledge\" と \"Connectors API usage\" の権限を持つ \"Connector\" ロールを付与してください。",
   "Required to allow HTTP HEAD tests.": "HTTP HEAD テストを許可するには必須です。",
   "TCP port of the network tests, 443 by default.": "ネットワークテストの TCP ポート。既定は 443 です。",

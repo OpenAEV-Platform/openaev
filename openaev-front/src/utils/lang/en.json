@@ -10,7 +10,6 @@
   "Ask your administrator to configure the OpenCTI connection of this tenant.": "Ask your administrator to configure the OpenCTI connection of this tenant.",
   "Configure the OpenCTI connection": "Configure the OpenCTI connection",
   "How to configure IOC validation": "How to configure IOC validation",
-  "None named in the request": "None named in the request",
   "OpenAEV registers it in OpenCTI with the OpenCTI account of the connection. In OpenCTI, give that account the Connector role, with the Update knowledge and Connectors API usage capabilities.": "OpenAEV registers it in OpenCTI with the OpenCTI account of the connection. In OpenCTI, give that account the Connector role, with the Update knowledge and Connectors API usage capabilities.",
   "Required to allow HTTP HEAD tests.": "Required to allow HTTP HEAD tests.",
   "TCP port of the network tests, 443 by default.": "TCP port of the network tests, 443 by default.",

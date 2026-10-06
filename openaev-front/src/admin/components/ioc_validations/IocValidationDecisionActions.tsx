@@ -12,6 +12,7 @@ import { MESSAGING$ } from '../../../utils/Environment';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../utils/fdsLayer';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../utils/permissions/types';
+import { emptyFilled } from '../../../utils/String';
 import IocValidationTable, { type IocValidationTableColumn } from './IocValidationTable';
 import { IOC_VALIDATION_REJECT_REASON_MAX_LENGTH, iocValidationTestKindLabel, isAwaitingApproval } from './iocValidationUtils';
 
@@ -69,7 +70,7 @@ const IocValidationApprovalSummary: FunctionComponent<{ iocValidation: IocValida
           {t('{count} more indicators', { count: String(planned.length - APPROVAL_SUMMARY_MAX_ROWS) })}
         </Text>
       )}
-      <Field label={t('Security platforms')}>{platforms.join(', ') || t('None named in the request')}</Field>
+      <Field label={t('Security platforms')}>{emptyFilled(platforms.join(', '))}</Field>
     </div>
   );
 };

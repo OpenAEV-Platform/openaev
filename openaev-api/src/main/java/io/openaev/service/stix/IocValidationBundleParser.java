@@ -314,6 +314,17 @@ public class IocValidationBundleParser {
                 .formatted(pair.platformRef()));
       }
     }
+    // And the other way round: OpenCTI sends only the IOCs of the pairs it keeps, so an IOC no
+    // security platform is paired with would run a test nothing evaluates
+    Set<String> pairedIndicators = new LinkedHashSet<>();
+    pairs.forEach(pair -> pairedIndicators.add(pair.indicatorRef()));
+    for (IocValidationRequest.Ioc ioc : iocs) {
+      if (!pairedIndicators.contains(ioc.indicatorRef())) {
+        throw new BundleValidationError(
+            "The IOC validation request has an IOC for indicator %s, which no security platform is paired with"
+                .formatted(ioc.indicatorRef()));
+      }
+    }
     long platforms = pairs.stream().map(IocValidationRequest.Pair::platformRef).distinct().count();
     if (platforms > MAX_PLATFORMS) {
       throw new BundleValidationError(

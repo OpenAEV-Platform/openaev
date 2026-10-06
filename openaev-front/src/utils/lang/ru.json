@@ -10,7 +10,6 @@
   "Ask your administrator to configure the OpenCTI connection of this tenant.": "Попросите администратора настроить подключение OpenCTI этого арендатора.",
   "Configure the OpenCTI connection": "Настроить подключение OpenCTI",
   "How to configure IOC validation": "Как настроить проверку IOC",
-  "None named in the request": "В запросе не указаны",
   "OpenAEV registers it in OpenCTI with the OpenCTI account of the connection. In OpenCTI, give that account the Connector role, with the Update knowledge and Connectors API usage capabilities.": "OpenAEV регистрирует его в OpenCTI с учетной записью OpenCTI подключения. В OpenCTI назначьте этой учетной записи роль \"Connector\" с возможностями \"Update knowledge\" и \"Connectors API usage\".",
   "Required to allow HTTP HEAD tests.": "Требуется для разрешения тестов HTTP HEAD.",
   "TCP port of the network tests, 443 by default.": "TCP-порт сетевых тестов, по умолчанию 443.",

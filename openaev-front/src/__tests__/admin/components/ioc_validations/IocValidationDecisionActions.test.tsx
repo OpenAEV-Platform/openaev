@@ -91,14 +91,16 @@ describe('IocValidationDecisionActions', () => {
     expect(within(summary).getByText('3 more indicators')).toBeTruthy();
   });
 
-  it('says so in the approval when the request names no security platform', () => {
+  it('shows the empty-value placeholder when no security platform is paired with the tests that run', () => {
+    // The intake refuses such a request: only a validation recorded before that check can show it
     renderActions({
       ...awaitingRequest(1),
       ioc_validation_pairs: [],
     } as unknown as IocValidationOutput);
     fireEvent.click(screen.getByRole('button', { name: 'Approve and start the simulation' }));
     const summary = screen.getByTestId('ioc-validation-approval-summary');
-    expect(within(summary).getByText('None named in the request')).toBeTruthy();
+    expect(within(summary).getByText('-')).toBeTruthy();
+    expect(within(summary).queryByText('None named in the request')).toBeNull();
   });
 
   it('offers no decision once the request is decided', () => {

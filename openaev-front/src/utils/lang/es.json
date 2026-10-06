@@ -10,7 +10,6 @@
   "Ask your administrator to configure the OpenCTI connection of this tenant.": "Pida a su administrador que configure la conexión OpenCTI de este inquilino.",
   "Configure the OpenCTI connection": "Configurar la conexión OpenCTI",
   "How to configure IOC validation": "Cómo configurar la validación de IOC",
-  "None named in the request": "Ninguna indicada en la solicitud",
   "OpenAEV registers it in OpenCTI with the OpenCTI account of the connection. In OpenCTI, give that account the Connector role, with the Update knowledge and Connectors API usage capabilities.": "OpenAEV lo registra en OpenCTI con la cuenta de OpenCTI de la conexión. En OpenCTI, asigne a esa cuenta el rol \"Connector\", con las capacidades \"Update knowledge\" y \"Connectors API usage\".",
   "Required to allow HTTP HEAD tests.": "Necesario para permitir las pruebas HTTP HEAD.",
   "TCP port of the network tests, 443 by default.": "Puerto TCP de las pruebas de red, 443 por defecto.",

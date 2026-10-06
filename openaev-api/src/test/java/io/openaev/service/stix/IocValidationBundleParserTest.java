@@ -377,6 +377,20 @@ class IocValidationBundleParserTest {
   }
 
   @Test
+  @DisplayName("rejects an IOC that no security platform is paired with")
+  void given_iocWithoutPair_should_throw() {
+    ObjectNode request = request();
+    ObjectNode unpaired = ((ArrayNode) request.get("iocs")).addObject();
+    unpaired.put("indicator_ref", "indicator--00000000-0000-4000-8000-000000000000");
+    unpaired.put("observable_type", "Domain-Name");
+    unpaired.put("value", "other.example.com");
+    unpaired.put("test_kind", "dns_resolution");
+    assertThatThrownBy(() -> parser.parse(bundle(request), REQUEST_ID))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining("which no security platform is paired with");
+  }
+
+  @Test
   @DisplayName("rejects an oversized bundle before parsing it")
   void given_oversizedBundle_should_throwBeforeParsing() {
     // Not even JSON: the length is checked first, so the payload is never materialized
