@@ -150,7 +150,7 @@ public class IocValidationApi extends RestBehavior {
   public IocValidationOutput approveIocValidation(
       @RequireTenantSelector TxCtx ctx, @PathVariable @NotBlank final String iocValidationId) {
     IocValidationHostAnswers hostAnswers =
-        IocValidationHostAnswers.resolve(iocValidationService.urlHostNames(ctx, iocValidationId));
+        IocValidationHostAnswers.resolve(iocValidationService.hostNames(ctx, iocValidationId));
     return toOutput(
         iocValidationService.approve(ctx, iocValidationId, userService.currentUser(), hostAnswers));
   }

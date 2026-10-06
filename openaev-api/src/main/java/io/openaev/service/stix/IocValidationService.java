@@ -144,33 +144,44 @@ public class IocValidationService {
   }
 
   /**
-   * The host names the HTTP HEAD tests of a request posted by OpenCTI would resolve, to resolve
-   * them before {@link #receiveRequest} opens its transaction. Reads nothing from the database.
+   * The host names the intake of a request posted by OpenCTI resolves (the hosts of its HTTP HEAD
+   * tests and the host names of the platform), to resolve them before {@link #receiveRequest} opens
+   * its transaction. Reads only the IOC validation settings of the tenant.
    *
    * @throws BundleValidationError when the bundle does not follow the contract
    */
-  public Set<String> urlHostNames(String stixJson, String entityId) throws BundleValidationError {
-    return IocValidationPlanner.urlHostNames(
-        bundleParser.parse(stixJson, entityId).iocs().stream()
-            .map(IocValidationService::toIoc)
-            .toList());
+  public Set<String> hostNames(String tenantId, String stixJson, String entityId)
+      throws BundleValidationError {
+    Set<String> names =
+        new LinkedHashSet<>(
+            IocValidationPlanner.urlHostNames(
+                bundleParser.parse(stixJson, entityId).iocs().stream()
+                    .map(IocValidationService::toIoc)
+                    .toList()));
+    names.addAll(platformHostNames(tenantId));
+    return names;
   }
 
   /**
-   * The host names the HTTP HEAD tests of a validation awaiting approval would resolve, to resolve
-   * them before {@link #approve} opens its transaction; empty when it no longer awaits approval.
+   * The host names the approval of a validation resolves (the hosts of its HTTP HEAD tests and the
+   * host names of the platform), to resolve them before {@link #approve} opens its transaction;
+   * empty when it no longer awaits approval.
    *
    * @throws ElementNotFoundException when it does not exist or belongs to another tenant
    */
   @Transactional(readOnly = true)
-  public Set<String> urlHostNames(TxCtx ctx, @NotBlank final String id) {
+  public Set<String> hostNames(TxCtx ctx, @NotBlank final String id) {
     IocValidation validation =
         iocValidationRepository
             .findById(id)
             .orElseThrow(() -> new ElementNotFoundException("IOC validation not found"));
-    return validation.getStatus() == IocValidationStatus.AWAITING_APPROVAL
-        ? IocValidationPlanner.urlHostNames(validation.getIocs())
-        : Set.of();
+    if (validation.getStatus() != IocValidationStatus.AWAITING_APPROVAL) {
+      return Set.of();
+    }
+    Set<String> names =
+        new LinkedHashSet<>(IocValidationPlanner.urlHostNames(validation.getIocs()));
+    names.addAll(platformHostNames(singleTenant(ctx)));
+    return names;
   }
 
   private IocValidation lockedIocValidation(@NotBlank final String id) {
@@ -192,8 +203,8 @@ public class IocValidationService {
    * @param ctx single-tenant scope the request is attributed to
    * @param stixJson the bundle of the CTI event
    * @param entityId the OpenCTI request internal id of the CTI event
-   * @param hostAnswers the DNS answers for {@link #urlHostNames(String, String)}, gathered before
-   *     this transaction
+   * @param hostAnswers the DNS answers for {@link #hostNames(String, String, String)}, gathered
+   *     before this transaction
    * @throws BundleValidationError when the bundle does not follow the contract
    */
   @Transactional(rollbackFor = Exception.class)
@@ -213,7 +224,7 @@ public class IocValidationService {
       return existing.get();
     }
 
-    IocValidationSettings settings = decisionSettings(tenantId);
+    IocValidationSettings settings = decisionSettings(tenantId, hostAnswers.resolver());
     IocValidation validation = new IocValidation();
     validation.setTenant(new Tenant(tenantId));
     validation.setExternalId(request.requestId());
@@ -267,7 +278,7 @@ public class IocValidationService {
     IocValidation validation = lockedIocValidation(id);
     requireAwaitingApproval(validation);
 
-    IocValidationSettings settings = decisionSettings(tenantId);
+    IocValidationSettings settings = decisionSettings(tenantId, hostAnswers.resolver());
     // The approval starts at most what the operator was shown: a setting narrowed since the request
     // arrived drops a test, a setting widened since never turns a skipped IOC into a test.
     List<IocValidationIoc> iocs = validation.getIocs();
@@ -726,10 +737,25 @@ public class IocValidationService {
 
   /**
    * The settings an intake or an approval decides with: the tenant settings and the hosts of the
-   * platform, which no test may target.
+   * platform with the addresses their names resolve to, which no test may target.
+   *
+   * @param resolver the DNS answers gathered before the transaction, the platform host names
+   *     included (see {@link #hostNames(String, String, String)})
    */
-  private IocValidationSettings decisionSettings(String tenantId) {
+  private IocValidationSettings decisionSettings(
+      String tenantId, IocValidationPlanner.HostResolver resolver) {
     IocValidationSettings settings = settingsService.settings(tenantId);
+    return settings.withPlatformHosts(
+        IocValidationPlanner.withPlatformAddresses(platformHosts(tenantId, settings), resolver));
+  }
+
+  private Set<String> platformHostNames(String tenantId) {
+    return IocValidationPlanner.platformHostNames(
+        platformHosts(tenantId, settingsService.settings(tenantId)));
+  }
+
+  /** The hosts of OpenAEV, of the OpenCTI the tenant is connected to and of its egress proxy. */
+  private Set<String> platformHosts(String tenantId, IocValidationSettings settings) {
     List<String> urls = new ArrayList<>();
     urls.add(openAEVConfig.getBaseUrl());
     urls.add(openAEVConfig.getBaseUrlForAgent());
@@ -741,7 +767,7 @@ public class IocValidationService {
               urls.add(connector.getUrl());
               urls.add(connector.getApiUrl());
             });
-    return settings.withPlatformHosts(IocValidationPlanner.platformHosts(urls));
+    return IocValidationPlanner.platformHosts(urls);
   }
 
   /**

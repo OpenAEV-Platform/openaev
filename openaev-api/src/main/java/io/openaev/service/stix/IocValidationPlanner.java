@@ -332,6 +332,16 @@ public final class IocValidationPlanner {
     if (host.isPresent() && settings.platformHosts().contains(host.get())) {
       return Plan.refuse(platformHostRefusal(url.value(), host.get()));
     }
+    // Another name of the platform: the name resolves to one of its addresses
+    Optional<String> platformAddress =
+        host.filter(name -> !InetAddresses.isInetAddress(name)).stream()
+            .flatMap(name -> resolver.resolve(name).stream())
+            .map(InetAddresses::toAddrString)
+            .filter(settings.platformHosts()::contains)
+            .findFirst();
+    if (platformAddress.isPresent()) {
+      return Plan.refuse(platformHostRefusal(url.value(), platformAddress.get()));
+    }
     return new Plan(
         IocValidationTestKind.HTTP_HEAD,
         Map.of(IOC_VALIDATION_URL_KEY, url.value(), IOC_VALIDATION_PROXY_KEY, proxy),
@@ -475,6 +485,30 @@ public final class IocValidationPlanner {
       } catch (URISyntaxException e) {
         // not a URL: it names no host to protect
       }
+    }
+    return hosts;
+  }
+
+  /** The host names among the hosts of the platform, to resolve before a decision. */
+  static Set<String> platformHostNames(Set<String> platformHosts) {
+    Set<String> names = new LinkedHashSet<>();
+    for (String host : platformHosts) {
+      if (!InetAddresses.isInetAddress(host)) {
+        names.add(host);
+      }
+    }
+    return names;
+  }
+
+  /**
+   * The hosts of the platform with every address their names resolve to, in canonical form: a test
+   * of one of those addresses, or of another name resolving to one, targets the platform as surely
+   * as a test of its name.
+   */
+  static Set<String> withPlatformAddresses(Set<String> platformHosts, HostResolver resolver) {
+    Set<String> hosts = new LinkedHashSet<>(platformHosts);
+    for (String name : platformHostNames(platformHosts)) {
+      resolver.resolve(name).forEach(address -> hosts.add(InetAddresses.toAddrString(address)));
     }
     return hosts;
   }

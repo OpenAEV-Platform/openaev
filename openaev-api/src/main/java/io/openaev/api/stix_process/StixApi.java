@@ -180,7 +180,7 @@ public class StixApi extends RestBehavior {
       // Resolved before the intake transaction opens: no connection waits for a DNS server
       IocValidationHostAnswers hostAnswers =
           IocValidationHostAnswers.resolve(
-              iocValidationService.urlHostNames(event.getStixObjects(), entityId));
+              iocValidationService.hostNames(tenantId, event.getStixObjects(), entityId));
       IocValidation validation =
           iocValidationService.receiveRequest(ctx, event.getStixObjects(), entityId, hostAnswers);
       openCTIService.acknowledgeProcessedOfIocValidation(

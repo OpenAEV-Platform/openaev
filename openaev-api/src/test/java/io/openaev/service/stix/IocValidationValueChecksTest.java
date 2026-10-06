@@ -891,5 +891,64 @@ class IocValidationValueChecksTest {
       assertThat(plan.runnable()).isTrue();
       assertThat(plan.refused()).isFalse();
     }
+
+    // The platform names resolve to public addresses, alias.example.net is another name of the
+    // platform among other addresses, and any other name resolves to an unrelated public address
+    private static final HostResolver PLATFORM_DNS =
+        host ->
+            switch (host) {
+              case "openaev.example.com" -> List.of(address("9.9.9.9"));
+              case "opencti.example.org" -> List.of(address("2620:fe::fe"));
+              case "proxy.example.net" -> List.of(address("149.112.112.112"));
+              case "alias.example.net" -> List.of(address("8.8.4.4"), address("9.9.9.9"));
+              default -> List.of(address("8.8.8.8"));
+            };
+
+    private static Plan planWithResolvedPlatformHosts(IocValidationIoc ioc) {
+      IocValidationSettings settings =
+          allowAll()
+              .withPlatformHosts(
+                  IocValidationPlanner.withPlatformAddresses(
+                      withPlatformHosts().platformHosts(), PLATFORM_DNS));
+      return IocValidationPlanner.plan(ioc, settings, PLATFORM_DNS);
+    }
+
+    @Test
+    @DisplayName("the names to resolve are the host names of the platform, not its IP literals")
+    void given_platformHosts_should_resolveOnlyTheirNames() {
+      assertThat(IocValidationPlanner.platformHostNames(withPlatformHosts().platformHosts()))
+          .containsExactlyInAnyOrder(
+              "openaev.example.com", "opencti.example.org", "proxy.example.net");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"9.9.9.9", "2620:fe:0:0:0:0:0:fe"})
+    @DisplayName("a network test refuses an address a host name of the platform resolves to")
+    void given_resolvedAddressOfThePlatform_should_refuseNetworkTest(String value) {
+      String type = value.contains(":") ? "IPv6-Addr" : "IPv4-Addr";
+      Plan plan =
+          planWithResolvedPlatformHosts(ioc(type, value, IocValidationTestKind.NETWORK_TRAFFIC));
+      assertRefused(plan);
+      assertThat(plan.message()).contains("a host of this platform");
+    }
+
+    @Test
+    @DisplayName("an HTTP HEAD test refuses another name resolving to an address of the platform")
+    void given_aliasOfThePlatform_should_refuseHttpHead() {
+      Plan plan =
+          planWithResolvedPlatformHosts(
+              ioc("Url", "https://alias.example.net/login", IocValidationTestKind.HTTP_HEAD));
+      assertRefused(plan);
+      assertThat(plan.message()).contains("9.9.9.9, a host of this platform");
+    }
+
+    @Test
+    @DisplayName("an HTTP HEAD test still runs for a name resolving elsewhere")
+    void given_unrelatedName_should_planHttpHead() {
+      Plan plan =
+          planWithResolvedPlatformHosts(
+              ioc("Url", "https://unrelated.example.net/", IocValidationTestKind.HTTP_HEAD));
+      assertThat(plan.runnable()).isTrue();
+    }
   }
 }
