@@ -30,8 +30,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Reads and writes the tenant IOC validation safety settings. Unset or unreadable values fall back
- * to the safest default: no allowed test kind, no proxy, no sinkhole, port 443, no asset group.
+ * Reads and writes the tenant IOC validation safety settings. Unset, unreadable or unsafe values
+ * fall back to the safest default: no allowed test kind, no proxy, no sinkhole, port 443, no asset
+ * group.
  */
 @Service
 @RequiredArgsConstructor
@@ -50,12 +51,16 @@ public class IocValidationSettingsService {
 
   // -- READ --
 
-  /** The settings in force for the tenant. */
+  /**
+   * The settings in force for the tenant. A stored proxy URL carrying credentials, which {@link
+   * #update} refuses, counts as no proxy: it is neither shown nor copied into an inject.
+   */
   @Transactional(readOnly = true)
   public IocValidationSettings settings(@NotBlank final String tenantId) {
+    String proxy = value(tenantId, IOC_VALIDATION_HTTP_PROXY_URL).trim();
     return new IocValidationSettings(
         parseTestKinds(value(tenantId, IOC_VALIDATION_ALLOWED_TEST_KINDS)),
-        value(tenantId, IOC_VALIDATION_HTTP_PROXY_URL).trim(),
+        hasUserInfo(proxy) ? "" : proxy,
         value(tenantId, IOC_VALIDATION_SINKHOLE_ADDRESS).trim(),
         parsePort(value(tenantId, IOC_VALIDATION_NETWORK_PORT)),
         value(tenantId, IOC_VALIDATION_ASSET_GROUP).trim());

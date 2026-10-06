@@ -806,6 +806,36 @@ class IocValidationApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "never shows nor copies into a test a stored egress proxy URL carrying credentials")
+    void given_storedProxyWithCredentials_should_neitherShowNorUseIt() throws Exception {
+      // Stored without the checks of the settings update, which refuses it
+      tenantSettingsService.updateSettingValue(
+          tenantId, TenantSettingKeys.IOC_VALIDATION_ALLOWED_TEST_KINDS, "HTTP_HEAD");
+      tenantSettingsService.updateSettingValue(
+          tenantId,
+          TenantSettingKeys.IOC_VALIDATION_HTTP_PROXY_URL,
+          "http://user:secret@proxy.example.net:3128");
+
+      String settings =
+          mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/settings", tenantId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String id =
+          receive(ctiEvent(UUID.randomUUID().toString(), "Url", "https://9.9.9.9/", "http_head"));
+
+      assertThat(settings).doesNotContain("secret");
+      String response = validation(id);
+      assertThat(response).doesNotContain("secret");
+      assertThat((String) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_test_kind"))
+          .isNull();
+      assertThat((String) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_message"))
+          .contains("need an egress proxy and none is configured");
+    }
+
+    @Test
     @DisplayName("refuses a sinkhole that is not an IP address")
     void given_invalidSinkhole_should_refuse() throws Exception {
       mvc.perform(
