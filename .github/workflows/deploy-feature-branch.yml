@@ -4,6 +4,15 @@ name: "[Core] Deploy Feature Branch"
 # GitHub Deployments API (environment `feature-pr-<number>`), which renders on
 # the PR timeline and in the branch deployment panel — no PR comments.
 #
+# The deployment panel only shows the PR head commit:
+#   - pending: the image is building (this workflow), the previous commit stays live
+#   - in progress: the image is being deployed to staging (done workflow)
+#   - successfully deployed: the head is live (result workflow, on a new
+#     deployment so the panel shows the go-live time)
+#   - failed: the previous commit stays live
+# Once a deploy succeeds, deploy-feature-branch-result.yml writes the
+# environment URL under the Deployment checkbox of the PR description.
+#
 # The "Deployment" checkbox in the PR description is the opt-in:
 #   - Ticking it deploys the PR head. While it stays ticked, every new commit
 #     is redeployed. Unticking it stops redeploys.
@@ -201,29 +210,14 @@ jobs:
             const environment = `feature-pr-${prNumber}`;
             const { HEAD_SHA: headSha, HEAD_REF: headRef } = process.env;
 
-            // Newest first, listed before the new deployment is created
-            const { data: previous } = await github.rest.repos.listDeployments({
-              owner, repo, environment, per_page: 10
-            });
-
-            // The environment URL is stable per branch and the previous version keeps
-            // serving until the redeploy lands, so reuse the last successful URL to keep
-            // the "View deployment" button while the new build is in progress.
-            let environmentUrl;
-            for (const d of previous) {
-              const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
-                owner, repo, deployment_id: d.id, per_page: 100
-              });
-              environmentUrl = statuses.find(s => s.state === 'success' && s.environment_url)?.environment_url;
-              if (environmentUrl) break;
-            }
-
             const { data: deployment } = await github.rest.repos.createDeployment({
               owner, repo,
               ref: headSha,
               environment,
               description: `Feature branch ${headRef}`,
-              transient_environment: true,
+              // Not transient: GitHub only auto-inactivates prior non-transient deployments,
+              // which retires the previously live commit once a newer one succeeds
+              transient_environment: false,
               production_environment: false,
               auto_merge: false,
               required_contexts: [],
@@ -245,14 +239,17 @@ jobs:
               }
             });
 
-            // The done workflow matches the build run against this log_url
+            // The done workflow matches the build run against this log_url.
+            // No environment_url: the panel only shows the PR head, so a "View deployment"
+            // button here would open the previous version. The URL is in the PR description.
+            // pending while the image builds; the done workflow moves it to in_progress
+            // once the promotion takes over.
             await github.rest.repos.createDeploymentStatus({
               owner, repo,
               deployment_id: deployment.id,
-              state: 'in_progress',
+              state: 'pending',
               log_url: run.html_url,
-              environment_url: environmentUrl,
-              description: environmentUrl ? 'Building image, previous version still live' : 'Building image',
+              description: `Building ${headSha.slice(0, 7)}`,
               auto_inactive: false
             });
 

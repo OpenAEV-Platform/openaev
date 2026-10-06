@@ -4466,7 +4466,7 @@
   "Warning": "警告",
   "was previously": "（以前は {previous_number}）",
   "We detected that your change will trigger an {assetrule}. Would you like to apply the defined asset groups on your current existing injects?": "変更により{assetrule}がトリガーされることを検出しました。定義されたアセットグループを既存のインジェクトに適用しますか？",
-  "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href='${lessons_uri}'>${lessons_uri}</a>.": "このシミュレーションにご参加いただき、ありがとうございました。教訓アンケートへのご協力をお願いします：<a href='${lessons_uri}'>${lessons_uri}</a>.",
+  "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href=\"${lessons_uri}\">${lessons_uri}</a>.": "このシミュレーションにご参加いただき、ありがとうございました。教訓アンケートへのご協力をお願いします：'<a href=\"${lessons_uri}\">${lessons_uri}</a>'.",
   "Weak posture": "脆弱なポスチャ",
   "Weakness Enumeration": "共通脆弱性タイプ一覧（CWE）",
   "Web App": "Webアプリ",

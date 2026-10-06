@@ -9,6 +9,7 @@ import ColorPickerField from '../../../../components/ColorPickerField';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { type MarkingDefinitionInput } from '../../../../utils/api-types';
+import { FORM_HEX_COLOR_REGEX } from '../../../../utils/Colors';
 
 interface Props {
   defaultValues?: MarkingDefinitionInput;
@@ -16,7 +17,6 @@ interface Props {
   onSubmit: SubmitHandler<MarkingDefinitionInput>;
 }
 
-const HEX_COLOR_REGEX = /^#([0-9a-fA-F]{6})$/;
 const TEXT_MAX_LENGTH = 255;
 const ORDER_MAX = 2147483647;
 
@@ -59,7 +59,7 @@ const MarkingDefinitionForm: FunctionComponent<Props> = ({
       .string()
       .trim()
       .min(1, { message: t('Should not be empty') })
-      .refine(value => HEX_COLOR_REGEX.test(value), { message: t('Color must be a valid hex value, e.g. #4CAF50') }),
+      .refine(value => FORM_HEX_COLOR_REGEX.test(value), { message: t('Color must be a valid hex value, e.g. #4CAF50') }),
     marking_definition_order: orderNumber,
   });
 

@@ -112,31 +112,40 @@ final class HandledErrorRollbackRules {
               "rethrows as ConnectorStatusException"),
           entry(
               "InjectExecutionStep#run -> AssetGroupService.assetsFromAssetGroup",
-              "rethrows as ChainingException"),
+              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+                  + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> ConditionService.findAllConditionsByStepIds",
-              "rethrows as ChainingException"),
+              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+                  + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> ConnectorInstanceService.findByExecutorId",
-              "rethrows as ChainingException"),
+              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+                  + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> ConnectorInstanceService.hasStartedConnectorInstanceForInjector",
-              "rethrows as ChainingException"),
+              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+                  + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> InjectStatusService.initializeInjectStatus",
-              "rethrows as ChainingException"),
+              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+                  + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> InjectStatusService.saveAndStreamInject",
-              "rethrows as ChainingException"),
+              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+                  + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> ManagerCreator.createManager",
-              "rethrows as ChainingException"),
+              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+                  + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> ServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
-              "rethrows as ChainingException"),
+              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+                  + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> UrlAccessTokenService.generateTokenUrl",
-              "rethrows as ChainingException"),
+              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+                  + " while the transaction is not rollback-only"),
           entry(
               "ManagerCreator#createManager -> IntegrationFactory.findRelatedInstances",
               "rethrows as RuntimeException"),

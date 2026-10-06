@@ -135,8 +135,37 @@ class XtmLicenseVerifierTest {
       Instant notAfter,
       Map<String, byte[]> extensionValues)
       throws Exception {
+    return sign(
+        signer,
+        algorithm,
+        algorithmOid,
+        algorithmOid,
+        subject,
+        subjectKey,
+        notBefore,
+        notAfter,
+        extensionValues);
+  }
+
+  /**
+   * A certificate whose TBS {@code signature} field names {@code algorithmOid} and whose outer
+   * {@code signatureAlgorithm} names {@code outerAlgorithmOid}, signed with {@code algorithm}.
+   */
+  private static byte[] sign(
+      KeyPair signer,
+      String algorithm,
+      String algorithmOid,
+      String outerAlgorithmOid,
+      X500Name subject,
+      PublicKey subjectKey,
+      Instant notBefore,
+      Instant notAfter,
+      Map<String, byte[]> extensionValues)
+      throws Exception {
     AlgorithmIdentifier signatureAlgorithm =
         new AlgorithmIdentifier(new ASN1ObjectIdentifier(algorithmOid), DERNull.INSTANCE);
+    AlgorithmIdentifier outerSignatureAlgorithm =
+        new AlgorithmIdentifier(new ASN1ObjectIdentifier(outerAlgorithmOid), DERNull.INSTANCE);
     V3TBSCertificateGenerator generator = new V3TBSCertificateGenerator();
     // Filigran certificates carry serial number 0.
     generator.setSerialNumber(new ASN1Integer(BigInteger.ZERO));
@@ -160,7 +189,7 @@ class XtmLicenseVerifierTest {
     signature.update(tbs.getEncoded(ASN1Encoding.DER));
     ASN1EncodableVector certificate = new ASN1EncodableVector();
     certificate.add(tbs);
-    certificate.add(signatureAlgorithm);
+    certificate.add(outerSignatureAlgorithm);
     certificate.add(new DERBitString(signature.sign()));
     return new DERSequence(certificate).getEncoded(ASN1Encoding.DER);
   }
@@ -188,6 +217,7 @@ class XtmLicenseVerifierTest {
     private KeyPair signer = caKeys;
     private String signatureAlgorithm = "SHA256withRSA";
     private String signatureAlgorithmOid = SHA256_WITH_RSA;
+    private String outerSignatureAlgorithmOid;
 
     LicenseCertificate() {
       text(OID_PRODUCT, "filigran xtm");
@@ -236,11 +266,18 @@ class XtmLicenseVerifierTest {
       return this;
     }
 
+    /** Names another algorithm in the outer {@code signatureAlgorithm} than in the TBS part. */
+    LicenseCertificate outerSignatureAlgorithm(String oid) {
+      this.outerSignatureAlgorithmOid = oid;
+      return this;
+    }
+
     byte[] der() throws Exception {
       return sign(
           signer,
           signatureAlgorithm,
           signatureAlgorithmOid,
+          outerSignatureAlgorithmOid == null ? signatureAlgorithmOid : outerSignatureAlgorithmOid,
           new X500Name("CN=Filigran XTM license, O=ACME, OU=global"),
           licenseKeys.getPublic(),
           notBefore,
@@ -528,6 +565,26 @@ class XtmLicenseVerifierTest {
     }
 
     @Test
+    @DisplayName(
+        "Given an outer signature algorithm that differs from the one in the signed part should"
+            + " refuse")
+    void given_outerAndInnerSignatureAlgorithmMismatch_should_refuse() throws Exception {
+      // Arrange: a valid SHA-256 signature, the outer field matching it, the signed part naming
+      // SHA-1
+      String pem =
+          new LicenseCertificate()
+              .signatureAlgorithm("SHA256withRSA", SHA1_WITH_RSA)
+              .outerSignatureAlgorithm(SHA256_WITH_RSA)
+              .pem();
+      String consistent =
+          new LicenseCertificate().signatureAlgorithm("SHA256withRSA", SHA256_WITH_RSA).pem();
+
+      // Act & Assert
+      assertThat(verify(consistent).type()).isEqualTo("standard");
+      assertRefused(pem, "differs from the one inside its signed part");
+    }
+
+    @Test
     @DisplayName("Given anything but exactly one PEM certificate should refuse")
     void given_notExactlyOneCertificate_should_refuse() throws Exception {
       byte[] der = new LicenseCertificate().der();
@@ -674,15 +731,60 @@ class XtmLicenseVerifierTest {
     }
 
     @Test
-    @DisplayName("Given a ci license should ignore its notAfter")
-    void given_ciLicense_should_ignoreNotAfter() throws Exception {
+    @DisplayName("Given a ci license whose notAfter comes first should end at its notAfter")
+    void given_ciLicenseEndingBeforeTheInstanceWindow_should_endAtItsNotAfter() throws Exception {
+      // Arrange
+      Instant notAfter = NOW.plus(20, MINUTES);
+      String pem = new LicenseCertificate().type("ci").validity(NOW.minus(1, DAYS), notAfter).pem();
+      Instant createdAt = NOW.minus(10, MINUTES);
+
+      // Act
+      XtmLicense license = verifyCi(pem, createdAt);
+
+      // Assert: the instance window would last until NOW + 35 minutes
+      assertThat(license.expirationDate()).isEqualTo(notAfter);
+      assertThat(license.validUntil()).isEqualTo(notAfter);
+      assertThat(license.isActiveAt(notAfter.plus(1, SECONDS))).isFalse();
+    }
+
+    @Test
+    @DisplayName("Given a ci license whose notAfter has passed should refuse")
+    void given_expiredCiLicense_should_refuse() throws Exception {
       String pem =
           new LicenseCertificate()
               .type("ci")
               .validity(NOW.minus(2, DAYS), NOW.minus(1, DAYS))
               .pem();
 
-      assertThat(verifyCi(pem, NOW.minus(10, MINUTES)).type()).isEqualTo("ci");
+      assertThatThrownBy(() -> verifyCi(pem, NOW.minus(10, MINUTES)))
+          .isInstanceOf(XtmLicenseException.class)
+          .hasMessageContaining("ci license expired")
+          .hasMessageContaining("never after its notAfter");
+    }
+
+    @ParameterizedTest(name = "created {0} minutes ahead")
+    @ValueSource(longs = {1, 60, 525_600})
+    @DisplayName("Given a ci license and an instance creation date in the future should refuse")
+    void given_ciLicenseWithFutureInstanceCreationDate_should_refuse(long minutesAhead)
+        throws Exception {
+      String pem =
+          new LicenseCertificate()
+              .type("ci")
+              .validity(NOW.minus(1, DAYS), NOW.plus(364, DAYS))
+              .pem();
+
+      assertThatThrownBy(() -> verifyCi(pem, NOW.plus(minutesAhead, MINUTES)))
+          .isInstanceOf(XtmLicenseException.class)
+          .hasMessageContaining("creation date of this instance")
+          .hasMessageContaining("is in the future");
+    }
+
+    @Test
+    @DisplayName("Given a standard license should not depend on the instance creation date")
+    void given_standardLicense_should_ignoreTheInstanceCreationDate() throws Exception {
+      String pem = new LicenseCertificate().pem();
+
+      assertThat(verifyCi(pem, NOW.plus(365, DAYS)).type()).isEqualTo("standard");
     }
 
     @Test

@@ -4466,7 +4466,7 @@
   "Warning": "Warning",
   "was previously": "({previous_number} previously)",
   "We detected that your change will trigger an {assetrule}. Would you like to apply the defined asset groups on your current existing injects?": "We detected that your change will trigger an {assetrule}. Would you like to apply the defined asset groups on your current existing injects?",
-  "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href='${lessons_uri}'>${lessons_uri}</a>.": "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href='${lessons_uri}'>${lessons_uri}</a>.",
+  "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href=\"${lessons_uri}\">${lessons_uri}</a>.": "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: '<a href=\"${lessons_uri}\">${lessons_uri}</a>'.",
   "Weak posture": "Weak posture",
   "Weakness Enumeration": "Weakness Enumeration",
   "Web App": "Web App",

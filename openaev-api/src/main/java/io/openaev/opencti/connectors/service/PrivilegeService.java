@@ -2,6 +2,8 @@ package io.openaev.opencti.connectors.service;
 
 import static io.openaev.opencti.connectors.Constants.*;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
@@ -26,6 +28,7 @@ public class PrivilegeService extends AbstractPrivilegeService {
   private static final String CONNECTOR_LASTNAME = "OpenCTI Connector";
 
   LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration;
+  private final TenantScopedTransaction tenantTx;
 
   @Autowired
   public PrivilegeService(
@@ -33,9 +36,11 @@ public class PrivilegeService extends AbstractPrivilegeService {
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
-      LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration) {
+      LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration,
+      TenantScopedTransaction tenantTx) {
     super(tenantRoleService, tenantGroupService, userService, tenantUserService);
     this.legacyOpenCTIConnectorMigration = legacyOpenCTIConnectorMigration;
+    this.tenantTx = tenantTx;
   }
 
   @Override
@@ -78,6 +83,17 @@ public class PrivilegeService extends AbstractPrivilegeService {
    * the user, its group, role, and tenant attachment as needed.
    */
   public void ensurePrivilegedUserExistsForConnector(ConnectorBase connector) {
+    // The whole chain below runs from a Quartz job (OpenCTIConnectorRegisterPingJob), so nothing
+    // upstream carries a tenant scope. The well-known group's `markings` is an eager association
+    // over the v2-active `marking_definitions` table: with no scope the inspector fail-closes and
+    // the group is ensured granting no marking. The connector names its own tenant, which is the
+    // only correct scope here - `marking_definitions.tenant_id` is NOT NULL, so a group may only
+    // grant markings of its own tenant and a wider scope could only bring another tenant's in.
+    // setScopeOnCurrentTransaction rather than execute(): this method is @Transactional, the
+    // transaction is already open and is the unit of work the register/ping flow commits, while
+    // the OpenCTI HTTP calls deliberately happen after it, outside any transaction.
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(connector.getTenantId()));
+
     String email = CONNECTOR_EMAIL_PATTERN.formatted(connector.getServiceAccountId());
     String userName = connector.getServiceAccountName();
 

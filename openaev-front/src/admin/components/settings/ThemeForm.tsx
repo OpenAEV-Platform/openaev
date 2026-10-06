@@ -9,6 +9,7 @@ import ColorPickerField from '../../../components/ColorPickerField';
 import TextFieldFds from '../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../components/i18n';
 import { type ThemeInput } from '../../../utils/api-types';
+import { FORM_HEX_COLOR_REGEX } from '../../../utils/Colors';
 import { type FdsThemeMode } from '../../../utils/hooks/useFdsThemeScope';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
@@ -53,6 +54,12 @@ const ThemeForm: FunctionComponent<Props> = ({
   const { classes } = useStyles();
   const { t } = useFormatter();
 
+  // Empty means "default"; anything else must be #RRGGBB.
+  const optionalColor = z
+    .string()
+    .refine(value => value === '' || FORM_HEX_COLOR_REGEX.test(value), { message: t('Color must be a valid hex value, e.g. #4CAF50') })
+    .optional();
+
   const {
     register,
     control,
@@ -64,20 +71,20 @@ const ThemeForm: FunctionComponent<Props> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<ThemeInput>().with({
-        accent_color: z.string().optional(),
-        background_color: z.string().optional(),
-        login_aside_color: z.string().optional(),
-        login_aside_gradient_end: z.string().optional(),
-        login_aside_gradient_start: z.string().optional(),
+        accent_color: optionalColor,
+        background_color: optionalColor,
+        login_aside_color: optionalColor,
+        login_aside_gradient_end: optionalColor,
+        login_aside_gradient_start: optionalColor,
         login_aside_image: z.string().optional(),
         logo_login_url: z.string().optional(),
         logo_url: z.string().optional(),
         logo_url_collapsed: z.string().optional(),
-        navigation_color: z.string().optional(),
-        paper_color: z.string().optional(),
-        primary_color: z.string().optional(),
-        secondary_color: z.string().optional(),
-        text_color: z.string().optional(),
+        navigation_color: optionalColor,
+        paper_color: optionalColor,
+        primary_color: optionalColor,
+        secondary_color: optionalColor,
+        text_color: optionalColor,
       }),
     ),
     defaultValues: initialValues,
