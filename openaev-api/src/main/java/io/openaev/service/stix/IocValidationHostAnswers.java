@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -25,10 +24,11 @@ import java.util.concurrent.TimeUnit;
  * <p>Each host is resolved once, in parallel, within {@link #DEADLINE} overall. A name not answered
  * in time, or whose lookup failed, is not {@link HostResolver#answered answered}: the tests that
  * depend on its addresses do not run, unlike a name that does not exist, which the egress proxy
- * resolves again at execution. An answer arriving later is ignored. The lookups run on one pool of
- * {@link #THREADS} threads shared by every request: a lookup cannot be interrupted, so the pool is
- * what bounds the threads a slow or silent DNS server can hold, and its queue is bounded and purged
- * of the lookups cancelled at each deadline.
+ * resolves again at execution. An answer arriving later is ignored, and a name that was not
+ * announced is never looked up afterwards: it is not answered either. The lookups run on one pool
+ * of {@link #THREADS} threads shared by every request: a lookup cannot be interrupted, so the pool
+ * is what bounds the threads a slow or silent DNS server can hold, and its queue is bounded and
+ * purged of the lookups cancelled at each deadline.
  */
 public final class IocValidationHostAnswers {
 
@@ -38,15 +38,10 @@ public final class IocValidationHostAnswers {
 
   private static final ThreadPoolExecutor POOL = pool();
 
-  private final Set<String> hosts;
   private final Map<String, List<InetAddress>> answers;
-  private final HostResolver fallback;
 
-  private IocValidationHostAnswers(
-      Set<String> hosts, Map<String, List<InetAddress>> answers, HostResolver fallback) {
-    this.hosts = hosts;
+  private IocValidationHostAnswers(Map<String, List<InetAddress>> answers) {
     this.answers = answers;
-    this.fallback = fallback;
   }
 
   /** Resolves the host names with the resolver of the OpenAEV server. */
@@ -73,7 +68,7 @@ public final class IocValidationHostAnswers {
             try {
               answers.put(names.get(index), List.copyOf(lookup.get()));
             } catch (ExecutionException e) {
-              // a failed lookup counts as a name that does not resolve
+              // a failed lookup is not an answer
             }
           }
         }
@@ -87,26 +82,25 @@ public final class IocValidationHostAnswers {
         POOL.purge();
       }
     }
-    return new IocValidationHostAnswers(Set.copyOf(names), Map.copyOf(answers), resolver);
+    return new IocValidationHostAnswers(Map.copyOf(answers));
   }
 
   /**
-   * The resolver the plans are built with: the gathered answers, or a direct lookup for a host that
-   * was not announced. An announced host whose lookup timed out, failed or was not queued is not
-   * {@link HostResolver#answered answered}.
+   * The resolver the plans are built with, which never looks a name up: it reads the gathered
+   * answers, so it can be used inside a transaction. A host whose lookup timed out, failed or was
+   * not queued, and a host that was not announced (the settings changed since the answers were
+   * gathered), is not {@link HostResolver#answered answered}.
    */
   HostResolver resolver() {
     return new HostResolver() {
       @Override
       public List<InetAddress> resolve(String host) {
-        return hosts.contains(host)
-            ? answers.getOrDefault(host, List.of())
-            : fallback.resolve(host);
+        return answers.getOrDefault(host, List.of());
       }
 
       @Override
       public boolean answered(String host) {
-        return !hosts.contains(host) || answers.containsKey(host);
+        return answers.containsKey(host);
       }
     };
   }

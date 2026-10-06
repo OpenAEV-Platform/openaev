@@ -600,13 +600,24 @@ class IocValidationValueChecksTest {
     }
 
     @Test
-    @DisplayName("a host the request did not announce is resolved directly")
-    void given_unannouncedHost_should_resolveItDirectly() {
+    @DisplayName(
+        "a host the request did not announce is never looked up, so no transaction waits for a DNS"
+            + " server, and it counts as not answered")
+    void given_unannouncedHost_should_neitherResolveItNorCountItAnswered() {
+      AtomicInteger lookups = new AtomicInteger();
       HostResolver answers =
           IocValidationHostAnswers.resolve(
-                  List.of(), host -> List.of(address("10.0.0.1")), Duration.ofSeconds(1))
+                  List.of("announced.example.com"),
+                  host -> {
+                    lookups.incrementAndGet();
+                    return List.of(address("8.8.8.8"));
+                  },
+                  Duration.ofSeconds(1))
               .resolver();
-      assertThat(answers.resolve("other.example.com")).containsExactly(address("10.0.0.1"));
+      assertThat(answers.resolve("other.example.com")).isEmpty();
+      assertThat(answers.answered("other.example.com")).isFalse();
+      assertThat(answers.answered("announced.example.com")).isTrue();
+      assertThat(lookups.get()).isEqualTo(1);
     }
   }
 
