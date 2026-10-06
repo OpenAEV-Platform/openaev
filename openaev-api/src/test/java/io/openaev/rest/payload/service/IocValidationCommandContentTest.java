@@ -787,24 +787,28 @@ class IocValidationCommandContentTest {
     }
 
     /**
-     * Runs the Unix network test with a PATH holding only the given tools of this system, linked
+     * Runs the Unix network test with a PATH holding only the given programs of this system, linked
      * from a directory of the test; {@code null} when one of them is not installed.
      */
     private Integer executeNetworkTestWith(String host, String port, String... tools)
         throws Exception {
       Path toolDirectory = Files.createDirectories(tmp.resolve("tools-" + String.join("-", tools)));
+      List<String> searchPath =
+          List.of(System.getenv().getOrDefault("PATH", "").split(File.pathSeparator));
       for (String tool : tools) {
-        Process lookup =
-            new ProcessBuilder("/bin/sh", "-c", "command -v " + tool)
-                .redirectErrorStream(true)
-                .start();
-        String location = new String(lookup.getInputStream().readAllBytes()).trim();
-        if (!lookup.waitFor(30, TimeUnit.SECONDS)
-            || lookup.exitValue() != 0
-            || !location.startsWith("/")) {
+        // Searched in PATH, not with "command -v": true is a builtin of the shell, while timeout
+        // runs the program
+        Path location =
+            searchPath.stream()
+                .filter(directory -> directory.startsWith("/"))
+                .map(directory -> Path.of(directory, tool))
+                .filter(Files::isExecutable)
+                .findFirst()
+                .orElse(null);
+        if (location == null) {
           return null;
         }
-        Files.createSymbolicLink(toolDirectory.resolve(tool), Path.of(location));
+        Files.createSymbolicLink(toolDirectory.resolve(tool), location);
       }
       CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("sh");
       binder.bind(IOC_VALIDATION_HOST_KEY, host);
@@ -847,8 +851,8 @@ class IocValidationCommandContentTest {
         try {
           Integer exit =
               executeNetworkTestWith(
-                  "127.0.0.1", String.valueOf(listener.getLocalPort()), "bash", "timeout");
-          assumeTrue(exit != null, "requires bash and timeout");
+                  "127.0.0.1", String.valueOf(listener.getLocalPort()), "bash", "timeout", "true");
+          assumeTrue(exit != null, "requires bash, timeout and true");
           assertThat(exit).isZero();
         } finally {
           for (Socket client : queued) {
@@ -861,8 +865,10 @@ class IocValidationCommandContentTest {
     @Test
     @DisplayName("fails the network test on an endpoint with bash but neither timeout nor nc")
     void given_bashWithoutTimeout_should_fail() throws Exception {
-      Integer exit = executeNetworkTestWith("127.0.0.1", String.valueOf(closedPort()), "bash");
-      assumeTrue(exit != null, "requires bash");
+      // true is linked as well: timeout is the only missing program
+      Integer exit =
+          executeNetworkTestWith("127.0.0.1", String.valueOf(closedPort()), "bash", "true");
+      assumeTrue(exit != null, "requires bash and true");
       assertThat(exit).isNotZero();
     }
 
