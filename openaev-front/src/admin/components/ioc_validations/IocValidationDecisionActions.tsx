@@ -13,27 +13,31 @@ import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../utils/fds
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../utils/permissions/types';
 import { emptyFilled } from '../../../utils/String';
+import { AlertSkeleton, TextSkeleton } from './IocValidationSkeleton';
 import IocValidationTable, { type IocValidationTableColumn } from './IocValidationTable';
 import { IOC_VALIDATION_REJECT_REASON_MAX_LENGTH, iocValidationTestKindLabel, isAwaitingApproval } from './iocValidationUtils';
 
 // Tests listed in the approval dialog; the request page lists them all.
 const APPROVAL_SUMMARY_MAX_ROWS = 10;
+// Height of the one-sentence warning that replaces the summary when nothing can run.
+const APPROVAL_BLOCKER_HEIGHT = 74;
 
 // What the approval starts, as the server plans it now: the tests that run on each indicator and the security
-// platforms expected to see them.
-const IocValidationApprovalSummary: FunctionComponent<{ preview: IocValidationApprovalPreviewOutput | null }> = ({ preview }) => {
+// platforms expected to see them. While the plan loads, its place is kept with the tests the request shows as
+// planned, so the dialog and its actions do not move when it lands.
+const IocValidationApprovalSummary: FunctionComponent<{
+  preview: IocValidationApprovalPreviewOutput | null;
+  shownPlanned: number;
+  // Shown in place of the confirmation question, when there is nothing to approve.
+  standalone: boolean;
+}> = ({ preview, shownPlanned, standalone }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  if (!preview) {
-    return (
-      <div data-testid="ioc-validation-approval-summary" aria-busy="true" style={{ marginTop: theme.spacing(2) }}>
-        <Text variant="content-compact" className="text-default-secondary">{t('Checking the tests with the current settings...')}</Text>
-      </div>
-    );
-  }
-  const planned = preview.ioc_validation_preview_iocs.filter(ioc => ioc.ioc_test_kind);
-  const platforms = [...new Set(preview.ioc_validation_preview_pairs
-    .map(pair => pair.pair_platform_name || pair.pair_platform_ref))];
+  const summaryStyle = {
+    display: 'grid',
+    gap: theme.spacing(1.5),
+    marginTop: standalone ? 0 : theme.spacing(2),
+  };
   const columns: IocValidationTableColumn<IocValidationIocOutput>[] = [
     {
       key: 'indicator',
@@ -54,18 +58,65 @@ const IocValidationApprovalSummary: FunctionComponent<{ preview: IocValidationAp
       render: ioc => t(iocValidationTestKindLabel(ioc.ioc_test_kind)),
     },
   ];
+  const moreIndicators = (count: number) => count > APPROVAL_SUMMARY_MAX_ROWS && (
+    <Text variant="content-caption" className="text-default-secondary">
+      {t('{count} more indicators', { count: String(count - APPROVAL_SUMMARY_MAX_ROWS) })}
+    </Text>
+  );
+
+  if (!preview) {
+    return (
+      <div data-testid="ioc-validation-approval-summary" aria-busy="true" style={summaryStyle}>
+        {shownPlanned === 0
+          ? (
+              <>
+                <span className="sr-only" role="status">{t('Checking the tests with the current settings...')}</span>
+                <AlertSkeleton height={APPROVAL_BLOCKER_HEIGHT} />
+              </>
+            )
+          : (
+              <>
+                <Text variant="content-compact" className="text-default-secondary" role="status">
+                  {t('Checking the tests with the current settings...')}
+                </Text>
+                <IocValidationTable
+                  caption={t('Checking the tests with the current settings...')}
+                  columns={columns.map((column): IocValidationTableColumn<null> => ({
+                    key: column.key,
+                    label: column.label,
+                    width: column.width,
+                    render: () => (column.key === 'value'
+                      ? <Text variant="content-code"><TextSkeleton /></Text>
+                      : <TextSkeleton />),
+                  }))}
+                  rows={Array.from({ length: Math.min(shownPlanned, APPROVAL_SUMMARY_MAX_ROWS) }, () => null)}
+                  rowKey={(_, index) => `loading-${index}`}
+                  emptyMessage=""
+                />
+                {moreIndicators(shownPlanned)}
+                <Field label={t('Security platforms')}><TextSkeleton width="40%" /></Field>
+              </>
+            )}
+      </div>
+    );
+  }
+
+  const blocker = preview.ioc_validation_preview_blocker;
+  const planned = preview.ioc_validation_preview_iocs.filter(ioc => ioc.ioc_test_kind);
+  const platforms = [...new Set(preview.ioc_validation_preview_pairs
+    .map(pair => pair.pair_platform_name || pair.pair_platform_ref))];
+  // Nothing planned (the preview pairs only the planned tests): the warning says it all. Planned tests the targets
+  // cannot run stay listed under the warning.
+  if (blocker && planned.length === 0) {
+    return (
+      <div data-testid="ioc-validation-approval-summary" style={summaryStyle}>
+        <Alert severity="warning" title={blocker} />
+      </div>
+    );
+  }
   return (
-    <div
-      data-testid="ioc-validation-approval-summary"
-      style={{
-        display: 'grid',
-        gap: theme.spacing(1.5),
-        marginTop: theme.spacing(2),
-      }}
-    >
-      {preview.ioc_validation_preview_blocker && (
-        <Alert severity="warning" title={preview.ioc_validation_preview_blocker} />
-      )}
+    <div data-testid="ioc-validation-approval-summary" style={summaryStyle}>
+      {blocker && <Alert severity="warning" title={blocker} />}
       <Text variant="content-compact" className="text-default-secondary">{t('Tests that run once approved')}</Text>
       <IocValidationTable
         caption={t('Tests that run once approved')}
@@ -74,11 +125,7 @@ const IocValidationApprovalSummary: FunctionComponent<{ preview: IocValidationAp
         rowKey={(ioc, index) => `${ioc.ioc_indicator_ref}-${ioc.ioc_test_kind ?? 'none'}-${index}`}
         emptyMessage={t('No test would run now.')}
       />
-      {planned.length > APPROVAL_SUMMARY_MAX_ROWS && (
-        <Text variant="content-caption" className="text-default-secondary">
-          {t('{count} more indicators', { count: String(planned.length - APPROVAL_SUMMARY_MAX_ROWS) })}
-        </Text>
-      )}
+      {moreIndicators(planned.length)}
       <Field label={t('Security platforms')}>{emptyFilled(platforms.join(', '))}</Field>
     </div>
   );
@@ -106,6 +153,16 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
   if (!isAwaitingApproval(iocValidation.ioc_validation_status)) {
     return null;
   }
+
+  const shownPlanned = iocValidation.ioc_validation_iocs.filter(ioc => ioc.ioc_test_kind).length;
+  // An approval never runs a test the request was shown without, so a request without planned test has nothing to
+  // approve from the start, and a preview planning none has nothing to approve once it lands: no question then.
+  const nothingToApprove = preview
+    ? !!preview.ioc_validation_preview_blocker && preview.ioc_validation_preview_iocs.every(ioc => !ioc.ioc_test_kind)
+    : shownPlanned === 0;
+  const approvalSummary = (
+    <IocValidationApprovalSummary preview={preview} shownPlanned={shownPlanned} standalone={nothingToApprove} />
+  );
 
   const closeApproval = () => {
     previewRequest.current += 1;
@@ -202,7 +259,8 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
         text={t('Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.')}
         submitLabel={t('Approve and start the simulation')}
         submitDisabled={!preview || !!preview.ioc_validation_preview_blocker}
-        extraContent={<IocValidationApprovalSummary preview={preview} />}
+        richContent={nothingToApprove ? approvalSummary : undefined}
+        extraContent={nothingToApprove ? undefined : approvalSummary}
       />
       <DialogConfirmation
         open={rejectOpen}

@@ -13,6 +13,16 @@ const FieldSkeleton: FunctionComponent = () => (
   </div>
 );
 
+/** One line of the enclosing text, for the cells and values of a loading state. */
+export const TextSkeleton: FunctionComponent<{ width?: string }> = ({ width = '70%' }) => (
+  <Skeleton variant="text" width={width} />
+);
+
+/** The place of a warning while the sentence it holds loads. */
+export const AlertSkeleton: FunctionComponent<{ height: number }> = ({ height }) => (
+  <Skeleton variant="rounded" height={height} />
+);
+
 const RowsSkeleton: FunctionComponent<{ rows: number }> = ({ rows }) => (
   <div style={{
     display: 'grid',

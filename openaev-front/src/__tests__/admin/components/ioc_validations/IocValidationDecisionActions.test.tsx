@@ -92,6 +92,8 @@ const openApproval = (iocValidation: IocValidationOutput, preview: IocValidation
 
 const confirmButton = () => within(screen.getByRole('dialog')).getByRole('button', { name: 'Approve and start the simulation' });
 
+const approvalQuestion = () => within(screen.getByRole('dialog')).queryByText(/^Approve this IOC validation\?/);
+
 describe('IocValidationDecisionActions', () => {
   afterEach(() => {
     cleanup();
@@ -135,16 +137,41 @@ describe('IocValidationDecisionActions', () => {
     await waitFor(() => expect(approveIocValidation).toHaveBeenCalledWith('request-1', { ioc_validation_preview_fingerprint: FINGERPRINT }));
   });
 
-  it('keeps the approval disabled while the preview loads', () => {
+  const openPendingApproval = (iocValidation: IocValidationOutput) => {
     vi.mocked(fetchIocValidationApprovalPreview).mockReturnValue(new Promise(() => {}) as never);
-    renderActions(awaitingRequest(1));
+    renderActions(iocValidation);
     fireEvent.click(screen.getByRole('button', { name: 'Approve and start the simulation' }));
-    expect(screen.getByTestId('ioc-validation-approval-summary').getAttribute('aria-busy')).toBe('true');
-    expect(screen.getByText('Checking the tests with the current settings...')).toBeTruthy();
+    return screen.getByTestId('ioc-validation-approval-summary');
+  };
+
+  it('keeps the place of the planned tests and the approval disabled while the preview loads', () => {
+    const summary = openPendingApproval(awaitingRequest(3));
+    expect(summary.getAttribute('aria-busy')).toBe('true');
+    expect(within(summary).getByRole('status').textContent).toBe('Checking the tests with the current settings...');
+    // A header and one placeholder row per test the request shows as planned, then the security platforms field
+    expect(within(summary).getAllByRole('row')).toHaveLength(4);
+    expect(within(summary).getByText('Test that runs')).toBeTruthy();
+    expect(within(summary).getByText('Security platforms')).toBeTruthy();
+    expect(approvalQuestion()).toBeTruthy();
     expect(confirmButton().hasAttribute('disabled')).toBe(true);
   });
 
-  it('says why nothing would run and keeps the approval disabled', async () => {
+  it('keeps as many placeholder rows as the approval lists while the preview loads', () => {
+    const summary = openPendingApproval(awaitingRequest(13));
+    expect(within(summary).getAllByRole('row')).toHaveLength(11);
+    expect(within(summary).getByText('3 more indicators')).toBeTruthy();
+  });
+
+  it('keeps the place of the warning while the preview of a request without planned test loads', () => {
+    const summary = openPendingApproval(awaitingRequest(0));
+    expect(within(summary).getByRole('status').textContent).toBe('Checking the tests with the current settings...');
+    expect(within(summary).queryByRole('table')).toBeNull();
+    expect(within(summary).queryByText('Security platforms')).toBeNull();
+    // Nothing can be approved: no question above the warning to come
+    expect(approvalQuestion()).toBeNull();
+  });
+
+  it('shows only the warning when nothing can run, and keeps the approval disabled', async () => {
     const request = awaitingRequest(1);
     const blocker = 'Nothing can run: every IOC of this request was skipped when it was received or is no longer allowed by the IOC validation settings.';
     openApproval(request, previewOf(request, {
@@ -152,10 +179,26 @@ describe('IocValidationDecisionActions', () => {
       ioc_validation_preview_pairs: [],
       ioc_validation_preview_blocker: blocker,
     }));
-    expect(await screen.findByText(blocker)).toBeTruthy();
-    expect(screen.getByText('No test would run now.')).toBeTruthy();
+    const summary = await screen.findByTestId('ioc-validation-approval-summary');
+    expect(await within(summary).findByText(blocker)).toBeTruthy();
+    expect(within(summary).queryByText('Tests that run once approved')).toBeNull();
+    expect(within(summary).queryByText('No test would run now.')).toBeNull();
+    expect(within(summary).queryByText('Security platforms')).toBeNull();
+    expect(approvalQuestion()).toBeNull();
     expect(confirmButton().hasAttribute('disabled')).toBe(true);
     expect(approveIocValidation).not.toHaveBeenCalled();
+  });
+
+  it('keeps the planned tests under the warning when their targets cannot run them', async () => {
+    const request = awaitingRequest(2);
+    const blocker = 'No endpoint of the asset group \'Validation targets\' has an active agent: start an agent or choose another asset group in Settings > Customization > IOC validation, then approve again.';
+    openApproval(request, previewOf(request, { ioc_validation_preview_blocker: blocker }));
+    const summary = await screen.findByTestId('ioc-validation-approval-summary');
+    expect(await within(summary).findByText(blocker)).toBeTruthy();
+    expect(within(summary).getAllByText('DNS resolution')).toHaveLength(2);
+    expect(within(summary).getByText('Corporate EDR, SOC SIEM')).toBeTruthy();
+    expect(approvalQuestion()).toBeTruthy();
+    expect(confirmButton().hasAttribute('disabled')).toBe(true);
   });
 
   it('caps the tests listed in the approval and counts the others', async () => {
