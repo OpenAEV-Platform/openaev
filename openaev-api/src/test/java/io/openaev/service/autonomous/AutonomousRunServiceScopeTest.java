@@ -117,7 +117,6 @@ class AutonomousRunServiceScopeTest {
   @Mock private AutonomousRunReconciliationWriter reconciliationWriter;
   @Mock private TenantWriteScopeResolver writeScopeResolver;
   @Mock private TenantScopedTransaction tenantTx;
-  @Mock private AutonomousRunAccessControl accessControl;
 
   @InjectMocks private AutonomousRunService runService;
 

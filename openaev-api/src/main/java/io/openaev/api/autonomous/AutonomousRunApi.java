@@ -110,10 +110,8 @@ public class AutonomousRunApi extends RestBehavior {
               + " a CTA-only state.")
   @GetMapping("/available-agents")
   @Transactional(readOnly = true)
-  @AccessControl(
-      resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.READ,
-      isEnterpriseEdition = true)
+  // skip RBAC: delegated to XTM One
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public List<ChatbotAgentOutput> availableAgents(TxCtx ctx) {
     return autonomousRunService.availableAdditionalAgents();
   }
@@ -140,6 +138,7 @@ public class AutonomousRunApi extends RestBehavior {
       description = "Persists both the enabled agent ids and each agent's default discovery mode.")
   @PutMapping("/default-agents")
   @Transactional
+  // FIXME: require admin privs
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
@@ -180,8 +179,9 @@ public class AutonomousRunApi extends RestBehavior {
   @PostMapping
   @Transactional
   @AccessControl(
-      resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO,
+      actionPerformed = Action.LAUNCH,
+      resourceId = "#input.getScenarioId",
       isEnterpriseEdition = true)
   public AutonomousRun create(TxCtx ctx, @Valid @RequestBody AutonomousRunCreateInput input) {
     return autonomousRunService.create(ctx, input);
@@ -202,7 +202,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.SCENARIO,
       actionPerformed = Action.LAUNCH,
-      resourceId = "#{scenarioId}",
+      resourceId = "#scenarioId",
       isEnterpriseEdition = true)
   public AutonomousRun launchFromScenario(
       TxCtx ctx,
@@ -226,7 +226,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.SCENARIO,
       actionPerformed = Action.LAUNCH,
-      resourceId = "#{scenarioId}",
+      resourceId = "#scenarioId",
       isEnterpriseEdition = true)
   public AutonomousRun planScenario(
       TxCtx ctx,
@@ -252,7 +252,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.READ,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun get(TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.get(runId);
@@ -268,7 +268,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.SIMULATION,
       actionPerformed = Action.READ,
-      resourceId = "#{simulationId}",
+      resourceId = "#simulationId",
       isEnterpriseEdition = true)
   public AutonomousRun getBySimulation(TxCtx ctx, @PathVariable String simulationId) {
     return autonomousRunService.getBySimulation(simulationId);
@@ -285,7 +285,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.SCENARIO,
       actionPerformed = Action.READ,
-      resourceId = "#{scenarioId}",
+      resourceId = "#scenarioId",
       isEnterpriseEdition = true)
   public AutonomousRun getByScenario(TxCtx ctx, @PathVariable String scenarioId) {
     return autonomousRunService.getByScenario(scenarioId);
@@ -301,9 +301,9 @@ public class AutonomousRunApi extends RestBehavior {
   @GetMapping("/scenario-config/{scenarioId}")
   @Transactional(readOnly = true)
   @AccessControl(
-      resourceType = ResourceType.AUTONOMOUS_RUN,
+      resourceType = ResourceType.SCENARIO,
       actionPerformed = Action.READ,
-      resourceId = "#{scenarioId}",
+      resourceId = "#scenarioId",
       isEnterpriseEdition = true)
   public AutonomousRunCreateInput getScenarioConfig(TxCtx ctx, @PathVariable String scenarioId) {
     return autonomousRunService.getScenarioAutonomousConfig(scenarioId);
@@ -320,7 +320,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.SCENARIO,
       actionPerformed = Action.WRITE,
-      resourceId = "#{scenarioId}",
+      resourceId = "#scenarioId",
       isEnterpriseEdition = true)
   public AutonomousRunCreateInput saveScenarioConfig(
       TxCtx ctx,
@@ -335,7 +335,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.LAUNCH,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun start(TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.start(runId);
@@ -347,7 +347,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.LAUNCH,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun pause(TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.pause(runId);
@@ -359,7 +359,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.LAUNCH,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun resume(TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.resume(runId);
@@ -371,7 +371,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.LAUNCH,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun cancel(TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.cancel(runId);
@@ -388,7 +388,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.LAUNCH,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun restart(TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.restart(runId);
@@ -407,7 +407,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.LAUNCH,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun promote(TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.promoteToRealRun(runId);
@@ -428,7 +428,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.LAUNCH,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousConvertToManualOutput convertToManual(
       TxCtx ctx,
@@ -444,7 +444,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.READ,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public List<AutonomousEvent> timeline(
       TxCtx ctx, @PathVariable String runId, @RequestParam(defaultValue = "0") @Min(0) long since) {
@@ -457,7 +457,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.READ,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public List<AutonomousDirective> directives(TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.directives(runId);
@@ -469,7 +469,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousDirective addDirective(
       TxCtx ctx, @PathVariable String runId, @Valid @RequestBody AutonomousDirectiveInput input) {
@@ -482,7 +482,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public List<Workflow> updateConfiguration(
       TxCtx ctx, @PathVariable String runId, @Valid @RequestBody WorkflowConfigurationInput input) {
@@ -499,7 +499,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.READ,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousScopeView getScope(@RunTenantScope TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.getRunScopeView(runId);
@@ -511,7 +511,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun setScope(
       @RunTenantScope TxCtx ctx,
@@ -526,7 +526,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousEvent recordEvent(
       @RunTenantScope TxCtx ctx,
@@ -542,7 +542,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun updateStatus(
       @RunTenantScope TxCtx ctx,
@@ -558,7 +558,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public List<AutonomousDirective> consumeDirectives(
       @RunTenantScope TxCtx ctx, @PathVariable String runId) {
@@ -580,7 +580,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousAttackPathStepResult appendAttackPathStep(
       @RunTenantScope TxCtx ctx,
@@ -607,7 +607,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousAttackPathStepResult updateAttackPathStep(
       @RunTenantScope TxCtx ctx,
@@ -633,7 +633,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public void deleteAttackPathStep(
       @RunTenantScope TxCtx ctx, @PathVariable String runId, @PathVariable String stepTemplateId) {
@@ -652,7 +652,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.READ,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public List<AutonomousAttackPathStepState> attackPathState(
       @RunTenantScope TxCtx ctx, @PathVariable String runId) {
@@ -670,7 +670,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun evaluateAttackPath(@RunTenantScope TxCtx ctx, @PathVariable String runId) {
     // The service returns the reconciled run itself: this is an orchestrator CALLBACK, and reading
@@ -690,7 +690,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousPromotedAssetResult promoteFindingToAsset(
       @RunTenantScope TxCtx ctx,
@@ -715,7 +715,7 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.WRITE,
-      resourceId = "#{runId}",
+      resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousTargetTeamResult ensureTargetTeam(
       @RunTenantScope TxCtx ctx,
