@@ -4591,7 +4591,7 @@
   "IOC validation": "IOC 验证",
   "IOC validations": "IOC 验证",
   "IOCs": "IOC",
-  "Indicator-platform pairs": "指标-平台组合",
+  "Pairs": "配对",
   "Safety settings": "安全设置",
   "No IOC validation request yet.": "尚无 IOC 验证请求。",
   "IOC validation requests are sent from OpenCTI and wait here for approval before any test runs.": "IOC 验证请求由 OpenCTI 发送，在任何测试运行前在此等待批准。",

@@ -4591,7 +4591,7 @@
   "IOC validation": "Проверка IOC",
   "IOC validations": "Проверки IOC",
   "IOCs": "IOC",
-  "Indicator-platform pairs": "Пары индикатор-платформа",
+  "Pairs": "Пары",
   "Safety settings": "Параметры безопасности",
   "No IOC validation request yet.": "Запросов на проверку IOC пока нет.",
   "IOC validation requests are sent from OpenCTI and wait here for approval before any test runs.": "Запросы на проверку IOC отправляются из OpenCTI и ожидают здесь утверждения до запуска любых тестов.",

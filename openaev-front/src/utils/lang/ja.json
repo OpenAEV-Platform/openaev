@@ -4591,7 +4591,7 @@
   "IOC validation": "IOC 検証",
   "IOC validations": "IOC 検証",
   "IOCs": "IOC",
-  "Indicator-platform pairs": "インジケーターとプラットフォームのペア",
+  "Pairs": "ペア",
   "Safety settings": "安全設定",
   "No IOC validation request yet.": "IOC 検証リクエストはまだありません。",
   "IOC validation requests are sent from OpenCTI and wait here for approval before any test runs.": "IOC 検証リクエストは OpenCTI から送信され、テストが実行される前にここで承認を待ちます。",

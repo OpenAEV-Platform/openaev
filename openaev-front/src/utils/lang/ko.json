@@ -4591,7 +4591,7 @@
   "IOC validation": "IOC 검증",
   "IOC validations": "IOC 검증",
   "IOCs": "IOC",
-  "Indicator-platform pairs": "지표-플랫폼 쌍",
+  "Pairs": "쌍",
   "Safety settings": "안전 설정",
   "No IOC validation request yet.": "아직 IOC 검증 요청이 없습니다.",
   "IOC validation requests are sent from OpenCTI and wait here for approval before any test runs.": "IOC 검증 요청은 OpenCTI에서 전송되며 테스트가 실행되기 전에 여기에서 승인을 기다립니다.",
