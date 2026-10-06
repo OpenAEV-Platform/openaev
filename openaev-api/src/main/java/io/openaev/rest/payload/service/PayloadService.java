@@ -102,6 +102,8 @@ public class PayloadService {
       "OpenAEV IOC validation: neither nc nor bash is available to attempt the connection";
   static final String IOC_VALIDATION_NO_HTTP_TOOL =
       "OpenAEV IOC validation: curl is not available to send the request";
+  static final String IOC_VALIDATION_NO_HTTP_RESPONSE =
+      "OpenAEV IOC validation: the request got no HTTP answer from the egress proxy or the server";
   static final String IOC_VALIDATION_NO_SYSTEM_LOG =
       "OpenAEV IOC validation: the marker could not be written to the system log; nothing was"
           + " written elsewhere";
@@ -1191,14 +1193,18 @@ public class PayloadService {
                 + port
                 + ").Wait(5000) } catch { } finally { $client.Close() }";
         // A redirect is never followed (curl without -L neither): its target never went through
-        // the IOC value checks
+        // the IOC value checks. Any HTTP answer, from the proxy or the server, means the request
+        // went out; an error without one (proxy, DNS, TLS, connection, timeout) fails the test
         case HTTP_HEAD ->
             "try { Invoke-WebRequest -UseBasicParsing -Method Head -MaximumRedirection 0"
                 + " -TimeoutSec 10 -Proxy "
                 + proxy
                 + " -Uri "
                 + url
-                + " | Out-Null } catch { }";
+                + " | Out-Null } catch { if (-not $_.Exception.Response"
+                + " -and $_.FullyQualifiedErrorId -notlike 'MaximumRedirectExceeded*') { throw '"
+                + IOC_VALIDATION_NO_HTTP_RESPONSE
+                + "' } }";
         case LOG_INJECTION ->
             "$message = 'OpenAEV IOC validation marker: ' + "
                 + value
@@ -1269,13 +1275,17 @@ public class PayloadService {
               + "' >&2; exit 1; fi";
       case HTTP_HEAD ->
           // --noproxy '' overrides NO_PROXY / no_proxy: the request never bypasses the egress
-          // proxy.
-          "if command -v curl >/dev/null 2>&1; then"
-              + " curl -sS -I -o /dev/null --connect-timeout 5 --max-time 10 --noproxy '' --proxy "
+          // proxy. Any HTTP status, from the proxy (its CONNECT answer included) or the server,
+          // means the request went out; 000 for both (no answer at all) fails the test
+          "if command -v curl >/dev/null 2>&1; then OAEV_IOC_HTTP=$(curl -sS -I -o /dev/null"
+              + " -w '%{http_code} %{http_connect}' --connect-timeout 5 --max-time 10"
+              + " --noproxy '' --proxy "
               + proxy
               + " "
               + url
-              + "; true; else echo '"
+              + "); case \"$OAEV_IOC_HTTP\" in *[1-9]*) ;; *) echo '"
+              + IOC_VALIDATION_NO_HTTP_RESPONSE
+              + "' >&2; exit 1 ;; esac; else echo '"
               + IOC_VALIDATION_NO_HTTP_TOOL
               + "' >&2; exit 1; fi";
       // No fallback file: a file at a fixed path of a shared temporary directory can be

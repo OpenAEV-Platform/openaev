@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.sun.net.httpserver.HttpServer;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.DnsResolution;
@@ -28,6 +29,9 @@ import io.openaev.database.model.Tenant;
 import io.openaev.utils.command.CommandArgumentBinder;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -172,7 +176,8 @@ class IocValidationCommandContentTest {
         .contains("elif command -v nc >/dev/null 2>&1; then nc -w 5 ")
         .contains(" </dev/null; true;");
     assertThat(tcp.split("; true;", -1)).hasSize(4);
-    assertThat(http.split("; true;", -1)).hasSize(2);
+    // A request without any HTTP answer fails: the result of curl is read, never discarded
+    assertThat(http).doesNotContain("; true");
   }
 
   @Test
@@ -191,7 +196,50 @@ class IocValidationCommandContentTest {
     String unix =
         PayloadService.iocValidationCommandContent(IocValidationTestKind.HTTP_HEAD, false);
     assertThat(windows).contains("Invoke-WebRequest ").contains(" -MaximumRedirection 0 ");
-    assertThat(unix).contains(" curl -sS -I ").doesNotContain(" -L", "--location", "--max-redirs");
+    assertThat(unix).contains("$(curl -sS -I ").doesNotContain(" -L", "--location", "--max-redirs");
+  }
+
+  @Test
+  @DisplayName("the HTTP HEAD test fails when the request got no HTTP answer at all")
+  void given_httpHead_should_failWithoutAnHttpAnswer() {
+    String windows =
+        PayloadService.iocValidationCommandContent(IocValidationTestKind.HTTP_HEAD, true);
+    String unix =
+        PayloadService.iocValidationCommandContent(IocValidationTestKind.HTTP_HEAD, false);
+    assertThat(windows)
+        .contains("if (-not $_.Exception.Response")
+        .contains("throw '" + PayloadService.IOC_VALIDATION_NO_HTTP_RESPONSE + "'")
+        .doesNotContain("catch { }");
+    assertThat(unix)
+        .contains("-w '%{http_code} %{http_connect}'")
+        .contains("*[1-9]*) ;;")
+        .contains("echo '" + PayloadService.IOC_VALIDATION_NO_HTTP_RESPONSE + "' >&2; exit 1")
+        .doesNotContain("; true");
+  }
+
+  /** A local HTTP server answering every request 403, as an egress proxy refusing it would. */
+  private static HttpServer refusingProxy() throws IOException {
+    HttpServer server =
+        HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          exchange.sendResponseHeaders(403, -1);
+          exchange.close();
+        });
+    server.start();
+    return server;
+  }
+
+  /** A loopback port nothing listens on: a connection to it is refused. */
+  private static int closedPort() throws IOException {
+    try (ServerSocket socket = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+      return socket.getLocalPort();
+    }
+  }
+
+  private static String loopbackProxy(int port) {
+    return "http://127.0.0.1:" + port;
   }
 
   @Test
@@ -737,6 +785,52 @@ class IocValidationCommandContentTest {
       return PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, false);
     }
 
+    private static boolean hasCurl() throws Exception {
+      Process process =
+          new ProcessBuilder("/bin/sh", "-c", "command -v curl")
+              .redirectErrorStream(true)
+              .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+              .start();
+      return process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0;
+    }
+
+    private int executeHttpHead(String proxy) throws Exception {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("sh");
+      binder.bind(IOC_VALIDATION_URL_KEY, "http://ioc-validation.example/");
+      binder.bind(IOC_VALIDATION_PROXY_KEY, proxy);
+      ProcessBuilder builder =
+          new ProcessBuilder(
+              "/bin/sh",
+              "-c",
+              binder.render(
+                  PayloadService.iocValidationCommandContent(
+                      IocValidationTestKind.HTTP_HEAD, false)));
+      builder.redirectErrorStream(true);
+      builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+      Process process = builder.start();
+      assertThat(process.waitFor(30, TimeUnit.SECONDS)).isTrue();
+      return process.exitValue();
+    }
+
+    @Test
+    @DisplayName("runs the HTTP HEAD test when the proxy answers, whatever the status")
+    void given_proxyAnswering_should_runHttpHead() throws Exception {
+      assumeTrue(hasCurl(), "requires curl");
+      HttpServer proxy = refusingProxy();
+      try {
+        assertThat(executeHttpHead(loopbackProxy(proxy.getAddress().getPort()))).isZero();
+      } finally {
+        proxy.stop(0);
+      }
+    }
+
+    @Test
+    @DisplayName("fails the HTTP HEAD test when the request gets no HTTP answer")
+    void given_noHttpAnswer_should_failHttpHead() throws Exception {
+      assumeTrue(hasCurl(), "requires curl");
+      assertThat(executeHttpHead(loopbackProxy(closedPort()))).isNotZero();
+    }
+
     @Test
     @DisplayName("writes the surrogate in the run directory and leaves it in place at cleanup")
     void given_validArguments_should_writeThenKeepTheSurrogate() throws Exception {
@@ -1027,6 +1121,53 @@ class IocValidationCommandContentTest {
 
     private static String cleanup() {
       return PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
+    }
+
+    private int executeHttpHead(String proxy) throws Exception {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("psh");
+      binder.bind(IOC_VALIDATION_URL_KEY, "http://ioc-validation.example/");
+      binder.bind(IOC_VALIDATION_PROXY_KEY, proxy);
+      Path script =
+          Files.writeString(
+              Files.createTempFile(tmp, "ioc-validation-", ".ps1"),
+              binder.render(
+                  PayloadService.iocValidationCommandContent(
+                      IocValidationTestKind.HTTP_HEAD, true)));
+      ProcessBuilder builder =
+          new ProcessBuilder(
+              shell,
+              "-NoProfile",
+              "-NonInteractive",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-File",
+              script.toString());
+      builder.redirectErrorStream(true);
+      builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+      Process process = builder.start();
+      boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+      if (!finished) {
+        process.destroyForcibly();
+      }
+      assertThat(finished).isTrue();
+      return process.exitValue();
+    }
+
+    @Test
+    @DisplayName("runs the HTTP HEAD test when the proxy answers, whatever the status")
+    void given_proxyAnswering_should_runHttpHead() throws Exception {
+      HttpServer proxy = refusingProxy();
+      try {
+        assertThat(executeHttpHead(loopbackProxy(proxy.getAddress().getPort()))).isZero();
+      } finally {
+        proxy.stop(0);
+      }
+    }
+
+    @Test
+    @DisplayName("fails the HTTP HEAD test when the request gets no HTTP answer")
+    void given_noHttpAnswer_should_failHttpHead() throws Exception {
+      assertThat(executeHttpHead(loopbackProxy(closedPort()))).isNotZero();
     }
 
     @Test
