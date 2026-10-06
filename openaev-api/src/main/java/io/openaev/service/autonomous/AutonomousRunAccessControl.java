@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
@@ -63,8 +64,13 @@ import org.springframework.web.server.ResponseStatusException;
 public class AutonomousRunAccessControl {
 
   private final UserService userService;
-  private final PermissionService permissionService;
+  private PermissionService permissionService;
   private final GrantService grantService;
+
+  @Autowired
+  public void setPermissionService(PermissionService permissionService) {
+    this.permissionService = permissionService;
+  }
 
   /** Throws 403 unless the caller can READ the run's bound simulation / scenario. */
   public void assertCanRead(AutonomousRun run) {
