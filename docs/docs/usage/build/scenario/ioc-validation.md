@@ -94,7 +94,9 @@ the one that was checked.
 URL and agent URL), the OpenCTI the tenant is connected to, or the egress proxy. Their host names are resolved from
 the OpenAEV server when a request is received and when it is approved, and a URL whose host is one of these names or
 addresses, a URL whose host name resolves to one of these addresses, or a network test towards one of these addresses
-is refused. A host that only contains one of these names, such as `openaev.example.com.attacker.net`, is not a host of
+is refused. A DNS resolution test of one of these host names is refused too; a DNS resolution test of another name is
+not, even when that name resolves to an address of the platform, since a lookup never connects to the addresses it
+gets back. A host that only contains one of these names, such as `openaev.example.com.attacker.net`, is not a host of
 the platform.
 
 **Malformed requests are not recorded.** Every reference of a request must be the STIX identifier of its object type,

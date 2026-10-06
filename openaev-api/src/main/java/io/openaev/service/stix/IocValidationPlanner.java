@@ -199,7 +199,7 @@ public final class IocValidationPlanner {
     String observableType =
         ioc.getObservableType() == null ? "" : ioc.getObservableType().toLowerCase(Locale.ROOT);
     return switch (kind) {
-      case DNS_RESOLUTION -> planDns(ioc, observableType);
+      case DNS_RESOLUTION -> planDns(ioc, observableType, settings);
       case NETWORK_TRAFFIC -> planNetwork(ioc, observableType, settings);
       case HTTP_HEAD -> planHttpHead(ioc, observableType, settings, resolver);
       case FILE_DROP -> planFileDrop(ioc, observableType);
@@ -311,17 +311,25 @@ public final class IocValidationPlanner {
     return Optional.of(fingerprint(new Plan(kind, Map.copyOf(arguments), null)));
   }
 
-  private static Plan planDns(IocValidationIoc ioc, String observableType) {
+  /**
+   * A lookup never connects to the addresses it gets back, so only the names of the platform are
+   * refused: resolving every indicator name from the OpenAEV server to find an alias of the
+   * platform would query the name servers of the indicator before any approval.
+   */
+  private static Plan planDns(
+      IocValidationIoc ioc, String observableType, IocValidationSettings settings) {
     if (!HOST_TYPES.contains(observableType)) {
       return notApplicable(IocValidationTestKind.DNS_RESOLUTION, ioc);
     }
     return normalizeHost(ioc.getValue())
         .map(
             host ->
-                new Plan(
-                    IocValidationTestKind.DNS_RESOLUTION,
-                    Map.of(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, host),
-                    null))
+                settings.platformHosts().contains(host)
+                    ? Plan.refuse(platformHostRefusal(ioc.getValue(), host))
+                    : new Plan(
+                        IocValidationTestKind.DNS_RESOLUTION,
+                        Map.of(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, host),
+                        null))
         .orElseGet(
             () ->
                 Plan.refuse(

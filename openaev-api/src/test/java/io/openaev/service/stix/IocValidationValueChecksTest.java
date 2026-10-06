@@ -930,6 +930,36 @@ class IocValidationValueChecksTest {
     }
 
     @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"openaev.example.com", "OpenCTI.Example.org.", "proxy.example.net"})
+    @DisplayName("a DNS resolution test refuses a host name of the platform")
+    void given_nameOfThePlatform_should_refuseDnsTest(String value) {
+      Plan plan =
+          planWithPlatformHosts(ioc("Domain-Name", value, IocValidationTestKind.DNS_RESOLUTION));
+      assertRefused(plan);
+      assertThat(plan.message()).contains("a host of this platform");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"openaev.example.com.evil.example.net", "alias.example.net"})
+    @DisplayName(
+        "a DNS resolution test accepts another name, even one resolving to the platform: a lookup"
+            + " never connects to its answers")
+    void given_otherName_should_planDnsTest(String value) {
+      IocValidationSettings settings =
+          allowAll()
+              .withPlatformHosts(
+                  IocValidationPlanner.withPlatformAddresses(
+                      withPlatformHosts().platformHosts(), PLATFORM_DNS));
+      Plan plan =
+          IocValidationPlanner.plan(
+              ioc("Domain-Name", value, IocValidationTestKind.DNS_RESOLUTION),
+              settings,
+              PLATFORM_DNS);
+      assertThat(plan.runnable()).isTrue();
+      assertThat(plan.arguments().get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)).isEqualTo(value);
+    }
+
+    @ParameterizedTest(name = "{0}")
     @ValueSource(
         strings = {
           "https://openaev.example.com.evil.example.net/",
