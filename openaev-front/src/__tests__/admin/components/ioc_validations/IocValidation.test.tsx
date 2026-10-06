@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import IocValidation from '../../../../admin/components/ioc_validations/IocValidation';
-import { IOC_VALIDATION_SETTINGS_URL } from '../../../../admin/components/ioc_validations/iocValidationUtils';
+import { IOC_VALIDATION_FOCUS_RING_CLASS, IOC_VALIDATION_SETTINGS_URL } from '../../../../admin/components/ioc_validations/iocValidationUtils';
 import { type IocValidationOutput } from '../../../../utils/api-types';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
@@ -117,6 +117,20 @@ describe('IocValidation', () => {
     const link = within(table).getByRole('link', { name: 'Open settings' });
     expect(link.getAttribute('href')).toBe(IOC_VALIDATION_SETTINGS_URL);
     expect(reason.parentElement).toBe(link.parentElement);
+  });
+
+  it('gives the focusable reason, settings link and relative date the focus ring of the design system', () => {
+    const { container } = renderDetail(request('AWAITING_APPROVAL'));
+    const table = screen.getByRole('table', { name: 'Tested IOCs' });
+    const date = container.querySelector('time') as HTMLElement;
+    expect(date.getAttribute('tabindex')).toBe('0');
+    [
+      within(table).getByText('Not allowed by the safety settings'),
+      within(table).getByRole('link', { name: 'Open settings' }),
+      date,
+    ].forEach((element) => {
+      expect(element.className.split(' ')).toEqual(expect.arrayContaining(IOC_VALIDATION_FOCUS_RING_CLASS.split(' ')));
+    });
   });
 
   it('offers the settings link only to users who can change the settings', () => {

@@ -14,6 +14,9 @@ export const IOC_VALIDATION_POLL_INTERVAL_MS = 15_000;
 
 export const IOC_VALIDATION_REJECT_REASON_MAX_LENGTH = 2000;
 
+// The keyboard focus ring of the design-system controls, for focusable text: a box shadow, so the size stays
+export const IOC_VALIDATION_FOCUS_RING_CLASS = 'rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-focus';
+
 export const IOC_VALIDATION_TEST_KINDS: readonly IocValidationTestKind[] = [
   'DNS_RESOLUTION',
   'NETWORK_TRAFFIC',

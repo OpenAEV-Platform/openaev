@@ -21,6 +21,7 @@ import IocValidationTable, { type IocValidationTableColumn } from './IocValidati
 import {
   countIocValidationOutcomes,
   IOC_VALIDATION_BASE_URL,
+  IOC_VALIDATION_FOCUS_RING_CLASS,
   IOC_VALIDATION_POLL_INTERVAL_MS,
   IOC_VALIDATION_SETTINGS_URL,
   iocValidationObservableTypeLabel,
@@ -147,6 +148,7 @@ const IocValidation = () => {
         const reason = (
           <span
             tabIndex={ioc.ioc_message ? 0 : undefined}
+            className={ioc.ioc_message ? IOC_VALIDATION_FOCUS_RING_CLASS : undefined}
             style={{
               minWidth: 0,
               overflow: 'hidden',
@@ -175,6 +177,7 @@ const IocValidation = () => {
             {canManageSettings && (
               <Link
                 to={IOC_VALIDATION_SETTINGS_URL}
+                className={IOC_VALIDATION_FOCUS_RING_CLASS}
                 style={{
                   flexShrink: 0,
                   whiteSpace: 'nowrap',
