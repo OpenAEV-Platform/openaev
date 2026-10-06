@@ -2,7 +2,7 @@ import { Button, Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger }
 import { PlayArrowOutlined, SettingsOutlined, Stop, TrackChangesOutlined, UpdateOutlined } from '@mui/icons-material';
 import { Alert, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { fetchMe } from '../../../../actions/Application';
@@ -20,7 +20,7 @@ import type { ExpectationsDriftOutput, InjectResultOverviewOutput } from '../../
 import { useAppDispatch } from '../../../../utils/hooks';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { type Cron } from '../../../../utils/period/Cron';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
@@ -37,7 +37,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   const { t } = useFormatter();
   const theme = useTheme();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { setEEFeatureDetectedInfo } = useEnterpriseEdition();
   const dispatch = useAppDispatch();
   const hasAbility = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, injectResultOverview.inject_id);

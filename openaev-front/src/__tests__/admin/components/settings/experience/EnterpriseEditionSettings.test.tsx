@@ -10,7 +10,7 @@ import { useHelper } from '../../../../../store';
 import { type License, type PlatformSettings, type User } from '../../../../../utils/api-types';
 import { UserContext, type UserContextType } from '../../../../../utils/hooks/useAuth';
 import { type AppAbility, defineAbility } from '../../../../../utils/permissions/ability';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { AbilityProvider } from '../../../../../utils/permissions/permissionsContext';
 
 vi.mock('../../../../../store', () => ({ useHelper: vi.fn() }));
 vi.mock('../../../../../utils/hooks', () => ({ useAppDispatch: () => vi.fn() }));
@@ -36,9 +36,9 @@ const renderSettings = (license: License) => {
     <ThemeProvider theme={theme}>
       <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
         <UserContext.Provider value={userContext}>
-          <AbilityContext.Provider value={ability}>
+          <AbilityProvider value={ability}>
             {children}
-          </AbilityContext.Provider>
+          </AbilityProvider>
         </UserContext.Provider>
       </IntlProvider>
     </ThemeProvider>

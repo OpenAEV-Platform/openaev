@@ -1,13 +1,13 @@
 import { Lens } from '@mui/icons-material';
 import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
-import { type CSSProperties, type FunctionComponent, useContext, useMemo } from 'react';
+import { type CSSProperties, type FunctionComponent, useMemo } from 'react';
 import { type GlobalError } from 'react-hook-form';
 
 import { type MarkingDefinitionOutput } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
 import useMarkingDefinitions from '../../utils/hooks/useMarkingDefinitions';
 import { collapseToHighestPerType, markingLabel } from '../../utils/markings';
-import { AbilityContext } from '../../utils/permissions/permissionsContext';
+import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import MarkingChip from '../common/MarkingChip';
 import { useFormatter } from '../i18n';
@@ -52,7 +52,7 @@ const MarkingField: FunctionComponent<Props> = ({
   // it would just get a 403. Checked here too, client-side, so the picker never fires that request
   // in the first place - per the platform's own convention (see PERMISSION_REQUIRED's doc),
   // reading rights hide the affordance entirely rather than showing it disabled.
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canAccessMarkingDefinitions = ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
 
   // Only the markings the current user is cleared to assign - offering one they don't hold would

@@ -1,7 +1,7 @@
 import { Checkbox } from '@filigran/design-system';
 import { MailOutlineOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -18,7 +18,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { type PhishingEmailTemplate, type SearchPaginationInput } from '../../../../../utils/api-types';
 import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import ToolBar from '../../../common/ToolBar';
 import PhishingEmailTemplatePopover from './PhishingEmailTemplatePopover';
@@ -40,7 +40,7 @@ const PhishingEmailTemplates = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Query param
   const [searchParams] = useSearchParams();

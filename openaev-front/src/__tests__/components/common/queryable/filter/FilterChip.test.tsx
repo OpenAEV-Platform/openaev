@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import FilterChip from '../../../../../components/common/queryable/filter/FilterChip';
 import { type FilterHelpers } from '../../../../../components/common/queryable/filter/FilterHelpers';
+import { defineAbility } from '../../../../../utils/permissions/ability';
+import { AbilityProvider } from '../../../../../utils/permissions/permissionsContext';
 
 vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (s: string) => s }) }));
 vi.mock('../../../../../components/common/queryable/filter/FilterChipPopover', () => ({ default: () => null }));
@@ -34,7 +36,9 @@ describe('FilterChip', () => {
     render(
       <ThemeProvider theme={createTheme()}>
         <TooltipProvider>
-          <FilterChip filter={filter} helpers={helpers} propertySchema={propertySchema} pristine />
+          <AbilityProvider value={defineAbility([], {}, false)}>
+            <FilterChip filter={filter} helpers={helpers} propertySchema={propertySchema} pristine />
+          </AbilityProvider>
         </TooltipProvider>
       </ThemeProvider>,
     );

@@ -42,7 +42,7 @@ gh pr diff --name-only | grep -E "\.github/workflows/|Dockerfile|docker-compose|
 gh pr diff --name-only | grep -E "\.eslintrc|\.prettierrc|spotless|\.editorconfig"
 
 # Internal dev docs (not user-facing)
-gh pr diff --name-only | grep -E "\.github/instructions/|\.github/agents/|\.github/skills/|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|copilot-instructions"
+gh pr diff --name-only | grep -E "\.github/instructions/|\.github/agents/|\.claude/skills/|\.claude/rules/|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|copilot-instructions"
 
 # Build services / Maven plugin (build tooling)
 gh pr diff --name-only | grep -E "openaev-build-services/|openaev-maven-plugin/"
