@@ -99,7 +99,8 @@ public class PayloadService {
       "OpenAEV IOC validation: the run directory is not owned by the runner, or the run directory"
           + " or the surrogate path is a link; nothing was written";
   static final String IOC_VALIDATION_NO_TCP_TOOL =
-      "OpenAEV IOC validation: neither nc nor bash is available to attempt the connection";
+      "OpenAEV IOC validation: neither nc nor bash with timeout is available to attempt the"
+          + " connection";
   static final String IOC_VALIDATION_NO_HTTP_TOOL =
       "OpenAEV IOC validation: curl is not available to send the request";
   static final String IOC_VALIDATION_NO_HTTP_RESPONSE =
@@ -1257,12 +1258,14 @@ public class PayloadService {
           // an endpoint with no tool to attempt it fails, so the test is never taken for run.
           // BusyBox nc has no -z (the unknown option would end the test without a connection):
           // it connects and closes with an empty input instead.
+          // A bash connection waits for the TCP timeout of the system: bash runs under timeout 5,
+          // and only where "timeout 5 true" runs (an old BusyBox timeout wants -t).
           "if command -v nc >/dev/null 2>&1 && nc -h 2>&1 | grep -q -e ' -z'; then nc -z -w 5 "
               + host
               + " "
               + port
-              + "; true; elif command -v bash >/dev/null 2>&1; then"
-              + " bash -c 'exec 3<>\"/dev/tcp/$1/$2\" && exec 3<&-' openaev "
+              + "; true; elif command -v bash >/dev/null 2>&1 && timeout 5 true >/dev/null 2>&1;"
+              + " then timeout 5 bash -c 'exec 3<>\"/dev/tcp/$1/$2\" && exec 3<&-' openaev "
               + host
               + " "
               + port

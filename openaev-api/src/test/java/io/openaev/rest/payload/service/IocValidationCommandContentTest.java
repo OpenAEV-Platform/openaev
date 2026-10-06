@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -164,9 +165,13 @@ class IocValidationCommandContentTest {
     String http =
         PayloadService.iocValidationCommandContent(IocValidationTestKind.HTTP_HEAD, false);
     assertThat(tcp)
-        .contains("elif command -v bash >/dev/null 2>&1; then")
+        .contains(
+            "elif command -v bash >/dev/null 2>&1 && timeout 5 true >/dev/null 2>&1;"
+                + " then timeout 5 bash -c ")
         .contains(PayloadService.IOC_VALIDATION_NO_TCP_TOOL)
         .endsWith("exit 1; fi");
+    // bash is never run without the bound of timeout
+    assertThat(tcp.split("bash -c", -1)).hasSize(2);
     assertThat(http)
         .startsWith("if command -v curl >/dev/null 2>&1; then")
         .contains(PayloadService.IOC_VALIDATION_NO_HTTP_TOOL)
@@ -779,6 +784,86 @@ class IocValidationCommandContentTest {
         assertThat(process.waitFor(30, TimeUnit.SECONDS)).isTrue();
         assertThat(process.exitValue()).as(kind.name()).isNotZero();
       }
+    }
+
+    /**
+     * Runs the Unix network test with a PATH holding only the given tools of this system, linked
+     * from a directory of the test; {@code null} when one of them is not installed.
+     */
+    private Integer executeNetworkTestWith(String host, String port, String... tools)
+        throws Exception {
+      Path toolDirectory = Files.createDirectories(tmp.resolve("tools-" + String.join("-", tools)));
+      for (String tool : tools) {
+        Process lookup =
+            new ProcessBuilder("/bin/sh", "-c", "command -v " + tool)
+                .redirectErrorStream(true)
+                .start();
+        String location = new String(lookup.getInputStream().readAllBytes()).trim();
+        if (!lookup.waitFor(30, TimeUnit.SECONDS)
+            || lookup.exitValue() != 0
+            || !location.startsWith("/")) {
+          return null;
+        }
+        Files.createSymbolicLink(toolDirectory.resolve(tool), Path.of(location));
+      }
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("sh");
+      binder.bind(IOC_VALIDATION_HOST_KEY, host);
+      binder.bind(IOC_VALIDATION_PORT_KEY, port);
+      ProcessBuilder builder =
+          new ProcessBuilder(
+              "/bin/sh",
+              "-c",
+              binder.render(
+                  PayloadService.iocValidationCommandContent(
+                      IocValidationTestKind.NETWORK_TRAFFIC, false)));
+      builder.environment().put("PATH", toolDirectory.toString());
+      builder.redirectErrorStream(true);
+      builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+      Process process = builder.start();
+      boolean finished = process.waitFor(20, TimeUnit.SECONDS);
+      if (!finished) {
+        process.destroyForcibly();
+      }
+      assertThat(finished).as("the connection attempt ends within its bound").isTrue();
+      return process.exitValue();
+    }
+
+    @Test
+    @DisplayName("bounds the bash connection of the network test, without nc, to five seconds")
+    void given_bashWithTimeout_should_boundTheConnection() throws Exception {
+      // Once the accept queue of a listener is full, Linux drops the next connection attempts
+      // unanswered: without a bound, bash would wait for the TCP timeout of the system
+      try (ServerSocket listener = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+        List<Socket> queued = new ArrayList<>();
+        try {
+          for (int i = 0; i < 4; i++) {
+            Socket client = new Socket();
+            queued.add(client);
+            client.connect(listener.getLocalSocketAddress(), 1000);
+          }
+        } catch (IOException queueFull) {
+          // The attempts are no longer answered
+        }
+        try {
+          Integer exit =
+              executeNetworkTestWith(
+                  "127.0.0.1", String.valueOf(listener.getLocalPort()), "bash", "timeout");
+          assumeTrue(exit != null, "requires bash and timeout");
+          assertThat(exit).isZero();
+        } finally {
+          for (Socket client : queued) {
+            client.close();
+          }
+        }
+      }
+    }
+
+    @Test
+    @DisplayName("fails the network test on an endpoint with bash but neither timeout nor nc")
+    void given_bashWithoutTimeout_should_fail() throws Exception {
+      Integer exit = executeNetworkTestWith("127.0.0.1", String.valueOf(closedPort()), "bash");
+      assumeTrue(exit != null, "requires bash");
+      assertThat(exit).isNotZero();
     }
 
     private static String cleanup() {
