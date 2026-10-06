@@ -46,6 +46,11 @@ public interface InjectorContractRepository
    * <p>Returns a lightweight projection containing only the contract ID and aggregated attack
    * pattern IDs for efficient bulk operations.
    *
+   * <p>The mapping join carries {@code tenant_id}: a contract id is not unique on its own (the
+   * primary key is {@code (injector_contract_id, tenant_id)} and every tenant registers the same
+   * built-in declarations), so joining on the id alone aggregates another tenant's mappings into
+   * this tenant's contract.
+   *
    * @return list of raw injector contract projections
    */
   @Query(
@@ -53,7 +58,9 @@ public interface InjectorContractRepository
           "SELECT injcon.injector_contract_id, "
               + "array_remove(array_agg(attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
               + "FROM injectors_contracts injcon "
-              + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
+              + "LEFT JOIN injectors_contracts_attack_patterns injconatt "
+              + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
+              + "  AND injcon.tenant_id = injconatt.tenant_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
               + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY injcon.injector_contract_id",
@@ -79,6 +86,8 @@ public interface InjectorContractRepository
    * <p>Returns only contracts where the user has a THREAT_ARSENAL grant on the injector contract ID
    * through their group memberships.
    *
+   * <p>Same tenant-carrying mapping join as {@link #getAllRawInjectorsContracts()}.
+   *
    * @param userId the ID of the user to check access for
    * @return list of raw injector contract projections the user has been granted access to
    */
@@ -91,7 +100,9 @@ public interface InjectorContractRepository
           "SELECT injcon.injector_contract_id, "
               + "array_remove(array_agg(attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
               + "FROM injectors_contracts injcon "
-              + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
+              + "LEFT JOIN injectors_contracts_attack_patterns injconatt "
+              + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
+              + "  AND injcon.tenant_id = injconatt.tenant_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
               + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "AND EXISTS ( "
@@ -207,16 +218,19 @@ public interface InjectorContractRepository
           SELECT array_remove(array_agg(icap.attack_pattern_id), NULL) AS attack_pattern_ids
           FROM injectors_contracts_attack_patterns icap
           WHERE icap.injector_contract_id = ic.injector_contract_id
+            AND icap.tenant_id = ic.tenant_id
       ) ap ON true
       LEFT JOIN LATERAL (
           SELECT array_remove(array_agg(icd.domain_id), NULL) AS domain_ids
           FROM injectors_contracts_domains icd
           WHERE icd.injector_contract_id = ic.injector_contract_id
+            AND icd.tenant_id = ic.tenant_id
       ) d ON true
       LEFT JOIN LATERAL (
           SELECT array_remove(array_agg(ict.tag_id), NULL) AS tag_ids
           FROM injector_contract_tags ict
           WHERE ict.injector_contract_id = ic.injector_contract_id
+            AND ict.tenant_id = ic.tenant_id
       ) t ON true
       WHERE ic.injector_contract_payload = :payloadId
       """,
