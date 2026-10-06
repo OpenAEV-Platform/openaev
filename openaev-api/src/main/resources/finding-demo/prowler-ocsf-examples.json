@@ -1,0 +1,2344 @@
+[
+  {
+    "message": "Block Public Access is not configured for the account 427648302155.",
+    "status_code": "FAIL",
+    "status_detail": "Block Public Access is not configured for the account 427648302155.",
+    "severity": "High",
+    "severity_id": 4,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "s3_account_level_public_access_blocks",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "Check S3 Account Level Public Access Block.",
+      "desc": "Check S3 Account Level Public Access Block.",
+      "types": [
+        "Data Protection"
+      ],
+      "uid": "prowler-aws-s3_account_level_public_access_blocks-427648302155-us-east-1-427648302155"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:iam::427648302155:root",
+        "name": "427648302155",
+        "type": "AwsS3Bucket",
+        "region": "us-east-1",
+        "group": {
+          "name": "s3"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:iam::427648302155:root",
+            "name": "427648302155"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Public access policies may be applied to sensitive data buckets.",
+    "remediation": {
+      "desc": "You can enable Public Access Block at the account level to prevent the exposure of your data stored in S3.",
+      "references": [
+        "https://docs.bridgecrew.io/docs/bc_aws_s3_21#cloudformation",
+        "https://docs.bridgecrew.io/docs/bc_aws_s3_21#terraform",
+        "aws s3control put-public-access-block --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true --account-id <account_id>",
+        "https://github.com/cloudmatos/matos/tree/master/remediations/aws/s3/s3control/block-public-access",
+        "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "NIST-800-53-Revision-5": [
+          "ac_2_6",
+          "ac_3",
+          "ac_3_7",
+          "ac_4_21",
+          "ac_6",
+          "ac_17_b",
+          "ac_17_1",
+          "ac_17_4_a",
+          "ac_17_9",
+          "ac_17_10",
+          "cm_6_a",
+          "cm_9_b",
+          "mp_2",
+          "sc_7_2",
+          "sc_7_3",
+          "sc_7_7",
+          "sc_7_9_a",
+          "sc_7_11",
+          "sc_7_12",
+          "sc_7_16",
+          "sc_7_20",
+          "sc_7_21",
+          "sc_7_24_b",
+          "sc_7_25",
+          "sc_7_26",
+          "sc_7_27",
+          "sc_7_28",
+          "sc_7_a",
+          "sc_7_b",
+          "sc_7_c",
+          "sc_25"
+        ],
+        "GxP-21-CFR-Part-11": [
+          "11.10-d",
+          "11.10-g"
+        ],
+        "CIS-1.4": [
+          "2.1.5"
+        ],
+        "AWS-Well-Architected-Framework-Security-Pillar": [
+          "SEC03-BP07"
+        ],
+        "FFIEC": [
+          "d3-pc-im-b-1"
+        ],
+        "FedRamp-Moderate-Revision-4": [
+          "ac-3",
+          "ac-6",
+          "ac-17-1",
+          "ac-21-b",
+          "cm-2",
+          "sc-4",
+          "sc-7-3",
+          "sc-7"
+        ],
+        "CIS-2.0": [
+          "2.1.5"
+        ],
+        "AWS-Foundational-Security-Best-Practices": [
+          "s3"
+        ],
+        "NIST-800-53-Revision-4": [
+          "sc_7_3",
+          "sc_7"
+        ],
+        "CISA": [
+          "your-systems-3",
+          "your-data-2"
+        ],
+        "NIST-800-171-Revision-2": [
+          "3_1_1",
+          "3_1_2",
+          "3_1_3",
+          "3_1_14",
+          "3_1_20",
+          "3_3_8",
+          "3_4_6",
+          "3_13_2",
+          "3_13_5"
+        ],
+        "FedRAMP-Low-Revision-4": [
+          "ac-3",
+          "ac-17",
+          "cm-2",
+          "sc-7"
+        ],
+        "NIST-CSF-1.1": [
+          "ac_3",
+          "ac_5",
+          "ds_5",
+          "ip_8",
+          "pt_3"
+        ],
+        "MITRE-ATTACK": [
+          "T1530"
+        ],
+        "CIS-1.5": [
+          "2.1.5"
+        ],
+        "HIPAA": [
+          "164_308_a_1_ii_b",
+          "164_308_a_3_i"
+        ]
+      },
+      "demo_source": "user-provided Prowler record"
+    },
+    "cloud": {
+      "account": {
+        "uid": "427648302155"
+      },
+      "region": "us-east-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-elasticsearch is publicly accessible.",
+    "metadata": {
+      "event_code": "s3_bucket_public_access",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.35.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.5.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-elasticsearch is publicly accessible.",
+    "status_id": 3,
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1788199834,
+      "created_time_dt": "2026-08-31T20:10:34.984528",
+      "desc": "**Amazon S3 buckets** are evaluated for **public access** via ACLs and bucket policies. The check identifies account or bucket `PublicAccessBlock` protections (`IgnorePublicAcls`, `RestrictPublicBuckets`) and flags buckets granting group access to `AllUsers` or `AuthenticatedUsers`, or with a public bucket policy.",
+      "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+      "types": [
+        "Software and Configuration Checks/AWS Security Best Practices/Network Reachability",
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS Foundational Security Best Practices",
+        "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark",
+        "Effects/Data Exposure"
+      ],
+      "uid": "prowler-aws-s3_bucket_public_access-006621354852-eu-central-1-eu-west-staging-main-ff-oaev-openaev-elasticsearch"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "eu-central-1",
+        "data": {
+          "details": "",
+          "metadata": {
+            "arn": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-elasticsearch",
+            "name": "eu-west-staging-main-ff-oaev-openaev-elasticsearch",
+            "owner_id": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+            "owner": null,
+            "versioning": false,
+            "logging": false,
+            "public_access_block": {
+              "block_public_acls": true,
+              "ignore_public_acls": true,
+              "block_public_policy": false,
+              "restrict_public_buckets": false
+            },
+            "acl_grantees": [
+              {
+                "display_name": null,
+                "ID": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                "type": "CanonicalUser",
+                "URI": null,
+                "permission": "FULL_CONTROL"
+              }
+            ],
+            "policy": {},
+            "encryption": "AES256",
+            "region": "eu-central-1",
+            "logging_target_bucket": null,
+            "ownership": "BucketOwnerEnforced",
+            "object_lock": false,
+            "mfa_delete": false,
+            "tags": [
+              {
+                "Key": "customer",
+                "Value": "main-ff-oaev"
+              }
+            ],
+            "lifecycle": [],
+            "replication_rules": [],
+            "notification_config": {},
+            "object_sampling": null
+          }
+        },
+        "group": {
+          "name": "s3"
+        },
+        "labels": [
+          "customer:main-ff-oaev"
+        ],
+        "name": "eu-west-staging-main-ff-oaev-openaev-elasticsearch",
+        "type": "AwsS3Bucket",
+        "uid": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-elasticsearch"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "006621354852",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "ou_uid": "",
+        "ou_name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "eu-central-1"
+    },
+    "remediation": {
+      "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privilege** with explicit principals; avoid ACLs via Object Ownership. Use private access patterns (e.g., CloudFront OAC or presigned URLs) and monitor with analyzers.",
+      "references": [
+        "https://hub.prowler.com/check/s3_bucket_public_access"
+      ]
+    },
+    "risk_details": "Publicly accessible buckets jeopardize **confidentiality** through unauthenticated reads, **integrity** through write or ACL changes, and **availability** via object deletion or overwrite. Attackers can mass-exfiltrate data, host malware, or pivot after discovering secrets stored in objects.",
+    "time": 1788199834,
+    "time_dt": "2026-08-31T20:10:34.984528",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create",
+    "unmapped": {
+      "demo_source": "user-provided Prowler OCSF record (status converted from PASS to FAIL for the demo)"
+    }
+  },
+  {
+    "message": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-postgres is publicly accessible.",
+    "metadata": {
+      "event_code": "s3_bucket_public_access",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.35.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.5.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-postgres is publicly accessible.",
+    "status_id": 3,
+    "unmapped": {
+      "related_url": "",
+      "categories": [
+        "internet-exposed"
+      ],
+      "depends_on": [],
+      "related_to": [],
+      "additional_urls": [
+        "https://docs.aws.amazon.com/id_id/kitchensink/latest/testguide/access-control-block-public-access.html",
+        "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+      ],
+      "notes": "",
+      "compliance": {
+        "CCC-v2025.10": [
+          "CCC.Core.CN05.AR01",
+          "CCC.Core.CN05.AR04",
+          "CCC.Core.CN05.AR05",
+          "CCC.AuditLog.CN10.AR01",
+          "CCC.AuditLog.CN10.AR02",
+          "CCC.Logging.CN05.AR01",
+          "CCC.Logging.CN05.AR02"
+        ],
+        "NIST-CSF-2.0": [
+          "ra_1",
+          "ac_3",
+          "ds_5",
+          "ip_1"
+        ],
+        "GxP-21-CFR-Part-11": [
+          "11.10-c",
+          "11.10-d",
+          "11.10-g",
+          "11.10-k"
+        ],
+        "NIST-800-171-Revision-2": [
+          "3_1_1",
+          "3_1_2",
+          "3_1_3",
+          "3_3_8",
+          "3_4_6",
+          "3_13_2",
+          "3_13_5"
+        ],
+        "NIST-CSF-1.1": [
+          "ac_3",
+          "ac_5",
+          "ds_5",
+          "ip_8",
+          "pt_3"
+        ],
+        "AWS-Well-Architected-Framework-Security-Pillar": [
+          "SEC03-BP07"
+        ],
+        "MITRE-ATTACK": [
+          "T1530"
+        ],
+        "AWS-Audit-Manager-Control-Tower-Guardrails": [
+          "4.1.1"
+        ],
+        "AWS-Foundational-Technical-Review": [
+          "S3-001"
+        ],
+        "FedRAMP-Low-Revision-4": [
+          "ac-3",
+          "ac-17",
+          "cm-2",
+          "sc-7"
+        ],
+        "NIST-800-53-Revision-4": [
+          "ac_3",
+          "ac_4",
+          "ac_6",
+          "ac_21",
+          "sc_7_3",
+          "sc_7"
+        ],
+        "SecNumCloud-3.2": [
+          "9.7"
+        ],
+        "NIST-800-53-Revision-5": [
+          "ac_2_6",
+          "ac_3",
+          "ac_3_7",
+          "ac_4_21",
+          "ac_6",
+          "ac_17_b",
+          "ac_17_1",
+          "ac_17_4_a",
+          "ac_17_9",
+          "ac_17_10",
+          "cm_6_a",
+          "cm_9_b",
+          "mp_2",
+          "sc_7_2",
+          "sc_7_3",
+          "sc_7_7",
+          "sc_7_9_a",
+          "sc_7_11",
+          "sc_7_12",
+          "sc_7_16",
+          "sc_7_20",
+          "sc_7_21",
+          "sc_7_24_b",
+          "sc_7_25",
+          "sc_7_26",
+          "sc_7_27",
+          "sc_7_28",
+          "sc_7_a",
+          "sc_7_b",
+          "sc_7_c",
+          "sc_25"
+        ],
+        "CISA": [
+          "your-systems-3",
+          "your-data-2"
+        ],
+        "C5-2025": [
+          "PS-03.02B",
+          "IAM-10.01B",
+          "COS-02.01B"
+        ],
+        "AWS-AI-Security-Framework-1.0": [
+          "AISF-DATA-04"
+        ],
+        "RBI-Cyber-Security-Framework": [
+          "annex_i_1_3"
+        ],
+        "KISA-ISMS-P-2023-korean": [
+          "2.6.1",
+          "2.6.2",
+          "2.10.2"
+        ],
+        "SOC2": [
+          "cc_6_1"
+        ],
+        "HIPAA": [
+          "164_308_a_1_ii_b",
+          "164_308_a_3_i",
+          "164_312_a_1",
+          "164_312_a_2_i"
+        ],
+        "PCI-4.0": [
+          "1.2.8.33",
+          "1.2.8.34",
+          "1.3.1.37",
+          "1.3.1.38",
+          "1.3.2.37",
+          "1.3.2.38",
+          "1.4.2.35",
+          "1.4.2.36",
+          "1.5.1.33",
+          "1.5.1.34",
+          "10.3.2.21",
+          "10.3.2.23",
+          "10.3.3.23",
+          "10.3.4.8",
+          "3.5.1.3.26",
+          "3.5.1.3.28",
+          "A1.1.2.17",
+          "A1.1.2.19",
+          "A1.1.3.33",
+          "A1.1.3.34",
+          "A1.2.1.31",
+          "A3.4.1.19",
+          "A3.4.1.21"
+        ],
+        "KISA-ISMS-P-2023": [
+          "2.6.1",
+          "2.6.2",
+          "2.10.2"
+        ],
+        "AWS-Account-Security-Onboarding": [
+          "S3 Block Public Access"
+        ],
+        "FedRamp-Moderate-Revision-4": [
+          "ac-3",
+          "ac-4",
+          "ac-6",
+          "ac-17-1",
+          "ac-21-b",
+          "cm-2",
+          "sc-4",
+          "sc-7-3",
+          "sc-7"
+        ],
+        "ISO27001-2022": [
+          "A.8.1"
+        ],
+        "ENS-RD2022": [
+          "op.exp.8.r4.aws.ct.2"
+        ],
+        "FFIEC": [
+          "d3-pc-im-b-1"
+        ]
+      },
+      "scan_id": "01a05971-f268-7b39-9196-640902c918eb",
+      "provider_uid": "006621354852",
+      "provider": "aws",
+      "demo_source": "user-provided Prowler OCSF record (status converted from PASS to FAIL for the demo)"
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1788199834,
+      "created_time_dt": "2026-08-31T20:10:34.984528",
+      "desc": "**Amazon S3 buckets** are evaluated for **public access** via ACLs and bucket policies. The check identifies account or bucket `PublicAccessBlock` protections (`IgnorePublicAcls`, `RestrictPublicBuckets`) and flags buckets granting group access to `AllUsers` or `AuthenticatedUsers`, or with a public bucket policy.",
+      "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+      "types": [
+        "Software and Configuration Checks/AWS Security Best Practices/Network Reachability",
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS Foundational Security Best Practices",
+        "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark",
+        "Effects/Data Exposure"
+      ],
+      "uid": "prowler-aws-s3_bucket_public_access-006621354852-eu-central-1-eu-west-staging-main-ff-oaev-openaev-postgres"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "eu-central-1",
+        "data": {
+          "details": "",
+          "metadata": {
+            "arn": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-postgres",
+            "name": "eu-west-staging-main-ff-oaev-openaev-postgres",
+            "owner_id": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+            "owner": null,
+            "versioning": false,
+            "logging": false,
+            "public_access_block": {
+              "block_public_acls": true,
+              "ignore_public_acls": true,
+              "block_public_policy": false,
+              "restrict_public_buckets": false
+            },
+            "acl_grantees": [
+              {
+                "display_name": null,
+                "ID": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                "type": "CanonicalUser",
+                "URI": null,
+                "permission": "FULL_CONTROL"
+              }
+            ],
+            "policy": {},
+            "encryption": "AES256",
+            "region": "eu-central-1",
+            "logging_target_bucket": null,
+            "ownership": "BucketOwnerEnforced",
+            "object_lock": false,
+            "mfa_delete": false,
+            "tags": [
+              {
+                "Key": "customer",
+                "Value": "main-ff-oaev"
+              }
+            ],
+            "lifecycle": [],
+            "replication_rules": [],
+            "notification_config": {},
+            "object_sampling": null
+          }
+        },
+        "group": {
+          "name": "s3"
+        },
+        "labels": [
+          "customer:main-ff-oaev"
+        ],
+        "name": "eu-west-staging-main-ff-oaev-openaev-postgres",
+        "type": "AwsS3Bucket",
+        "uid": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-postgres"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "006621354852",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "ou_uid": "",
+        "ou_name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "eu-central-1"
+    },
+    "remediation": {
+      "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privilege** with explicit principals; avoid ACLs via Object Ownership. Use private access patterns (e.g., CloudFront OAC or presigned URLs) and monitor with analyzers.",
+      "references": [
+        "https://hub.prowler.com/check/s3_bucket_public_access"
+      ]
+    },
+    "risk_details": "Publicly accessible buckets jeopardize **confidentiality** through unauthenticated reads, **integrity** through write or ACL changes, and **availability** via object deletion or overwrite. Attackers can mass-exfiltrate data, host malware, or pivot after discovering secrets stored in objects.",
+    "time": 1788199834,
+    "time_dt": "2026-08-31T20:10:34.984528",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-minio is publicly accessible.",
+    "metadata": {
+      "event_code": "s3_bucket_public_access",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.35.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.5.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-minio is publicly accessible.",
+    "status_id": 3,
+    "unmapped": {
+      "related_url": "",
+      "categories": [
+        "internet-exposed"
+      ],
+      "depends_on": [],
+      "related_to": [],
+      "additional_urls": [
+        "https://docs.aws.amazon.com/id_id/kitchensink/latest/testguide/access-control-block-public-access.html",
+        "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+      ],
+      "notes": "",
+      "compliance": {
+        "CCC-v2025.10": [
+          "CCC.Core.CN05.AR01",
+          "CCC.Core.CN05.AR04",
+          "CCC.Core.CN05.AR05",
+          "CCC.AuditLog.CN10.AR01",
+          "CCC.AuditLog.CN10.AR02",
+          "CCC.Logging.CN05.AR01",
+          "CCC.Logging.CN05.AR02"
+        ],
+        "NIST-CSF-2.0": [
+          "ra_1",
+          "ac_3",
+          "ds_5",
+          "ip_1"
+        ],
+        "GxP-21-CFR-Part-11": [
+          "11.10-c",
+          "11.10-d",
+          "11.10-g",
+          "11.10-k"
+        ],
+        "NIST-800-171-Revision-2": [
+          "3_1_1",
+          "3_1_2",
+          "3_1_3",
+          "3_3_8",
+          "3_4_6",
+          "3_13_2",
+          "3_13_5"
+        ],
+        "NIST-CSF-1.1": [
+          "ac_3",
+          "ac_5",
+          "ds_5",
+          "ip_8",
+          "pt_3"
+        ],
+        "AWS-Well-Architected-Framework-Security-Pillar": [
+          "SEC03-BP07"
+        ],
+        "MITRE-ATTACK": [
+          "T1530"
+        ],
+        "AWS-Audit-Manager-Control-Tower-Guardrails": [
+          "4.1.1"
+        ],
+        "AWS-Foundational-Technical-Review": [
+          "S3-001"
+        ],
+        "FedRAMP-Low-Revision-4": [
+          "ac-3",
+          "ac-17",
+          "cm-2",
+          "sc-7"
+        ],
+        "NIST-800-53-Revision-4": [
+          "ac_3",
+          "ac_4",
+          "ac_6",
+          "ac_21",
+          "sc_7_3",
+          "sc_7"
+        ],
+        "SecNumCloud-3.2": [
+          "9.7"
+        ],
+        "NIST-800-53-Revision-5": [
+          "ac_2_6",
+          "ac_3",
+          "ac_3_7",
+          "ac_4_21",
+          "ac_6",
+          "ac_17_b",
+          "ac_17_1",
+          "ac_17_4_a",
+          "ac_17_9",
+          "ac_17_10",
+          "cm_6_a",
+          "cm_9_b",
+          "mp_2",
+          "sc_7_2",
+          "sc_7_3",
+          "sc_7_7",
+          "sc_7_9_a",
+          "sc_7_11",
+          "sc_7_12",
+          "sc_7_16",
+          "sc_7_20",
+          "sc_7_21",
+          "sc_7_24_b",
+          "sc_7_25",
+          "sc_7_26",
+          "sc_7_27",
+          "sc_7_28",
+          "sc_7_a",
+          "sc_7_b",
+          "sc_7_c",
+          "sc_25"
+        ],
+        "CISA": [
+          "your-systems-3",
+          "your-data-2"
+        ],
+        "C5-2025": [
+          "PS-03.02B",
+          "IAM-10.01B",
+          "COS-02.01B"
+        ],
+        "AWS-AI-Security-Framework-1.0": [
+          "AISF-DATA-04"
+        ],
+        "RBI-Cyber-Security-Framework": [
+          "annex_i_1_3"
+        ],
+        "KISA-ISMS-P-2023-korean": [
+          "2.6.1",
+          "2.6.2",
+          "2.10.2"
+        ],
+        "SOC2": [
+          "cc_6_1"
+        ],
+        "HIPAA": [
+          "164_308_a_1_ii_b",
+          "164_308_a_3_i",
+          "164_312_a_1",
+          "164_312_a_2_i"
+        ],
+        "PCI-4.0": [
+          "1.2.8.33",
+          "1.2.8.34",
+          "1.3.1.37",
+          "1.3.1.38",
+          "1.3.2.37",
+          "1.3.2.38",
+          "1.4.2.35",
+          "1.4.2.36",
+          "1.5.1.33",
+          "1.5.1.34",
+          "10.3.2.21",
+          "10.3.2.23",
+          "10.3.3.23",
+          "10.3.4.8",
+          "3.5.1.3.26",
+          "3.5.1.3.28",
+          "A1.1.2.17",
+          "A1.1.2.19",
+          "A1.1.3.33",
+          "A1.1.3.34",
+          "A1.2.1.31",
+          "A3.4.1.19",
+          "A3.4.1.21"
+        ],
+        "KISA-ISMS-P-2023": [
+          "2.6.1",
+          "2.6.2",
+          "2.10.2"
+        ],
+        "AWS-Account-Security-Onboarding": [
+          "S3 Block Public Access"
+        ],
+        "FedRamp-Moderate-Revision-4": [
+          "ac-3",
+          "ac-4",
+          "ac-6",
+          "ac-17-1",
+          "ac-21-b",
+          "cm-2",
+          "sc-4",
+          "sc-7-3",
+          "sc-7"
+        ],
+        "ISO27001-2022": [
+          "A.8.1"
+        ],
+        "ENS-RD2022": [
+          "op.exp.8.r4.aws.ct.2"
+        ],
+        "FFIEC": [
+          "d3-pc-im-b-1"
+        ]
+      },
+      "scan_id": "01a05971-f268-7b39-9196-640902c918eb",
+      "provider_uid": "006621354852",
+      "provider": "aws",
+      "demo_source": "user-provided Prowler OCSF record (status converted from PASS to FAIL for the demo)"
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1788199834,
+      "created_time_dt": "2026-08-31T20:10:34.984528",
+      "desc": "**Amazon S3 buckets** are evaluated for **public access** via ACLs and bucket policies. The check identifies account or bucket `PublicAccessBlock` protections (`IgnorePublicAcls`, `RestrictPublicBuckets`) and flags buckets granting group access to `AllUsers` or `AuthenticatedUsers`, or with a public bucket policy.",
+      "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+      "types": [
+        "Software and Configuration Checks/AWS Security Best Practices/Network Reachability",
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS Foundational Security Best Practices",
+        "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark",
+        "Effects/Data Exposure"
+      ],
+      "uid": "prowler-aws-s3_bucket_public_access-006621354852-eu-central-1-eu-west-staging-main-ff-oaev-openaev-minio"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "eu-central-1",
+        "data": {
+          "details": "",
+          "metadata": {
+            "arn": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-minio",
+            "name": "eu-west-staging-main-ff-oaev-openaev-minio",
+            "owner_id": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+            "owner": null,
+            "versioning": true,
+            "logging": false,
+            "public_access_block": {
+              "block_public_acls": true,
+              "ignore_public_acls": true,
+              "block_public_policy": false,
+              "restrict_public_buckets": false
+            },
+            "acl_grantees": [
+              {
+                "display_name": null,
+                "ID": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                "type": "CanonicalUser",
+                "URI": null,
+                "permission": "FULL_CONTROL"
+              }
+            ],
+            "policy": {},
+            "encryption": "AES256",
+            "region": "eu-central-1",
+            "logging_target_bucket": null,
+            "ownership": "BucketOwnerEnforced",
+            "object_lock": false,
+            "mfa_delete": false,
+            "tags": [
+              {
+                "Key": "20260826032605",
+                "Value": "20260826033116"
+              },
+              {
+                "Key": "20260827034223",
+                "Value": "20260827034813"
+              },
+              {
+                "Key": "20260829033803",
+                "Value": "20260829035202"
+              },
+              {
+                "Key": "20260830032804",
+                "Value": "20260830034025"
+              },
+              {
+                "Key": "20260831032051",
+                "Value": "20260831033008"
+              },
+              {
+                "Key": "20260828032804",
+                "Value": "20260828033828"
+              },
+              {
+                "Key": "20260825034738",
+                "Value": "20260825035832"
+              }
+            ],
+            "lifecycle": [],
+            "replication_rules": [],
+            "notification_config": {},
+            "object_sampling": null
+          }
+        },
+        "group": {
+          "name": "s3"
+        },
+        "labels": [
+          "20260826032605:20260826033116",
+          "20260827034223:20260827034813",
+          "20260829033803:20260829035202",
+          "20260830032804:20260830034025",
+          "20260831032051:20260831033008",
+          "20260828032804:20260828033828",
+          "20260825034738:20260825035832"
+        ],
+        "name": "eu-west-staging-main-ff-oaev-openaev-minio",
+        "type": "AwsS3Bucket",
+        "uid": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-minio"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "006621354852",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "ou_uid": "",
+        "ou_name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "eu-central-1"
+    },
+    "remediation": {
+      "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privilege** with explicit principals; avoid ACLs via Object Ownership. Use private access patterns (e.g., CloudFront OAC or presigned URLs) and monitor with analyzers.",
+      "references": [
+        "https://hub.prowler.com/check/s3_bucket_public_access"
+      ]
+    },
+    "risk_details": "Publicly accessible buckets jeopardize **confidentiality** through unauthenticated reads, **integrity** through write or ACL changes, and **availability** via object deletion or overwrite. Attackers can mass-exfiltrate data, host malware, or pivot after discovering secrets stored in objects.",
+    "time": 1788199834,
+    "time_dt": "2026-08-31T20:10:34.984528",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "S3 bucket allows public read access: ai-redteam-scratch-bucket",
+    "status_code": "FAIL",
+    "status_detail": "S3 bucket allows public read access: ai-redteam-scratch-bucket",
+    "severity": "Critical",
+    "severity_id": 5,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "s3_bucket_public_read_access",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "S3 bucket allows public read access",
+      "desc": "S3 bucket allows public read access",
+      "types": [
+        "Effects/Data Exposure"
+      ],
+      "uid": "prowler-aws-s3_bucket_public_read_access-999999999999-us-west-2-ai-redteam-scratch-bucket"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:s3:::ai-redteam-scratch-bucket",
+        "name": "ai-redteam-scratch-bucket",
+        "type": "AwsS3Bucket",
+        "region": "us-west-2",
+        "group": {
+          "name": "s3"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:s3:::ai-redteam-scratch-bucket",
+            "name": "ai-redteam-scratch-bucket"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Anyone on the Internet can list and read objects stored in the bucket.",
+    "remediation": {
+      "desc": "",
+      "references": []
+    },
+    "unmapped": {
+      "compliance": {},
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "999999999999"
+      },
+      "region": "us-west-2",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "S3 bucket allows public read access: my-public-bucket-example",
+    "status_code": "FAIL",
+    "status_detail": "S3 bucket allows public read access: my-public-bucket-example",
+    "severity": "Critical",
+    "severity_id": 5,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "s3_bucket_public_read_access",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "S3 bucket allows public read access",
+      "desc": "S3 bucket allows public read access",
+      "types": [
+        "Effects/Data Exposure"
+      ],
+      "uid": "prowler-aws-s3_bucket_public_read_access-123456789012-us-east-1-my-public-bucket-example"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:s3:::my-public-bucket-example",
+        "name": "my-public-bucket-example",
+        "type": "AwsS3Bucket",
+        "region": "us-east-1",
+        "group": {
+          "name": "s3"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:s3:::my-public-bucket-example",
+            "name": "my-public-bucket-example"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Anyone on the Internet can list and read objects stored in the bucket.",
+    "remediation": {
+      "desc": "Remove public read/write ACLs on the bucket and enable S3 Block Public Access at the account and bucket level.",
+      "references": [
+        "aws s3api put-public-access-block --bucket my-public-bucket-example --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true",
+        "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-2.0": [
+          "2.1.5"
+        ],
+        "CIS-3.0": [
+          "2.1.5"
+        ],
+        "AWS-Foundational-Security-Best-Practices": [
+          "S3.8"
+        ],
+        "MITRE-ATTACK": [
+          "T1530"
+        ]
+      },
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "123456789012"
+      },
+      "region": "us-east-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "CloudFront Distribution Using Deprecated SSL/TLS Protocols: cdn.example-corp.com",
+    "status_code": "FAIL",
+    "status_detail": "CloudFront Distribution Using Deprecated SSL/TLS Protocols: cdn.example-corp.com",
+    "severity": "Medium",
+    "severity_id": 3,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "cloudfront_distributions_using_deprecated_ssl_protocols",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "CloudFront Distribution Using Deprecated SSL/TLS Protocols",
+      "desc": "CloudFront Distribution Using Deprecated SSL/TLS Protocols",
+      "types": [
+        "Software and Configuration Checks/AWS Security Best Practices"
+      ],
+      "uid": "prowler-aws-cloudfront_distributions_using_deprecated_ssl_protocols-427648302155-us-east-1-cdn.example-corp.com"
+    },
+    "resources": [
+      {
+        "uid": "cdn.example-corp.com",
+        "name": "cdn.example-corp.com",
+        "type": "AwsCloudFrontDistribution",
+        "region": "us-east-1",
+        "group": {
+          "name": "cloudfront"
+        },
+        "data": {
+          "metadata": {
+            "arn": "cdn.example-corp.com",
+            "name": "cdn.example-corp.com"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Deprecated SSL/TLS protocols expose viewer traffic to downgrade and decryption attacks.",
+    "remediation": {
+      "desc": "Update the CloudFront distribution viewer certificate to enforce TLSv1.2_2021 or higher as the minimum protocol version.",
+      "references": [
+        "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/secure-connections-supported-viewer-protocols-ciphers.html",
+        "aws cloudfront update-distribution --id <distribution_id> --distribution-config file://config.json"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-2.0": [
+          "2.1.5"
+        ],
+        "AWS-Foundational-Security-Best-Practices": [
+          "cloudfront"
+        ],
+        "NIST-800-53-Revision-5": [
+          "sc_8",
+          "sc_13"
+        ]
+      },
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "427648302155"
+      },
+      "region": "us-east-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "CloudFront Distribution Using Deprecated SSL/TLS Protocols: assets.example-corp.com",
+    "status_code": "FAIL",
+    "status_detail": "CloudFront Distribution Using Deprecated SSL/TLS Protocols: assets.example-corp.com",
+    "severity": "Medium",
+    "severity_id": 3,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "cloudfront_distributions_using_deprecated_ssl_protocols",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "CloudFront Distribution Using Deprecated SSL/TLS Protocols",
+      "desc": "CloudFront Distribution Using Deprecated SSL/TLS Protocols",
+      "types": [
+        "Software and Configuration Checks/AWS Security Best Practices"
+      ],
+      "uid": "prowler-aws-cloudfront_distributions_using_deprecated_ssl_protocols-427648302155-eu-west-1-assets.example-corp.com"
+    },
+    "resources": [
+      {
+        "uid": "assets.example-corp.com",
+        "name": "assets.example-corp.com",
+        "type": "AwsCloudFrontDistribution",
+        "region": "eu-west-1",
+        "group": {
+          "name": "cloudfront"
+        },
+        "data": {
+          "metadata": {
+            "arn": "assets.example-corp.com",
+            "name": "assets.example-corp.com"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Deprecated SSL/TLS protocols expose viewer traffic to downgrade and decryption attacks.",
+    "remediation": {
+      "desc": "Update the CloudFront distribution viewer certificate to enforce TLSv1.2_2021 or higher as the minimum protocol version.",
+      "references": [
+        "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/secure-connections-supported-viewer-protocols-ciphers.html",
+        "aws cloudfront update-distribution --id <distribution_id> --distribution-config file://config.json"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-2.0": [
+          "2.1.5"
+        ],
+        "AWS-Foundational-Security-Best-Practices": [
+          "cloudfront"
+        ],
+        "NIST-800-53-Revision-5": [
+          "sc_8",
+          "sc_13"
+        ]
+      },
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "427648302155"
+      },
+      "region": "eu-west-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "IAM Access Analyzer is not enabled: unknown",
+    "status_code": "FAIL",
+    "status_detail": "IAM Access Analyzer is not enabled: unknown",
+    "severity": "Low",
+    "severity_id": 2,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "accessanalyzer_enabled",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "IAM Access Analyzer is not enabled",
+      "desc": "IAM Access Analyzer is not enabled",
+      "types": [],
+      "uid": "prowler-aws-accessanalyzer_enabled-123456789012-eu-west-1-unknown"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:accessanalyzer:eu-west-1:123456789012:analyzer/unknown",
+        "name": "unknown",
+        "type": "AwsAccessAnalyzer",
+        "region": "eu-west-1",
+        "group": {
+          "name": "accessanalyzer"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:accessanalyzer:eu-west-1:123456789012:analyzer/unknown",
+            "name": "unknown"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Without IAM Access Analyzer, resources shared outside the account go unnoticed.",
+    "remediation": {
+      "desc": "Enable IAM Access Analyzer for all accounts, create analyzer and take action over its recommendations (IAM Access Analyzer is available at no additional cost).",
+      "references": [
+        "aws accessanalyzer create-analyzer --analyzer-name NAME --type ACCOUNT",
+        "https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-1.4": [
+          "1.20"
+        ],
+        "CIS-2.0": [
+          "1.20"
+        ],
+        "CIS-3.0": [
+          "1.20"
+        ],
+        "KISA-ISMS-P-2023": [
+          "2.5.6",
+          "2.6.4",
+          "2.8.1",
+          "2.8.2"
+        ]
+      },
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "123456789012"
+      },
+      "region": "eu-west-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "IAM Access Analyzer is not enabled: unknown",
+    "status_code": "FAIL",
+    "status_detail": "IAM Access Analyzer is not enabled: unknown",
+    "severity": "Low",
+    "severity_id": 2,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "accessanalyzer_enabled",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "IAM Access Analyzer is not enabled",
+      "desc": "IAM Access Analyzer is not enabled",
+      "types": [],
+      "uid": "prowler-aws-accessanalyzer_enabled-123456789012-eu-west-1-unknown"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:accessanalyzer:us-east-1:123456789012:analyzer/unknown",
+        "name": "unknown",
+        "type": "AwsAccessAnalyzer",
+        "region": "us-east-1",
+        "group": {
+          "name": "accessanalyzer"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:accessanalyzer:us-east-1:123456789012:analyzer/unknown",
+            "name": "unknown"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Without IAM Access Analyzer, resources shared outside the account go unnoticed.",
+    "remediation": {
+      "desc": "Enable IAM Access Analyzer for all accounts, create analyzer and take action over its recommendations (IAM Access Analyzer is available at no additional cost).",
+      "references": [
+        "aws accessanalyzer create-analyzer --analyzer-name NAME --type ACCOUNT",
+        "https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-1.4": [
+          "1.20"
+        ],
+        "CIS-2.0": [
+          "1.20"
+        ],
+        "CIS-3.0": [
+          "1.20"
+        ],
+        "KISA-ISMS-P-2023": [
+          "2.5.6",
+          "2.6.4",
+          "2.8.1",
+          "2.8.2"
+        ]
+      },
+      "demo_source": "second location added for the Also Detected On demo"
+    },
+    "cloud": {
+      "account": {
+        "uid": "123456789012"
+      },
+      "region": "eu-west-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "Storage account allows public blob access: prodstorage01",
+    "status_code": "FAIL",
+    "status_detail": "Storage account allows public blob access: prodstorage01",
+    "severity": "High",
+    "severity_id": 4,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "storage_blob_public_access_level_is_disabled",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "Storage account allows public blob access",
+      "desc": "Storage account allows public blob access",
+      "types": [],
+      "uid": "prowler-azure-storage_blob_public_access_level_is_disabled-abcdef12-3456-7890-abcd-ef1234567890-westeurope-prodstorage01"
+    },
+    "resources": [
+      {
+        "uid": "/subscriptions/abcdef12-3456-7890-abcd-ef1234567890/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/prodstorage01",
+        "name": "prodstorage01",
+        "type": "Microsoft.Storage/storageAccounts",
+        "region": "westeurope",
+        "group": {
+          "name": "storage"
+        },
+        "data": {
+          "metadata": {
+            "arn": "/subscriptions/abcdef12-3456-7890-abcd-ef1234567890/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/prodstorage01",
+            "name": "prodstorage01"
+          }
+        },
+        "cloud_partition": "azure"
+      }
+    ],
+    "risk_details": "Anonymous users can read blobs from public containers.",
+    "remediation": {
+      "desc": "Disable public blob access on the storage account and use private endpoints or SAS tokens for controlled access.",
+      "references": [
+        "az storage account update --name prodstorage01 --allow-blob-public-access false",
+        "https://learn.microsoft.com/en-us/azure/storage/blobs/anonymous-read-access-prevent"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-Azure-2.0": [
+          "3.6"
+        ],
+        "MITRE-ATTACK": [
+          "T1530"
+        ]
+      },
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "abcdef12-3456-7890-abcd-ef1234567890"
+      },
+      "region": "westeurope",
+      "provider": "azure"
+    }
+  },
+  {
+    "message": "Storage account allows public blob access: stagingstorage02",
+    "status_code": "FAIL",
+    "status_detail": "Storage account allows public blob access: stagingstorage02",
+    "severity": "High",
+    "severity_id": 4,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "storage_blob_public_access_level_is_disabled",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "Storage account allows public blob access",
+      "desc": "Storage account allows public blob access",
+      "types": [],
+      "uid": "prowler-azure-storage_blob_public_access_level_is_disabled-abcdef12-3456-7890-abcd-ef1234567890-westeurope-stagingstorage02"
+    },
+    "resources": [
+      {
+        "uid": "/subscriptions/abcdef12-3456-7890-abcd-ef1234567890/resourceGroups/rg-staging/providers/Microsoft.Storage/storageAccounts/stagingstorage02",
+        "name": "stagingstorage02",
+        "type": "Microsoft.Storage/storageAccounts",
+        "region": "westeurope",
+        "group": {
+          "name": "storage"
+        },
+        "data": {
+          "metadata": {
+            "arn": "/subscriptions/abcdef12-3456-7890-abcd-ef1234567890/resourceGroups/rg-staging/providers/Microsoft.Storage/storageAccounts/stagingstorage02",
+            "name": "stagingstorage02"
+          }
+        },
+        "cloud_partition": "azure"
+      }
+    ],
+    "risk_details": "Anonymous users can read blobs from public containers.",
+    "remediation": {
+      "desc": "Disable public blob access on the storage account and use private endpoints or SAS tokens for controlled access.",
+      "references": [
+        "az storage account update --name prodstorage01 --allow-blob-public-access false",
+        "https://learn.microsoft.com/en-us/azure/storage/blobs/anonymous-read-access-prevent"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-Azure-2.0": [
+          "3.6"
+        ],
+        "MITRE-ATTACK": [
+          "T1530"
+        ]
+      },
+      "demo_source": "second location added for the Also Detected On demo"
+    },
+    "cloud": {
+      "account": {
+        "uid": "abcdef12-3456-7890-abcd-ef1234567890"
+      },
+      "region": "westeurope",
+      "provider": "azure"
+    }
+  },
+  {
+    "message": "Multi-factor authentication is not enabled for privileged accounts: global-admin",
+    "status_code": "FAIL",
+    "status_detail": "Multi-factor authentication is not enabled for privileged accounts: global-admin",
+    "severity": "Medium",
+    "severity_id": 3,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "entra_privileged_user_has_mfa",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "Multi-factor authentication is not enabled for privileged accounts",
+      "desc": "Multi-factor authentication is not enabled for privileged accounts",
+      "types": [],
+      "uid": "prowler-azure-entra_privileged_user_has_mfa-abcdef12-3456-7890-abcd-ef1234567890-westeurope-global-admin"
+    },
+    "resources": [
+      {
+        "uid": "/subscriptions/abcdef12-3456-7890-abcd-ef1234567890/providers/Microsoft.Authorization/roleAssignments/global-admin",
+        "name": "global-admin",
+        "type": "Microsoft.Authorization/roleAssignments",
+        "region": "westeurope",
+        "group": {
+          "name": "entra"
+        },
+        "data": {
+          "metadata": {
+            "arn": "/subscriptions/abcdef12-3456-7890-abcd-ef1234567890/providers/Microsoft.Authorization/roleAssignments/global-admin",
+            "name": "global-admin"
+          }
+        },
+        "cloud_partition": "azure"
+      }
+    ],
+    "risk_details": "A stolen password is enough to take over a privileged directory account.",
+    "remediation": {
+      "desc": "Enforce MFA for all users with privileged directory roles via Conditional Access or per-user MFA settings.",
+      "references": [
+        "https://learn.microsoft.com/en-us/entra/identity/authentication/tutorial-enable-azure-mfa"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-Azure-2.0": [
+          "1.1.1"
+        ],
+        "NIST-800-53": [
+          "IA-2(1)"
+        ]
+      },
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "abcdef12-3456-7890-abcd-ef1234567890"
+      },
+      "region": "westeurope",
+      "provider": "azure"
+    }
+  },
+  {
+    "message": "Multi-factor authentication is not enabled for privileged accounts: privileged-role-admin",
+    "status_code": "FAIL",
+    "status_detail": "Multi-factor authentication is not enabled for privileged accounts: privileged-role-admin",
+    "severity": "Medium",
+    "severity_id": 3,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "entra_privileged_user_has_mfa",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "Multi-factor authentication is not enabled for privileged accounts",
+      "desc": "Multi-factor authentication is not enabled for privileged accounts",
+      "types": [],
+      "uid": "prowler-azure-entra_privileged_user_has_mfa-abcdef12-3456-7890-abcd-ef1234567890-westeurope-global-privileged-role-admin"
+    },
+    "resources": [
+      {
+        "uid": "/subscriptions/abcdef12-3456-7890-abcd-ef1234567890/providers/Microsoft.Authorization/roleAssignments/privileged-role-admin",
+        "name": "privileged-role-admin",
+        "type": "Microsoft.Authorization/roleAssignments",
+        "region": "westeurope",
+        "group": {
+          "name": "entra"
+        },
+        "data": {
+          "metadata": {
+            "arn": "/subscriptions/abcdef12-3456-7890-abcd-ef1234567890/providers/Microsoft.Authorization/roleAssignments/privileged-role-admin",
+            "name": "privileged-role-admin"
+          }
+        },
+        "cloud_partition": "azure"
+      }
+    ],
+    "risk_details": "A stolen password is enough to take over a privileged directory account.",
+    "remediation": {
+      "desc": "Enforce MFA for all users with privileged directory roles via Conditional Access or per-user MFA settings.",
+      "references": [
+        "https://learn.microsoft.com/en-us/entra/identity/authentication/tutorial-enable-azure-mfa"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-Azure-2.0": [
+          "1.1.1"
+        ],
+        "NIST-800-53": [
+          "IA-2(1)"
+        ]
+      },
+      "demo_source": "second location added for the Also Detected On demo"
+    },
+    "cloud": {
+      "account": {
+        "uid": "abcdef12-3456-7890-abcd-ef1234567890"
+      },
+      "region": "westeurope",
+      "provider": "azure"
+    }
+  },
+  {
+    "message": "Project has active API Keys instead of standard authentication: my-gcp-project-123",
+    "status_code": "FAIL",
+    "status_detail": "Project has active API Keys instead of standard authentication: my-gcp-project-123",
+    "severity": "Medium",
+    "severity_id": 3,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "apikeys_key_exists",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "Project has active API Keys instead of standard authentication",
+      "desc": "Project has active API Keys instead of standard authentication",
+      "types": [],
+      "uid": "prowler-gcp-apikeys_key_exists-my-gcp-project-123-global-my-gcp-project-123"
+    },
+    "resources": [
+      {
+        "uid": "projects/my-gcp-project-123",
+        "name": "my-gcp-project-123",
+        "type": "API Key",
+        "region": "global",
+        "group": {
+          "name": "apikeys"
+        },
+        "data": {
+          "metadata": {
+            "arn": "projects/my-gcp-project-123",
+            "name": "my-gcp-project-123"
+          }
+        },
+        "cloud_partition": "gcp"
+      }
+    ],
+    "risk_details": "API keys are long-lived bearer secrets that are easily leaked.",
+    "remediation": {
+      "desc": "Delete unused API keys and migrate services to standard authentication flows (service accounts, OAuth).",
+      "references": [
+        "gcloud services api-keys delete KEY_ID",
+        "https://cloud.google.com/docs/authentication/api-keys"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-2.0": [
+          "1.12"
+        ],
+        "MITRE-ATTACK": [
+          "T1098"
+        ],
+        "ENS-RD2022": [
+          "op.acc.2.gcp.rbak.1"
+        ]
+      },
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "my-gcp-project-123"
+      },
+      "region": "global",
+      "provider": "gcp"
+    }
+  },
+  {
+    "message": "Project has active API Keys instead of standard authentication: my-gcp-project-456",
+    "status_code": "FAIL",
+    "status_detail": "Project has active API Keys instead of standard authentication: my-gcp-project-456",
+    "severity": "Medium",
+    "severity_id": 3,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "apikeys_key_exists",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "Project has active API Keys instead of standard authentication",
+      "desc": "Project has active API Keys instead of standard authentication",
+      "types": [],
+      "uid": "prowler-gcp-apikeys_key_exists-my-gcp-project-123-global-my-gcp-project-my-gcp-project-456"
+    },
+    "resources": [
+      {
+        "uid": "projects/my-gcp-project-456",
+        "name": "my-gcp-project-456",
+        "type": "API Key",
+        "region": "global",
+        "group": {
+          "name": "apikeys"
+        },
+        "data": {
+          "metadata": {
+            "arn": "projects/my-gcp-project-456",
+            "name": "my-gcp-project-456"
+          }
+        },
+        "cloud_partition": "gcp"
+      }
+    ],
+    "risk_details": "API keys are long-lived bearer secrets that are easily leaked.",
+    "remediation": {
+      "desc": "Delete unused API keys and migrate services to standard authentication flows (service accounts, OAuth).",
+      "references": [
+        "gcloud services api-keys delete KEY_ID",
+        "https://cloud.google.com/docs/authentication/api-keys"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-2.0": [
+          "1.12"
+        ],
+        "MITRE-ATTACK": [
+          "T1098"
+        ],
+        "ENS-RD2022": [
+          "op.acc.2.gcp.rbak.1"
+        ]
+      },
+      "demo_source": "second location added for the Also Detected On demo"
+    },
+    "cloud": {
+      "account": {
+        "uid": "my-gcp-project-456"
+      },
+      "region": "global",
+      "provider": "gcp"
+    }
+  },
+  {
+    "message": "AlwaysPullImages admission control plugin is not set: kube-apiserver-node-1",
+    "status_code": "FAIL",
+    "status_detail": "AlwaysPullImages admission control plugin is not set: kube-apiserver-node-1",
+    "severity": "Medium",
+    "severity_id": 3,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "apiserver_always_pull_images_plugin",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "AlwaysPullImages admission control plugin is not set",
+      "desc": "AlwaysPullImages admission control plugin is not set",
+      "types": [],
+      "uid": "prowler-k8s-apiserver_always_pull_images_plugin-cluster-global-kube-apiserver-node-1"
+    },
+    "resources": [
+      {
+        "uid": "kube-apiserver-node-1",
+        "name": "kube-apiserver-node-1",
+        "type": "KubernetesAPIServer",
+        "region": null,
+        "group": {
+          "name": "apiserver"
+        },
+        "data": {
+          "metadata": {
+            "arn": "kube-apiserver-node-1",
+            "name": "kube-apiserver-node-1"
+          }
+        }
+      }
+    ],
+    "risk_details": "Pods can reuse cached private images without re-checking registry credentials.",
+    "remediation": {
+      "desc": "Enable the AlwaysPullImages admission control plugin on the API server to enforce image access control on every pod creation.",
+      "references": [
+        "https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#alwayspullimages"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-Kubernetes-1.10": [
+          "1.2.11"
+        ],
+        "CIS-Kubernetes-1.8": [
+          "1.2.11"
+        ]
+      },
+      "demo_source": "poc/FindingPage seed"
+    }
+  },
+  {
+    "message": "AlwaysPullImages admission control plugin is not set: kube-apiserver-node-2",
+    "status_code": "FAIL",
+    "status_detail": "AlwaysPullImages admission control plugin is not set: kube-apiserver-node-2",
+    "severity": "Medium",
+    "severity_id": 3,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "apiserver_always_pull_images_plugin",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "AlwaysPullImages admission control plugin is not set",
+      "desc": "AlwaysPullImages admission control plugin is not set",
+      "types": [],
+      "uid": "prowler-k8s-apiserver_always_pull_images_plugin-cluster-global-kube-apiserver-node-kube-apiserver-node-2"
+    },
+    "resources": [
+      {
+        "uid": "kube-apiserver-node-2",
+        "name": "kube-apiserver-node-2",
+        "type": "KubernetesAPIServer",
+        "region": null,
+        "group": {
+          "name": "apiserver"
+        },
+        "data": {
+          "metadata": {
+            "arn": "kube-apiserver-node-2",
+            "name": "kube-apiserver-node-2"
+          }
+        }
+      }
+    ],
+    "risk_details": "Pods can reuse cached private images without re-checking registry credentials.",
+    "remediation": {
+      "desc": "Enable the AlwaysPullImages admission control plugin on the API server to enforce image access control on every pod creation.",
+      "references": [
+        "https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#alwayspullimages"
+      ]
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS-Kubernetes-1.10": [
+          "1.2.11"
+        ],
+        "CIS-Kubernetes-1.8": [
+          "1.2.11"
+        ]
+      },
+      "demo_source": "second location added for the Also Detected On demo"
+    }
+  },
+  {
+    "message": "S3 Bucket Server Access Logging Disabled: my-test-bucket",
+    "status_code": "FAIL",
+    "status_detail": "S3 Bucket Server Access Logging Disabled: my-test-bucket",
+    "severity": "High",
+    "severity_id": 4,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "s3_bucket_server_access_logging_enabled",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "S3 Bucket Server Access Logging Disabled",
+      "desc": "S3 Bucket Server Access Logging Disabled",
+      "types": [],
+      "uid": "prowler-aws-s3_bucket_server_access_logging_enabled-123456789012-us-east-1-my-test-bucket"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:s3:::my-test-bucket",
+        "name": "my-test-bucket",
+        "type": "AwsS3Bucket",
+        "region": "us-east-1",
+        "group": {
+          "name": "s3"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:s3:::my-test-bucket",
+            "name": "my-test-bucket"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Requests to the bucket cannot be audited after an incident.",
+    "remediation": {
+      "desc": "Enable server access logging on the S3 bucket to track requests for security and audit purposes.",
+      "references": []
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS": [
+          "2.1.1"
+        ],
+        "NIST-800-53": [
+          "AU-2"
+        ]
+      },
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "123456789012"
+      },
+      "region": "us-east-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "S3 Bucket Server Access Logging Disabled: my-public-bucket-example",
+    "status_code": "FAIL",
+    "status_detail": "S3 Bucket Server Access Logging Disabled: my-public-bucket-example",
+    "severity": "High",
+    "severity_id": 4,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "s3_bucket_server_access_logging_enabled",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "S3 Bucket Server Access Logging Disabled",
+      "desc": "S3 Bucket Server Access Logging Disabled",
+      "types": [],
+      "uid": "prowler-aws-s3_bucket_server_access_logging_enabled-123456789012-us-east-1-my-test-my-public-bucket-example"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:s3:::my-public-bucket-example",
+        "name": "my-public-bucket-example",
+        "type": "AwsS3Bucket",
+        "region": "us-east-1",
+        "group": {
+          "name": "s3"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:s3:::my-public-bucket-example",
+            "name": "my-public-bucket-example"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Requests to the bucket cannot be audited after an incident.",
+    "remediation": {
+      "desc": "Enable server access logging on the S3 bucket to track requests for security and audit purposes.",
+      "references": []
+    },
+    "unmapped": {
+      "compliance": {
+        "CIS": [
+          "2.1.1"
+        ],
+        "NIST-800-53": [
+          "AU-2"
+        ]
+      },
+      "demo_source": "second location added for the Also Detected On demo"
+    },
+    "cloud": {
+      "account": {
+        "uid": "123456789012"
+      },
+      "region": "us-east-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "S3 bucket versioning disabled: my-test-bucket",
+    "status_code": "FAIL",
+    "status_detail": "S3 bucket versioning disabled: my-test-bucket",
+    "severity": "Informational",
+    "severity_id": 1,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "s3_bucket_object_versioning",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "S3 bucket versioning disabled",
+      "desc": "S3 bucket versioning disabled",
+      "types": [],
+      "uid": "prowler-aws-s3_bucket_object_versioning-123456789012-us-east-1-my-test-bucket"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:s3:::my-test-bucket",
+        "name": "my-test-bucket",
+        "type": "AwsS3Bucket",
+        "region": "us-east-1",
+        "group": {
+          "name": "s3"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:s3:::my-test-bucket",
+            "name": "my-test-bucket"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Overwritten or deleted objects cannot be recovered.",
+    "remediation": {
+      "desc": "",
+      "references": []
+    },
+    "unmapped": {
+      "compliance": {},
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "123456789012"
+      },
+      "region": "us-east-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "S3 bucket versioning disabled: my-public-bucket-example",
+    "status_code": "FAIL",
+    "status_detail": "S3 bucket versioning disabled: my-public-bucket-example",
+    "severity": "Informational",
+    "severity_id": 1,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "s3_bucket_object_versioning",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "S3 bucket versioning disabled",
+      "desc": "S3 bucket versioning disabled",
+      "types": [],
+      "uid": "prowler-aws-s3_bucket_object_versioning-123456789012-us-east-1-my-test-my-public-bucket-example"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:s3:::my-public-bucket-example",
+        "name": "my-public-bucket-example",
+        "type": "AwsS3Bucket",
+        "region": "us-east-1",
+        "group": {
+          "name": "s3"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:s3:::my-public-bucket-example",
+            "name": "my-public-bucket-example"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Overwritten or deleted objects cannot be recovered.",
+    "remediation": {
+      "desc": "",
+      "references": []
+    },
+    "unmapped": {
+      "compliance": {},
+      "demo_source": "second location added for the Also Detected On demo"
+    },
+    "cloud": {
+      "account": {
+        "uid": "123456789012"
+      },
+      "region": "us-east-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "Public S3 bucket with sensitive data: my-public-bucket-example",
+    "status_code": "FAIL",
+    "status_detail": "Public S3 bucket with sensitive data: my-public-bucket-example",
+    "severity": "Critical",
+    "severity_id": 5,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "s3_bucket_public_sensitive_data",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "Public S3 bucket with sensitive data",
+      "desc": "Public S3 bucket with sensitive data",
+      "types": [],
+      "uid": "prowler-aws-s3_bucket_public_sensitive_data-123456789012-us-east-1-my-public-bucket-example"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:s3:::my-public-bucket-example",
+        "name": "my-public-bucket-example",
+        "type": "AwsS3Bucket",
+        "region": "us-east-1",
+        "group": {
+          "name": "s3"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:s3:::my-public-bucket-example",
+            "name": "my-public-bucket-example"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Sensitive data is exposed to anyone on the Internet.",
+    "remediation": {
+      "desc": "",
+      "references": []
+    },
+    "unmapped": {
+      "compliance": {},
+      "demo_source": "poc/FindingPage seed"
+    },
+    "cloud": {
+      "account": {
+        "uid": "123456789012"
+      },
+      "region": "us-east-1",
+      "provider": "aws"
+    }
+  },
+  {
+    "message": "Public S3 bucket with sensitive data: ai-redteam-scratch-bucket",
+    "status_code": "FAIL",
+    "status_detail": "Public S3 bucket with sensitive data: ai-redteam-scratch-bucket",
+    "severity": "Critical",
+    "severity_id": 5,
+    "category_name": "Findings",
+    "class_name": "Detection Finding",
+    "activity_name": "Create",
+    "metadata": {
+      "event_code": "s3_bucket_public_sensitive_data",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler"
+      },
+      "version": "1.5.0"
+    },
+    "finding_info": {
+      "title": "Public S3 bucket with sensitive data",
+      "desc": "Public S3 bucket with sensitive data",
+      "types": [],
+      "uid": "prowler-aws-s3_bucket_public_sensitive_data-123456789012-us-east-1-my-public-bucket-ai-redteam-scratch-bucket"
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:s3:::ai-redteam-scratch-bucket",
+        "name": "ai-redteam-scratch-bucket",
+        "type": "AwsS3Bucket",
+        "region": "us-west-2",
+        "group": {
+          "name": "s3"
+        },
+        "data": {
+          "metadata": {
+            "arn": "arn:aws:s3:::ai-redteam-scratch-bucket",
+            "name": "ai-redteam-scratch-bucket"
+          }
+        },
+        "cloud_partition": "aws"
+      }
+    ],
+    "risk_details": "Sensitive data is exposed to anyone on the Internet.",
+    "remediation": {
+      "desc": "",
+      "references": []
+    },
+    "unmapped": {
+      "compliance": {},
+      "demo_source": "second location added for the Also Detected On demo"
+    },
+    "cloud": {
+      "account": {
+        "uid": "999999999999"
+      },
+      "region": "us-east-1",
+      "provider": "aws"
+    }
+  }
+]

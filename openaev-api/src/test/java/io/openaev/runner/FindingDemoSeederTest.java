@@ -9,17 +9,28 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Asset;
+import io.openaev.database.model.ContractOutputType;
+import io.openaev.database.model.Finding;
+import io.openaev.database.model.FindingTriage;
+import io.openaev.database.model.FindingTriageHistory;
+import io.openaev.database.model.FindingTriageStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.repository.AssetRepository;
+import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.FindingTriageHistoryRepository;
+import io.openaev.database.repository.FindingTriageRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.scheduler.TenantScopedJobRunner;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -78,7 +89,19 @@ class FindingDemoSeederTest {
       InjectorRepository injectorRepository = mock(InjectorRepository.class);
       InjectorContractRepository contractRepository = mock(InjectorContractRepository.class);
       InjectRepository injectRepository = mock(InjectRepository.class);
+      FindingRepository findingRepository = mock(FindingRepository.class);
+      FindingTriageRepository triageRepository = mock(FindingTriageRepository.class);
+      FindingTriageHistoryRepository triageHistoryRepository =
+          mock(FindingTriageHistoryRepository.class);
       InjectExecutionService executionService = mock(InjectExecutionService.class);
+      Finding aliceCredentials = new Finding();
+      aliceCredentials.setId("legacy-alice");
+      aliceCredentials.setType(ContractOutputType.Credentials);
+      aliceCredentials.setValue("alice:DEMO_HASH_ALICE");
+      when(findingRepository.findAllByInjectIdAndTenantId(anyString(), eq(DEFAULT_TENANT_UUID)))
+          .thenReturn(List.of(aliceCredentials));
+      when(triageRepository.findByFinding_Id("legacy-alice"))
+          .thenReturn(Optional.empty(), Optional.of(new FindingTriage()));
       TenantScopedJobRunner tenantScopedJobRunner = mock(TenantScopedJobRunner.class);
       doAnswer(
               invocation -> {
@@ -128,6 +151,9 @@ class FindingDemoSeederTest {
               injectorRepository,
               contractRepository,
               injectRepository,
+              findingRepository,
+              triageRepository,
+              triageHistoryRepository,
               executionService,
               tenantScopedJobRunner);
 
@@ -147,58 +173,77 @@ class FindingDemoSeederTest {
       seeder.run();
 
       // Assert
-      int expectedOccurrences =
-          FindingDemoSeeder.DEMO_FINDING_COUNT * FindingDemoSeeder.OCCURRENCES_PER_FINDING + 1;
+      int scans = FindingDemoSeeder.OCCURRENCES_PER_FINDING;
+      int exampleBatches = seeder.exampleBatches().size();
+      int prowlerCallbacks = FindingDemoSeeder.DEMO_FINDING_COUNT * scans + exampleBatches * scans;
+      int expectedInjects = prowlerCallbacks + scans;
       verify(injectorRepository, times(2)).save(any(Injector.class));
       verify(contractRepository, times(4)).save(any(InjectorContract.class));
-      verify(injectRepository, times(expectedOccurrences)).save(any(Inject.class));
+      verify(injectRepository, times(expectedInjects)).save(any(Inject.class));
       ArgumentCaptor<InjectExecutionInput> callbacks =
           ArgumentCaptor.forClass(InjectExecutionInput.class);
-      verify(executionService, times(expectedOccurrences))
+      verify(executionService, times(expectedInjects))
           .handleInjectExecutionCallback(anyString(), isNull(), callbacks.capture());
-      assertThat(callbacks.getAllValues().stream().filter(this::isProwlerCallback).toList())
-          .hasSize(FindingDemoSeeder.DEMO_FINDING_COUNT * FindingDemoSeeder.OCCURRENCES_PER_FINDING)
+
+      List<JsonNode> prowlerOutputs =
+          callbacks.getAllValues().stream()
+              .filter(this::isProwlerCallback)
+              .map(
+                  callback ->
+                      read(callback.getOutputStructured()).path(FindingDemoSeeder.OUTPUT_KEY))
+              .toList();
+      assertThat(prowlerOutputs)
+          .hasSize(prowlerCallbacks)
           .allSatisfy(
-              callback -> {
-                JsonNode findings =
-                    read(callback.getOutputStructured()).path(FindingDemoSeeder.OUTPUT_KEY);
+              findings -> {
                 assertThat(findings.isArray()).isTrue();
-                assertThat(findings.size()).isEqualTo(1);
-                JsonNode finding = findings.get(0);
-                assertThat(finding.path("status_code").asText()).isEqualTo("FAIL");
-                assertThat(finding.path("metadata").path("product").path("uid").asText())
-                    .isEqualTo("prowler");
-                assertThat(finding.path("metadata").path("uid").asText()).isNotBlank();
-                assertThat(finding.path("time_dt").asText()).isNotBlank();
+                Set<String> checks = new HashSet<>();
+                findings.forEach(
+                    finding -> {
+                      assertThat(finding.path("status_code").asText()).isEqualTo("FAIL");
+                      assertThat(finding.path("metadata").path("product").path("uid").asText())
+                          .isEqualTo("prowler");
+                      assertThat(finding.path("metadata").path("uid").asText()).isNotBlank();
+                      assertThat(finding.path("time_dt").asText()).isNotBlank();
+                      // One record per check and callback, so every resource stays a Location.
+                      assertThat(checks.add(finding.path("metadata").path("event_code").asText()))
+                          .isTrue();
+                    });
               });
-      JsonNode nativeOutput =
+      int exampleRecords = seeder.exampleBatches().stream().mapToInt(List::size).sum();
+      assertThat(prowlerOutputs.stream().mapToInt(JsonNode::size).sum())
+          .isEqualTo(FindingDemoSeeder.DEMO_FINDING_COUNT * scans + exampleRecords * scans);
+
+      List<JsonNode> nativeOutputs =
           callbacks.getAllValues().stream()
               .filter(callback -> !isProwlerCallback(callback))
-              .findFirst()
               .map(InjectExecutionInput::getOutputStructured)
               .map(this::read)
-              .orElseThrow();
-      assertThat(nativeOutput.path("surface")).hasSize(3);
-      assertThat(nativeOutput.path("identities")).hasSize(3);
-      assertThat(nativeOutput.path("credentials")).hasSize(3);
-      assertThat(nativeOutput.path("privileges")).hasSize(3);
-      assertThat(nativeOutput.path("weaknesses")).hasSize(3);
-      assertThat(nativeOutput.path("resources")).hasSize(3);
-      assertThat(nativeOutput.path("posture")).hasSize(3);
-      assertThat(nativeOutput.path("informative")).hasSize(3);
-      assertThat(
-              java.util.stream.Stream.of(
-                      "surface",
-                      "identities",
-                      "credentials",
-                      "privileges",
-                      "weaknesses",
-                      "resources",
-                      "posture",
-                      "informative")
-                  .mapToInt(field -> nativeOutput.path(field).size())
-                  .sum())
-          .isEqualTo(FindingDemoSeeder.NATIVE_DEMO_FINDING_COUNT);
+              .toList();
+      assertThat(nativeOutputs).hasSize(scans);
+      nativeOutputs.forEach(
+          nativeOutput ->
+              FindingDemoSeeder.NATIVE_OUTPUTS.forEach(
+                  output -> {
+                    JsonNode records = nativeOutput.path(output.field());
+                    assertThat(records.size()).as(output.field()).isPositive();
+                    records.forEach(
+                        record -> {
+                          if (record.path("asset_id").isArray()) {
+                            assertThat(record.path("asset_id").size())
+                                .as(output.field())
+                                .isGreaterThanOrEqualTo(2);
+                            assertThat(record.path("time_dt").asText()).isNotBlank();
+                          }
+                        });
+                  }));
+      assertThat(nativeOutputs.getFirst().path("cves").toString()).doesNotContain("CVE-2024-3400");
+      assertThat(nativeOutputs.getLast().path("cves").toString()).contains("CVE-2024-3400");
+
+      ArgumentCaptor<FindingTriage> triages = ArgumentCaptor.forClass(FindingTriage.class);
+      verify(triageRepository, times(1)).save(triages.capture());
+      assertThat(triages.getValue().getStatus()).isEqualTo(FindingTriageStatus.CONFIRMED);
+      verify(triageHistoryRepository, times(1)).save(any(FindingTriageHistory.class));
       verify(injectorRepository, atLeastOnce())
           .linkContract(anyString(), anyString(), eq(DEFAULT_TENANT_UUID));
     }
@@ -241,6 +286,21 @@ class FindingDemoSeederTest {
     @Bean
     InjectRepository injectRepository() {
       return mock(InjectRepository.class);
+    }
+
+    @Bean
+    FindingRepository findingRepository() {
+      return mock(FindingRepository.class);
+    }
+
+    @Bean
+    FindingTriageRepository findingTriageRepository() {
+      return mock(FindingTriageRepository.class);
+    }
+
+    @Bean
+    FindingTriageHistoryRepository findingTriageHistoryRepository() {
+      return mock(FindingTriageHistoryRepository.class);
     }
 
     @Bean

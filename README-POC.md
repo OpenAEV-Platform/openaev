@@ -337,12 +337,35 @@ Type, **Severity**, Value, Field, **Source**, First seen, Last seen, **Inject** 
 
 ## Demo data
 
-When `openaev.dev.seed-findings=true` and the `dev` or `test-feature-branch` profile is active, `FindingDemoSeeder` creates demo Findings in the default tenant at startup. It sends real execution callbacks, so the data goes through the full ingestion pipeline. It is idempotent.
+When `openaev.dev.seed-findings=true` and the `dev` or `test-feature-branch` profile is active, `FindingDemoSeeder` creates demo Findings in the default tenant at startup. It sends real execution callbacks, so the data goes through the full ingestion pipeline. It is idempotent (injects are matched by title).
 
-| Dataset | Content |
-|---|---|
-| Prowler | Injector **Prowler** (`openaev_prowler_demo`), 3 scans × 4 OCSF FAIL records on AWS account `123456789012` (`eu-west-1`): public S3 buckets (2 resources), IAM user without MFA, security group open to SSH from the Internet |
-| Native | Injector **OpenAEV Demo Scanner**, 3 Assets (`internet-gateway`, `identity-server`, `file-server`) and one Inject producing 24 Findings across all actionable groups: ports, usernames, credentials, groups, CVEs (CVE-2024-6387, CVE-2023-44487, CVE-2021-44228), shares, password policy and text |
+Every dataset is replayed over **three scans** (2026-08-20, 2026-09-03, 2026-09-17), so each Finding has a filled **Timeline**, and almost every Finding is observed on **at least two Locations**, so **Also Detected On** is filled too.
+
+| Dataset | Injector | Content |
+|---|---|---|
+| Prowler synthetic | **Prowler** (`openaev_prowler_demo`) | 4 OCSF FAIL records on AWS account `123456789012`: public S3 buckets, IAM user without MFA, security group open to SSH |
+| Prowler examples | **Prowler** (`openaev_prowler_demo`) | 24 OCSF records from [`finding-demo/prowler-ocsf-examples.json`](openaev-api/src/main/resources/finding-demo/prowler-ocsf-examples.json): the examples of the earlier `poc/FindingPage` demo, including real Prowler records, across **AWS, Azure, GCP and Kubernetes** |
+| Native | **OpenAEV Demo Scanner** | Every native finding type on 5 Assets (Prod Payment Gateway, Internal API Server, Staging Web App, Dev Sandbox VM, Unclassified Legacy Host) |
+| Triage | System | Confirmed, False positive and Risk accepted decisions on a few Findings, with their history |
+
+### Covered finding types
+
+| Type | Example values | Locations |
+|---|---|---|
+| PortsScan, Port, IPv4, IPv6 | `198.51.100.10:443 (https)`, `3389`, `2001:db8::10` | Port scans alternate Assets across scans; Port, IPv4 and IPv6 are informative (no Location) |
+| Username, AdminUsername, Email | `alice`, `Administrator`, `it-support@demo.example` | 2 Assets each |
+| Credentials | `alice`, `backup-operator`, `service-deploy` (masked) | 2 Assets each |
+| AccountWithPasswordNotRequired, AsreproastableAccount, KerberoastableAccount | `guest-kiosk`, `legacy-svc`, `svc-backup`, `svc-sql` (from the second scan) | 2 Assets each |
+| Group, Delegation, SID, Computer | `Domain Admins`, `svc-sql [Constrained] -> MSSQLSvc/db01.demo.local`, `S-1-5-21-…-500`, `SRV-LEGACY-01` | 2 Assets each |
+| CVE, Vulnerability | `CVE-2023-44487`, `CVE-2024-3400` (latest scan only), `CVE-2024-6387`, `CVE-2021-44228` | 2 Assets each |
+| Share, File | `\\files.demo.internal\Finance (READ)`, `payroll-2026.xlsx`, `.env` | 2 Assets each |
+| PasswordPolicy | `MinimumPasswordLength`, `LockoutThreshold` | 2 Assets each |
+| Text, Number, ActionOutput | Free-form text, numbers, command output | Informative (no Location) |
+| OCSF (Misconfig) | 14 Prowler checks, for example `s3_bucket_public_access` on 5 buckets, `cloudfront_distributions_using_deprecated_ssl_protocols`, `storage_blob_public_access_level_is_disabled` (Azure), `apikeys_key_exists` (GCP), `apiserver_always_pull_images_plugin` (Kubernetes) | 1 to 5 cloud resources |
+
+!!! note "About the Prowler examples"
+
+    The three `s3_bucket_public_access` records on the `eu-west-staging-main-ff-oaev-openaev-*` buckets are real Prowler output. They were `PASS` results and are replayed as `FAIL` so that they appear as Findings. Checks that had a single resource in the original examples received a second, synthetic resource (marked `demo_source` in the file) to populate **Also Detected On**.
 
 ## Reference
 
