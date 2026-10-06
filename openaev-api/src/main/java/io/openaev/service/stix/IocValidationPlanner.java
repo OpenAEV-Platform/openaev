@@ -296,10 +296,24 @@ public final class IocValidationPlanner {
     Map<String, String> arguments = new LinkedHashMap<>();
     String message = null;
     if (settings.hasSinkhole()) {
-      arguments.put(IOC_VALIDATION_HOST_KEY, settings.sinkholeAddress().trim());
+      String sinkhole = settings.sinkholeAddress().trim();
+      if (!isIpLiteral(sinkhole)) {
+        return Plan.skip(
+            "Not run: the sinkhole of the IOC validation settings is not an IPv4 or IPv6 address");
+      }
+      // Compared in canonical form, as the hosts of the platform are
+      String target = InetAddresses.toAddrString(InetAddresses.forString(sinkhole));
+      if (settings.platformHosts().contains(target)) {
+        return Plan.skip(
+            ("Not run: the sinkhole of the IOC validation settings, %s, is a host of this platform:"
+                    + " IOC validation tests never target OpenAEV, the OpenCTI it is connected to or"
+                    + " the egress proxy")
+                .formatted(target));
+      }
+      arguments.put(IOC_VALIDATION_HOST_KEY, sinkhole);
       message =
           "Safe mode: connects to the sinkhole %s instead of %s"
-              .formatted(settings.sinkholeAddress().trim(), address.value());
+              .formatted(sinkhole, address.value());
     } else {
       arguments.put(IOC_VALIDATION_HOST_KEY, address.value());
     }

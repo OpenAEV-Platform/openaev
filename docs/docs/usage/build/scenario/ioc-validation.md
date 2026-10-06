@@ -114,7 +114,7 @@ Go to **Settings > Customization > IOC validation**. You need the *Manage tenant
 
 - **Allowed test kinds**: the tests that may run. Anything else is skipped.
 - **Egress proxy URL**: an absolute http or https URL, without credentials (a URL such as `https://user:password@proxy` is refused, because the URL is shown in the settings and copied into the simulation injects). Required to allow HTTP HEAD tests. The proxy should refuse internal destinations: it resolves the host names of the tests when they run (see [Accepted indicator values](#accepted-indicator-values)).
-- **Sinkhole address**: an IPv4 or IPv6 address, written with ASCII digits. When set, network tests connect to it instead of the indicator.
+- **Sinkhole address**: an IPv4 or IPv6 address, written with ASCII digits. When set, network tests connect to it instead of the indicator. A sinkhole that is a host of the platform (see [Accepted indicator values](#accepted-indicator-values)) is never connected to: the network tests do not run, and say why.
 - **Network test port**: the TCP port of network tests, 443 by default.
 - **Asset group running the tests**: the endpoints of this group run the benign tests. Approval is refused until
   an asset group is set and at least one of its endpoints has an active agent: without one no test would run, and

@@ -138,6 +138,42 @@ class IocValidationPlannerTest {
     }
 
     @Test
+    @DisplayName("network test never connects to a sinkhole that is a host of the platform")
+    void given_sinkholeOnThePlatform_should_skip() {
+      // The address is written differently from the platform's: they are compared canonically
+      IocValidationSettings sinkholeOnPlatform =
+          allowAll("", "2606:4700:4700:0:0:0:0:1111")
+              .withPlatformHosts(
+                  IocValidationPlanner.platformHosts(
+                      List.of("http://[2606:4700:4700::1111]:8080")));
+
+      IocValidationPlanner.Plan plan =
+          IocValidationPlanner.plan(
+              ioc("IPv4-Addr", "8.8.4.4", IocValidationTestKind.NETWORK_TRAFFIC),
+              sinkholeOnPlatform);
+
+      assertThat(plan.runnable()).isFalse();
+      assertThat(plan.refused()).isFalse();
+      assertThat(plan.arguments()).isEmpty();
+      assertThat(plan.message())
+          .contains("the sinkhole of the IOC validation settings, 2606:4700:4700::1111")
+          .contains("a host of this platform");
+    }
+
+    @Test
+    @DisplayName("network test never connects to a sinkhole that is not an IP address")
+    void given_sinkholeThatIsNotAnAddress_should_skip() {
+      IocValidationPlanner.Plan plan =
+          IocValidationPlanner.plan(
+              ioc("IPv4-Addr", "8.8.4.4", IocValidationTestKind.NETWORK_TRAFFIC),
+              allowAll("", "sinkhole.internal"));
+
+      assertThat(plan.runnable()).isFalse();
+      assertThat(plan.arguments()).isEmpty();
+      assertThat(plan.message()).contains("is not an IPv4 or IPv6 address");
+    }
+
+    @Test
     @DisplayName("network ranges are never tested")
     void given_cidr_should_skip() {
       IocValidationPlanner.Plan plan =
