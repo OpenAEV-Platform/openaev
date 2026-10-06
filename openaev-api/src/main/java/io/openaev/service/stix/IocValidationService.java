@@ -745,8 +745,10 @@ public class IocValidationService {
   private IocValidationSettings decisionSettings(
       String tenantId, IocValidationPlanner.HostResolver resolver) {
     IocValidationSettings settings = settingsService.settings(tenantId);
+    Set<String> platformHosts = platformHosts(tenantId, settings);
     return settings.withPlatformHosts(
-        IocValidationPlanner.withPlatformAddresses(platformHosts(tenantId, settings), resolver));
+        IocValidationPlanner.withPlatformAddresses(platformHosts, resolver),
+        IocValidationPlanner.unansweredPlatformHostNames(platformHosts, resolver));
   }
 
   private Set<String> platformHostNames(String tenantId) {

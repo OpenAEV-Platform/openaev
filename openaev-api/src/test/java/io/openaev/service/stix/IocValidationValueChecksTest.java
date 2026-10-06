@@ -23,6 +23,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -488,9 +489,60 @@ class IocValidationValueChecksTest {
               .resolver();
 
       assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(5));
-      // Not answered in time: a name that does not resolve here, whatever the late answer says
+      // Not answered in time: no address, and known to be unanswered, whatever the late answer says
       assertThat(answers.resolve("slow.example.com")).isEmpty();
+      assertThat(answers.answered("slow.example.com")).isFalse();
       assertThat(answers.resolve("fast.example.com")).containsExactly(address("8.8.8.8"));
+      assertThat(answers.answered("fast.example.com")).isTrue();
+    }
+
+    @Test
+    @DisplayName("a name that does not exist is answered, a lookup that fails is not")
+    void given_missingAndFailingNames_should_tellThemApart() {
+      HostResolver resolver =
+          host -> {
+            if (host.startsWith("failing.")) {
+              throw new IllegalStateException("resolver unavailable");
+            }
+            return List.of();
+          };
+
+      HostResolver answers =
+          IocValidationHostAnswers.resolve(
+                  List.of("missing.example.com", "failing.example.com"),
+                  resolver,
+                  Duration.ofSeconds(5))
+              .resolver();
+
+      assertThat(answers.resolve("missing.example.com")).isEmpty();
+      assertThat(answers.answered("missing.example.com")).isTrue();
+      assertThat(answers.resolve("failing.example.com")).isEmpty();
+      assertThat(answers.answered("failing.example.com")).isFalse();
+    }
+
+    @Test
+    @DisplayName("an HTTP HEAD test whose host name got no answer does not run")
+    void given_unansweredHost_should_skipHttpHead() {
+      HostResolver unanswered =
+          new HostResolver() {
+            @Override
+            public List<InetAddress> resolve(String host) {
+              return List.of();
+            }
+
+            @Override
+            public boolean answered(String host) {
+              return false;
+            }
+          };
+      IocValidationIoc ioc =
+          ioc("Url", "https://evil.example.com/a", IocValidationTestKind.HTTP_HEAD);
+
+      IocValidationPlanner.apply(List.of(ioc), allowAll(), unanswered);
+
+      assertThat(ioc.getTestKind()).isNull();
+      assertThat(ioc.isRefused()).isFalse();
+      assertThat(ioc.getMessage()).contains("did not resolve in time from the OpenAEV server");
     }
 
     @Test
@@ -940,6 +992,30 @@ class IocValidationValueChecksTest {
               ioc("Url", "https://alias.example.net/login", IocValidationTestKind.HTTP_HEAD));
       assertRefused(plan);
       assertThat(plan.message()).contains("9.9.9.9, a host of this platform");
+    }
+
+    @Test
+    @DisplayName("no network nor HTTP HEAD test runs while a platform name got no answer")
+    void given_unansweredPlatformName_should_skipNetworkAndHttpTests() {
+      IocValidationSettings settings =
+          allowAll()
+              .withPlatformHosts(
+                  withPlatformHosts().platformHosts(), Set.of("opencti.example.org"));
+
+      Plan network =
+          IocValidationPlanner.plan(
+              ioc("IPv4-Addr", "8.8.4.4", IocValidationTestKind.NETWORK_TRAFFIC), settings, PUBLIC);
+      Plan http =
+          IocValidationPlanner.plan(
+              ioc("Url", "https://unrelated.example.net/", IocValidationTestKind.HTTP_HEAD),
+              settings,
+              PUBLIC);
+
+      for (Plan plan : List.of(network, http)) {
+        assertThat(plan.runnable()).isFalse();
+        assertThat(plan.refused()).isFalse();
+        assertThat(plan.message()).contains("opencti.example.org, a host of this platform");
+      }
     }
 
     @Test

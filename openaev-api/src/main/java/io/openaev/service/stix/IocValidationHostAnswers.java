@@ -23,11 +23,12 @@ import java.util.concurrent.TimeUnit;
  * DNS server.
  *
  * <p>Each host is resolved once, in parallel, within {@link #DEADLINE} overall. A name not answered
- * in time counts as a name that does not resolve from the OpenAEV server (the egress proxy resolves
- * it again at execution anyway), and an answer arriving later is ignored. The lookups run on one
- * pool of {@link #THREADS} threads shared by every request: a lookup cannot be interrupted, so the
- * pool is what bounds the threads a slow or silent DNS server can hold, and its queue is bounded
- * and purged of the lookups cancelled at each deadline.
+ * in time, or whose lookup failed, is not {@link HostResolver#answered answered}: the tests that
+ * depend on its addresses do not run, unlike a name that does not exist, which the egress proxy
+ * resolves again at execution. An answer arriving later is ignored. The lookups run on one pool of
+ * {@link #THREADS} threads shared by every request: a lookup cannot be interrupted, so the pool is
+ * what bounds the threads a slow or silent DNS server can hold, and its queue is bounded and purged
+ * of the lookups cancelled at each deadline.
  */
 public final class IocValidationHostAnswers {
 
@@ -91,11 +92,23 @@ public final class IocValidationHostAnswers {
 
   /**
    * The resolver the plans are built with: the gathered answers, or a direct lookup for a host that
-   * was not announced.
+   * was not announced. An announced host whose lookup timed out, failed or was not queued is not
+   * {@link HostResolver#answered answered}.
    */
   HostResolver resolver() {
-    return host ->
-        hosts.contains(host) ? answers.getOrDefault(host, List.of()) : fallback.resolve(host);
+    return new HostResolver() {
+      @Override
+      public List<InetAddress> resolve(String host) {
+        return hosts.contains(host)
+            ? answers.getOrDefault(host, List.of())
+            : fallback.resolve(host);
+      }
+
+      @Override
+      public boolean answered(String host) {
+        return !hosts.contains(host) || answers.containsKey(host);
+      }
+    };
   }
 
   /** The lookups waiting for a resolver thread. */

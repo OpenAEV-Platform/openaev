@@ -171,6 +171,14 @@ public final class IocValidationPlanner {
         };
 
     List<InetAddress> resolve(String host);
+
+    /**
+     * Whether the lookup of the host got an answer, a name that does not exist included: when it
+     * timed out or failed, an empty {@link #resolve} says nothing about the addresses of the name.
+     */
+    default boolean answered(String host) {
+      return true;
+    }
   }
 
   /** Plans the requested test of one IOC under the given settings. */
@@ -216,7 +224,18 @@ public final class IocValidationPlanner {
       List<IocValidationIoc> iocs, IocValidationSettings settings, HostResolver resolver) {
     // One lookup per host and pass: a request often holds several URLs of the same host
     Map<String, List<InetAddress>> resolved = new HashMap<>();
-    HostResolver once = host -> resolved.computeIfAbsent(host, resolver::resolve);
+    HostResolver once =
+        new HostResolver() {
+          @Override
+          public List<InetAddress> resolve(String host) {
+            return resolved.computeIfAbsent(host, resolver::resolve);
+          }
+
+          @Override
+          public boolean answered(String host) {
+            return resolver.answered(host);
+          }
+        };
     for (IocValidationIoc ioc : iocs) {
       Plan plan = plan(ioc, settings, once);
       ioc.setTestKind(plan.testKind());
@@ -321,6 +340,10 @@ public final class IocValidationPlanner {
     if (settings.platformHosts().contains(address.value())) {
       return Plan.refuse(platformHostRefusal(ioc.getValue(), address.value()));
     }
+    Optional<Plan> unknownPlatform = unknownPlatformAddresses(settings);
+    if (unknownPlatform.isPresent()) {
+      return unknownPlatform.get();
+    }
     Map<String, String> arguments = new LinkedHashMap<>();
     String message = null;
     if (settings.hasSinkhole()) {
@@ -373,6 +396,20 @@ public final class IocValidationPlanner {
     Optional<String> host = urlHost(url.value());
     if (host.isPresent() && settings.platformHosts().contains(host.get())) {
       return Plan.refuse(platformHostRefusal(url.value(), host.get()));
+    }
+    Optional<Plan> unknownPlatform = unknownPlatformAddresses(settings);
+    if (unknownPlatform.isPresent()) {
+      return unknownPlatform.get();
+    }
+    // An empty answer only proves something when the lookup answered: a name that does not exist
+    // goes through the egress proxy, a lookup that timed out or failed leaves its addresses unknown
+    if (host.isPresent()
+        && !InetAddresses.isInetAddress(host.get())
+        && !resolver.answered(host.get())) {
+      return Plan.skip(
+          ("Not run: the host name of '%s' did not resolve in time from the OpenAEV server, so its"
+                  + " addresses could not be checked. Ask for a new validation from OpenCTI")
+              .formatted(display(url.value())));
     }
     // Another name of the platform: the name resolves to one of its addresses
     Optional<String> platformAddress =
@@ -553,6 +590,30 @@ public final class IocValidationPlanner {
       resolver.resolve(name).forEach(address -> hosts.add(InetAddresses.toAddrString(address)));
     }
     return hosts;
+  }
+
+  /** The host names of the platform whose lookup got no answer, their addresses unknown. */
+  static Set<String> unansweredPlatformHostNames(Set<String> platformHosts, HostResolver resolver) {
+    Set<String> unanswered = new LinkedHashSet<>();
+    for (String name : platformHostNames(platformHosts)) {
+      if (!resolver.answered(name)) {
+        unanswered.add(name);
+      }
+    }
+    return unanswered;
+  }
+
+  /** Why a test that must be kept off the addresses of the platform cannot run. */
+  private static Optional<Plan> unknownPlatformAddresses(IocValidationSettings settings) {
+    if (settings.unansweredPlatformHosts().isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        Plan.skip(
+            ("Not run: %s, a host of this platform, did not resolve in time from the OpenAEV"
+                    + " server, so this test could not be kept off the addresses of the platform."
+                    + " Ask for a new validation from OpenCTI")
+                .formatted(String.join(", ", settings.unansweredPlatformHosts()))));
   }
 
   /** The host of an accepted URL, in the form {@link #platformHosts} gives. */
