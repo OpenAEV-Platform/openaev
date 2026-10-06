@@ -48,12 +48,12 @@ public class IocValidationIoc {
   private List<String> injectIds = new ArrayList<>();
 
   /**
-   * The endpoints with an active agent the approval runs the test on, the ones the operator was
-   * shown: its injects target them and no asset group, whose members can change after the approval.
-   * An inject targeting anything else is not executed.
+   * For each inject of {@link #injectIds}, the endpoints with an active agent it runs the test on,
+   * as approved: it targets them and no asset group, whose members can change after the approval.
+   * An inject targeting other endpoints, more or fewer, is not executed.
    */
-  @JsonProperty("ioc_target_endpoint_ids")
-  private List<String> targetEndpointIds = new ArrayList<>();
+  @JsonProperty("ioc_inject_targets")
+  private Map<String, List<String>> injectTargets = new LinkedHashMap<>();
 
   /** Why the IOC was skipped, or how it was adapted (sinkhole, DNS fallback). */
   @JsonProperty("ioc_message")

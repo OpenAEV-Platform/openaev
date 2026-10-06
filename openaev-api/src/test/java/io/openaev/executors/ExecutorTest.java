@@ -20,6 +20,7 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.stix.IocValidationDispatchGuard;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +60,7 @@ class ExecutorTest {
   @Mock private ExecutableInjectDTOMapper executableInjectDTOMapper;
   @Mock private ConnectorInstanceService connectorInstanceService;
   @Mock private InjectExpectationService injectExpectationService;
+  @Mock private IocValidationDispatchGuard iocValidationDispatchGuard;
 
   @InjectMocks private Executor executor;
 
@@ -93,6 +95,29 @@ class ExecutorTest {
 
     executableInject = mock(ExecutableInject.class);
     when(executableInject.getInjection()).thenReturn(injection);
+  }
+
+  @Nested
+  @DisplayName("execute - IOC validation approval")
+  class IocValidationApproval {
+
+    @Test
+    @DisplayName(
+        "Given an inject the simulation of an IOC validation did not approve, execute should run nothing")
+    void given_injectOutsideTheApproval_should_notExecute() {
+      // -------- Arrange --------
+      doThrow(
+              new IllegalStateException(
+                  IocValidationDispatchGuard.IOC_VALIDATION_INJECT_NOT_APPROVED))
+          .when(iocValidationDispatchGuard)
+          .refuseInjectOutsideApproval(inject);
+
+      // -------- Act / Assert --------
+      assertThatThrownBy(() -> executor.execute(executableInject))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage(IocValidationDispatchGuard.IOC_VALIDATION_INJECT_NOT_APPROVED);
+      verifyNoInteractions(injectStatusService, injectorRepository, rabbitmqService);
+    }
   }
 
   @Nested

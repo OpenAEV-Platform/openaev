@@ -54,6 +54,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -1102,7 +1103,7 @@ public class IocValidationService {
         .forEach(kind -> payloadsByKind.put(kind, payloadsFor(ctx, kind, executors)));
     for (IocValidationIoc ioc : validation.getIocs()) {
       ioc.setInjectIds(new ArrayList<>());
-      ioc.setTargetEndpointIds(new ArrayList<>());
+      ioc.setInjectTargets(new LinkedHashMap<>());
       if (ioc.getTestKind() == null) {
         continue;
       }
@@ -1129,13 +1130,6 @@ public class IocValidationService {
       // What the injects carry: the dispatch refuses an inject whose arguments differ from it
       IocValidationPlanner.Plan approved = approvedPlan(plan);
       ioc.setPlanFingerprint(IocValidationPlanner.fingerprint(approved));
-      ioc.setTargetEndpointIds(
-          payloadTargets.stream()
-              .flatMap(targets -> targets.endpoints().stream())
-              .map(Endpoint::getId)
-              .distinct()
-              .sorted()
-              .collect(Collectors.toCollection(ArrayList::new)));
       for (PayloadTargets targets : payloadTargets) {
         Payload payload = targets.payload();
         InjectorContract contract =
@@ -1159,6 +1153,13 @@ public class IocValidationService {
         inject.setTags(new HashSet<>(tags));
         Inject saved = injectService.createInject(inject);
         ioc.getInjectIds().add(saved.getId());
+        ioc.getInjectTargets()
+            .put(
+                saved.getId(),
+                targets.endpoints().stream()
+                    .map(Endpoint::getId)
+                    .sorted()
+                    .collect(Collectors.toCollection(ArrayList::new)));
         injects.add(saved);
       }
     }
@@ -1173,24 +1174,31 @@ public class IocValidationService {
    */
   static void trackSimulationInjects(
       IocValidation validation, Map<String, String> simulationInjectIdsByScenarioInjectId) {
+    Function<String, String> simulationInject =
+        scenarioInjectId -> {
+          String simulationInjectId = simulationInjectIdsByScenarioInjectId.get(scenarioInjectId);
+          if (simulationInjectId == null) {
+            throw new IllegalStateException(
+                "The validation simulation has no copy of the scenario inject %s"
+                    .formatted(scenarioInjectId));
+          }
+          return simulationInjectId;
+        };
     for (IocValidationIoc ioc : validation.getIocs()) {
-      if (ioc.getInjectIds() == null) {
-        continue;
+      if (ioc.getInjectIds() != null) {
+        ioc.setInjectIds(
+            ioc.getInjectIds().stream()
+                .map(simulationInject)
+                .collect(Collectors.toCollection(ArrayList::new)));
       }
-      ioc.setInjectIds(
-          ioc.getInjectIds().stream()
-              .map(
-                  scenarioInjectId -> {
-                    String simulationInjectId =
-                        simulationInjectIdsByScenarioInjectId.get(scenarioInjectId);
-                    if (simulationInjectId == null) {
-                      throw new IllegalStateException(
-                          "The validation simulation has no copy of the scenario inject %s"
-                              .formatted(scenarioInjectId));
-                    }
-                    return simulationInjectId;
-                  })
-              .collect(Collectors.toCollection(ArrayList::new)));
+      if (ioc.getInjectTargets() != null) {
+        Map<String, List<String>> targets = new LinkedHashMap<>();
+        ioc.getInjectTargets()
+            .forEach(
+                (scenarioInjectId, endpointIds) ->
+                    targets.put(simulationInject.apply(scenarioInjectId), endpointIds));
+        ioc.setInjectTargets(targets);
+      }
     }
     validation.setIocs(new ArrayList<>(validation.getIocs()));
   }

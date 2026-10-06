@@ -1169,8 +1169,11 @@ class InjectApiTest extends IntegrationTest {
       ioc.setRequestedTestKind(IocValidationTestKind.FILE_DROP);
       ioc.setTestKind(IocValidationTestKind.FILE_DROP);
       ioc.setInjectIds(new ArrayList<>(List.of(inject.getId())));
-      ioc.setTargetEndpointIds(
-          new ArrayList<>(inject.getAssets().stream().map(Asset::getId).toList()));
+      ioc.setInjectTargets(
+          new HashMap<>(
+              Map.of(
+                  inject.getId(),
+                  new ArrayList<>(inject.getAssets().stream().map(Asset::getId).toList()))));
       ioc.setPlanFingerprint(
           IocValidationPlanner.fingerprintOf(IocValidationTestKind.FILE_DROP, inject.getContent())
               .orElseThrow());
@@ -1267,6 +1270,12 @@ class InjectApiTest extends IntegrationTest {
       Inject injectSaved =
           iocValidationFileDropInject(
               iocValidationFileDrop(), "0123456789abcdef0123456789abcdef", targetAgentWrapper);
+      Asset agentEndpoint = injectSaved.getAssets().getFirst();
+      // Approved on two endpoints: the one of the agent and another one
+      List<Asset> approvedEndpoints = new ArrayList<>(injectSaved.getAssets());
+      approvedEndpoints.add(
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get());
+      injectSaved.setAssets(approvedEndpoints);
       approveAsIocValidationTest(injectSaved);
       doNothing()
           .when(injectStatusService)
@@ -1301,7 +1310,7 @@ class InjectApiTest extends IntegrationTest {
 
       // -- EXECUTE & ASSERT: an endpoint the operator never approved is added to its targets --
       injectSaved.setAssetGroups(new ArrayList<>());
-      List<Asset> assets = new ArrayList<>(injectSaved.getAssets());
+      List<Asset> assets = new ArrayList<>(approvedEndpoints);
       assets.add(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get());
       injectSaved.setAssets(assets);
       injectRepository.saveAndFlush(injectSaved);
@@ -1312,6 +1321,68 @@ class InjectApiTest extends IntegrationTest {
           .isInstanceOf(ServletException.class)
           .hasRootCauseInstanceOf(IllegalStateException.class)
           .hasRootCauseMessage(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST);
+
+      // -- EXECUTE & ASSERT: an approved endpoint is removed from its targets --
+      injectSaved.setAssets(new ArrayList<>(List.of(agentEndpoint)));
+      injectRepository.saveAndFlush(injectSaved);
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get(executablePayloadUri).accept(MediaType.APPLICATION_JSON).with(csrf())))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST);
+    }
+
+    @DisplayName(
+        "Refuse to execute an inject added to the simulation of an IOC validation after approval")
+    @Test
+    void given_injectAddedToAnApprovedValidationSimulation_should_refuseItsExecution() {
+      // -- PREPARE --
+      Inject approvedTest =
+          iocValidationFileDropInject(
+              iocValidationFileDrop(),
+              "0123456789abcdef0123456789abcdef",
+              agentComposer.forAgent(AgentFixture.createDefaultAgentService()));
+      approveAsIocValidationTest(approvedTest);
+      // A regular payload, added to the validation simulation once it is approved
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Inject added =
+          injectComposer
+              .forInject(InjectFixture.createInjectWithPayloadArg(new HashMap<>()))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(
+                          payloadComposer.forPayload(
+                              PayloadFixture.createCommand("bash", "echo added", null, null))))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
+              .persist()
+              .get();
+      added.setExercise(approvedTest.getExercise());
+      injectRepository.saveAndFlush(added);
+
+      // -- EXECUTE & ASSERT --
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get(INJECT_URI
+                              + "/"
+                              + added.getId()
+                              + "/"
+                              + targetAgentWrapper.get().getId()
+                              + "/executable-payload")
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf())))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage(IocValidationDispatchGuard.IOC_VALIDATION_INJECT_NOT_APPROVED);
     }
 
     @DisplayName(

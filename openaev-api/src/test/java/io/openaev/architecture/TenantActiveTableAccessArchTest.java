@@ -1490,7 +1490,8 @@ class TenantActiveTableAccessArchTest {
               // list refs with allTenants() then reload each row under its own tenant.
               IocValidationService.class,
               // Reads the validation of the inject's simulation, by simulation and tenant, under
-              // the TxCtx of InjectApi#getExecutablePayloadInject.
+              // the TxCtx of InjectApi#getExecutablePayloadInject, and for Executor#execute under
+              // the tenant the inject runs in (execution job, chaining step, direct execution).
               IocValidationDispatchGuard.class)
           .should()
           .dependOnClassesThat()

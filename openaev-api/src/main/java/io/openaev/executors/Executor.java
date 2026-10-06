@@ -18,6 +18,7 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.stix.IocValidationDispatchGuard;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -50,6 +51,7 @@ public class Executor {
   private final ConnectorInstanceService connectorInstanceService;
   private final InjectExpectationService injectExpectationService;
   private final OpenAEVConfig openAEVConfig;
+  private final IocValidationDispatchGuard iocValidationDispatchGuard;
 
   public static final String CMD = "cmd";
   public static final String PSH = "psh";
@@ -109,6 +111,7 @@ public class Executor {
 
   public InjectStatus execute(ExecutableInject executableInject) throws Exception {
     Inject inject = executableInject.getInjection().getInject();
+    iocValidationDispatchGuard.refuseInjectOutsideApproval(inject);
     InjectorContract injectorContract =
         inject
             .getInjectorContract()

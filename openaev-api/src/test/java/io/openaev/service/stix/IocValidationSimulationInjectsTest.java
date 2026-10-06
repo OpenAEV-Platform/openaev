@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.openaev.database.model.IocValidation;
 import io.openaev.database.model.IocValidationIoc;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -29,6 +30,10 @@ class IocValidationSimulationInjectsTest {
 
     assertThat(validation.getIocs().get(0).getInjectIds())
         .containsExactly("simulation-1", "simulation-2");
+    // The endpoints approved for each inject follow it to its simulation copy
+    assertThat(validation.getIocs().get(0).getInjectTargets())
+        .isEqualTo(
+            Map.of("simulation-1", List.of("endpoint-1"), "simulation-2", List.of("endpoint-2")));
     assertThat(validation.getIocs().get(1).getInjectIds()).isEmpty();
     // A new list makes the change visible to the dirty checking of the JSON column
     assertThat(validation.getIocs()).isNotSameAs(before);
@@ -50,6 +55,10 @@ class IocValidationSimulationInjectsTest {
   private static IocValidationIoc ioc(List<String> injectIds) {
     IocValidationIoc ioc = new IocValidationIoc();
     ioc.setInjectIds(new ArrayList<>(injectIds));
+    Map<String, List<String>> targets = new LinkedHashMap<>();
+    injectIds.forEach(
+        injectId -> targets.put(injectId, List.of(injectId.replace("scenario", "endpoint"))));
+    ioc.setInjectTargets(targets);
     return ioc;
   }
 

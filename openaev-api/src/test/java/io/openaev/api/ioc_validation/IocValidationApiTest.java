@@ -788,6 +788,13 @@ class IocValidationApiTest extends IntegrationTest {
       // endpoint added to the asset group later never run it
       List<String> injectIds = JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_inject_ids");
       assertThat(injectIds).hasSize(2);
+      String iocs =
+          jdbc.queryForObject(
+              "SELECT ioc_validation_iocs::text FROM ioc_validations WHERE ioc_validation_id = ?",
+              String.class,
+              id);
+      Map<String, List<String>> recorded = JsonPath.read(iocs, "$[0].ioc_inject_targets");
+      assertThat(recorded).containsOnlyKeys(injectIds);
       List<List<String>> targets = new ArrayList<>();
       for (String injectId : injectIds) {
         assertThat(
@@ -796,18 +803,14 @@ class IocValidationApiTest extends IntegrationTest {
                     Long.class,
                     injectId))
             .isZero();
-        targets.add(
+        List<String> targeted =
             jdbc.queryForList(
-                "SELECT asset_id FROM injects_assets WHERE inject_id = ?", String.class, injectId));
+                "SELECT asset_id FROM injects_assets WHERE inject_id = ?", String.class, injectId);
+        // The record of each inject is what it targets
+        assertThat(recorded.get(injectId)).containsExactlyInAnyOrderElementsOf(targeted);
+        targets.add(targeted);
       }
       assertThat(targets).containsExactlyInAnyOrder(List.of(windows), List.of(linux));
-      String iocs =
-          jdbc.queryForObject(
-              "SELECT ioc_validation_iocs::text FROM ioc_validations WHERE ioc_validation_id = ?",
-              String.class,
-              id);
-      assertThat((List<String>) JsonPath.read(iocs, "$[0].ioc_target_endpoint_ids"))
-          .containsExactlyInAnyOrder(windows, linux);
     }
 
     @Test

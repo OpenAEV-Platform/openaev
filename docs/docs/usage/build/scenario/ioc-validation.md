@@ -178,8 +178,9 @@ skipped because the safety settings do not allow its test, its row reads *Not al
   tests again. The injects target the approved endpoints themselves, each the ones of an operating system its test
   supports, and not the asset group: an endpoint added to the group after the approval never runs them. The injects
   run exactly what was approved: an inject of the validation simulation whose payload, arguments or targets are
-  changed afterwards is not executed and ends with an error, and so is an IOC validation payload used anywhere else
-  (an atomic testing, another simulation).
+  changed afterwards is not executed and ends with an error, and so is an inject added to the validation simulation
+  after the approval, whatever it runs, and an IOC validation payload used anywhere else (an atomic testing, another
+  simulation).
 - **Reject** closes the request without running anything. The optional reason is reported to OpenCTI.
 
 ![Approval confirmation listing the tests that run once approved and the security platforms](assets/ioc-validation-approve-dialog.png)
