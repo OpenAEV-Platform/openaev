@@ -942,7 +942,8 @@ public class IocValidationService {
         continue;
       }
       // What the injects carry: the dispatch refuses an inject whose arguments differ from it
-      ioc.setPlanFingerprint(IocValidationPlanner.fingerprint(plan));
+      IocValidationPlanner.Plan approved = approvedPlan(plan);
+      ioc.setPlanFingerprint(IocValidationPlanner.fingerprint(approved));
       for (Payload payload : payloads) {
         InjectorContract contract =
             injectorContractService
@@ -956,7 +957,7 @@ public class IocValidationService {
             injectService.buildInject(
                 contract, injectTitle(ioc, payload), injectDescription(ioc), true);
         ObjectNode content = inject.getContent();
-        injectArguments(plan).forEach(content::put);
+        approved.arguments().forEach(content::put);
         inject.setContent(content);
         inject.setScenario(scenario);
         inject.setAssetGroups(new ArrayList<>(List.of(assetGroup)));
@@ -1000,17 +1001,19 @@ public class IocValidationService {
   }
 
   /**
-   * The inject content values of a plan. A file-drop inject also gets its own run seed, from which
-   * the server names the temporary directory its surrogate is written to and removed from (see
-   * {@link PayloadService#iocValidationExecutionContent}).
+   * The plan the injects of an IOC carry, whose fingerprint the approval records. A file drop also
+   * gets a run seed of its own, shared by its injects, from which the server names the temporary
+   * directory of each inject with the id of that inject (see {@link
+   * PayloadService#iocValidationExecutionContent}): the fingerprint covers it, so an edited seed is
+   * refused like any other argument.
    */
-  static Map<String, String> injectArguments(IocValidationPlanner.Plan plan) {
+  static IocValidationPlanner.Plan approvedPlan(IocValidationPlanner.Plan plan) {
     if (plan.testKind() != IocValidationTestKind.FILE_DROP) {
-      return plan.arguments();
+      return plan;
     }
     Map<String, String> arguments = new HashMap<>(plan.arguments());
     arguments.put(IOC_VALIDATION_RUN_KEY, UUID.randomUUID().toString().replace("-", ""));
-    return arguments;
+    return new IocValidationPlanner.Plan(plan.testKind(), Map.copyOf(arguments), plan.message());
   }
 
   private List<Payload> payloadsFor(TxCtx ctx, IocValidationTestKind kind, List<String> executors) {

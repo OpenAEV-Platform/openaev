@@ -5,6 +5,7 @@ import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_FILE
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_HOST_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_PORT_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_PROXY_KEY;
+import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_RUN_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_URL_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_VALUE_KEY;
 
@@ -290,7 +291,7 @@ public final class IocValidationPlanner {
       case DNS_RESOLUTION -> Set.of(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY);
       case NETWORK_TRAFFIC -> Set.of(IOC_VALIDATION_HOST_KEY, IOC_VALIDATION_PORT_KEY);
       case HTTP_HEAD -> Set.of(IOC_VALIDATION_URL_KEY, IOC_VALIDATION_PROXY_KEY);
-      case FILE_DROP -> Set.of(IOC_VALIDATION_FILE_NAME_KEY);
+      case FILE_DROP -> Set.of(IOC_VALIDATION_FILE_NAME_KEY, IOC_VALIDATION_RUN_KEY);
       case LOG_INJECTION -> Set.of(IOC_VALIDATION_VALUE_KEY);
     };
   }

@@ -1221,6 +1221,40 @@ class InjectApiTest extends IntegrationTest {
     }
 
     @DisplayName(
+        "Refuse to execute an IOC validation file drop whose run seed changed after approval")
+    @Test
+    void given_iocValidationRunSeedEditedAfterApproval_should_refuseItsExecution() {
+      // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Inject injectSaved =
+          iocValidationFileDropInject(
+              iocValidationFileDrop(), "0123456789abcdef0123456789abcdef", targetAgentWrapper);
+      approveAsIocValidationTest(injectSaved);
+      // Another valid seed: the surrogate would go to another directory than the approved one
+      injectSaved
+          .getContent()
+          .put(PayloadService.IOC_VALIDATION_RUN_KEY, "fedcba9876543210fedcba9876543210");
+      injectRepository.saveAndFlush(injectSaved);
+
+      // -- EXECUTE & ASSERT --
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get(INJECT_URI
+                              + "/"
+                              + injectSaved.getId()
+                              + "/"
+                              + targetAgentWrapper.get().getId()
+                              + "/executable-payload")
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf())))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST);
+    }
+
+    @DisplayName(
         "Refuse to execute an IOC validation payload outside of an approved IOC validation")
     @Test
     void given_iocValidationPayloadOutsideAValidation_should_refuseItsExecution() {
