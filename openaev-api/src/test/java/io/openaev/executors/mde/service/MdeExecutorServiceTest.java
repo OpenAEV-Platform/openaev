@@ -259,16 +259,61 @@ public class MdeExecutorServiceTest {
 
   @Test
   @DisplayName(
-      "given Advanced Hunting available and device present, should use fresh activity instant")
-  void given_advancedHuntingAvailableAndDevicePresent_should_useFreshActivityInstant() {
+      "given Advanced Hunting available and device present, should mark agent seen at sync time")
+  void given_advancedHuntingAvailableAndDevicePresent_should_markAgentSeenAtSyncTime() {
     // Arrange — stale inventory lastSeen and Inactive health would both mark it inactive; the
     // fresh Advanced Hunting activity must win.
     Instant freshActivity = Instant.now().minus(2, ChronoUnit.MINUTES);
     MdeDevice device =
         MdeDeviceFixture.createMdeDevice("Inactive", Instant.now().minus(2, ChronoUnit.DAYS));
-    Map<String, Instant> recentActivity = new HashMap<>();
-    recentActivity.put(device.getId(), freshActivity);
-    when(client.getRecentDeviceActivity(anyInt())).thenReturn(recentActivity);
+    when(client.getRecentDeviceActivity(anyInt()))
+        .thenReturn(Map.of(device.getId(), freshActivity));
+    when(client.devicesAll()).thenReturn(List.of(device));
+    mdeExecutorService.setExecutor(mdeExecutor);
+    Instant beforeRun = Instant.now();
+
+    // Act
+    mdeExecutorService.run();
+
+    // Assert
+    AgentRegisterInput input = captureSyncedInputs().get(0);
+    assertTrue(input.isActive());
+    assertFalse(input.getLastSeen().isBefore(beforeRun));
+  }
+
+  @Test
+  @DisplayName(
+      "given last activity older than 1h but within the tolerance, should keep agent active")
+  void given_activityOlderThanActiveThresholdButWithinTolerance_should_keepAgentActive() {
+    // Arrange — regression: DeviceInfo is written about once an hour, so a healthy device's latest
+    // activity is routinely 60-75 min old at sync time and used to flap to inactive.
+    Instant activity =
+        Instant.now().minus(MdeExecutorService.ACTIVITY_TOLERANCE_MINUTES - 15, ChronoUnit.MINUTES);
+    MdeDevice device =
+        MdeDeviceFixture.createMdeDevice("Active", Instant.now().minus(2, ChronoUnit.DAYS));
+    when(client.getRecentDeviceActivity(anyInt())).thenReturn(Map.of(device.getId(), activity));
+    when(client.devicesAll()).thenReturn(List.of(device));
+    mdeExecutorService.setExecutor(mdeExecutor);
+    Instant beforeRun = Instant.now();
+
+    // Act
+    mdeExecutorService.run();
+
+    // Assert
+    AgentRegisterInput input = captureSyncedInputs().get(0);
+    assertTrue(input.isActive());
+    assertFalse(input.getLastSeen().isBefore(beforeRun));
+  }
+
+  @Test
+  @DisplayName("given last activity older than the tolerance, should keep real activity instant")
+  void given_activityOlderThanTolerance_should_keepRealActivityInstant() {
+    // Arrange — a device that really went quiet must still surface as inactive.
+    Instant activity =
+        Instant.now().minus(MdeExecutorService.ACTIVITY_TOLERANCE_MINUTES + 30, ChronoUnit.MINUTES);
+    MdeDevice device =
+        MdeDeviceFixture.createMdeDevice("Active", Instant.now().minus(2, ChronoUnit.DAYS));
+    when(client.getRecentDeviceActivity(anyInt())).thenReturn(Map.of(device.getId(), activity));
     when(client.devicesAll()).thenReturn(List.of(device));
     mdeExecutorService.setExecutor(mdeExecutor);
 
@@ -277,8 +322,8 @@ public class MdeExecutorServiceTest {
 
     // Assert
     AgentRegisterInput input = captureSyncedInputs().get(0);
-    assertEquals(freshActivity, input.getLastSeen());
-    assertTrue(input.isActive());
+    assertEquals(activity, input.getLastSeen());
+    assertFalse(input.isActive());
   }
 
   @Test

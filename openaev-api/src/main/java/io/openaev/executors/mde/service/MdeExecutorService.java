@@ -19,6 +19,7 @@ import io.openaev.service.EndpointService;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,12 @@ public class MdeExecutorService implements Runnable {
   // comfortably above OpenAEV's 1h active threshold so the accurate activity timestamp (not this
   // window) decides whether an agent is active.
   private static final int RECENT_ACTIVITY_WINDOW_MINUTES = 180;
+
+  // A device whose latest Advanced Hunting activity is younger than this is considered reachable
+  // as of this sync. Covers the worst observed gap between two sensor signals (~45 min), the
+  // Advanced Hunting ingestion delay (up to ~15 min) and the sync interval (20 min by default), so
+  // a healthy device never flaps to inactive between two syncs.
+  @VisibleForTesting static final int ACTIVITY_TOLERANCE_MINUTES = 90;
 
   private final MdeExecutorClient client;
   private final MdeExecutorConfig config;
@@ -224,14 +231,24 @@ public class MdeExecutorService implements Runnable {
    * Resolves the agent lastSeen used for the active status. Prefers the near real-time Advanced
    * Hunting activity; when Advanced Hunting is unavailable, approximates reachability with the MDE
    * sensor health flag rather than the badly lagging inventory lastSeen.
+   *
+   * <p>Advanced Hunting activity is bursty (signals can be ~45 min apart on an idle machine) and is
+   * only read once per sync, so returning it as-is let a healthy device cross the generic 1h active
+   * threshold between two syncs. Activity within {@link #ACTIVITY_TOLERANCE_MINUTES} therefore
+   * counts as "seen now"; older activity is returned unchanged so a device that really went quiet
+   * still surfaces as inactive.
    */
   private static Instant resolveLastSeen(
       MdeDevice device, Map<String, Instant> recentActivity, boolean advancedHuntingAvailable) {
     if (advancedHuntingAvailable) {
       Instant fresh = recentActivity.get(device.getId());
-      // A device absent from the activity window has not been active recently, so its stale
-      // inventory lastSeen surfaces it as inactive.
-      return fresh != null ? fresh : parseDeviceLastSeen(device.getLastSeen());
+      if (fresh == null) {
+        // A device absent from the activity window has not been active recently, so its stale
+        // inventory lastSeen surfaces it as inactive.
+        return parseDeviceLastSeen(device.getLastSeen());
+      }
+      Instant now = Instant.now();
+      return fresh.isAfter(now.minus(ACTIVITY_TOLERANCE_MINUTES, ChronoUnit.MINUTES)) ? now : fresh;
     }
     return "Active".equalsIgnoreCase(device.getHealthStatus())
         ? Instant.now()
