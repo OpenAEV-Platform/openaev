@@ -19,10 +19,15 @@ import static io.openaev.database.model.SettingKeys.PLATFORM_ENTERPRISE_LICENSE;
 import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE;
 import static io.openaev.ee.Pem.*;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
@@ -49,6 +54,7 @@ public class EnterpriseEditionService {
   public static final String LICENSE_OPTION_TYPE = "2.14521.4.4.10";
   public static final String LICENSE_OPTION_PRODUCT = "2.14521.4.4.20";
   public static final String LICENSE_OPTION_CREATOR = "2.14521.4.4.30";
+  // Dispatch-time gate: the executor context services pass their fixed SERVICE_NAME constant.
   private final List<String> eeExecutorsNames =
       List.of(
           CROWDSTRIKE_EXECUTOR_NAME,
@@ -56,6 +62,16 @@ public class EnterpriseEditionService {
           SENTINELONE_EXECUTOR_NAME,
           PALOALTOCORTEX_EXECUTOR_NAME,
           MDE_EXECUTOR_NAME);
+
+  // Launch-time gate: persisted executors are matched on their type, never on their name, because
+  // the name comes from the editable EXECUTOR_NAME configuration ("Display name" in the UI).
+  private final List<String> eeExecutorsTypes =
+      List.of(
+          CROWDSTRIKE_EXECUTOR_TYPE,
+          TANIUM_EXECUTOR_TYPE,
+          SENTINELONE_EXECUTOR_TYPE,
+          PALOALTOCORTEX_EXECUTOR_TYPE,
+          MDE_EXECUTOR_TYPE);
 
   @Resource private OpenAEVConfig openAEVConfig;
 
@@ -223,21 +239,24 @@ public class EnterpriseEditionService {
     }
   }
 
+  /**
+   * Returns the display names of the Enterprise Edition executors driving the given agents, one
+   * entry per executor. Executors are recognized by their type, so renaming an executor instance
+   * cannot take it out of the license check.
+   */
   public List<String> detectEEExecutors(List<Agent> agents) {
-    List<String> found = new ArrayList<>();
+    Set<String> found = new LinkedHashSet<>();
 
     for (Agent agent : agents) {
       Executor executor = agent.getExecutor();
       if (executor == null) continue;
 
-      if (eeExecutorsNames.contains(executor.getName())) {
+      if (eeExecutorsTypes.contains(executor.getType())) {
         found.add(executor.getName());
-        // exit early if all types have been found
-        if (found.size() == eeExecutorsNames.size()) break;
       }
     }
 
-    return found;
+    return new ArrayList<>(found);
   }
 
   /**

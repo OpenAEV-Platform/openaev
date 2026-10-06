@@ -1,10 +1,16 @@
 package io.openaev.ee;
 
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,8 +39,9 @@ class EnterpriseEditionServiceExecutorTest {
     return license;
   }
 
-  private static Agent agentOf(String executorName) {
+  private static Agent agentOf(String executorType, String executorName) {
     Executor executor = new Executor();
+    executor.setType(executorType);
     executor.setName(executorName);
     Agent agent = new Agent();
     agent.setExecutor(executor);
@@ -80,13 +87,38 @@ class EnterpriseEditionServiceExecutorTest {
         .doesNotThrowAnyException();
   }
 
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(
+      strings = {
+        CROWDSTRIKE_EXECUTOR_TYPE,
+        TANIUM_EXECUTOR_TYPE,
+        SENTINELONE_EXECUTOR_TYPE,
+        PALOALTOCORTEX_EXECUTOR_TYPE,
+        MDE_EXECUTOR_TYPE
+      })
+  @DisplayName("a renamed EDR executor should still be detected as Enterprise Edition at launch")
+  void given_renamedEdrExecutor_should_stillBeDetectedAsEeExecutor(String executorType) {
+    // Arrange — the executor name comes from the editable "Display name" (EXECUTOR_NAME), so the
+    // launch-time gate must not depend on it.
+    Agent agent = agentOf(executorType, "Production EDR");
+
+    // Act
+    List<String> found = enterpriseEditionService.detectEEExecutors(List.of(agent));
+
+    // Assert
+    assertThat(found).containsExactly("Production EDR");
+  }
+
   @Test
-  @DisplayName("an agent driven by the MDE executor should be detected as Enterprise Edition")
-  void given_mdeAgent_should_beDetectedAsEeExecutor() {
+  @DisplayName("non-EE executors are ignored and each EE executor is reported once")
+  void given_mixedAgents_should_reportEachEeExecutorOnce() {
     // Act
     List<String> found =
         enterpriseEditionService.detectEEExecutors(
-            List.of(agentOf(MDE_EXECUTOR_NAME), agentOf("OpenAEV Agent")));
+            List.of(
+                agentOf(MDE_EXECUTOR_TYPE, MDE_EXECUTOR_NAME),
+                agentOf(MDE_EXECUTOR_TYPE, MDE_EXECUTOR_NAME),
+                agentOf(OPENAEV_EXECUTOR_TYPE, "OpenAEV Agent")));
 
     // Assert
     assertThat(found).containsExactly(MDE_EXECUTOR_NAME);
