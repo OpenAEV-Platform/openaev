@@ -39,7 +39,7 @@ const LogoBaseline = () => {
     <img
       src={fileUri(logoBaseline)}
       alt="Made by Filigran logo"
-      width={30}
+      width={50}
       style={{
         userSelect: 'none',
         pointerEvents: 'none',
