@@ -136,7 +136,7 @@ const IocValidations = () => {
       field: 'ioc_validation_created_at',
       label: 'Created',
       isSortable: true,
-      value: (iocValidation: IocValidationSimpleOutput) => <IocValidationDate date={iocValidation.ioc_validation_created_at} />,
+      value: (iocValidation: IocValidationSimpleOutput) => <IocValidationDate date={iocValidation.ioc_validation_created_at} focusable={false} />,
     },
   ], [t]);
 
