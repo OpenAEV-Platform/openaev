@@ -8,6 +8,7 @@ import { IOC_VALIDATION_FOCUS_RING_CLASS, IOC_VALIDATION_SETTINGS_URL } from '..
 import { type IocValidationOutput } from '../../../../utils/api-types';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { SUBJECTS } from '../../../../utils/permissions/types';
 
 const hook = vi.hoisted(() => ({
   iocValidation: undefined as unknown,
@@ -82,10 +83,11 @@ const request = (status: string) => ({
   ],
 }) as unknown as IocValidationOutput;
 
-const renderDetail = (iocValidation: IocValidationOutput, canManageSettings = true) => {
+const renderDetail = (iocValidation: IocValidationOutput, can: boolean | ((action: string, subject: string) => boolean) = true) => {
   hook.iocValidation = iocValidation;
+  const check = typeof can === 'function' ? can : () => can;
   return render(
-    <AbilityContext.Provider value={{ can: () => canManageSettings } as unknown as AppAbility}>
+    <AbilityContext.Provider value={{ can: check } as unknown as AppAbility}>
       <TooltipProvider>
         <MemoryRouter>
           <IocValidation />
@@ -138,6 +140,27 @@ describe('IocValidation', () => {
     const table = screen.getByRole('table', { name: 'Tested IOCs' });
     expect(within(table).getByText('Not allowed by the safety settings')).toBeTruthy();
     expect(within(table).queryByRole('link', { name: 'Open settings' })).toBeNull();
+  });
+
+  it('links a security platform only for users who can open the security platforms', () => {
+    const base = request('RUNNING');
+    const withPlatform = {
+      ...base,
+      ioc_validation_pairs: base.ioc_validation_pairs.map(pair => ({
+        ...pair,
+        pair_security_platform_id: 'platform-1',
+      })),
+    } as IocValidationOutput;
+
+    renderDetail(withPlatform);
+    const link = within(screen.getByRole('table', { name: 'Security platforms' })).getByRole('link', { name: 'Corporate EDR' });
+    expect(link.getAttribute('href')).toBe('/admin/security_platforms/platform-1');
+    cleanup();
+
+    renderDetail(withPlatform, (_action, subject) => subject !== SUBJECTS.SECURITY_PLATFORMS);
+    const table = screen.getByRole('table', { name: 'Security platforms' });
+    expect(within(table).queryByRole('link', { name: 'Corporate EDR' })).toBeNull();
+    expect(within(table).getByText('Corporate EDR')).toBeTruthy();
   });
 
   it('shows the empty-value placeholder in the details and evaluated cells of a pending outcome', () => {

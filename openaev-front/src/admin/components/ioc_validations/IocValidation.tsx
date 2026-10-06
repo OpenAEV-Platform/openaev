@@ -36,6 +36,7 @@ const IocValidation = () => {
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
   const canManageSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
+  const canAccessSecurityPlatforms = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
   const { iocValidationId } = useParams() as { iocValidationId: string };
   const { iocValidation, loadError, load, update } = useIocValidation(iocValidationId);
 
@@ -203,7 +204,7 @@ const IocValidation = () => {
       key: 'platform',
       label: t('Security platform'),
       width: '20%',
-      render: pair => (pair.pair_security_platform_id
+      render: pair => (pair.pair_security_platform_id && canAccessSecurityPlatforms
         ? <Link to={`/admin/security_platforms/${pair.pair_security_platform_id}`}>{pair.pair_platform_name || pair.pair_platform_ref}</Link>
         : (pair.pair_platform_name || pair.pair_platform_ref)),
     },
