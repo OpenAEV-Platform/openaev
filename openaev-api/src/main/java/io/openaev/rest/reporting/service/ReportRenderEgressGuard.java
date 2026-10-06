@@ -17,11 +17,10 @@ import org.springframework.stereotype.Component;
  * at config-save time ({@code ThemeAssetUrlValidator}, {@code WebhookTargetValidator}).
  *
  * <p>The render page necessarily navigates a trusted-but-internal origin (loopback, or {@code
- * openaev.reporting.render-base-url}): a page-wide "block every internal address" rule cannot
- * apply here, it has to single out that one legitimate internal target and treat everything else -
- * most notably a tenant-controlled theme asset url rendered as an {@code <img>} - as untrusted.
- * Every other request is only allowed once its host is resolved, right now, to a verified public
- * address.
+ * openaev.reporting.render-base-url}): a page-wide "block every internal address" rule cannot apply
+ * here, it has to single out that one legitimate internal target and treat everything else - most
+ * notably a tenant-controlled theme asset url rendered as an {@code <img>} - as untrusted. Every
+ * other request is only allowed once its host is resolved, right now, to a verified public address.
  *
  * <p>Installed as a Playwright request handler on every render {@link BrowserContext}: this re-
  * resolves the host at the moment Chromium is about to fetch it, which catches both a host that

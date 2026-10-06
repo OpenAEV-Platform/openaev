@@ -19,10 +19,10 @@ import org.springframework.stereotype.Component;
  * <p>This save-time check is only a first filter, not the security boundary: the asset url is
  * actually fetched later, by the headless browser that renders reports, which is where {@code
  * ReportRenderEgressGuard} re-resolves the host at fetch time (catching a host that now resolves
- * differently, or a redirect to an internal target) and is the mechanism that cannot be bypassed.
- * A host that fails to resolve here is let through for the same reason {@code
- * WebhookTargetValidator} lets it through: it cannot be used as-is, and DNS may change by the time
- * it is actually requested.
+ * differently, or a redirect to an internal target) and is the mechanism that cannot be bypassed. A
+ * host that fails to resolve here is let through for the same reason {@code WebhookTargetValidator}
+ * lets it through: it cannot be used as-is, and DNS may change by the time it is actually
+ * requested.
  */
 @Component
 public class ThemeAssetUrlValidator {
