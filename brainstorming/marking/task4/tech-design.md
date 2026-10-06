@@ -474,7 +474,7 @@ a recurring schedule; `launched_by` = whose clearance gates one specific run):
 
 | Entity | Field | Written by | Live-user path | No-live-user path |
 |---|---|---|---|---|
-| `Scenario` | `scheduled_by` **(new)** | `PUT /scenarios/{id}/recurrence` → `updateScenarioRecurrence` (`ScenarioApi.java:577`) | current user, on every recurrence create/update | — (recurrence can only be configured by a signed-in user) |
+| `Scenario` | `scheduled_by` **(new)** | `PUT /scenarios/{id}/recurrence` → `updateScenarioRecurrence` (`ScenarioApi.java:577`) | current user, on every recurrence create/update | **null** for scenarios generated from an OpenCTI security coverage: `SecurityCoverageService.setRecurrence` (`SecurityCoverageService.java:515`) sets the recurrence directly, with no signed-in user and without going through `updateScenarioRecurrence`. Null resolves to zero clearance at dispatch (see [STIX security coverage](#stix-security-coverage-openctis-scenarios-have-no-scheduling-actor)) |
 | `Exercise` | `launched_by` **(new)** | `ScenarioToExerciseService.toExercise()` (`ScenarioToExerciseService.java:54`) | current user (manual launch, `ScenarioApi.java:668`, incl. the autonomous/chaining branch at lines 672-682, which is still inside the same HTTP call) | copied from `scenario.getScheduledBy()` (cron creation, `ScenarioExecutionJob.java:117`) |
 | `Inject` (atomic testing only) | `scheduled_by` **(new)** | `AtomicTestingService.updateRecurrence()` | current user, on every recurrence create/update | — |
 | `Inject` (atomic testing only) | `launched_by` **(new)** | `AtomicTestingService.launch()` / `relaunch()` (`AtomicTestingService.java:231-262`) | current user (manual launch/relaunch) | copied from the original inject's `scheduled_by` (scheduled relaunch, `AtomicTestingExecutionJob.java:101-112`) |
@@ -641,6 +641,425 @@ sequenceDiagram
   would ever evict a value baked into an `Exercise`/`Inject` column when the actor's groups change,
   which is exactly why that approach isn't safe and this one is.
 
+### Possible defect: `isAdminOrBypass()` does not see a role-based `BYPASS` (to be confirmed by a test)
+
+The dispatch guardrail above relies on `bypass = launchedByUser.isAdminOrBypass()`. By reading the
+code, that method may not do what its name says:
+
+- `User.isAdminOrBypass()` is `isAdmin() || getCapabilities().contains(Capability.BYPASS)`
+  (`User.java:377`).
+- `getCapabilities()` goes through `capabilitiesOf(...)` (`User.java:502`), which **expands** `BYPASS`
+  into the concrete tenant- or platform-scoped capabilities and never adds `BYPASS` itself; its
+  Javadoc says "BYPASS is expanded rather than returned, so it never leaks into a capability set", and
+  `allTenantScoped()` / `allPlatformScoped()` both exclude it.
+- So the `contains(BYPASS)` test looks unable to be true: `isAdminOrBypass()` would reduce to
+  `isAdmin()`.
+
+Why it matters here: `resolveLaunchedByClearance` (`InjectService.java:481`) uses `isAdminOrBypass()` as
+its only bypass test. A launcher whose group holds a `BYPASS` role would resolve through their group
+**marking grants** at dispatch instead of getting full clearance — a narrower result (fail-closed), but
+not the documented one. `HttpMarkingScopeSupplier` would still treat the same user as bypass, because
+the expanded set contains `AGENT_RUNTIME_ACCESS`, so reads and dispatch could disagree for that user.
+
+Not verified: no test exercises `isAdminOrBypass()` with a `BYPASS` role (the only test mention is a
+comment in `InjectServiceTest`), and the method is used widely, so there may be a path that makes it
+work. A unit test with a user in a group carrying a `BYPASS` role would settle it; if confirmed, the
+fix is to use `hasBypassIn(...)` / `hasTenantBypass()` or to test the role capabilities directly.
+
+---
+
+## Marking the objects linked to an asset (proposed — not yet decided)
+
+Everything above is about *execution*. A second question is about *reads*: the asset row is filtered
+by the Task 3 rewrite, but the rows that **point at** an asset are not, so they can still leak what
+the asset hides (its id, its existence, a finding's title, an expectation's score…).
+
+### Why the existing rewrite does not cover them
+
+`MarkingDimension.readPredicate()` (`MarkingDimension.java:55`) only ever emits
+`is_marking_set_allowed(<alias>.marking_ids)` — a test on a column **of the table being queried**.
+It never follows a foreign key. A table is filtered only if it (a) has a `marking_ids text[]` column
+(`MarkingFilteringConfig.deriveFromSchema()`) and (b) is listed in `openaev.marking.active-tables`.
+Today that is `assets` alone. Objects linked to an asset:
+
+| Table | Link to the asset |
+|---|---|
+| `agents` | `agent_asset` FK (`Agent.java:62`) |
+| `findings_assets` | join table (`Finding.java:135-138`) |
+| `injects_assets` | join table (`Inject.java:341-344`) |
+| `asset_groups_assets` | join table (`AssetGroup.java:94-98`) |
+| `injects_expectations` (technical subtype) | `asset_id` FK (`TechnicalInjectExpectation.java:30`) |
+| `asset_agent_jobs` | `asset_agent_agent` / `asset_agent_inject` |
+
+`Endpoint` and the other asset subtypes share the `assets` table (`SINGLE_TABLE` inheritance), so they
+are already covered. Which of these tables *should* be marked is a product decision (e.g.
+`assets_tags` and `asset_groups_assets` arguably should not — see US1 / open item 1).
+
+### Solution A — Denormalized `marking_ids` column on each linked table
+
+Give each linked table its own `marking_ids text[]` column holding a **copy** of its asset's markings,
+and add the table to `openaev.marking.active-tables`. No engine change: the inspector already filters
+any table with the column, joins and sub-queries included, using the same predicate.
+
+Red = what Solution A adds (the copy and its propagation). Green = the existing Task 3 read path,
+unchanged.
+
+```mermaid
+sequenceDiagram
+    actor U as Admin
+    participant SVC as AssetMarkingsService
+    participant LSN as Marking sync<br/>(JPA listener or DB trigger)
+    participant DB as PostgreSQL
+    actor R as Reader (clearance in app.current_markings)
+    participant INS as ScopeStatementInspector
+
+    Note over U,DB: Write path - keep the copy in sync
+    U->>SVC: PUT asset markings (TLP:RED)
+    SVC->>DB: UPDATE assets SET marking_ids = {RED}
+    rect rgb(255, 205, 205)
+        SVC->>LSN: asset markings changed
+        LSN->>DB: UPDATE agents SET marking_ids = {RED} WHERE agent_asset = asset.id
+        LSN->>DB: UPDATE findings_assets / injects_assets / ... same copy
+    end
+    Note over LSN,DB: A new linked row (finding, agent) also gets the<br/>asset markings copied at INSERT time.
+
+    Note over R,DB: Read path - unchanged Task 3 rewrite
+    R->>INS: SELECT ... FROM agents
+    rect rgb(205, 255, 205)
+        INS->>DB: SELECT ... FROM (SELECT * FROM agents<br/>WHERE is_marking_set_allowed(marking_ids)) agents
+    end
+    DB-->>R: only agents whose copied markings the reader holds
+```
+
+- **Per table**: a migration like `V6_20260921120000000__Mark_assets.java` (nullable column +
+  `GIN ((COALESCE(marking_ids,'{}'))` expression index, no backfill needed for *visibility* because
+  `NULL` = unmarked), an entity field, an allowlist entry.
+- **Keeping the copy correct** is the real work. Three write paths must maintain it:
+  1. asset marking change (`AssetMarkingsService`) → propagate to every linked row;
+  2. creation of a linked row (new finding, new agent, new `injects_assets` row) → copy from the asset;
+  3. delete of a marking definition → scrub the arrays (design §5.7; `AllTablesWithMarkingIds` already
+     derives every table with the column, so the scrub picks the new ones up automatically).
+- **Rows linked to several assets** (a finding on two assets) hold the **union** of their markings:
+  consistent with the AND / STIX reading — the row is visible only to someone holding *all* of them.
+- **Fail-open risk**: a path that forgets to copy leaves the row **unmarked**, hence visible to
+  everyone. Mitigation: set the column in one place (a JPA `@PrePersist`/listener or a DB trigger) and
+  add an architecture test listing linked tables without a marking column.
+
+| Pros | Cons |
+|---|---|
+| Fits the design as-is (local column test, composite keys OK, no new dimension) | Denormalized data to keep in sync; stale copy = wrong visibility |
+| Constant cost per query: no extra join | Write amplification when an asset's marking changes (N linked rows) |
+| Rollout stays table-by-table via the allowlist | Backfill needed to mark rows that link to an *already marked* asset |
+
+### Solution B — Rewrite through the join (`EXISTS` on the parent asset)
+
+Keep **no** column on the linked table. Teach the rewrite that a table is *marked by its parent*:
+
+```sql
+-- agents, rewritten
+EXISTS (SELECT 1 FROM assets a
+        WHERE a.asset_id = t.agent_asset
+          AND is_marking_set_allowed(a.marking_ids))
+```
+
+This needs a new `ScopeDimension` shape (or a `ParentMarkedTable(table, fkColumn, parentTable)`
+variant of `MarkedTable`) with its own `readPredicate`/`writePredicate`; `MarkingDimension` today is
+column-only and its Javadoc states the marked table's primary key never appears in the predicate.
+For join tables the predicate is on the asset-side column (`asset_id`).
+
+Red = what Solution B adds (the parent-based rewrite). There is no write path to maintain: the
+asset row is the only place a marking is stored.
+
+```mermaid
+sequenceDiagram
+    actor U as Admin
+    participant SVC as AssetMarkingsService
+    participant DB as PostgreSQL
+    actor R as Reader (clearance in app.current_markings)
+    participant INS as ScopeStatementInspector
+
+    Note over U,DB: Write path - nothing to propagate
+    U->>SVC: PUT asset markings (TLP:RED)
+    SVC->>DB: UPDATE assets SET marking_ids = {RED}
+    Note over DB: agents, findings_assets, injects_assets...<br/>are untouched
+
+    Note over R,DB: Read path - parent-based rewrite
+    R->>INS: SELECT ... FROM agents
+    rect rgb(255, 205, 205)
+        INS->>INS: agents is marked by parent assets<br/>via agent_asset (new mapping)
+        INS->>DB: SELECT ... FROM agents t WHERE EXISTS (<br/>SELECT 1 FROM assets a WHERE a.asset_id = t.agent_asset<br/>AND is_marking_set_allowed(a.marking_ids))
+    end
+    DB-->>R: only agents whose parent asset the reader can see
+    Note over INS,DB: The assets sub-select is itself a scoped table,<br/>so it must not be rewritten twice (to be covered by a test)
+```
+
+- **Always consistent**: the asset is the single source of truth; changing its markings changes what
+  every linked row shows, instantly, with nothing to propagate.
+- **Costs**: one correlated sub-select per linked table per query; the unmarked fast path
+  (`COALESCE(marking_ids,'{}')` on a local column) is lost, and the planner must use the asset PK /
+  FK indexes. The inspector must also avoid recursing into the sub-select it just added (it rewrites
+  `assets` itself, which is harmless but must be tested — `MarkingRewriteHypothesisTest` is the
+  place). Rows whose parent is not visible disappear (inner semantics), which is the intended result.
+- **Writes**: the same predicate on UPDATE/DELETE targets works, but an INSERT of a linked row cannot
+  be checked by a WHERE; that stays a service-layer guard (as already stated for markings in
+  `MarkingDimension`).
+
+| Pros | Cons |
+|---|---|
+| No copy, no sync, no backfill, no fail-open on a missed write path | New dimension type in the inspector: more engine surface and risk (it is the security boundary) |
+| Asset marking change is O(1) | Extra join cost on hot tables (`injects_expectations`, `findings`) |
+| Adding a linked table is configuration, not a migration | Needs a per-table FK/parent mapping to maintain |
+
+### Comparison and recommendation
+
+| | A — column copy | B — `EXISTS` through the join |
+|---|---|---|
+| Engine change | none | new parent-based dimension |
+| Source of truth | duplicated | single (asset) |
+| Failure mode | stale/missing copy → leak | none by construction; cost is performance |
+| Query cost | local test, GIN-indexable | correlated sub-select |
+| Migration/backfill | per table | none |
+| Fits the current design doc | yes (§3.2 Option 2) | extends it |
+
+Proposed: **A** for the high-volume, read-hot tables where a local test matters, if the sync can be
+centralized in one listener; **B** if the number of linked tables grows or correctness must not
+depend on application write paths, since it removes the fail-open mode entirely. This is a proposal
+for discussion — it does not change the Option 1 decision below, and it is not recorded in the
+Decisions Log until chosen. It also does not answer which tables to mark (open items 1 and 3).
+
+---
+
+## Marking and the real-time stream (`StreamApi`) (proposed — not yet decided)
+
+`StreamApi` pushes every database mutation to every connected browser over SSE. It is a **third read
+path**, next to the REST reads (Task 3) and execution dispatch (above), and today it has no marking
+check at all.
+
+### Why the SQL rewrite cannot protect it
+
+- `listenDatabaseUpdate` (`StreamApi.java:215`) is `@Async("streamExecutor")` +
+  `@TransactionalEventListener`: it runs **after commit, on a pool thread, with no transaction**. The
+  inspector only filters inside a transaction that set `app.current_markings`
+  (`TenantScopedTransaction.setMarkingScope`), so there is nothing to rewrite here.
+- The event instance was loaded earlier, in the **publisher's** transaction, under the publisher's
+  clearance (typically an admin, or an agent with `AGENT_RUNTIME_ACCESS`). `sendStreamEvent`
+  (`StreamApi.java:195`) then serializes that whole instance per consumer.
+- Per consumer, the gate today is `isVisibleForTenant` (`StreamApi.java:385`) + `hasReadPermission`
+  (RBAC / grants). Neither knows about markings.
+
+**Leak**: a `TLP:RED` asset created or updated is broadcast, in full, to a `TLP:GREEN` user's stream.
+The same holds for any entity that embeds restricted data (see "Payloads that embed restricted data"
+below).
+
+### Proposal — a Java-side marking gate, next to the permission check
+
+Red = what is added. Everything else already exists in `StreamApi`.
+
+```mermaid
+sequenceDiagram
+    participant PUB as Publisher transaction<br/>(admin / agent clearance)
+    participant SA as StreamApi.listenDatabaseUpdate<br/>(async, after commit, no transaction)
+    participant CACHE as MarkingClearanceCacheManager
+    participant C as Consumer (user + tenant)
+
+    PUB->>SA: BaseEvent(instance, type)
+    loop each connected consumer
+        SA->>SA: isVisibleForTenant(event, consumer.tenantId)
+        SA->>SA: hasReadPermission (RBAC / grants, 30s cache)
+        rect rgb(255, 205, 205)
+            SA->>CACHE: findClearance(userId, tenantId, user.isAdminOrBypass())
+            CACHE-->>SA: MarkingCtx (cached, evicted on clearance reduction)
+            SA->>SA: instance.markingIds contained in MarkingCtx ?
+        end
+        alt allowed
+            SA->>C: full event (message)
+        else not allowed
+            SA->>C: id-only DELETE event (existing branch, StreamApi.java:266-285)
+        end
+    end
+```
+
+1. **Where**: in `listenDatabaseUpdate`, after the existing permission check and before
+   `sendStreamEvent`. Entities that can carry markings implement a small `Marked` interface
+   (`String[] getMarkingIds()`); `Asset` first, the linked tables later (see below).
+2. **Clearance source**: `MarkingClearanceCacheManager.findClearance(userId, tenantId, bypass)`,
+   called **directly** with `bypass = user.isAdminOrBypass()` — the same rule as the dispatch-time
+   guardrail in "Interaction with the existing marking bypass". It must not go through
+   `HttpMarkingScopeSupplier`, which would fold in `AGENT_RUNTIME_ACCESS`. The call is `@Cacheable`
+   and evicted on every clearance-reducing change, so it costs **no database query per event** — the
+   constraint behind #6868 (see the comments on `userCache` and `permissionDecisionCache`).
+3. **Test**: containment of the entity's `marking_ids` in the consumer's clearance — the Java twin of
+   `is_marking_set_allowed` (every marking on the row must be held, an unmarked row is visible to
+   everyone, no clearance hides every marked row). It must stay behaviourally identical to the SQL
+   function; whether `MarkingCtx` already exposes a containment helper is to be checked at
+   implementation time.
+4. **Outcome when not allowed**: reuse the existing **id-only DELETE** event
+   (`StreamApi.java:266-285`). It leaks nothing, and it also covers the case where an asset's
+   markings are *raised*: users who could see it a moment ago see it disappear from their UI.
+5. **Do not put the marking decision in `permissionDecisionCache`.** That cache keeps decisions for
+   30 s; a "yes" cached before a marking change would deliver the new payload (with its new markings)
+   to someone who no longer qualifies. The marking test is in-memory and cheap, so it runs on every
+   event, and the clearance cache is already evicted on reductions. The existing 60 s `userCache`
+   staleness (bypass flag, capabilities) is accepted as is.
+6. **Consumers without a tenant** (legacy `/api/stream`, blank `tenantId`): clearance is
+   `MarkingCtx.none()` — they see unmarked rows only (fail closed, same as
+   `HttpMarkingScopeSupplier` when no user or no restricted tenant scope).
+
+### Payloads that embed restricted data (the hard part)
+
+An event for a parent entity (`Inject`, `Exercise`, `Scenario`, `AssetGroup`) can serialize
+collections of assets. Over REST those collections are lazy-loaded under the **reader's** clearance,
+so the rewrite hides restricted assets. In the stream they were loaded under the **publisher's**
+clearance, so restricted asset ids would reach every reader of the parent. The marking gate above
+cannot fix this: the parent itself is allowed.
+
+| Option | How | Trade-off |
+|---|---|---|
+| **Notify and refetch** (preferred for these types) | send `{id, type}` only; the client re-reads through the filtered REST path | one extra request per event, no payload to sanitize; same pattern as the attack-path nudge, whose own Javadoc states the notification can never leak state |
+| Filter per consumer | strip marked ids from the serialized tree using the consumer's clearance | keeps the push payload, but needs per-type knowledge of every embedded marked reference — easy to miss one |
+
+### Consequences for the linked-objects solutions
+
+Findings, agents and expectations are streamed too, so the stream is a second consumer of whichever
+solution is retained above:
+
+- **Solution A (column copy)**: the entity carries its own `marking_ids`, so the stream gate is the
+  same in-memory test as for assets — no extra work.
+- **Solution B (`EXISTS` through the join)**: the stream has no SQL to rewrite, so it would need the
+  parent asset's markings **per event and per consumer** — an extra lookup on the hottest path.
+  Workable only with a short-lived cache keyed by asset id, i.e. the pattern that already had to be
+  built for permissions after #6868.
+
+This is an additional argument for Solution A on the streamed entities.
+
+### Out of scope / unchanged
+
+- `listenBulkOperation` carries counts and an entity label only, scoped to the launching user — no
+  marked data.
+- `listenAttackPathVersion` already gates on `AttackPathAccessControl.canRead` and sends a
+  notification only. It needs a marking review only if the simulation's own visibility becomes
+  marking-dependent (open item 2).
+- A **raised** clearance emits no event, so a user who gains access sees newly visible assets only
+  after a refetch. This matches the global principle that read access follows current group
+  markings, and is accepted.
+
+### Tests to add
+
+- A `TLP:GREEN` consumer receives an id-only DELETE, not the payload, when a `TLP:RED` asset is
+  created or updated.
+- The same consumer receives a DELETE when an asset it could see is re-marked `TLP:RED`.
+- An unmarked asset is still delivered to everyone with READ permission.
+- A consumer holding `TLP:RED` receives the full event.
+- A parent entity event (inject) never carries a restricted asset id.
+
+---
+
+## STIX security coverage: OpenCTI scenarios have no scheduling actor
+
+`POST /stix/process-bundle` (`StixApi.processBundle`) does **not** launch anything. It creates a
+`SecurityCoverage`, a `Scenario` and its injects, and sets the scenario's recurrence directly
+(`SecurityCoverageService.setRecurrence`, first start two minutes later). The launch happens later,
+from the cron:
+
+```mermaid
+sequenceDiagram
+    actor OC as OpenCTI connector<br/>(service account)
+    participant API as StixApi.processBundle
+    participant SCN as Scenario (DB)
+    participant JOB as ScenarioExecutionJob<br/>(cron, no live user)
+    participant EX as Exercise (DB)
+    participant DISP as InjectService<br/>.resolveLaunchedByClearance
+
+    OC->>API: POST /stix/process-bundle
+    API->>SCN: create scenario + injects + recurrence
+    rect rgb(255, 230, 200)
+        Note over API,SCN: scheduled_by is NOT set here: only<br/>ScenarioApi.updateScenarioRecurrence sets it
+    end
+    JOB->>SCN: recurring scenario due
+    JOB->>EX: toExercise(scenario, start, false, scenario.getScheduledBy() = null)
+    EX->>DISP: dispatch, launched_by = null
+    rect rgb(255, 205, 205)
+        DISP-->>EX: MarkingCtx.none() (zero clearance)
+    end
+    Note over DISP: only unmarked assets are executed,<br/>every marked asset is skipped
+```
+
+**Current behaviour (fail-closed)**
+
+- The service account is never the actor: nothing writes it into `scheduled_by` or `launched_by`, so
+  it cannot bring its own clearance (or a bypass) into a run.
+- `launched_by = null` resolves to zero clearance (`InjectService.java:478`), as the cron's own
+  comment states (`ScenarioExecutionJob.java:113-115`). Marked assets are skipped, never run.
+- Consequence: **a scenario generated from a security coverage can never execute on a marked
+  asset**, whatever the marking.
+
+### The OpenCTI connector user (verified by reading the code)
+
+`PrivilegeService.ensurePrivilegedUserExistsForConnector`
+(`opencti/connectors/service/PrivilegeService.java:80`) creates one technical user per connector:
+
+- email `connector-opencti-<connectorId>@openaev.invalid`, `admin = false` (forced on every update by
+  `AbstractPrivilegeService.applyUserServiceAttributes`);
+- a single per-tenant group, "STIX bundle processors" (`defaultUserAssignation = false`), whose role
+  holds exactly one capability: `MANAGE_STIX_BUNDLE` (`Constants.java:9`), i.e. `STIX_BUNDLE` /
+  `PROCESS` at tenant scope. The capability is `hidden` and `checkable`, like `AGENT_RUNTIME_ACCESS`;
+- no `BYPASS`, no `AGENT_RUNTIME_ACCESS`, and no marking granted anywhere in this code. The role and
+  group are re-applied each time `ensurePrivilegedUserExistsForConnector` runs.
+
+So `isAdminOrBypass()` is false for it, and its own marking grants are empty: **its clearance is
+none**, exactly as for a null actor.
+
+**Effect on inject generation.** `fetchAssetGroupsFromScenarioTagRules` and `assetsFromAssetGroupMap`
+(`SecurityCoverageInjectService`) read asset groups and endpoints during the HTTP request, under the
+connector's HTTP clearance. Resolved through `HttpMarkingScopeSupplier`, that clearance was none, so
+the platform/architecture combinations that decide which injects exist came **only from unmarked
+endpoints**. There was therefore no inference leak by default (the leak would have required a bypass),
+but a coverage could not generate injects for a platform that exists only on marked assets.
+
+**Change made on the branch (to validate with the PO).** `HttpMarkingScopeSupplier` now also treats
+`MANAGE_STIX_BUNDLE` as a read bypass, next to `AGENT_RUNTIME_ACCESS`, so that `processBundle` builds
+its scenario from every asset of the tenant. It affects the **read clearance of the request only**:
+dispatch (`InjectService.resolveLaunchedByClearance`) still uses `isAdminOrBypass()` alone, so the run
+still has zero clearance. Consequences to be aware of:
+
+- **Generation and execution now disagree.** The scenario is built from all assets but the run skips
+  marked ones. An asset group made only of marked endpoints yields injects that end in
+  "No asset executed". This is the shape-of-the-scenario inference the previous behaviour avoided.
+- **Any holder of the capability gets the bypass on every HTTP request**, not only `processBundle`.
+  `AGENT_RUNTIME_ACCESS` has the same exposure; both are `hidden`, so they are not offered by the role
+  editor — that is the assumption this relies on, not a check.
+- Covered by `HttpMarkingScopeSupplierTest` (plain user, `AGENT_RUNTIME_ACCESS`, `MANAGE_STIX_BUNDLE`,
+  no user).
+
+**Guardrail**: stamping the connector's user as `scheduled_by` would not change anything today — it
+has no bypass at dispatch and no grants, so it resolves to the same zero clearance as null. It would
+only differ if markings were granted to its group (PO option 2) or if it were given a `BYPASS` role, in
+which case the cron would run on every asset, the escalation Option 1 rules out.
+
+### Question for the PO (open)
+
+> Scenarios generated from an OpenCTI security coverage are created and scheduled with **no signed-in
+> user**. Today they run with **zero clearance**: they execute only on unmarked assets and silently
+> skip every marked one. Is that the expected behaviour?
+>
+> If not, who should the clearance be?
+>
+> 1. **Keep zero clearance** (current). Safe by default. Document it, and surface it in the UI
+>    (e.g. "scheduled by: none — marked assets are skipped") so a coverage that looks incomplete
+>    can be explained.
+> 2. **A dedicated per-tenant clearance for automated coverage**, assigned deliberately (e.g. the
+>    OpenCTI connector's user placed in groups carrying the markings it may cover). It becomes the
+>    ceiling for what OpenCTI can trigger. Must not be a bypass user unless the PO explicitly wants
+>    coverage to run on every asset.
+> 3. **The human who configured the OpenCTI connector** for the tenant. Reuses the existing
+>    "recurrence owner" rule, but ties coverage to one person's group memberships.
+>
+> Separately: today the connector's HTTP request is given a read bypass (`MANAGE_STIX_BUNDLE`), so the
+> scenario is generated from **all** assets while the run uses the (zero) clearance above. Should the
+> generated injects instead be built from the assets visible to the same actor that will run them, so
+> that generation and execution agree and the scenario's shape reveals nothing about restricted
+> assets?
+
 ---
 
 ### Direction
@@ -656,6 +1075,7 @@ Decisions Log addition (to be reflected in [`../user-stories.md`](../user-storie
 | 2026-09-30 | Launch/relaunch/scheduled execution runs in **partial/scoped mode** (launch variant A): only targets visible to the resolved actor are executed; restricted targets are skipped, never run. Running on all targets and hiding the result (launch variant B) is rejected as a privilege-escalation vector. | Soumaya Boussaha (PO) |
 | 2026-09-30 | The actor whose clearance gates a run is captured explicitly at launch/relaunch/recurrence-configuration time (`Exercise.launched_by`, `Scenario.scheduled_by`, `Inject.launched_by`, `Inject.scheduled_by`) — never inferred from a "last edited/updated" field. | — |
 | 2026-10-01 | Manual e2e validation found the PoC's initial enforcement point (`resolveAllAssetsToExecute`, path 1) filters expectations/findings but not real dispatch. Scope expanded to all three independent asset-resolution paths (see "Execution dispatch has three independent asset-resolution paths, not one") — path 2 (agent routing) is the primary fix, path 3 (external-push payload) required for non-agent connectors. | — |
+| 2026-10-06 | **Proposed, to validate with the PO**: the OpenCTI connector user (`MANAGE_STIX_BUNDLE`) gets a read bypass in `HttpMarkingScopeSupplier`, like `AGENT_RUNTIME_ACCESS`, so security-coverage scenarios are generated from all assets. Dispatch is unchanged: a coverage scenario still runs with zero clearance (`scheduled_by` null). See "STIX security coverage". | — |
 
 ---
 
@@ -673,10 +1093,21 @@ document:
    [§2 Option 2](#2--option-2-hide-parents) explores the "hide" answer.
 3. **Should a Finding inherit its asset's marking?** (Q4) — affects whether `launched_by`'s clearance
    check needs to extend past execution into Findings/Remediations read paths, or whether that's
-   already covered by ordinary asset-marking read filtering.
-4. **Reporting a partial run clearly** — a higher-clearance viewer (e.g. `FULL_ADMIN`) must be able to
+   already covered by ordinary asset-marking read filtering. Findings are *not* covered today (only
+   `assets` is marked); see [Marking the objects linked to an asset](#marking-the-objects-linked-to-an-asset-proposed--not-yet-decided)
+   for the two candidate mechanisms (denormalized column vs. `EXISTS` through the join).
+4. **Stream (SSE) gate** — the proposal in [Marking and the real-time stream](#marking-and-the-real-time-stream-streamapi-proposed--not-yet-decided)
+   (Java-side marking test + id-only DELETE) and its handling of payloads that embed restricted
+   asset ids are not decided yet.
+5. **Who is the actor for OpenCTI security-coverage scenarios?** — they have no signed-in user, so
+   they run with zero clearance today. See [STIX security coverage](#stix-security-coverage-openctis-scenarios-have-no-scheduling-actor)
+   for the question to put to the PO.
+6. **Reporting a partial run clearly** — a higher-clearance viewer (e.g. `FULL_ADMIN`) must be able to
    tell that a given run only covered a subset of targets, so scores/findings aren't misread as
    covering assets that were actually skipped. No UI/API shape decided yet.
+7. **`isAdminOrBypass()` and role-based `BYPASS`** — it may only be true for `admin`, which would make
+   dispatch use group grants for a `BYPASS`-role launcher. See [Possible defect](#possible-defect-isadminorbypass-does-not-see-a-role-based-bypass-to-be-confirmed-by-a-test);
+   needs a unit test before anything is changed.
 
 ---
 
