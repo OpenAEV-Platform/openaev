@@ -1,11 +1,13 @@
 package io.openaev.service.stix;
 
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.IocValidation;
 import io.openaev.database.model.IocValidationIoc;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.IocValidationRepository;
 import io.openaev.rest.payload.service.PayloadService;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -16,16 +18,17 @@ import org.springframework.stereotype.Component;
  * payloads can be picked in any inject, while the checks of the planner (public targets, hosts of
  * the platform, egress proxy) hold only for the approved values: an inject runs an IOC validation
  * payload only as the test of an IOC validation of its simulation, with the payload of the approved
- * kind and the arguments whose fingerprint the approval recorded.
+ * kind, the arguments whose fingerprint the approval recorded, and only on the endpoints the
+ * approval recorded (no asset group, whose members can change after the approval).
  */
 @Component
 @RequiredArgsConstructor
 public class IocValidationDispatchGuard {
 
   public static final String IOC_VALIDATION_UNAPPROVED_TEST =
-      "This IOC validation test was changed after its approval: it no longer runs the payload or the"
-          + " arguments the operator approved, so it is not executed. Reject the request and ask for"
-          + " a new validation from OpenCTI.";
+      "This IOC validation test was changed after its approval: it no longer runs the payload, the"
+          + " arguments or on the endpoints the operator approved, so it is not executed. Reject the"
+          + " request and ask for a new validation from OpenCTI.";
 
   public static final String IOC_VALIDATION_PAYLOAD_OUTSIDE_VALIDATION =
       "This inject runs an IOC validation payload outside of an approved IOC validation, so it is"
@@ -77,6 +80,16 @@ public class IocValidationDispatchGuard {
     }
     Optional<String> fingerprint =
         IocValidationPlanner.fingerprintOf(ioc.getTestKind(), inject.getContent());
-    return fingerprint.isPresent() && fingerprint.get().equals(ioc.getPlanFingerprint());
+    return fingerprint.isPresent()
+        && fingerprint.get().equals(ioc.getPlanFingerprint())
+        && targetsApprovedEndpoints(ioc, inject);
+  }
+
+  private static boolean targetsApprovedEndpoints(IocValidationIoc ioc, Inject inject) {
+    List<String> approved = ioc.getTargetEndpointIds();
+    return approved != null
+        && !approved.isEmpty()
+        && inject.getAssetGroups().isEmpty()
+        && inject.getAssets().stream().map(Asset::getId).allMatch(approved::contains);
   }
 }

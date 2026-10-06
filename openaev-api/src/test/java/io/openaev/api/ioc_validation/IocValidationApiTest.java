@@ -30,8 +30,10 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.opencti.connectors.ConnectorBase;
@@ -748,6 +750,67 @@ class IocValidationApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "an approval runs each test on the endpoints it was shown for its operating system, never"
+            + " on the asset group")
+    void given_approval_should_targetTheApprovedEndpointsOnly() throws Exception {
+      injectorFixture.getWellKnownOaevImplantInjector();
+      AssetGroup assetGroup =
+          validationTargets(
+              List.of(
+                  Endpoint.PLATFORM_TYPE.Windows,
+                  Endpoint.PLATFORM_TYPE.Linux,
+                  Endpoint.PLATFORM_TYPE.Linux),
+              AgentFixture.createDefaultAgentService(),
+              AgentFixture.createDefaultAgentService(),
+              AgentFixture.createInactiveAgent());
+      List<String> endpointIds = assetGroup.getAssets().stream().map(Asset::getId).toList();
+      String windows = endpointIds.get(0);
+      String linux = endpointIds.get(1);
+      allow(List.of(IocValidationTestKind.FILE_DROP), assetGroup);
+      String id =
+          receive(
+              ctiEvent(
+                  UUID.randomUUID().toString(),
+                  "StixFile",
+                  "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+                  "file_drop",
+                  "invoice.pdf"));
+
+      String response =
+          mvc.perform(approve(id))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // One inject per operating system, on its approved endpoints: the dormant one and any
+      // endpoint added to the asset group later never run it
+      List<String> injectIds = JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_inject_ids");
+      assertThat(injectIds).hasSize(2);
+      List<List<String>> targets = new ArrayList<>();
+      for (String injectId : injectIds) {
+        assertThat(
+                jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM injects_asset_groups WHERE inject_id = ?",
+                    Long.class,
+                    injectId))
+            .isZero();
+        targets.add(
+            jdbc.queryForList(
+                "SELECT asset_id FROM injects_assets WHERE inject_id = ?", String.class, injectId));
+      }
+      assertThat(targets).containsExactlyInAnyOrder(List.of(windows), List.of(linux));
+      String iocs =
+          jdbc.queryForObject(
+              "SELECT ioc_validation_iocs::text FROM ioc_validations WHERE ioc_validation_id = ?",
+              String.class,
+              id);
+      assertThat((List<String>) JsonPath.read(iocs, "$[0].ioc_target_endpoint_ids"))
+          .containsExactlyInAnyOrder(windows, linux);
+    }
+
+    @Test
     @DisplayName("a file drop runs in a directory owned by its inject, with an up-to-date payload")
     void given_fileDrop_should_runInADirectoryOwnedByTheInject() throws Exception {
       allowTestKindOnValidationTargets(IocValidationTestKind.FILE_DROP);
@@ -899,18 +962,26 @@ class IocValidationApiTest extends IntegrationTest {
     return validationTargets(AgentFixture.createDefaultAgentService());
   }
 
-  /** An asset group with one endpoint per agent. */
+  /** An asset group with one Windows endpoint per agent. */
   private AssetGroup validationTargets(Agent... agents) {
+    return validationTargets(
+        Arrays.stream(agents).map(agent -> Endpoint.PLATFORM_TYPE.Windows).toList(), agents);
+  }
+
+  /** An asset group with one endpoint per agent, of the operating system at the same position. */
+  private AssetGroup validationTargets(List<Endpoint.PLATFORM_TYPE> platforms, Agent... agents) {
     TenantContext.setCurrentTenant(tenantId);
     try {
       AssetGroupComposer.Composer assetGroup =
           assetGroupComposer.forAssetGroup(
               AssetGroupFixture.createDefaultAssetGroup("IOC validation targets"));
-      for (Agent agent : agents) {
+      for (int index = 0; index < agents.length; index++) {
         assetGroup.withAsset(
             endpointComposer
-                .forEndpoint(EndpointFixture.createEndpoint())
-                .withAgent(agentComposer.forAgent(agent)));
+                .forEndpoint(
+                    EndpointFixture.createEndpointWithPlatform(
+                        "Endpoint test", platforms.get(index)))
+                .withAgent(agentComposer.forAgent(agents[index])));
       }
       return assetGroup.persist().get();
     } finally {

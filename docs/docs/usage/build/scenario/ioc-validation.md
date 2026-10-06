@@ -168,14 +168,16 @@ Until the request is approved, its results stay empty and the decision fields ar
 skipped because the safety settings do not allow its test, its row reads *Not allowed by the safety settings*
 (the full reason shows on hover or keyboard focus), and administrators get a link to those settings next to it.
 
-- **Approve and start the simulation** builds a scenario with one benign inject per indicator on the configured asset group and starts
+- **Approve and start the simulation** builds a scenario with benign injects per indicator on the endpoints with an active agent of the configured asset group and starts
   a simulation at once. The confirmation lists the tests that run and the security platforms expected to see them,
   as the server plans the approval when the confirmation opens: with the current safety settings, DNS answers and
   security platforms, which may drop a test the request page still shows. When nothing can run, it says why and the
   approval stays disabled. The approval runs only if it still plans what the confirmation showed, on the same
   targets: the same asset group and the same endpoints with an active agent. Otherwise, for instance when the asset
   group of the settings changed or an agent started or stopped meanwhile, it is refused and asks you to review the
-  tests again. The injects run exactly what was approved: an inject of the validation simulation whose payload or arguments are
+  tests again. The injects target the approved endpoints themselves, each the ones of an operating system its test
+  supports, and not the asset group: an endpoint added to the group after the approval never runs them. The injects
+  run exactly what was approved: an inject of the validation simulation whose payload, arguments or targets are
   changed afterwards is not executed and ends with an error, and so is an IOC validation payload used anywhere else
   (an atomic testing, another simulation).
 - **Reject** closes the request without running anything. The optional reason is reported to OpenCTI.

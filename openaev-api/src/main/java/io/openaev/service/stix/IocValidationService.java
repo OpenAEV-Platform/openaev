@@ -376,14 +376,7 @@ public class IocValidationService {
     try {
       Scenario scenario = createScenario(ctx, validation);
       Set<Inject> injects =
-          createInjects(
-              ctx,
-              validation,
-              settings,
-              resolved,
-              scenario,
-              assetGroup,
-              executorsOf(runnableEndpoints));
+          createInjects(ctx, validation, settings, resolved, scenario, runnableEndpoints);
       if (injects.isEmpty()) {
         throw new BadRequestException(
             "Nothing can run: no endpoint of the asset group '%s' runs a platform the planned tests support"
@@ -543,8 +536,9 @@ public class IocValidationService {
    * security platform of each pair of the IOCs that run. An approval runs only with the fingerprint
    * of the preview the operator confirmed.
    *
-   * @param assetGroupId the asset group the injects target, null when none can be resolved
-   * @param endpointIds the endpoints of that asset group with an active agent
+   * @param assetGroupId the asset group of the settings, null when none can be resolved
+   * @param endpointIds the endpoints of that asset group with an active agent, which the injects
+   *     target
    * @param executors the executor families of {@link #executorsOf}
    */
   static String approvalFingerprint(
@@ -1092,10 +1086,10 @@ public class IocValidationService {
       IocValidationSettings settings,
       IocValidationPlanner.HostResolver resolved,
       Scenario scenario,
-      AssetGroup assetGroup,
-      List<String> executors) {
+      List<Endpoint> endpoints) {
     Set<Tag> tags = validationTags(ctx);
     Set<Inject> injects = new HashSet<>();
+    List<String> executors = executorsOf(endpoints);
     // Payload creation takes transaction-scoped locks: resolving every payload once, kind by kind
     // in
     // enum order, takes them in the same order in every approval, whatever the order of the IOCs.
@@ -1108,6 +1102,7 @@ public class IocValidationService {
         .forEach(kind -> payloadsByKind.put(kind, payloadsFor(ctx, kind, executors)));
     for (IocValidationIoc ioc : validation.getIocs()) {
       ioc.setInjectIds(new ArrayList<>());
+      ioc.setTargetEndpointIds(new ArrayList<>());
       if (ioc.getTestKind() == null) {
         continue;
       }
@@ -1119,8 +1114,12 @@ public class IocValidationService {
         ioc.setMessage(plan.message());
         continue;
       }
-      List<Payload> payloads = payloadsByKind.get(plan.testKind());
-      if (payloads.isEmpty()) {
+      List<PayloadTargets> payloadTargets =
+          payloadsByKind.get(plan.testKind()).stream()
+              .map(payload -> new PayloadTargets(payload, endpointsRunning(payload, endpoints)))
+              .filter(targets -> !targets.endpoints().isEmpty())
+              .toList();
+      if (payloadTargets.isEmpty()) {
         ioc.setTestKind(null);
         ioc.setMessage(
             "Not run: no endpoint of the asset group runs Windows, Linux or macOS for this test (%s)"
@@ -1130,7 +1129,15 @@ public class IocValidationService {
       // What the injects carry: the dispatch refuses an inject whose arguments differ from it
       IocValidationPlanner.Plan approved = approvedPlan(plan);
       ioc.setPlanFingerprint(IocValidationPlanner.fingerprint(approved));
-      for (Payload payload : payloads) {
+      ioc.setTargetEndpointIds(
+          payloadTargets.stream()
+              .flatMap(targets -> targets.endpoints().stream())
+              .map(Endpoint::getId)
+              .distinct()
+              .sorted()
+              .collect(Collectors.toCollection(ArrayList::new)));
+      for (PayloadTargets targets : payloadTargets) {
+        Payload payload = targets.payload();
         InjectorContract contract =
             injectorContractService
                 .injectorContractByPayload(payload)
@@ -1146,7 +1153,9 @@ public class IocValidationService {
         approved.arguments().forEach(content::put);
         inject.setContent(content);
         inject.setScenario(scenario);
-        inject.setAssetGroups(new ArrayList<>(List.of(assetGroup)));
+        // The approved endpoints themselves and not their asset group, whose members can change
+        // between the approval and the run
+        inject.setAssets(new ArrayList<>(targets.endpoints()));
         inject.setTags(new HashSet<>(tags));
         Inject saved = injectService.createInject(inject);
         ioc.getInjectIds().add(saved.getId());
@@ -1243,6 +1252,18 @@ public class IocValidationService {
       executors.add(IOC_VALIDATION_POSIX_EXECUTOR);
     }
     return executors;
+  }
+
+  /** A payload of an IOC test and the approved endpoints its inject targets. */
+  private record PayloadTargets(Payload payload, List<Endpoint> endpoints) {}
+
+  /** The endpoints that run a payload: those of an operating system it supports. */
+  static List<Endpoint> endpointsRunning(Payload payload, Collection<Endpoint> endpoints) {
+    List<Endpoint.PLATFORM_TYPE> platforms =
+        payload.getPlatforms() == null ? List.of() : Arrays.asList(payload.getPlatforms());
+    return endpoints.stream()
+        .filter(endpoint -> platforms.contains(endpoint.getPlatform()))
+        .toList();
   }
 
   private static void requireAwaitingApproval(IocValidation validation) {

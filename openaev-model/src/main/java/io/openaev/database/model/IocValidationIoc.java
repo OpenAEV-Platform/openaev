@@ -47,6 +47,14 @@ public class IocValidationIoc {
   @JsonProperty("ioc_inject_ids")
   private List<String> injectIds = new ArrayList<>();
 
+  /**
+   * The endpoints with an active agent the approval runs the test on, the ones the operator was
+   * shown: its injects target them and no asset group, whose members can change after the approval.
+   * An inject targeting anything else is not executed.
+   */
+  @JsonProperty("ioc_target_endpoint_ids")
+  private List<String> targetEndpointIds = new ArrayList<>();
+
   /** Why the IOC was skipped, or how it was adapted (sinkhole, DNS fallback). */
   @JsonProperty("ioc_message")
   private String message;

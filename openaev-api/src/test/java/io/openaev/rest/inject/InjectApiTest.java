@@ -115,6 +115,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private InjectsExecutionJob injectsExecutionJob;
 
   @Autowired private AgentComposer agentComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -1168,6 +1169,8 @@ class InjectApiTest extends IntegrationTest {
       ioc.setRequestedTestKind(IocValidationTestKind.FILE_DROP);
       ioc.setTestKind(IocValidationTestKind.FILE_DROP);
       ioc.setInjectIds(new ArrayList<>(List.of(inject.getId())));
+      ioc.setTargetEndpointIds(
+          new ArrayList<>(inject.getAssets().stream().map(Asset::getId).toList()));
       ioc.setPlanFingerprint(
           IocValidationPlanner.fingerprintOf(IocValidationTestKind.FILE_DROP, inject.getContent())
               .orElseThrow());
@@ -1249,6 +1252,63 @@ class InjectApiTest extends IntegrationTest {
                               + "/executable-payload")
                           .accept(MediaType.APPLICATION_JSON)
                           .with(csrf())))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST);
+    }
+
+    @DisplayName("Refuse to execute an IOC validation test whose targets changed after approval")
+    @Test
+    void given_iocValidationTargetsEditedAfterApproval_should_refuseItsExecution()
+        throws Exception {
+      // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Inject injectSaved =
+          iocValidationFileDropInject(
+              iocValidationFileDrop(), "0123456789abcdef0123456789abcdef", targetAgentWrapper);
+      approveAsIocValidationTest(injectSaved);
+      doNothing()
+          .when(injectStatusService)
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+      String executablePayloadUri =
+          INJECT_URI
+              + "/"
+              + injectSaved.getId()
+              + "/"
+              + targetAgentWrapper.get().getId()
+              + "/executable-payload";
+
+      // -- EXECUTE & ASSERT: the approved test runs --
+      mvc.perform(get(executablePayloadUri).accept(MediaType.APPLICATION_JSON).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- EXECUTE & ASSERT: an asset group, whose members can change, is added to its targets --
+      AssetGroup assetGroup =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Edited validation targets"))
+              .persist()
+              .get();
+      injectSaved.setAssetGroups(new ArrayList<>(List.of(assetGroup)));
+      injectRepository.saveAndFlush(injectSaved);
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get(executablePayloadUri).accept(MediaType.APPLICATION_JSON).with(csrf())))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST);
+
+      // -- EXECUTE & ASSERT: an endpoint the operator never approved is added to its targets --
+      injectSaved.setAssetGroups(new ArrayList<>());
+      List<Asset> assets = new ArrayList<>(injectSaved.getAssets());
+      assets.add(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get());
+      injectSaved.setAssets(assets);
+      injectRepository.saveAndFlush(injectSaved);
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get(executablePayloadUri).accept(MediaType.APPLICATION_JSON).with(csrf())))
           .isInstanceOf(ServletException.class)
           .hasRootCauseInstanceOf(IllegalStateException.class)
           .hasRootCauseMessage(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST);
