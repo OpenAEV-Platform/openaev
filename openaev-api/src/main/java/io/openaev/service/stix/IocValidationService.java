@@ -716,13 +716,19 @@ public class IocValidationService {
 
   /**
    * Pushes the result bundles of a bounded page of finished validations OpenCTI has not received
-   * yet. OpenCTI unreachable ends the run: the next one resumes from the validation that failed.
+   * yet. The page spans every tenant: the OpenCTI of a tenant unreachable skips the other
+   * validations of that tenant in the page, which a later walk visits again, and never holds back
+   * the validations of the other tenants.
    */
   public void pushPendingResults() {
+    Set<String> unreachableTenants = new HashSet<>();
     for (IocValidationRef ref :
         nextOutboxPage(
             resultsPushCursor, iocValidationRepository::findRefsWithPendingResultsPush)) {
       String tenantId = ref.getTenantId();
+      if (unreachableTenants.contains(tenantId)) {
+        continue;
+      }
       try {
         Optional<Bundle> bundle =
             inTenant(
@@ -746,12 +752,11 @@ public class IocValidationService {
       } catch (IOException e) {
         log.warn(
             "OpenCTI unreachable while pushing the results of IOC validation {} for tenant {}"
-                + " (resumed from it on the next run): {}",
+                + " (the validations of this tenant are retried on a later run): {}",
             ref.getId(),
             tenantId,
             e.getMessage());
-        resultsPushCursor.set(ref.getId());
-        return;
+        unreachableTenants.add(tenantId);
       } catch (ConnectorError e) {
         log.warn(
             "Could not push the results of IOC validation {} to OpenCTI for tenant {} (retried on"
@@ -767,23 +772,28 @@ public class IocValidationService {
 
   /**
    * Reports to OpenCTI the statuses of a bounded page of validations it has not acknowledged yet.
-   * OpenCTI unreachable ends the run: the next one resumes from the validation that failed.
+   * The page spans every tenant: the OpenCTI of a tenant unreachable skips the other validations of
+   * that tenant in the page, which a later walk visits again, and never holds back the validations
+   * of the other tenants.
    */
   public void syncPendingLifecycles() {
+    Set<String> unreachableTenants = new HashSet<>();
     for (IocValidationRef ref :
         nextOutboxPage(
             lifecycleSyncCursor, iocValidationRepository::findRefsWithPendingLifecycleSync)) {
+      if (unreachableTenants.contains(ref.getTenantId())) {
+        continue;
+      }
       try {
         reportLifecycle(ref.getTenantId(), ref.getId());
       } catch (IOException e) {
         log.warn(
             "OpenCTI unreachable while reporting the status of IOC validation {} for tenant {}"
-                + " (resumed from it on the next run): {}",
+                + " (the validations of this tenant are retried on a later run): {}",
             ref.getId(),
             ref.getTenantId(),
             e.getMessage());
-        lifecycleSyncCursor.set(ref.getId());
-        return;
+        unreachableTenants.add(ref.getTenantId());
       } catch (ConnectorError e) {
         log.warn(
             "Could not report the status of IOC validation {} to OpenCTI for tenant {} (retried on"
