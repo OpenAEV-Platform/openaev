@@ -24,7 +24,6 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
-import io.openaev.notification.engine.WebhookTargetValidator;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.form.*;
@@ -33,6 +32,7 @@ import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.rest.settings.response.PublicPlatformSettings;
 import io.openaev.rest.stream.ai.AiConfig;
 import io.openaev.utils.InstanceCreationDate;
+import io.openaev.service.settings.ThemeAssetUrlValidator;
 import io.openaev.xtmhub.XtmHubConnectivityService;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import io.openaev.xtmone.XtmOneConfig;
@@ -73,7 +73,7 @@ public class PlatformSettingsService {
   private final XtmHubConnectivityService xtmHubConnectivityService;
   private final XtmOneConfig xtmOneConfig;
   private final XtmOneIdentity xtmOneIdentity;
-  private final WebhookTargetValidator webhookTargetValidator;
+  private final ThemeAssetUrlValidator themeAssetUrlValidator;
 
   @Value("${server.servlet.session.timeout:1440m}")
   private java.time.Duration sessionTimeout;
@@ -628,7 +628,7 @@ public class PlatformSettingsService {
    */
   private void validateThemeUrl(String url) {
     if (StringUtils.hasText(url)) {
-      webhookTargetValidator.validateUrl(url);
+      themeAssetUrlValidator.validateUrl(url);
     }
   }
 

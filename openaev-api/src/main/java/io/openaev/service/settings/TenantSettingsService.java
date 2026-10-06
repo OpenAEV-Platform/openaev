@@ -13,7 +13,6 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.notification.engine.WebhookTargetValidator;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
@@ -39,7 +38,7 @@ public class TenantSettingsService {
 
   private final SettingRepository settingRepository;
   private final OpenAEVConfig openAEVConfig;
-  private final WebhookTargetValidator webhookTargetValidator;
+  private final ThemeAssetUrlValidator themeAssetUrlValidator;
 
   public String buildTenantUrl(String tenantId) {
     return openAEVConfig.getBaseUrl() + "/" + tenantId;
@@ -140,7 +139,7 @@ public class TenantSettingsService {
    */
   private void validateThemeUrl(String url) {
     if (StringUtils.hasText(url)) {
-      webhookTargetValidator.validateUrl(url);
+      themeAssetUrlValidator.validateUrl(url);
     }
   }
 

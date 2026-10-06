@@ -64,6 +64,8 @@ public class BrowserPoolService {
 
   private final Duration permitWait;
 
+  private final ReportRenderEgressGuard egressGuard;
+
   private final ThreadLocal<BrowserSession> threadSession = new ThreadLocal<>();
 
   /** All sessions ever created, for best-effort cleanup at shutdown. */
@@ -73,9 +75,11 @@ public class BrowserPoolService {
 
   public BrowserPoolService(
       @Value("${openaev.reporting.max-concurrent-renders:2}") final int maxConcurrentRenders,
-      @Value("${openaev.reporting.render-timeout-seconds:90}") final long renderTimeoutSeconds) {
+      @Value("${openaev.reporting.render-timeout-seconds:90}") final long renderTimeoutSeconds,
+      final ReportRenderEgressGuard egressGuard) {
     this.renderPermits = new Semaphore(Math.max(1, maxConcurrentRenders));
     this.permitWait = PlaywrightReportingRenderer.renderBudget(renderTimeoutSeconds);
+    this.egressGuard = egressGuard;
   }
 
   /**
@@ -101,6 +105,7 @@ public class BrowserPoolService {
     try {
       Browser liveBrowser = acquireBrowser();
       try (BrowserContext context = liveBrowser.newContext(options)) {
+        this.egressGuard.install(context);
         return action.apply(context);
       }
     } finally {
