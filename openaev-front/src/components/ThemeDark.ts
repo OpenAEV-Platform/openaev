@@ -50,7 +50,7 @@ const ThemeDark = (
   palette: {
     mode: 'dark',
     common: {
-      white: '#ffffff',
+      white: '#b9b1b1',
       black: '#000000',
       grey: FDS.colors.dark['--color-feedback-neutral-primary'],
       lightGrey: '#E4E5E7',
