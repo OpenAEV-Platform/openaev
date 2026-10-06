@@ -178,25 +178,17 @@ export const AssetGroupField = ({ value, onChange, onBlur }: AssetGroupFieldProp
       <ComboboxHelperText data-testid="ioc-validation-asset-group-helper">
         {failed
           ? (
-              <>
-                {`${t('The asset groups could not be loaded.')} `}
-                {/* A text action at the helper's size: a design-system button is taller than the helper line */}
-                <button
-                  type="button"
-                  onClick={() => setAttempt(current => current + 1)}
-                  style={{
-                    font: 'inherit',
-                    color: 'inherit',
-                    background: 'none',
-                    border: 0,
-                    padding: 0,
-                    textDecoration: 'underline',
-                    cursor: 'pointer',
-                  }}
-                >
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+              >
+                {t('The asset groups could not be loaded.')}
+                <Button type="button" priority="tertiary" size="sm" onClick={() => setAttempt(current => current + 1)}>
                   {t('Retry')}
-                </button>
-              </>
+                </Button>
+              </span>
             )
           : t('Endpoints of this group run the benign tests.')}
       </ComboboxHelperText>
