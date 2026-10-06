@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.service.stix.error.BundleValidationError;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -347,6 +348,32 @@ class IocValidationBundleParserTest {
     assertThatThrownBy(() -> parser.parse(bundle(request), REQUEST_ID))
         .isInstanceOf(BundleValidationError.class)
         .hasMessageContaining("has no named identity");
+  }
+
+  @Test
+  @DisplayName("keeps the created timestamp of each deployment the bundle carries")
+  void given_deploymentObjects_should_keepTheirCreated() throws BundleValidationError {
+    ObjectNode deployment =
+        mapper
+            .createObjectNode()
+            .put("type", "relationship")
+            .put("id", DEPLOYED_ON)
+            .put("relationship_type", "deployed-on")
+            .put("created", "2026-09-01T08:30:00.000Z");
+    String otherDeployment = "relationship--9b1d3f5a-3333-4c4d-9e5f-000000000002";
+    ObjectNode unreadable =
+        mapper
+            .createObjectNode()
+            .put("type", "relationship")
+            .put("id", otherDeployment)
+            .put("created", "yesterday");
+
+    IocValidationRequest request =
+        parser.parse(bundle(request(), deployment, unreadable), REQUEST_ID);
+
+    assertThat(request.deploymentCreatedByRef())
+        .containsEntry(DEPLOYED_ON, Instant.parse("2026-09-01T08:30:00Z"))
+        .doesNotContainKey(otherDeployment);
   }
 
   @Test

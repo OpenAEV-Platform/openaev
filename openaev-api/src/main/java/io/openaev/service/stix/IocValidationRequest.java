@@ -1,6 +1,7 @@
 package io.openaev.service.stix;
 
 import io.openaev.database.model.IocValidationTestKind;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -18,7 +19,8 @@ public record IocValidationRequest(
     List<IocValidationTestKind> testKinds,
     List<Ioc> iocs,
     List<Pair> pairs,
-    Map<String, String> platformNamesByRef) {
+    Map<String, String> platformNamesByRef,
+    Map<String, Instant> deploymentCreatedByRef) {
 
   /** One IOC to validate, already resolved to its observable value and deterministic test kind. */
   public record Ioc(

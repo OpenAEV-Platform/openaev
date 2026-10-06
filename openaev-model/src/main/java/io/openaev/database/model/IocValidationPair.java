@@ -25,6 +25,10 @@ public class IocValidationPair {
   @JsonProperty("pair_deployed_on_ref")
   private String deployedOnRef;
 
+  /** The STIX {@code created} of the deployment, sent back unchanged with its update. */
+  @JsonProperty("pair_deployed_on_created_at")
+  private Instant deployedOnCreatedAt;
+
   @JsonProperty("pair_platform_name")
   private String platformName;
 

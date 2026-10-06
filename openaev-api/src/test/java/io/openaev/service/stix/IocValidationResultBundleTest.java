@@ -82,6 +82,43 @@ class IocValidationResultBundleTest {
   }
 
   @Test
+  @DisplayName("sends the deployment back with its own created timestamp and a modified one")
+  void given_deploymentCreated_should_sendItBackUnchanged() {
+    IocValidationPair kept = pair("1", IocValidationOutcome.DETECTED);
+    kept.setDeployedOnCreatedAt(Instant.parse("2026-09-01T08:30:00Z"));
+    IocValidationPair legacy = pair("2", IocValidationOutcome.MISSED);
+
+    List<JsonNode> relationships = ofType(objects(validation(kept, legacy)), "relationship");
+
+    JsonNode withCreated =
+        relationships.stream()
+            .filter(r -> r.path("id").asText().endsWith("1"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(withCreated.path("created").asText()).startsWith("2026-09-01T08:30:00");
+    assertThat(withCreated.path("modified").asText()).startsWith("2026-10-03T10:00:00");
+    // OpenCTI upserts created: a deployment without the one it was sent with gets none
+    JsonNode withoutCreated =
+        relationships.stream()
+            .filter(r -> r.path("id").asText().endsWith("2"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(withoutCreated.has("created")).isFalse();
+    assertThat(withoutCreated.path("modified").asText()).startsWith("2026-10-03T10:00:00");
+  }
+
+  @Test
+  @DisplayName("dates every sighting with its evaluation")
+  void given_sighting_should_carryTheStixTimestamps() {
+    JsonNode sighting =
+        ofType(objects(validation(pair("1", IocValidationOutcome.PREVENTED))), "sighting")
+            .getFirst();
+
+    assertThat(sighting.path("created").asText()).startsWith("2026-10-03T10:00:00");
+    assertThat(sighting.path("modified").asText()).startsWith("2026-10-03T10:00:00");
+  }
+
+  @Test
   @DisplayName("records a sighting per evaluated pair, negative for misses, none for errors")
   void given_outcomes_should_emitSightingsOnlyForEvaluatedPairs() {
     List<JsonNode> objects =

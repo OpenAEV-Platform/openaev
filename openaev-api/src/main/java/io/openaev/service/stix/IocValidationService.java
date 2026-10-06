@@ -239,7 +239,10 @@ public class IocValidationService {
     validation.setPairs(
         new ArrayList<>(
             request.pairs().stream()
-                .map(pair -> toPair(pair, request.platformNamesByRef()))
+                .map(
+                    pair ->
+                        toPair(
+                            pair, request.platformNamesByRef(), request.deploymentCreatedByRef()))
                 .toList()));
     validation.setOpenctiUrl(openCtiUrl(tenantId, request.requestId()));
     IocValidationPlanner.apply(validation.getIocs(), settings, hostAnswers.resolver());
@@ -1136,11 +1139,14 @@ public class IocValidationService {
   }
 
   private static IocValidationPair toPair(
-      IocValidationRequest.Pair requested, Map<String, String> platformNames) {
+      IocValidationRequest.Pair requested,
+      Map<String, String> platformNames,
+      Map<String, Instant> deploymentCreated) {
     IocValidationPair pair = new IocValidationPair();
     pair.setIndicatorRef(requested.indicatorRef());
     pair.setPlatformRef(requested.platformRef());
     pair.setDeployedOnRef(requested.deployedOnRef());
+    pair.setDeployedOnCreatedAt(deploymentCreated.get(requested.deployedOnRef()));
     pair.setPlatformName(platformNames.get(requested.platformRef()));
     return pair;
   }

@@ -85,6 +85,16 @@ public final class IocValidationResultBundle {
     properties.put(VALIDATION_STATUS, new StixString(pair.getOutcome().toStix()));
     properties.put(LAST_VALIDATION_AT, new Timestamp(evaluatedAt));
     properties.put(VALIDATION_RUN_ID, new StixString(requestId));
+    // created is the deployment's own, as OpenCTI sent it: OpenCTI upserts it, so any other value
+    // would rewrite when the deployment was created. A deployment recorded before its created was
+    // kept has none to send back.
+    Instant created = pair.getDeployedOnCreatedAt();
+    if (created != null) {
+      properties.put(CommonProperties.CREATED.toString(), new Timestamp(created));
+    }
+    properties.put(
+        CommonProperties.MODIFIED.toString(),
+        new Timestamp(created != null && created.isAfter(evaluatedAt) ? created : evaluatedAt));
     return new RelationshipObject(properties);
   }
 
@@ -97,6 +107,9 @@ public final class IocValidationResultBundle {
     properties.put(
         CommonProperties.TYPE.toString(), new StixString(ObjectTypes.SIGHTING.toString()));
     properties.put(CommonProperties.SPEC_VERSION.toString(), new StixString(SPEC_VERSION));
+    // The sighting is the evaluation itself: a replayed push sends the same timestamps
+    properties.put(CommonProperties.CREATED.toString(), new Timestamp(evaluatedAt));
+    properties.put(CommonProperties.MODIFIED.toString(), new Timestamp(evaluatedAt));
     properties.put(SIGHTING_OF_REF, new Identifier(pair.getIndicatorRef()));
     properties.put(
         WHERE_SIGHTED_REFS,

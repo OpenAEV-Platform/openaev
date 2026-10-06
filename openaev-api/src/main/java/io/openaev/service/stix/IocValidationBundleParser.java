@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.service.stix.error.BundleValidationError;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -102,7 +104,31 @@ public class IocValidationBundleParser {
         parseTestKinds(request.path("test_kinds")),
         iocs,
         pairs,
-        platformNames);
+        platformNames,
+        createdByIdOfType(objects, RELATIONSHIP_TYPE));
+  }
+
+  /**
+   * The STIX {@code created} timestamp of each object of the type: the result bundle sends it back
+   * unchanged with the deployments it updates. An object without a readable one is left out.
+   */
+  private static Map<String, Instant> createdByIdOfType(List<JsonNode> objects, String type) {
+    Map<String, Instant> created = new LinkedHashMap<>();
+    objects.stream()
+        .filter(object -> type.equals(text(object, "type")))
+        .forEach(
+            object -> {
+              String id = text(object, "id");
+              String timestamp = text(object, "created");
+              if (id != null && timestamp != null) {
+                try {
+                  created.put(id, Instant.parse(timestamp));
+                } catch (DateTimeParseException e) {
+                  // Not a STIX timestamp: the result bundle cannot send it back
+                }
+              }
+            });
+    return created;
   }
 
   private JsonNode readBundle(String stixJson) throws BundleValidationError {
