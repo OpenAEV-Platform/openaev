@@ -160,9 +160,6 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
   const nothingToApprove = preview
     ? !!preview.ioc_validation_preview_blocker && preview.ioc_validation_preview_iocs.every(ioc => !ioc.ioc_test_kind)
     : shownPlanned === 0;
-  const approvalSummary = (
-    <IocValidationApprovalSummary preview={preview} shownPlanned={shownPlanned} standalone={nothingToApprove} />
-  );
 
   const closeApproval = () => {
     previewRequest.current += 1;
@@ -256,11 +253,14 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
         open={approveOpen}
         handleClose={closeApproval}
         handleSubmit={handleApprove}
-        text={t('Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.')}
+        text={nothingToApprove
+          ? undefined
+          : t('Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.')}
         submitLabel={t('Approve and start the simulation')}
         submitDisabled={!preview || !!preview.ioc_validation_preview_blocker}
-        richContent={nothingToApprove ? approvalSummary : undefined}
-        extraContent={nothingToApprove ? undefined : approvalSummary}
+        extraContent={(
+          <IocValidationApprovalSummary preview={preview} shownPlanned={shownPlanned} standalone={nothingToApprove} />
+        )}
       />
       <DialogConfirmation
         open={rejectOpen}

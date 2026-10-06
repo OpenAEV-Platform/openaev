@@ -11,7 +11,8 @@ interface DialogConfirmationProps {
   open: boolean;
   handleClose: () => void;
   handleSubmit: ((resetLoading?: () => void) => void | Promise<void>) | null | undefined; // Updated: Callback is now optional
-  text: string;
+  /** The question; left out when the extra content already says why there is nothing to confirm. */
+  text?: string;
   submitLabel: string;
   /** Tone of the confirm button. Use 'error' for destructive/irreversible confirmations: the
    *  button renders destructive so the action reads as dangerous at a glance. Defaults to 'primary'. */
@@ -79,11 +80,11 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
       slots={{ transition: Transition }}
     >
       <DialogContent>
-        {richContent || (
+        {richContent || (text && (
           <DialogContentText>
             {text}
           </DialogContentText>
-        )}
+        ))}
         {extraContent}
       </DialogContent>
       <DialogActions>
