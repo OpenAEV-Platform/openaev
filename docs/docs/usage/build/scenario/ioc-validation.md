@@ -104,7 +104,9 @@ the platform.
 as OpenCTI generates it: `indicator--`, `identity--` (the security platform) or `relationship--` (the deployment),
 followed by a lower-case version 4 or 5 UUID; the request itself is named by its OpenCTI id, a UUID of the same form.
 A request with any other value is acknowledged in error to OpenCTI, with the field and the value, and nothing is
-recorded: its results could not be written back to OpenCTI.
+recorded: its results could not be written back to OpenCTI. So is a request larger than 64 MiB, which is not read
+past its first bytes, and a request whose bundle exceeds 16 Mi characters, 2,211 objects, 200 IOCs or 2,000
+indicator-platform pairs.
 
 **A refused value is shown, not repaired.** The request shows the indicator as *Refused* in the **Test that runs**
 column, with the reason. A character outside the accepted set is written with its code point, so a character that

@@ -45,7 +45,9 @@ import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -402,6 +404,43 @@ class IocValidationApiTest extends IntegrationTest {
               eq(workId), contains("no STIX objects"), eq(true), anyString());
       verify(openCTIConnectorService, never())
           .acknowledgeReceivedOfIocValidation(eq(" "), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName(
+        "acknowledges in error a request above 64 MiB or that is not JSON, without reading it whole"
+            + " or recording anything")
+    void given_oversizedOrUnreadableRequest_should_answerOkWithoutRecord() throws Exception {
+      String oversizedWork = "work_" + UUID.randomUUID();
+      byte[] head =
+          ("{\"internal\":{\"work_id\":\"" + oversizedWork + "\"},\"event\":{\"stix_objects\":\"")
+              .getBytes(StandardCharsets.UTF_8);
+      byte[] oversized = new byte[64 * 1024 * 1024 + 1];
+      Arrays.fill(oversized, (byte) 'a');
+      System.arraycopy(head, 0, oversized, 0, head.length);
+      String unreadableWork = "work_" + UUID.randomUUID();
+
+      mvc.perform(
+              post(INTAKE_URI, tenantId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(oversized)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+      mvc.perform(
+              intake(
+                  tenantId,
+                  "{\"internal\":{\"work_id\":\""
+                      + unreadableWork
+                      + "\"},\"event\":{\"stix_objects"))
+          .andExpect(status().isOk());
+
+      assertThat(recordCount()).isZero();
+      verify(openCTIConnectorService)
+          .acknowledgeProcessedOfIocValidation(
+              eq(oversizedWork), contains("larger than 64 MiB"), eq(true), anyString());
+      verify(openCTIConnectorService)
+          .acknowledgeProcessedOfIocValidation(
+              eq(unreadableWork), contains("not a JSON event"), eq(true), anyString());
     }
   }
 

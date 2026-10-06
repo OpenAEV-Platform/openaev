@@ -20,9 +20,12 @@ import io.openaev.service.stix.StixService;
 import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.parsing.ParsingException;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -124,7 +127,8 @@ public class StixApi extends RestBehavior {
    * Callback of the OpenAEV IOC validation connector ({@link
    * io.openaev.opencti.connectors.impl.IocValidationConnector#CALLBACK_PATH}). The OpenCTI work
    * acknowledgements are network calls, so they run around the intake transaction of {@link
-   * IocValidationService#receiveRequest} instead of inside it.
+   * IocValidationService#receiveRequest} instead of inside it. The body is read by {@link
+   * IocValidationEventReader}, within its size bound, rather than deserialized whole beforehand.
    */
   @PostMapping(
       value = "/process-ioc-validation",
@@ -143,10 +147,34 @@ public class StixApi extends RestBehavior {
             "IOC validation request recorded, or a malformed event acknowledged without record"),
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
+  @io.swagger.v3.oas.annotations.parameters.RequestBody(
+      required = false,
+      content =
+          @Content(
+              mediaType = MediaType.APPLICATION_JSON_VALUE,
+              schema = @Schema(implementation = CTIEvent.class)))
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
   public ResponseEntity<IocValidationImportReport> processIocValidation(
-      TxCtx ctx, @RequestBody(required = false) CTIEvent ctiEvent) {
+      TxCtx ctx, HttpServletRequest request) throws IOException {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    IocValidationEventReader.Read read =
+        IocValidationEventReader.read(
+            request.getInputStream(), request.getContentLengthLong(), mapper);
+    if (read.refusal() != null) {
+      log.error(
+          "OpenAEV ignored an IOC validation event (workId={}): {}", read.workId(), read.refusal());
+      if (read.workId() != null && !read.workId().isBlank()) {
+        openCTIService.acknowledgeReceivedOfIocValidation(
+            read.workId(), "OpenAEV received the IOC validation request", tenantId);
+        openCTIService.acknowledgeProcessedOfIocValidation(
+            read.workId(),
+            "OpenAEV did not record the IOC validation request: " + read.refusal(),
+            true,
+            tenantId);
+      }
+      return ResponseEntity.status(HttpStatus.OK).build();
+    }
+    CTIEvent ctiEvent = read.event();
     CTIEvent.Internal internal = ctiEvent == null ? null : ctiEvent.getInternal();
     String workId = internal == null ? null : internal.getWorkId();
     CTIEvent.Event event = ctiEvent == null ? null : ctiEvent.getEvent();
