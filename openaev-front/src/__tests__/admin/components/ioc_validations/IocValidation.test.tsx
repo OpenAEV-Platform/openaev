@@ -41,6 +41,7 @@ vi.mock('../../../../admin/components/ioc_validations/useIocValidation', () => (
 
 vi.mock('../../../../actions/ioc_validations/ioc-validation-actions', () => ({
   approveIocValidation: vi.fn(() => Promise.resolve({ data: {} })),
+  fetchIocValidationApprovalPreview: vi.fn(() => new Promise(() => {})),
   rejectIocValidation: vi.fn(() => Promise.resolve({ data: {} })),
 }));
 

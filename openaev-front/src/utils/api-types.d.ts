@@ -7678,6 +7678,26 @@ export interface Internal {
   work_id: string;
 }
 
+export interface IocValidationApprovalPreviewOutput {
+  /** Why the approval would start nothing now (absent when it can run) */
+  ioc_validation_preview_blocker?: string;
+  /**
+   * Fingerprint of this preview, sent with the approval: it runs only if it plans the same
+   * @minLength 1
+   */
+  ioc_validation_preview_fingerprint: string;
+  ioc_validation_preview_iocs: IocValidationIocOutput[];
+  ioc_validation_preview_pairs: IocValidationPairOutput[];
+}
+
+export interface IocValidationApproveInput {
+  /**
+   * Fingerprint of the approval preview the operator confirmed: the approval runs only if it plans the same tests and security platforms
+   * @minLength 1
+   */
+  ioc_validation_preview_fingerprint: string;
+}
+
 export interface IocValidationImportReport {
   iocValidationId?: string;
   summary?: string;

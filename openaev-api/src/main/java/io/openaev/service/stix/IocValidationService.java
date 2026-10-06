@@ -44,6 +44,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -262,83 +264,100 @@ public class IocValidationService {
 
   // -- UPDATE --
 
+  /** What the approval of a validation would start now (see {@link #approvalPreview}). */
+  public record ApprovalPreview(IocValidation validation, String fingerprint, String blocker) {}
+
+  /**
+   * The settings and DNS answers an approval plans with, what the operator was shown, and why it
+   * cannot run (null when it can).
+   */
+  private record ApprovalPlan(
+      IocValidationSettings settings,
+      IocValidationPlanner.HostResolver resolved,
+      List<Boolean> shownRefusals,
+      String blocker) {}
+
+  /** Where the tests of an approval run, or why nothing can run (null when they can). */
+  private record ApprovalTargets(
+      AssetGroup assetGroup, List<Endpoint> runnableEndpoints, String blocker) {
+
+    static ApprovalTargets blocked(String blocker) {
+      return new ApprovalTargets(null, List.of(), blocker);
+    }
+  }
+
+  /**
+   * What the approval of a waiting validation would start now, planned by the code of the approval
+   * (current safety settings, DNS answers and security platforms) without starting or recording
+   * anything. The operator confirms this preview, and the approval runs only if it plans the same
+   * (see {@link #approvalFingerprint}).
+   *
+   * @param hostAnswers the DNS answers for {@link #hostNames(TxCtx, String)}, gathered before this
+   *     transaction
+   * @throws BadRequestException when the request is no longer awaiting approval
+   */
+  @Transactional(readOnly = true)
+  public ApprovalPreview approvalPreview(
+      TxCtx ctx, @NotBlank final String id, @NotNull final IocValidationHostAnswers hostAnswers) {
+    String tenantId = singleTenant(ctx);
+    IocValidation validation =
+        iocValidationRepository
+            .findById(id)
+            .orElseThrow(() -> new ElementNotFoundException("IOC validation not found"));
+    requireAwaitingApproval(validation);
+    // The plan changes the loaded validation in memory only: a read-only transaction never writes
+    // it back
+    ApprovalPlan plan = planApproval(validation, tenantId, hostAnswers);
+    String blocker =
+        plan.blocker() != null
+            ? plan.blocker()
+            : approvalTargets(validation, plan.settings(), tenantId).blocker();
+    return new ApprovalPreview(validation, approvalFingerprint(validation), blocker);
+  }
+
   /**
    * Approves a waiting validation: re-applies the current safety settings (a setting narrowed since
    * the request arrived drops a test, a setting widened since never adds one), builds the
-   * validation scenario and launches its simulation.
+   * validation scenario and launches its simulation, provided that it plans what the operator
+   * confirmed.
    *
+   * @param previewFingerprint the fingerprint of the {@link #approvalPreview} the operator
+   *     confirmed
    * @throws BadRequestException when the request is no longer awaiting approval, when a test shown
-   *     to the operator would now run with other arguments, or when nothing can run (no allowed
-   *     test, no asset group, no endpoint with an active agent)
+   *     to the operator would now run with other arguments, when the approval now plans other tests
+   *     or security platforms than the confirmed preview, or when nothing can run (no allowed test,
+   *     no asset group, no endpoint with an active agent)
    */
   @Transactional(rollbackFor = Exception.class)
   public IocValidation approve(
       TxCtx ctx,
       @NotBlank final String id,
       @NotNull final User decider,
-      @NotNull final IocValidationHostAnswers hostAnswers) {
+      @NotNull final IocValidationHostAnswers hostAnswers,
+      @NotBlank final String previewFingerprint) {
     String tenantId = singleTenant(ctx);
     IocValidation validation = lockedIocValidation(id);
     requireAwaitingApproval(validation);
 
-    IocValidationSettings settings = decisionSettings(tenantId, hostAnswers.resolver());
-    // The approval starts at most what the operator was shown: a setting narrowed since the request
-    // arrived drops a test, a setting widened since never turns a skipped IOC into a test.
-    List<IocValidationIoc> iocs = validation.getIocs();
-    List<IocValidationTestKind> shownKinds =
-        iocs.stream().map(IocValidationIoc::getTestKind).toList();
-    List<String> shownMessages = iocs.stream().map(IocValidationIoc::getMessage).toList();
-    List<Boolean> shownRefusals = iocs.stream().map(IocValidationIoc::isRefused).toList();
-    List<String> shownFingerprints =
-        iocs.stream().map(IocValidationIoc::getPlanFingerprint).toList();
-    IocValidationPlanner.HostResolver resolved =
-        IocValidationPlanner.apply(iocs, settings, hostAnswers.resolver());
-    for (int index = 0; index < iocs.size(); index++) {
-      IocValidationIoc ioc = iocs.get(index);
-      String shownFingerprint = shownFingerprints.get(index);
-      if (shownFingerprint != null
-          && ioc.getPlanFingerprint() != null
-          && !shownFingerprint.equals(ioc.getPlanFingerprint())) {
-        throw new BadRequestException(
-            "The test planned for '%s' changed with the IOC validation settings since the request was shown. Reject the request and ask for a new validation from OpenCTI."
-                .formatted(ioc.getValue()));
-      }
-      if (shownKinds.get(index) == null) {
-        ioc.setRefused(shownRefusals.get(index));
-        ioc.setMessage(
-            ioc.getTestKind() == null || shownRefusals.get(index)
-                ? shownMessages.get(index)
-                : "Not run: skipped when OpenAEV received the request; a new request from OpenCTI"
-                    + " runs it under the current IOC validation settings");
-        ioc.setTestKind(null);
-      }
+    ApprovalPlan plan = planApproval(validation, tenantId, hostAnswers);
+    if (plan.blocker() != null) {
+      throw new BadRequestException(plan.blocker());
     }
-    validation.setAllowedTestKinds(sortedKinds(settings.allowedTestKinds()));
-    matchSecurityPlatforms(validation, tenantId);
-    if (validation.getIocs().stream().noneMatch(ioc -> ioc.getTestKind() != null)) {
+    if (!approvalFingerprint(validation).equals(previewFingerprint)) {
       throw new BadRequestException(
-          "Nothing can run: every IOC of this request was skipped when it was received or is no"
-              + " longer allowed by the IOC validation settings. Reject the request and ask for a"
-              + " new validation from OpenCTI.");
+          "The tests or security platforms of this approval changed since it was shown (IOC"
+              + " validation settings, DNS answers or security platforms). Review them again,"
+              + " then approve.");
     }
-    AssetGroup assetGroup = requireAssetGroup(settings, tenantId);
-    List<Endpoint> endpoints =
-        assetGroupService
-            .assetsFromAssetGroupMap(List.of(assetGroup))
-            .getOrDefault(assetGroup, List.of());
-    if (endpoints.isEmpty()) {
-      throw new BadRequestException(
-          "The IOC validation asset group '%s' contains no endpoint to run the tests on"
-              .formatted(assetGroup.getName()));
+    IocValidationSettings settings = plan.settings();
+    IocValidationPlanner.HostResolver resolved = plan.resolved();
+    List<Boolean> shownRefusals = plan.shownRefusals();
+    ApprovalTargets targets = approvalTargets(validation, settings, tenantId);
+    if (targets.blocker() != null) {
+      throw new BadRequestException(targets.blocker());
     }
-    List<Endpoint> runnableEndpoints =
-        endpoints.stream().filter(IocValidationService::hasRunnableAgent).toList();
-    if (runnableEndpoints.isEmpty()) {
-      throw new BadRequestException(
-          ("No endpoint of the asset group '%s' has an active agent: start an agent or choose another"
-                  + " asset group in Settings > Customization > IOC validation, then approve again.")
-              .formatted(assetGroup.getName()));
-    }
+    AssetGroup assetGroup = targets.assetGroup();
+    List<Endpoint> runnableEndpoints = targets.runnableEndpoints();
 
     // Scenarios, injects and simulations are still v1 tables: TenantBaseListener stamps them from
     // TenantContext, which only the /api/tenants/{tenantId}/ route sets. Bridging the resolved
@@ -405,6 +424,141 @@ public class IocValidationService {
       } else {
         TenantContext.setCurrentTenant(previousTenant);
       }
+    }
+  }
+
+  /**
+   * Plans the approval of a validation with the current safety settings and the given DNS answers,
+   * on the validation itself: the test of each IOC, its plan fingerprint, and the OpenAEV security
+   * platform of each pair. It cannot run when a test shown to the operator would now run with other
+   * arguments.
+   */
+  private ApprovalPlan planApproval(
+      IocValidation validation, String tenantId, IocValidationHostAnswers hostAnswers) {
+    IocValidationSettings settings = decisionSettings(tenantId, hostAnswers.resolver());
+    // The approval starts at most what the operator was shown: a setting narrowed since the request
+    // arrived drops a test, a setting widened since never turns a skipped IOC into a test.
+    List<IocValidationIoc> iocs = validation.getIocs();
+    List<IocValidationTestKind> shownKinds =
+        iocs.stream().map(IocValidationIoc::getTestKind).toList();
+    List<String> shownMessages = iocs.stream().map(IocValidationIoc::getMessage).toList();
+    List<Boolean> shownRefusals = iocs.stream().map(IocValidationIoc::isRefused).toList();
+    List<String> shownFingerprints =
+        iocs.stream().map(IocValidationIoc::getPlanFingerprint).toList();
+    IocValidationPlanner.HostResolver resolved =
+        IocValidationPlanner.apply(iocs, settings, hostAnswers.resolver());
+    for (int index = 0; index < iocs.size(); index++) {
+      IocValidationIoc ioc = iocs.get(index);
+      String shownFingerprint = shownFingerprints.get(index);
+      if (shownFingerprint != null
+          && ioc.getPlanFingerprint() != null
+          && !shownFingerprint.equals(ioc.getPlanFingerprint())) {
+        return new ApprovalPlan(
+            settings,
+            resolved,
+            shownRefusals,
+            "The test planned for '%s' changed with the IOC validation settings since the request was shown. Reject the request and ask for a new validation from OpenCTI."
+                .formatted(ioc.getValue()));
+      }
+      if (shownKinds.get(index) == null) {
+        ioc.setRefused(shownRefusals.get(index));
+        ioc.setMessage(
+            ioc.getTestKind() == null || shownRefusals.get(index)
+                ? shownMessages.get(index)
+                : "Not run: skipped when OpenAEV received the request; a new request from OpenCTI"
+                    + " runs it under the current IOC validation settings");
+        ioc.setTestKind(null);
+      }
+    }
+    validation.setAllowedTestKinds(sortedKinds(settings.allowedTestKinds()));
+    matchSecurityPlatforms(validation, tenantId);
+    return new ApprovalPlan(settings, resolved, shownRefusals, null);
+  }
+
+  /**
+   * The asset group the tests of a planned approval run on, and its endpoints with an active agent;
+   * or why nothing can run: no test left, no asset group, no endpoint, no endpoint with an active
+   * agent.
+   */
+  private ApprovalTargets approvalTargets(
+      IocValidation validation, IocValidationSettings settings, String tenantId) {
+    if (validation.getIocs().stream().noneMatch(ioc -> ioc.getTestKind() != null)) {
+      return ApprovalTargets.blocked(
+          "Nothing can run: every IOC of this request was skipped when it was received or is no"
+              + " longer allowed by the IOC validation settings. Reject the request and ask for a"
+              + " new validation from OpenCTI.");
+    }
+    if (!settings.hasAssetGroup()) {
+      return ApprovalTargets.blocked(
+          "Choose the asset group that runs the validation tests in the IOC validation settings"
+              + " before approving");
+    }
+    AssetGroup assetGroup;
+    try {
+      assetGroup = assetGroupService.tenantAssetGroup(tenantId, settings.assetGroupId());
+    } catch (ElementNotFoundException e) {
+      return ApprovalTargets.blocked(
+          "The IOC validation asset group no longer exists: choose another one in the settings");
+    }
+    List<Endpoint> endpoints =
+        assetGroupService
+            .assetsFromAssetGroupMap(List.of(assetGroup))
+            .getOrDefault(assetGroup, List.of());
+    if (endpoints.isEmpty()) {
+      return ApprovalTargets.blocked(
+          "The IOC validation asset group '%s' contains no endpoint to run the tests on"
+              .formatted(assetGroup.getName()));
+    }
+    List<Endpoint> runnableEndpoints =
+        endpoints.stream().filter(IocValidationService::hasRunnableAgent).toList();
+    if (runnableEndpoints.isEmpty()) {
+      return ApprovalTargets.blocked(
+          ("No endpoint of the asset group '%s' has an active agent: start an agent or choose another"
+                  + " asset group in Settings > Customization > IOC validation, then approve again.")
+              .formatted(assetGroup.getName()));
+    }
+    return new ApprovalTargets(assetGroup, runnableEndpoints, null);
+  }
+
+  /**
+   * Fingerprint of what the approval of a planned validation starts: the test of each IOC with its
+   * plan fingerprint (kind and arguments), and the OpenAEV security platform of each pair of the
+   * IOCs that run. An approval runs only with the fingerprint of the preview the operator
+   * confirmed.
+   */
+  static String approvalFingerprint(IocValidation validation) {
+    StringBuilder canonical = new StringBuilder("v1");
+    Set<String> planned = new HashSet<>();
+    for (IocValidationIoc ioc : validation.getIocs()) {
+      canonical
+          .append("\nioc\t")
+          .append(ioc.getIndicatorRef())
+          .append('\t')
+          .append(ioc.getTestKind() == null ? "" : ioc.getTestKind().name())
+          .append('\t')
+          .append(Objects.toString(ioc.getPlanFingerprint(), ""));
+      if (ioc.getTestKind() != null) {
+        planned.add(ioc.getIndicatorRef());
+      }
+    }
+    validation.getPairs().stream()
+        .filter(pair -> planned.contains(pair.getIndicatorRef()))
+        .map(
+            pair ->
+                "\npair\t%s\t%s\t%s"
+                    .formatted(
+                        pair.getIndicatorRef(),
+                        pair.getPlatformRef(),
+                        Objects.toString(pair.getSecurityPlatformId(), "")))
+        .sorted()
+        .forEach(canonical::append);
+    try {
+      return HexFormat.of()
+          .formatHex(
+              MessageDigest.getInstance("SHA-256")
+                  .digest(canonical.toString().getBytes(StandardCharsets.UTF_8)));
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 is not available", e);
     }
   }
 
@@ -1057,20 +1211,6 @@ public class IocValidationService {
       executors.add(IOC_VALIDATION_POSIX_EXECUTOR);
     }
     return executors;
-  }
-
-  private AssetGroup requireAssetGroup(IocValidationSettings settings, String tenantId) {
-    if (!settings.hasAssetGroup()) {
-      throw new BadRequestException(
-          "Choose the asset group that runs the validation tests in the IOC validation settings"
-              + " before approving");
-    }
-    try {
-      return assetGroupService.tenantAssetGroup(tenantId, settings.assetGroupId());
-    } catch (ElementNotFoundException e) {
-      throw new BadRequestException(
-          "The IOC validation asset group no longer exists: choose another one in the settings");
-    }
   }
 
   private static void requireAwaitingApproval(IocValidation validation) {

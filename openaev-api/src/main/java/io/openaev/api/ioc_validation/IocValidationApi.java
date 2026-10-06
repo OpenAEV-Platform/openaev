@@ -1,12 +1,15 @@
 package io.openaev.api.ioc_validation;
 
 import static io.openaev.api.ioc_validation.IocValidationMapper.fromSettingsInput;
+import static io.openaev.api.ioc_validation.IocValidationMapper.toApprovalPreviewOutput;
 import static io.openaev.api.ioc_validation.IocValidationMapper.toOutput;
 import static io.openaev.api.ioc_validation.IocValidationMapper.toSettingsOutput;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.ioc_validation.dto.IocValidationApprovalPreviewOutput;
+import io.openaev.api.ioc_validation.dto.IocValidationApproveInput;
 import io.openaev.api.ioc_validation.dto.IocValidationOutput;
 import io.openaev.api.ioc_validation.dto.IocValidationRejectInput;
 import io.openaev.api.ioc_validation.dto.IocValidationSettingsInput;
@@ -124,6 +127,34 @@ public class IocValidationApi extends RestBehavior {
         writeScopeResolver.tenantForWrite(ctx, null), searchText);
   }
 
+  @GetMapping("/{iocValidationId}/approval-preview")
+  // As the approval: the DNS answers are gathered before the read-only transaction of the service,
+  // so no connection waits for a DNS server
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  @LogExecutionTime
+  @AccessControl(
+      resourceId = "#iocValidationId",
+      actionPerformed = Action.LAUNCH,
+      resourceType = ResourceType.IOC_VALIDATION)
+  @Operation(
+      summary = "Preview the approval of an IOC validation",
+      description =
+          "Plans the approval as it would run now (current IOC validation settings, DNS answers and"
+              + " security platforms) without starting anything. The approval runs only with the"
+              + " fingerprint of this preview, and only if it still plans the same.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "What the approval would start now"),
+    @ApiResponse(responseCode = "400", description = "Not awaiting approval"),
+    @ApiResponse(responseCode = "404", description = "IOC validation not found")
+  })
+  public IocValidationApprovalPreviewOutput iocValidationApprovalPreview(
+      @RequireTenantSelector TxCtx ctx, @PathVariable @NotBlank final String iocValidationId) {
+    IocValidationHostAnswers hostAnswers =
+        IocValidationHostAnswers.resolve(iocValidationService.hostNames(ctx, iocValidationId));
+    return toApprovalPreviewOutput(
+        iocValidationService.approvalPreview(ctx, iocValidationId, hostAnswers));
+  }
+
   // -- UPDATE --
 
   @PostMapping("/{iocValidationId}/approve")
@@ -138,21 +169,31 @@ public class IocValidationApi extends RestBehavior {
   @Operation(
       summary = "Approve an IOC validation",
       description =
-          "Builds the benign validation scenario and launches its simulation. Nothing runs before"
-              + " this approval.")
+          "Builds the benign validation scenario and launches its simulation, provided that it"
+              + " plans what the confirmed approval preview showed. Nothing runs before this"
+              + " approval.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "The approved IOC validation, now running"),
     @ApiResponse(
         responseCode = "400",
-        description = "Not awaiting approval, or nothing can run with the current settings"),
+        description =
+            "Not awaiting approval, the approval now plans other tests than the confirmed preview,"
+                + " or nothing can run with the current settings"),
     @ApiResponse(responseCode = "404", description = "IOC validation not found")
   })
   public IocValidationOutput approveIocValidation(
-      @RequireTenantSelector TxCtx ctx, @PathVariable @NotBlank final String iocValidationId) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable @NotBlank final String iocValidationId,
+      @RequestBody @Valid final IocValidationApproveInput input) {
     IocValidationHostAnswers hostAnswers =
         IocValidationHostAnswers.resolve(iocValidationService.hostNames(ctx, iocValidationId));
     return toOutput(
-        iocValidationService.approve(ctx, iocValidationId, userService.currentUser(), hostAnswers));
+        iocValidationService.approve(
+            ctx,
+            iocValidationId,
+            userService.currentUser(),
+            hostAnswers,
+            input.previewFingerprint()));
   }
 
   @PostMapping("/{iocValidationId}/reject")

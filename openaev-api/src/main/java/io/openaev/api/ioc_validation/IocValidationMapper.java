@@ -1,5 +1,6 @@
 package io.openaev.api.ioc_validation;
 
+import io.openaev.api.ioc_validation.dto.IocValidationApprovalPreviewOutput;
 import io.openaev.api.ioc_validation.dto.IocValidationIocOutput;
 import io.openaev.api.ioc_validation.dto.IocValidationOutput;
 import io.openaev.api.ioc_validation.dto.IocValidationPairOutput;
@@ -10,11 +11,14 @@ import io.openaev.database.model.IocValidation;
 import io.openaev.database.model.IocValidationIoc;
 import io.openaev.database.model.IocValidationPair;
 import io.openaev.database.model.IocValidationTestKind;
+import io.openaev.service.stix.IocValidationService;
 import io.openaev.service.stix.IocValidationSettings;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class IocValidationMapper {
 
@@ -62,6 +66,25 @@ public class IocValidationMapper {
         validation.getCompletedAt(),
         validation.getCreatedAt(),
         validation.getUpdatedAt());
+  }
+
+  /** The preview of an approval: every IOC, and the pairs of the IOCs whose test would run. */
+  public static IocValidationApprovalPreviewOutput toApprovalPreviewOutput(
+      IocValidationService.ApprovalPreview preview) {
+    IocValidation validation = preview.validation();
+    Set<String> planned =
+        validation.getIocs().stream()
+            .filter(ioc -> ioc.getTestKind() != null)
+            .map(IocValidationIoc::getIndicatorRef)
+            .collect(Collectors.toSet());
+    return new IocValidationApprovalPreviewOutput(
+        preview.fingerprint(),
+        validation.getIocs().stream().map(IocValidationMapper::toIocOutput).toList(),
+        validation.getPairs().stream()
+            .filter(pair -> planned.contains(pair.getIndicatorRef()))
+            .map(IocValidationMapper::toPairOutput)
+            .toList(),
+        preview.blocker());
   }
 
   static IocValidationIocOutput toIocOutput(IocValidationIoc ioc) {

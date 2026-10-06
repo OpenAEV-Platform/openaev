@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.api.ioc_validation.dto.IocValidationApproveInput;
 import io.openaev.api.ioc_validation.dto.IocValidationSettingsInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
@@ -50,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -215,6 +217,26 @@ class IocValidationApiTest extends IntegrationTest {
 
   private MockHttpServletRequestBuilder decide(String id, String decision) {
     return post(TENANT_IOC_VALIDATION_URI + "/{id}/" + decision, tenantId, id).with(csrf());
+  }
+
+  private String approvalPreview(String id) throws Exception {
+    return mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/{id}/approval-preview", tenantId, id))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+  }
+
+  /** Approves as the operator does: with the fingerprint of the approval preview just shown. */
+  private MockHttpServletRequestBuilder approve(String id) throws Exception {
+    return approve(id, JsonPath.read(approvalPreview(id), "$.ioc_validation_preview_fingerprint"));
+  }
+
+  private MockHttpServletRequestBuilder approve(String id, String previewFingerprint)
+      throws Exception {
+    return decide(id, "approve")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(mapper.writeValueAsString(new IocValidationApproveInput(previewFingerprint)));
   }
 
   private MockHttpServletRequestBuilder putSettings(String body) {
@@ -475,7 +497,77 @@ class IocValidationApiTest extends IntegrationTest {
       mvc.perform(decide(id, "reject").contentType(MediaType.APPLICATION_JSON).content("{}"))
           .andExpect(status().isOk());
 
+      mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/{id}/approval-preview", tenantId, id))
+          .andExpect(status().isBadRequest());
+      mvc.perform(approve(id, "0".repeat(64))).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+        "the approval preview plans the tests as the approval would now, and records nothing")
+    void given_waitingRequest_should_previewTheApprovalWithoutChangingIt() throws Exception {
+      allowTestKindOnValidationTargets(IocValidationTestKind.DNS_RESOLUTION);
+      String id = receiveDnsRequest();
+      String before = validation(id);
+
+      String preview = approvalPreview(id);
+
+      assertThat((String) JsonPath.read(preview, "$.ioc_validation_preview_fingerprint"))
+          .matches("[0-9a-f]{64}");
+      assertThat((String) JsonPath.read(preview, "$.ioc_validation_preview_iocs[0].ioc_test_kind"))
+          .isEqualTo("DNS_RESOLUTION");
+      assertThat(
+              (List<String>)
+                  JsonPath.read(preview, "$.ioc_validation_preview_pairs[*].pair_platform_ref"))
+          .containsExactly(PLATFORM);
+      assertThat(
+              ((Map<String, Object>) JsonPath.read(preview, "$"))
+                  .get("ioc_validation_preview_blocker"))
+          .isNull();
+      assertThat(validation(id)).isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName(
+        "the approval preview drops a test a setting narrowed since the request was shown with it")
+    void given_settingNarrowedAfterIntake_should_previewTheDroppedTest() throws Exception {
+      injectorFixture.getWellKnownOaevImplantInjector();
+      AssetGroup assetGroup = validationTargets();
+      allow(List.of(IocValidationTestKind.DNS_RESOLUTION), assetGroup);
+      String id = receiveDnsRequest();
+      allow(List.of(IocValidationTestKind.NETWORK_TRAFFIC), assetGroup);
+
+      String preview = approvalPreview(id);
+
+      // The request still shows the test of its intake; the preview shows what would run now
+      assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_iocs[0].ioc_test_kind"))
+          .isEqualTo("DNS_RESOLUTION");
+      assertThat(
+              ((Map<String, Object>) JsonPath.read(preview, "$.ioc_validation_preview_iocs[0]"))
+                  .get("ioc_test_kind"))
+          .isNull();
+      assertThat((List<Object>) JsonPath.read(preview, "$.ioc_validation_preview_pairs")).isEmpty();
+      assertThat((String) JsonPath.read(preview, "$.ioc_validation_preview_blocker"))
+          .startsWith("Nothing can run");
+      mvc.perform(approve(id)).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("an approval runs only with the fingerprint of the preview it still plans")
+    void given_otherFingerprint_should_refuseApproval() throws Exception {
+      allowTestKindOnValidationTargets(IocValidationTestKind.DNS_RESOLUTION);
+      String id = receiveDnsRequest();
+      String fingerprint =
+          JsonPath.read(approvalPreview(id), "$.ioc_validation_preview_fingerprint");
+
       mvc.perform(decide(id, "approve")).andExpect(status().isBadRequest());
+      mvc.perform(approve(id, "0".repeat(64))).andExpect(status().isBadRequest());
+      assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
+          .isEqualTo("AWAITING_APPROVAL");
+
+      mvc.perform(approve(id, fingerprint)).andExpect(status().isOk());
+      assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
+          .isEqualTo("RUNNING");
     }
 
     @Test
@@ -483,7 +575,7 @@ class IocValidationApiTest extends IntegrationTest {
     void given_noAssetGroup_should_refuseApproval() throws Exception {
       String id = receiveDnsRequest();
 
-      mvc.perform(decide(id, "approve")).andExpect(status().isBadRequest());
+      mvc.perform(approve(id)).andExpect(status().isBadRequest());
       assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
           .isEqualTo("AWAITING_APPROVAL");
     }
@@ -496,7 +588,7 @@ class IocValidationApiTest extends IntegrationTest {
       allow(List.of(IocValidationTestKind.DNS_RESOLUTION), assetGroup);
       String id = receiveDnsRequest();
 
-      mvc.perform(decide(id, "approve")).andExpect(status().isBadRequest());
+      mvc.perform(approve(id)).andExpect(status().isBadRequest());
 
       assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
           .isEqualTo("AWAITING_APPROVAL");
@@ -516,7 +608,7 @@ class IocValidationApiTest extends IntegrationTest {
           List.of(IocValidationTestKind.DNS_RESOLUTION, IocValidationTestKind.NETWORK_TRAFFIC),
           assetGroup);
 
-      mvc.perform(decide(id, "approve")).andExpect(status().isBadRequest());
+      mvc.perform(approve(id)).andExpect(status().isBadRequest());
 
       String response = validation(id);
       assertThat((String) JsonPath.read(response, "$.ioc_validation_status"))
@@ -545,7 +637,7 @@ class IocValidationApiTest extends IntegrationTest {
       // Shown as a connection to the sinkhole, would now connect to the IOC itself
       allow(kinds, assetGroup);
 
-      mvc.perform(decide(id, "approve")).andExpect(status().isBadRequest());
+      mvc.perform(approve(id)).andExpect(status().isBadRequest());
 
       String response = validation(id);
       assertThat((String) JsonPath.read(response, "$.ioc_validation_status"))
@@ -561,7 +653,7 @@ class IocValidationApiTest extends IntegrationTest {
       String id = receiveDnsRequest();
 
       String response =
-          mvc.perform(decide(id, "approve"))
+          mvc.perform(approve(id))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -699,7 +791,7 @@ class IocValidationApiTest extends IntegrationTest {
                   "file_drop",
                   "invoice.pdf"));
       String response =
-          mvc.perform(decide(id, "approve"))
+          mvc.perform(approve(id))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -987,7 +1079,7 @@ class IocValidationApiTest extends IntegrationTest {
       String id = receiveDnsRequest();
 
       String refusal =
-          mvc.perform(decide(id, "approve"))
+          mvc.perform(approve(id))
               .andExpect(status().isBadRequest())
               .andReturn()
               .getResponse()
@@ -1043,7 +1135,13 @@ class IocValidationApiTest extends IntegrationTest {
           .andExpect(status().isOk());
       mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/{id}", otherTenantId, id))
           .andExpect(status().isNotFound());
-      mvc.perform(post(TENANT_IOC_VALIDATION_URI + "/{id}/approve", otherTenantId, id).with(csrf()))
+      mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/{id}/approval-preview", otherTenantId, id))
+          .andExpect(status().is4xxClientError());
+      mvc.perform(
+              post(TENANT_IOC_VALIDATION_URI + "/{id}/approve", otherTenantId, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(new IocValidationApproveInput("0".repeat(64))))
+                  .with(csrf()))
           .andExpect(status().is4xxClientError());
       mvc.perform(get(IOC_VALIDATION_URI + "/" + id).header("X-Tenant-Ids", otherTenantId))
           .andExpect(status().isNotFound());

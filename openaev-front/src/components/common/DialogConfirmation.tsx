@@ -16,6 +16,8 @@ interface DialogConfirmationProps {
   /** Tone of the confirm button. Use 'error' for destructive/irreversible confirmations: the
    *  button renders destructive so the action reads as dangerous at a glance. Defaults to 'primary'. */
   submitColor?: 'primary' | 'error';
+  /** Keeps the confirm button disabled, while what it confirms is not ready. */
+  submitDisabled?: boolean;
   richContent?: React.ReactNode;
   extraContent?: React.ReactNode;
 }
@@ -31,6 +33,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   text,
   submitLabel,
   submitColor = 'primary',
+  submitDisabled = false,
   richContent,
   extraContent,
 }) => {
@@ -88,7 +91,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
           {t('Cancel')}
         </Button>
         {handleSubmit && (
-          <Button type="button" variant={submitColor === 'error' ? 'destructive' : undefined} loading={loading} onClick={handleLoadingAndSubmit}>
+          <Button type="button" variant={submitColor === 'error' ? 'destructive' : undefined} loading={loading} disabled={submitDisabled} onClick={handleLoadingAndSubmit}>
             {submitLabel}
           </Button>
         )}

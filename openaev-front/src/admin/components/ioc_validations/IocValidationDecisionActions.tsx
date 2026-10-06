@@ -1,13 +1,13 @@
-import { Button, Text, Textarea, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Alert, Button, Text, Textarea, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckCircleOutlined, DoNotDisturbOnOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactElement, useContext, useState } from 'react';
+import { type FunctionComponent, type ReactElement, useContext, useRef, useState } from 'react';
 
-import { approveIocValidation, rejectIocValidation } from '../../../actions/ioc_validations/ioc-validation-actions';
+import { approveIocValidation, fetchIocValidationApprovalPreview, rejectIocValidation } from '../../../actions/ioc_validations/ioc-validation-actions';
 import { Field } from '../../../components/common/detail/EntityDetailCommon';
 import DialogConfirmation from '../../../components/common/DialogConfirmation';
 import { useFormatter } from '../../../components/i18n';
-import { type IocValidationIocOutput, type IocValidationOutput } from '../../../utils/api-types';
+import { type IocValidationApprovalPreviewOutput, type IocValidationIocOutput, type IocValidationOutput } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../utils/fdsLayer';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
@@ -19,14 +19,20 @@ import { IOC_VALIDATION_REJECT_REASON_MAX_LENGTH, iocValidationTestKindLabel, is
 // Tests listed in the approval dialog; the request page lists them all.
 const APPROVAL_SUMMARY_MAX_ROWS = 10;
 
-// What the approval starts: the tests that run on each indicator and the security platforms expected to see them.
-const IocValidationApprovalSummary: FunctionComponent<{ iocValidation: IocValidationOutput }> = ({ iocValidation }) => {
+// What the approval starts, as the server plans it now: the tests that run on each indicator and the security
+// platforms expected to see them.
+const IocValidationApprovalSummary: FunctionComponent<{ preview: IocValidationApprovalPreviewOutput | null }> = ({ preview }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const planned = iocValidation.ioc_validation_iocs.filter(ioc => ioc.ioc_test_kind);
-  const plannedIndicators = new Set(planned.map(ioc => ioc.ioc_indicator_ref));
-  const platforms = [...new Set(iocValidation.ioc_validation_pairs
-    .filter(pair => plannedIndicators.has(pair.pair_indicator_ref))
+  if (!preview) {
+    return (
+      <div data-testid="ioc-validation-approval-summary" aria-busy="true" style={{ marginTop: theme.spacing(2) }}>
+        <Text variant="content-compact" className="text-default-secondary">{t('Checking the tests with the current settings...')}</Text>
+      </div>
+    );
+  }
+  const planned = preview.ioc_validation_preview_iocs.filter(ioc => ioc.ioc_test_kind);
+  const platforms = [...new Set(preview.ioc_validation_preview_pairs
     .map(pair => pair.pair_platform_name || pair.pair_platform_ref))];
   const columns: IocValidationTableColumn<IocValidationIocOutput>[] = [
     {
@@ -57,13 +63,16 @@ const IocValidationApprovalSummary: FunctionComponent<{ iocValidation: IocValida
         marginTop: theme.spacing(2),
       }}
     >
+      {preview.ioc_validation_preview_blocker && (
+        <Alert severity="warning" title={preview.ioc_validation_preview_blocker} />
+      )}
       <Text variant="content-compact" className="text-default-secondary">{t('Tests that run once approved')}</Text>
       <IocValidationTable
         caption={t('Tests that run once approved')}
         columns={columns}
         rows={planned.slice(0, APPROVAL_SUMMARY_MAX_ROWS)}
         rowKey={(ioc, index) => `${ioc.ioc_indicator_ref}-${ioc.ioc_test_kind ?? 'none'}-${index}`}
-        emptyMessage={t('No IOC in this request.')}
+        emptyMessage={t('No test would run now.')}
       />
       {planned.length > APPROVAL_SUMMARY_MAX_ROWS && (
         <Text variant="content-caption" className="text-default-secondary">
@@ -88,6 +97,9 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
 
   const [approveOpen, setApproveOpen] = useState(false);
+  const [preview, setPreview] = useState<IocValidationApprovalPreviewOutput | null>(null);
+  // The preview request in flight: an answer arriving after the dialog closed or reopened is ignored.
+  const previewRequest = useRef(0);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState('');
 
@@ -95,20 +107,45 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
     return null;
   }
 
+  const closeApproval = () => {
+    previewRequest.current += 1;
+    setApproveOpen(false);
+  };
+
   // The request may have been decided elsewhere meanwhile: reload instead of leaving a stale page.
   const handleDecisionFailure = () => {
-    setApproveOpen(false);
+    closeApproval();
     setRejectOpen(false);
     onRefresh();
   };
 
-  const handleApprove = () => approveIocValidation(iocValidation.ioc_validation_id)
-    .then((result: { data: IocValidationOutput }) => {
-      setApproveOpen(false);
-      onUpdate(result.data);
-      MESSAGING$.notifySuccess(t('The IOC validation has been approved. The validation simulation is starting.'));
-    })
-    .catch(handleDecisionFailure);
+  // The approval runs only if it plans what this preview shows, so the dialog never confirms a stale plan.
+  const openApproval = () => {
+    previewRequest.current += 1;
+    const request = previewRequest.current;
+    setPreview(null);
+    setApproveOpen(true);
+    fetchIocValidationApprovalPreview(iocValidation.ioc_validation_id)
+      .then((result: { data: IocValidationApprovalPreviewOutput }) => {
+        if (request === previewRequest.current) {
+          setPreview(result.data);
+        }
+      })
+      .catch(handleDecisionFailure);
+  };
+
+  const handleApprove = () => {
+    if (!preview) {
+      return undefined;
+    }
+    return approveIocValidation(iocValidation.ioc_validation_id, { ioc_validation_preview_fingerprint: preview.ioc_validation_preview_fingerprint })
+      .then((result: { data: IocValidationOutput }) => {
+        closeApproval();
+        onUpdate(result.data);
+        MESSAGING$.notifySuccess(t('The IOC validation has been approved. The validation simulation is starting.'));
+      })
+      .catch(handleDecisionFailure);
+  };
 
   const handleReject = () => {
     const trimmedReason = reason.trim();
@@ -153,18 +190,19 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
           type="button"
           startIcon={<CheckCircleOutlined fontSize="small" />}
           disabled={!canLaunch}
-          onClick={() => setApproveOpen(true)}
+          onClick={openApproval}
         >
           {t('Approve and start the simulation')}
         </Button>,
       )}
       <DialogConfirmation
         open={approveOpen}
-        handleClose={() => setApproveOpen(false)}
+        handleClose={closeApproval}
         handleSubmit={handleApprove}
         text={t('Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.')}
         submitLabel={t('Approve and start the simulation')}
-        extraContent={<IocValidationApprovalSummary iocValidation={iocValidation} />}
+        submitDisabled={!preview || !!preview.ioc_validation_preview_blocker}
+        extraContent={<IocValidationApprovalSummary preview={preview} />}
       />
       <DialogConfirmation
         open={rejectOpen}

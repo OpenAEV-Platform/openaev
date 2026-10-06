@@ -1,5 +1,5 @@
 import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import type { IocValidationRejectInput, IocValidationSettingsInput, SearchPaginationInput } from '../../utils/api-types';
+import type { IocValidationApproveInput, IocValidationRejectInput, IocValidationSettingsInput, SearchPaginationInput } from '../../utils/api-types';
 
 const IOC_VALIDATION_URI = '/api/ioc-validations';
 
@@ -11,8 +11,12 @@ export const fetchIocValidation = (iocValidationId: string) => {
   return simpleCall(`${IOC_VALIDATION_URI}/${iocValidationId}`);
 };
 
-export const approveIocValidation = (iocValidationId: string) => {
-  return simplePostCall(`${IOC_VALIDATION_URI}/${iocValidationId}/approve`);
+export const fetchIocValidationApprovalPreview = (iocValidationId: string) => {
+  return simpleCall(`${IOC_VALIDATION_URI}/${iocValidationId}/approval-preview`);
+};
+
+export const approveIocValidation = (iocValidationId: string, data: IocValidationApproveInput) => {
+  return simplePostCall(`${IOC_VALIDATION_URI}/${iocValidationId}/approve`, data);
 };
 
 export const rejectIocValidation = (iocValidationId: string, data: IocValidationRejectInput) => {
