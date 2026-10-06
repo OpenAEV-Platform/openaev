@@ -162,13 +162,25 @@ describe('IocValidationDecisionActions', () => {
     expect(within(summary).getByText('3 more indicators')).toBeTruthy();
   });
 
-  it('keeps the place of the warning while the preview of a request without planned test loads', () => {
+  it('shows at once the warning of a request without planned test, while its preview loads', () => {
     const summary = openPendingApproval(awaitingRequest(0));
-    expect(within(summary).getByRole('status').textContent).toBe('Checking the tests with the current settings...');
+    expect(within(summary).getByText(/^Nothing can run: every IOC of this request was skipped when it was received\./)).toBeTruthy();
     expect(within(summary).queryByRole('table')).toBeNull();
     expect(within(summary).queryByText('Security platforms')).toBeNull();
-    // Nothing can be approved: no question above the warning to come
+    // Nothing can be approved: no question above the warning
     expect(approvalQuestion()).toBeNull();
+    expect(confirmButton().hasAttribute('disabled')).toBe(true);
+  });
+
+  it('keeps the same warning once the preview of a request without planned test lands', async () => {
+    const request = awaitingRequest(0);
+    openApproval(request, previewOf(request, { ioc_validation_preview_blocker: 'Nothing can run: every IOC of this request was skipped when it was received or is no longer allowed by the IOC validation settings.' }));
+    const summary = await screen.findByTestId('ioc-validation-approval-summary');
+    await waitFor(() => expect(summary.getAttribute('aria-busy')).toBe('false'));
+    expect(within(summary).getAllByText(/^Nothing can run:/)).toHaveLength(1);
+    expect(within(summary).getByText(/skipped when it was received\. Reject the request/)).toBeTruthy();
+    expect(approvalQuestion()).toBeNull();
+    expect(confirmButton().hasAttribute('disabled')).toBe(true);
   });
 
   it('shows only the warning when nothing can run, and keeps the approval disabled', async () => {

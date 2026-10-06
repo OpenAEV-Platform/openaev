@@ -4671,5 +4671,6 @@
   "Domain name": "域名",
   "IPv4 address": "IPv4 地址",
   "IPv6 address": "IPv6 地址",
-  "Refused": "已拒绝"
+  "Refused": "已拒绝",
+  "Nothing can run: every IOC of this request was skipped when it was received. Reject the request and ask for a new validation from OpenCTI.": "没有可运行的内容：此请求的每个 IOC 在接收时都已被跳过。请拒绝该请求，并从 OpenCTI 请求新的验证。"
 }

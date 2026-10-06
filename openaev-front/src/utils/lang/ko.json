@@ -4671,5 +4671,6 @@
   "Domain name": "도메인 이름",
   "IPv4 address": "IPv4 주소",
   "IPv6 address": "IPv6 주소",
-  "Refused": "거부됨"
+  "Refused": "거부됨",
+  "Nothing can run: every IOC of this request was skipped when it was received. Reject the request and ask for a new validation from OpenCTI.": "실행할 수 있는 항목이 없습니다: 이 요청의 모든 IOC가 수신 시 건너뛰어졌습니다. 요청을 거부하고 OpenCTI에서 새 검증을 요청하세요."
 }

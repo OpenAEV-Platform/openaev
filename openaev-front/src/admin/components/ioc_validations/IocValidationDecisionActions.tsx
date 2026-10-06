@@ -13,18 +13,16 @@ import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../utils/fds
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../utils/permissions/types';
 import { emptyFilled } from '../../../utils/String';
-import { AlertSkeleton, TextSkeleton } from './IocValidationSkeleton';
+import { TextSkeleton } from './IocValidationSkeleton';
 import IocValidationTable, { type IocValidationTableColumn } from './IocValidationTable';
 import { IOC_VALIDATION_REJECT_REASON_MAX_LENGTH, iocValidationTestKindLabel, isAwaitingApproval } from './iocValidationUtils';
 
 // Tests listed in the approval dialog; the request page lists them all.
 const APPROVAL_SUMMARY_MAX_ROWS = 10;
-// Height of the one-sentence warning that replaces the summary when nothing can run.
-const APPROVAL_BLOCKER_HEIGHT = 74;
-
 // What the approval starts, as the server plans it now: the tests that run on each indicator and the security
 // platforms expected to see them. While the plan loads, its place is kept with the tests the request shows as
-// planned, so the dialog and its actions do not move when it lands.
+// planned, so the dialog and its actions do not move when it lands. A request shown without planned test has
+// nothing to approve whatever the plan says, so its warning shows at once.
 const IocValidationApprovalSummary: FunctionComponent<{
   preview: IocValidationApprovalPreviewOutput | null;
   shownPlanned: number;
@@ -64,39 +62,39 @@ const IocValidationApprovalSummary: FunctionComponent<{
     </Text>
   );
 
+  if (shownPlanned === 0) {
+    return (
+      <div data-testid="ioc-validation-approval-summary" aria-busy={!preview} style={summaryStyle}>
+        <Alert
+          severity="warning"
+          title={t('Nothing can run: every IOC of this request was skipped when it was received. Reject the request and ask for a new validation from OpenCTI.')}
+        />
+      </div>
+    );
+  }
+
   if (!preview) {
     return (
       <div data-testid="ioc-validation-approval-summary" aria-busy="true" style={summaryStyle}>
-        {shownPlanned === 0
-          ? (
-              <>
-                <span className="sr-only" role="status">{t('Checking the tests with the current settings...')}</span>
-                <AlertSkeleton height={APPROVAL_BLOCKER_HEIGHT} />
-              </>
-            )
-          : (
-              <>
-                <Text variant="content-compact" className="text-default-secondary" role="status">
-                  {t('Checking the tests with the current settings...')}
-                </Text>
-                <IocValidationTable
-                  caption={t('Checking the tests with the current settings...')}
-                  columns={columns.map((column): IocValidationTableColumn<null> => ({
-                    key: column.key,
-                    label: column.label,
-                    width: column.width,
-                    render: () => (column.key === 'value'
-                      ? <Text variant="content-code"><TextSkeleton /></Text>
-                      : <TextSkeleton />),
-                  }))}
-                  rows={Array.from({ length: Math.min(shownPlanned, APPROVAL_SUMMARY_MAX_ROWS) }, () => null)}
-                  rowKey={(_, index) => `loading-${index}`}
-                  emptyMessage=""
-                />
-                {moreIndicators(shownPlanned)}
-                <Field label={t('Security platforms')}><TextSkeleton width="40%" /></Field>
-              </>
-            )}
+        <Text variant="content-compact" className="text-default-secondary" role="status">
+          {t('Checking the tests with the current settings...')}
+        </Text>
+        <IocValidationTable
+          caption={t('Checking the tests with the current settings...')}
+          columns={columns.map((column): IocValidationTableColumn<null> => ({
+            key: column.key,
+            label: column.label,
+            width: column.width,
+            render: () => (column.key === 'value'
+              ? <Text variant="content-code"><TextSkeleton width="10em" inline /></Text>
+              : <TextSkeleton />),
+          }))}
+          rows={Array.from({ length: Math.min(shownPlanned, APPROVAL_SUMMARY_MAX_ROWS) }, () => null)}
+          rowKey={(_, index) => `loading-${index}`}
+          emptyMessage=""
+        />
+        {moreIndicators(shownPlanned)}
+        <Field label={t('Security platforms')}><TextSkeleton width="40%" /></Field>
       </div>
     );
   }
@@ -258,6 +256,7 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
           : t('Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.')}
         submitLabel={t('Approve and start the simulation')}
         submitDisabled={!preview || !!preview.ioc_validation_preview_blocker}
+        fullWidth
         extraContent={(
           <IocValidationApprovalSummary preview={preview} shownPlanned={shownPlanned} standalone={nothingToApprove} />
         )}

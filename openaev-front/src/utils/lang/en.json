@@ -4671,5 +4671,6 @@
   "Domain name": "Domain name",
   "IPv4 address": "IPv4 address",
   "IPv6 address": "IPv6 address",
-  "Refused": "Refused"
+  "Refused": "Refused",
+  "Nothing can run: every IOC of this request was skipped when it was received. Reject the request and ask for a new validation from OpenCTI.": "Nothing can run: every IOC of this request was skipped when it was received. Reject the request and ask for a new validation from OpenCTI."
 }

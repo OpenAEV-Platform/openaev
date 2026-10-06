@@ -4671,5 +4671,6 @@
   "Domain name": "Доменное имя",
   "IPv4 address": "IPv4-адрес",
   "IPv6 address": "IPv6-адрес",
-  "Refused": "Отклонено"
+  "Refused": "Отклонено",
+  "Nothing can run: every IOC of this request was skipped when it was received. Reject the request and ask for a new validation from OpenCTI.": "Нечего запускать: каждый IOC этого запроса был пропущен при его получении. Отклоните запрос и запросите новую проверку из OpenCTI."
 }

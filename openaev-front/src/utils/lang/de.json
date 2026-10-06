@@ -4671,5 +4671,6 @@
   "Domain name": "Domainname",
   "IPv4 address": "IPv4-Adresse",
   "IPv6 address": "IPv6-Adresse",
-  "Refused": "Abgelehnt"
+  "Refused": "Abgelehnt",
+  "Nothing can run: every IOC of this request was skipped when it was received. Reject the request and ask for a new validation from OpenCTI.": "Nichts kann ausgeführt werden: Jeder IOC dieser Anfrage wurde bei ihrem Eingang übersprungen. Lehnen Sie die Anfrage ab und fordern Sie eine neue Validierung aus OpenCTI an."
 }

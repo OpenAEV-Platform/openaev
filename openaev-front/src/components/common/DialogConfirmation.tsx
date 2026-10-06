@@ -19,6 +19,8 @@ interface DialogConfirmationProps {
   submitColor?: 'primary' | 'error';
   /** Keeps the confirm button disabled, while what it confirms is not ready. */
   submitDisabled?: boolean;
+  /** Takes the full dialog width, for content whose width changes while it loads. */
+  fullWidth?: boolean;
   richContent?: React.ReactNode;
   extraContent?: React.ReactNode;
 }
@@ -35,6 +37,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   submitLabel,
   submitColor = 'primary',
   submitDisabled = false,
+  fullWidth = false,
   richContent,
   extraContent,
 }) => {
@@ -76,6 +79,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
     <DialogMUI
       open={open}
       onClose={handleClose}
+      fullWidth={fullWidth}
       slotProps={{ paper: { elevation: 1 } }}
       slots={{ transition: Transition }}
     >
