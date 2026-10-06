@@ -795,8 +795,21 @@ class IocValidationApiTest extends IntegrationTest {
               id);
       Map<String, List<String>> recorded = JsonPath.read(iocs, "$[0].ioc_inject_targets");
       assertThat(recorded).containsOnlyKeys(injectIds);
+      Map<String, String> payloads = JsonPath.read(iocs, "$[0].ioc_inject_payloads");
+      assertThat(payloads).containsOnlyKeys(injectIds);
+      // The POSIX and the PowerShell file drops: one kind, two payloads
+      assertThat(Set.copyOf(payloads.values())).hasSize(2);
       List<List<String>> targets = new ArrayList<>();
       for (String injectId : injectIds) {
+        // The payload recorded for each inject is the one its contract runs
+        assertThat(payloads.get(injectId))
+            .isEqualTo(
+                jdbc.queryForObject(
+                    "SELECT c.injector_contract_payload FROM injects i JOIN injectors_contracts c"
+                        + " ON c.injector_contract_id = i.inject_injector_contract"
+                        + " AND c.tenant_id = i.tenant_id WHERE i.inject_id = ?",
+                    String.class,
+                    injectId));
         assertThat(
                 jdbc.queryForObject(
                     "SELECT COUNT(*) FROM injects_asset_groups WHERE inject_id = ?",

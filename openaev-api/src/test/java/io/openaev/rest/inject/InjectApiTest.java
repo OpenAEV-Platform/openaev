@@ -1174,6 +1174,11 @@ class InjectApiTest extends IntegrationTest {
               Map.of(
                   inject.getId(),
                   new ArrayList<>(inject.getAssets().stream().map(Asset::getId).toList()))));
+      ioc.setInjectPayloads(
+          new HashMap<>(
+              Map.of(
+                  inject.getId(),
+                  inject.getInjectorContract().orElseThrow().getPayload().getId())));
       ioc.setPlanFingerprint(
           IocValidationPlanner.fingerprintOf(IocValidationTestKind.FILE_DROP, inject.getContent())
               .orElseThrow());
@@ -1324,6 +1329,54 @@ class InjectApiTest extends IntegrationTest {
 
       // -- EXECUTE & ASSERT: an approved endpoint is removed from its targets --
       injectSaved.setAssets(new ArrayList<>(List.of(agentEndpoint)));
+      injectRepository.saveAndFlush(injectSaved);
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get(executablePayloadUri).accept(MediaType.APPLICATION_JSON).with(csrf())))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST);
+    }
+
+    @DisplayName(
+        "Refuse to execute an IOC validation test whose payload was swapped for another of its kind")
+    @Test
+    void given_iocValidationPayloadSwappedForTheSameKind_should_refuseItsExecution()
+        throws Exception {
+      // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Inject injectSaved =
+          iocValidationFileDropInject(
+              iocValidationFileDrop(), "0123456789abcdef0123456789abcdef", targetAgentWrapper);
+      approveAsIocValidationTest(injectSaved);
+      doNothing()
+          .when(injectStatusService)
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+      String executablePayloadUri =
+          INJECT_URI
+              + "/"
+              + injectSaved.getId()
+              + "/"
+              + targetAgentWrapper.get().getId()
+              + "/executable-payload";
+
+      // -- EXECUTE & ASSERT: the approved test runs --
+      mvc.perform(get(executablePayloadUri).accept(MediaType.APPLICATION_JSON).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- EXECUTE & ASSERT: its contract now runs the PowerShell file drop, on its template, with
+      // the same arguments and endpoints --
+      Command powerShellFileDrop =
+          payloadService.getIocValidationCommandPayload(
+              TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+              IocValidationTestKind.FILE_DROP,
+              PayloadService.IOC_VALIDATION_WINDOWS_EXECUTOR);
+      injectSaved.setInjectorContract(
+          injectorContractRepository
+              .findInjectorContractByPayload(powerShellFileDrop)
+              .orElseThrow());
       injectRepository.saveAndFlush(injectSaved);
       assertThatThrownBy(
               () ->

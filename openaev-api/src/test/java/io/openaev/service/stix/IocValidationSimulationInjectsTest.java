@@ -34,6 +34,9 @@ class IocValidationSimulationInjectsTest {
     assertThat(validation.getIocs().get(0).getInjectTargets())
         .isEqualTo(
             Map.of("simulation-1", List.of("endpoint-1"), "simulation-2", List.of("endpoint-2")));
+    // And so does the payload approved for each inject
+    assertThat(validation.getIocs().get(0).getInjectPayloads())
+        .isEqualTo(Map.of("simulation-1", "payload-1", "simulation-2", "payload-2"));
     assertThat(validation.getIocs().get(1).getInjectIds()).isEmpty();
     // A new list makes the change visible to the dirty checking of the JSON column
     assertThat(validation.getIocs()).isNotSameAs(before);
@@ -59,6 +62,9 @@ class IocValidationSimulationInjectsTest {
     injectIds.forEach(
         injectId -> targets.put(injectId, List.of(injectId.replace("scenario", "endpoint"))));
     ioc.setInjectTargets(targets);
+    Map<String, String> payloads = new LinkedHashMap<>();
+    injectIds.forEach(injectId -> payloads.put(injectId, injectId.replace("scenario", "payload")));
+    ioc.setInjectPayloads(payloads);
     return ioc;
   }
 

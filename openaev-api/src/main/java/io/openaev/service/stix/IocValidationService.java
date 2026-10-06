@@ -1104,6 +1104,7 @@ public class IocValidationService {
     for (IocValidationIoc ioc : validation.getIocs()) {
       ioc.setInjectIds(new ArrayList<>());
       ioc.setInjectTargets(new LinkedHashMap<>());
+      ioc.setInjectPayloads(new LinkedHashMap<>());
       if (ioc.getTestKind() == null) {
         continue;
       }
@@ -1160,6 +1161,7 @@ public class IocValidationService {
                     .map(Endpoint::getId)
                     .sorted()
                     .collect(Collectors.toCollection(ArrayList::new)));
+        ioc.getInjectPayloads().put(saved.getId(), payload.getId());
         injects.add(saved);
       }
     }
@@ -1198,6 +1200,14 @@ public class IocValidationService {
                 (scenarioInjectId, endpointIds) ->
                     targets.put(simulationInject.apply(scenarioInjectId), endpointIds));
         ioc.setInjectTargets(targets);
+      }
+      if (ioc.getInjectPayloads() != null) {
+        Map<String, String> payloads = new LinkedHashMap<>();
+        ioc.getInjectPayloads()
+            .forEach(
+                (scenarioInjectId, payloadId) ->
+                    payloads.put(simulationInject.apply(scenarioInjectId), payloadId));
+        ioc.setInjectPayloads(payloads);
       }
     }
     validation.setIocs(new ArrayList<>(validation.getIocs()));

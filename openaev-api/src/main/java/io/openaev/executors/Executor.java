@@ -111,12 +111,12 @@ public class Executor {
 
   public InjectStatus execute(ExecutableInject executableInject) throws Exception {
     Inject inject = executableInject.getInjection().getInject();
-    iocValidationDispatchGuard.refuseInjectOutsideApproval(inject);
     InjectorContract injectorContract =
         inject
             .getInjectorContract()
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
+    iocValidationDispatchGuard.refuseUnapprovedExecution(inject, injectorContract.getPayload());
 
     // Resolve the injector instance from the inject entity directly
     Injector injector = inject.getInjector();

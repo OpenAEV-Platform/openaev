@@ -55,6 +55,14 @@ public class IocValidationIoc {
   @JsonProperty("ioc_inject_targets")
   private Map<String, List<String>> injectTargets = new LinkedHashMap<>();
 
+  /**
+   * For each inject of {@link #injectIds}, the id of the IOC validation payload it was approved
+   * with: a test kind has a payload per executor (POSIX, PowerShell...), so an inject whose
+   * contract now runs another payload, even one of the same kind, is not executed.
+   */
+  @JsonProperty("ioc_inject_payloads")
+  private Map<String, String> injectPayloads = new LinkedHashMap<>();
+
   /** Why the IOC was skipped, or how it was adapted (sinkhole, DNS fallback). */
   @JsonProperty("ioc_message")
   private String message;
