@@ -21,6 +21,7 @@ import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.stix.IocValidationDispatchGuard;
 import io.openaev.utils.command.CommandArgumentBinder;
 import jakarta.annotation.Resource;
 import java.time.Instant;
@@ -51,6 +52,7 @@ public class ExecutableInjectService {
   private final PayloadService payloadService;
   private final AgentRepository agentRepository;
   private final AssetGroupService assetGroupService;
+  private final IocValidationDispatchGuard iocValidationDispatchGuard;
 
   @Resource protected ObjectMapper mapper;
 
@@ -360,6 +362,7 @@ public class ExecutableInjectService {
       throw new ElementNotFoundException("Payload not found");
     }
     refuseEditedIocValidationPayload(contract.getPayload());
+    iocValidationDispatchGuard.refuseUnapprovedTest(inject, contract.getPayload());
     ObjectNode injectContent =
         PayloadService.iocValidationExecutionContent(
             inject.getContent(), contract.getPayload(), inject.getId());

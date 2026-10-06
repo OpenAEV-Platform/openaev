@@ -52,6 +52,8 @@ import io.openaev.secrets.provider.SecretsProviderResolver;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.stix.IocValidationDispatchGuard;
+import io.openaev.service.stix.IocValidationPlanner;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -142,6 +144,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private FindingRepository findingRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private PayloadRepository payloadRepository;
+  @Autowired private IocValidationRepository iocValidationRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadService payloadService;
   @Resource private ObjectMapper objectMapper;
@@ -1150,6 +1153,70 @@ class InjectApiTest extends IntegrationTest {
       String cleanup = decodeCommand(JsonPath.read(response, "$.payload_cleanup_command"));
       assertThat(command).contains(run, "invoice.pdf").doesNotContain(runSeed);
       assertThat(cleanup).contains(run, "invoice.pdf").doesNotContain(runSeed);
+    }
+
+    /** Records the inject as the approved test of an IOC validation, as an approval does. */
+    private void approveAsIocValidationTest(Inject inject) {
+      Exercise simulation = exerciseRepository.save(ExerciseFixture.createDefaultExercise());
+      inject.setExercise(simulation);
+      injectRepository.save(inject);
+      IocValidationIoc ioc = new IocValidationIoc();
+      ioc.setIndicatorRef("indicator--6d2f6bb1-31b1-4b8a-9d36-3b3b3a1f0e11");
+      ioc.setObservableType("StixFile");
+      ioc.setValue("invoice.pdf");
+      ioc.setRequestedTestKind(IocValidationTestKind.FILE_DROP);
+      ioc.setTestKind(IocValidationTestKind.FILE_DROP);
+      ioc.setInjectIds(new ArrayList<>(List.of(inject.getId())));
+      ioc.setPlanFingerprint(
+          IocValidationPlanner.fingerprintOf(IocValidationTestKind.FILE_DROP, inject.getContent())
+              .orElseThrow());
+      IocValidation validation = new IocValidation();
+      validation.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+      validation.setExternalId(UUID.randomUUID().toString());
+      validation.setName("Validation of invoice.pdf");
+      validation.setStatus(IocValidationStatus.RUNNING);
+      validation.setIocs(new ArrayList<>(List.of(ioc)));
+      validation.setSimulationId(simulation.getId());
+      validation.setCreatedAt(Instant.now());
+      validation.setUpdatedAt(Instant.now());
+      iocValidationRepository.save(validation);
+    }
+
+    @DisplayName("Refuse to execute an IOC validation test changed after its approval")
+    @Test
+    void given_iocValidationTestEditedAfterApproval_should_refuseItsExecution() throws Exception {
+      // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Inject injectSaved =
+          iocValidationFileDropInject(
+              iocValidationFileDrop(), "0123456789abcdef0123456789abcdef", targetAgentWrapper);
+      approveAsIocValidationTest(injectSaved);
+      doNothing()
+          .when(injectStatusService)
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+      String executablePayloadUri =
+          INJECT_URI
+              + "/"
+              + injectSaved.getId()
+              + "/"
+              + targetAgentWrapper.get().getId()
+              + "/executable-payload";
+
+      // -- EXECUTE & ASSERT: the approved test runs --
+      mvc.perform(get(executablePayloadUri).accept(MediaType.APPLICATION_JSON).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- EXECUTE & ASSERT: once its arguments are edited, it no longer does --
+      injectSaved.getContent().put(PayloadService.IOC_VALIDATION_FILE_NAME_KEY, "payload.exe");
+      injectRepository.saveAndFlush(injectSaved);
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get(executablePayloadUri).accept(MediaType.APPLICATION_JSON).with(csrf())))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST);
     }
 
     @DisplayName("Refuse to execute an IOC validation file drop payload of an earlier version")

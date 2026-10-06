@@ -936,6 +936,8 @@ public class IocValidationService {
                 .formatted(plan.testKind().label()));
         continue;
       }
+      // What the injects carry: the dispatch refuses an inject whose arguments differ from it
+      ioc.setPlanFingerprint(IocValidationPlanner.fingerprint(plan));
       for (Payload payload : payloads) {
         InjectorContract contract =
             injectorContractService

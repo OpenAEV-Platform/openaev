@@ -1079,6 +1079,11 @@ public class PayloadService {
     return iocValidationIdentity(payload).isPresent();
   }
 
+  /** The test kind of an IOC validation singleton, empty for any other payload. */
+  public static Optional<IocValidationTestKind> iocValidationKind(Payload payload) {
+    return iocValidationIdentity(payload).map(IocValidationIdentity::kind);
+  }
+
   /**
    * Whether an IOC validation singleton still runs exactly the current template of the kind and the
    * executor its identity was created for. Every singleton is editable, and an edit made after an

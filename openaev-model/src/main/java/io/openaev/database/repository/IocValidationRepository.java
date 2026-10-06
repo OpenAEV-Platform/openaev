@@ -18,6 +18,8 @@ public interface IocValidationRepository
 
   Optional<IocValidation> findByExternalIdAndTenantId(String externalId, String tenantId);
 
+  List<IocValidation> findBySimulationIdAndTenantId(String simulationId, String tenantId);
+
   /**
    * Takes a transaction-scoped Postgres advisory lock on {@code key}, released at commit/rollback
    * and held across API nodes. Serialises the intake of one OpenCTI request: a replay delivered to

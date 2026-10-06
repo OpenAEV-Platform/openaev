@@ -425,6 +425,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.ioc_validation.IocValidationApi#iocValidationSettings",
           "io.openaev.api.ioc_validation.IocValidationApi#updateIocValidationSettings",
           "io.openaev.api.ioc_validation.IocValidationApi#iocValidationAssetGroupOptions",
+          // the executable payload of an inject reads the IOC validation that approved its test
+          "io.openaev.rest.inject.InjectApi#getExecutablePayloadInject",
           // inject: updateInject calls injectService.runChecks -> securityPlatformCollectors
           "io.openaev.rest.inject.InjectApi#updateInject",
           // simulation injects: runChecks path

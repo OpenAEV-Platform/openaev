@@ -8,6 +8,7 @@ import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_PROX
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_URL_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_VALUE_KEY;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.net.InetAddresses;
 import com.google.common.primitives.Ints;
 import io.openaev.database.model.IocValidationIoc;
@@ -262,6 +263,33 @@ public final class IocValidationPlanner {
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("SHA-256 is not available", e);
     }
+  }
+
+  /** The inject content keys a plan of this kind sets: the arguments its fingerprint covers. */
+  static Set<String> argumentKeys(IocValidationTestKind kind) {
+    return switch (kind) {
+      case DNS_RESOLUTION -> Set.of(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY);
+      case NETWORK_TRAFFIC -> Set.of(IOC_VALIDATION_HOST_KEY, IOC_VALIDATION_PORT_KEY);
+      case HTTP_HEAD -> Set.of(IOC_VALIDATION_URL_KEY, IOC_VALIDATION_PROXY_KEY);
+      case FILE_DROP -> Set.of(IOC_VALIDATION_FILE_NAME_KEY);
+      case LOG_INJECTION -> Set.of(IOC_VALIDATION_VALUE_KEY);
+    };
+  }
+
+  /**
+   * The {@link #fingerprint} of the test an inject content would run for this kind, empty when an
+   * argument of the kind is missing or is not text.
+   */
+  public static Optional<String> fingerprintOf(IocValidationTestKind kind, JsonNode content) {
+    Map<String, String> arguments = new HashMap<>();
+    for (String key : argumentKeys(kind)) {
+      JsonNode value = content == null ? null : content.get(key);
+      if (value == null || !value.isTextual()) {
+        return Optional.empty();
+      }
+      arguments.put(key, value.asText());
+    }
+    return Optional.of(fingerprint(new Plan(kind, Map.copyOf(arguments), null)));
   }
 
   private static Plan planDns(IocValidationIoc ioc, String observableType) {
