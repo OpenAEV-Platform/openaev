@@ -1,0 +1,59 @@
+name: "🔍 Snyk Rolling Image Scan"
+
+# Daily Snyk scan of the rolling platform images published on Docker Hub.
+# Reports high and critical vulnerabilities as job artifacts only: findings do
+# not fail the run, a Snyk error does.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: snyk-rolling-image-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: "🔍 Scan openaev/platform:${{ matrix.tag }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: [rolling, rolling-ubi9]
+    steps:
+      - name: Set up Snyk CLI
+        uses: snyk/actions/setup@master
+
+      - name: Run Snyk container test
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          IMAGE: openaev/platform:${{ matrix.tag }}
+          REPORT: snyk-platform-${{ matrix.tag }}
+        run: |
+          set -uo pipefail
+
+          snyk container test "$IMAGE" \
+            --severity-threshold=high \
+            --json-file-output="$REPORT.json" \
+            | tee "$REPORT.txt"
+          status=${PIPESTATUS[0]}
+
+          # 0: no issues, 1: issues found, anything else: the scan itself failed.
+          if [ "$status" -gt 1 ]; then
+            echo "::error::Snyk scan of $IMAGE failed (exit code $status)"
+            exit "$status"
+          fi
+
+      - name: Upload Snyk report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: snyk-platform-${{ matrix.tag }}
+          path: snyk-platform-${{ matrix.tag }}.*
+          if-no-files-found: ignore
+          retention-days: 30
