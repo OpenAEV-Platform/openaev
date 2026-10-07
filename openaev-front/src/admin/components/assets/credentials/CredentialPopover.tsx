@@ -1,4 +1,5 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { type FunctionComponent, useState } from 'react';
 
 import {
   deleteCredential,
