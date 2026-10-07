@@ -131,7 +131,11 @@ const InjectContractPicker: FunctionComponent<Props> = ({
   const fetchContracts = (input: InjectorContractSearchPaginationInput) => {
     const seq = ++fetchSeqRef.current;
     setLoading(true);
-    return searchInjectorContracts(input).finally(() => {
+    // Only actions whose payload is approved (or payload-less built-ins) can be picked.
+    return searchInjectorContracts({
+      ...input,
+      approved_payloads_only: true,
+    }).finally(() => {
       if (seq === fetchSeqRef.current) {
         setLoading(false);
       }

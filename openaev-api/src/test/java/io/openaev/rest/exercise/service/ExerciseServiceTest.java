@@ -21,6 +21,7 @@ import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -98,11 +99,13 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private AutonomousRunRepository autonomousRunRepository;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @Autowired private WorkflowEndService workflowEndService;
+  @Autowired private PayloadApprovalGate payloadApprovalGate;
 
   @BeforeEach
   void setUp() {
     new ExerciseService(
         enterpriseEditionService,
+        payloadApprovalGate,
         injectDuplicateService,
         teamService,
         variableService,

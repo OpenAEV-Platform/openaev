@@ -65,6 +65,15 @@ How the status is set:
 
 To approve or reject, open the Action, then use **Approve** or **Reject** in its *Approval* section. A rejection requires a reason. If the payload changed while you were reviewing it, the approval is refused and you review the new content first. The *Approval* section also shows the latest decision and the approval history, and the list can be filtered by approval status.
 
+### Only approved payloads can run
+
+* When you add an Action to an Atomic Test, a Scenario, a Simulation or a chaining workflow, the picker lists only Actions whose payload is **Approved**, plus built-in Actions without a payload. Adding a non-approved payload through the API is refused too.
+* Launching is **blocked on every path** (launch now, relaunch, scheduled or recurring run, single or bulk inject execution, API) when an inject uses a payload that is **Pending** or **Rejected**, or whose content changed after it was approved. The error lists every blocking payload and its reason, and the refusal is written to the audit log.
+* A scheduled Simulation that hits a non-approved payload does not start: it is canceled and the audit log records why.
+* An inject whose payload went back to *Pending* (for instance after an edit) or was *Rejected* shows a **Payload pending approval** or **Payload rejected** chip next to its title. As long as it has not run, its status column shows the same label instead of its usual status; once it has run, its execution status shows as usual. Approve the payload, or switch the inject to another Action, to launch it again.
+* **Warning before impact.** When a payload is used, the **Reject** dialog tells how many atomic testings, scenarios and simulations still to run use it, and that rejecting it blocks their launch, with links to them when you can open them. When you edit what an approved payload runs without holding *Approve content*, and it is used, a warning tells you that saving sends it back to *Pending* and blocks those launches until it is approved again. In both cases you can go ahead.
+* Right before an inject runs, the platform checks its payload again: if it is no longer approved, or its content changed since the approval, the inject ends in error instead of running.
+
 ## Create an Action
 
 To create a new Action, follow these steps:

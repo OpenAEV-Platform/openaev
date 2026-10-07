@@ -31,6 +31,8 @@ import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
+import io.openaev.service.payload_approval.PayloadUsage;
+import io.openaev.service.payload_approval.PayloadUsageService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
@@ -58,6 +60,7 @@ public class ThreatArsenalService {
   private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
   private final PayloadApprovalService payloadApprovalService;
   private final UserService userService;
+  private final PayloadUsageService payloadUsageService;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -265,6 +268,16 @@ public class ThreatArsenalService {
    */
   @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction update(String actionId, ThreatArsenalActionUpdateInput actionInput) {
+    return update(actionId, actionInput, false);
+  }
+
+  /**
+   * Updates an action; with {@code checkApprovalImpact}, an edit that would send its approved
+   * payload in use back to pending is refused with {@link
+   * io.openaev.service.payload_approval.PayloadApprovalImpactException} so the UI can warn first.
+   */
+  public ThreatArsenalAction update(
+      String actionId, ThreatArsenalActionUpdateInput actionInput, boolean checkApprovalImpact) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
 
@@ -272,11 +285,13 @@ public class ThreatArsenalService {
       return updateActionNotPayloadBased(injectorContract, actionInput);
     }
 
-    return updateActionPayloadBased(injectorContract, actionInput);
+    return updateActionPayloadBased(injectorContract, actionInput, checkApprovalImpact);
   }
 
   private ThreatArsenalAction updateActionPayloadBased(
-      InjectorContract injectorContract, ThreatArsenalActionUpdateInput actionInput) {
+      InjectorContract injectorContract,
+      ThreatArsenalActionUpdateInput actionInput,
+      boolean checkApprovalImpact) {
     // Missing required fields are a client mistake, not a server fault: raise the domain
     // BadRequestException (400) so the caller gets an actionable message it can auto-correct,
     // instead of leaning on the catch-all IllegalArgumentException mapper.
@@ -291,7 +306,7 @@ public class ThreatArsenalService {
     // update payload using the resolved payload ID
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadUpdateService.updatePayload(
-            injectorContract.getPayload().getId(), payloadInput);
+            injectorContract.getPayload().getId(), payloadInput, checkApprovalImpact);
     // convert to ThreatArsenalAction
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
   }
@@ -359,6 +374,19 @@ public class ThreatArsenalService {
         .toList();
   }
 
+  /**
+   * Where the payload of an action is used (empty for a payload-less action). Names only for the
+   * resource types the current user can read.
+   */
+  public PayloadUsage usage(String actionId) {
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    if (injectorContract.getPayload() == null) {
+      return new PayloadUsage(0, 0, 0, null, null, null);
+    }
+    return payloadUsageService.usage(
+        injectorContract.getPayload().getId(), userService.currentUserOrNull());
+  }
+
   private Payload payloadForDecision(String actionId) {
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     if (injectorContract.getPayload() == null) {
@@ -403,8 +431,12 @@ public class ThreatArsenalService {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                combineWithProvidingSpec(spec, providingFilterContext, searchSpecification),
-                combineWithProvidingSpec(specCount, providingFilterContext, searchSpecification),
+                combineWithProvidingSpec(
+                    input.restrictToPickable(spec), providingFilterContext, searchSpecification),
+                combineWithProvidingSpec(
+                    input.restrictToPickable(specCount),
+                    providingFilterContext,
+                    searchSpecification),
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
@@ -440,9 +472,13 @@ public class ThreatArsenalService {
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
                 combineWithProvidingSpec(
-                    spec.and(excludeTabletop), providingFilterContext, searchSpecification),
+                    input.restrictToPickable(spec.and(excludeTabletop)),
+                    providingFilterContext,
+                    searchSpecification),
                 combineWithProvidingSpec(
-                    specCount.and(excludeTabletop), providingFilterContext, searchSpecification),
+                    input.restrictToPickable(specCount.and(excludeTabletop)),
+                    providingFilterContext,
+                    searchSpecification),
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),

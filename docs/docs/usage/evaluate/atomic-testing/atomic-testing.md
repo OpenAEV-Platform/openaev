@@ -30,6 +30,10 @@ Use the search bar and filters to narrow results.
 
 5. Click **Create**.
 
+!!! note "Payload approval"
+
+    Only Actions whose payload is approved are listed, plus built-in Actions without a payload. An Atomic Test whose payload went back to *Pending* or was *Rejected* shows a chip next to its title and, until it runs, the same label in its execution status; launching it is blocked until the payload is approved. See [Approval of payloads](../../build/threat-arsenals/threat-arsenals.md#approval-of-payloads).
+
 ## Schedule a recurring Atomic Test
 
 Recurring Atomic Tests are the simplest way to continuously validate that a prevention or detection capability keeps working over time. The same technique is replayed automatically and each run produces fresh results.

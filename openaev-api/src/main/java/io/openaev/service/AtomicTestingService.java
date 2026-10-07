@@ -17,6 +17,7 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectUtils;
@@ -44,6 +45,7 @@ public class AtomicTestingService {
 
   @Resource protected ObjectMapper mapper;
   private final InjectMapper injectMapper;
+  private final PayloadApprovalGate payloadApprovalGate;
   private final ActionMetricCollector actionMetricCollector;
 
   private final AssetGroupRepository assetGroupRepository;
@@ -113,6 +115,21 @@ public class AtomicTestingService {
         injectorContractRepository
             .findById(input.getInjectorContract())
             .orElseThrow(ElementNotFoundException::new);
+    // Only an approved payload can be picked: checked on creation and when the action changes, not
+    // on an unrelated edit of an atomic testing whose payload went back to pending (its launch
+    // stays blocked and the inject shows the approval indicator).
+    boolean actionChanged =
+        injectToSave
+            .getInjectorContract()
+            .map(current -> !current.getId().equals(injectorContract.getId()))
+            .orElse(true);
+    if (actionChanged) {
+      payloadApprovalGate.requireApproved(
+          "Using this action in an atomic testing",
+          injectorContract.getPayload(),
+          ResourceType.ATOMIC_TESTING,
+          injectId);
+    }
     ObjectNode finalContent = input.getContent();
     // Set expectations
     if (injectId == null) {

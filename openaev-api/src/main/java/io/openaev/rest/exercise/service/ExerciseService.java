@@ -59,6 +59,7 @@ import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -113,6 +114,7 @@ public class ExerciseService {
   @PersistenceContext private EntityManager entityManager;
 
   private final EnterpriseEditionService enterpriseEditionService;
+  private final PayloadApprovalGate payloadApprovalGate;
   private final InjectDuplicateService injectDuplicateService;
   private final TeamService teamService;
   private final VariableService variableService;
@@ -885,6 +887,13 @@ public class ExerciseService {
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
+    // Before the licence shortcut: payload approval applies to every edition. All the blocking
+    // payloads of the simulation are listed in one message.
+    payloadApprovalGate.requireApproved(
+        "Launching the simulation \"" + exercise.getName() + "\"",
+        exercise.getInjects(),
+        ResourceType.SIMULATION,
+        exercise.getId());
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
 import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.model.*;
@@ -78,6 +79,9 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private ComcheckRepository comcheckRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private InjectStatusRepository injectStatusRepository;
@@ -317,6 +321,58 @@ class InjectsExecutionJobTest extends IntegrationTest {
           .containsEntry("initiator", "scheduler")
           .containsEntry("scenario_id", scenario.getId())
           .containsEntry("scenario_name", scenario.getName());
+    }
+
+    @Test
+    @DisplayName(
+        "given scheduled simulation using a payload that is not approved should cancel it and log EXECUTION_BLOCKED_BY_APPROVAL")
+    void given_scheduledSimulationWithUnapprovedPayload_should_cancelAndLogBlockedByApproval() {
+      // Arrange
+      Payload pending = PayloadFixture.createDefaultCommand();
+      pending.setName("Pending payload");
+      pending.setApprovalStatus(Payload.PAYLOAD_APPROVAL_STATUS.PENDING);
+      InjectorContractComposer.Composer contract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+              .withPayload(payloadComposer.forPayload(pending));
+      Exercise exercise =
+          exerciseComposer
+              .forExercise(
+                  ExerciseFixture.createDefaultIncidentResponseExercise(
+                      Instant.now().minusSeconds(60)))
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withInjectorContract(contract))
+              .persist()
+              .get();
+      entityManager.flush();
+      clearInvocations(auditLogger);
+
+      // Act
+      List<Exercise> started = job.autoStartDueExercises();
+
+      // Assert
+      assertThat(started).extracting(Exercise::getId).doesNotContain(exercise.getId());
+      assertThat(exerciseRepository.findById(exercise.getId()).orElseThrow().getStatus())
+          .isEqualTo(ExerciseStatus.CANCELED);
+      ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+      verify(auditLogger, atLeastOnce()).logEvent(eventCaptor.capture());
+      AuditEvent blocked =
+          eventCaptor.getAllValues().stream()
+              .filter(e -> e.getEventScope() == AuditEventScope.EXECUTION_BLOCKED_BY_APPROVAL)
+              .filter(e -> exercise.getId().equals(e.getResourceId()))
+              .findFirst()
+              .orElseThrow();
+      assertThat(blocked.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
+      assertThat(blocked.getMessage()).contains("\"Pending payload\" (pending approval)");
+      assertThat(eventCaptor.getAllValues())
+          .noneMatch(
+              e ->
+                  e.getEventScope() == AuditEventScope.SCHEDULED_LAUNCH
+                      && exercise.getId().equals(e.getResourceId()));
     }
 
     @Test

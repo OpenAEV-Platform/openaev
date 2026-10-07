@@ -37,6 +37,8 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import { splitDuration } from '../../../../utils/Time';
 import { download, isNotEmptyField } from '../../../../utils/utils';
+import { payloadApprovalDisplay } from '../../payloads/payloadApprovalDisplay';
+import PayloadApprovalWarningChip from '../../payloads/PayloadApprovalWarningChip';
 import PayloadDeprecatedChip from '../../payloads/PayloadDeprecatedChip';
 import { InjectContext, InjectTestContext, PermissionsContext, ViewModeContext } from '../Context';
 import ToolBar from '../ToolBar';
@@ -159,6 +161,7 @@ const Injects: FunctionComponent<Props> = ({
             {inject.inject_title}
           </span>
           <PayloadDeprecatedChip status={inject.inject_injector_contract?.injector_contract_payload?.payload_status} />
+          <PayloadApprovalWarningChip approvalStatus={inject.inject_injector_contract?.injector_contract_payload?.payload_approval_status} />
         </span>
       ),
     },
@@ -209,8 +212,15 @@ const Injects: FunctionComponent<Props> = ({
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
         let injectStatus;
         let injectTooltip = '';
+        // Not sent yet and its payload is not approved: computed on read, never stored.
+        const approvalDisplay = inject.inject_sent_at
+          ? undefined
+          : payloadApprovalDisplay(inject.inject_injector_contract?.injector_contract_payload?.payload_approval_status);
         if (!inject.inject_enabled) {
           injectStatus = t('Disabled');
+        } else if (approvalDisplay) {
+          injectStatus = t(approvalDisplay.label);
+          injectTooltip = t(approvalDisplay.tooltip);
         } else if (!inject.inject_ready) {
           injectStatus = t('Missing content');
           injectTooltip = inject.inject_healthchecks
@@ -223,7 +233,7 @@ const Injects: FunctionComponent<Props> = ({
         }
         return (
           <ItemBoolean
-            status={inject.inject_ready ? inject.inject_enabled : false}
+            status={inject.inject_ready && !approvalDisplay ? inject.inject_enabled : false}
             label={injectStatus}
             variant="inList"
             tooltip={injectTooltip}

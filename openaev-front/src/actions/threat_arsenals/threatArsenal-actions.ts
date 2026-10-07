@@ -6,6 +6,7 @@ import type {
   ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
   ThreatArsenalApproveInput, ThreatArsenalRejectInput,
 } from '../../utils/api-types';
+import { notifyErrorHandler } from '../../utils/error/errorHandlerUtil';
 import { arrayOfSecurityPlatforms } from '../assets/asset-schema';
 
 const THREAT_ARSENAL_URI = '/api/threat_arsenals';
@@ -27,9 +28,23 @@ export const fetchThreatArsenalAction = (actionId: string) => {
   return simpleCall(uri);
 };
 
-export const updateThreatArsenalAction = (actionId: string, data: ThreatArsenalActionUpdateInput) => {
+/**
+ * With checkApprovalImpact, the server answers 409 (nothing saved) when the edit would send the
+ * approved payload back to pending while it is used: the caller warns, then saves again without
+ * the check. That 409 is left to the caller; any other error is notified as usual.
+ */
+export const updateThreatArsenalAction = (actionId: string, data: ThreatArsenalActionUpdateInput, checkApprovalImpact = false) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
-  return simplePutCall(uri, data, {}, true, true);
+  if (!checkApprovalImpact) {
+    return simplePutCall(uri, data, {}, true, true);
+  }
+  return simplePutCall(uri, data, { params: { check_approval_impact: true } }, false, true)
+    .catch((error) => {
+      if (error?.response?.status !== 409) {
+        notifyErrorHandler(error);
+      }
+      throw error;
+    });
 };
 
 // Payload approval: approve / reject need "Approve content"; errors (not pending, content changed
@@ -44,6 +59,10 @@ export const rejectThreatArsenalAction = (actionId: string, data: ThreatArsenalR
 
 export const fetchThreatArsenalActionApprovals = (actionId: string) => {
   return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/approvals`);
+};
+
+export const fetchThreatArsenalActionUsage = (actionId: string) => {
+  return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usage`);
 };
 
 export const duplicateThreatArsenalAction = (actionId: string) => {

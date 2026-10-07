@@ -12,6 +12,7 @@ import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ class ExerciseServiceDuplicateUnitTest {
   private static final String EXERCISE_ID = "exercise-id";
 
   @Mock private WorkflowService workflowService;
+  @Mock private PayloadApprovalGate payloadApprovalGate;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
 

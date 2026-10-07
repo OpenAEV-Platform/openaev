@@ -13,6 +13,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
@@ -37,6 +38,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class ScenarioServiceUnitTest {
 
   @Mock private EnterpriseEditionService enterpriseEditionService;
+  @Mock private PayloadApprovalGate payloadApprovalGate;
   @Mock private VariableService variableService;
   @Mock private ChallengeService challengeService;
   @Mock private TeamService teamService;

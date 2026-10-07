@@ -12,6 +12,7 @@ import handle from '../../../../utils/period/Period';
 import { truncate } from '../../../../utils/String';
 import InjectIcon from '../../common/injects/InjectIcon';
 import InjectStatus from '../../common/injects/status/InjectStatus';
+import PayloadApprovalWarningChip from '../../payloads/PayloadApprovalWarningChip';
 import PayloadDeprecatedChip from '../../payloads/PayloadDeprecatedChip';
 import InjectScoreTiles from './InjectScoreTiles';
 
@@ -143,6 +144,7 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
         <>
           <InjectStatus status={statusName as InjectStatusType['status_name']} errorMessage={errorMessage} />
           <PayloadDeprecatedChip status={payload?.payload_status} />
+          <PayloadApprovalWarningChip approvalStatus={payload?.payload_approval_status} />
           {isScheduled && (
             <Tooltip>
               <TooltipTrigger asChild>

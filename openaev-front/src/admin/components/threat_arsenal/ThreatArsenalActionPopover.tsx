@@ -1,6 +1,7 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
+import { type AxiosError } from 'axios';
 import { type MouseEvent, useState } from 'react';
 
 import {
@@ -10,6 +11,7 @@ import {
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
+import DialogConfirmation from '../../../components/common/DialogConfirmation';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
@@ -18,6 +20,8 @@ import {
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
   type ThreatArsenalActionUpdateInput,
+  type ThreatArsenalActionUsageOutput,
+  type ThreatArsenalApprovalImpactOutput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
@@ -25,6 +29,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import PayloadUsageWarning from './approval/PayloadUsageWarning';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 
@@ -137,6 +142,20 @@ const ThreatArsenalActionPopover = ({
     setFetchedAction(null);
   };
 
+  // Edit waiting for confirmation because it would block launches (warning before impact).
+  const [approvalImpact, setApprovalImpact] = useState<{
+    input: ThreatArsenalActionUpdateInput;
+    usage: ThreatArsenalActionUsageOutput;
+  } | null>(null);
+
+  const saveEdit = async (inputValues: ThreatArsenalActionUpdateInput, checkApprovalImpact: boolean) => {
+    const response = await updateThreatArsenalAction(actionId, inputValues, checkApprovalImpact);
+    if (response.data && onUpdate) {
+      onUpdate(response.data as ThreatArsenalAction);
+    }
+    handleCloseEdit();
+  };
+
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
     const inputValues: ThreatArsenalActionUpdateInput = {
       ...data,
@@ -158,11 +177,21 @@ const ThreatArsenalActionPopover = ({
         }),
     } as ThreatArsenalActionUpdateInput;
 
-    const response = await updateThreatArsenalAction(actionId, inputValues);
-    if (response.data && onUpdate) {
-      onUpdate(response.data as ThreatArsenalAction);
+    try {
+      await saveEdit(inputValues, true);
+    } catch (error) {
+      // The edit would send the approved payload back to pending while it is used: nothing was
+      // saved, warn first (US2.4). Saving anyway re-sends it without the check.
+      const response = (error as AxiosError<ThreatArsenalApprovalImpactOutput>)?.response;
+      if (response?.status === 409 && response.data?.usage) {
+        setApprovalImpact({
+          input: inputValues,
+          usage: response.data.usage,
+        });
+        return;
+      }
+      throw error;
     }
-    handleCloseEdit();
   };
 
   const onSubmitInjectorContractEdit = (data: InjectorContractFormValues) => {
@@ -251,6 +280,17 @@ const ThreatArsenalActionPopover = ({
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
       </Menu>
+
+      <DialogConfirmation
+        open={approvalImpact !== null}
+        handleClose={() => setApprovalImpact(null)}
+        handleSubmit={approvalImpact
+          ? () => saveEdit(approvalImpact.input, false).finally(() => setApprovalImpact(null))
+          : null}
+        text=""
+        richContent={<PayloadUsageWarning usage={approvalImpact?.usage} kind="edit" />}
+        submitLabel={t('Save anyway')}
+      />
 
       <DialogDelete
         open={deletion}

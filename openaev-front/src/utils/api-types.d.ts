@@ -7593,6 +7593,8 @@ export interface InjectorContractInput {
 }
 
 export interface InjectorContractSearchPaginationInput {
+  /** Return only the actions that can be picked for an inject: payload-less actions and actions whose payload is approved */
+  approved_payloads_only?: boolean;
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
   /** Include the injector contract content on the returned object if set to true */
@@ -13182,6 +13184,42 @@ export interface ThreatArsenalActionUpdateInput {
   file_drop_file?: string;
 }
 
+/** An atomic testing, scenario or simulation using the payload of an action. */
+export interface ThreatArsenalActionUsageItem {
+  /** Identifier */
+  id: string;
+  /** Name */
+  name: string;
+}
+
+/**
+ * Where the payload of an action is used, to warn before an approval change blocks launches. The
+ * name lists are null when the user cannot read that type of resource (counts only).
+ */
+export interface ThreatArsenalActionUsageOutput {
+  /** First atomic testings by name, null without access to atomic testings */
+  usage_atomic_testings?: ThreatArsenalActionUsageItem[];
+  /**
+   * Number of atomic testings using the payload
+   * @format int64
+   */
+  usage_atomic_testings_count?: number;
+  /** First scenarios by name, null without access to scenarios */
+  usage_scenarios?: ThreatArsenalActionUsageItem[];
+  /**
+   * Number of scenarios using the payload
+   * @format int64
+   */
+  usage_scenarios_count?: number;
+  /** First simulations by name, null without access to simulations */
+  usage_simulations?: ThreatArsenalActionUsageItem[];
+  /**
+   * Number of simulations still to run (scheduled, running, paused)
+   * @format int64
+   */
+  usage_simulations_count?: number;
+}
+
 export interface ThreatArsenalActionWithContentOutput {
   /** CPU architecture targeted for action execution */
   action_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
@@ -13224,6 +13262,17 @@ export interface ThreatArsenalActionWithContentOutput {
    * @format date-time
    */
   injector_contract_updated_at: string;
+}
+
+/**
+ * Body of the 409 answer to an action update sent with check_approval_impact: the edit would send
+ * the approved payload back to pending while it is used. Nothing was saved.
+ */
+export interface ThreatArsenalApprovalImpactOutput {
+  /** What saving would do */
+  message: string;
+  /** Where the payload is used */
+  usage: ThreatArsenalActionUsageOutput;
 }
 
 export interface ThreatArsenalBulkDeleteOutput {

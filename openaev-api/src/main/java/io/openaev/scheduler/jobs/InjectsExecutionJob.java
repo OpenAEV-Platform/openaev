@@ -28,6 +28,8 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.payload_approval.BlockedPayloadsException.BlockedPayload;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.AgentUtils;
 import jakarta.persistence.EntityManager;
@@ -98,6 +100,7 @@ public class InjectsExecutionJob implements Job {
 
   private final HealthCheckUtils healthCheckUtils;
   private final Optional<AuditLogger> auditLogger;
+  private final PayloadApprovalGate payloadApprovalGate;
 
   public List<Exercise> autoStartDueExercises() {
     // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
@@ -110,8 +113,34 @@ public class InjectsExecutionJob implements Job {
     if (exercises.isEmpty()) {
       return List.of();
     }
-    actionMetricCollector.addSimulationPlayedCount(exercises.size());
-    List<Exercise> startedExercises = new ArrayList<>(exercises);
+    // A scheduled run that uses a payload which is not approved does not start at all: it is
+    // canceled once and the refusal is audited (the next occurrence of a recurring scenario is
+    // checked again).
+    List<Exercise> startedExercises = new ArrayList<>();
+    for (Exercise exercise : exercises) {
+      List<BlockedPayload> blocked = payloadApprovalGate.blockedPayloads(exercise.getInjects());
+      if (blocked.isEmpty()) {
+        startedExercises.add(exercise);
+      } else {
+        exercise.setStatus(ExerciseStatus.CANCELED);
+        exercise.setUpdatedAt(now());
+        exerciseRepository.save(exercise);
+        payloadApprovalGate.auditBlocked(
+            "Starting the scheduled simulation \"" + exercise.getName() + "\"",
+            blocked,
+            ResourceType.SIMULATION,
+            exercise.getId(),
+            SYSTEM);
+        log.warn(
+            "Scheduled simulation {} canceled: {} payload(s) not approved",
+            exercise.getId(),
+            blocked.size());
+      }
+    }
+    if (startedExercises.isEmpty()) {
+      return List.of();
+    }
+    actionMetricCollector.addSimulationPlayedCount(startedExercises.size());
     startedExercises.forEach(
         exercise -> {
           exercise.setStatus(ExerciseStatus.RUNNING);
@@ -328,7 +357,10 @@ public class InjectsExecutionJob implements Job {
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
-      List<Exercise> startedExercises = autoStartDueExercises();
+      // One cross-tenant transaction: the approval check reads each due simulation's injects (a
+      // lazy collection) and their payloads (a tenant-scoped table).
+      List<Exercise> startedExercises =
+          tenantScopedJobRunner.supplyAcrossTenants(this::autoStartDueExercises);
       executeChainedSimulations(startedExercises);
       executeClassicalInjects();
     } catch (Exception e) {

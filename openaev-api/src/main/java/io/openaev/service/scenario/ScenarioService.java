@@ -71,6 +71,7 @@ import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -145,6 +146,7 @@ public class ScenarioService {
   private final LicenseCacheManager licenseCacheManager;
 
   private final EnterpriseEditionService enterpriseEditionService;
+  private final PayloadApprovalGate payloadApprovalGate;
   private final VariableService variableService;
   private final ChallengeService challengeService;
   private final TeamService teamService;
@@ -481,10 +483,24 @@ public class ScenarioService {
   }
 
   public void throwIfScenarioNotLaunchable(Scenario scenario) {
+    // Before the licence shortcut: payload approval applies to every edition.
+    throwIfScenarioPayloadsNotApproved(scenario);
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     scenario.getInjects().forEach(injectService::throwIfInjectNotLaunchable);
+  }
+
+  /**
+   * Refuses to launch a scenario that uses a payload which is not approved, listing all of them in
+   * one message. Also used by the chaining launch, which skips the licence checks.
+   */
+  public void throwIfScenarioPayloadsNotApproved(Scenario scenario) {
+    payloadApprovalGate.requireApproved(
+        "Launching the scenario \"" + scenario.getName() + "\"",
+        scenario.getInjects(),
+        ResourceType.SCENARIO,
+        scenario.getId());
   }
 
   /** Scenario is recurring AND end date is after now */

@@ -32,6 +32,8 @@ import InjectImportJsonDialog from '../common/injects/InjectImportJsonDialog';
 import InjectorContract from '../common/injects/InjectorContract';
 import InjectStatus from '../common/injects/status/InjectStatus';
 import ToolBar from '../common/ToolBar';
+import { payloadApprovalDisplay } from '../payloads/payloadApprovalDisplay';
+import PayloadApprovalWarningChip from '../payloads/PayloadApprovalWarningChip';
 import PayloadDeprecatedChip from '../payloads/PayloadDeprecatedChip';
 import AtomicTestingPopover from './atomic_testing/AtomicTestingPopover';
 import AtomicTestingResult from './atomic_testing/AtomicTestingResult';
@@ -161,6 +163,7 @@ const InjectResultList: FunctionComponent<Props> = ({
               {injectResultOutput.inject_title}
             </span>
             <PayloadDeprecatedChip status={injectResultOutput.inject_injector_contract?.injector_contract_payload?.payload_status} />
+            <PayloadApprovalWarningChip approvalStatus={injectResultOutput.inject_injector_contract?.injector_contract_payload?.payload_approval_status} />
           </span>
         );
       },
@@ -203,6 +206,21 @@ const InjectResultList: FunctionComponent<Props> = ({
           );
         }
         const statusName = injectResultOutput.inject_status?.status_name;
+        // Not run yet and its payload is not approved: say why it will not run. Computed on read
+        // from the payload approval status, never stored; once run, the real status shows.
+        const notRunYet = !statusName || statusName === 'DRAFT' || statusName === 'QUEUING';
+        const approvalDisplay = notRunYet
+          ? payloadApprovalDisplay(injectResultOutput.inject_injector_contract?.injector_contract_payload?.payload_approval_status)
+          : undefined;
+        if (approvalDisplay) {
+          return (
+            <ItemStatus
+              status={approvalDisplay.status}
+              label={t(approvalDisplay.label)}
+              tooltipLabel={t(approvalDisplay.tooltip)}
+            />
+          );
+        }
         const displayStatus = displayDraftAsPending && (!statusName || statusName === 'DRAFT')
           ? 'PENDING'
           : statusName;
