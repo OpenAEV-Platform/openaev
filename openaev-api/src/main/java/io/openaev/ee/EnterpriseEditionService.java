@@ -60,7 +60,6 @@ public class EnterpriseEditionService {
    * The launch-time gate matches persisted executors on the type, never on their name, because the
    * name comes from the editable EXECUTOR_NAME configuration ("Display name" in the UI). The
    * dispatch-time gate receives the fixed SERVICE_NAME constant of each executor context service.
-   * The front mirrors the types in {@code utils/executors.ts}.
    */
   private static final Map<String, String> EE_EXECUTOR_NAMES_BY_TYPE =
       Map.of(
