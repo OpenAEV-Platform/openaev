@@ -365,18 +365,6 @@ public class InjectsExecutionJob implements Job {
     Map<String, List<ExecutableInject>> byExercises =
         injects.stream()
             .filter(
-                executableInject -> {
-                  Inject inject = executableInject.getInjection().getInject();
-                  if (inject.getTenant() != null) {
-                    return true;
-                  }
-                  String message =
-                      "Inject " + inject.getId() + " has no tenant, cannot be executed";
-                  log.warn(message);
-                  injectStatusService.failInjectStatus(inject.getId(), message);
-                  return false;
-                })
-            .filter(
                 executableInject ->
                     // If we got dependencies, we check that the parents are not part of the
                     // current batch of injects running. If so, we're filtering them out and
@@ -412,22 +400,36 @@ public class InjectsExecutionJob implements Job {
                   .forEach(
                       executableInject -> {
                         Inject inject = executableInject.getInjection().getInject();
-                        tenantScopedJobRunner.runInTenant(
-                            inject.getTenant().getId(),
-                            () -> {
-                              try {
-                                this.executeInject(executableInject);
-                              } catch (RuntimeException e) {
-                                Throwable cause = e.getCause() != null ? e.getCause() : e;
-                                log.warn(cause.getMessage(), cause);
-                                injectStatusService.failInjectStatus(
-                                    inject.getId(), cause.getMessage());
-                              } catch (Exception e) {
-                                log.warn(e.getMessage(), e);
-                                injectStatusService.failInjectStatus(
-                                    inject.getId(), e.getMessage());
-                              }
-                            });
+                        String tenantId = inject.getTenant().getId();
+                        try {
+                          tenantScopedJobRunner.runInTenant(
+                              tenantId,
+                              () -> {
+                                try {
+                                  this.executeInject(executableInject);
+                                } catch (Exception e) {
+                                  // Same transaction: the traces written before the failure and
+                                  // the ERROR status commit together.
+                                  Throwable cause =
+                                      e instanceof RuntimeException && e.getCause() != null
+                                          ? e.getCause()
+                                          : e;
+                                  log.warn(cause.getMessage(), cause);
+                                  injectStatusService.persistErrorStatusInTransaction(
+                                      inject.getId(), cause.getMessage());
+                                }
+                              });
+                        } catch (RuntimeException e) {
+                          // The transaction could not commit (rollback-only, commit or
+                          // after-commit failure): persist the ERROR status in a fresh one.
+                          Throwable cause = e.getCause() != null ? e.getCause() : e;
+                          log.warn(cause.getMessage(), cause);
+                          tenantScopedJobRunner.runInTenant(
+                              tenantId,
+                              () ->
+                                  injectStatusService.persistErrorStatusInTransaction(
+                                      inject.getId(), cause.getMessage()));
+                        }
                       });
 
               // Update the exercise once all injects of the batch are processed.

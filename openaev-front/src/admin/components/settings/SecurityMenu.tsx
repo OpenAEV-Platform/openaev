@@ -12,13 +12,13 @@ import {
 // fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
 import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, memo, useContext } from 'react';
+import { type FunctionComponent, memo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
 import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/RightMenu';
 import { useFormatter } from '../../../components/i18n';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import EEChip from '../common/entreprise_edition/EEChip';
@@ -44,7 +44,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
     canAccessPlatformUsers,
     canAccessSession,
   } = useSecurityScope();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
   const canAccessMarkingDefinitions
     = isFeatureEnabled('MARKING')

@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useMemo, useState } from 'react';
+import { type FunctionComponent, useMemo, useState } from 'react';
 
 import {
   deleteMarkingDefinition,
@@ -14,7 +14,7 @@ import {
   type MarkingDefinitionOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import MarkingDefinitionForm from './MarkingDefinitionForm';
 import {
@@ -35,7 +35,7 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_DEFINITION);
   const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.MARKING_DEFINITION);
 

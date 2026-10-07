@@ -1381,7 +1381,7 @@ violations from the store, which is a store write, and under
 `StoreUpdateFailedException` (verified in ArchUnit 1.4.2). The conversion PR must
 therefore include a deliberate store refresh; the full procedure (triage, fix
 patterns, tests, re-freeze commands) is its own runbook:
-`.github/skills/reduce-tx-baseline/SKILL.md`. Never hand-edit the store files.
+`.claude/skills/reduce-tx-baseline/SKILL.md`. Never hand-edit the store files.
 
 **Known limits of the background path — name them in the report, do not paper
 over them:**

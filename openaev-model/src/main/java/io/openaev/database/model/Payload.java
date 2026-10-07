@@ -198,7 +198,10 @@ public class Payload implements GrantableBase, TenantBase {
 
   // -- COLLECTOR TYPE --
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  // EAGER on purpose: the name is serialized with every payload, after the controller's
+  // transaction and tenant scope have closed. A lazy load at that point fails closed on the
+  // v2-active collector_types table and cuts the already-committed response mid-stream.
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "payload_collector_type")
   @JsonSerialize(using = CollectorTypeNameSerializer.class)
   @JsonProperty("payload_collector_type")

@@ -4542,6 +4542,7 @@
   "You cannot delete your own account.": "본인의 계정은 삭제할 수 없습니다.",
   "You do not have access to this simulation's attack path.": "이 시뮬레이션의 attack path에 대한 접근 권한이 없습니다.",
   "You do not have permission to connect this product. Please contact your product administrator to connect the product on your behalf.": "이 제품을 연결할 권한이 없습니다. 제품 관리자에게 문의하여 대신 제품을 연결해 달라고 요청해 주세요.",
+  "You do not have the right to perform this action.": "이 작업을 수행할 권한이 없습니다.",
   "You dont have the right access. Please contact your administrator.": "올바른 액세스 권한이 없습니다. 관리자에게 문의하세요.",
   "You have canceled the connection process": "연결 절차를 취소하셨습니다.",
   "You have canceled the disconnection process": "연결 해제 절차를 취소하셨습니다.",

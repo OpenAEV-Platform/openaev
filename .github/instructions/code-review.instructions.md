@@ -26,7 +26,7 @@ Key checks: layering (Controller → Service → Repository, never skip), JPA en
 ## Multi-Tenancy
 
 > Full rules: [multi-tenancy.instructions.md](multi-tenancy.instructions.md)
-> Review skill: [review-multi-tenancy](../skills/review-multi-tenancy/SKILL.md)
+> Review skill: [review-multi-tenancy](../../.claude/skills/review-multi-tenancy/SKILL.md)
 
 Key checks: tenant-scoped entities extend `TenantBase` + `@Filter("tenantFilter")`, tenant resolved in API layer and passed as argument to services (services never call `TenantContext` directly), native `@Query` has `WHERE tenant_id`, no `tenant_id` in API responses (`@JsonIgnore`), unique constraints are composite `(field, tenant_id)`, background jobs set `TenantContext` + pass tenant as arg, caches include tenant key. **Dual-scope entities** (Settings, User, Role, Group): implement `DualScopeBase`, nullable `tenant_id`, repository extends `DualScopeRepository`, two services (`PlatformXxxService` / `TenantXxxService`), two APIs, no unscoped `findAll()`.
 
@@ -46,7 +46,7 @@ Key checks: Filigran Design System components wherever the library ships one (no
 ## Chaining Engine
 
 > Full rules: [chaining-engine.instructions.md](chaining-engine.instructions.md)
-> Review skill: [review-chaining-engine](../skills/review-chaining-engine/SKILL.md)
+> Review skill: [review-chaining-engine](../../.claude/skills/review-chaining-engine/SKILL.md)
 > Agent: `chaining-engine-reviewer`
 
 Key checks: step lifecycle (TEMPLATE → READY → RUN → END), `workflowService.isWorkflowEnded()` guard before execution, queue interactions only via `QueueChainingService`, global state updated before local propagation, time delays via `StepDelayQueueService` (never `Thread.sleep()`), `@WorkflowUpdateEvent` on inject-mutating methods.

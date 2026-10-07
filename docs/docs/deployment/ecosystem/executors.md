@@ -442,7 +442,8 @@ Library, which downloads and starts the OpenAEV implant.
 !!! info "Enterprise Edition"
 
     The Microsoft Defender for Endpoint executor is an **Enterprise Edition** feature. A valid EE license is required to
-    enable it.
+    enable it. Without one, the MDE agents show an **EE** badge and any inject targeting them is refused with a
+    `LICENSE RESTRICTION` trace, exactly like the CrowdStrike, SentinelOne, Palo Alto Cortex and Tanium executors.
 
 !!! warning "Windows: detached scheduled task"
 
@@ -614,9 +615,26 @@ Microsoft Defender for Endpoint integration settings directly from the UI.
 Once enabled, you should see Microsoft Defender for Endpoint available in your `Install agents` section.
 
 The devices in the selected device group(s) should now appear in the endpoints and asset groups sections in OpenAEV
-after the first sync (up to the register interval).
+after the first sync (up to the register interval). Only devices whose MDE `onboardingStatus` is **Onboarded** are
+synced: devices that MDE merely discovered on the network (`CanBeOnboarded`) have no sensor able to run Live Response.
 
 ![MDE assets in OpenAEV](../assets/mde-assets.png)
+
+!!! note "How the agent active status is computed"
+
+    At each sync, OpenAEV reads the latest activity of every device from **Advanced Hunting**, across the
+    `DeviceInfo`, `DeviceEvents`, `DeviceNetworkEvents` and `DeviceProcessEvents` tables. `DeviceInfo` alone is only a
+    snapshot written about once an hour, so it is not enough to tell whether a device is up.
+
+    - Activity within the **tolerance** (70 minutes plus one register interval, so **90 minutes** with the default
+      1200 s): the agent is considered seen at the time of the sync, so its **Last seen** shows the time of the latest
+      sync rather than the exact time of the last event.
+    - Older activity: **Last seen** keeps that real timestamp, and the agent turns inactive once it is more than one hour
+      old.
+
+    With the default register interval, a device that goes offline is therefore shown as inactive within about two
+    hours. A healthy device stays active between two syncs. Keep the register interval under one hour: the agent active
+    threshold is one hour, so a longer interval lets any agent age out between two syncs.
 
 !!! note "Where to see executions on the Microsoft side"
 
@@ -659,11 +677,12 @@ after the first sync (up to the register interval).
 
 !!! tip "Devices are missing or show as inactive"
 
-    OpenAEV filters devices by the configured **device group** and marks an agent active from **near
-    real-time Advanced Hunting activity** (the device inventory `lastSeen` lags by up to a day and is
-    not reliable). If the app registration lacks `AdvancedQuery.Read.All`, OpenAEV falls back to the
-    sensor `healthStatus` and logs a warning. Confirm the device group ID, that the machines are
-    onboarded and reporting to MDE, and that `AdvancedQuery.Read.All` is granted.
+    OpenAEV filters devices by the configured **device group**, keeps only **Onboarded** devices, and marks
+    an agent active from **near real-time Advanced Hunting activity** (see "How the agent active status is
+    computed" above; the device inventory `lastSeen` lags by up to a day and is not reliable). If the app
+    registration lacks `AdvancedQuery.Read.All`, OpenAEV falls back to the sensor `healthStatus` and logs a
+    warning. Confirm the device group ID, that the machines are onboarded and reporting to MDE, and that
+    `AdvancedQuery.Read.All` is granted.
 
 !!! tip "An inject times out on a device that looks active"
 
@@ -673,6 +692,10 @@ after the first sync (up to the register interval).
     MDE constraint (one Live Response session per machine, no execution while offline), not an OpenAEV
     error. Stale Pending actions are cancelled automatically before the next dispatch so they never
     block future injects.
+
+    The active status reflects the sensor's **telemetry**, which travels on a different channel from Live
+    Response commands. A device can keep sending events, and therefore show as active, while a Live Response
+    action on it stays Pending. In that case, check the action in **Action center > History**.
 
 ## Caldera Agent
 

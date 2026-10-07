@@ -1,8 +1,9 @@
 name: "[Core] Deploy Feature Branch Build"
 
 # Unprivileged build workflow dispatched by deploy-feature-branch.yml.
-# SECURITY: This workflow has read-only contents/actions access — no secrets
-# and no write-capable token.
+# SECURITY: The build job has read-only contents/actions access — no secrets
+# and no write-capable token. Only report-failure, which never runs PR code,
+# can write deployment statuses.
 # It builds untrusted PR code. The run is on main's ref, so every job can write
 # main's Actions cache: PR code may only run inside containers, never directly on
 # the runner. Actions and scripts come from main's checkout at the workspace root;
@@ -40,7 +41,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read # strictly read-only — no secrets, no write token
+  contents: read # strictly read-only for the build job — no secrets, no write token
   actions: read
 
 jobs:
@@ -93,21 +94,14 @@ jobs:
           retention-days: 1
           # The archive is already compressed.
           compression-level: 0
-
-  # Save metadata as artifact for the workflow_run follow-up
-  save-metadata:
-    name: "💾 Save metadata"
-    needs: docker-build
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
+      # Metadata for the promotion, which only runs on a successful build
       - name: Write metadata file
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           HEAD_REF: ${{ inputs.head_ref }}
           HEAD_SHA: ${{ inputs.head_sha }}
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
-          BUILD_RESULT: ${{ needs.docker-build.result }}
+          BUILD_RESULT: success
         run: |
           mkdir -p metadata
           jq -n \
@@ -122,3 +116,36 @@ jobs:
         with:
           name: deploy-metadata
           path: metadata/
+
+  # Only runs when the build did not succeed, so a successful build costs no
+  # extra runner. It never runs PR code.
+  report-failure:
+    name: "🚦 Report build failure"
+    needs: docker-build
+    if: always() && needs.docker-build.result != 'success'
+    permissions:
+      deployments: write # to update the deployment status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update deployment status
+        uses: actions/github-script@v9
+        env:
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          BUILD_RESULT: ${{ needs.docker-build.result }}
+        with:
+          script: |
+            const { DEPLOYMENT_ID, HEAD_SHA, BUILD_RESULT } = process.env;
+            const shortSha = HEAD_SHA.slice(0, 7);
+            // Cancelled: superseded by a newer commit or /deploy
+            const cancelled = BUILD_RESULT === 'cancelled';
+            await github.rest.repos.createDeploymentStatus({
+              ...context.repo,
+              deployment_id: Number(DEPLOYMENT_ID),
+              state: cancelled ? 'inactive' : 'failure',
+              log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              description: cancelled
+                ? `${shortSha} superseded by a newer deployment`
+                : `Image build failed for ${shortSha}`,
+              auto_inactive: false
+            });
