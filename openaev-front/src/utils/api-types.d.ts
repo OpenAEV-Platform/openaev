@@ -5694,6 +5694,7 @@ export interface ExecutorOutput {
   connector_instance?: ConnectorInstanceOutput;
   executor_background_color?: string;
   executor_doc?: string;
+  executor_enterprise?: boolean;
   /**
    * Executor id
    * @minLength 1
