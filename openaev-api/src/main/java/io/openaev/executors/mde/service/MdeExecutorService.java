@@ -19,6 +19,7 @@ import io.openaev.service.EndpointService;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,10 +31,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MdeExecutorService implements Runnable {
 
-  // Advanced Hunting look-back window used to build the near real-time device activity map. Kept
-  // comfortably above OpenAEV's 1h active threshold so the accurate activity timestamp (not this
-  // window) decides whether an agent is active.
-  private static final int RECENT_ACTIVITY_WINDOW_MINUTES = 180;
+  // Part of the activity tolerance that does not depend on the sync interval: the worst observed
+  // gap between two sensor signals (~45 min) plus the Advanced Hunting ingestion delay (up to ~15
+  // min), with a 10 min margin.
+  @VisibleForTesting static final int ACTIVITY_SIGNAL_SLACK_MINUTES = 70;
 
   private final MdeExecutorClient client;
   private final MdeExecutorConfig config;
@@ -117,9 +118,10 @@ public class MdeExecutorService implements Runnable {
 
       // Query Advanced Hunting once per sync for near real-time device activity (the machines
       // inventory lastSeen lags by up to a day). null means it is unavailable (missing
-      // AdvancedQuery.Read.All) and callers fall back to the sensor health flag.
-      Map<String, Instant> recentActivity =
-          client.getRecentDeviceActivity(RECENT_ACTIVITY_WINDOW_MINUTES);
+      // AdvancedQuery.Read.All) and callers fall back to the sensor health flag. The look-back
+      // window stays well above the tolerance so the activity timestamp, not the window, decides.
+      int toleranceMinutes = activityToleranceMinutes(config.getApiRegisterInterval());
+      Map<String, Instant> recentActivity = client.getRecentDeviceActivity(2 * toleranceMinutes);
       boolean advancedHuntingAvailable = recentActivity != null;
 
       if (noGroupConfigured) {
@@ -131,7 +133,7 @@ public class MdeExecutorService implements Runnable {
         }
         log.info("MDE executor provisioning {} devices (no group filter)", devices.size());
         endpointService.syncAgentsEndpoints(
-            toAgentEndpoint(devices, recentActivity, advancedHuntingAvailable),
+            toAgentEndpoint(devices, recentActivity, advancedHuntingAvailable, toleranceMinutes),
             agentService.getAgentsByExecutorIdAndTenantId(executor.getId(), executor.getTenantId()),
             executor.getTenantId());
         return;
@@ -171,7 +173,8 @@ public class MdeExecutorService implements Runnable {
             assetGroup.getName());
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
-                toAgentEndpoint(devices, recentActivity, advancedHuntingAvailable),
+                toAgentEndpoint(
+                    devices, recentActivity, advancedHuntingAvailable, toleranceMinutes),
                 agentService.getAgentsByExecutorIdAndTenantId(
                     executor.getId(), executor.getTenantId()),
                 executor.getTenantId());
@@ -185,10 +188,26 @@ public class MdeExecutorService implements Runnable {
     }
   }
 
+  /**
+   * Age under which a device's latest Advanced Hunting activity counts as "seen at this sync". The
+   * activity is only read once per sync, so the tolerance must cover the signal slack plus a full
+   * sync interval, otherwise a healthy device flaps to inactive whenever the register interval is
+   * raised (90 min with the default 1200 s interval).
+   */
+  @VisibleForTesting
+  static int activityToleranceMinutes(Integer registerIntervalSeconds) {
+    long seconds =
+        registerIntervalSeconds != null && registerIntervalSeconds > 0
+            ? registerIntervalSeconds
+            : MdeExecutorConfig.DEFAULT_API_REGISTER_INTERVAL;
+    return ACTIVITY_SIGNAL_SLACK_MINUTES + (int) Math.ceil(seconds / 60.0);
+  }
+
   private List<AgentRegisterInput> toAgentEndpoint(
       @NotNull final List<MdeDevice> devices,
       final Map<String, Instant> recentActivity,
-      final boolean advancedHuntingAvailable) {
+      final boolean advancedHuntingAvailable,
+      final int toleranceMinutes) {
     return devices.stream()
         .map(
             device -> {
@@ -214,7 +233,9 @@ public class MdeExecutorService implements Runnable {
                   Endpoint.PLATFORM_TYPE.Windows.equals(platform)
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
-              input.setLastSeen(resolveLastSeen(device, recentActivity, advancedHuntingAvailable));
+              input.setLastSeen(
+                  resolveLastSeen(
+                      device, recentActivity, advancedHuntingAvailable, toleranceMinutes));
               return input;
             })
         .collect(Collectors.toList());
@@ -224,14 +245,27 @@ public class MdeExecutorService implements Runnable {
    * Resolves the agent lastSeen used for the active status. Prefers the near real-time Advanced
    * Hunting activity; when Advanced Hunting is unavailable, approximates reachability with the MDE
    * sensor health flag rather than the badly lagging inventory lastSeen.
+   *
+   * <p>Advanced Hunting activity is bursty (signals can be ~45 min apart on an idle machine) and is
+   * only read once per sync, so returning it as-is let a healthy device cross the generic 1h active
+   * threshold between two syncs. Activity within {@code toleranceMinutes} (see {@link
+   * #activityToleranceMinutes}) therefore counts as "seen now"; older activity is returned
+   * unchanged so a device that really went quiet still surfaces as inactive.
    */
   private static Instant resolveLastSeen(
-      MdeDevice device, Map<String, Instant> recentActivity, boolean advancedHuntingAvailable) {
+      MdeDevice device,
+      Map<String, Instant> recentActivity,
+      boolean advancedHuntingAvailable,
+      int toleranceMinutes) {
     if (advancedHuntingAvailable) {
       Instant fresh = recentActivity.get(device.getId());
-      // A device absent from the activity window has not been active recently, so its stale
-      // inventory lastSeen surfaces it as inactive.
-      return fresh != null ? fresh : parseDeviceLastSeen(device.getLastSeen());
+      if (fresh == null) {
+        // A device absent from the activity window has not been active recently, so its stale
+        // inventory lastSeen surfaces it as inactive.
+        return parseDeviceLastSeen(device.getLastSeen());
+      }
+      Instant now = Instant.now();
+      return fresh.isAfter(now.minus(toleranceMinutes, ChronoUnit.MINUTES)) ? now : fresh;
     }
     return "Active".equalsIgnoreCase(device.getHealthStatus())
         ? Instant.now()
