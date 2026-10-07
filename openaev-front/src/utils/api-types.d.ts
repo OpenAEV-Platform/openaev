@@ -8405,6 +8405,7 @@ export interface NotificationTriggerInput {
     | "SESSION"
     | "TOKEN"
     | "PLATFORM_SESSION"
+    | "AUTONOMOUS_RUN"
     | "SKIP_RBAC";
   /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
   notification_trigger_time?: string;
@@ -8517,6 +8518,7 @@ export interface NotificationTriggerOutput {
     | "SESSION"
     | "TOKEN"
     | "PLATFORM_SESSION"
+    | "AUTONOMOUS_RUN"
     | "SKIP_RBAC";
   /** Digest firing time (UTC) */
   notification_trigger_time?: string;
