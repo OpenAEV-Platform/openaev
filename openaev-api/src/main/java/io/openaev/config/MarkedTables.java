@@ -20,6 +20,40 @@ public record MarkedTables(Map<String, MarkedTable> byTable) {
     Map<String, MarkedTable> normalized = new LinkedHashMap<>();
     byTable.forEach((name, marked) -> normalized.put(name.toLowerCase(Locale.ROOT), marked));
     byTable = Map.copyOf(normalized);
+    requireResolvableParents(byTable);
+  }
+
+  /**
+   * A table marked through a parent is only as protected as that parent: the predicate reads the
+   * parent's own marking. Every chain must therefore end on a table with a marking column of its
+   * own, never on a missing table (a typo, or a parent left off the activation allowlist, which
+   * would otherwise leave the child unprotected without any sign) and never loop.
+   */
+  private static void requireResolvableParents(Map<String, MarkedTable> byTable) {
+    for (MarkedTable start : byTable.values()) {
+      Set<String> visited = new HashSet<>();
+      MarkedTable current = start;
+      while (current.isLinked()) {
+        if (!visited.add(current.table())) {
+          throw new IllegalArgumentException(
+              "marking links form a cycle through "
+                  + current.table()
+                  + " (from "
+                  + start.table()
+                  + ")");
+        }
+        String parentName = current.linkedTable();
+        MarkedTable parent = byTable.get(parentName);
+        if (parent == null) {
+          throw new IllegalArgumentException(
+              current.table()
+                  + " is marked through "
+                  + parentName
+                  + ", which is not a marked table (is it missing from openaev.marking.active-tables?)");
+        }
+        current = parent;
+      }
+    }
   }
 
   /** Strips the surrounding double quotes an SQL dialect may put around an identifier. */
@@ -62,5 +96,27 @@ public record MarkedTables(Map<String, MarkedTable> byTable) {
           }
         });
     return new MarkedTables(kept);
+  }
+
+  /**
+   * Adds tables that are marked through a parent row instead of a column of their own. Applied
+   * after {@link #restrictTo}, so a parent must be among the activated tables: linking a child to
+   * an inactive parent would silently leave it unfiltered, and is refused instead.
+   *
+   * @throws IllegalArgumentException when a linked table already has its own marking column, is
+   *     listed twice, or points to a parent that is not marked
+   */
+  public MarkedTables withLinked(Collection<MarkedTable> linked) {
+    Map<String, MarkedTable> merged = new LinkedHashMap<>(byTable);
+    for (MarkedTable link : linked) {
+      if (!link.isLinked()) {
+        throw new IllegalArgumentException(link.table() + " is not a linked marked table");
+      }
+      if (merged.putIfAbsent(link.table(), link) != null) {
+        throw new IllegalArgumentException(
+            link.table() + " is already marked (own column or listed twice); it cannot be linked");
+      }
+    }
+    return new MarkedTables(merged);
   }
 }
