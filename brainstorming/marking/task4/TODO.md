@@ -1,0 +1,11 @@
+- OpenCTI recurring scenarios -> launch all assets + set user service account OpenCTI in the scenario -> Damien
+- Tests scheduled scenario, scenario, exercise -> Damien
+- Tests inject expectations and external executors -> Damien
+- StreamApi and solutions A/B to check -> Corinne
+- Clean the tech design -> Corinne
+- POC "asset not targetted" VS "no agent found" -> Corinne
+
+- UX/UI changed to add the user "launchedBy"
+- Little UX bugs with the new solution? -> mark it
+- Last spike to POC (dashboards)
+- Do a brainstorm/choose the solution with Laurent
