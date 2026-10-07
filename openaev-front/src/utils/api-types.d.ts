@@ -6444,6 +6444,7 @@ export interface ImportMapper {
   /** @format date-time */
   import_mapper_created_at?: string;
   import_mapper_id: string;
+  /** @uniqueItems true */
   import_mapper_inject_importers?: InjectImporter[];
   import_mapper_inject_type_column: string;
   /** @minLength 1 */
@@ -12444,6 +12445,7 @@ export interface Team {
    * @format int64
    */
   team_exercise_injects_number?: number;
+  /** @uniqueItems true */
   team_exercises?: string[];
   team_exercises_users?: string[];
   /**
@@ -12487,6 +12489,7 @@ export interface Team {
    * @format int64
    */
   team_scenario_injects_number?: number;
+  /** @uniqueItems true */
   team_scenarios?: string[];
   /** @uniqueItems true */
   team_tags?: string[];

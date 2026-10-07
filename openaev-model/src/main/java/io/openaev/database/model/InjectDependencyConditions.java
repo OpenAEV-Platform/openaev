@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.util.List;
 import lombok.Data;
 import lombok.Getter;
@@ -32,7 +33,7 @@ public class InjectDependencyConditions {
   }
 
   @Data
-  public static class InjectDependencyCondition {
+  public static class InjectDependencyCondition implements Serializable {
 
     @NotNull private DependencyMode mode; // Between filters
     private List<Condition> conditions;
@@ -53,7 +54,7 @@ public class InjectDependencyConditions {
   }
 
   @Data
-  public static class Condition {
+  public static class Condition implements Serializable {
 
     @NotNull private String key;
     private boolean value;

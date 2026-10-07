@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.InjectImporter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -38,7 +39,7 @@ public class ImportMapperFixture {
   public static ImportMapper createImportMapperWithTeams(String injectTypeValue)
       throws JsonProcessingException {
     ImportMapper importMapper = createImportMapper(injectTypeValue);
-    InjectImporter injectImporter = importMapper.getInjectImporters().getFirst();
+    InjectImporter injectImporter = importMapper.getInjectImporters().iterator().next();
     injectImporter.setInjectorContract(
         createDefaultInjectorContractWithFields(List.of(teamField(Multiple))));
     injectImporter
@@ -52,7 +53,7 @@ public class ImportMapperFixture {
     ImportMapper importMapper = new ImportMapper();
     importMapper.setName(mapperName);
     importMapper.setInjectTypeColumn(injectTypeColumn);
-    importMapper.setInjectImporters(new ArrayList<>());
+    importMapper.setInjectImporters(new HashSet<>());
     importMapper.getInjectImporters().add(createInjectImporter(injectTypeValue));
     return importMapper;
   }

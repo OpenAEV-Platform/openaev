@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -10,7 +11,7 @@ import lombok.Singular;
 
 @Getter
 @Setter
-public class StatusPayload {
+public class StatusPayload implements Serializable {
 
   @JsonProperty("payload_name")
   private String name;
