@@ -8,7 +8,6 @@ on:
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
-  # TEMP: remove before merge.
 
 permissions:
   contents: read
