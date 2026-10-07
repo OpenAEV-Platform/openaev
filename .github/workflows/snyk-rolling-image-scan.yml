@@ -27,7 +27,9 @@ jobs:
         tag: [rolling, rolling-ubi9]
     steps:
       - name: Set up Snyk CLI
-        uses: snyk/actions/setup@master
+        uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
+        with:
+          snyk-version: v1.1307.4
 
       - name: Run Snyk container test
         env:
