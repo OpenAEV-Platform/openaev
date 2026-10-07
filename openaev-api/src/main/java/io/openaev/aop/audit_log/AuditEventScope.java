@@ -41,7 +41,7 @@ public enum AuditEventScope {
       case CREATE -> CREATE;
       case WRITE -> UPDATE;
       case DELETE -> DELETE;
-      case LAUNCH -> STATUS_CHANGE;
+      case LAUNCH, APPROVE -> STATUS_CHANGE;
       case DUPLICATE -> DUPLICATE;
       case RESOLVE -> INJECT_RESOLVE;
       case LOGIN -> LOGIN;

@@ -905,6 +905,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.payloadJoin().get("id"),
         ctx.payloadJoin().get("type"),
         ctx.payloadJoin().get("status"),
+        ctx.payloadJoin().get("approvalStatus"),
         ctx.payloadJoin().get("executionArch"),
         ctx.payloadCollectorTypeJoin().get("id"),
         ctx.payloadCollectorTypeJoin().get("name"));
@@ -990,6 +991,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.tagsIdsExpression().alias("injector_contract_tags"),
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         ctx.payloadJoin().get("status").alias("payload_status"),
+        ctx.payloadJoin().get("approvalStatus").alias("payload_approval_status"),
         ctx.payloadJoin().get("id").alias("payload_id"),
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
@@ -1049,7 +1051,8 @@ public class InjectorContractService implements DependenciesManager {
                 payloadId,
                 tuple.get("payload_type", String.class),
                 tuple.get("collector_type", String.class),
-                tuple.get("payload_status", Payload.PAYLOAD_STATUS.class))
+                tuple.get("payload_status", Payload.PAYLOAD_STATUS.class),
+                tuple.get("payload_approval_status", Payload.PAYLOAD_APPROVAL_STATUS.class))
             : null;
 
     return new ThreatArsenalAction(
@@ -1278,6 +1281,34 @@ public class InjectorContractService implements DependenciesManager {
     Predicate predicate = baseSpec.toPredicate(root, q, cb);
     Predicate hasStatus = cb.isNotNull(status);
     q.where(predicate != null ? cb.and(predicate, hasStatus) : hasStatus);
+    q.multiselect(status, cb.countDistinct(root));
+    q.groupBy(status);
+
+    Map<String, Long> counts = new LinkedHashMap<>();
+    for (Tuple tuple : entityManager.createQuery(q).getResultList()) {
+      counts.put(String.valueOf(tuple.get(0)), (Long) tuple.get(1));
+    }
+    return counts;
+  }
+
+  /**
+   * Number of contracts per payload approval status under the given filters, so the Threat Arsenal
+   * sidebar can display live counts on its approval facet. Payload-less contracts are not counted:
+   * they need no approval.
+   */
+  public Map<String, Long> getApprovalStatusCounts(SearchPaginationInput input) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+
+    CriteriaQuery<Tuple> q = cb.createTupleQuery();
+    Root<InjectorContract> root = q.from(InjectorContract.class);
+    Join<InjectorContract, Payload> payloadJoin = root.join("payload", JoinType.INNER);
+    Path<Payload.PAYLOAD_APPROVAL_STATUS> status = payloadJoin.get("approvalStatus");
+
+    Predicate predicate = baseSpec.toPredicate(root, q, cb);
+    if (predicate != null) {
+      q.where(predicate);
+    }
     q.multiselect(status, cb.countDistinct(root));
     q.groupBy(status);
 

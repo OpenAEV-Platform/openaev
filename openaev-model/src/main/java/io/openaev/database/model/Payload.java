@@ -83,6 +83,16 @@ public class Payload implements GrantableBase, TenantBase {
     DEPRECATED
   }
 
+  /**
+   * Whether the content of a payload is trusted to be used. Set by the server on every write, never
+   * by the client: an author without "Approve content" gets PENDING, a holder of it APPROVED.
+   */
+  public enum PAYLOAD_APPROVAL_STATUS {
+    PENDING,
+    APPROVED,
+    REJECTED
+  }
+
   public enum PAYLOAD_EXECUTION_ARCH {
     x86_64,
     arm64,
@@ -261,6 +271,23 @@ public class Payload implements GrantableBase, TenantBase {
   @Queryable(dynamicValues = true, filterable = true, path = "lastModifiedBy.id")
   @Schema(description = "User who last modified the payload", type = "string")
   private User lastModifiedBy;
+
+  // -- APPROVAL --
+  // Fail-closed default: a payload written by a path that never decided its status is not trusted.
+  // Environment-local, never exported: an imported payload is approved in its target environment.
+  @Column(name = "payload_approval_status", nullable = false)
+  @Enumerated(EnumType.STRING)
+  @JsonProperty("payload_approval_status")
+  @IncludeOption(key = "exclude from payload export")
+  @Queryable(filterable = true, sortable = true)
+  @NotNull
+  private PAYLOAD_APPROVAL_STATUS approvalStatus = PAYLOAD_APPROVAL_STATUS.PENDING;
+
+  // Fingerprint of the executable content when it was last approved (null when not approved, or
+  // approved before fingerprints were recorded).
+  @Column(name = "payload_approved_fingerprint")
+  @JsonIgnore
+  private String approvedFingerprint;
 
   @OneToMany(
       mappedBy = "payload",

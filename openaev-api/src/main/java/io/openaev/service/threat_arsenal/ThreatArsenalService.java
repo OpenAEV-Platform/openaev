@@ -28,7 +28,9 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
 import io.openaev.schema.SchemaUtils;
 import io.openaev.schema.model.PropertySchemaDTO;
+import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
@@ -54,6 +56,8 @@ public class ThreatArsenalService {
   private final DetectionRemediationService detectionRemediationService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
   private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
+  private final PayloadApprovalService payloadApprovalService;
+  private final UserService userService;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -159,7 +163,8 @@ public class ThreatArsenalService {
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
     return new ThreatArsenalFacetCountsOutput(
         injectorContractService.getPlatformCounts(filtered),
-        injectorContractService.getStatusCounts(filtered));
+        injectorContractService.getStatusCounts(filtered),
+        injectorContractService.getApprovalStatusCounts(filtered));
   }
 
   /**
@@ -323,6 +328,46 @@ public class ThreatArsenalService {
    * @throws BadRequestException if the injector contract is not payload-based
    */
   @Transactional(rollbackFor = Exception.class)
+  // -- APPROVAL --
+
+  /**
+   * Approves the payload of an action, provided it is pending and its content is still the one the
+   * approver saw.
+   */
+  public ThreatArsenalActionFullOutput approve(String actionId, ThreatArsenalApproveInput input) {
+    Payload payload = payloadForDecision(actionId);
+    payloadApprovalService.approve(
+        payload, userService.currentUser(), input.fingerprint(), input.comment());
+    return findById(actionId);
+  }
+
+  /** Rejects the payload of an action, provided it is pending. */
+  public ThreatArsenalActionFullOutput reject(String actionId, ThreatArsenalRejectInput input) {
+    Payload payload = payloadForDecision(actionId);
+    payloadApprovalService.reject(payload, userService.currentUser(), input.reason());
+    return findById(actionId);
+  }
+
+  /** Approval history of the payload of an action, newest first; empty for payload-less actions. */
+  public List<PayloadApprovalOutput> approvals(String actionId) {
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    if (injectorContract.getPayload() == null) {
+      return List.of();
+    }
+    return payloadApprovalService.history(injectorContract.getPayload().getId()).stream()
+        .map(PayloadApprovalOutput::from)
+        .toList();
+  }
+
+  private Payload payloadForDecision(String actionId) {
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    if (injectorContract.getPayload() == null) {
+      throw new BadRequestException(
+          "This action has no payload: built-in actions are always usable and need no approval.");
+    }
+    return payloadService.payloadForDecision(injectorContract.getPayload().getId());
+  }
+
   public ThreatArsenalAction duplicate(String actionId) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);

@@ -217,6 +217,78 @@ public class ThreatArsenalApi {
   }
 
   @PostMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/approve",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/approve"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.APPROVE,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "Approve the payload of an action",
+      description =
+          "Requires Approve content. Only a pending payload can be approved, and only if its"
+              + " content is still the one shown (approval_fingerprint).")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "The approved action"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Not pending, payload-less action, or content changed since shown")
+  })
+  public ThreatArsenalActionFullOutput approveAction(
+      @RequireTenantSelector TxCtx ctx,
+      @NotBlank @PathVariable final String actionId,
+      @Valid @RequestBody ThreatArsenalApproveInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
+    return threatArsenalService.approve(actionId, input);
+  }
+
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/reject",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/reject"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.APPROVE,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "Reject the payload of an action",
+      description =
+          "Requires Approve content. Only a pending payload can be rejected; a reason is required.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "The rejected action"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Not pending, payload-less action, or no reason")
+  })
+  public ThreatArsenalActionFullOutput rejectAction(
+      @RequireTenantSelector TxCtx ctx,
+      @NotBlank @PathVariable final String actionId,
+      @Valid @RequestBody ThreatArsenalRejectInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
+    return threatArsenalService.reject(actionId, input);
+  }
+
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/approvals",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/approvals"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(summary = "Approval history of the payload of an action, newest first")
+  public List<PayloadApprovalOutput> actionApprovals(
+      // Unused by the handler body; sets the tenant scope of the transaction (payloads and
+      // payload_approvals are v2 tenant-scoped).
+      TxCtx ctx, @NotBlank @PathVariable final String actionId) {
+    return threatArsenalService.approvals(actionId);
+  }
+
+  @PostMapping({
     THREAT_ARSENAL_URL + "/{actionId}/duplicate",
     TENANT_THREAT_ARSENAL_URL + "/{actionId}/duplicate"
   })

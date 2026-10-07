@@ -34,6 +34,7 @@ columns:
 | **Platform** | The platforms the Action supports, such as Windows, Linux, or macOS.                                            |
 | **Tags**     | Tags that help you categorize and search for Actions.                                                           |
 | **Status**   | The reliability or lifecycle state of the Action. See [Action status logic](#action-status-logic).              |
+| **Approval** | Whether the payload content is trusted. See [Approval of payloads](#approval-of-payloads).                      |
 | **Updated**  | The date of the last modification.                                                                              |
 
 ### Action status logic
@@ -43,6 +44,26 @@ columns:
 | **Verified**    | OpenAEV has tested the Action and confirmed that it works as expected.                                          |
 | **Unverified**  | OpenAEV has not tested the Action. It may or may not work.                                                      |
 | **Deprecated**  | The original source marked the Action as deprecated. It remains available for reference, but OpenAEV does not guarantee that it still works. |
+
+## Approval of payloads
+
+Payload-based Actions carry an **approval status** that tells whether their content is trusted. Only users whose role holds the **Approve content** capability (*Threat Arsenal → Access threat arsenal → Approve content*) can approve or reject a payload.
+
+| Approval     | Meaning                                                                                              |
+|--------------|------------------------------------------------------------------------------------------------------|
+| **Pending**  | The content was created or changed by someone who cannot approve it, and waits for an approver.     |
+| **Approved** | The content is trusted.                                                                              |
+| **Rejected** | An approver refused the content, with a reason. It stays rejected until it is edited and approved. |
+
+How the status is set:
+
+* Creating, editing, duplicating or importing a payload is **auto-approved** when you hold *Approve content*; the approval history records it as an automatic approval by its author. Otherwise the payload becomes **Pending**.
+* Editing only the name, description, tags, attack patterns or domains keeps the current status: only what the payload runs (command, executor, arguments, prerequisites, cleanup, platforms, files…) requires a new approval.
+* Payloads synchronized by a collector are **Pending** when they are new or their content changed.
+* Payloads that existed before approval was introduced are **Approved**.
+* Built-in Actions without a payload need no approval.
+
+To approve or reject, open the Action, then use **Approve** or **Reject** in its *Approval* section. A rejection requires a reason. If the payload changed while you were reviewing it, the approval is refused and you review the new content first. The *Approval* section also shows the latest decision and the approval history, and the list can be filtered by approval status.
 
 ## Create an Action
 

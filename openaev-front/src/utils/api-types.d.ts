@@ -10,6 +10,60 @@
  * ---------------------------------------------------------------
  */
 
+export interface PayloadApprovalOutput {
+  /** User who caused the entry, null for platform or collector writes */
+  approval_actor?: string;
+  /** Display name of that user at the time */
+  approval_actor_name?: string;
+  /** True when set by the approval rules (automatic approval of an approver's own write), false for an explicit approve or reject */
+  approval_automatic?: boolean;
+  /** Comment of an approval, or reason of a rejection */
+  approval_comment?: string;
+  /**
+   * When the entry was recorded
+   * @format date-time
+   */
+  approval_created_at: string;
+  /** Entry identifier */
+  approval_id: string;
+  /** What produced this entry */
+  approval_origin:
+    | "CREATE"
+    | "UPDATE"
+    | "DUPLICATE"
+    | "IMPORT"
+    | "COLLECTOR"
+    | "SYSTEM"
+    | "MIGRATION"
+    | "APPROVE"
+    | "REJECT";
+  /** Status set by this entry */
+  approval_status: "PENDING" | "APPROVED" | "REJECTED";
+}
+
+export interface ThreatArsenalApproveInput {
+  /**
+   * Optional comment recorded in the approval history
+   * @minLength 0
+   * @maxLength 2000
+   */
+  approval_comment?: string;
+  /**
+   * Content fingerprint shown to the approver (action_approval_fingerprint): the approval is refused if the payload changed since
+   * @minLength 1
+   */
+  approval_fingerprint: string;
+}
+
+export interface ThreatArsenalRejectInput {
+  /**
+   * Reason of the rejection, shown to the author and kept in the history
+   * @minLength 0
+   * @maxLength 2000
+   */
+  approval_reason: string;
+}
+
 type UtilRequiredKeys<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 export interface AdHocWidgetInput {
@@ -245,6 +299,7 @@ export interface AiAttack {
   ai_attack_multi_turn?: Record<string, any>;
   ai_attack_success_detector?: Record<string, any>;
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -2132,6 +2187,7 @@ type BaseInjectorContractBaseOutputInjectorContractHasFullDetailsMapping<
 
 interface BasePayload {
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -2806,6 +2862,7 @@ export interface Command {
   command_content: string;
   command_executor: string;
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -3893,6 +3950,7 @@ export interface DirectInjectInput {
 export interface DnsResolution {
   dns_resolution_hostname: string;
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -5508,6 +5566,7 @@ export interface EventOutput {
 export interface Executable {
   executable_file: string;
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -5974,6 +6033,7 @@ export interface ExportOptionsInput {
 export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -7320,6 +7380,10 @@ export interface InjectorContract {
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
   injector_contract_payload?: Payload;
+  injector_contract_payload_approval_status?:
+    | "PENDING"
+    | "APPROVED"
+    | "REJECTED";
   injector_contract_payload_author?: string;
   injector_contract_payload_author_organization?: Organization;
   injector_contract_payload_author_team?: Team;
@@ -8217,6 +8281,7 @@ export interface NetworkTraffic {
   /** @format int32 */
   network_traffic_port_src: number;
   network_traffic_protocol: string;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -9706,6 +9771,8 @@ export interface PayloadOutput {
   executable_file?: string;
   /** Dropped file path for file-drop payloads */
   file_drop_file?: string;
+  /** Approval status of the payload */
+  payload_approval_status?: "PENDING" | "APPROVED" | "REJECTED";
   /** Payload input arguments definition */
   payload_arguments?: PayloadArgument[];
   /** MITRE ATT&CK patterns associated with the payload */
@@ -9813,6 +9880,7 @@ export interface PayloadPrerequisite {
 }
 
 export interface PayloadSimple {
+  payload_approval_status?: "PENDING" | "APPROVED" | "REJECTED";
   payload_collector_type?: string;
   payload_id?: string;
   payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
@@ -12910,6 +12978,12 @@ export interface ThreatArsenalActionCreateInput {
 }
 
 export interface ThreatArsenalActionFullOutput {
+  /** Fingerprint of the current executable content, to send back when approving */
+  action_approval_fingerprint?: string;
+  /** Latest entry of the approval history */
+  action_approval_latest?: PayloadApprovalOutput;
+  /** Approval status of the action payload, null for payload-less actions */
+  action_approval_status?: "PENDING" | "APPROVED" | "REJECTED";
   /** Action input arguments definition */
   action_arguments?: PayloadArgument[];
   /** MITRE ATT&CK patterns associated with the action */
@@ -13183,6 +13257,8 @@ export interface ThreatArsenalExpectationDetail {
 }
 
 export interface ThreatArsenalFacetCountsOutput {
+  /** Number of contracts per payload approval status under the current filters (payload-less contracts are not counted) */
+  approvals?: Record<string, number>;
   /** Number of contracts per platform under the current filters */
   platforms?: Record<string, number>;
   /** Number of contracts per payload status under the current filters */

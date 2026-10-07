@@ -8,6 +8,7 @@ import {
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
+import ThreatArsenalApprovalSection from './approval/ThreatArsenalApprovalSection';
 import ThreatArsenalActionOverview from './ThreatArsenalActionOverview';
 
 const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
@@ -21,6 +22,8 @@ const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
     payload_platforms: action.action_platforms ?? [],
     payload_source: action.action_source,
     payload_status: action.action_status,
+    // Always set for payload-based actions, the only ones converted here.
+    payload_approval_status: action.action_approval_status ?? 'PENDING',
     payload_type: action.action_type,
     payload_external_id: action.action_external_id,
     payload_arguments: action.action_arguments,
@@ -44,12 +47,15 @@ interface Props {
   open: boolean;
   onClose: () => void;
   threatArsenalAction: ThreatArsenalAction | null;
+  /** Called after an approve / reject decision, so the list can refresh the row. */
+  onApprovalChanged?: (actionId: string, status: ThreatArsenalActionFullOutput['action_approval_status']) => void;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   open,
   onClose,
   threatArsenalAction,
+  onApprovalChanged,
 }) => {
   const { t } = useFormatter();
 
@@ -105,16 +111,29 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       title={t('Action information')}
     >
       {threatArsenalAction == null ? <></> : (
-        <ThreatArsenalActionOverview
-          action={threatArsenalAction}
-          payload={selectedPayload}
-          expectations={fullOutput?.action_expectations}
-          expectationDetails={fullOutput?.action_expectation_details}
-          expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
-          providing={fullOutput?.action_providing}
-          lastModifiedByName={fullOutput ? (fullOutput.action_last_modified_by_name ?? null) : undefined}
-          loading={loading}
-        />
+        <>
+          {fullOutput && selectedPayload && (
+            <div style={{ marginBottom: 16 }}>
+              <ThreatArsenalApprovalSection
+                action={fullOutput}
+                onDecided={(updated) => {
+                  setFullOutput(updated);
+                  onApprovalChanged?.(updated.action_id, updated.action_approval_status);
+                }}
+              />
+            </div>
+          )}
+          <ThreatArsenalActionOverview
+            action={threatArsenalAction}
+            payload={selectedPayload}
+            expectations={fullOutput?.action_expectations}
+            expectationDetails={fullOutput?.action_expectation_details}
+            expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
+            providing={fullOutput?.action_providing}
+            lastModifiedByName={fullOutput ? (fullOutput.action_last_modified_by_name ?? null) : undefined}
+            loading={loading}
+          />
+        </>
       )}
     </Drawer>
   );

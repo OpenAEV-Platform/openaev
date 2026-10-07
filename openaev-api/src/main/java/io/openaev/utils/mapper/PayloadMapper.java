@@ -253,6 +253,7 @@ public class PayloadMapper {
                     .type(payloadToSimple.getType())
                     .collectorType(payloadToSimple.getCollectorTypeValue())
                     .status(payloadToSimple.getStatus())
+                    .approvalStatus(payloadToSimple.getApprovalStatus())
                     .build())
         .orElse(null);
   }
@@ -375,7 +376,8 @@ public class PayloadMapper {
             .createdAt(payload.getCreatedAt())
             .updatedAt(payload.getUpdatedAt())
             .lastModifiedBy(
-                payload.getLastModifiedBy() != null ? payload.getLastModifiedBy().getId() : null);
+                payload.getLastModifiedBy() != null ? payload.getLastModifiedBy().getId() : null)
+            .approvalStatus(payload.getApprovalStatus());
 
     if (payload instanceof Command command) {
       builder.commandExecutor(command.getExecutor()).commandContent(command.getContent());

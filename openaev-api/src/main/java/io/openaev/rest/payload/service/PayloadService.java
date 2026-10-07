@@ -50,6 +50,7 @@ import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -85,6 +86,7 @@ public class PayloadService {
   private final InjectorContractRepository injectorContractRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final UserService userService;
+  private final PayloadApprovalService payloadApprovalService;
   private final DocumentService documentService;
   private final PayloadUtils payloadUtils;
   private final ResultsMetricCollector resultsMetricCollector;
@@ -360,6 +362,16 @@ public class PayloadService {
     return expectation;
   }
 
+  /**
+   * Loads a payload with a row lock held until the end of the transaction, for an approval
+   * decision: an edit of the same payload waits for the decision, or the decision waits for it.
+   */
+  public Payload payloadForDecision(@NotBlank final String payloadId) {
+    return payloadRepository
+        .findByIdForUpdate(payloadId)
+        .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+  }
+
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
     Payload origin =
@@ -385,6 +397,8 @@ public class PayloadService {
       duplicatedPayload.setAuthorOrganization(null);
     }
     Payload duplicated = payloadRepository.save(duplicatedPayload);
+    payloadApprovalService.onWrite(
+        duplicated, duplicatingUser, PayloadApproval.ORIGIN.DUPLICATE, null);
     InjectorContract injectorContract =
         this.synchroniseInjectorContractBasedOnPayload(
             duplicated,
@@ -549,6 +563,8 @@ public class PayloadService {
     fileDrop.setTenant(new Tenant(writeTenant));
 
     FileDrop saved = payloadRepository.save(fileDrop);
+    // The dropped file comes from outside (security coverage document): content to approve.
+    payloadApprovalService.onWrite(saved, null, PayloadApproval.ORIGIN.IMPORT, null);
     synchroniseInjectorContractBasedOnPayload(
         saved,
         List.of(),
@@ -628,6 +644,8 @@ public class PayloadService {
         });
 
     DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);
+    // Fixed platform template (the hostname is an argument): built-in content.
+    payloadApprovalService.onWrite(saved, null, PayloadApproval.ORIGIN.SYSTEM, null);
     synchroniseInjectorContractBasedOnPayload(
         saved,
         List.of(),

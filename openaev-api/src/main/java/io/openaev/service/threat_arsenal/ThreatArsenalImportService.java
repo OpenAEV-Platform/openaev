@@ -5,6 +5,7 @@ import io.openaev.api.payload.PayloadImportService;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.PayloadApproval;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectorRepository;
@@ -13,6 +14,7 @@ import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.service.UserService;
 import io.openaev.service.ZipJsonService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import jakarta.validation.constraints.NotNull;
@@ -38,6 +40,7 @@ public class ThreatArsenalImportService {
   private final ObjectMapper objectMapper;
   private final InjectorRepository injectorRepository;
   private final UserService userService;
+  private final PayloadApprovalService payloadApprovalService;
 
   public ThreatArsenalAction importThreatArsenalAction(
       @NotNull TxCtx ctx, @NotNull MultipartFile file, @NotNull String tenantId) throws Exception {
@@ -82,6 +85,13 @@ public class ThreatArsenalImportService {
               return contract;
             },
             tenantId);
+    if (response.persistedData().getPayload() != null) {
+      payloadApprovalService.onWrite(
+          response.persistedData().getPayload(),
+          importingUser,
+          PayloadApproval.ORIGIN.IMPORT,
+          null);
+    }
     return threatArsenalMapper.toThreatArsenalAction(response.persistedData());
   }
 

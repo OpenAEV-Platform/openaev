@@ -17,6 +17,8 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.service.UserService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
+import io.openaev.service.payload_approval.PayloadFingerprint;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,6 +43,7 @@ public class PayloadUpdateService {
   private final PayloadRepository payloadRepository;
   private final DocumentService documentService;
   private final UserService userService;
+  private final PayloadApprovalService payloadApprovalService;
 
   @Transactional(rollbackFor = Exception.class)
   public PayloadCreationService.PayloadInjectorContractCreationResult updatePayload(
@@ -67,6 +70,7 @@ public class PayloadUpdateService {
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
+    String fingerprintBefore = PayloadFingerprint.of(payload);
     payloadUtils.copyProperties(input, payload);
     // Null outside an authenticated request (system flows): an unknown modifier, never a stale one.
     payload.setLastModifiedBy(userService.currentUserOrNull());
@@ -84,6 +88,8 @@ public class PayloadUpdateService {
     }
 
     Payload saved = payloadRepository.save(payload);
+    payloadApprovalService.onWrite(
+        saved, saved.getLastModifiedBy(), PayloadApproval.ORIGIN.UPDATE, fingerprintBefore);
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             saved,

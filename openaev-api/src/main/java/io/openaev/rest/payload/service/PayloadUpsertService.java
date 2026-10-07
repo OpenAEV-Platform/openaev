@@ -19,6 +19,8 @@ import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
+import io.openaev.service.payload_approval.PayloadFingerprint;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import java.util.HashSet;
 import java.util.List;
@@ -50,6 +52,7 @@ public class PayloadUpsertService {
   private final DomainService domainService;
   private final ResultsMetricCollector resultsMetricCollector;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final PayloadApprovalService payloadApprovalService;
 
   @Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(TxCtx ctx, PayloadUpsertInput input) {
@@ -132,6 +135,7 @@ public class PayloadUpsertService {
     }
 
     Payload saved = payloadRepository.save(payload);
+    payloadApprovalService.onWrite(saved, null, PayloadApproval.ORIGIN.COLLECTOR, null);
     payloadService.synchroniseInjectorContractBasedOnPayload(
         saved,
         attackPatterns,
@@ -160,6 +164,7 @@ public class PayloadUpsertService {
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
+    String fingerprintBefore = PayloadFingerprint.of(payload);
     payloadUtils.copyProperties(input, payload, true);
     // A collector write is not a user's modification.
     payload.setLastModifiedBy(null);
@@ -187,6 +192,8 @@ public class PayloadUpsertService {
     }
 
     Payload saved = payloadRepository.save(payload);
+    payloadApprovalService.onWrite(
+        saved, null, PayloadApproval.ORIGIN.COLLECTOR, fingerprintBefore);
     payloadService.synchroniseInjectorContractBasedOnPayload(
         saved,
         attackPatterns,

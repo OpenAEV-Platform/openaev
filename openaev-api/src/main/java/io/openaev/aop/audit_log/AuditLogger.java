@@ -238,7 +238,7 @@ public class AuditLogger {
 
   private boolean shouldSkip(Action action) {
     return switch (action) {
-      case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE, RESOLVE -> false;
+      case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE, RESOLVE, APPROVE -> false;
       // READ/SEARCH are never audited on success — only unauthorized attempts are logged
       // (captured separately via logAuthEvent when RBAC denies access).
       case READ, SEARCH -> true;

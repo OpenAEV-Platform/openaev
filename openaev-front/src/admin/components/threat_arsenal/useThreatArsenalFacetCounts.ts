@@ -6,6 +6,7 @@ import { type SearchPaginationInput } from '../../../utils/api-types';
 export interface ThreatArsenalFacetCounts {
   platforms: Record<string, number>;
   statuses: Record<string, number>;
+  approvals: Record<string, number>;
 }
 
 /**

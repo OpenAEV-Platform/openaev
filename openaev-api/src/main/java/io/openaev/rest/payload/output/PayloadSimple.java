@@ -23,11 +23,19 @@ public class PayloadSimple {
   @JsonProperty("payload_status")
   private Payload.PAYLOAD_STATUS status;
 
+  @JsonProperty("payload_approval_status")
+  private Payload.PAYLOAD_APPROVAL_STATUS approvalStatus;
+
   public PayloadSimple(
-      String id, String type, String collectorType, Payload.PAYLOAD_STATUS status) {
+      String id,
+      String type,
+      String collectorType,
+      Payload.PAYLOAD_STATUS status,
+      Payload.PAYLOAD_APPROVAL_STATUS approvalStatus) {
     this.id = id;
     this.type = type;
     this.collectorType = collectorType;
     this.status = status;
+    this.approvalStatus = approvalStatus;
   }
 }

@@ -141,4 +141,8 @@ public class PayloadOutput {
   @Schema(description = "Id of the user who last modified the payload")
   @JsonProperty("payload_last_modified_by")
   private String lastModifiedBy;
+
+  @Schema(description = "Approval status of the payload")
+  @JsonProperty("payload_approval_status")
+  private Payload.PAYLOAD_APPROVAL_STATUS approvalStatus;
 }

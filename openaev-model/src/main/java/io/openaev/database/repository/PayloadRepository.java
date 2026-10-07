@@ -3,11 +3,13 @@ package io.openaev.database.repository;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.FileDrop;
 import io.openaev.database.model.Payload;
+import jakarta.persistence.LockModeType;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -152,4 +154,12 @@ public interface PayloadRepository
       @Param("portDst") Integer portDst,
       @Param("protocol") String protocol,
       @Param("tenantId") String tenantId);
+
+  /**
+   * Loads a payload with a row lock held until the end of the transaction, so an approval decision
+   * and a concurrent edit of the same payload cannot cross.
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT p FROM Payload p WHERE p.id = :id")
+  Optional<Payload> findByIdForUpdate(@Param("id") String id);
 }
