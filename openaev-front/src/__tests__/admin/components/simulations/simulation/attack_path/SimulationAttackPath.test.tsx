@@ -6,8 +6,8 @@ import type * as ReactRouter from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SimulationAttackPath from '../../../../../../admin/components/simulations/simulation/attack_path/SimulationAttackPath';
-import { type AppAbility } from '../../../../../../utils/permissions/ability';
-import { AbilityContext } from '../../../../../../utils/permissions/permissionsContext';
+import { defineAbility } from '../../../../../../utils/permissions/ability';
+import { AbilityProvider } from '../../../../../../utils/permissions/permissionsContext';
 
 type FlowProps = {
   focusRequest?: { nodeId: string };
@@ -133,12 +133,12 @@ vi.mock('../../../../../../admin/components/common/entreprise_edition/EEChip', (
 // The app always provides an ability (the context default is an empty object), and the Result panel
 // asks whether the user could act on the Enterprise dialog. Answer no: the interesting case is the
 // non-admin one, where the EE chip must stay informational rather than a dead click.
-const ability = { can: () => false } as unknown as AppAbility;
+const ability = defineAbility([], {}, false);
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <ThemeProvider theme={createTheme()}>
     <TooltipProvider>
-      <AbilityContext.Provider value={ability}>{children}</AbilityContext.Provider>
+      <AbilityProvider value={ability}>{children}</AbilityProvider>
     </TooltipProvider>
   </ThemeProvider>
 );

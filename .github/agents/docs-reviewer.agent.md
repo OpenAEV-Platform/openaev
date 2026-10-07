@@ -19,7 +19,7 @@ was updated at all when it should have been.
 
 1. **Read `AGENTS.md`** for architecture overview, module structure, and routing
 2. **Read `.github/copilot-instructions.md`** for build, conventions, and project structure
-3. Then: **Follow `.github/skills/review-docs/SKILL.md`** step-by-step — run every command
+3. Then: **Follow `.claude/skills/review-docs/SKILL.md`** step-by-step — run every command
 
 ## Model Policy
 

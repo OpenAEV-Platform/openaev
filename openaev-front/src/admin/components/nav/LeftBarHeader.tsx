@@ -1,6 +1,6 @@
 import { ProductSwitcher } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useContext, useEffect } from 'react';
+import { type FunctionComponent, useEffect } from 'react';
 import { Link } from 'react-router';
 
 import { type LoggedHelper } from '../../../actions/helper';
@@ -15,7 +15,7 @@ import { useHelper } from '../../../store';
 import { fileUri, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { computeTenantBasename } from '../../../utils/url-helper';
 
@@ -23,7 +23,7 @@ const LeftBarHeader: FunctionComponent = () => {
   const theme = useTheme();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { settings, isXTMHubAccessible } = useAuth();
 
   useEffect(() => {

@@ -82,10 +82,7 @@ vi.mock('../../../../../admin/components/common/Context', () => {
   return { PermissionsContext };
 });
 
-vi.mock('../../../../../utils/permissions/permissionsContext', () => {
-  const AbilityContext = createContext({ cannot: mockCannot });
-  return { AbilityContext };
-});
+vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ cannot: mockCannot }) }));
 
 const theme = createTheme();
 

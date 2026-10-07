@@ -1,5 +1,5 @@
 import { Alert, AlertTitle } from '@mui/material';
-import { useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
@@ -13,14 +13,14 @@ import {
 } from '../../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../../components/i18n';
 import type { CustomDashboard, Pagination, WidgetToEntitiesInput } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CustomDashboardEditHeader from './CustomDashboardEditHeader';
 import CustomDashboardWrapper from './CustomDashboardWrapper';
 
 const CustomDashboard = () => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { customDashboardId } = useParams() as { customDashboardId: CustomDashboard['custom_dashboard_id'] };
 
   const configuration = useMemo(() => ({

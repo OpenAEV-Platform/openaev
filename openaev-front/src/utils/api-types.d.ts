@@ -9526,7 +9526,7 @@ export interface PageableObject {
   /** @format int32 */
   pageSize?: number;
   paged?: boolean;
-  sort?: SortObject[];
+  sort?: SortObject;
   unpaged?: boolean;
 }
 

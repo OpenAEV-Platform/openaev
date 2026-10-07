@@ -19,7 +19,7 @@ Full code templates: [`examples/tenant-isolation-templates.md`](examples/tenant-
 
 This skill pairs with:
 - the `activate-tenant-table` skill
-  (`.github/skills/activate-tenant-table/SKILL.md`): its isolation-test phase
+  (`.claude/skills/activate-tenant-table/SKILL.md`): its isolation-test phase
   produces exactly this file, first red, then green as the wiring lands;
 - the future "tenant scope coverage" CI gate: once it lands, this file will
   carry `@CoversTenantIsolation("{table}")`. Until then the template puts the

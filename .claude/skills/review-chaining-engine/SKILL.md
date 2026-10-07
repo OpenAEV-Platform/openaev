@@ -1,3 +1,11 @@
+---
+name: review-chaining-engine
+description: >-
+  Reviews or modifies the OpenAEV Chaining Engine: step lifecycle, condition evaluation,
+  queue processing, WorkflowState, timeout handling, scope resolution and the inject lifecycle AOP bridge.
+  Use when touching **/chaining/**, QueueChainingJob or WorkflowTimeoutJob.
+---
+
 # Skill: Review Chaining Engine
 
 ## Purpose
@@ -153,4 +161,4 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 ## Useful Links
 
 - [Chaining PRs](https://github.com/OpenAEV-Platform/openaev/pulls?q=is%3Apr+chaining+draft%3Afalse)
-- Instructions: [chaining-engine.instructions.md](../../instructions/chaining-engine.instructions.md)
+- Instructions: [chaining-engine.instructions.md](../../../.github/instructions/chaining-engine.instructions.md)

@@ -24,7 +24,7 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 
 ### Tenant Isolation Tests (API)
 
-- Use skill: [add-tenant-isolation-test](../skills/add-test/TENANT_ISOLATION.md)
+- Use skill: [add-tenant-isolation-test](../../.claude/skills/add-test/TENANT_ISOLATION.md)
 
 ## Integration Tests (Service)
 
