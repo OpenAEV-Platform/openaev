@@ -30,6 +30,21 @@ public abstract class ConnectorBase {
 
   public abstract boolean shouldRegister();
 
+  /**
+   * Id of the technical OpenAEV user this connector authenticates as. The connectors of a tenant
+   * share its OpenCTI token, hence one user, so they must agree on its identity.
+   */
+  @JsonIgnore
+  public String getServiceAccountId() {
+    return getId();
+  }
+
+  /** Display name of the technical OpenAEV user, see {@link #getServiceAccountId()}. */
+  @JsonIgnore
+  public String getServiceAccountName() {
+    return getName();
+  }
+
   @JsonIgnore private boolean registered = false;
 
   @Override

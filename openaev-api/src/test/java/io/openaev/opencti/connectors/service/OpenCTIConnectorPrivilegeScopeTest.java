@@ -17,6 +17,7 @@ import io.openaev.opencti.client.mutations.QueryTypeFields;
 import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
+import io.openaev.opencti.connectors.impl.IocValidationConnector;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.TenantGroupService;
@@ -173,7 +174,24 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
   }
 
   private String connectorEmail() {
-    return PrivilegeService.CONNECTOR_EMAIL_PATTERN.formatted(connectorUnderTest().getId());
+    return PrivilegeService.CONNECTOR_EMAIL_PATTERN.formatted(
+        connectorUnderTest().getServiceAccountId());
+  }
+
+  private static OpenCTIConfig openCTIConfigOf(ConnectorBase connector) {
+    return switch (connector) {
+      case SecurityCoverageConnector coverage -> coverage.getOpenCTIConfig();
+      case IocValidationConnector validation -> validation.getOpenCTIConfig();
+      default -> throw new IllegalStateException("Unexpected connector " + connector.getClass());
+    };
+  }
+
+  private static void setOpenCTIConfig(ConnectorBase connector, OpenCTIConfig config) {
+    switch (connector) {
+      case SecurityCoverageConnector coverage -> coverage.setOpenCTIConfig(config);
+      case IocValidationConnector validation -> validation.setOpenCTIConfig(config);
+      default -> throw new IllegalStateException("Unexpected connector " + connector.getClass());
+    }
   }
 
   private ConnectorBase connectorUnderTest() {
@@ -317,14 +335,10 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
     void given_noConnectorToRegister_should_doNothing() throws IOException {
       // Arrange - disable every configured connector, the shape of a platform with no OpenCTI
       // configuration at all: registerOrPingAllConnectors returns before any transaction is opened.
-      List<SecurityCoverageConnector> connectors =
-          new ArrayList<>(
-              openCTIConnectorService.getConnectors().stream()
-                  .map(SecurityCoverageConnector.class::cast)
-                  .toList());
+      List<ConnectorBase> connectors = new ArrayList<>(openCTIConnectorService.getConnectors());
       List<OpenCTIConfig> configs =
-          connectors.stream().map(SecurityCoverageConnector::getOpenCTIConfig).toList();
-      connectors.forEach(c -> c.setOpenCTIConfig(null));
+          connectors.stream().map(OpenCTIConnectorPrivilegeScopeTest::openCTIConfigOf).toList();
+      connectors.forEach(c -> setOpenCTIConfig(c, null));
 
       try {
         // Act / Assert
@@ -336,7 +350,7 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
         Mockito.verify(openCTIClient, Mockito.never()).execute(any(), any(), any(Mutation.class));
       } finally {
         for (int i = 0; i < connectors.size(); i++) {
-          connectors.get(i).setOpenCTIConfig(configs.get(i));
+          setOpenCTIConfig(connectors.get(i), configs.get(i));
         }
       }
     }

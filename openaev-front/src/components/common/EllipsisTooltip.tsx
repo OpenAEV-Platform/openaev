@@ -1,9 +1,12 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useCallback, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, type ReactNode, type SyntheticEvent, useCallback, useState } from 'react';
 
 interface Props {
-  children: string;
+  // Text, or inline elements around it (a code value): a block child would not ellipse.
+  children: ReactNode;
   style?: CSSProperties;
+  /** False inside a link or a button, which already takes the focus and carries the full text. */
+  focusable?: boolean;
 }
 
 /**
@@ -15,7 +18,7 @@ interface Props {
  * containers (e.g. ATT&CK matrix columns): it always ellipses to whatever
  * width the rest of the content dictates.
  */
-const EllipsisTooltip: FunctionComponent<Props> = ({ children, style }) => {
+const EllipsisTooltip: FunctionComponent<Props> = ({ children, style, focusable = true }) => {
   const [open, setOpen] = useState(false);
   const openIfTruncated = useCallback((event: SyntheticEvent<HTMLElement>) => {
     const element = event.currentTarget;
@@ -28,11 +31,11 @@ const EllipsisTooltip: FunctionComponent<Props> = ({ children, style }) => {
     <Tooltip open={open}>
       <TooltipTrigger asChild>
         <span
-          tabIndex={0}
+          tabIndex={focusable ? 0 : undefined}
           onMouseEnter={openIfTruncated}
           onMouseLeave={close}
-          onFocus={openIfTruncated}
-          onBlur={close}
+          onFocus={focusable ? openIfTruncated : undefined}
+          onBlur={focusable ? close : undefined}
           style={{
             display: 'block',
             width: 0,

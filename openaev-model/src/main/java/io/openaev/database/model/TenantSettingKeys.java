@@ -14,7 +14,15 @@ public enum TenantSettingKeys {
   // Autonomous attack: JSON object mapping an agent id to its default discovery mode
   // (EXISTING_ONLY / SCOPED / EXPANSIVE) - how much latitude the agent has to create new
   // assets / findings / persons from recon on the fly.
-  AUTONOMOUS_ADDITIONAL_AGENT_MODES("platform_autonomous_additional_agent_modes", "", false);
+  AUTONOMOUS_ADDITIONAL_AGENT_MODES("platform_autonomous_additional_agent_modes", "", false),
+  // IOC validation safety settings (OpenCTI dissemination assurance). Comma-separated test kinds;
+  // none is allowed until an administrator chooses them: even a DNS resolution reaches the name
+  // servers of the domain through the recursive resolver.
+  IOC_VALIDATION_ALLOWED_TEST_KINDS("ioc_validation_allowed_test_kinds", "", false),
+  IOC_VALIDATION_HTTP_PROXY_URL("ioc_validation_http_proxy_url", "", false),
+  IOC_VALIDATION_SINKHOLE_ADDRESS("ioc_validation_sinkhole_address", "", false),
+  IOC_VALIDATION_NETWORK_PORT("ioc_validation_network_port", "443", false),
+  IOC_VALIDATION_ASSET_GROUP("ioc_validation_asset_group", "", false);
 
   private final String key;
   private final String defaultValue;

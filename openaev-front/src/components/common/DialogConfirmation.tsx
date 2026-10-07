@@ -11,11 +11,16 @@ interface DialogConfirmationProps {
   open: boolean;
   handleClose: () => void;
   handleSubmit: ((resetLoading?: () => void) => void | Promise<void>) | null | undefined; // Updated: Callback is now optional
-  text: string;
+  /** The question; left out when the extra content already says why there is nothing to confirm. */
+  text?: string;
   submitLabel: string;
   /** Tone of the confirm button. Use 'error' for destructive/irreversible confirmations: the
    *  button renders destructive so the action reads as dangerous at a glance. Defaults to 'primary'. */
   submitColor?: 'primary' | 'error';
+  /** Keeps the confirm button disabled, while what it confirms is not ready. */
+  submitDisabled?: boolean;
+  /** Takes the full dialog width, for content whose width changes while it loads. */
+  fullWidth?: boolean;
   richContent?: React.ReactNode;
   extraContent?: React.ReactNode;
 }
@@ -31,6 +36,8 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   text,
   submitLabel,
   submitColor = 'primary',
+  submitDisabled = false,
+  fullWidth = false,
   richContent,
   extraContent,
 }) => {
@@ -72,15 +79,16 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
     <DialogMUI
       open={open}
       onClose={handleClose}
+      fullWidth={fullWidth}
       slotProps={{ paper: { elevation: 1 } }}
       slots={{ transition: Transition }}
     >
       <DialogContent>
-        {richContent || (
+        {richContent || (text && (
           <DialogContentText>
             {text}
           </DialogContentText>
-        )}
+        ))}
         {extraContent}
       </DialogContent>
       <DialogActions>
@@ -88,7 +96,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
           {t('Cancel')}
         </Button>
         {handleSubmit && (
-          <Button type="button" variant={submitColor === 'error' ? 'destructive' : undefined} loading={loading} onClick={handleLoadingAndSubmit}>
+          <Button type="button" variant={submitColor === 'error' ? 'destructive' : undefined} loading={loading} disabled={submitDisabled} onClick={handleLoadingAndSubmit}>
             {submitLabel}
           </Button>
         )}

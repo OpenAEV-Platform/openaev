@@ -18,10 +18,10 @@ import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.aop.lock.Lock;
-import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -56,9 +56,12 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -77,6 +80,102 @@ public class PayloadService {
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE =
       "#{" + DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY + "}";
   private static final String DYNAMIC_DNS_RESOLUTION_UUID = "ff16dc60-ea6f-4925-8509-20557e09c676";
+
+  // -- IOC VALIDATION DYNAMIC PAYLOADS --
+  // Per-tenant, per-executor singleton Command payloads carrying the benign test of one IOC. Their
+  // values are passed per inject through the inject content, keyed by these argument keys.
+  public static final String IOC_VALIDATION_HOST_KEY = "ioc_validation_host";
+  public static final String IOC_VALIDATION_PORT_KEY = "ioc_validation_port";
+  public static final String IOC_VALIDATION_URL_KEY = "ioc_validation_url";
+  public static final String IOC_VALIDATION_PROXY_KEY = "ioc_validation_proxy";
+  public static final String IOC_VALIDATION_VALUE_KEY = "ioc_validation_value";
+  public static final String IOC_VALIDATION_FILE_NAME_KEY = "ioc_validation_file_name";
+  // Names the temporary directory the file-drop surrogate is written to, owned by one inject.
+  public static final String IOC_VALIDATION_RUN_KEY = "ioc_validation_run";
+  static final String IOC_VALIDATION_INVALID_FILE_DROP =
+      "OpenAEV IOC validation: the run must be 32 lowercase hexadecimal characters and the"
+          + " surrogate file name a plain file name";
+  static final String IOC_VALIDATION_UNSAFE_FILE_DROP =
+      "OpenAEV IOC validation: the run directory is not owned by the runner, or the run directory"
+          + " or the surrogate path is a link; nothing was written";
+  static final String IOC_VALIDATION_NO_TCP_TOOL =
+      "OpenAEV IOC validation: neither nc nor bash with timeout is available to attempt the"
+          + " connection";
+  static final String IOC_VALIDATION_NO_HTTP_TOOL =
+      "OpenAEV IOC validation: curl is not available to send the request";
+  static final String IOC_VALIDATION_NO_HTTP_RESPONSE =
+      "OpenAEV IOC validation: the request got no HTTP answer from the egress proxy or the server";
+  static final String IOC_VALIDATION_NO_SYSTEM_LOG =
+      "OpenAEV IOC validation: the marker could not be written to the system log; nothing was"
+          + " written elsewhere";
+  // The surrogate holds this text and its run: the proof, at cleanup, that the drop created it.
+  static final String IOC_VALIDATION_SURROGATE_TEXT = "OpenAEV IOC validation benign surrogate";
+  static final String IOC_VALIDATION_FAILED_FILE_DROP =
+      "OpenAEV IOC validation: the surrogate could not be created as a new file in the run"
+          + " directory";
+  // Defines Test-OaevLink: whether a path is a reparse point (symbolic link, junction), dangling or
+  // not. GetAttributes reads the entry itself, never its target, where Test-Path is false for a
+  // dangling symbolic link; a missing path is no link, and a path that cannot be read counts as
+  // one.
+  static final String WINDOWS_LINK_TEST =
+      "function Test-OaevLink($oaevPath) { try { [bool]([System.IO.File]::GetAttributes($oaevPath)"
+          + " -band [System.IO.FileAttributes]::ReparsePoint) }"
+          + " catch [System.IO.FileNotFoundException], [System.IO.DirectoryNotFoundException]"
+          + " { $false } catch { $true } }";
+  // Defines Test-OaevOwned: whether the runner owns a directory, a path that cannot be read
+  // counting
+  // as not owned. On Windows the owner is the account, or the group an elevated token gives new
+  // objects as owner; PowerShell off Windows compares the user id, as the POSIX drop does.
+  static final String WINDOWS_OWNER_TEST =
+      "function Test-OaevOwned($oaevPath) { try { if ($IsWindows -eq $false) { return"
+          + " [string](Get-Item -LiteralPath $oaevPath -Force -ErrorAction Stop).UnixStat.UserId"
+          + " -eq (id -u) }; $oaevOwner = (Get-Acl -LiteralPath $oaevPath -ErrorAction Stop).GetOwner("
+          + "[System.Security.Principal.SecurityIdentifier]);"
+          + " $oaevMe = [System.Security.Principal.WindowsIdentity]::GetCurrent();"
+          + " ($oaevOwner -eq $oaevMe.User) -or ($oaevOwner -eq $oaevMe.Owner) } catch { $false } }";
+  // CreateFileW opens a file without following a link (FILE_FLAG_OPEN_REPARSE_POINT), with the
+  // read and delete rights and a read-only share; SetFileInformationByHandle with the file
+  // disposition class (4) deletes that file when its handle closes.
+  static final String WINDOWS_FILE_HANDLE_TYPE =
+      "Add-Type -Namespace OaevIoc -Name Native -MemberDefinition"
+          + " '[DllImport(\"kernel32.dll\", CharSet = CharSet.Unicode, SetLastError = true)]"
+          + " public static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string"
+          + " name, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr"
+          + " template); [DllImport(\"kernel32.dll\", SetLastError = true)] public static extern"
+          + " bool SetFileInformationByHandle(Microsoft.Win32.SafeHandles.SafeFileHandle handle,"
+          + " int infoClass, ref byte info, uint size);'";
+  // Enters the run directory and checks its physical path: a run directory replaced by a symbolic
+  // link is never followed, and the file operations then use paths relative to that directory.
+  private static final String POSIX_ENTER_RUN_DIRECTORY =
+      "cd \"$OAEV_IOC_DIR\" 2>/dev/null && [ \"$(pwd -P)\" = \"$OAEV_IOC_DIR\" ]";
+  private static final Pattern IOC_VALIDATION_RUN_PATTERN = Pattern.compile("[0-9a-f]{32}");
+  // Device names Windows reserves whatever the extension and the spaces before it (PowerShell
+  // -match is case-insensitive).
+  static final String WINDOWS_RESERVED_FILE_NAME =
+      "^(CON|PRN|AUX|NUL|CONIN\\$|CONOUT\\$"
+          + "|COM[0-9\\u00b9\\u00b2\\u00b3]|LPT[0-9\\u00b9\\u00b2\\u00b3]) *(\\.|$)";
+  static final String IOC_VALIDATION_INVALID_RUN = "invalid-run";
+  // A separator: refused as a file name by both endpoint checks, and kept by the binder
+  static final String IOC_VALIDATION_INVALID_FILE_NAME = "invalid/file-name";
+  // The characters CommandArgumentBinder removes from a bound value (tab is kept).
+  private static final Pattern CHARACTERS_STRIPPED_BY_BINDER =
+      Pattern.compile("[\\u0000-\\u0008\\u000A-\\u001F\\u007F\\u0085\\u2028\\u2029]");
+  public static final String IOC_VALIDATION_OUTDATED_FILE_DROP =
+      "OpenAEV IOC validation: this file drop payload predates the per-inject run directory and is"
+          + " refused; approve a new validation to bring it to the current template";
+  public static final String IOC_VALIDATION_EDITED_PAYLOAD =
+      "OpenAEV IOC validation: this payload no longer matches its template and is refused; approve"
+          + " a new validation to bring it back to the current template";
+  public static final String IOC_VALIDATION_WINDOWS_EXECUTOR = "psh";
+  private static final BaseInjectExpectation.EXPECTATION_TYPE[] IOC_VALIDATION_EXPECTATIONS = {
+    BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+    BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
+  };
+  public static final String IOC_VALIDATION_POSIX_EXECUTOR = "sh";
+  // The DNS resolution payload runs through the implant's own resolver, on every executor
+  private static final String IOC_VALIDATION_DNS_EXECUTOR = "dns";
+  private static final String IOC_VALIDATION_PAYLOAD_NAMESPACE =
+      "6f6d2a7b-6c90-4a3a-8d2b-2f2c9a0d7e10";
 
   @Resource protected ObjectMapper mapper;
 
@@ -565,10 +664,22 @@ public class PayloadService {
   public DnsResolution getDynamicDnsResolutionPayload(TxCtx ctx) {
     String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     String tenantScopedId = dynamicDnsResolutionIdFor(writeTenant);
+    lockPayloadCreation(tenantScopedId);
     return payloadRepository
         .findById(tenantScopedId)
         .map(DnsResolution.class::cast)
         .orElseGet(() -> createDynamicDnsResolutionPayload(ctx, writeTenant, tenantScopedId));
+  }
+
+  /**
+   * Serializes the lookup-then-insert of a built-in payload with a deterministic id until the
+   * caller's transaction ends, so that concurrent creators wait for the first one's row instead of
+   * colliding on its primary key.
+   */
+  private void lockPayloadCreation(String payloadId) {
+    UUID payloadUuid = UUID.fromString(payloadId);
+    payloadRepository.lockPayloadCreation(
+        payloadUuid.getMostSignificantBits() ^ payloadUuid.getLeastSignificantBits());
   }
 
   /**
@@ -598,7 +709,6 @@ public class PayloadService {
    *
    * @return the created Dynamic DNS Resolution payload
    */
-  @Lock(type = LockResourceType.PAYLOAD, key = "#tenantId")
   private DnsResolution createDynamicDnsResolutionPayload(
       TxCtx ctx, String tenantId, String tenantScopedId) {
     DnsResolution dynamicDnsResolutionPayload = new DnsResolution();
@@ -637,6 +747,695 @@ public class PayloadService {
             tenantId),
         tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
+  }
+
+  /**
+   * Upserts the per-tenant, per-executor Command payload that runs the benign test of an IOC
+   * validation kind (network connect, HTTP HEAD, log injection or file-drop surrogate). DNS
+   * resolution is served by {@link #getDynamicDnsResolutionPayload} instead. The payload is a
+   * singleton keyed by (kind, executor, tenant); callers pass the per-IOC values through the inject
+   * content using the {@code IOC_VALIDATION_*_KEY} argument keys.
+   *
+   * @param executor the implant executor, {@code psh} (Windows) or {@code sh} (Linux/macOS)
+   */
+  public Command getIocValidationCommandPayload(
+      TxCtx ctx, IocValidationTestKind kind, String executor) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
+    String payloadId = iocValidationPayloadId(kind, executor, writeTenant);
+    lockPayloadCreation(payloadId);
+    return payloadRepository
+        .findById(payloadId)
+        .map(Command.class::cast)
+        .map(existing -> refreshIocValidationCommandPayload(ctx, existing, kind, executor))
+        .orElseGet(() -> createIocValidationCommandPayload(ctx, kind, executor, writeTenant));
+  }
+
+  /**
+   * Upserts the per-tenant DNS resolution payload of IOC validation. It is apart from the shared
+   * dynamic DNS resolution payload, which stays editable for security coverage, and is brought back
+   * to its template on every use: an edited hostname, argument or expectation would resolve another
+   * host, or measure nothing, while results are reported for the requested IOC.
+   */
+  public DnsResolution getIocValidationDnsResolutionPayload(TxCtx ctx) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
+    String payloadId =
+        iocValidationPayloadId(
+            IocValidationTestKind.DNS_RESOLUTION, IOC_VALIDATION_DNS_EXECUTOR, writeTenant);
+    lockPayloadCreation(payloadId);
+    DnsResolution payload =
+        payloadRepository.findById(payloadId).map(DnsResolution.class::cast).orElse(null);
+    if (payload != null && isIocValidationDnsTemplate(payload)) {
+      synchroniseIocValidationContract(ctx, payload, payload.getTenant().getId());
+      return payload;
+    }
+    if (payload == null) {
+      payload = new DnsResolution();
+      payload.setId(payloadId);
+      payload.setTenant(new Tenant(writeTenant));
+      payload.setName("IOC validation - DNS resolution");
+      payload.setDescription(
+          "Benign OpenCTI IOC validation test ("
+              + IocValidationTestKind.DNS_RESOLUTION.toStix()
+              + ") resolving the IOC domain");
+      payload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+      payload.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+      payload.setType(DnsResolution.DNS_RESOLUTION_TYPE);
+    }
+    applyIocValidationDnsTemplate(payload);
+    DnsResolution saved = payloadRepository.save(payload);
+    synchroniseIocValidationContract(ctx, saved, saved.getTenant().getId());
+    return saved;
+  }
+
+  /**
+   * Whether a DNS resolution payload is exactly the IOC validation template: the hostname taken
+   * from the inject argument, that single argument, no prerequisite, cleanup or elevation, the
+   * prevention and detection expectations open to every security platform, and every platform.
+   */
+  static boolean isIocValidationDnsTemplate(DnsResolution payload) {
+    List<String> arguments =
+        payload.getArguments() == null
+            ? List.of()
+            : payload.getArguments().stream().map(PayloadService::argumentSignature).toList();
+    return DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE.equals(payload.getHostname())
+        && List.of(argumentSignature(iocValidationDnsArgument())).equals(arguments)
+        && (payload.getPrerequisites() == null || payload.getPrerequisites().isEmpty())
+        && payload.getCleanupExecutor() == null
+        && payload.getCleanupCommand() == null
+        && !payload.isElevationRequired()
+        && payload.getExpectations() != null
+        && Arrays.stream(payload.getExpectations())
+            .collect(Collectors.toSet())
+            .equals(Set.of(IOC_VALIDATION_EXPECTATIONS))
+        && (payload.getExpectedSecurityPlatforms() == null
+            || payload.getExpectedSecurityPlatforms().isEmpty())
+        && payload.getPlatforms() != null
+        && Arrays.stream(payload.getPlatforms())
+            .collect(Collectors.toSet())
+            .equals(Set.of(ALL_PLATFORMS))
+        && payload.getExecutionArch() == Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
+  }
+
+  static void applyIocValidationDnsTemplate(DnsResolution payload) {
+    payload.setHostname(DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE);
+    payload.setArguments(new ArrayList<>(List.of(iocValidationDnsArgument())));
+    payload.setPrerequisites(new ArrayList<>());
+    payload.setCleanupExecutor(null);
+    payload.setCleanupCommand(null);
+    payload.setElevationRequired(false);
+    payload.setExpectations(IOC_VALIDATION_EXPECTATIONS.clone());
+    payload.setExpectedSecurityPlatforms(new HashMap<>());
+    payload.setPlatforms(ALL_PLATFORMS.clone());
+    payload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+  }
+
+  private static PayloadArgument iocValidationDnsArgument() {
+    return textArgument(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, "filigran.io");
+  }
+
+  /**
+   * A payload created by an earlier version, or edited since, keeps running its old command: it is
+   * brought back to the current template (executors, content, cleanup and arguments) the next time
+   * a validation uses it. Its injector contract is edited apart from it, so it is reconciled on
+   * every use, the payload current or not: a contract gone stale alone (a field or an expectation
+   * removed) is repaired before the inject is built from it.
+   */
+  private Command refreshIocValidationCommandPayload(
+      TxCtx ctx, Command existing, IocValidationTestKind kind, String executor) {
+    if (isIocValidationCommandTemplate(existing, kind, executor)) {
+      synchroniseIocValidationContract(ctx, existing, existing.getTenant().getId());
+      return existing;
+    }
+    applyIocValidationCommandTemplate(existing, kind, executor);
+    return saveIocValidationCommandPayload(ctx, existing, existing.getTenant().getId());
+  }
+
+  /** The identity of the IOC validation payload of a kind, executor and tenant. */
+  public static String iocValidationPayloadId(
+      IocValidationTestKind kind, String executor, String tenantId) {
+    return UUID.nameUUIDFromBytes(
+            (IOC_VALIDATION_PAYLOAD_NAMESPACE + ":" + kind.name() + ":" + executor + ":" + tenantId)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8))
+        .toString();
+  }
+
+  private Command createIocValidationCommandPayload(
+      TxCtx ctx, IocValidationTestKind kind, String executor, String tenantId) {
+    Command payload = new Command();
+    payload.setId(iocValidationPayloadId(kind, executor, tenantId));
+    payload.setTenant(new Tenant(tenantId));
+    payload.setExecutor(executor);
+    applyIocValidationCommandTemplate(payload, kind, executor);
+    payload.setName(iocValidationPayloadName(kind, executor));
+    payload.setDescription(
+        "Benign OpenCTI IOC validation test (" + kind.toStix() + ") run via " + executor);
+    payload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+    payload.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+    payload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+    return saveIocValidationCommandPayload(ctx, payload, tenantId);
+  }
+
+  /**
+   * Whether a command payload is exactly the IOC validation template of a kind and an executor: the
+   * command and cleanup executors, the command, the cleanup, the arguments with their types and
+   * defaults, no prerequisite, no elevation, and the prevention and detection expectations the
+   * results are evaluated from, open to every security platform, and the endpoint platforms of the
+   * executor. Every one of them is editable and changes what runs on the endpoint, where, or what
+   * the validation can measure.
+   */
+  static boolean isIocValidationCommandTemplate(
+      Command command, IocValidationTestKind kind, String executor) {
+    boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
+    String cleanup = iocValidationCleanupCommand(kind, windows);
+    List<String> expectedArguments =
+        iocValidationArguments(kind).stream().map(PayloadService::argumentSignature).toList();
+    List<String> arguments =
+        command.getArguments() == null
+            ? List.of()
+            : command.getArguments().stream().map(PayloadService::argumentSignature).toList();
+    return executor.equals(command.getExecutor())
+        && Objects.equals(cleanup == null ? null : executor, command.getCleanupExecutor())
+        && iocValidationCommandContent(kind, windows).equals(command.getContent())
+        && Objects.equals(cleanup, command.getCleanupCommand())
+        && expectedArguments.equals(arguments)
+        && (command.getPrerequisites() == null || command.getPrerequisites().isEmpty())
+        && !command.isElevationRequired()
+        && command.getExpectations() != null
+        && Arrays.stream(command.getExpectations())
+            .collect(Collectors.toSet())
+            .equals(Set.of(IOC_VALIDATION_EXPECTATIONS))
+        && (command.getExpectedSecurityPlatforms() == null
+            || command.getExpectedSecurityPlatforms().isEmpty())
+        && command.getPlatforms() != null
+        && Arrays.stream(command.getPlatforms())
+            .collect(Collectors.toSet())
+            .equals(Set.of(iocValidationPlatforms(windows)))
+        && command.getExecutionArch() == Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
+  }
+
+  /** The endpoints an executor runs on: PowerShell on Windows, sh on Linux and macOS. */
+  private static Endpoint.PLATFORM_TYPE[] iocValidationPlatforms(boolean windows) {
+    return windows
+        ? new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Windows}
+        : new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS};
+  }
+
+  static void applyIocValidationCommandTemplate(
+      Command payload, IocValidationTestKind kind, String executor) {
+    boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
+    payload.setExecutor(executor);
+    payload.setPrerequisites(new ArrayList<>());
+    payload.setElevationRequired(false);
+    payload.setContent(iocValidationCommandContent(kind, windows));
+    String cleanup = iocValidationCleanupCommand(kind, windows);
+    payload.setCleanupExecutor(cleanup == null ? null : executor);
+    payload.setCleanupCommand(cleanup);
+    payload.setArguments(new ArrayList<>(iocValidationArguments(kind)));
+    payload.setExpectations(IOC_VALIDATION_EXPECTATIONS.clone());
+    payload.setExpectedSecurityPlatforms(new HashMap<>());
+    payload.setPlatforms(iocValidationPlatforms(windows));
+    payload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+  }
+
+  private Command saveIocValidationCommandPayload(TxCtx ctx, Command payload, String tenantId) {
+    Command saved = payloadRepository.save(payload);
+    synchroniseIocValidationContract(ctx, saved, tenantId);
+    return saved;
+  }
+
+  /** Brings the injector contract of an IOC validation payload back to what the payload defines. */
+  private void synchroniseIocValidationContract(TxCtx ctx, Payload payload, String tenantId) {
+    synchroniseInjectorContractBasedOnPayload(
+        payload,
+        List.of(),
+        domainService.upsertDomainEntities(
+            Set.of(PresetDomain.getEndpoint(), PresetDomain.getNetwork()), tenantId),
+        tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
+  }
+
+  private static String iocValidationPayloadName(IocValidationTestKind kind, String executor) {
+    return switch (kind) {
+      case NETWORK_TRAFFIC -> "IOC validation - network connect (" + executor + ")";
+      case HTTP_HEAD -> "IOC validation - HTTP HEAD (" + executor + ")";
+      case LOG_INJECTION -> "IOC validation - log injection (" + executor + ")";
+      case FILE_DROP -> "IOC validation - file drop surrogate (" + executor + ")";
+      case DNS_RESOLUTION ->
+          throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
+    };
+  }
+
+  static List<PayloadArgument> iocValidationArguments(IocValidationTestKind kind) {
+    return switch (kind) {
+      case NETWORK_TRAFFIC ->
+          List.of(
+              textArgument(IOC_VALIDATION_HOST_KEY, "127.0.0.1"),
+              textArgument(IOC_VALIDATION_PORT_KEY, "443"));
+      case HTTP_HEAD ->
+          List.of(
+              textArgument(IOC_VALIDATION_URL_KEY, "http://localhost"),
+              textArgument(IOC_VALIDATION_PROXY_KEY, ""));
+      case LOG_INJECTION -> List.of(textArgument(IOC_VALIDATION_VALUE_KEY, "benign"));
+      // No default run nor file name: a shared directory would let two injects overwrite and
+      // clean up each other's surrogate, and a default name would hide a missing one, so an
+      // inject without its own run and file name is refused before dispatch (mandatory arguments).
+      case FILE_DROP ->
+          List.of(
+              textArgument(IOC_VALIDATION_FILE_NAME_KEY, ""),
+              textArgument(IOC_VALIDATION_RUN_KEY, ""));
+      case DNS_RESOLUTION ->
+          throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
+    };
+  }
+
+  /**
+   * The inject content an IOC validation file drop is executed with, and displayed with (terminal
+   * view, attack-path snapshot), so the audited command is the one that ran. The run stored on the
+   * inject is only a seed: the run directory is named on the server after the seed and the inject
+   * id, so an inject can never address the directory of another one, whatever its content says, and
+   * its drop and its cleanup always meet in the same directory. A missing or empty seed stays
+   * empty, so the mandatory run argument is refused before dispatch; a non-empty malformed seed is
+   * replaced with {@link #IOC_VALIDATION_INVALID_RUN}, which no binder sanitization (control
+   * characters stripped) can turn into a valid run, so the endpoint refuses it before any file
+   * operation; a file name holding a character the binder strips is likewise replaced with {@link
+   * #IOC_VALIDATION_INVALID_FILE_NAME}, which the endpoint refuses, instead of being written once
+   * the binder removed that character. The payload default is never used: the execution guard
+   * refuses a singleton whose arguments were edited. Every other payload, including a user payload
+   * with an argument of the same name, runs with the content unchanged.
+   */
+  public static ObjectNode iocValidationExecutionContent(
+      ObjectNode content, Payload payload, String injectId) {
+    if (!isIocValidationFileDropPayload(payload)) {
+      return content;
+    }
+    String seed =
+        content != null && content.hasNonNull(IOC_VALIDATION_RUN_KEY)
+            ? content.get(IOC_VALIDATION_RUN_KEY).asText()
+            : "";
+    ObjectNode bound = content == null ? JsonNodeFactory.instance.objectNode() : content.deepCopy();
+    String run;
+    if (seed.isEmpty()) {
+      run = "";
+    } else if (IOC_VALIDATION_RUN_PATTERN.matcher(seed).matches()) {
+      run = iocValidationRunDirectory(injectId, seed);
+    } else {
+      run = IOC_VALIDATION_INVALID_RUN;
+    }
+    bound.put(IOC_VALIDATION_RUN_KEY, run);
+    // The binder strips these characters, which would turn a refused file name into an accepted one
+    JsonNode fileName = bound.get(IOC_VALIDATION_FILE_NAME_KEY);
+    if (fileName != null
+        && fileName.isTextual()
+        && CHARACTERS_STRIPPED_BY_BINDER.matcher(fileName.asText()).find()) {
+      bound.put(IOC_VALIDATION_FILE_NAME_KEY, IOC_VALIDATION_INVALID_FILE_NAME);
+    }
+    return bound;
+  }
+
+  /**
+   * Whether a file-drop singleton still runs the current template of the executor its identity was
+   * created for (see {@link #isIocValidationCommandTemplate}). A payload created by an earlier
+   * version, or edited since (a run default would be shared by every inject without a run of its
+   * own), is refreshed the next time a validation is approved, and refused at execution until then.
+   */
+  public static boolean isCurrentIocValidationFileDropTemplate(Command command) {
+    if (command.getId() == null || command.getTenant() == null) {
+      return false;
+    }
+    String tenantId = command.getTenant().getId();
+    return Stream.of(IOC_VALIDATION_WINDOWS_EXECUTOR, IOC_VALIDATION_POSIX_EXECUTOR)
+        .filter(
+            executor ->
+                iocValidationPayloadId(IocValidationTestKind.FILE_DROP, executor, tenantId)
+                    .equals(command.getId()))
+        .findFirst()
+        .map(
+            executor ->
+                isIocValidationCommandTemplate(command, IocValidationTestKind.FILE_DROP, executor))
+        .orElse(false);
+  }
+
+  /**
+   * Whether the payload is one of the IOC validation singletons of its tenant (any test kind and
+   * executor), recognised by its server-assigned identity.
+   */
+  public static boolean isIocValidationPayload(Payload payload) {
+    return iocValidationIdentity(payload).isPresent();
+  }
+
+  /** The test kind of an IOC validation singleton, empty for any other payload. */
+  public static Optional<IocValidationTestKind> iocValidationKind(Payload payload) {
+    return iocValidationIdentity(payload).map(IocValidationIdentity::kind);
+  }
+
+  /**
+   * Whether an IOC validation singleton still runs exactly the current template of the kind and the
+   * executor its identity was created for. Every singleton is editable, and an edit made after an
+   * approval would change what the approved validation runs, so a payload that differs is refused
+   * at execution until a new approval brings it back to its template.
+   */
+  public static boolean isCurrentIocValidationTemplate(Payload payload) {
+    return iocValidationIdentity(payload)
+        .map(
+            identity -> {
+              Object unproxied = Hibernate.unproxy(payload);
+              if (identity.kind() == IocValidationTestKind.DNS_RESOLUTION) {
+                return unproxied instanceof DnsResolution dns && isIocValidationDnsTemplate(dns);
+              }
+              return unproxied instanceof Command command
+                  && isIocValidationCommandTemplate(command, identity.kind(), identity.executor());
+            })
+        .orElse(false);
+  }
+
+  private record IocValidationIdentity(IocValidationTestKind kind, String executor) {}
+
+  private static Optional<IocValidationIdentity> iocValidationIdentity(Payload payload) {
+    if (payload == null || payload.getId() == null || payload.getTenant() == null) {
+      return Optional.empty();
+    }
+    String tenantId = payload.getTenant().getId();
+    return Arrays.stream(IocValidationTestKind.values())
+        .flatMap(
+            kind ->
+                (kind == IocValidationTestKind.DNS_RESOLUTION
+                        ? Stream.of(IOC_VALIDATION_DNS_EXECUTOR)
+                        : Stream.of(IOC_VALIDATION_WINDOWS_EXECUTOR, IOC_VALIDATION_POSIX_EXECUTOR))
+                    .map(executor -> new IocValidationIdentity(kind, executor)))
+        .filter(
+            identity ->
+                iocValidationPayloadId(identity.kind(), identity.executor(), tenantId)
+                    .equals(payload.getId()))
+        .findFirst();
+  }
+
+  /**
+   * Whether the payload is the IOC validation file-drop singleton of its tenant, recognised by its
+   * server-assigned identity and never by its argument names, which any payload author can choose.
+   */
+  public static boolean isIocValidationFileDropPayload(Payload payload) {
+    if (payload == null || payload.getId() == null || payload.getTenant() == null) {
+      return false;
+    }
+    String tenantId = payload.getTenant().getId();
+    return Stream.of(IOC_VALIDATION_WINDOWS_EXECUTOR, IOC_VALIDATION_POSIX_EXECUTOR)
+        .anyMatch(
+            executor ->
+                iocValidationPayloadId(IocValidationTestKind.FILE_DROP, executor, tenantId)
+                    .equals(payload.getId()));
+  }
+
+  /** 32 lowercase hexadecimal characters, distinct per inject. */
+  static String iocValidationRunDirectory(String injectId, String seed) {
+    return UUID.nameUUIDFromBytes(
+            ("openaev-ioc-validation-run|" + injectId + "|" + seed)
+                .getBytes(StandardCharsets.UTF_8))
+        .toString()
+        .replace("-", "");
+  }
+
+  private static String argumentSignature(PayloadArgument argument) {
+    return argument.getType()
+        + ":"
+        + argument.getKey()
+        + "="
+        + Objects.toString(argument.getDefaultValue(), "");
+  }
+
+  private static PayloadArgument textArgument(String key, String defaultValue) {
+    PayloadArgument argument = new PayloadArgument();
+    argument.setType(PrimitiveType.Text);
+    argument.setKey(key);
+    argument.setDefaultValue(defaultValue);
+    return argument;
+  }
+
+  /**
+   * The benign command template per kind. Every action is read-only or writes a short marker: a TCP
+   * connect-and-close (no payload), an HTTP HEAD through the configured egress proxy, one log line,
+   * or a small text file named after the IOC. The file is written in a temporary directory owned by
+   * the inject ({@code openaev-ioc-validation-<run>}), never directly in the temp directory, so it
+   * can neither overwrite nor, at cleanup, delete a file of another application; the surrogate is
+   * created as a new file only (never written over an existing one) and a failed write fails the
+   * test. Placeholders are bound as shell variables by {@link
+   * io.openaev.utils.command.CommandArgumentBinder}, never substituted verbatim.
+   */
+  static String iocValidationCommandContent(IocValidationTestKind kind, boolean windows) {
+    String host = placeholder(IOC_VALIDATION_HOST_KEY);
+    String port = placeholder(IOC_VALIDATION_PORT_KEY);
+    String url = placeholder(IOC_VALIDATION_URL_KEY);
+    String proxy = placeholder(IOC_VALIDATION_PROXY_KEY);
+    String value = placeholder(IOC_VALIDATION_VALUE_KEY);
+    if (windows) {
+      return switch (kind) {
+        case NETWORK_TRAFFIC ->
+            "$client = New-Object System.Net.Sockets.TcpClient; try { [void]$client.ConnectAsync("
+                + host
+                + ", [int]"
+                + port
+                + ").Wait(5000) } catch { } finally { $client.Close() }";
+        // A redirect is never followed (curl without -L neither): its target never went through
+        // the IOC value checks. Any HTTP answer, from the proxy or the server, means the request
+        // went out; an error without one (proxy, DNS, TLS, connection, timeout) fails the test
+        case HTTP_HEAD ->
+            "try { Invoke-WebRequest -UseBasicParsing -Method Head -MaximumRedirection 0"
+                + " -TimeoutSec 10 -Proxy "
+                + proxy
+                + " -Uri "
+                + url
+                + " | Out-Null } catch { if (-not $_.Exception.Response"
+                + " -and $_.FullyQualifiedErrorId -notlike 'MaximumRedirectExceeded*') { throw '"
+                + IOC_VALIDATION_NO_HTTP_RESPONSE
+                + "' } }";
+        case LOG_INJECTION ->
+            "$message = 'OpenAEV IOC validation marker: ' + "
+                + value
+                + "; try { if (-not [System.Diagnostics.EventLog]::SourceExists('OpenAEV')) {"
+                + " [System.Diagnostics.EventLog]::CreateEventSource('OpenAEV', 'Application') };"
+                + " [System.Diagnostics.EventLog]::WriteEntry('OpenAEV', $message, 'Information',"
+                + " 4242) } catch { throw '"
+                + IOC_VALIDATION_NO_SYSTEM_LOG
+                + "' }";
+        case FILE_DROP ->
+            windowsRunDirectory()
+                + "; "
+                + WINDOWS_LINK_TEST
+                + "; "
+                + WINDOWS_OWNER_TEST
+                + "; $oaevIocPath = Join-Path $oaevIocDir $oaevIocFile;"
+                + " if (Test-OaevLink $oaevIocDir) { throw '"
+                + IOC_VALIDATION_UNSAFE_FILE_DROP
+                // CreateDirectory also returns a directory that already exists: one created
+                // beforehand by another account is refused by its owner
+                + "' }; [void][System.IO.Directory]::CreateDirectory($oaevIocDir);"
+                + " if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)"
+                + " -or -not (Test-OaevOwned $oaevIocDir)) { throw '"
+                + IOC_VALIDATION_UNSAFE_FILE_DROP
+                // The open surrogate pins the run directory (a directory holding an open file
+                // cannot be renamed or removed), so the run directory is checked again once the
+                // file is open: a directory swapped for a link in between gets nothing written
+                + "' }; $oaevIocStream = $null; $oaevIocMoved = $false; try {"
+                + " $oaevIocStream = [System.IO.File]::Open($oaevIocPath,"
+                + " [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write);"
+                + " $oaevIocMoved = (Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)"
+                + " -or -not (Test-OaevOwned $oaevIocDir);"
+                + " if (-not $oaevIocMoved) {"
+                + " $oaevIocBytes = [System.Text.Encoding]::UTF8.GetBytes('"
+                + IOC_VALIDATION_SURROGATE_TEXT
+                + " ' + $oaevIocRun + [Environment]::NewLine);"
+                + " $oaevIocStream.Write($oaevIocBytes, 0, $oaevIocBytes.Length) } } catch { throw '"
+                + IOC_VALIDATION_FAILED_FILE_DROP
+                + "' } finally { if ($oaevIocStream) { $oaevIocStream.Dispose() } };"
+                + " if ($oaevIocMoved) { throw '"
+                + IOC_VALIDATION_UNSAFE_FILE_DROP
+                + "' }";
+        case DNS_RESOLUTION ->
+            throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
+      };
+    }
+    return switch (kind) {
+      case NETWORK_TRAFFIC ->
+          // A refused or blocked connection is an outcome for the security platform to report;
+          // an endpoint with no tool to attempt it fails, so the test is never taken for run.
+          // BusyBox nc has no -z (the unknown option would end the test without a connection):
+          // it connects and closes with an empty input instead.
+          // A bash connection waits for the TCP timeout of the system: bash runs under timeout 5,
+          // and only where "timeout 5 true" runs (an old BusyBox timeout wants -t).
+          "if command -v nc >/dev/null 2>&1 && nc -h 2>&1 | grep -q -e ' -z'; then nc -z -w 5 "
+              + host
+              + " "
+              + port
+              + "; true; elif command -v bash >/dev/null 2>&1 && timeout 5 true >/dev/null 2>&1;"
+              + " then timeout 5 bash -c 'exec 3<>\"/dev/tcp/$1/$2\" && exec 3<&-' openaev "
+              + host
+              + " "
+              + port
+              + "; true; elif command -v nc >/dev/null 2>&1; then nc -w 5 "
+              + host
+              + " "
+              + port
+              + " </dev/null; true; else echo '"
+              + IOC_VALIDATION_NO_TCP_TOOL
+              + "' >&2; exit 1; fi";
+      case HTTP_HEAD ->
+          // --noproxy '' overrides NO_PROXY / no_proxy: the request never bypasses the egress
+          // proxy. Any HTTP status, from the proxy (its CONNECT answer included) or the server,
+          // means the request went out; 000 for both (no answer at all) fails the test
+          "if command -v curl >/dev/null 2>&1; then OAEV_IOC_HTTP=$(curl -sS -I -o /dev/null"
+              + " -w '%{http_code} %{http_connect}' --connect-timeout 5 --max-time 10"
+              + " --noproxy '' --proxy "
+              + proxy
+              + " "
+              + url
+              + "); case \"$OAEV_IOC_HTTP\" in *[1-9]*) ;; *) echo '"
+              + IOC_VALIDATION_NO_HTTP_RESPONSE
+              + "' >&2; exit 1 ;; esac; else echo '"
+              + IOC_VALIDATION_NO_HTTP_TOOL
+              + "' >&2; exit 1; fi";
+      // No fallback file: a file at a fixed path of a shared temporary directory can be
+      // pre-created as a link by another local user, and the agent would then write through it
+      case LOG_INJECTION ->
+          "OAEV_IOC_MESSAGE=\"OpenAEV IOC validation marker: \""
+              + value
+              + "; logger -t openaev-ioc-validation -- \"$OAEV_IOC_MESSAGE\" || { echo '"
+              + IOC_VALIDATION_NO_SYSTEM_LOG
+              + "' >&2; exit 1; }";
+      // set -C alone still opens an existing FIFO or device: the run directory must be the
+      // runner's own and closed to everyone else, so that no entry can appear at the surrogate path
+      // between the check that none exists and its creation
+      case FILE_DROP ->
+          posixRunDirectory()
+              + "; mkdir -m 700 \"$OAEV_IOC_DIR\" 2>/dev/null;"
+              + " if ! { "
+              + POSIX_ENTER_RUN_DIRECTORY
+              + "; } || [ ! -O . ] || ! chmod 700 . || [ -L \"./$OAEV_IOC_FILE\" ]; then echo '"
+              + IOC_VALIDATION_UNSAFE_FILE_DROP
+              + "' >&2; exit 1; fi;"
+              + " if [ -e \"./$OAEV_IOC_FILE\" ] || ! ( set -C; printf '"
+              + IOC_VALIDATION_SURROGATE_TEXT
+              + " %s\\n' \"$OAEV_IOC_RUN\" > \"./$OAEV_IOC_FILE\" ); then echo '"
+              + IOC_VALIDATION_FAILED_FILE_DROP
+              + "' >&2; exit 1; fi";
+      case DNS_RESOLUTION ->
+          throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
+    };
+  }
+
+  /**
+   * The cleanup of a kind, {@code null} when no cleanup is defined: only the file drop defines one.
+   * The log injection leaves its marker line in the system log, and fails when that log is
+   * unavailable: the line is the evidence the security platform is expected to collect, so no
+   * cleanup removes it. The file-drop cleanup never deletes anything it did not create. On Windows
+   * it removes the surrogate only when it holds exactly the surrogate of this run (the surrogate
+   * carries its run), checked and deleted through one handle, so a file that was there before a
+   * failed creation, or put in its place since, is left alone; then the run directory when it is
+   * empty. On Linux and macOS, where a file can only be removed by path once checked, it leaves the
+   * surrogate in place and removes the run directory only when it is empty.
+   */
+  static String iocValidationCleanupCommand(IocValidationTestKind kind, boolean windows) {
+    if (kind != IocValidationTestKind.FILE_DROP) {
+      return null;
+    }
+    if (windows) {
+      // Directory.Delete never removes a non-empty directory; a run directory the runner does not
+      // own, or a run directory or a surrogate path that is a link, is left alone. The surrogate
+      // is opened once, without following a link and
+      // sharing reads only: while it is open no one can rename, replace or write it, and a
+      // directory holding an open file cannot be renamed. It is deleted through that same handle
+      // (file disposition), so the file removed is the file whose bytes were checked. The file is
+      // compared byte for byte with the bytes the drop wrote: a text reader would skip a
+      // byte-order mark and take a replacement starting with one for the surrogate
+      return windowsRunDirectory()
+          + "; "
+          + WINDOWS_LINK_TEST
+          + "; "
+          + WINDOWS_OWNER_TEST
+          + "; $oaevIocPath = Join-Path $oaevIocDir $oaevIocFile;"
+          + " if ((Test-Path -LiteralPath $oaevIocDir -PathType Container)"
+          + " -and -not (Test-OaevLink $oaevIocDir) -and (Test-OaevOwned $oaevIocDir)) {"
+          + " if (-not (Test-OaevLink $oaevIocPath)) { $oaevIocHandle = $null; $oaevIocStream = $null;"
+          + " try { "
+          + WINDOWS_FILE_HANDLE_TYPE
+          + "; $oaevIocHandle = [OaevIoc.Native]::CreateFileW($oaevIocPath,"
+          + " [uint32]2147549184, [uint32]1, [IntPtr]::Zero, [uint32]3, [uint32]2097152,"
+          + " [IntPtr]::Zero);"
+          + " if (-not $oaevIocHandle.IsInvalid) {"
+          + " $oaevIocStream = New-Object System.IO.FileStream($oaevIocHandle,"
+          + " [System.IO.FileAccess]::Read);"
+          + " $oaevIocBytes = [System.Text.Encoding]::UTF8.GetBytes('"
+          + IOC_VALIDATION_SURROGATE_TEXT
+          + " ' + $oaevIocRun + [Environment]::NewLine);"
+          + " if (-not ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)"
+          + " -or -not (Test-OaevOwned $oaevIocDir))"
+          + " -and $oaevIocStream.Length -eq $oaevIocBytes.Length) {"
+          + " $oaevIocRead = New-Object byte[] $oaevIocBytes.Length; $oaevIocCount = 0;"
+          + " while ($oaevIocCount -lt $oaevIocRead.Length) { $oaevIocChunk ="
+          + " $oaevIocStream.Read($oaevIocRead, $oaevIocCount, $oaevIocRead.Length - $oaevIocCount);"
+          + " if ($oaevIocChunk -le 0) { break }; $oaevIocCount += $oaevIocChunk };"
+          + " if ($oaevIocCount -eq $oaevIocBytes.Length -and [System.Convert]::ToBase64String("
+          + "$oaevIocRead) -ceq [System.Convert]::ToBase64String($oaevIocBytes)) {"
+          + " [byte]$oaevIocDelete = 1; [void][OaevIoc.Native]::SetFileInformationByHandle("
+          + "$oaevIocHandle, 4, [ref]$oaevIocDelete, 1) } } }"
+          + " } catch { } finally { if ($oaevIocStream) { $oaevIocStream.Dispose() }"
+          + " elseif ($oaevIocHandle) { $oaevIocHandle.Dispose() } } };"
+          + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { } }";
+    }
+    // A shell removes a file by path only: between a check of its bytes and its removal, another
+    // process of the runner could put a file in its place, and that file would be removed. The
+    // surrogate is left in place, and the run directory is removed only when it is empty (rmdir
+    // refuses a link and a directory holding anything), as once a security platform quarantined it
+    return posixRunDirectory()
+        + "; cd \"$OAEV_IOC_BASE\" && rmdir -- \"openaev-ioc-validation-$OAEV_IOC_RUN\" 2>/dev/null;"
+        + " true";
+  }
+
+  /**
+   * Sets {@code $oaevIocDir} and {@code $oaevIocFile} for the file drop and its cleanup. The run
+   * and the file name are editable inject arguments, so they are checked on the endpoint before any
+   * file operation: the run must be 32 lowercase hexadecimal characters and the file name a plain
+   * Windows file name (no separator, drive, wildcard or control character, no trailing dot or
+   * space, so neither {@code .} nor {@code ..}, and no reserved device name such as {@code CON} or
+   * {@code COM1}, with or without an extension), otherwise the command stops with an error and
+   * touches nothing: neither can lead outside the run directory, and the surrogate is never
+   * silently written to a device instead of a file.
+   */
+  private static String windowsRunDirectory() {
+    String run = placeholder(IOC_VALIDATION_RUN_KEY);
+    String fileName = placeholder(IOC_VALIDATION_FILE_NAME_KEY);
+    return "$oaevIocRun = "
+        + run
+        + "; $oaevIocFile = "
+        + fileName
+        + "; if ($oaevIocRun -cnotmatch '^[0-9a-f]{32}$'"
+        + " -or $oaevIocFile -notmatch '^[^\\\\/:*?\"<>|\\x00-\\x1f]+$'"
+        + " -or $oaevIocFile -match '[. ]$'"
+        + " -or $oaevIocFile -match '"
+        + WINDOWS_RESERVED_FILE_NAME
+        + "') { throw '"
+        + IOC_VALIDATION_INVALID_FILE_DROP
+        + "' }; $oaevIocDir = Join-Path ([System.IO.Path]::GetTempPath())"
+        + " ('openaev-ioc-validation-' + $oaevIocRun)";
+  }
+
+  /**
+   * The POSIX counterpart of {@link #windowsRunDirectory()}: {@code OAEV_IOC_DIR}, {@code
+   * OAEV_IOC_FILE}.
+   */
+  private static String posixRunDirectory() {
+    return "OAEV_IOC_RUN="
+        + placeholder(IOC_VALIDATION_RUN_KEY)
+        + "; OAEV_IOC_FILE="
+        + placeholder(IOC_VALIDATION_FILE_NAME_KEY)
+        + "; case \"$OAEV_IOC_RUN\" in *[!0123456789abcdef]*) OAEV_IOC_RUN= ;; esac;"
+        + " case \"$OAEV_IOC_FILE\" in .|..|*/*) OAEV_IOC_FILE= ;; esac;"
+        + " if [ \"${#OAEV_IOC_RUN}\" -ne 32 ] || [ -z \"$OAEV_IOC_FILE\" ]; then echo '"
+        + IOC_VALIDATION_INVALID_FILE_DROP
+        + "' >&2; exit 1; fi;"
+        + " OAEV_IOC_BASE=$(cd -P \"${TMPDIR:-/tmp}\" && pwd) || exit 1;"
+        + " OAEV_IOC_DIR=\"$OAEV_IOC_BASE/openaev-ioc-validation-$OAEV_IOC_RUN\"";
+  }
+
+  private static String placeholder(String argumentKey) {
+    return "#{" + argumentKey + "}";
   }
 
   // Transactional so the payload delete and the chaining step sweep commit or roll back together:

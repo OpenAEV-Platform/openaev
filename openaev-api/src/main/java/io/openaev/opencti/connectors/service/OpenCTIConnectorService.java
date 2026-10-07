@@ -1,8 +1,13 @@
 package io.openaev.opencti.connectors.service;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.TenantRepository;
+import io.openaev.opencti.client.mutations.IocValidationRequestStatusUpdate;
+import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
+import io.openaev.opencti.connectors.impl.IocValidationConnector;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.opencti.service.OpenCTIService;
@@ -26,13 +31,18 @@ public class OpenCTIConnectorService {
   private static final Duration REGISTER_OR_PING_BACKOFF = Duration.ofMinutes(5);
 
   @Getter private List<ConnectorBase> connectors = Collections.emptyList();
+  private boolean severalTenants = false;
   private final XtmConfig xtmConfig;
   private final OpenAEVConfig openAEVConfig;
   private final OpenCTIService openCTIService;
+  private final TenantRepository tenantRepository;
   private final ConcurrentHashMap<String, Instant> registerOrPingBackoffUntil =
       new ConcurrentHashMap<>();
 
-  /** Creates one {@link SecurityCoverageConnector} per tenant entry in the config map. */
+  /**
+   * Creates, per tenant entry in the config map, one {@link SecurityCoverageConnector} and one
+   * {@link IocValidationConnector}. Both share the tenant OpenCTI configuration.
+   */
   @PostConstruct
   public void initializeConnectors() {
     if (xtmConfig.getOpencti() == null || xtmConfig.getOpencti().isEmpty()) {
@@ -54,23 +64,51 @@ public class OpenCTIConnectorService {
                 connector.setOpenCTIConfig(config);
                 connector.setOpenAEVConfig(openAEVConfig);
                 configured.add(connector);
+                configured.add(buildIocValidationConnector(tenantId, config));
               } catch (Exception e) {
                 log.error(
                     "Failed to initialize OpenCTI connector for tenant {}. Skipping.", tenantId, e);
               }
             });
     this.connectors = List.copyOf(configured);
+    this.severalTenants =
+        configured.stream()
+                .filter(ConnectorBase::shouldRegister)
+                .map(ConnectorBase::getTenantId)
+                .distinct()
+                .count()
+            > 1;
+  }
+
+  private IocValidationConnector buildIocValidationConnector(
+      String tenantId, OpenCTIConfig config) {
+    IocValidationConnector connector = new IocValidationConnector();
+    connector.setTenantId(tenantId);
+    connector.setOpenCTIConfig(config);
+    connector.setOpenAEVConfig(openAEVConfig);
+    return connector;
   }
 
   @NotNull
   public Optional<ConnectorBase> getConnectorBase(String tenantId) {
+    return findConnector(SecurityCoverageConnector.class, tenantId);
+  }
+
+  /** The IOC validation connector of the tenant, when OpenCTI is configured for it. */
+  @NotNull
+  public Optional<ConnectorBase> getIocValidationConnector(String tenantId) {
+    return findConnector(IocValidationConnector.class, tenantId);
+  }
+
+  private Optional<ConnectorBase> findConnector(
+      Class<? extends ConnectorBase> connectorType, String tenantId) {
     if (tenantId == null) {
       throw new IllegalArgumentException("tenantId cannot be null");
     }
     return connectors.stream()
         .filter(
             c ->
-                c instanceof SecurityCoverageConnector
+                connectorType.isInstance(c)
                     && c.shouldRegister()
                     && Objects.equals(c.getTenantId(), tenantId))
         .findFirst();
@@ -99,6 +137,7 @@ public class OpenCTIConnectorService {
       }
       try {
         if (!c.isRegistered()) {
+          nameAfterTenant(c);
           openCTIService.registerConnector(c);
         } else {
           openCTIService.pingConnector(c);
@@ -109,6 +148,22 @@ public class OpenCTIConnectorService {
         logRegisterOrPingFailure(c, e);
       }
     }
+  }
+
+  /**
+   * When several tenants connect to OpenCTI, their IOC validation connectors are told apart there
+   * by the tenant name, read when the connector registers.
+   */
+  private void nameAfterTenant(ConnectorBase connector) {
+    if (!severalTenants || !(connector instanceof IocValidationConnector iocValidation)) {
+      return;
+    }
+    iocValidation.setTenantName(
+        tenantRepository
+            .findById(connector.getTenantId())
+            .map(Tenant::getName)
+            .filter(name -> !name.isBlank())
+            .orElse(connector.getTenantId()));
   }
 
   private static String registerOrPingBackoffKey(ConnectorBase connector) {
@@ -145,8 +200,62 @@ public class OpenCTIConnectorService {
   }
 
   public void acknowledgeReceivedOfCoverage(String workId, String message, String tenantId) {
-    Optional<ConnectorBase> connector = getConnectorBase(tenantId);
+    acknowledgeReceived(getConnectorBase(tenantId), workId, message);
+  }
 
+  public void acknowledgeProcessedOfCoverage(
+      String workId, String message, Boolean inError, String tenantId) {
+    acknowledgeProcessed(getConnectorBase(tenantId), workId, message, inError);
+  }
+
+  // -- IOC VALIDATION --
+
+  /**
+   * Pushes an IOC validation result bundle through the tenant IOC validation connector.
+   *
+   * @throws ConnectorError when the connector is missing, not registered yet, or OpenCTI refuses
+   */
+  public void pushIocValidationStixBundle(Bundle bundle, final String tenantId)
+      throws ConnectorError, IOException {
+    Optional<ConnectorBase> connector = getIocValidationConnector(tenantId);
+    if (connector.isEmpty()) {
+      throw new ConnectorError(
+          "No IOC validation connector is currently active to send IOC validation results for"
+              + " tenant id: "
+              + tenantId);
+    }
+    openCTIService.pushStixBundle(bundle, connector.get());
+  }
+
+  /**
+   * Reports an IOC validation lifecycle status to OpenCTI with the tenant OpenCTI configuration.
+   *
+   * @throws ConnectorError when the connector is missing or OpenCTI refuses the update
+   */
+  public void updateIocValidationRequestStatus(
+      IocValidationRequestStatusUpdate update, final String tenantId)
+      throws ConnectorError, IOException {
+    Optional<ConnectorBase> connector = getIocValidationConnector(tenantId);
+    if (connector.isEmpty()) {
+      throw new ConnectorError(
+          "No IOC validation connector is configured to report IOC validation status for tenant"
+              + " id: "
+              + tenantId);
+    }
+    openCTIService.updateIocValidationRequestStatus(connector.get(), update);
+  }
+
+  public void acknowledgeReceivedOfIocValidation(String workId, String message, String tenantId) {
+    acknowledgeReceived(getIocValidationConnector(tenantId), workId, message);
+  }
+
+  public void acknowledgeProcessedOfIocValidation(
+      String workId, String message, Boolean inError, String tenantId) {
+    acknowledgeProcessed(getIocValidationConnector(tenantId), workId, message, inError);
+  }
+
+  private void acknowledgeReceived(
+      Optional<ConnectorBase> connector, String workId, String message) {
     if (connector.isPresent()) {
       try {
         openCTIService.workToReceived(connector.get(), workId, message);
@@ -156,10 +265,8 @@ public class OpenCTIConnectorService {
     }
   }
 
-  public void acknowledgeProcessedOfCoverage(
-      String workId, String message, Boolean inError, String tenantId) {
-    Optional<ConnectorBase> connector = getConnectorBase(tenantId);
-
+  private void acknowledgeProcessed(
+      Optional<ConnectorBase> connector, String workId, String message, Boolean inError) {
     if (connector.isPresent()) {
       try {
         openCTIService.workToProcessed(connector.get(), workId, message, inError);

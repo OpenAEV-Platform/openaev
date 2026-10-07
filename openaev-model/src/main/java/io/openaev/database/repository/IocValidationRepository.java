@@ -1,0 +1,89 @@
+package io.openaev.database.repository;
+
+import io.openaev.database.model.IocValidation;
+import jakarta.persistence.LockModeType;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface IocValidationRepository
+    extends JpaRepository<IocValidation, String>, JpaSpecificationExecutor<IocValidation> {
+
+  Optional<IocValidation> findByExternalIdAndTenantId(String externalId, String tenantId);
+
+  List<IocValidation> findBySimulationIdAndTenantId(String simulationId, String tenantId);
+
+  /**
+   * Takes a transaction-scoped Postgres advisory lock on {@code key}, released at commit/rollback
+   * and held across API nodes. Serialises the intake of one OpenCTI request: a replay delivered to
+   * another node waits for the first insert to commit and then finds it, instead of racing on the
+   * {@code (external_id, tenant_id)} unique constraint. Native because JPQL cannot call {@code
+   * pg_advisory_xact_lock}; wrapped as {@code SELECT 1 FROM (...)} so the {@code void} function
+   * maps to a scalar. Must run inside a transaction.
+   */
+  @Query(value = "SELECT 1 FROM (SELECT pg_advisory_xact_lock(:key)) AS locked", nativeQuery = true)
+  Integer lockRequestIntake(@Param("key") long key);
+
+  /**
+   * Loads a validation with a row lock held until the transaction ends. Every write of an existing
+   * validation loads it this way (decisions, results, outbox markers): the entity is saved with all
+   * its columns, so the writes are serialized and each one starts from the state the previous one
+   * committed.
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select v from IocValidation v where v.id = :id")
+  Optional<IocValidation> findByIdForUpdate(@Param("id") String id);
+
+  /**
+   * One page, in id order from {@code from}, of the running validations: the results job walks them
+   * a bounded page per run. The status is a literal so that the planner can prove the predicate of
+   * the partial index {@code idx_ioc_validations_running}.
+   */
+  @Query(
+      "select v.id as id, v.tenant.id as tenantId from IocValidation v"
+          + " where v.status = io.openaev.database.model.IocValidationStatus.RUNNING"
+          + " and v.id >= :from order by v.id")
+  List<IocValidationRef> findRunningRefs(@Param("from") String from, Pageable page);
+
+  /**
+   * One page, in id order from {@code from}, of the validations whose current status OpenCTI has
+   * not acknowledged yet: the job walks this outbox a bounded page per run, never all of it.
+   */
+  @Query(
+      "select v.id as id, v.tenant.id as tenantId from IocValidation v"
+          + " where (v.lifecycleSyncedStatus is null or v.lifecycleSyncedStatus <> v.status)"
+          + " and v.id >= :from order by v.id")
+  List<IocValidationRef> findRefsWithPendingLifecycleSync(
+      @Param("from") String from, Pageable page);
+
+  /**
+   * One page, in id order from {@code from}, of the finished validations (completed, partial or
+   * failed) whose result bundle OpenCTI has not received: the job walks this outbox a bounded page
+   * per run. The statuses are literals, not parameters, so that the planner can prove the predicate
+   * of the partial index {@code idx_ioc_validations_results_push_pending}, which must stay
+   * identical to this one, for cached generic plans too.
+   */
+  @Query(
+      "select v.id as id, v.tenant.id as tenantId from IocValidation v"
+          + " where v.resultsPushedAt is null and v.status in ("
+          + "io.openaev.database.model.IocValidationStatus.COMPLETED,"
+          + " io.openaev.database.model.IocValidationStatus.PARTIAL,"
+          + " io.openaev.database.model.IocValidationStatus.FAILED)"
+          + " and v.id >= :from order by v.id")
+  List<IocValidationRef> findRefsWithPendingResultsPush(@Param("from") String from, Pageable page);
+
+  boolean existsBySimulationId(String simulationId);
+
+  interface IocValidationRef {
+    String getId();
+
+    String getTenantId();
+  }
+}

@@ -52,6 +52,7 @@ import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.IocValidationRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MarkingDefinitionRepository;
@@ -240,6 +241,8 @@ import io.openaev.service.notification.NotifierService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.stix.IocValidationDispatchGuard;
+import io.openaev.service.stix.IocValidationService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
@@ -318,6 +321,7 @@ class TenantActiveTableAccessArchTest {
           "marking_definitions",
           "kill_chain_phases",
           "security_coverages",
+          "ioc_validations",
           "widgets",
           "tenant_xtmhub_registrations",
           "notifications",
@@ -1475,6 +1479,26 @@ class TenantActiveTableAccessArchTest {
           .because(
               "security_coverages is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule ioc_validations_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Intake runs under the tenant resolved from the OpenCTI connector, the approval API
+              // under the TxCtx pinned at its tenant-scoped entrypoint, and the background sweeps
+              // list refs with allTenants() then reload each row under its own tenant.
+              IocValidationService.class,
+              // Reads the validation of the inject's simulation, by simulation and tenant, under
+              // the TxCtx of InjectApi#getExecutablePayloadInject, and for Executor#execute under
+              // the tenant the inject runs in (execution job, chaining step, direct execution).
+              IocValidationDispatchGuard.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(IocValidationRepository.class)
+          .because(
+              "ioc_validations is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule security_coverages_exercise_association_access_is_reviewed =

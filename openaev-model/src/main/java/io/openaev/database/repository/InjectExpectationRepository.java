@@ -439,6 +439,25 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findAllForGlobalScoreByInjects(
       @Param("injectIds") Set<String> injectIds);
 
+  // Leaf technical rows (agents, and assets without agent rows): collectors write their per-source
+  // results there, asset and asset group parents only receive the rolled-up scores. The inject
+  // comes
+  // along with its status, read by every evaluation, and with the relations Hibernate would
+  // otherwise load one inject at a time: the inverse one-to-one authorisation, the contract and
+  // injector, joined on their tenant as well as their id, and the eager dependencies.
+  @Query(
+      value =
+          "select i from InjectExpectation i join fetch i.inject j left join fetch j.status"
+              + " left join fetch j.authorisation left join fetch j.injectorContract"
+              + " left join fetch j.injector left join fetch j.dependsOn"
+              + " where j.id in :injectIds"
+              + " and i.user is null and i.team is null"
+              + " and (i.agent is not null or (i.asset is not null and not exists"
+              + "   (select c.id from InjectExpectation c where c.inject.id = i.inject.id"
+              + "     and c.asset.id = i.asset.id and c.agent is not null)))")
+  List<BaseInjectExpectation> findAllTechnicalLeavesByInjects(
+      @Param("injectIds") Set<String> injectIds);
+
   // -- INDEXING --
 
   @Query(
@@ -488,12 +507,20 @@ public interface InjectExpectationRepository
     ),
     base AS (
         -- One row per ranked expectation (1:1 joins only — no fan-out).
+        -- IOC validation runs never feed the coverage statistics: their rows stay in the page,
+        -- flagged, so the handler skips them and the cursor moves past. A run is the simulation an
+        -- IOC validation links, set with the simulation before it has any expectation and never
+        -- changed; the editable simulation category would move a run in or out of the coverage
+        -- without any change this query watches.
         SELECT ie.inject_expectation_id, ie.inject_expectation_name, ie.inject_expectation_description, ie.inject_expectation_type,
                ie.inject_expectation_results, ie.inject_expectation_score, ie.inject_expectation_expected_score, ie.inject_expiration_time,
                ie.inject_expectation_group, ie.inject_expectation_created_at,
                ie.exercise_id, ie.inject_id, ie.user_id, ie.team_id, ie.agent_id, ie.asset_id, ie.asset_group_id,
                i.tenant_id, i.inject_title, i.inject_injector_contract AS contract_id,
-               GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, COALESCE(ic.injector_contract_updated_at, ie.inject_expectation_updated_at)) AS inject_expectation_updated_at
+               GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, COALESCE(ic.injector_contract_updated_at, ie.inject_expectation_updated_at)) AS inject_expectation_updated_at,
+               EXISTS (SELECT 1 FROM ioc_validations v
+                       WHERE v.ioc_validation_simulation = i.inject_exercise
+                         AND v.tenant_id = i.tenant_id) AS ioc_validation
         FROM injects_expectations ie
         JOIN ranked_expectations re ON ie.inject_expectation_id = re.inject_expectation_id
         LEFT JOIN injects i ON i.inject_id = ie.inject_id
@@ -576,7 +603,8 @@ public interface InjectExpectationRepository
            apa.attack_pattern_ids,
            da.domain_ids,
            sa.scenario_id,
-           COALESCE(spself.ids, ARRAY[]::text[]) || COALESCE(asp.security_platform_ids, ARRAY[]::text[]) AS security_platform_ids
+           COALESCE(spself.ids, ARRAY[]::text[]) || COALESCE(asp.security_platform_ids, ARRAY[]::text[]) AS security_platform_ids,
+           b.ioc_validation
     FROM base b
     LEFT JOIN ap_agg apa ON apa.injector_contract_id = b.contract_id AND apa.tenant_id = b.tenant_id
     LEFT JOIN dom_agg da ON da.injector_contract_id = b.contract_id AND da.tenant_id = b.tenant_id

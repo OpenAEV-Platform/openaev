@@ -559,5 +559,24 @@ describe('url-helper', () => {
       // Assert
       expect(result).toBe(`/api/tenants/${VALID_UUID}/xtm-composer/reachable`);
     });
+
+    it.each([
+      ['/api/ioc-validations/search'],
+      ['/api/ioc-validations/request-1'],
+      ['/api/ioc-validations/request-1/approve'],
+      ['/api/ioc-validations/request-1/reject'],
+      ['/api/ioc-validations/settings'],
+      ['/api/ioc-validations/settings/asset-group-options'],
+    ])('given IOC validation path %s should scope it to the tenant of the page, reads and decisions alike', async (uri) => {
+      // Arrange
+      setPathname(`/${VALID_UUID}/admin/atomic_testings/ioc_validations/request-1`);
+      const { buildTenantApiPath } = await importHelper();
+
+      // Act
+      const result = buildTenantApiPath(uri);
+
+      // Assert
+      expect(result).toBe(`/api/tenants/${VALID_UUID}${uri.slice('/api'.length)}`);
+    });
   });
 });

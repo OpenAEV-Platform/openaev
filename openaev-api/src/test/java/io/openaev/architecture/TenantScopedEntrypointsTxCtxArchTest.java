@@ -414,6 +414,19 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // lazily create the payload's injector contract through the same
           // synchroniseInjectorContractBasedOnPayload path as the two entries above
           "io.openaev.api.stix_process.StixApi#processBundle",
+          // IOC validation: the request intake writes ioc_validations and reads security platforms
+          // (assets); the approval also reads the asset group and creates the validation payloads
+          // and their injector contracts and tags; the settings read and list the asset groups
+          "io.openaev.api.stix_process.StixApi#processIocValidation",
+          "io.openaev.api.ioc_validation.IocValidationApi#searchIocValidations",
+          "io.openaev.api.ioc_validation.IocValidationApi#iocValidation",
+          "io.openaev.api.ioc_validation.IocValidationApi#approveIocValidation",
+          "io.openaev.api.ioc_validation.IocValidationApi#rejectIocValidation",
+          "io.openaev.api.ioc_validation.IocValidationApi#iocValidationSettings",
+          "io.openaev.api.ioc_validation.IocValidationApi#updateIocValidationSettings",
+          "io.openaev.api.ioc_validation.IocValidationApi#iocValidationAssetGroupOptions",
+          // the executable payload of an inject reads the IOC validation that approved its test
+          "io.openaev.rest.inject.InjectApi#getExecutablePayloadInject",
           // inject: updateInject calls injectService.runChecks -> securityPlatformCollectors
           "io.openaev.rest.inject.InjectApi#updateInject",
           // simulation injects: runChecks path

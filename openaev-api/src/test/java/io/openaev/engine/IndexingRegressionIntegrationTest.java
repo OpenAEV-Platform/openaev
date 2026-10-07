@@ -5,6 +5,8 @@ import static org.awaitility.Awaitility.await;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
@@ -1037,6 +1039,74 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(queryModel("expectation-inject").getTotal()).isZero();
+    }
+
+    @Test
+    @DisplayName(
+        "An indexed expectation of a simulation that becomes an IOC validation run is deleted from"
+            + " the engine, and the cursor moves past it")
+    void given_indexedExpectation_when_itsSimulationBecomesAValidationRun_should_beDeleted() {
+      // -- ARRANGE: an expectation of a simulation, indexed --
+      BaseInjectExpectation expectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointWrapper)
+              .withExpectation(
+                  injectExpectationComposer
+                      .forExpectation(expectation)
+                      .withEndpoint(endpointWrapper));
+      Exercise simulation = ExerciseFixture.createDefaultExercise();
+      exerciseComposer.forExercise(simulation).withInject(injectWrapper).persist();
+      entityManager.flush();
+      setIndexingStatusToFrom("expectation-inject");
+      touchExpectationAt(expectation.getId(), Instant.now());
+      executeJobAndWait();
+      awaitEndpointIndexedAssertion(
+          () ->
+              assertThat(queryModel("expectation-inject").getEsDatas())
+                  .anyMatch(e -> e.getBase_id().equals(expectation.getId())));
+      Instant indexedCursor = readIndexingCursor("expectation-inject");
+
+      // -- ACT: an IOC validation links the simulation, then the expectation changes --
+      linkIocValidation(simulation.getId());
+      touchExpectationAt(expectation.getId(), Instant.now().plusSeconds(1));
+      executeJobAndWait();
+
+      // -- ASSERT --
+      awaitEndpointIndexedAssertion(
+          () ->
+              assertThat(queryModel("expectation-inject").getEsDatas())
+                  .noneMatch(e -> e.getBase_id().equals(expectation.getId())));
+      assertThat(readIndexingCursor("expectation-inject")).isAfter(indexedCursor);
+    }
+
+    private void touchExpectationAt(String expectationId, Instant updatedAt) {
+      entityManager
+          .createNativeQuery(
+              "UPDATE injects_expectations SET inject_expectation_updated_at = :ts"
+                  + " WHERE inject_expectation_id = :id")
+          .setParameter("ts", updatedAt)
+          .setParameter("id", expectationId)
+          .executeUpdate();
+    }
+
+    /** Makes the simulation an IOC validation run: the validation that launched it links it. */
+    private void linkIocValidation(String simulationId) {
+      entityManager.flush();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO ioc_validations (ioc_validation_id, ioc_validation_external_id,"
+                  + " ioc_validation_name, ioc_validation_status, ioc_validation_simulation,"
+                  + " tenant_id) SELECT :id, :externalId, 'Validation run', 'RUNNING',"
+                  + " exercise_id, tenant_id FROM exercises WHERE exercise_id = :simulationId")
+          .setParameter("id", UUID.randomUUID().toString())
+          .setParameter("externalId", UUID.randomUUID().toString())
+          .setParameter("simulationId", simulationId)
+          .executeUpdate();
     }
   }
 

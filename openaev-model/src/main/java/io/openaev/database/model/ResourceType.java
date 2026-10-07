@@ -65,6 +65,7 @@ public enum ResourceType {
   XTM_HUB_REGISTRATION,
   NEWS_FEED,
   SNAPSHOT_OBSERVATION,
+  IOC_VALIDATION,
   // Special resource types
   UNKNOWN,
   SIMULATION_OR_SCENARIO, // Used to represent either a simulation or a scenario.

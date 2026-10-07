@@ -20,6 +20,7 @@ import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.utils.TargetType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -121,6 +122,9 @@ public class InjectExecutionResultService {
                                     .toList();
                           })
                       .orElse(List.of());
+              ObjectNode injectContent =
+                  PayloadService.iocValidationExecutionContent(
+                      inject.getContent(), payload, inject.getId());
               return payloadCommandBlocks.stream()
                   .map(
                       block -> {
@@ -129,7 +133,7 @@ public class InjectExecutionResultService {
                                 block.getContent(),
                                 arguments,
                                 injectorContractFields,
-                                inject.getContent());
+                                injectContent);
                         List<String> resolvedCleanup =
                             block.getCleanupCommand() == null
                                 ? null
@@ -140,7 +144,7 @@ public class InjectExecutionResultService {
                                                 cmd,
                                                 arguments,
                                                 injectorContractFields,
-                                                inject.getContent()))
+                                                injectContent))
                                     .toList();
                         return new PayloadCommandBlock(
                             block.getExecutor(), resolvedContent, resolvedCleanup);

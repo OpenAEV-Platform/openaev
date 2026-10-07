@@ -20,6 +20,7 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.stix.IocValidationDispatchGuard;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +60,7 @@ class ExecutorTest {
   @Mock private ExecutableInjectDTOMapper executableInjectDTOMapper;
   @Mock private ConnectorInstanceService connectorInstanceService;
   @Mock private InjectExpectationService injectExpectationService;
+  @Mock private IocValidationDispatchGuard iocValidationDispatchGuard;
 
   @InjectMocks private Executor executor;
 
@@ -93,6 +95,59 @@ class ExecutorTest {
 
     executableInject = mock(ExecutableInject.class);
     when(executableInject.getInjection()).thenReturn(injection);
+  }
+
+  @Nested
+  @DisplayName("execute - IOC validation approval")
+  class IocValidationApproval {
+
+    @Test
+    @DisplayName(
+        "Given an inject the simulation of an IOC validation did not approve, execute should run nothing")
+    void given_injectOutsideTheApproval_should_notExecute() {
+      // -------- Arrange --------
+      doThrow(
+              new IllegalStateException(
+                  IocValidationDispatchGuard.IOC_VALIDATION_INJECT_NOT_APPROVED))
+          .when(iocValidationDispatchGuard)
+          .refuseUnapprovedExecution(inject, null);
+
+      // -------- Act / Assert --------
+      assertThatThrownBy(() -> executor.execute(executableInject))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage(IocValidationDispatchGuard.IOC_VALIDATION_INJECT_NOT_APPROVED);
+      verifyNoInteractions(injectStatusService, injectorRepository, rabbitmqService);
+    }
+
+    @Test
+    @DisplayName(
+        "Given an approved IOC validation test changed after its approval, execute should check its payload and run nothing")
+    void given_approvedTestChangedAfterApproval_should_notExecute() {
+      // -------- Arrange --------
+      Payload payload = new Command();
+      when(injectorContract.getPayload()).thenReturn(payload);
+      Injector injector = new Injector();
+      injector.setId("injector-003");
+      injector.setExternal(true);
+      when(inject.getInjector()).thenReturn(injector);
+      doThrow(new IllegalStateException(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST))
+          .when(iocValidationDispatchGuard)
+          .refuseUnapprovedExecution(inject, payload);
+
+      // -------- Act / Assert: no status, no executor context, nothing published --------
+      assertThatThrownBy(() -> executor.execute(executableInject))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage(IocValidationDispatchGuard.IOC_VALIDATION_UNAPPROVED_TEST);
+      verify(iocValidationDispatchGuard).refuseUnapprovedExecution(inject, payload);
+      verifyNoInteractions(
+          injectStatusService,
+          injectorRepository,
+          connectorInstanceService,
+          executionExecutorService,
+          injectExpectationService,
+          rabbitmqService,
+          managerFactory);
+    }
   }
 
   @Nested

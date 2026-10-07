@@ -71,7 +71,7 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 - Third-party library patterns (apexcharts, react-dnd) — different conventions are expected
 - Pre-existing i18n issues in unchanged code
 - `any` types in auto-generated `api-types.d.ts` — not our code
-- MUI kept with a `// fds:keep-mui <reason>` comment, or MUI components with no library equivalent yet (`Dialog`, `Drawer`, `Popover`, `Accordion`, `Alert`, `Card`…) — see `frontend.instructions.md`
+- MUI kept with a `// fds:keep-mui <reason>` comment, or MUI components with no library equivalent yet (`Dialog`, `Drawer`, `Popover`, `Accordion`, `Card`…); the library ships `Alert` since 1.2.0 — see `frontend.instructions.md`
 - MUI icon glyphs (`@mui/icons-material`) inside library components — standing design exception
 - Pre-existing MUI imports in untouched code — the migration is incremental, only new imports count
 - Redundant explicit `type="button"` on library `Button` — correct, left from the migration

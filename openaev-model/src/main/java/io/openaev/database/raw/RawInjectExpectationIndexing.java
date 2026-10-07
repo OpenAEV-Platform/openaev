@@ -181,4 +181,12 @@ public interface RawInjectExpectationIndexing extends RawTenant {
    * @return the tracking sent date
    */
   Instant getTracking_sent_date();
+
+  /**
+   * Returns whether the expectation belongs to an IOC validation run, which never feeds the
+   * coverage statistics. Only selected by the indexing query.
+   *
+   * @return {@code true} for an expectation of an IOC validation run
+   */
+  Boolean getIoc_validation();
 }

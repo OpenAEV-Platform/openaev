@@ -94,7 +94,8 @@ public class PrivilegeService extends AbstractPrivilegeService {
     // the OpenCTI HTTP calls deliberately happen after it, outside any transaction.
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(connector.getTenantId()));
 
-    String email = CONNECTOR_EMAIL_PATTERN.formatted(connector.getId());
+    String email = CONNECTOR_EMAIL_PATTERN.formatted(connector.getServiceAccountId());
+    String userName = connector.getServiceAccountName();
 
     // TODO: remove once all deployments have been migrated to multi-tenant
     legacyOpenCTIConnectorMigration.deleteLegacyConnectorIfExists(email);
@@ -108,8 +109,7 @@ public class PrivilegeService extends AbstractPrivilegeService {
 
     if (connectorUser.isPresent()) {
       // Token-matched user already exists — update its attributes
-      applyUserServiceAttributes(
-          connectorUser.get(), connector.getName(), CONNECTOR_LASTNAME, email, group);
+      applyUserServiceAttributes(connectorUser.get(), userName, CONNECTOR_LASTNAME, email, group);
       userService.saveUser(connectorUser.get());
       tenantUserService.attachToTenant(connectorUser.get().getId(), connector.getTenantId());
     } else if (existingEmailUser.isPresent()) {
@@ -124,14 +124,14 @@ public class PrivilegeService extends AbstractPrivilegeService {
                   List.of(
                       userService.createUserToken(existingEmailUser.get(), connector.getToken()))));
       applyUserServiceAttributes(
-          existingEmailUser.get(), connector.getName(), CONNECTOR_LASTNAME, email, group);
+          existingEmailUser.get(), userName, CONNECTOR_LASTNAME, email, group);
       userService.saveUser(existingEmailUser.get());
       tenantUserService.attachToTenant(existingEmailUser.get().getId(), connector.getTenantId());
     } else {
       // No user exists — create one
       User user =
           userService.createInternalUser(
-              email, connector.getName(), CONNECTOR_LASTNAME, false, connector.getToken());
+              email, userName, CONNECTOR_LASTNAME, false, connector.getToken());
       user.setGroups(new ArrayList<>(List.of(group)));
       User savedUser = userService.saveUser(user);
       tenantUserService.attachToTenant(savedUser.getId(), connector.getTenantId());

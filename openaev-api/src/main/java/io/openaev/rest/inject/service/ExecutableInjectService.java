@@ -21,6 +21,7 @@ import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.stix.IocValidationDispatchGuard;
 import io.openaev.utils.command.CommandArgumentBinder;
 import jakarta.annotation.Resource;
 import java.time.Instant;
@@ -50,6 +51,7 @@ public class ExecutableInjectService {
   private final PayloadService payloadService;
   private final AgentRepository agentRepository;
   private final AssetGroupService assetGroupService;
+  private final IocValidationDispatchGuard iocValidationDispatchGuard;
 
   @Resource protected ObjectMapper mapper;
 
@@ -358,6 +360,11 @@ public class ExecutableInjectService {
     if (contract.getPayload() == null) {
       throw new ElementNotFoundException("Payload not found");
     }
+    iocValidationDispatchGuard.refuseUnapprovedExecution(inject, contract.getPayload());
+    ObjectNode injectContent =
+        PayloadService.iocValidationExecutionContent(
+            inject.getContent(), contract.getPayload(), inject.getId());
+    refuseIocValidationFileDropWithoutRun(contract.getPayload(), injectContent);
     Payload payloadToExecute = payloadService.generateDuplicatedPayload(contract.getPayload());
     JsonNode injectorContractFieldsNode = contract.getConvertedContent().get("fields");
     List<ObjectNode> injectorContractFields =
@@ -381,7 +388,7 @@ public class ExecutableInjectService {
                           prerequisite.getCheckCommand(),
                           prerequisite.getExecutor(),
                           contract.getPayload().getArguments(),
-                          inject.getContent(),
+                          injectContent,
                           injectorContractFields,
                           obfuscator));
                 }
@@ -391,7 +398,7 @@ public class ExecutableInjectService {
                           prerequisite.getGetCommand(),
                           prerequisite.getExecutor(),
                           contract.getPayload().getArguments(),
-                          inject.getContent(),
+                          injectContent,
                           injectorContractFields,
                           obfuscator));
                 }
@@ -408,27 +415,47 @@ public class ExecutableInjectService {
               contract.getPayload().getCleanupCommand(),
               contract.getPayload().getCleanupExecutor(),
               contract.getPayload().getArguments(),
-              inject.getContent(),
+              injectContent,
               injectorContractFields,
               obfuscator));
     }
 
     return processPayloadToExecute(
-        payloadToExecute, contract, inject, injectorContractFields, obfuscator);
+        payloadToExecute, contract, injectContent, injectorContractFields, obfuscator);
+  }
+
+  /**
+   * An IOC validation file drop runs only with the run and the file name of its own inject: an
+   * empty one is refused here, before any default (of the payload or of the injector contract, both
+   * editable) can take its place, make two injects share one directory or write another file.
+   */
+  static void refuseIocValidationFileDropWithoutRun(Payload payload, ObjectNode executionContent) {
+    if (!PayloadService.isIocValidationFileDropPayload(payload)) {
+      return;
+    }
+    for (String key :
+        List.of(
+            PayloadService.IOC_VALIDATION_RUN_KEY, PayloadService.IOC_VALIDATION_FILE_NAME_KEY)) {
+      if (executionContent == null || !hasText(executionContent.path(key).asText(""))) {
+        throw new IllegalArgumentException(
+            "Missing mandatory input '%s' for inject execution".formatted(key));
+      }
+    }
   }
 
   private Payload processPayloadToExecute(
       Payload payloadToExecute,
       InjectorContract contract,
-      Inject inject,
+      ObjectNode injectContent,
       List<ObjectNode> injectorContractFields,
       String obfuscator) {
     Payload processed =
         switch (contract.getPayload().getTypeEnum()) {
           case PayloadType.COMMAND ->
               processCommandPayload(
-                  payloadToExecute, contract, inject, injectorContractFields, obfuscator);
-          case PayloadType.DNS_RESOLUTION -> processDnsResolutionPayload(payloadToExecute, inject);
+                  payloadToExecute, contract, injectContent, injectorContractFields, obfuscator);
+          case PayloadType.DNS_RESOLUTION ->
+              processDnsResolutionPayload(payloadToExecute, injectContent);
           default ->
               // All other payload types are intentionally passed through unchanged.
               payloadToExecute;
@@ -437,14 +464,14 @@ public class ExecutableInjectService {
     // for all payload types. The implant uses payload_arguments[].default_value to download
     // documents before execution; without this override it would download the payload's default
     // document instead of the one configured on the inject.
-    resolveDocumentArgumentsFromInjectContent(processed, inject.getContent());
+    resolveDocumentArgumentsFromInjectContent(processed, injectContent);
     return processed;
   }
 
   private Payload processCommandPayload(
       Payload payloadToExecute,
       InjectorContract contract,
-      Inject inject,
+      ObjectNode injectContent,
       List<ObjectNode> injectorContractFields,
       String obfuscator) {
     Command payloadCommand = (Command) payloadToExecute;
@@ -454,7 +481,7 @@ public class ExecutableInjectService {
             payloadCommand.getContent(),
             payloadCommand.getExecutor(),
             contract.getPayload().getArguments(),
-            inject.getContent(),
+            injectContent,
             injectorContractFields,
             obfuscator));
     return payloadCommand;
@@ -490,7 +517,7 @@ public class ExecutableInjectService {
     payload.setArguments(new ArrayList<>(resolved));
   }
 
-  private Payload processDnsResolutionPayload(Payload payloadToExecute, Inject inject) {
+  private Payload processDnsResolutionPayload(Payload payloadToExecute, ObjectNode injectContent) {
     DnsResolution dnsResolution = (DnsResolution) payloadToExecute;
     // A hostname is resolved by the implant, not run through a shell: no variable binding applies,
     // the binder only strips control characters.
@@ -500,7 +527,7 @@ public class ExecutableInjectService {
             CommandArgumentBinder.literal(),
             dnsResolution.getArguments(),
             null,
-            inject.getContent(),
+            injectContent,
             false));
     return dnsResolution;
   }

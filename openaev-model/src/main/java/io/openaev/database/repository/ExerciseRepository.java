@@ -305,6 +305,10 @@ public interface ExerciseRepository
    * are returned so the ordering is meaningful, and the LIMIT is applied at the database so callers
    * never load the full result set into memory.
    *
+   * <p>The simulation of an IOC validation never takes one of the N slots: such a run proves a
+   * deployment, it does not measure coverage. It is told by the IOC validation that links it, as in
+   * the expectation indexing, never by its editable category.
+   *
    * @param status the exercise status name (e.g. {@code FINISHED})
    * @param limit the maximum number of exercise ids to return
    * @return the ordered list of exercise ids (latest end date first), at most {@code limit} entries
@@ -315,6 +319,8 @@ public interface ExerciseRepository
               + "FROM exercises ex "
               + "WHERE ex.exercise_status = :status "
               + "AND ex.exercise_end_date IS NOT NULL "
+              + "AND NOT EXISTS (SELECT 1 FROM ioc_validations v "
+              + "WHERE v.ioc_validation_simulation = ex.exercise_id AND v.tenant_id = ex.tenant_id) "
               + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "ORDER BY ex.exercise_end_date DESC "
               + "LIMIT :limit;",

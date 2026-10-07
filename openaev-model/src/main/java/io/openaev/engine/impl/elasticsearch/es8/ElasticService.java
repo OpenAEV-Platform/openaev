@@ -24,6 +24,7 @@ import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
+import io.openaev.engine.EsSkipped;
 import io.openaev.engine.Handler;
 import io.openaev.engine.api.*;
 import io.openaev.engine.api.WidgetConfigurationWithSeries.Series;
@@ -428,11 +429,16 @@ public class ElasticService implements EngineService {
                     // Create bulk for the data
                     BulkRequest.Builder br = new BulkRequest.Builder();
                     for (EsBase result : results) {
-                      br.operations(
-                          op ->
-                              op.index(
-                                  idx ->
-                                      idx.index(index).id(result.getBase_id()).document(result)));
+                      if (result instanceof EsSkipped) {
+                        br.operations(
+                            op -> op.delete(del -> del.index(index).id(result.getBase_id())));
+                      } else {
+                        br.operations(
+                            op ->
+                                op.index(
+                                    idx ->
+                                        idx.index(index).id(result.getBase_id()).document(result)));
+                      }
                     }
                     // The snapshot export reads its window off the cursor persisted below, so these
                     // documents must be searchable before it moves: one still waiting for a

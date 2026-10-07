@@ -175,6 +175,8 @@ public class AttackPatternService {
    * documents, with one series per (PREVENTION|DETECTION) x (SUCCESS|FAILED) combination, evaluated
    * through {@link EngineService#multiTermHistogram}. The query is tenant- and ACL-scoped
    * automatically and, by default, spans every simulation - so the numbers match the home matrix.
+   * IOC validation runs never reach that index (see {@code InjectExpectationRepository
+   * #findForIndexing}), so they are out of every path, scoped or not.
    *
    * @param latest when non-null and positive, restrict the aggregation to the latest N finished
    *     simulations by end date (capped at {@value #COVERAGE_LATEST_MAX}); when null, aggregate
