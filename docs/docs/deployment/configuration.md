@@ -138,6 +138,19 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 | openaev.xtm.opencti.{id}.token               | OPENAEV_XTM_OPENCTI_{id}_TOKEN               |               | OpenCTI API token                                                                                                                              |
 | openaev.xtm.opencti.{id}.disable-display     | OPENAEV_XTM_OPENCTI_{id}_DISABLE-DISPLAY     | `false`       | Hide this OpenCTI instance in the UI                                                                                                           |
 
+#### XTM Suite: OpenCTI hunt validation
+
+Once an inject emulating an ATT&CK technique has a computed verdict from a security platform, OpenAEV can ask the tenant's OpenCTI to run its hunts covering that technique on that platform, over the inject execution window, so the hunts prove whether they catch it (see [Hunt validation from emulation results](../usage/evaluate/xtm-suite-connector.md#hunt-validation-from-emulation-results)). It uses the OpenCTI connection of each tenant above and requires OpenCTI Enterprise Edition.
+
+| Parameter                                               | Environment variable                                    | Default value | Description                                                                                                                     |
+|:--------------------------------------------------------|:--------------------------------------------------------|:--------------|:--------------------------------------------------------------------------------------------------------------------------------|
+| openaev.security-coverage.hunt-validation.enabled         | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_ENABLED         | `false`       | Enables the hunt validation. When false, nothing is planned and nothing is sent.                                               |
+| openaev.security-coverage.hunt-validation.window-padding  | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_WINDOW-PADDING  | `PT5M`        | ISO-8601 duration added before the start and after the end of the inject execution window the hunts search. Negative means zero. |
+| openaev.security-coverage.hunt-validation.request-timeout | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_REQUEST-TIMEOUT | `PT30S`       | ISO-8601 bound of the connect, the TLS handshake and every read of one OpenCTI call, and total deadline of that call: it is cancelled once this duration elapses, even while the response keeps arriving, so choose a value above the slowest expected answer. Missing, zero or negative means the default. |
+| openaev.security-coverage.hunt-validation.batch-size      | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_BATCH-SIZE      | `50`          | Maximum number of validations sent per tenant by one run of the delivery job, which runs every minute.                         |
+| openaev.security-coverage.hunt-validation.max-attempts    | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_MAX-ATTEMPTS    | `5`           | Attempts OpenCTI refuses before a validation is given up, retried after 5, 10, 20, 40... minutes (at most 6 hours). An unreachable or rate-limiting OpenCTI postpones the validation by 5 minutes without counting an attempt. |
+| openaev.security-coverage.hunt-validation.max-age         | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_MAX-AGE         | `P7D`         | ISO-8601 duration after which a validation still not delivered since it was planned is given up without being sent, even when the attempts are not used up (an OpenCTI outage or an unregistered connector included). Missing, zero or negative means the default. |
+
 #### XTM Suite: XTM Hub
 
 | Parameter                                             | Environment variable             | Default value | Description                                                         |

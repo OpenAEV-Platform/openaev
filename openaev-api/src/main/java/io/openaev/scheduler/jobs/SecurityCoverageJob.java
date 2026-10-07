@@ -13,6 +13,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.SecurityCoverageSendJobService;
+import io.openaev.service.stix.SecurityCoverageHuntValidationService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.parsing.ParsingException;
@@ -36,6 +37,7 @@ public class SecurityCoverageJob implements Job {
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final SecurityCoverageService securityCoverageService;
   private final OpenCTIConnectorService openCTIConnectorService;
+  private final SecurityCoverageHuntValidationService huntValidationService;
   private final TenantScopedTransaction tenantTx;
 
   // No job-level @Transactional here: a transaction spanning the whole loop held a pooled DB
@@ -86,7 +88,9 @@ public class SecurityCoverageJob implements Job {
             securityCoverageSendJob.getId(),
             tenantId);
         openCTIConnectorService.pushSecurityCoverageStixBundle(resultBundle, tenantId);
-        successfulJobs.add(securityCoverageSendJob);
+        if (planHuntValidations(tenantId, securityCoverageSendJob)) {
+          successfulJobs.add(securityCoverageSendJob);
+        }
       } catch (Exception e) {
         // don't crash the job; getSimulation() can be null (that very case throws above)
         if (e instanceof ConnectorError
@@ -130,6 +134,47 @@ public class SecurityCoverageJob implements Job {
     }
     if (!successfulJobs.isEmpty()) {
       securityCoverageSendJobService.consumeJobs(successfulJobs);
+    }
+  }
+
+  /**
+   * Plans the OpenCTI hunt validations of a simulation whose coverage was just pushed, so the
+   * has-covered relationships they enrich exist on the OpenCTI side first. Database only (the
+   * delivery runs in {@link SecurityCoverageHuntValidationJob}).
+   *
+   * <p>A failure never affects the coverage push, but keeps the send job pending: its next run
+   * pushes the (idempotent) bundle again and retries the planning, which is the only trigger left
+   * once the simulation has finished.
+   *
+   * @return whether the send job can be consumed
+   */
+  private boolean planHuntValidations(
+      String tenantId, SecurityCoverageSendJob securityCoverageSendJob) {
+    if (!huntValidationService.isEnabled()) {
+      return true;
+    }
+    String simulationId = securityCoverageSendJob.getSimulation().getId();
+    try {
+      int planned =
+          tenantTx.execute(
+              TxCtx.forTenant(tenantId),
+              () -> huntValidationService.planForSimulation(simulationId));
+      if (planned > 0) {
+        log.info(
+            "Planned {} OpenCTI hunt validation(s) for simulation {} of tenant {}",
+            planned,
+            simulationId,
+            tenantId);
+      }
+      return true;
+    } catch (Exception e) {
+      log.warn(
+          "Could not plan the OpenCTI hunt validations of simulation {} for tenant {}, its"
+              + " security coverage job stays pending to retry: {}",
+          simulationId,
+          tenantId,
+          e.getMessage());
+      return false;
     }
   }
 

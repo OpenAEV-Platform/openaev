@@ -4,6 +4,10 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -13,19 +17,31 @@ import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.utils.fixtures.opencti.MutationFixture;
 import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import org.apache.hc.client5.http.ClientProtocolException;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
+import org.apache.hc.client5.http.cookie.CookieStore;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
+import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.io.CloseMode;
+import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -57,7 +73,9 @@ public class OpenCTIClientTest extends IntegrationTest {
       @BeforeEach
       public void setup() throws IOException {
         when(mockHttpClient.execute(
-                (ClassicHttpRequest) any(), (HttpClientResponseHandler<?>) any()))
+                (ClassicHttpRequest) any(),
+                any(HttpContext.class),
+                (HttpClientResponseHandler<?>) any()))
             .thenThrow(IOException.class);
       }
 
@@ -88,7 +106,10 @@ public class OpenCTIClientTest extends IntegrationTest {
                   ]
                 }
                 """);
-        when(mockHttpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler) any()))
+        when(mockHttpClient.execute(
+                (ClassicHttpRequest) any(),
+                any(HttpContext.class),
+                (HttpClientResponseHandler) any()))
             .thenReturn(mockResponse);
       }
 
@@ -107,6 +128,43 @@ public class OpenCTIClientTest extends IntegrationTest {
     }
 
     @Nested
+    @DisplayName("When endpoint answers without a body")
+    public class WhenEndpointAnswersWithoutABody {
+      @Test
+      @DisplayName("It returns the status of a blank body for the caller to classify")
+      public void itReturnsTheStatusOfABlankBody() throws IOException {
+        when(mockHttpClient.execute(
+                (ClassicHttpRequest) any(),
+                any(HttpContext.class),
+                (HttpClientResponseHandler) any()))
+            .thenReturn(getMockResponse(HttpStatus.SC_SERVICE_UNAVAILABLE, "  "));
+        Response response = client.execute(baseUrl, authToken, "fake mutation", null);
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_SERVICE_UNAVAILABLE);
+        assertThat(response.isError()).isTrue();
+        assertThat(response.getErrors().getFirst().getMessage())
+            .isEqualTo("Empty response body (HTTP 503)");
+      }
+
+      @Test
+      @DisplayName("It returns the status of a response without entity")
+      public void itReturnsTheStatusOfAResponseWithoutEntity() throws IOException {
+        when(mockHttpClient.execute(
+                (ClassicHttpRequest) any(),
+                any(HttpContext.class),
+                (HttpClientResponseHandler) any()))
+            .thenAnswer(
+                invocation ->
+                    ((HttpClientResponseHandler<?>) invocation.getArgument(2))
+                        .handleResponse(
+                            new BasicClassicHttpResponse(HttpStatus.SC_TOO_MANY_REQUESTS)));
+        Response response = client.execute(baseUrl, authToken, "fake mutation", null);
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_TOO_MANY_REQUESTS);
+        assertThat(response.getErrors().getFirst().getMessage())
+            .isEqualTo("Empty response body (HTTP 429)");
+      }
+    }
+
+    @Nested
     @DisplayName("When endpoint returns non GraphQL standard response")
     public class WhenEndpointReturnsNonGraphQLStandardResponse {
       @Nested
@@ -117,7 +175,9 @@ public class OpenCTIClientTest extends IntegrationTest {
           OpenCTIClient.ExtractedData mockResponse =
               getMockResponse(HttpStatus.SC_OK, "What's this ???");
           when(mockHttpClient.execute(
-                  (ClassicHttpRequest) any(), (HttpClientResponseHandler) any()))
+                  (ClassicHttpRequest) any(),
+                  any(HttpContext.class),
+                  (HttpClientResponseHandler) any()))
               .thenReturn(mockResponse);
         }
 
@@ -155,7 +215,9 @@ public class OpenCTIClientTest extends IntegrationTest {
                             }
                             """);
           when(mockHttpClient.execute(
-                  (ClassicHttpRequest) any(), (HttpClientResponseHandler) any()))
+                  (ClassicHttpRequest) any(),
+                  any(HttpContext.class),
+                  (HttpClientResponseHandler) any()))
               .thenReturn(mockResponse);
         }
 
@@ -193,7 +255,10 @@ public class OpenCTIClientTest extends IntegrationTest {
                   }
                 }
                 """);
-        when(mockHttpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler) any()))
+        when(mockHttpClient.execute(
+                (ClassicHttpRequest) any(),
+                any(HttpContext.class),
+                (HttpClientResponseHandler) any()))
             .thenReturn(mockResponse);
       }
 
@@ -229,6 +294,164 @@ public class OpenCTIClientTest extends IntegrationTest {
         assertThat(response.getErrors().size()).isEqualTo(0);
         assertThat(response.isError()).isFalse();
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("When calling execute with a timeout")
+  public class WhenCallingExecuteWithATimeout {
+    private final CloseableHttpClient boundedHttpClient = mock(CloseableHttpClient.class);
+
+    @BeforeEach
+    public void setup() {
+      // The client bean outlives the test: drop the bounded client a previous test left cached
+      client.closeBoundedClients();
+      when(mockHttpClientFactory.httpClientNoRetry(any(Timeout.class)))
+          .thenReturn(boundedHttpClient);
+    }
+
+    @Test
+    @DisplayName("It reuses one bounded client per timeout and closes it only at shutdown")
+    public void itReusesOneBoundedClientPerTimeout() throws IOException {
+      when(boundedHttpClient.execute(
+              (ClassicHttpRequest) any(),
+              any(HttpContext.class),
+              (HttpClientResponseHandler) any()))
+          .thenReturn(getMockResponse(HttpStatus.SC_OK, "{\"data\": {\"outcome\": \"good\"}}"));
+
+      client.execute(
+          baseUrl, authToken, MutationFixture.getDefaultMutation(), Duration.ofSeconds(7));
+      client.execute(
+          baseUrl, authToken, MutationFixture.getDefaultMutation(), Duration.ofSeconds(7));
+
+      verify(mockHttpClientFactory, times(1)).httpClientNoRetry(any(Timeout.class));
+      verify(boundedHttpClient, times(2))
+          .execute(
+              (ClassicHttpRequest) any(),
+              any(HttpContext.class),
+              (HttpClientResponseHandler) any());
+      verify(boundedHttpClient, never()).close();
+      verify(boundedHttpClient, never()).close(any(CloseMode.class));
+
+      client.closeBoundedClients();
+
+      verify(boundedHttpClient).close(CloseMode.GRACEFUL);
+    }
+
+    @Test
+    @DisplayName("It gives every request of a shared client its own cookie store")
+    public void itGivesEveryRequestItsOwnCookieStore() throws IOException {
+      when(boundedHttpClient.execute(
+              (ClassicHttpRequest) any(),
+              any(HttpContext.class),
+              (HttpClientResponseHandler) any()))
+          .thenReturn(getMockResponse(HttpStatus.SC_OK, "{\"data\": {\"outcome\": \"good\"}}"));
+
+      client.execute(
+          baseUrl, authToken, MutationFixture.getDefaultMutation(), Duration.ofSeconds(7));
+      client.execute(
+          baseUrl, "otherTenantToken", MutationFixture.getDefaultMutation(), Duration.ofSeconds(7));
+
+      ArgumentCaptor<HttpContext> contexts = ArgumentCaptor.forClass(HttpContext.class);
+      verify(boundedHttpClient, times(2))
+          .execute(
+              (ClassicHttpRequest) any(), contexts.capture(), (HttpClientResponseHandler) any());
+      CookieStore first = ((HttpClientContext) contexts.getAllValues().get(0)).getCookieStore();
+      CookieStore second = ((HttpClientContext) contexts.getAllValues().get(1)).getCookieStore();
+      assertThat(first).isNotNull();
+      assertThat(second).isNotNull();
+      assertThat(first).isNotSameAs(second);
+    }
+
+    @Test
+    @DisplayName("It sends the request through a bounded client that never retries")
+    public void itSendsTheRequestThroughABoundedClient() throws IOException {
+      when(boundedHttpClient.execute(
+              (ClassicHttpRequest) any(),
+              any(HttpContext.class),
+              (HttpClientResponseHandler) any()))
+          .thenReturn(getMockResponse(HttpStatus.SC_OK, "{\"data\": {\"outcome\": \"good\"}}"));
+
+      Response response =
+          client.execute(
+              baseUrl, authToken, MutationFixture.getDefaultMutation(), Duration.ofSeconds(7));
+
+      assertThat(response.isError()).isFalse();
+      assertThatJson(response.getData()).isEqualTo("{\"outcome\": \"good\"}");
+      ArgumentCaptor<Timeout> timeout = ArgumentCaptor.forClass(Timeout.class);
+      verify(mockHttpClientFactory).httpClientNoRetry(timeout.capture());
+      assertThat(timeout.getValue().toMilliseconds()).isEqualTo(7000L);
+      verify(mockHttpClientFactory, never()).httpClientCustom();
+    }
+
+    @Test
+    @DisplayName("It releases the deadline of a request that completes before its timeout")
+    public void itReleasesTheDeadlineOfARequestThatCompletesEarly() throws IOException {
+      when(boundedHttpClient.execute(
+              (ClassicHttpRequest) any(),
+              any(HttpContext.class),
+              (HttpClientResponseHandler) any()))
+          .thenReturn(getMockResponse(HttpStatus.SC_OK, "{\"data\": {\"outcome\": \"good\"}}"));
+      ScheduledThreadPoolExecutor deadlines =
+          (ScheduledThreadPoolExecutor) ReflectionTestUtils.getField(client, "requestDeadlines");
+      int queuedBefore = deadlines.getQueue().size();
+
+      client.execute(baseUrl, authToken, MutationFixture.getDefaultMutation(), Duration.ofHours(1));
+
+      // The cancelled deadline task, and the request with its token it holds, are not kept queued
+      assertThat(deadlines.getQueue().size()).isEqualTo(queuedBefore);
+    }
+
+    @Test
+    @DisplayName("It throws an exception when the endpoint cannot be reached")
+    public void itThrowsWhenTheEndpointCannotBeReached() throws IOException {
+      when(boundedHttpClient.execute(
+              (ClassicHttpRequest) any(),
+              any(HttpContext.class),
+              (HttpClientResponseHandler<?>) any()))
+          .thenThrow(IOException.class);
+
+      assertThatThrownBy(
+              () ->
+                  client.execute(
+                      baseUrl,
+                      authToken,
+                      MutationFixture.getDefaultMutation(),
+                      Duration.ofSeconds(7)))
+          .isInstanceOf(ClientProtocolException.class)
+          .hasCauseInstanceOf(IOException.class);
+    }
+
+    @Test
+    @DisplayName("It cancels the request once it has run for the whole timeout")
+    public void itCancelsTheRequestOnceItHasRunForTheWholeTimeout() throws IOException {
+      // A response trickling in: no single read times out, only the total deadline can stop it
+      when(boundedHttpClient.execute(
+              (ClassicHttpRequest) any(),
+              any(HttpContext.class),
+              (HttpClientResponseHandler<?>) any()))
+          .thenAnswer(
+              invocation -> {
+                HttpUriRequestBase request = invocation.getArgument(0);
+                long giveUpAt = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+                while (!request.isCancelled() && System.nanoTime() < giveUpAt) {
+                  Thread.sleep(10);
+                }
+                throw new InterruptedIOException(
+                    request.isCancelled() ? "Request aborted" : "Request never cancelled");
+              });
+
+      long start = System.nanoTime();
+      assertThatThrownBy(
+              () ->
+                  client.execute(
+                      baseUrl,
+                      authToken,
+                      MutationFixture.getDefaultMutation(),
+                      Duration.ofMillis(200)))
+          .isInstanceOf(ClientProtocolException.class)
+          .hasRootCauseMessage("Request aborted");
+      assertThat(Duration.ofNanos(System.nanoTime() - start).toMillis()).isLessThan(5000L);
     }
   }
 }
