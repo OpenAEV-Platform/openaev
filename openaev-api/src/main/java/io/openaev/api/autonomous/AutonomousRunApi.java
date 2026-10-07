@@ -141,7 +141,7 @@ public class AutonomousRunApi extends RestBehavior {
   // FIXME: require admin privs
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       isEnterpriseEdition = true)
   public AutonomousDefaultAgentsOutput setDefaultAgents(
       TxCtx ctx, @RequestBody AutonomousDefaultAgentsInput input) {
@@ -240,7 +240,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.READ,
+      actionPerformed = Action.SEARCH,
       isEnterpriseEdition = true)
   public List<AutonomousRun> list(TxCtx ctx) {
     return autonomousRunService.list();
@@ -319,7 +319,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.SCENARIO,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#scenarioId",
       isEnterpriseEdition = true)
   public AutonomousRunCreateInput saveScenarioConfig(
@@ -468,7 +468,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousDirective addDirective(
@@ -481,7 +481,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public List<Workflow> updateConfiguration(
@@ -510,7 +510,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun setScope(
@@ -525,7 +525,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousEvent recordEvent(
@@ -541,7 +541,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun updateStatus(
@@ -557,7 +557,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public List<AutonomousDirective> consumeDirectives(
@@ -579,7 +579,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousAttackPathStepResult appendAttackPathStep(
@@ -606,7 +606,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousAttackPathStepResult updateAttackPathStep(
@@ -632,7 +632,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public void deleteAttackPathStep(
@@ -669,7 +669,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun evaluateAttackPath(@RunTenantScope TxCtx ctx, @PathVariable String runId) {
@@ -689,7 +689,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousPromotedAssetResult promoteFindingToAsset(
@@ -714,7 +714,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.WRITE,
+      actionPerformed = Action.LAUNCH,
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousTargetTeamResult ensureTargetTeam(

@@ -3967,13 +3967,13 @@ public class AutonomousRunService {
   @Transactional(readOnly = true)
   public List<AutonomousEvent> timeline(String runId, long sinceSequence) {
     return sinceSequence > 0
-        ? eventService.timelineSince(runId, sinceSequence)
-        : eventService.timeline(runId);
+        ? eventService.timelineSince(require(runId).getId(), sinceSequence)
+        : eventService.timeline(require(runId).getId());
   }
 
   @Transactional(readOnly = true)
   public List<AutonomousDirective> directives(String runId) {
-    return directiveRepository.findByRunIdOrderByCreatedAtAsc(runId);
+    return directiveRepository.findByRunIdOrderByCreatedAtAsc(require(runId).getId());
   }
 
   @Transactional(readOnly = true)

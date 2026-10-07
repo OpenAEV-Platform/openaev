@@ -51,6 +51,7 @@ public class PermissionService {
       EnumSet.of(
           ResourceType.SCENARIO,
           ResourceType.SIMULATION,
+          ResourceType.AUTONOMOUS_RUN,
           ResourceType.SIMULATION_OR_SCENARIO,
           ResourceType.THREAT_ARSENAL,
           ResourceType.ATOMIC_TESTING);
