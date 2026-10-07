@@ -19,9 +19,15 @@ import static io.openaev.database.model.SettingKeys.PLATFORM_ENTERPRISE_LICENSE;
 import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE;
 import static io.openaev.ee.Pem.*;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
@@ -48,12 +54,26 @@ public class EnterpriseEditionService {
   public static final String LICENSE_OPTION_TYPE = "2.14521.4.4.10";
   public static final String LICENSE_OPTION_PRODUCT = "2.14521.4.4.20";
   public static final String LICENSE_OPTION_CREATOR = "2.14521.4.4.30";
-  private final List<String> eeExecutorsNames =
-      List.of(
-          CROWDSTRIKE_EXECUTOR_NAME,
-          TANIUM_EXECUTOR_NAME,
-          SENTINELONE_EXECUTOR_NAME,
-          PALOALTOCORTEX_EXECUTOR_NAME);
+
+  /**
+   * The single list of Enterprise Edition executors: stable executor type → built-in executor name.
+   * The launch-time gate matches persisted executors on the type, never on their name, because the
+   * name comes from the editable EXECUTOR_NAME configuration ("Display name" in the UI). The
+   * dispatch-time gate receives the fixed SERVICE_NAME constant of each executor context service.
+   * The front mirrors the types in {@code utils/executors.ts}.
+   */
+  private static final Map<String, String> EE_EXECUTOR_NAMES_BY_TYPE =
+      Map.of(
+          CROWDSTRIKE_EXECUTOR_TYPE, CROWDSTRIKE_EXECUTOR_NAME,
+          TANIUM_EXECUTOR_TYPE, TANIUM_EXECUTOR_NAME,
+          SENTINELONE_EXECUTOR_TYPE, SENTINELONE_EXECUTOR_NAME,
+          PALOALTOCORTEX_EXECUTOR_TYPE, PALOALTOCORTEX_EXECUTOR_NAME,
+          MDE_EXECUTOR_TYPE, MDE_EXECUTOR_NAME);
+
+  /** Whether executors of this type require an Enterprise Edition license. */
+  public static boolean isEnterpriseExecutorType(String executorType) {
+    return executorType != null && EE_EXECUTOR_NAMES_BY_TYPE.containsKey(executorType);
+  }
 
   @Resource private OpenAEVConfig openAEVConfig;
 
@@ -213,7 +233,7 @@ public class EnterpriseEditionService {
 
   public void throwEEExecutorService(
       License license, String serviceName, InjectStatus injectStatus) {
-    if (!this.isLicenseActive(license) && eeExecutorsNames.contains(serviceName)) {
+    if (!this.isLicenseActive(license) && EE_EXECUTOR_NAMES_BY_TYPE.containsValue(serviceName)) {
       String licenseRestrictedMsg =
           "LICENSE RESTRICTION - Asset will be executed through the " + serviceName + " executor";
       injectStatus.addInfoTrace(licenseRestrictedMsg, ExecutionTraceAction.EXECUTION);
@@ -221,21 +241,24 @@ public class EnterpriseEditionService {
     }
   }
 
+  /**
+   * Returns the display names of the Enterprise Edition executors driving the given agents, one
+   * entry per executor. Executors are recognized by their type, so renaming an executor instance
+   * cannot take it out of the license check.
+   */
   public List<String> detectEEExecutors(List<Agent> agents) {
-    List<String> found = new ArrayList<>();
+    Set<String> found = new LinkedHashSet<>();
 
     for (Agent agent : agents) {
       Executor executor = agent.getExecutor();
       if (executor == null) continue;
 
-      if (eeExecutorsNames.contains(executor.getName())) {
+      if (isEnterpriseExecutorType(executor.getType())) {
         found.add(executor.getName());
-        // exit early if all types have been found
-        if (found.size() == eeExecutorsNames.size()) break;
       }
     }
 
-    return found;
+    return new ArrayList<>(found);
   }
 
   /**
