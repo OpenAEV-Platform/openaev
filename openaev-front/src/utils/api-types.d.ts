@@ -12106,11 +12106,9 @@ export interface SortField {
 }
 
 export interface SortObject {
-  ascending?: boolean;
-  direction?: string;
-  ignoreCase?: boolean;
-  nullHandling?: string;
-  property?: string;
+  empty?: boolean;
+  sorted?: boolean;
+  unsorted?: boolean;
 }
 
 export interface StatusPayload {
