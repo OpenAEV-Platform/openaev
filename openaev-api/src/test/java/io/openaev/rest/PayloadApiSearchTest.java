@@ -29,6 +29,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -236,6 +237,38 @@ public class PayloadApiSearchTest extends IntegrationTest {
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(3));
+      }
+
+      @Test
+      @DisplayName("Filtering by command content never reads the AI attack content")
+      void given_filter_on_command_content_should_match_command_column_only() throws Exception {
+        // Arrange: Command and AiAttack both declare a `content` attribute, on different columns
+        // (command_content / ai_attack_content); the filter resolves the subtype by attribute name.
+        String token = "content-" + UUID.randomUUID();
+        Payload command = createCommand("PowerShell", "echo " + token, null, null);
+        command.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+        Payload aiAttack = createAiAttack("say " + token);
+        aiAttack.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+        List<String> ids =
+            List.of(
+                payloadRepository.save(command).getId(), payloadRepository.save(aiAttack).getId());
+        try {
+          SearchPaginationInput searchPaginationInput =
+              PaginationFixture.simpleSearchWithAndOperator("command_content", token, contains);
+
+          // Act
+          mvc.perform(
+                  post(PAYLOAD_URI + "/search")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(searchPaginationInput))
+                      .with(csrf()))
+              // Assert
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.numberOfElements").value(1))
+              .andExpect(jsonPath("$.content.[0].payload_id").value(command.getId()));
+        } finally {
+          payloadRepository.deleteAllById(ids);
+        }
       }
     }
   }
