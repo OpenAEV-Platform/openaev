@@ -12,6 +12,7 @@ import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
+import io.openaev.database.repository.InjectAuthorisationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.inject.form.InjectExecutionAction;
@@ -39,11 +40,51 @@ class InjectStatusServiceTest {
 
   private static final Instant START_TIME = Instant.parse("2026-07-24T09:00:00Z");
 
+  @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
+
   @InjectMocks private InjectStatusService injectStatusService;
 
   private ExecutionTrace startTrace(InjectStatus status, Agent agent, Instant time) {
     return new ExecutionTrace(
         status, ExecutionTraceStatus.INFO, null, "start", ExecutionTraceAction.START, agent, time);
+  }
+
+  @Nested
+  @DisplayName("Clean-up on terminal status")
+  class CleanupOnTerminalStatusTest {
+
+    @Test
+    @DisplayName("given terminal status should delete inject authorisation")
+    void given_terminal_status_should_delete_inject_authorisation() {
+      // -- ARRANGE --
+      Inject inject = mock(Inject.class);
+      when(inject.getId()).thenReturn("inject-terminated");
+      InjectStatus status = new InjectStatus();
+      status.setInject(inject);
+      status.setName(io.openaev.database.model.ExecutionStatus.EXECUTED);
+
+      // -- ACT --
+      injectStatusService.deleteInjectAuthorisationIfExecutionEnded(status);
+
+      // -- ASSERT --
+      verify(injectAuthorisationRepository).deleteAllByInjectId("inject-terminated");
+    }
+
+    @Test
+    @DisplayName("given in-progress status should not delete inject authorisation")
+    void given_in_progress_status_should_not_delete_inject_authorisation() {
+      // -- ARRANGE --
+      Inject inject = mock(Inject.class);
+      InjectStatus status = new InjectStatus();
+      status.setInject(inject);
+      status.setName(io.openaev.database.model.ExecutionStatus.PENDING);
+
+      // -- ACT --
+      injectStatusService.deleteInjectAuthorisationIfExecutionEnded(status);
+
+      // -- ASSERT --
+      verify(injectAuthorisationRepository, never()).deleteAllByInjectId(any());
+    }
   }
 
   @Nested
@@ -86,8 +127,9 @@ class InjectStatusServiceTest {
 
       @Mock private InjectRepository injectRepository;
       @Mock private AgentRepository agentRepository;
-      @Mock private InjectService injectService;
+      @Mock private InjectAgentResolverService injectAgentResolverService;
       @Mock private InjectUtils injectUtils;
+      @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
       @Mock private InjectStatusRepository injectStatusRepository;
       @Mock private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
       @Mock private AuditLogger auditLogger;
@@ -103,8 +145,9 @@ class InjectStatusServiceTest {
             new InjectStatusService(
                 injectRepository,
                 agentRepository,
-                injectService,
+                injectAgentResolverService,
                 injectUtils,
+                injectAuthorisationRepository,
                 injectStatusRepository,
                 executionTraceRepositoryHelper,
                 Optional.of(auditLogger),
