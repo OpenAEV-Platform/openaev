@@ -8,6 +8,7 @@ import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PayloadFixture.*;
 import static java.lang.String.valueOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -16,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.AiAttack;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tenant;
@@ -115,6 +117,43 @@ public class PayloadApiSearchTest extends IntegrationTest {
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(0));
+      }
+
+      @Test
+      @DisplayName("Textsearch on a subtype-only field keeps the other payload types")
+      void given_textsearch_matching_subtype_field_should_still_return_other_payload_types()
+          throws Exception {
+        // Arrange: textsearch ORs payload_name with AiAttack.category, which is reached through a
+        // treat(AiAttack); a Command matching by name must not be filtered out by that cast.
+        String token = "search-" + UUID.randomUUID();
+        Payload command = createCommand("PowerShell", "cd ..", null, null);
+        command.setName("command " + token);
+        command.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+        AiAttack aiAttack = createAiAttack("say hello");
+        aiAttack.setCategory("category " + token);
+        aiAttack.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+        List<String> ids =
+            List.of(
+                payloadRepository.save(command).getId(), payloadRepository.save(aiAttack).getId());
+        try {
+          SearchPaginationInput searchPaginationInput =
+              PaginationFixture.getDefault().textSearch(token).build();
+
+          // Act
+          mvc.perform(
+                  post(PAYLOAD_URI + "/search")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(searchPaginationInput))
+                      .with(csrf()))
+              // Assert
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.numberOfElements").value(2))
+              .andExpect(
+                  jsonPath("$.content[*].payload_id")
+                      .value(containsInAnyOrder(command.getId(), aiAttack.getId())));
+        } finally {
+          payloadRepository.deleteAllById(ids);
+        }
       }
     }
 
@@ -237,38 +276,6 @@ public class PayloadApiSearchTest extends IntegrationTest {
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(3));
-      }
-
-      @Test
-      @DisplayName("Filtering by command content never reads the AI attack content")
-      void given_filter_on_command_content_should_match_command_column_only() throws Exception {
-        // Arrange: Command and AiAttack both declare a `content` attribute, on different columns
-        // (command_content / ai_attack_content); the filter resolves the subtype by attribute name.
-        String token = "content-" + UUID.randomUUID();
-        Payload command = createCommand("PowerShell", "echo " + token, null, null);
-        command.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-        Payload aiAttack = createAiAttack("say " + token);
-        aiAttack.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-        List<String> ids =
-            List.of(
-                payloadRepository.save(command).getId(), payloadRepository.save(aiAttack).getId());
-        try {
-          SearchPaginationInput searchPaginationInput =
-              PaginationFixture.simpleSearchWithAndOperator("command_content", token, contains);
-
-          // Act
-          mvc.perform(
-                  post(PAYLOAD_URI + "/search")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(searchPaginationInput))
-                      .with(csrf()))
-              // Assert
-              .andExpect(status().is2xxSuccessful())
-              .andExpect(jsonPath("$.numberOfElements").value(1))
-              .andExpect(jsonPath("$.content.[0].payload_id").value(command.getId()));
-        } finally {
-          payloadRepository.deleteAllById(ids);
-        }
       }
     }
   }
