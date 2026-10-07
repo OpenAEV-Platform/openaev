@@ -101,7 +101,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.READ,
+      actionPerformed = Action.SEARCH,
       isEnterpriseEdition = true)
   public List<AutonomousObjectiveTemplate> objectiveTemplates(TxCtx ctx) {
     return autonomousRunService.objectiveTemplates();
@@ -130,7 +130,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.READ,
+      actionPerformed = Action.SEARCH,
       isEnterpriseEdition = true)
   public AutonomousDefaultAgentsOutput defaultAgents(TxCtx ctx) {
     return new AutonomousDefaultAgentsOutput(
@@ -165,7 +165,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.READ,
+      actionPerformed = Action.SEARCH,
       isEnterpriseEdition = true)
   public CapabilityReport resolveCapabilities(
       // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
