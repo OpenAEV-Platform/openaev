@@ -11,6 +11,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.sso.GroupMapping;
+import jakarta.annotation.Nonnull;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,7 +22,6 @@ import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -159,7 +159,7 @@ public class UserMappingService {
    * @return the list of roles from the user
    */
   public List<String> extractRolesFromUser(
-      @NotNull final AuthenticatedPrincipal user, @NotBlank final String registrationId) {
+      @Nonnull final AuthenticatedPrincipal user, @NotBlank final String registrationId) {
     return extractAttributesListFromUser(user, registrationId, ROLES_PATH_SUFFIX);
   }
 
@@ -172,7 +172,7 @@ public class UserMappingService {
    * @return the list of groups from the user
    */
   public List<String> extractGroupsFromUser(
-      @NotNull final AuthenticatedPrincipal user, @NotBlank final String registrationId) {
+      @Nonnull final AuthenticatedPrincipal user, @NotBlank final String registrationId) {
     return extractAttributesListFromUser(user, registrationId, GROUPS_PATH_SUFFIX);
   }
 
@@ -185,7 +185,7 @@ public class UserMappingService {
    * @return a list of values
    */
   private List<String> extractAttributesListFromUser(
-      @NotNull final AuthenticatedPrincipal user,
+      @Nonnull final AuthenticatedPrincipal user,
       @NotBlank final String registrationId,
       @NotBlank final String property) {
     List<String> attributePaths = getProviderProperty(registrationId, property);
@@ -210,7 +210,7 @@ public class UserMappingService {
    * @return the list of corresponding values
    */
   private List<String> getAttributeOfUser(
-      @NotNull final AuthenticatedPrincipal user, @NotBlank final String path) {
+      @Nonnull final AuthenticatedPrincipal user, @NotBlank final String path) {
     if (user instanceof Saml2AuthenticatedPrincipal) {
       return ((Saml2AuthenticatedPrincipal) user).getAttribute(path);
     } else if (user instanceof OAuth2User) {

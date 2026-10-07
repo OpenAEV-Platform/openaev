@@ -114,6 +114,20 @@ class MdeExecutorClientTest {
   }
 
   @Test
+  @DisplayName("activity query unions DeviceInfo with the sensor's continuous event tables")
+  void given_window_should_buildActivityQueryOverDeviceInfoAndEventTables() {
+    // Act
+    String query = MdeExecutorClient.buildRecentActivityQuery(180);
+
+    // Assert — DeviceInfo alone is an hourly snapshot and made healthy devices flap to inactive.
+    assertThat(query)
+        .startsWith(
+            "union DeviceInfo, DeviceEvents, DeviceNetworkEvents, DeviceProcessEvents"
+                + " | where Timestamp > ago(180m)")
+        .endsWith("| summarize LastSeen=max(Timestamp) by DeviceId");
+  }
+
+  @Test
   @DisplayName("a device group id is trimmed before being placed in the filter")
   void given_paddedDeviceGroup_should_trimBeforeFiltering() {
     // Act
