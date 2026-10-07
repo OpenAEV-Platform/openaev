@@ -46,7 +46,7 @@ import org.springframework.stereotype.Component;
  * hashes cleared to re-arm a step).
  */
 @Component
-public class V6_20261005160000000__Migrate_workflow_state_to_normalized_entries
+public class V6_20261007140000000__Migrate_workflow_state_to_normalized_entries
     extends BaseJavaMigration {
 
   private static final int BATCH_SIZE = 1000;

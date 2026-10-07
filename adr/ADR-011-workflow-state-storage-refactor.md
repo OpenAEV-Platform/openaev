@@ -102,7 +102,7 @@ ALTER TABLE workflow_states ALTER COLUMN workflow_state_entries DROP NOT NULL;
 DROP INDEX idx_wf_state_entries_gin;
 ```
 
-The table was created by `V6_20261005105200000`; the global-state uniqueness, the legacy column change and the conversion of in-flight states (§4.3) are done by `V6_20261005160000000`. The first migration also added a `workflows.storage_mode` dual-run routing flag, from an earlier version of this ADR planning a coexistence window; it was never used by any code and is dropped by the second one.
+The table was created by `V6_20261005105200000`; the global-state uniqueness, the legacy column change and the conversion of in-flight states (§4.3) are done by `V6_20261007140000000`. The first migration also added a `workflows.storage_mode` dual-run routing flag, from an earlier version of this ADR planning a coexistence window; it was never used by any code and is dropped by the second one.
 
 Notes justified by driver trade-offs:
 - **One partial unique index per entry type**, because each type has its own identity: an input value is unique per key; an execution hash is unique per state; a correlated field is unique *within its tuple*. A single `UNIQUE (workflow_state_id, entry_type, entry_key, entry_value)` would be wrong for `CORRELATED` rows: `{IPv4=10.0.0.1, Port=80}` and `{IPv4=10.0.0.1, Port=443}` share the row `IPv4=10.0.0.1`, and `ON CONFLICT DO NOTHING` would silently drop it from the second tuple.
@@ -129,7 +129,7 @@ Notes justified by driver trade-offs:
 
 ### 4.3 Migration strategy: conversion at deployment
 
-The JSONB state of in-flight runs is converted into rows by `V6_20261005160000000`, at application start, before the engine runs. From then on the engine only reads and writes the normalized store: there is a single implementation, no routing and no coexistence window. The migration, in a single transaction:
+The JSONB state of in-flight runs is converted into rows by `V6_20261007140000000`, at application start, before the engine runs. From then on the engine only reads and writes the normalized store: there is a single implementation, no routing and no coexistence window. The migration, in a single transaction:
 
 1. Deletes the states of runs that are neither `RUN` nor `STOP` (paused, hence resumable). States of ended runs are deleted at end of run (see below); the remaining ones predate that cleanup.
 2. Converts every remaining JSONB document: one `INPUT` row per value, one `CORRELATED` row per tuple field (with the tuple's hash and type, computed exactly as at runtime), one `HASH_EXECUTION` row per committed hash. Duplicate global states of a run are merged into the oldest one, then deleted.

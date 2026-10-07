@@ -46,7 +46,7 @@ public final class ChainingHashUtils {
    * tuples share a hash (e.g. {@code [(IPv4, "x|Port=y")]} vs {@code [(IPv4, "x"), (Port, "y")]}).
    *
    * <p>Must stay identical to the copy frozen in the migration that converted the legacy JSONB
-   * state ({@code V6_20261005160000000}).
+   * state ({@code V6_20261007140000000}).
    */
   public static String hashTuple(Collection<WorkflowStateEntries.Pair> pairs) {
     StringBuilder sb = new StringBuilder();

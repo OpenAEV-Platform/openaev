@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Verifies the ADR-011 normalized WorkflowState store migration is applied, additive and
  * idempotent: the {@code workflow_state_entries} table exists with the expected types/constraints,
  * and re-running the migration is a no-op. (The {@code workflows.storage_mode} column it also added
- * is dropped by {@code V6_20261005160000000}, see {@link
+ * is dropped by {@code V6_20261007140000000}, see {@link
  * MigrateWorkflowStateToNormalizedEntriesMigrationTest}.)
  *
  * <p>{@code @Transactional} so the idempotency test's re-run of the migration rolls back with the

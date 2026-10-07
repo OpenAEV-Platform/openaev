@@ -38,10 +38,10 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("Migration V6_20261005160000000 — legacy workflow state conversion")
+@DisplayName("Migration V6_20261007140000000 — legacy workflow state conversion")
 class MigrateWorkflowStateToNormalizedEntriesMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20261005160000000__Migrate_workflow_state_to_normalized_entries migration;
+  @Autowired private V6_20261007140000000__Migrate_workflow_state_to_normalized_entries migration;
   @Autowired private WorkflowStateStore workflowStateStore;
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ExerciseComposer exerciseComposer;

@@ -13,7 +13,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * The tuple hash frozen in {@link
- * V6_20261005160000000__Migrate_workflow_state_to_normalized_entries} must stay identical to {@link
+ * V6_20261007140000000__Migrate_workflow_state_to_normalized_entries} must stay identical to {@link
  * ChainingHashUtils#hashTuple}: tuples converted at deployment and tuples written at runtime are
  * deduplicated against each other by this hash.
  */
@@ -44,7 +44,7 @@ class MigrateWorkflowStateTupleHashTest {
 
       // Act
       String migrationHash =
-          V6_20261005160000000__Migrate_workflow_state_to_normalized_entries.hashTuple(
+          V6_20261007140000000__Migrate_workflow_state_to_normalized_entries.hashTuple(
               migrationPairs);
 
       // Assert
@@ -63,9 +63,9 @@ class MigrateWorkflowStateTupleHashTest {
 
       // Act + Assert
       assertThat(
-              V6_20261005160000000__Migrate_workflow_state_to_normalized_entries.hashTuple(forged))
+              V6_20261007140000000__Migrate_workflow_state_to_normalized_entries.hashTuple(forged))
           .isNotEqualTo(
-              V6_20261005160000000__Migrate_workflow_state_to_normalized_entries.hashTuple(
+              V6_20261007140000000__Migrate_workflow_state_to_normalized_entries.hashTuple(
                   genuine));
     }
   }
