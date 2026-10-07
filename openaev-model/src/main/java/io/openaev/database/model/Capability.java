@@ -148,6 +148,10 @@ public enum Capability {
       pair(ResourceType.THREAT_ARSENAL, Action.CREATE),
       pair(ResourceType.THREAT_ARSENAL, Action.DUPLICATE)),
   DELETE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.DELETE)),
+  // "Approve content": trust a payload's content to be used, a content decision kept apart from
+  // Launch assessment (an execution decision). Sibling of Manage so approvers need not author.
+  APPROVE_THREAT_ARSENALS(
+      ACCESS_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.APPROVE)),
 
   // Credentials -
   ACCESS_CREDENTIALS(

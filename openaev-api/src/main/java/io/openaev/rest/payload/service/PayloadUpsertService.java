@@ -115,6 +115,8 @@ public class PayloadUpsertService {
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload, false);
     payload.setTenant(new Tenant(tenantId));
+    // A collector write is not a user's modification.
+    payload.setLastModifiedBy(null);
 
     if (collectorType != null) {
       payload.setCollectorType(collectorType);
@@ -159,6 +161,8 @@ public class PayloadUpsertService {
 
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
     payloadUtils.copyProperties(input, payload, true);
+    // A collector write is not a user's modification.
+    payload.setLastModifiedBy(null);
 
     if (collectorType != null) {
       payload.setCollectorType(collectorType);

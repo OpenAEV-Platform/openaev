@@ -373,7 +373,9 @@ public class PayloadMapper {
             .detectionRemediations(payload.getDetectionRemediations())
             .outputParsers(payload.getOutputParsers())
             .createdAt(payload.getCreatedAt())
-            .updatedAt(payload.getUpdatedAt());
+            .updatedAt(payload.getUpdatedAt())
+            .lastModifiedBy(
+                payload.getLastModifiedBy() != null ? payload.getLastModifiedBy().getId() : null);
 
     if (payload instanceof Command command) {
       builder.commandExecutor(command.getExecutor()).commandContent(command.getContent());

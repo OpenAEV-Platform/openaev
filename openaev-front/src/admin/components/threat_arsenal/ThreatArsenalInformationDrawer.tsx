@@ -112,6 +112,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
           expectationDetails={fullOutput?.action_expectation_details}
           expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
           providing={fullOutput?.action_providing}
+          lastModifiedByName={fullOutput ? (fullOutput.action_last_modified_by_name ?? null) : undefined}
           loading={loading}
         />
       )}

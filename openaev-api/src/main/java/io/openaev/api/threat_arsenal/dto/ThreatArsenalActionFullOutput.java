@@ -105,4 +105,10 @@ public record ThreatArsenalActionFullOutput(
         // Omitted (not an explicit JSON null) when absent, so the generated optional TypeScript
         // type (action_expectation_details?: ...) is exactly what clients observe on the wire.
         @JsonInclude(JsonInclude.Include.NON_NULL)
-        List<ThreatArsenalExpectationDetail> expectationDetails) {}
+        List<ThreatArsenalExpectationDetail> expectationDetails,
+    @Schema(description = "Id of the user who last modified the action payload")
+        @JsonProperty("action_last_modified_by")
+        String lastModifiedById,
+    @Schema(description = "Display name of the user who last modified the action payload")
+        @JsonProperty("action_last_modified_by_name")
+        String lastModifiedByName) {}

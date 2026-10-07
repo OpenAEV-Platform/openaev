@@ -287,6 +287,8 @@ export interface AiAttack {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   /** @uniqueItems true */
@@ -2172,6 +2174,8 @@ interface BasePayload {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   /** @uniqueItems true */
@@ -2844,6 +2848,8 @@ export interface Command {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   /** @uniqueItems true */
@@ -3929,6 +3935,8 @@ export interface DnsResolution {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   /** @uniqueItems true */
@@ -5542,6 +5550,8 @@ export interface Executable {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   /** @uniqueItems true */
@@ -6006,6 +6016,8 @@ export interface FileDrop {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   /** @uniqueItems true */
@@ -8247,6 +8259,8 @@ export interface NetworkTraffic {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   /** @uniqueItems true */
@@ -9747,6 +9761,8 @@ export interface PayloadOutput {
    * @minLength 1
    */
   payload_id: string;
+  /** Id of the user who last modified the payload */
+  payload_last_modified_by?: string;
   /**
    * Payload display name
    * @minLength 1
@@ -10930,6 +10946,7 @@ export interface RoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "APPROVE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -11016,6 +11033,7 @@ export interface RoleOutput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "APPROVE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -12951,6 +12969,10 @@ export interface ThreatArsenalActionFullOutput {
   action_id: string;
   /** Action display name */
   action_labels: Record<string, string>;
+  /** Id of the user who last modified the action payload */
+  action_last_modified_by?: string;
+  /** Display name of the user who last modified the action payload */
+  action_last_modified_by_name?: string;
   /**
    * Parsers used to process action outputs
    * @uniqueItems true
@@ -13311,6 +13333,7 @@ export interface User {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "APPROVE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"

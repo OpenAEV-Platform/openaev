@@ -16,6 +16,7 @@ import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
+import io.openaev.service.UserService;
 import io.openaev.service.ZipJsonService;
 import jakarta.annotation.Resource;
 import java.util.*;
@@ -41,6 +42,7 @@ public class PayloadImportService {
   private final TagService tagService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final AmbientTenantBridge ambientTenantBridge;
+  private final UserService userService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -81,8 +83,18 @@ public class PayloadImportService {
 
   private PayloadImportResult importPayloadInTenant(TxCtx ctx, MultipartFile file, String tenantId)
       throws Exception {
+    // The imported payload is a write of the importing user; the export never carries it.
+    User importingUser = userService.currentUserOrNull();
     ZipJsonService.ImportOutput<Payload> response =
-        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null, tenantId);
+        zipJsonApi.handleImport(
+            file,
+            "payload_name",
+            IMPORT_OPTIONS,
+            payload -> {
+              payload.setLastModifiedBy(importingUser);
+              return payload;
+            },
+            tenantId);
 
     List<AttackPattern> attackPatterns =
         extractRelationshipObjects(

@@ -248,6 +248,20 @@ public class Payload implements GrantableBase, TenantBase {
   @Schema(description = "Organization author of the payload", type = "string")
   private Organization authorOrganization;
 
+  // -- LAST MODIFIED BY --
+  // The user whose create, update, duplicate or import last wrote the payload. Null for
+  // collector and system writes, and for payloads written before it was recorded. Environment-local
+  // like the author, so it never travels with exports.
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_last_modified_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @JsonProperty("payload_last_modified_by")
+  @IncludeOption(key = "exclude from payload export")
+  @Queryable(dynamicValues = true, filterable = true, path = "lastModifiedBy.id")
+  @Schema(description = "User who last modified the payload", type = "string")
+  private User lastModifiedBy;
+
   @OneToMany(
       mappedBy = "payload",
       cascade = CascadeType.ALL,

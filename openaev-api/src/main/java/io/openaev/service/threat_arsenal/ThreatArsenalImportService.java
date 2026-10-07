@@ -6,10 +6,12 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
+import io.openaev.service.UserService;
 import io.openaev.service.ZipJsonService;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
@@ -35,6 +37,7 @@ public class ThreatArsenalImportService {
   private final ThreatArsenalMapper threatArsenalMapper;
   private final ObjectMapper objectMapper;
   private final InjectorRepository injectorRepository;
+  private final UserService userService;
 
   public ThreatArsenalAction importThreatArsenalAction(
       @NotNull TxCtx ctx, @NotNull MultipartFile file, @NotNull String tenantId) throws Exception {
@@ -46,6 +49,8 @@ public class ThreatArsenalImportService {
 
   private ThreatArsenalAction importFromInjectorContract(MultipartFile file, String tenantId)
       throws Exception {
+    // The imported payload is a write of the importing user; the export never carries it.
+    User importingUser = userService.currentUserOrNull();
     ZipJsonService.ImportOutput<InjectorContract> response =
         injectorContractZipJsonApi.handleImport(
             file,
@@ -61,6 +66,9 @@ public class ThreatArsenalImportService {
               }
               if (contract.getPayload() != null && contract.getPayload().getName() != null) {
                 contract.getPayload().setName(contract.getPayload().getName() + " (Import)");
+              }
+              if (contract.getPayload() != null) {
+                contract.getPayload().setLastModifiedBy(importingUser);
               }
               // Injector links are not part of the export (the owning-side join rows are
               // @JsonIgnore), so an imported contract would otherwise have no injector and
