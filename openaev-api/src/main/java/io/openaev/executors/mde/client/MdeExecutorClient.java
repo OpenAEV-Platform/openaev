@@ -157,10 +157,10 @@ public class MdeExecutorClient {
 
   /**
    * Returns the freshest activity timestamp per device seen in the last {@code windowMinutes},
-   * queried from MDE Advanced Hunting ({@code DeviceInfo} table). The machines inventory {@code
-   * lastSeen} refreshes only on a slow (up to daily) cadence and badly lags real connectivity, so
-   * it cannot be used to decide whether a device is currently reachable for Live Response. Advanced
-   * Hunting reflects near real-time device activity instead.
+   * queried from MDE Advanced Hunting (see {@link #buildRecentActivityQuery}). The machines
+   * inventory {@code lastSeen} refreshes only on a slow (up to daily) cadence and badly lags real
+   * connectivity, so it cannot be used to decide whether a device is currently reachable for Live
+   * Response. Advanced Hunting reflects near real-time device activity instead.
    *
    * @return device id → last activity instant, or {@code null} when Advanced Hunting is unavailable
    *     (e.g. the app registration lacks the {@code AdvancedQuery.Read.All} permission), so callers
@@ -168,12 +168,8 @@ public class MdeExecutorClient {
    */
   public Map<String, Instant> getRecentDeviceActivity(int windowMinutes) {
     try {
-      String query =
-          "DeviceInfo | where Timestamp > ago("
-              + windowMinutes
-              + "m) | summarize LastSeen=max(Timestamp) by DeviceId";
       Map<String, Object> body = new HashMap<>();
-      body.put("Query", query);
+      body.put("Query", buildRecentActivityQuery(windowMinutes));
       String json = post(ADVANCED_QUERIES_URI, body);
       MdeAdvancedQueryResponse response = objectMapper.readValue(json, new TypeReference<>() {});
       if (response.getResults() == null) {
@@ -204,6 +200,22 @@ public class MdeExecutorClient {
   }
 
   // -- PRIVATE --
+
+  /**
+   * Builds the Advanced Hunting query returning the latest activity per device. {@code DeviceInfo}
+   * alone is a periodic snapshot written about once an hour per device, the same as OpenAEV's 1h
+   * active threshold, so a healthy device regularly showed as inactive between two snapshots (gaps
+   * of up to 91 minutes measured over a week). Adding the sensor's continuous event streams brings
+   * the worst gap between two signals down to about 45 minutes while keeping the query cheap: it
+   * only returns one row per device.
+   */
+  @VisibleForTesting
+  static String buildRecentActivityQuery(int windowMinutes) {
+    return "union DeviceInfo, DeviceEvents, DeviceNetworkEvents, DeviceProcessEvents"
+        + " | where Timestamp > ago("
+        + windowMinutes
+        + "m) | summarize LastSeen=max(Timestamp) by DeviceId";
+  }
 
   /**
    * Builds the OData {@code $filter} for the {@code /machines} listing. Restricts to devices seen
