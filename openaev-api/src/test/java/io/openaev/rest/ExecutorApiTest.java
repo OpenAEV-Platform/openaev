@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -704,6 +705,49 @@ public class ExecutorApiTest extends IntegrationTest {
                       .formatted(Endpoint.PLATFORM_TYPE.Linux.name(), EndpointService.SERVICE))
                   .accept(MediaType.TEXT_PLAIN_VALUE))
           .andExpect(status().is2xxSuccessful());
+    }
+  }
+
+  @Nested
+  @DisplayName("Rotate agent installer token")
+  class RotateOpenAevAgentInstallerToken {
+
+    private void ensureServiceAccount(String tenantId) {
+      serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+      entityManager.flush();
+      entityManager.clear();
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user with only INSTALL_AGENT, should reject rotating the service-account token")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenUserWithOnlyInstallAgentCapability_shouldRejectRotate() throws Exception {
+      ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
+
+      mvc.perform(post("/api/agent/installer/openaev/token/rotate").with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user with MANAGE_TENANT_USERS_GROUPS_AND_ROLES, should rotate the service-account token")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    void givenUserWithManageUsersCapability_shouldRotateToken() throws Exception {
+      ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
+      String previousToken =
+          serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+              Tenant.DEFAULT_TENANT_UUID);
+
+      mvc.perform(post("/api/agent/installer/openaev/token/rotate").with(csrf()))
+          .andExpect(status().isNoContent());
+
+      entityManager.flush();
+      entityManager.clear();
+      String rotatedToken =
+          serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+              Tenant.DEFAULT_TENANT_UUID);
+      assertThat(rotatedToken).isNotEqualTo(previousToken);
     }
   }
 
