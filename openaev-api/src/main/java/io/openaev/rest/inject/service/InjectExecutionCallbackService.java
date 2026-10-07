@@ -73,7 +73,7 @@ public class InjectExecutionCallbackService {
   public void injectExecutionCallback(
       @Nullable String agentId, String injectId, InjectExecutionInput input) throws IOException {
     if (agentId != null) {
-      injectService.resolveInjectTargetingAgent(injectId, agentId);
+      injectService.checkAgentTargetsInject(injectId, agentId);
     }
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
         && injectTraceQueueService != null) {

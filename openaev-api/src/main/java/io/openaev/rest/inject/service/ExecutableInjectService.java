@@ -305,7 +305,8 @@ public class ExecutableInjectService {
   }
 
   private Payload getExecutablePayloadInject(String injectId, String agentId) throws Exception {
-    Inject inject = injectService.resolveInjectTargetingAgent(injectId, agentId);
+    injectService.checkAgentTargetsInject(injectId, agentId);
+    Inject inject = injectService.inject(injectId);
     InjectorContract contract =
         inject
             .getInjectorContract()

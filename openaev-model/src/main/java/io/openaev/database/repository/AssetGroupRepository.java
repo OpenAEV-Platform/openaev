@@ -31,6 +31,10 @@ public interface AssetGroupRepository
   Optional<AssetGroup> findByExternalReferenceAndTenantId(
       String externalReference, String tenantId);
 
+  /** The asset groups targeted by the inject, without loading the inject. */
+  @Query("SELECT ag FROM AssetGroup ag JOIN ag.injects i WHERE i.id = :injectId")
+  List<AssetGroup> findAllByInjectId(@Param("injectId") String injectId);
+
   @Query(
       "SELECT ag FROM AssetGroup ag "
           + "WHERE ag.id IN (SELECT DISTINCT ag2.id FROM AssetGroup ag2 "

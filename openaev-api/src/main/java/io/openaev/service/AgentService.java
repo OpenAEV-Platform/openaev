@@ -1,8 +1,8 @@
 package io.openaev.service;
 
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Asset;
 import io.openaev.database.repository.AgentRepository;
-import io.openaev.utils.AgentUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
@@ -33,27 +33,29 @@ public class AgentService {
   }
 
   /**
-   * Find an agent by id, only when it is a primary agent (no parent and not created for a specific
-   * inject).
-   *
-   * @param agentId the agent id
-   * @return the primary agent, or empty if it does not exist or is not a primary agent
-   */
-  public Optional<Agent> findPrimaryAgent(@NotBlank final String agentId) {
-    return agentRepository.findById(agentId).filter(AgentUtils::isPrimaryAgent);
-  }
-
-  /**
-   * True when the agent's asset is targeted by the inject, either directly or as a static member of
-   * one of the inject's asset groups. Dynamic group membership is not covered here.
+   * True when the agent is a primary agent and its asset is targeted by the inject, either directly
+   * or as a static member of one of the inject's asset groups. Dynamic group membership is not
+   * covered here.
    *
    * @param agentId the agent id
    * @param injectId the inject id
-   * @return whether the agent's asset is a static target of the inject
+   * @return whether the primary agent's asset is a static target of the inject
    */
-  public boolean isAgentAssetStaticallyTargetedByInject(
+  public boolean isPrimaryAgentAssetStaticallyTargetedByInject(
       @NotBlank final String agentId, @NotBlank final String injectId) {
-    return agentRepository.isAgentAssetStaticallyTargetedByInject(agentId, injectId);
+    return agentRepository.isPrimaryAgentAssetStaticallyTargetedByInject(agentId, injectId);
+  }
+
+  /**
+   * Find the asset of an agent, only when it is a primary agent (no parent and not created for a
+   * specific inject).
+   *
+   * @param agentId the agent id
+   * @return the agent's asset, or empty if the agent does not exist, is not a primary agent or has
+   *     no asset
+   */
+  public Optional<Asset> findPrimaryAgentAsset(@NotBlank final String agentId) {
+    return agentRepository.findPrimaryAgentAsset(agentId);
   }
 
   public List<Agent> getAgentsByExecutorId(String executorId) {

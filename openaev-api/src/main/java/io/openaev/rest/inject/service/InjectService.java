@@ -298,40 +298,45 @@ public class InjectService {
    * (403) unless the given primary agent's asset is targeted by the inject, either directly or
    * through one of its asset groups (static or dynamic membership).
    *
+   * <p>Runs on every implant callback, under the per-inject lock: only ids are read, the inject and
+   * the agent are never loaded. The cheapest check (direct and static-group targets) runs first;
+   * the inject's asset groups and the agent's asset are only loaded when it fails.
+   *
    * <p>Every failure (unknown inject, unknown or non-primary agent, agent without asset, agent not
    * targeted) maps to the same 403 and message, so the endpoints do not reveal whether an inject or
-   * agent id exists. The precise reason is only logged server-side.
+   * agent id exists.
    *
    * @param injectId the inject the agent is acting on
    * @param agentId the agent reported by the implant
-   * @return the resolved inject
    * @throws ForbiddenException if the agent is not a target of the inject
    */
-  public Inject resolveInjectTargetingAgent(String injectId, String agentId) {
-    Inject inject = findInjectOrNull(injectId);
-    Agent agent = agentId == null ? null : agentService.findPrimaryAgent(agentId).orElse(null);
-    if (inject == null
-        || agent == null
-        || agent.getAsset() == null
-        || !isInjectTarget(inject, agent)) {
-      log.warn(
-          "Agent access to inject denied: inject {} (found: {}), agent {} (primary agent with asset found: {})",
-          injectId,
-          inject != null,
-          agentId,
-          agent != null && agent.getAsset() != null);
+  public void checkAgentTargetsInject(String injectId, String agentId) {
+    if (injectId == null || agentId == null || !isInjectTarget(injectId, agentId)) {
+      log.warn("Agent access to inject denied: inject {}, agent {}", injectId, agentId);
       throw new ForbiddenException(AGENT_ACCESS_DENIED);
     }
-    return inject;
   }
 
-  private boolean isInjectTarget(Inject inject, Agent agent) {
-    // Static membership is checked in a single query so the (potentially large) asset group member
-    // lists are never materialized; dynamic membership costs one id-constrained query per group.
-    return agentService.isAgentAssetStaticallyTargetedByInject(agent.getId(), inject.getId())
-        || inject.getAssetGroups().stream()
+  private boolean isInjectTarget(String injectId, String agentId) {
+    if (agentService.isPrimaryAgentAssetStaticallyTargetedByInject(agentId, injectId)) {
+      return true;
+    }
+    // Dynamic membership costs one id-constrained query per dynamic group, so the (potentially
+    // large) dynamic member lists are never materialized.
+    List<AssetGroup> dynamicGroups =
+        assetGroupService.assetGroupsOfInject(injectId).stream()
             .filter(group -> !isEmptyFilterGroup(group.getDynamicFilter()))
-            .anyMatch(group -> assetGroupService.isAssetInDynamicGroup(agent.getAsset(), group));
+            .toList();
+    if (dynamicGroups.isEmpty()) {
+      return false;
+    }
+    return agentService
+        .findPrimaryAgentAsset(agentId)
+        .map(
+            asset ->
+                dynamicGroups.stream()
+                    .anyMatch(group -> assetGroupService.isAssetInDynamicGroup(asset, group)))
+        .orElse(false);
   }
 
   /**

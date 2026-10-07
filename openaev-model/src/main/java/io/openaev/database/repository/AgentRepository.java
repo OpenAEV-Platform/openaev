@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AgentStatus;
+import io.openaev.database.model.Asset;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -37,20 +38,29 @@ public interface AgentRepository
       @Param("executorId") String executorId);
 
   /**
-   * True when the agent's asset is targeted by the inject, either directly or as a static member of
-   * one of the inject's asset groups. Dynamic group membership is not covered here.
+   * True when the agent is a primary agent (no parent, not created for a specific inject) and its
+   * asset is targeted by the inject, either directly or as a static member of one of the inject's
+   * asset groups. Dynamic group membership is not covered here. Only ids are read: neither the
+   * agent nor the inject is loaded.
    */
   @Query(
       """
       SELECT COUNT(a) > 0 FROM Agent a
         WHERE a.id = :agentId
+          AND a.parent IS NULL
+          AND a.inject IS NULL
           AND (EXISTS (SELECT 1 FROM Inject i JOIN i.assets ia
                         WHERE i.id = :injectId AND ia.id = a.asset.id)
             OR EXISTS (SELECT 1 FROM Inject i JOIN i.assetGroups g JOIN g.assets ga
                         WHERE i.id = :injectId AND ga.id = a.asset.id))
       """)
-  boolean isAgentAssetStaticallyTargetedByInject(
+  boolean isPrimaryAgentAssetStaticallyTargetedByInject(
       @Param("agentId") String agentId, @Param("injectId") String injectId);
+
+  /** The asset of the agent, only when it is a primary agent, without loading the agent. */
+  @Query(
+      "SELECT a.asset FROM Agent a WHERE a.id = :agentId AND a.parent IS NULL AND a.inject IS NULL")
+  Optional<Asset> findPrimaryAgentAsset(@Param("agentId") String agentId);
 
   List<Agent> findByExecutorId(String executorId);
 
