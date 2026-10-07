@@ -1,7 +1,7 @@
 import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { RowingOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
-import { type CSSProperties, useContext } from 'react';
+import { type CSSProperties } from 'react';
 import { Link, useLocation } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -20,7 +20,7 @@ import { useHelper } from '../../../../store';
 import { type Challenge } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import TagsFilter from '../../common/filters/TagsFilter';
@@ -113,7 +113,7 @@ const Challenges = () => {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const initialKeyword = params.get('search') || '';
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Filter and sort hook
   const searchColumns = ['name', 'content', 'category'];

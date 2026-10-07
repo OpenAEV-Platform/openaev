@@ -54,21 +54,33 @@ public class AssetMarkingsApi extends RestBehavior {
       summary = "Replace the markings carried by an asset",
       description =
           "Replaces the whole set: an empty list clears every marking and makes the asset visible"
-              + " to everyone again. A caller may only assign markings they hold themselves, and"
-              + " only markings defined in their own tenant. Removing a marking is recorded as a"
-              + " declassification.")
+              + " to everyone again. Requires ASSIGN_MARKING to add any marking the asset does not"
+              + " already carry, and/or DELETE_MARKING_ASSIGNMENT to remove any it currently does -"
+              + " whichever of the two this request's payload actually does, checked independently"
+              + " and in addition to the asset's own WRITE control above. A caller may only assign"
+              + " markings they hold themselves, and only markings defined in their own tenant."
+              + " Removing a marking is recorded as a declassification.")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Asset updated"),
-        @ApiResponse(responseCode = "403", description = "Assigning a marking the caller lacks"),
+        @ApiResponse(
+            responseCode = "403",
+            description =
+                "Missing ASSIGN_MARKING/DELETE_MARKING_ASSIGNMENT for what this payload changes,"
+                    + " or assigning a marking the caller lacks"),
         @ApiResponse(
             responseCode = "404",
             description =
                 "Asset or marking not found - including an asset marked above the caller's"
                     + " clearance, which is indistinguishable from one that does not exist")
       })
-  // TODO: replace with the "Assign marking" capability chain (design Q8) once Task 1 lands. The
-  // asset's own WRITE control is the honest interim, matching the group markings endpoint.
+  // The @AccessControl WRITE check above answers "may you change what this asset carries" (same
+  // gate as other asset-write endpoints); it says nothing about markings specifically. Which of
+  // ASSIGN_MARKING / DELETE_MARKING_ASSIGNMENT this request additionally needs depends on the diff
+  // between the payload and the asset's current markings, so that check is done in
+  // AssetMarkingsService.updateAssetMarkings, which already loads the asset's current state - see
+  // its doc. Per-definition escalation (you may not assign a marking you do not hold yourself) is a
+  // separate, narrower check also enforced there, via MarkingEscalationValidator.
   public AssetMarkingsOutput updateAssetMarkings(
       TxCtx ctx,
       @PathVariable @NotBlank final String assetId,

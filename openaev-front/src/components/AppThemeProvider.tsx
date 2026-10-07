@@ -1,10 +1,11 @@
-import { enUS, esES, frFR, type Localization, zhCN } from '@mui/material/locale';
+import { deDE, enUS, esES, frFR, itIT, jaJP, koKR, type Localization, ruRU, zhCN } from '@mui/material/locale';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { type LoggedHelper } from '../actions/helper';
 import { useHelper } from '../store';
 import { type PlatformSettings, type TenantSettingsOutput, type User } from '../utils/api-types';
+import { sanitizeThemeColors } from '../utils/Colors';
 import useFdsThemeScope, { type FdsCustomTheme, FdsThemeContext, type FdsThemeMode } from '../utils/hooks/useFdsThemeScope';
 import { useFormatter } from './i18n';
 import themeDark from './ThemeDark';
@@ -18,6 +19,11 @@ const localeMap = {
   en: enUS,
   fr: frFR,
   es: esES,
+  de: deDE,
+  it: itIT,
+  ja: jaJP,
+  ko: koKR,
+  ru: ruRU,
   zh: zhCN,
 };
 
@@ -44,7 +50,7 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
   }, [settings, tenantSettings, me]);
 
   useEffect(() => {
-    setMuiLocale(localeMap[locale as keyof typeof localeMap]);
+    setMuiLocale(localeMap[locale as keyof typeof localeMap] ?? enUS);
   }, [locale]);
 
   // createTheme is expensive and a new theme object invalidates the style cache of the
@@ -54,9 +60,10 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
   // SSE reconnect, and each fetch stores a new object identity even when nothing
   // changed. Rebuilding the theme for that re-rendered (blinked) the entire app and
   // refetched every dashboard widget once the fetches landed.
-  const activeThemeConfig = theme === 'light'
+  // Colours are sanitized because a stored value that is not a colour makes createTheme throw.
+  const activeThemeConfig = sanitizeThemeColors(theme === 'light'
     ? tenantSettings?.platform_light_theme ?? settings.platform_light_theme
-    : tenantSettings?.platform_dark_theme ?? settings.platform_dark_theme;
+    : tenantSettings?.platform_dark_theme ?? settings.platform_dark_theme);
   const activeThemeKey = [
     activeThemeConfig?.logo_url,
     activeThemeConfig?.logo_url_collapsed,

@@ -367,7 +367,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
         && (
           <Alert severity="info">
             {((messageInfoMapperXls.at(messageInfoMapperXls.length - 1) ?? '') + t('injects are ready to import'))}
-            <p>{t('ERRORS DETECTED:')}</p>
+            {messageInfoMapperXls.length > 1 && <p>{t('ERRORS DETECTED:')}</p>}
             {messageInfoMapperXls.map((msg, i) => (
               (i != messageInfoMapperXls.length - 1)
               && <p style={{ whiteSpace: 'pre-line' }} key={i}>{msg}</p>

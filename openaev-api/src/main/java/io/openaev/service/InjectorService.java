@@ -256,7 +256,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       // organization: the source-declared author when provided, otherwise the
       // injector's own name (so a connector's content is never left authorless
       // nor mis-attributed to a generic default).
-      Organization authorOrganization = resolveInjectorAuthor(input.getAuthor(), input.getName());
+      Organization authorOrganization =
+          resolveInjectorAuthor(input.getAuthor(), input.getName(), tenantId);
       // We need to support upsert for registration
       Injector injector = injectorRepository.findByInjectorId(input.getId()).orElse(null);
       if (injector != null) {
@@ -404,10 +405,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    * Resolves the publisher organization for an injector's contracts: the source-declared author
    * when present, otherwise the injector name (never a generic default).
    */
-  private Organization resolveInjectorAuthor(String declaredAuthor, String injectorName) {
+  private Organization resolveInjectorAuthor(
+      String declaredAuthor, String injectorName, String tenantId) {
     String author =
         declaredAuthor != null && !declaredAuthor.isBlank() ? declaredAuthor : injectorName;
-    return organizationService.findOrCreateByName(author);
+    return organizationService.findOrCreateByName(author, tenantId);
   }
 
   /**
@@ -598,7 +600,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     }
 
     // Create new contracts
-    Organization builtinAuthor = organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR);
+    Organization builtinAuthor =
+        organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR, tenantId);
     List<InjectorContract> toCreate =
         staticContracts.stream()
             .filter(c -> !existingIds.contains(c.getId()))
@@ -687,7 +690,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     newInjector.setTenantId(tenantId);
     Injector savedInjector = injectorRepository.save(newInjector);
 
-    Organization builtinAuthor = organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR);
+    Organization builtinAuthor =
+        organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR, tenantId);
     List<InjectorContract> injectorContracts =
         staticContracts.stream()
             .map(

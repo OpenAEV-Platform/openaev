@@ -771,7 +771,8 @@ class BackgroundEntrypointDetectionTest {
 
   @Test
   @DisplayName(
-      "a background job that writes tenant-bearing tables is not waived touches-no-tenant-table")
+      "a background entry point that touches tenant-bearing tables is not waived"
+          + " touches-no-tenant-table")
   void writesToTenantTableAreNotWaivedAsTouchingNothing() {
     // OpenCTIConnectorRegisterPingJob's flow writes Group/Role (DualScopeBase) and the strict
     // users_tenants join (TenantUserService.attachToTenant); AiMetricCollector reads the
@@ -782,6 +783,15 @@ class BackgroundEntrypointDetectionTest {
         baseline, "io.openaev.scheduler.jobs.OpenCTIConnectorRegisterPingJob", "platform-global");
     assertClassification(
         baseline, "io.openaev.telemetry.metric_collectors.AiMetricCollector", "platform-global");
+    // OpenCTIConnectorService is the same flow seen from the service it is waived on: its
+    // registerOrPingAllConnectors reads marking_definitions (TenantBase, active) through the
+    // well-known group's eager markings association, so it was waived touches-no-tenant-table on a
+    // statement that was not true. The scope is set by the method named here, and the grammar check
+    // cannot tell a true reason from a false one, so this assertion is what holds the correction.
+    assertClassification(
+        baseline,
+        "io.openaev.opencti.connectors.service.OpenCTIConnectorService",
+        "delegates-to-PrivilegeService#ensurePrivilegedUserExistsForConnector");
 
     // Near miss: a class that genuinely touches nothing keeps touches-no-tenant-table, so this
     // test is not merely asserting platform-global everywhere.

@@ -170,11 +170,13 @@ public interface InjectRepository
       ic.injector_contract_platforms as inject_platforms,
       (SELECT array_agg(icap.attack_pattern_id)
        FROM injectors_contracts_attack_patterns icap
-       WHERE icap.injector_contract_id = ic.injector_contract_id) as inject_attack_patterns,
+       WHERE icap.injector_contract_id = ic.injector_contract_id
+         AND icap.tenant_id = ic.tenant_id) as inject_attack_patterns,
       (SELECT array_agg(ap.phase_id)
        FROM injectors_contracts_attack_patterns icap
        JOIN attack_patterns_kill_chain_phases ap ON ap.attack_pattern_id = icap.attack_pattern_id
-       WHERE icap.injector_contract_id = ic.injector_contract_id) as inject_kill_chain_phases,
+       WHERE icap.injector_contract_id = ic.injector_contract_id
+         AND icap.tenant_id = ic.tenant_id) as inject_kill_chain_phases,
       (SELECT array_agg(idp.inject_children_id)
        FROM injects_dependencies idp
        WHERE idp.inject_parent_id = f.inject_id) as inject_children,
@@ -187,6 +189,7 @@ public interface InjectRepository
        JOIN injectors_contracts ic_c ON ic_c.injector_contract_id = child.inject_injector_contract
                                     AND ic_c.tenant_id = child.tenant_id
        JOIN injectors_contracts_attack_patterns icap_c ON icap_c.injector_contract_id = ic_c.injector_contract_id
+                                                      AND icap_c.tenant_id = ic_c.tenant_id
        WHERE idp.inject_parent_id = f.inject_id) as attack_patterns_children,
       ins.status_name as inject_status_name,
       (SELECT array_agg(it.tag_id)
@@ -536,6 +539,7 @@ public interface InjectRepository
       value =
           "SELECT i.inject_id FROM injects i "
               + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
               + "WHERE p.payload_type = '"
               + DNS_RESOLUTION_TYPE
@@ -551,6 +555,7 @@ public interface InjectRepository
           "DELETE FROM injects i "
               + "USING injectors_contracts ic, payloads p "
               + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "AND ic.injector_contract_payload = p.payload_id "
               + "AND p.payload_type = '"
               + DNS_RESOLUTION_TYPE
@@ -564,6 +569,7 @@ public interface InjectRepository
       value =
           "SELECT i.inject_id FROM injects i "
               + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
               + "WHERE p.payload_type = '"
               + FILE_DROP_TYPE
@@ -579,6 +585,7 @@ public interface InjectRepository
           "DELETE FROM injects i "
               + "USING injectors_contracts ic, payloads p "
               + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "AND ic.injector_contract_payload = p.payload_id "
               + "AND p.payload_type = '"
               + FILE_DROP_TYPE
@@ -591,7 +598,9 @@ public interface InjectRepository
       value =
           "SELECT DISTINCT i.inject_id FROM injects i "
               + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "JOIN injectors_contracts_vulnerabilities icv ON ic.injector_contract_id = icv.injector_contract_id "
+              + "AND icv.tenant_id = ic.tenant_id "
               + "WHERE i.inject_scenario = :scenarioId",
       nativeQuery = true)
   List<String> findInjectIdsWithVulnerableContractsByScenarioId(
@@ -603,7 +612,9 @@ public interface InjectRepository
           "DELETE FROM injects i "
               + "USING injectors_contracts ic, injectors_contracts_vulnerabilities icv "
               + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "AND ic.injector_contract_id = icv.injector_contract_id "
+              + "AND icv.tenant_id = ic.tenant_id "
               + "AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithVulnerableContractsByScenarioId(@Param("scenarioId") String scenarioId);
@@ -612,7 +623,9 @@ public interface InjectRepository
       value =
           "SELECT DISTINCT i.inject_id FROM injects i "
               + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
+              + "AND icap.tenant_id = ic.tenant_id "
               + "WHERE i.inject_scenario = :scenarioId",
       nativeQuery = true)
   List<String> findInjectIdsWithAttackPatternContractsByScenarioId(
@@ -624,7 +637,9 @@ public interface InjectRepository
           "DELETE FROM injects i "
               + "USING injectors_contracts ic, injectors_contracts_attack_patterns icap "
               + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "AND ic.injector_contract_id = icap.injector_contract_id "
+              + "AND icap.tenant_id = ic.tenant_id "
               + "AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithAttackPatternContractsByScenarioId(

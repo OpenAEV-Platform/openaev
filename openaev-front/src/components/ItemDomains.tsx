@@ -8,7 +8,8 @@ import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
 import { getIconByDomain } from '../utils/domains/domainIcons';
 import { TO_CLASSIFY } from '../utils/domains/domainUtils';
-import { getLabelOfRemainingItems, truncate } from '../utils/String';
+import { truncate } from '../utils/String';
+import { useFormatter } from './i18n';
 
 const useStyles = makeStyles()(() => ({
   // `inline` left the chips on the text baseline, so a chip and the "+N" beside
@@ -29,6 +30,7 @@ interface ItemsDomainsProps {
 
 const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
   const { classes } = useStyles();
+  const { t } = useFormatter();
 
   const allDomains: Domain[] = useHelper((helper: DomainHelper) => {
     return helper.getDomains();
@@ -64,11 +66,11 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
                 fontSize: 14,
                 color: domain.domain_color,
               })}
-              label={truncate(domain.domain_name, truncateLimit) ?? ''}
+              label={truncate(t(domain.domain_name), truncateLimit) ?? ''}
               color={domain.domain_color}
             />
           </TooltipTrigger>
-          {domain.domain_name && <TooltipContent>{domain.domain_name}</TooltipContent>}
+          {domain.domain_name && <TooltipContent>{t(domain.domain_name)}</TooltipContent>}
         </Tooltip>
       ));
 
@@ -76,7 +78,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
     const primaryDomain = resolvedDomains[0];
     if (!primaryDomain || primaryDomain.domain_name === TO_CLASSIFY) return null;
 
-    const tooltipLabel = getLabelOfRemainingItems(resolvedDomains, 1, 'domain_name');
+    const tooltipLabel = resolvedDomains.slice(1).map(d => t(d.domain_name)).join(', ');
 
     return (
       <>
@@ -87,11 +89,11 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
                 fontSize: 14,
                 color: primaryDomain.domain_color,
               })}
-              label={truncate(primaryDomain.domain_name, truncateLimit) ?? ''}
+              label={truncate(t(primaryDomain.domain_name), truncateLimit) ?? ''}
               color={primaryDomain.domain_color}
             />
           </TooltipTrigger>
-          {primaryDomain.domain_name && <TooltipContent>{primaryDomain.domain_name}</TooltipContent>}
+          {primaryDomain.domain_name && <TooltipContent>{t(primaryDomain.domain_name)}</TooltipContent>}
         </Tooltip>
 
         {resolvedDomains.length > 1 && (

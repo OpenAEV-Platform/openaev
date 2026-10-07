@@ -15,11 +15,9 @@ vi.mock('../../../../../utils/hooks/useAuth', () => ({ default: () => ({ setting
 
 vi.mock('../../../../../utils/permissions/NoAccess', () => ({ default: () => <div data-testid="no-access" /> }));
 
-vi.mock('../../../../../utils/permissions/permissionsContext', async () => {
-  const React = await import('react');
-  const AbilityContext = React.createContext({ can: mockCan } as { can: (action: string, subject: string) => boolean });
+vi.mock('../../../../../utils/permissions/permissionsContext', () => {
   return {
-    AbilityContext,
+    useAbility: () => ({ can: mockCan } as { can: (action: string, subject: string) => boolean }),
     Can: ({
       I,
       a,

@@ -29,39 +29,41 @@ yarn generate-types-from-api           # Sync API types
 
 ## Where to find conventions
 
-Do NOT look for conventions here — they live in dedicated instruction files, activated automatically based on the files you touch.
+Do NOT look for conventions here — they live in dedicated instruction files, activated automatically based on the files you touch
+(Copilot reads their `applyTo`; Claude Code reads the `CLAUDE.md` of each folder, which imports them).
 
-| Domain                                                            | File | Applies to |
-|-------------------------------------------------------------------|---|---|
-| **Backend** (entities, services, DTOs, API)                       | [backend.instructions.md](.github/instructions/backend.instructions.md) | `openaev-api/**`, `openaev-model/**` |
-| **Frontend** (components, design system, hooks, folders)          | [frontend.instructions.md](.github/instructions/frontend.instructions.md) | `openaev-front/**` |
-| **Database** (migrations, schema, indexes)                        | [database.instructions.md](.github/instructions/database.instructions.md) | `**/db/migration/**`, `**/model/**` |
-| **Security** (auth, RBAC, tenant isolation)                       | [security.instructions.md](.github/instructions/security.instructions.md) | All Java & TypeScript files |
-| **Performance** (queries, caching, patterns)                      | [performance.instructions.md](.github/instructions/performance.instructions.md) | All Java files |
-| **ORM** (write correctness, native-query justification, test methodology) | [orm.instructions.md](.github/instructions/orm.instructions.md) | `openaev-api/**`, `openaev-model/**`, `*Test.java` |
-| **Multi-Tenancy** (isolation, filters, context)                   | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md) | Entities, repositories, migrations |
-| **Testing** (unit, integration, coverage)                         | [testing.instructions.md](.github/instructions/testing.instructions.md) | `**/*Test.java`, `**/*.test.tsx` |
-| **Code Review** (review checklist)                                | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
-| **Chaining Engine** (steps, conditions, queues, state, workflows) | [chaining-engine.instructions.md](.github/instructions/chaining-engine.instructions.md) | `**/chaining/**`, `**/QueueChainingJob.java`, `**/WorkflowTimeoutJob.java` |
+| Domain | File | Applies to |
+|---|---|---|
+| **Backend** (entities, services, DTOs, API) | [backend.instructions.md](.github/instructions/backend.instructions.md) | Java in `openaev-api`, `openaev-model`, `openaev-framework` |
+| **API** (controllers, DTOs, pagination, OpenAPI) | [api.instructions.md](.github/instructions/api.instructions.md) | `io/openaev/api/**`, `io/openaev/rest/**` |
+| **Frontend** (components, design system, hooks, folders) | [frontend.instructions.md](.github/instructions/frontend.instructions.md) | `openaev-front/**` (`.ts`, `.tsx`, `.js`, `.jsx`) |
+| **Database** (schema, indexes, migrations) | [database.instructions.md](.github/instructions/database.instructions.md) | `**/model/**`, `**/repository/**`, `**/migration/**`, `application.sql` |
+| **Migration** (Flyway Java migrations) | [migration.instructions.md](.github/instructions/migration.instructions.md) | `io/openaev/migration/**` |
+| **Security** (auth, RBAC, tenant isolation) | [security.instructions.md](.github/instructions/security.instructions.md) | Java in `openaev-api`, `openaev-model`; TS in `openaev-front/src` |
+| **Performance** (queries, caching, patterns) | [performance.instructions.md](.github/instructions/performance.instructions.md) | Java in `openaev-api`, `openaev-model` |
+| **ORM** (write correctness, native-query justification, test methodology) | [orm.instructions.md](.github/instructions/orm.instructions.md) | Java in `openaev-api`, `openaev-model`, `openaev-api` `*Test.java` |
+| **Multi-Tenancy** (isolation, filters, context) | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md) | Java in `openaev-api`, `openaev-model`, `**/migration/**` |
+| **Testing** (unit, integration, coverage) | [testing.instructions.md](.github/instructions/testing.instructions.md) | `*Test*.java`, `**/test/**`, `*.test.*`, `*.spec.*`, `tests_e2e/**` |
+| **Code Review** (review checklist) | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
+| **Chaining Engine** (steps, conditions, queues, state, workflows) | [chaining-engine.instructions.md](.github/instructions/chaining-engine.instructions.md) | `**/chaining/**`, `QueueChainingJob`, `WorkflowTimeoutJob`, workflow entities and repositories |
 
 
 ## Skills (step-by-step procedures)
 
 | Skill | Use when... |
 |---|---|
-| [add-migration](.github/skills/add-migration/SKILL.md) | Adding a Flyway migration with validation |
-| [add-test](.github/skills/add-test/SKILL.md) | Writing tests with coverage verification |
-| [add-tenant-isolation-test](.github/skills/add-test/TENANT_ISOLATION.md) | Adding tenant isolation tests to API test classes |
-| [create-feature-module](.github/skills/create-feature-module/SKILL.md) | Full feature: entity → API → frontend |
-| [review-migration](.github/skills/review-migration/SKILL.md) | Auditing Flyway migration safety and rollout risks |
-| [review-code](.github/skills/review-code/SKILL.md) | General code review of a PR or module |
-| [review-frontend](.github/skills/review-frontend/SKILL.md) | Auditing frontend patterns of a PR or module |
-| [migrate-to-design-system](.github/skills/migrate-to-design-system/SKILL.md) | Replacing MUI components with Filigran Design System ones, or bumping the library |
-| [review-multi-tenancy](.github/skills/review-multi-tenancy/SKILL.md) | Auditing tenant isolation of a PR or module |
-| [review-performance](.github/skills/review-performance/SKILL.md) | Auditing performance of a PR or module |
-| [review-security](.github/skills/review-security/SKILL.md) | Auditing security of a PR or module |
-| [review-chaining-engine](.github/skills/review-chaining-engine/SKILL.md) | Reviewing or modifying the Chaining Engine |
-| [review-docs](.github/skills/review-docs/SKILL.md) | Detecting missing documentation updates in a PR |
+| [add-migration](.claude/skills/add-migration/SKILL.md) | Adding a Flyway migration with validation |
+| [add-test](.claude/skills/add-test/SKILL.md) | Writing tests with coverage verification |
+| [add-tenant-isolation-test](.claude/skills/add-test/TENANT_ISOLATION.md) | Adding tenant isolation tests to API test classes |
+| [create-feature-module](.claude/skills/create-feature-module/SKILL.md) | Full feature: entity → API → frontend |
+| [review-migration](.claude/skills/review-migration/SKILL.md) | Auditing Flyway migration safety and rollout risks |
+| [review-code](.claude/skills/review-code/SKILL.md) | General code review of a PR or module |
+| [review-frontend](.claude/skills/review-frontend/SKILL.md) | Auditing frontend patterns of a PR or module |
+| [review-multi-tenancy](.claude/skills/review-multi-tenancy/SKILL.md) | Auditing tenant isolation of a PR or module |
+| [review-performance](.claude/skills/review-performance/SKILL.md) | Auditing performance of a PR or module |
+| [review-security](.claude/skills/review-security/SKILL.md) | Auditing security of a PR or module |
+| [review-chaining-engine](.claude/skills/review-chaining-engine/SKILL.md) | Reviewing or modifying the Chaining Engine |
+| [review-docs](.claude/skills/review-docs/SKILL.md) | Detecting missing documentation updates in a PR |
 
 ## Specialized Agents
 
@@ -168,6 +170,14 @@ The mapping is:
 | `code-review.instructions.md` | `code-reviewer.agent.md` |
 
 If no agent exists yet for a new instruction file → create one following the pattern in `migration-reviewer.agent.md`.
+
+Claude Code ignores `applyTo`: it loads each instruction file through a one-line `@` import in the `CLAUDE.md` of the
+folders it covers (e.g. `openaev-front/CLAUDE.md`). When you add an instruction file or change an `applyTo`, add or move
+those imports in the same PR. Single files outside a dedicated folder go in the `paths` of a pointer rule in
+`.claude/rules/` (see `chaining-engine.md`). Never copy instruction content.
+Never add a file to `io/openaev/migration/` (the Migrations Guard CI job rejects it): its imports live in `openaev-api/CLAUDE.md`.
+A folder with its own `AGENTS.md` (e.g. `docs/`, `fds-migration/`) also needs a `CLAUDE.md` next to it containing
+`@AGENTS.md`: once a root `CLAUDE.md` exists, Claude Code no longer reads `AGENTS.md` files on its own.
 
 
 <!-- filigran-conventions:start -->

@@ -2,11 +2,11 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Domain;
 import io.openaev.database.raw.RawDomainIndexing;
+import jakarta.annotation.Nonnull;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -18,19 +18,19 @@ import org.springframework.transaction.annotation.Transactional;
 public interface DomainRepository
     extends CrudRepository<Domain, String>, JpaSpecificationExecutor<Domain> {
 
-  @NotNull
+  @Nonnull
   @Transactional(readOnly = true)
-  Optional<Domain> findByName(@NotNull String name);
+  Optional<Domain> findByName(@Nonnull String name);
 
-  @NotNull
+  @Nonnull
   @Transactional(readOnly = true)
-  Optional<Domain> findByNameAndTenantId(@NotNull String name, @NotNull String tenantId);
+  Optional<Domain> findByNameAndTenantId(@Nonnull String name, @Nonnull String tenantId);
 
-  @NotNull
+  @Nonnull
   @Transactional(readOnly = true)
   List<Domain> findByNameIn(Collection<String> names);
 
-  @NotNull
+  @Nonnull
   @Transactional(readOnly = true)
   List<Domain> findByNameInAndTenantId(Collection<String> names, String tenantId);
 

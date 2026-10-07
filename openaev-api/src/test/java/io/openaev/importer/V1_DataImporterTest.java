@@ -154,7 +154,8 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(1, user.get().getTags().size());
 
     List<Organization> organization =
-        this.organizationRepository.findByNameIgnoreCase(ORGANIZATION_NAME);
+        this.organizationRepository.findByNameIgnoreCaseAndTenantId(
+            ORGANIZATION_NAME, TenantContext.getCurrentTenant());
     assertFalse(organization.isEmpty());
     assertEquals(ORGANIZATION_NAME, organization.getFirst().getName());
 

@@ -35,6 +35,5 @@ injectors_contracts_attack_patterns | #7905 | Link table owned by injectors_cont
 injectors_contracts_domains | #7905 | Link table owned by injectors_contracts, which is blocked on a unique index that is not tenant aware. It activates with its parent.
 injectors_contracts_vulnerabilities | #7905 | Link table owned by injectors_contracts, which is blocked on a unique index that is not tenant aware. It activates with its parent.
 injectors_injector_contracts | #7905 | Link table owned by injectors_contracts, which is blocked on a unique index that is not tenant aware. It activates with its parent.
-organizations | #7906 | Owned outside this workstream. Tracked and scheduled on that issue.
 scenarios | #6432 | Named work: a recurring-scenario cleanup job to scope, seven SpEL tenant predicates to drop and a hand-rolled filter activation to delete. Inherits the chaining engine scope question listed under exercises.
 users_tenants | #7248 | The user and tenant membership table. Gating it would make membership resolution depend on the scope it is used to compute, which is the shape that keeps the tenants registry self-isolated. It needs a written decision on whether it is tenant data at all, not an activation.
