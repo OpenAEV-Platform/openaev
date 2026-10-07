@@ -7,10 +7,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -50,6 +52,11 @@ public class MarkingFilteringConfig {
           + "  AND c.data_type = 'ARRAY' "
           + "  AND c.udt_name IN ('_text', '_varchar') "
           + "ORDER BY c.table_name";
+
+  private static final String FUNCTION_QUERY =
+      "SELECT p.proname FROM pg_proc p "
+          + "JOIN pg_namespace n ON n.oid = p.pronamespace "
+          + "WHERE n.nspname = current_schema() AND p.proname = ANY (?)";
 
   @Bean
   public MarkedTables markedTables(
@@ -98,6 +105,53 @@ public class MarkingFilteringConfig {
   @Bean
   public MarkingDimension markingDimension(MarkedTables markedTables) {
     return new MarkingDimension(markedTables);
+  }
+
+  /**
+   * The derived tables (Task 4, Option 2 "hide parents") active for this deployment: the {@link
+   * DerivedMarkedTables#REGISTRY} entries listed in {@code openaev.marking.derived-tables}, behind
+   * the same MARKING flag as {@link #markedTables}. Refuses to start when a SQL function an active
+   * predicate calls is missing, rather than failing on the first rewritten query.
+   */
+  @Bean
+  public DerivedMarkedTables derivedMarkedTables(
+      DataSource dataSource,
+      @Value("${openaev.enabled-dev-features:}") String enabledDevFeatures,
+      @Value("${openaev.marking.derived-tables:}") List<String> derivedTables) {
+    if (!isMarkingFeatureEnabled(enabledDevFeatures)) {
+      return DerivedMarkedTables.EMPTY;
+    }
+    List<String> allowlist = derivedTables.stream().filter(name -> !name.isBlank()).toList();
+    DerivedMarkedTables active = DerivedMarkedTables.REGISTRY.restrictTo(allowlist);
+    assertFunctionsExist(dataSource, active.functions());
+    return active;
+  }
+
+  @Bean
+  public DerivedMarkingDimension derivedMarkingDimension(DerivedMarkedTables derivedMarkedTables) {
+    return new DerivedMarkingDimension(derivedMarkedTables);
+  }
+
+  static void assertFunctionsExist(DataSource dataSource, Set<String> functions) {
+    if (functions.isEmpty()) {
+      return;
+    }
+    Set<String> missing = new HashSet<>(functions);
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(FUNCTION_QUERY)) {
+      statement.setArray(1, connection.createArrayOf("text", functions.toArray()));
+      try (ResultSet rows = statement.executeQuery()) {
+        while (rows.next()) {
+          missing.remove(rows.getString("proname"));
+        }
+      }
+    } catch (SQLException e) {
+      throw new IllegalStateException("cannot check the derived marking functions", e);
+    }
+    if (!missing.isEmpty()) {
+      throw new IllegalStateException(
+          "marking derived-tables call SQL functions that do not exist: " + missing);
+    }
   }
 
   static MarkedTables deriveFromSchema(DataSource dataSource) {

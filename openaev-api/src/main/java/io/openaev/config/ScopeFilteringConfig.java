@@ -23,8 +23,11 @@ public class ScopeFilteringConfig {
 
   @Bean
   public ScopeStatementInspector scopeStatementInspector(
-      TenantDimension tenantDimension, MarkingDimension markingDimension) {
-    return new ScopeStatementInspector(List.of(tenantDimension, markingDimension));
+      TenantDimension tenantDimension,
+      MarkingDimension markingDimension,
+      DerivedMarkingDimension derivedMarkingDimension) {
+    return new ScopeStatementInspector(
+        List.of(tenantDimension, markingDimension, derivedMarkingDimension));
   }
 
   @Bean

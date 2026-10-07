@@ -11,7 +11,8 @@ system clearance for background jobs.
 **Branch**: `task4-poc-option2`, created from `main`. It does **not** contain Option 1's code (no
 `launched_by` / `scheduled_by`, no per-asset dispatch filtering).
 
-**Status**: 🔴 not started.
+**Status**: 🟡 O2.1–O2.5 implemented and green, uncommitted on `task4-poc-option2`. O2.6
+(performance) and O2.7 (Playwright) not started. See §6.
 
 ---
 
@@ -274,7 +275,41 @@ This needs a second authenticated session (no multi-user fixture exists in the s
 
 ### 6) Validation matrix
 
-To be filled as steps complete.
+**Implementation (uncommitted):**
+
+- Migration `V6_20261006120000000__Add_derived_marking_functions` (`can_see_asset_group`,
+  `can_see_inject`, `can_see_finding`).
+- `DerivedMarkedTable`, `DerivedMarkedTables` (holds `REGISTRY`), `DerivedMarkingDimension`.
+- `MarkingFilteringConfig` builds the dimension and checks at startup that every function exists.
+- `ScopeFilteringConfig` registers it as the third dimension.
+- Properties:
+  - `openaev.marking.derived-tables` is empty in main;
+  - `injects,findings` in the test profile (whole suite) and in the local, gitignored dev profile.
+
+**Tests:**
+
+| Step | Test | Result |
+|---|---|---|
+| O2.3 | `DerivedMarkingDimensionTest`: predicates, inert when off, allowlist, rewrite of the shapes used on `injects`/`findings` (primary `FROM`, `LEFT JOIN injects` from findings, `UPDATE`, findings upsert `ON CONFLICT DO UPDATE`), placeholder count preserved | ✅ 15/15 |
+| O2.1 / O2.5 | `AtomicTestingMarkingHideParentTest`: US1 (list, direct GET = 404 like a missing id, launch fails like a missing id, Findings page, findings by endpoint, findings by inject), US2 (GET, launch, findings), admin sees everything, boundaries (no clearance, `TLP:RED` clearance, `TLP:RED` through a static group, simulation finding on a red asset — D3), background system clearance still sees the hidden rows | ✅ 15/15 |
+| O2.4 | Targeted regression with `derived-tables=injects,findings` active suite-wide: `*Marking*`, `*AtomicTesting*`, `*Finding*`, `Inject*`, `*ExecutionJob*`, `*StatementInspector*`, `*ScopeFiltering*`, `TenantFilteringConfigTest`, `*ArchTest` | ✅ 1259/1260. The 1 failure, `BackgroundEntrypointTenantScopeArchTest` on `openaev-dev/.../DevDatabaseEnvironmentPostProcessor`, is pre-existing on `main` and unrelated |
+
+**O2.4 inventory: entry points and background readers.**
+
+- **HTTP entry points.** `AtomicTestingApi`, `FindingApi`, `FindingSearchApi` and the agent/implant callbacks
+  (`/injects/execution/callback/{injectId}`, `…/executable-payload`) all take `TxCtx`, so the marking
+  GUC is written. Agents keep their `AGENT_RUNTIME_ACCESS` bypass on those callbacks.
+- **Controller methods without `TxCtx` that reach injects/findings.** A static scan flagged a handful.
+  Re-checked by hand, all of them take `TxCtx` except `ExerciseApi.changeExerciseStatus`. That one
+  only touches simulation injects, which the D2 guard lets through, so it is not affected in this PoC.
+  It must get `TxCtx` when `exercises` is registered.
+- **Background readers** all run through `TenantScopedTransaction` / `TenantScopedJobRunner`, so they get system clearance:
+  `InjectsExecutionJob` (→ `InjectHelper`, `InjectExecutionStep`), `BatchingInjectStatusService`,
+  `FindingWriter`, `ExpectationsExpirationManagerJob`, `AtomicTestingExecutionJob`.
+- **Native write shapes on `injects` / `findings`** are already accepted by the inspector:
+  - `INSERT … VALUES` (imports) is not rewritten;
+  - `DELETE … USING` is filtered through the `WHERE`;
+  - the findings upsert gets the guard on `DO UPDATE`.
 
 ### 7) Traceability
 
