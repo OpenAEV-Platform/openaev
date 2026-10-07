@@ -815,6 +815,9 @@ public class ExerciseService {
       throwIfExerciseNotLaunchable(exercise);
       Instant nextMinute = now().truncatedTo(MINUTES).plus(1, MINUTES);
       exercise.setStart(nextMinute);
+      // A simulation not created from a scenario never went through toExercise: without an actor,
+      // dispatch resolves zero clearance and silently skips every marked target.
+      exercise.setLaunchedBy(userService.currentUser());
       actionMetricCollector.addSimulationPlayedCount();
     }
     // If exercise move from pause to running state,
