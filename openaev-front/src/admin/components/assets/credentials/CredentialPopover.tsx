@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import {
@@ -156,8 +157,8 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitRemove}>
+          <Button priority="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button priority="primary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

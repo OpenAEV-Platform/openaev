@@ -2,6 +2,9 @@ import { expect, type Locator, type Page, type Response } from '@playwright/test
 
 // The contract constraint is pre-applied as a filter on this entity property.
 const CREDENTIAL_TYPE_FILTER_KEY = 'secret_reference_credential_type';
+// The row owns the selection: its design-system checkbox is presentational (an aria-hidden span
+// without the checkbox role), so its state is read from the `data-state` attribute instead.
+const ROW_CHECKBOX_SELECTOR = 'span[aria-hidden="true"][data-state]';
 
 class CredentialsPickerDialog {
   readonly page: Page;
@@ -33,11 +36,21 @@ class CredentialsPickerDialog {
 
   /** Selectable rows (each row carries a trailing checkbox, the header row does not). */
   getRows() {
-    return this.dialog.getByRole('button').filter({ has: this.page.getByRole('checkbox') });
+    return this.dialog.getByRole('button').filter({ has: this.page.locator(ROW_CHECKBOX_SELECTOR) });
   }
 
   getRow(credentialName: string) {
     return this.getRows().filter({ hasText: credentialName });
+  }
+
+  getRowCheckbox(credentialName: string) {
+    return this.getRow(credentialName).locator(ROW_CHECKBOX_SELECTOR);
+  }
+
+  // -- Assertion methods
+
+  async expectSelected(credentialName: string, selected = true) {
+    await expect(this.getRowCheckbox(credentialName)).toHaveAttribute('data-state', selected ? 'checked' : 'unchecked');
   }
 
   // -- Action methods
@@ -64,7 +77,7 @@ class CredentialsPickerDialog {
   async select(credentialName: string) {
     const row = this.getRow(credentialName);
     await row.click();
-    await expect(row.getByRole('checkbox')).toBeChecked();
+    await this.expectSelected(credentialName);
   }
 
   async submit() {

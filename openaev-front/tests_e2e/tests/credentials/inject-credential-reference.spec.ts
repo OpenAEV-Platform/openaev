@@ -242,7 +242,7 @@ test.describe('Inject form - Credential reference', () => {
       await expect(credentialSection.updateCredentialButton).toBeEnabled();
       await credentialSection.openPicker();
       await credentialSection.picker.search(runId);
-      await expect(credentialSection.picker.getRow(awsProduction.credential_name).getByRole('checkbox')).toBeChecked();
+      await credentialSection.picker.expectSelected(awsProduction.credential_name);
     });
 
     test('should replace an existing credential association', async ({ request, createAtomicTesting, createCredential }) => {
@@ -258,10 +258,10 @@ test.describe('Inject form - Credential reference', () => {
 
       await credentialSection.openPicker();
       await credentialSection.picker.search(runId);
-      await expect(credentialSection.picker.getRow(awsProduction.credential_name).getByRole('checkbox')).toBeChecked();
+      await credentialSection.picker.expectSelected(awsProduction.credential_name);
       await credentialSection.picker.select(awsStaging.credential_name);
       // Single selection: the new credential replaces the previous one
-      await expect(credentialSection.picker.getRow(awsProduction.credential_name).getByRole('checkbox')).not.toBeChecked();
+      await credentialSection.picker.expectSelected(awsProduction.credential_name, false);
       await credentialSection.picker.submit();
 
       await expect(credentialSection.getSelectedCredential(awsStaging.credential_name)).toBeVisible();
