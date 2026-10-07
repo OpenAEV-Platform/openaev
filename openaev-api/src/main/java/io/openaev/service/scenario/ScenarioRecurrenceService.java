@@ -2,11 +2,11 @@ package io.openaev.service.scenario;
 
 import io.openaev.database.model.Scenario;
 import io.openaev.service.period.RecurrenceService;
+import jakarta.annotation.Nonnull;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -17,7 +17,7 @@ import org.springframework.validation.annotation.Validated;
 public class ScenarioRecurrenceService {
   private final RecurrenceService recurrenceService;
 
-  public Optional<Instant> getNextExecutionTime(@NotNull Scenario scenario, Instant currentTime) {
+  public Optional<Instant> getNextExecutionTime(@Nonnull Scenario scenario, Instant currentTime) {
     String recurrence = scenario.getRecurrence();
     // A scenario without a recurrence expression trivially has no next occurrence: that is
     // nominal, not a missing-handler anomaly worth a warning.

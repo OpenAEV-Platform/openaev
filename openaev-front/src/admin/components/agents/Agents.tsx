@@ -10,6 +10,7 @@ import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type ExecutorOutput } from '../../../utils/api-types';
+import { isEnterpriseExecutorType } from '../../../utils/executors';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import ExecutorDocumentationLink from './ExecutorDocumentationLink';
@@ -19,10 +20,6 @@ import PlatformSelector from './PlatformSelector';
 
 const OPENAEV_CALDERA = 'openaev_caldera_executor';
 const OPENAEV_AGENT = 'openaev_agent';
-const OPENAEV_CROWDSTRIKE = 'openaev_crowdstrike_executor';
-const OPENAEV_TANIUM = 'openaev_tanium';
-const OPENAEV_SENTINELONE = 'openaev_sentinelone_executor';
-const OPENAEV_PALOALTOCORTEX = 'openaev_paloaltocortex_executor';
 
 const Executors = () => {
   // Standard hooks
@@ -54,8 +51,7 @@ const Executors = () => {
   const sortedExecutors = executors.sort((a: ExecutorOutput, b: ExecutorOutput) => order[a.executor_type as keyof typeof order] - order[b.executor_type as keyof typeof order]);
   const needInformationStepper = (selectedExecutor?.executor_type === OPENAEV_AGENT || selectedExecutor?.executor_type === OPENAEV_CALDERA);
   const showEEChip = (executor: ExecutorOutput) => !settings.platform_license?.license_is_validated
-    && (executor.executor_type === OPENAEV_TANIUM || executor.executor_type === OPENAEV_CROWDSTRIKE
-      || executor.executor_type === OPENAEV_SENTINELONE || executor.executor_type === OPENAEV_PALOALTOCORTEX);
+    && isEnterpriseExecutorType(executor.executor_type);
 
   // -- Manage Dialogs
   const steps = [t('Choose your platform'), t('Installation Instructions')];

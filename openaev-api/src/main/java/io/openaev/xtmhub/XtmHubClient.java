@@ -12,6 +12,7 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.xtmhub.config.XtmHubConfig;
+import jakarta.annotation.Nonnull;
 import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +25,6 @@ import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -143,7 +143,7 @@ public class XtmHubClient {
     }
   }
 
-  @NotNull
+  @Nonnull
   private StringEntity buildMutationContactUsBody(String message) {
     String mutationBody =
         String.format(
@@ -168,7 +168,7 @@ public class XtmHubClient {
     return new StringEntity(element.toString());
   }
 
-  @NotNull
+  @Nonnull
   private StringEntity buildRefreshStatusSingleTenantBody(
       String platformId,
       String platformVersion,
@@ -206,7 +206,7 @@ public class XtmHubClient {
     return new StringEntity(element.toString());
   }
 
-  @NotNull
+  @Nonnull
   private StringEntity buildRefreshStatusAllTenantsBody(
       String platformId, String platformVersion, Map<String, TenantRegistrationDetails> tenants) {
 
@@ -239,7 +239,7 @@ public class XtmHubClient {
     return new StringEntity(body.toString());
   }
 
-  @NotNull
+  @Nonnull
   private StringEntity buildAutoRegisterBody(
       String platformContract,
       String platformId,
