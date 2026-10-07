@@ -6324,6 +6324,7 @@ export interface Grant {
     | "SCENARIO"
     | "SIMULATION"
     | "ATOMIC_TESTING"
+    | "AUTONOMOUS_RUN"
     | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
@@ -6351,6 +6352,7 @@ export interface GroupGrantInput {
     | "SCENARIO"
     | "SIMULATION"
     | "ATOMIC_TESTING"
+    | "AUTONOMOUS_RUN"
     | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
