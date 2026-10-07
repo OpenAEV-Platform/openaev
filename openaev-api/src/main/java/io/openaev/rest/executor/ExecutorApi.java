@@ -540,8 +540,9 @@ public class ExecutorApi extends RestBehavior {
         TENANT_AGENT_URI + "/installer/openaev/token/rotate"
       })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public ResponseEntity<Void> rotateOpenAevAgentInstallerToken(TxCtx ctx) {
-    privilegeService.rotateTokenForTenant(TenantContext.getCurrentTenant());
+  public ResponseEntity<Void> rotateOpenAevAgentInstallerToken(@RequireTenantSelector TxCtx ctx) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    privilegeService.rotateTokenForTenant(tenantId);
     return ResponseEntity.noContent().build();
   }
 }
