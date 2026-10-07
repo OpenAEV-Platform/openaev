@@ -10,7 +10,6 @@ import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type ExecutorOutput } from '../../../utils/api-types';
-import { isEnterpriseExecutorType } from '../../../utils/executors';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import ExecutorDocumentationLink from './ExecutorDocumentationLink';
@@ -51,7 +50,7 @@ const Executors = () => {
   const sortedExecutors = executors.sort((a: ExecutorOutput, b: ExecutorOutput) => order[a.executor_type as keyof typeof order] - order[b.executor_type as keyof typeof order]);
   const needInformationStepper = (selectedExecutor?.executor_type === OPENAEV_AGENT || selectedExecutor?.executor_type === OPENAEV_CALDERA);
   const showEEChip = (executor: ExecutorOutput) => !settings.platform_license?.license_is_validated
-    && isEnterpriseExecutorType(executor.executor_type);
+    && executor.executor_enterprise;
 
   // -- Manage Dialogs
   const steps = [t('Choose your platform'), t('Installation Instructions')];
