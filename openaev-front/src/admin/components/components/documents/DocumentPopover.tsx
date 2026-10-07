@@ -2,7 +2,7 @@ import { Button } from '@filigran/design-system';
 import { FiberManualRecord } from '@mui/icons-material';
 import { Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText, List, ListItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useContext, useEffect, useState } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { deleteDocument, updateDocument } from '../../../../actions/Document';
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
@@ -24,7 +24,7 @@ import {
 } from '../../../../constants/BaseUrls';
 import { type Document, type DocumentRelationsOutput, type RelatedEntityOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import DocumentForm, { type DocumentFormInput } from './DocumentForm';
@@ -77,7 +77,7 @@ const DocumentPopover: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const documentId = document.document_id ?? '';
 

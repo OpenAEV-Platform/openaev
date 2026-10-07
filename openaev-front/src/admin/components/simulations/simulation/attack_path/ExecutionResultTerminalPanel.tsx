@@ -4,7 +4,7 @@ import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
 import { getInjectStatusWithGlobalExecutionTraces } from '../../../../../actions/injects/inject-action';
@@ -16,7 +16,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, InjectStatusOutput } from '../../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { getStatusColor } from '../../../../../utils/statusUtils';
 import { tint } from '../../../../../utils/tint';
@@ -348,7 +348,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   const theme = useTheme();
   const { t } = useFormatter();
   const { isValidated } = useEnterpriseEdition();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { currentTab, handleChangeTab } = useTabs(RESULT_TAB);
   // Detection remediations (per security platform) for this action, resolved from the execution's
   // payload's detection remediations by the backend (empty when the payload has none).

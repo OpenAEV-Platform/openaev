@@ -17,7 +17,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.service.InjectExecutionService;
-import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.service.queue.BatchQueueService;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -47,7 +46,6 @@ public class BatchingInjectStatusService {
 
   private final InjectRepository injectRepository;
   private final AgentRepository agentRepository;
-  private final StructuredOutputUtils structuredOutputUtils;
   private final InjectExecutionService injectExecutionService;
 
   // Set from InjectApi.init() function. I preferred that to creating a dedicated @Bean instance

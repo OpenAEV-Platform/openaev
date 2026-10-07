@@ -14,6 +14,7 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectAgentResolverService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.TenantScopedJobRunner;
@@ -61,6 +62,7 @@ public class InjectsFinalizationJob implements Job {
   private final WorkflowService workflowService;
   private final EntityManager entityManager;
   private final TenantScopedJobRunner tenantScopedJobRunner;
+  private final InjectAgentResolverService injectAgentResolverService;
 
   @Override
   @LogExecutionTime
@@ -215,7 +217,7 @@ public class InjectsFinalizationJob implements Job {
     Set<String> completedAgentIds = ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
 
     // Get all agents expected to execute this inject
-    List<Agent> allAgents = injectService.getAgentsByInject(inject);
+    List<Agent> allAgents = injectAgentResolverService.getAgentsByInject(inject);
 
     if (allAgents.isEmpty()) {
       // Agentless inject: network scanners (e.g. Nuclei) target assets that have no agent, so the

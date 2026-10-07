@@ -10,7 +10,7 @@ import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import inject18n from '../../../../../components/i18n';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { withAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import RoleScopeProvider from '../../roles/RoleScopeProvider';
 import GroupManageMarkings from '../GroupManageMarkings';
@@ -20,8 +20,6 @@ import GroupManageGrants from './grants/GroupManageGrants.tsx';
 import GroupForm from './GroupForm';
 
 class GroupPopoverComponent extends Component {
-  static contextType = AbilityContext;
-
   constructor(props) {
     super(props);
     this.state = {
@@ -151,11 +149,11 @@ class GroupPopoverComponent extends Component {
   }
 
   render() {
-    const { t, group } = this.props;
+    const { t, group, ability } = this.props;
     // Reading the group is enough to open the menu; the actions inside are greyed out instead,
     // each carrying the shared "Permission required" tooltip.
-    const canManage = this.context.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
-    const canDelete = this.context.can(ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
+    const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
+    const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
     const entries = [
       {
         label: 'Update',
@@ -278,6 +276,7 @@ class GroupPopoverComponent extends Component {
 }
 
 GroupPopoverComponent.propTypes = {
+  ability: PropTypes.object,
   t: PropTypes.func,
   /** `toggle` in a detail header — the 36px kebab that lines up with the header controls. */
   variant: PropTypes.string,
@@ -308,6 +307,7 @@ const GroupPopover = R.compose(
     deleteGroup,
   }),
   inject18n,
+  withAbility,
 )(GroupPopoverComponent);
 
 export default GroupPopover;

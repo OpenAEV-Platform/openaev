@@ -24,6 +24,7 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import jakarta.persistence.EntityManager;
@@ -70,6 +71,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
+  @Autowired private InjectorFixture injectorFixture;
   @Autowired private EntityManager entityManager;
 
   @Autowired private ComchecksExecutionJob comchecksExecutionJob;
@@ -82,6 +84,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private AgentRepository agentRepository;
   @Autowired private PlatformTransactionManager transactionManager;
   @MockitoSpyBean private ManagerFactory managerFactory;
+  @MockitoSpyBean private InjectStatusService injectStatusService;
 
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoSpyBean private HealthCheckUtils healthCheckUtils;
@@ -223,8 +226,12 @@ class InjectsExecutionJobTest extends IntegrationTest {
   void givenComcheckNeedingExecution_shouldBuildInjectWithInjectorSet()
       throws JobExecutionException {
     // -- ARRANGE --
-    // Ensure the email injector contract exists in the database
-    injectorContractFixture.getWellKnownSingleEmailContract();
+    InjectorContract emailContract = injectorContractFixture.getWellKnownSingleEmailContract();
+    Injector emailInjector = injectorFixture.getWellKnownEmailInjector(true);
+    if (emailContract.getInjectors().stream()
+        .noneMatch(injector -> injector.getId().equals(emailInjector.getId()))) {
+      emailContract.addInjector(emailInjector);
+    }
 
     Exercise exercise = ExerciseFixture.getExercise();
     exercise.setStart(Instant.now().minus(1, ChronoUnit.MINUTES));
@@ -399,6 +406,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
         clearInvocations(auditLogger);
         doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+        doNothing().when(injectStatusService).deleteInjectAuthorisationIfExecutionEnded(any());
 
         // Act
         job.executeInject(getExecutableInject(ids[1]));
@@ -475,6 +483,9 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
               InjectorContract injectorContract =
                   injectorContractFixture.getWellKnownSingleEmailContract();
+              Injector emailInjector = injectorFixture.getWellKnownEmailInjector(true);
+              injectorContract.addInjector(emailInjector);
+
               Inject inject =
                   injectComposer
                       .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
@@ -482,6 +493,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
                       .persist()
                       .get();
               inject.setExercise(exercise);
+              inject.setInjector(emailInjector);
               injectRepository.save(inject);
               entityManager.flush();
 
@@ -492,6 +504,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
         clearInvocations(auditLogger);
         doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+        doNothing().when(injectStatusService).deleteInjectAuthorisationIfExecutionEnded(any());
 
         // Act
         job.executeInject(getExecutableInject(ids[1]));
@@ -502,6 +515,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
         List<String> teamIds =
             (List<String>) targetResolutionEvent.getContextData().get("team_ids");
         assertThat(teamIds).contains(ids[2]);
+        verify(injectStatusService, atLeastOnce()).deleteInjectAuthorisationIfExecutionEnded(any());
       } finally {
         inTransaction(() -> exerciseRepository.deleteById(ids[0]));
         exerciseComposer.reset();

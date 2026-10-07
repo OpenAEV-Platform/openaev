@@ -1,7 +1,7 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Menu, MenuItem } from '@mui/material';
-import { type FunctionComponent, type MouseEvent, useContext, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, useState } from 'react';
 
 import { deleteChallenge, updateChallenge } from '../../../../actions/challenge-action';
 import Drawer from '../../../../components/common/Drawer';
@@ -9,7 +9,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Challenge, type ChallengeInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ChallengeForm from './ChallengeForm';
 
@@ -24,7 +24,7 @@ const ChallengePopover: FunctionComponent<Props> = ({ challenge, onRemoveChallen
   // utils
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // states
   const [openDelete, setOpenDelete] = useState(false);

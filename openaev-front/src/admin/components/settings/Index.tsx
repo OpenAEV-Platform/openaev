@@ -1,10 +1,9 @@
-import { useContext } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
 import NoAccess from '../../../utils/permissions/NoAccess';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
@@ -58,7 +57,7 @@ const SecurityLanding = () => {
     canAccessPlatformUsers,
     canAccessSession,
   } = useSecurityScope();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canAccessMarkingDefinitions
     = isFeatureEnabled('MARKING')
       && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
