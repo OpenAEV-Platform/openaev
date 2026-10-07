@@ -263,7 +263,7 @@ public class AssetGroupService {
   }
 
   /** True when the group's dynamic filter matches the given asset (id-constrained query). */
-  private boolean isAssetInDynamicGroup(
+  public boolean isAssetInDynamicGroup(
       @NotNull final Asset asset, @NotNull final AssetGroup assetGroup) {
     if (Hibernate.unproxy(asset) instanceof Endpoint) {
       Specification<Endpoint> filterSpecification =
