@@ -37,11 +37,11 @@ jobs:
         run: |
           set -uo pipefail
 
+          status=0
           snyk container test "$IMAGE" \
             --severity-threshold=high \
             --json-file-output="$REPORT.json" \
-            | tee "$REPORT.txt"
-          status=${PIPESTATUS[0]}
+            | tee "$REPORT.txt" || status=$?
 
           # 0: no issues, 1: issues found, anything else: the scan itself failed.
           if [ "$status" -gt 1 ]; then
