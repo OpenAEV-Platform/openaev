@@ -1699,8 +1699,13 @@ public class WorkflowService {
       return workflowRun;
     }
 
-    // Get all step template
-    List<Step> stepsTemplate = stepService.findAllStepTemplateByWorkflow(workflowTemplateId);
+    // Get all step templates, in a deterministic order: readying a template creates its local
+    // state and commits its execution hashes, and concurrent evaluations of the same run must take
+    // those locks in the same order (see WorkflowStateService#propagateToLocalStates, ADR-011).
+    List<Step> stepsTemplate =
+        stepService.findAllStepTemplateByWorkflow(workflowTemplateId).stream()
+            .sorted(Comparator.comparing(Step::getId))
+            .toList();
 
     if (stepsTemplate.isEmpty()) {
       // Autonomous (keep-alive) runs provision an EMPTY workflow and let the AI orchestrator author

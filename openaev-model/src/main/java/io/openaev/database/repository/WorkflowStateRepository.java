@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.WorkflowState;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,10 +12,18 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public interface WorkflowStateRepository extends JpaRepository<WorkflowState, String> {
 
-  WorkflowState findByStepTemplate_IdAndWorkflowExecution_Id(
-      String stepTemplateId, String workflowExecutionId);
+  /** Id of the global state of a run, without loading the entity. */
+  @Query(
+      "SELECT s.id FROM WorkflowState s"
+          + " WHERE s.stepTemplate IS NULL AND s.workflowExecution.id = :workflowRunId")
+  Optional<String> findGlobalStateId(@Param("workflowRunId") String workflowRunId);
 
-  WorkflowState findByStepTemplateIsNullAndWorkflowExecutionId(String id);
+  /** Id of the local state of a step template in a run, without loading the entity. */
+  @Query(
+      "SELECT s.id FROM WorkflowState s"
+          + " WHERE s.stepTemplate.id = :stepTemplateId AND s.workflowExecution.id = :workflowRunId")
+  Optional<String> findLocalStateId(
+      @Param("stepTemplateId") String stepTemplateId, @Param("workflowRunId") String workflowRunId);
 
   /**
    * Creates the global state of a run unless it already exists (unique partial index {@code

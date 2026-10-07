@@ -309,7 +309,8 @@ io.openaev.database.repository/
   ├── WorkflowRepository.java
   ├── StepRepository.java
   ├── ConditionRepository.java
-  ├── WorkflowStateRepository.java (+ Custom + CustomImpl)
+  ├── WorkflowStateRepository.java
+  ├── WorkflowStateEntryRepository.java
   ├── WorkflowScopeRuleRepository.java
   ├── ScopeVariableRepository.java
   └── StepDelayQueueRepository.java

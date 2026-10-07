@@ -61,6 +61,7 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
   @Autowired private StepRepository stepRepository;
   @Autowired private StepDelayQueueRepository stepDelayQueueRepository;
   @Autowired private WorkflowStateRepository workflowStateRepository;
+  @Autowired private WorkflowStateStore workflowStateStore;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private EntityManager entityManager;
@@ -147,9 +148,8 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
       assertEquals(
           StepStatus.END, stepRepository.findById(stepRun.getId()).orElseThrow().getStatus());
       assertTrue(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty());
-      assertNull(
-          workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepTemplate.getId(), workflowRun.getId()));
+      assertTrue(
+          workflowStateStore.findLocalStateId(stepTemplate.getId(), workflowRun.getId()).isEmpty());
       assertEquals(
           ExerciseStatus.FINISHED,
           exerciseRepository
@@ -213,9 +213,8 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
       assertEquals(
           StepStatus.END, stepRepository.findById(stepRun.getId()).orElseThrow().getStatus());
       assertTrue(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty());
-      assertNull(
-          workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepTemplate.getId(), workflowRun.getId()));
+      assertTrue(
+          workflowStateStore.findLocalStateId(stepTemplate.getId(), workflowRun.getId()).isEmpty());
       assertEquals(
           ExecutionStatus.ERROR,
           injectRepository

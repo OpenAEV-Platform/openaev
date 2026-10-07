@@ -67,7 +67,7 @@ class WorkflowServiceTest {
   @Mock private ScopeService scopeService;
   @Mock private LessonsService lessonsService;
   @Mock private WorkflowStateService workflowStateService;
-  @Mock private WorkflowStateRepository workflowStateRepository;
+  @Mock private WorkflowStateStore workflowStateStore;
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
   @Mock private ResultsMetricCollector resultsMetricCollector;
@@ -92,7 +92,7 @@ class WorkflowServiceTest {
             workflowRepository,
             scopeSnapshotService,
             assetAgentJobRepository,
-            workflowStateRepository,
+            workflowStateStore,
             attackPathExecutionIngestionService);
 
     workflowService =
@@ -2987,7 +2987,7 @@ class WorkflowServiceTest {
       verify(stepService).endActiveStepsByWorkflowId("wf-run-1", cause);
       verify(stepDelayQueueService).deleteAllByWorkflowRun(run, cause);
       verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-1", TENANT);
-      verify(workflowStateRepository).deleteAllBySimulationId("sim-1");
+      verify(workflowStateStore).deleteAllBySimulationId("sim-1");
       verify(workflowRepository).save(run);
       verifyNoInteractions(exerciseRepository);
     }
@@ -3023,8 +3023,8 @@ class WorkflowServiceTest {
       verify(stepService).endActiveStepsByWorkflowId("wf-run-2", cause);
       verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-1", TENANT);
       verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-2", TENANT);
-      verify(workflowStateRepository).deleteAllBySimulationId("sim-1");
-      verify(workflowStateRepository).deleteAllBySimulationId("sim-2");
+      verify(workflowStateStore).deleteAllBySimulationId("sim-1");
+      verify(workflowStateStore).deleteAllBySimulationId("sim-2");
       verify(workflowRepository).save(run1);
       verify(workflowRepository).save(run2);
     }

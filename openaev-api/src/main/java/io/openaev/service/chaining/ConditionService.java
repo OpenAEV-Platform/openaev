@@ -739,9 +739,7 @@ public class ConditionService {
           @Override
           public WorkflowContext get() {
             if (cached == null) {
-              cached =
-                  fetchWorkflowContext(
-                      workflowRun, stepTemplate, collectFilterKeyNames(filterConditions), false);
+              cached = fetchFilterContext(workflowRun, stepTemplate, filterConditions);
             }
             return cached;
           }
@@ -1109,8 +1107,7 @@ public class ConditionService {
     }
 
     // Load only the state entries the dynamic mappers can read (ADR-011)
-    WorkflowContext context =
-        fetchWorkflowContext(workflowRun, stepTemplate, collectMapperSourceKeys(mappers), true);
+    WorkflowContext context = fetchMapperContext(workflowRun, stepTemplate, mappers);
 
     // Prepare Inputs
     MapperInputPreparation preparation =
@@ -1132,15 +1129,46 @@ public class ConditionService {
   }
 
   /**
-   * Loads the local and global state views a step evaluation needs, restricted to {@code keys}: the
-   * input values of these keys and the correlated tuples holding at least one of them. Execution
-   * hashes (local only) are loaded when {@code withHashes} is set.
+   * Loads the state views a filter evaluation reads: the input values of the keys of its leaves, in
+   * the local and global states. Filters never read correlated tuples nor execution hashes.
    */
-  private WorkflowContext fetchWorkflowContext(
-      Workflow workflowRun, Step stepTemplate, Set<String> keys, boolean withHashes) {
+  private WorkflowContext fetchFilterContext(
+      Workflow workflowRun, Step stepTemplate, List<Condition> filterConditions) {
+    Set<String> keys = collectFilterKeyNames(filterConditions);
+    return new WorkflowContext(
+        workflowStateService.loadLocalEntries(stepTemplate, workflowRun, keys, false, false),
+        workflowStateService.loadGlobalEntries(workflowRun, keys, false));
+  }
+
+  /**
+   * Loads the state views a mapper evaluation reads: input values and correlated tuples of the
+   * dynamic mappers' source keys, from the pool(s) they actually read, plus the step's committed
+   * execution hashes (always local).
+   *
+   * <p>Pool rules mirror {@link #resolveMapperPairs} and {@link #buildExecutionBatches}: a GLOBAL
+   * mapper reads the global pool, any other dynamic mapper the local one, and the correlated-first
+   * step (two dynamic mappers or more) reads the global pool when no mapper is LOCAL.
+   */
+  private WorkflowContext fetchMapperContext(
+      Workflow workflowRun, Step stepTemplate, List<Condition> mappers) {
+    Set<String> keys = collectMapperSourceKeys(mappers);
+    List<MappingType> dynamicTypes =
+        mappers.stream()
+            .map(Condition::getMappingType)
+            .filter(type -> type != MappingType.DEFAULT)
+            .toList();
+    boolean readsLocal = dynamicTypes.stream().anyMatch(type -> type != MappingType.GLOBAL);
+    boolean readsGlobal =
+        dynamicTypes.contains(MappingType.GLOBAL)
+            || (dynamicTypes.size() >= 2 && !dynamicTypes.contains(MappingType.LOCAL));
+
     WorkflowStateEntries localEntries =
-        workflowStateService.loadLocalEntries(stepTemplate, workflowRun, keys, withHashes);
-    WorkflowStateEntries globalEntries = workflowStateService.loadGlobalEntries(workflowRun, keys);
+        workflowStateService.loadLocalEntries(
+            stepTemplate, workflowRun, readsLocal ? keys : Set.of(), true, true);
+    WorkflowStateEntries globalEntries =
+        readsGlobal
+            ? workflowStateService.loadGlobalEntries(workflowRun, keys, true)
+            : WorkflowStateEntries.empty();
     return new WorkflowContext(localEntries, globalEntries);
   }
 

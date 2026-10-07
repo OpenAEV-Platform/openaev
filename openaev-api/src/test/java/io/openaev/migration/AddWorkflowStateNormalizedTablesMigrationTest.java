@@ -9,7 +9,9 @@ import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>{@code @Transactional} so the idempotency test's re-run of the migration rolls back with the
  * test transaction instead of leaking any DDL side effect into the other tests.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
+@DisplayName("Migration V6_20261005105200000 — normalized workflow state tables")
 class AddWorkflowStateNormalizedTablesMigrationTest extends IntegrationTest {
 
   @Autowired private V6_20261005105200000__Add_workflow_state_normalized_tables migration;
@@ -82,65 +86,79 @@ class AddWorkflowStateNormalizedTablesMigrationTest extends IntegrationTest {
             .getSingleResult();
   }
 
-  @Test
-  @DisplayName("The normalized WorkflowState entries table exists")
-  void table_exists() {
-    assertThat(tableCount("workflow_state_entries")).isEqualTo(1);
+  @Nested
+  @DisplayName("schema")
+  class Schema {
+
+    @Test
+    @DisplayName("the normalized WorkflowState entries table exists")
+    void given_migratedSchema_should_haveTheEntriesTable() {
+      // Act + Assert — the migration ran at startup
+      assertThat(tableCount("workflow_state_entries")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("workflow_state_entries has the expected columns, types and constraints")
+    void given_entriesTable_should_haveTheExpectedColumnsAndConstraints() {
+      // Act + Assert
+      assertThat(isNullable("workflow_state_entries", "workflow_state_id")).isEqualTo("NO");
+      assertThat(isNullable("workflow_state_entries", "entry_type")).isEqualTo("NO");
+      assertThat(isNullable("workflow_state_entries", "entry_key")).isEqualTo("NO");
+      assertThat(isNullable("workflow_state_entries", "entry_value")).isEqualTo("NO");
+      // correlation_hash / correlation_type are optional (only CORRELATED rows carry them).
+      assertThat(isNullable("workflow_state_entries", "correlation_hash")).isEqualTo("YES");
+      assertThat(isNullable("workflow_state_entries", "correlation_type")).isEqualTo("YES");
+      assertThat(dataType("workflow_state_entries", "workflow_state_id"))
+          .isEqualTo("character varying");
+      assertThat(dataType("workflow_state_entries", "correlation_hash"))
+          .isEqualTo("character varying");
+      assertThat(dataType("workflow_state_entries", "entry_value")).isEqualTo("text");
+      assertThat(dataType("workflow_state_entries", "created_at"))
+          .isEqualTo("timestamp with time zone");
+
+      assertThat(constraintCount("chk_wse_entry_type", "CHECK")).isEqualTo(1);
+      assertThat(indexCount("idx_wse_lookup")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("workflow_state_entries has one partial unique index per entry type")
+    void given_entriesTable_should_haveOnePartialUniqueIndexPerEntryType() {
+      // Act + Assert
+      assertThat(indexCount("uq_wse_input")).isEqualTo(1);
+      assertThat(indexCount("uq_wse_hash")).isEqualTo(1);
+      assertThat(indexCount("uq_wse_correlated")).isEqualTo(1);
+      assertThat(tableCount("workflow_state_correlation_progress")).isZero();
+    }
   }
 
-  @Test
-  @DisplayName("workflow_state_entries has the expected columns, types and constraints")
-  void entries_columns_and_constraints() {
-    assertThat(isNullable("workflow_state_entries", "workflow_state_id")).isEqualTo("NO");
-    assertThat(isNullable("workflow_state_entries", "entry_type")).isEqualTo("NO");
-    assertThat(isNullable("workflow_state_entries", "entry_key")).isEqualTo("NO");
-    assertThat(isNullable("workflow_state_entries", "entry_value")).isEqualTo("NO");
-    // correlation_hash / correlation_type are optional (only CORRELATED rows carry them).
-    assertThat(isNullable("workflow_state_entries", "correlation_hash")).isEqualTo("YES");
-    assertThat(isNullable("workflow_state_entries", "correlation_type")).isEqualTo("YES");
-    assertThat(dataType("workflow_state_entries", "workflow_state_id"))
-        .isEqualTo("character varying");
-    assertThat(dataType("workflow_state_entries", "correlation_hash"))
-        .isEqualTo("character varying");
-    assertThat(dataType("workflow_state_entries", "entry_value")).isEqualTo("text");
-    assertThat(dataType("workflow_state_entries", "created_at"))
-        .isEqualTo("timestamp with time zone");
+  @Nested
+  @DisplayName("idempotency")
+  class Idempotency {
 
-    assertThat(constraintCount("chk_wse_entry_type", "CHECK")).isEqualTo(1);
-    assertThat(indexCount("idx_wse_lookup")).isEqualTo(1);
-  }
+    @Test
+    @DisplayName("re-running the migration is a no-op")
+    void given_alreadyAppliedMigration_should_rerunWithoutError() {
+      // Act + Assert
+      assertThatCode(
+              () ->
+                  entityManager
+                      .unwrap(Session.class)
+                      .doWork(
+                          connection ->
+                              runMigration(
+                                  new Context() {
+                                    @Override
+                                    public Configuration getConfiguration() {
+                                      return null;
+                                    }
 
-  @Test
-  @DisplayName("workflow_state_entries has one partial unique index per entry type")
-  void entries_partial_unique_indexes() {
-    assertThat(indexCount("uq_wse_input")).isEqualTo(1);
-    assertThat(indexCount("uq_wse_hash")).isEqualTo(1);
-    assertThat(indexCount("uq_wse_correlated")).isEqualTo(1);
-    assertThat(tableCount("workflow_state_correlation_progress")).isZero();
-  }
-
-  @Test
-  @DisplayName("Re-running the migration is a no-op (idempotent)")
-  void migration_is_idempotent() {
-    assertThatCode(
-            () ->
-                entityManager
-                    .unwrap(Session.class)
-                    .doWork(
-                        connection ->
-                            runMigration(
-                                new Context() {
-                                  @Override
-                                  public Configuration getConfiguration() {
-                                    return null;
-                                  }
-
-                                  @Override
-                                  public java.sql.Connection getConnection() {
-                                    return connection;
-                                  }
-                                })))
-        .doesNotThrowAnyException();
+                                    @Override
+                                    public java.sql.Connection getConnection() {
+                                      return connection;
+                                    }
+                                  })))
+          .doesNotThrowAnyException();
+    }
   }
 
   private void runMigration(Context context) {

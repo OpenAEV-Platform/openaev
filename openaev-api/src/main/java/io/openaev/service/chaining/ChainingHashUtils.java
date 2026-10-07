@@ -10,8 +10,13 @@ import java.util.TreeMap;
 
 /**
  * Deterministic fingerprints used by the chaining engine state (ADR-011): MurmurHash3, 128-bit,
- * hex-encoded. Non-cryptographic by design — values come from internal engine outputs, not from
- * adversary-controlled input.
+ * hex-encoded.
+ *
+ * <p>The hashed values come from the outputs of targeted machines, so they may be influenced by an
+ * adversary. A non-cryptographic hash is accepted because of what a collision can do: every lookup
+ * is scoped to one workflow state; a tuple collision can only recombine values that each passed
+ * scope validation; an execution-hash collision makes a combination look already executed, so it
+ * suppresses an execution and never causes a replay.
  */
 public final class ChainingHashUtils {
 

@@ -4,7 +4,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.WorkflowRepository;
-import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
@@ -32,7 +31,7 @@ public class WorkflowEndService {
   private final WorkflowRepository workflowRepository;
   private final ScopeSnapshotService scopeSnapshotService;
   private final AssetAgentJobRepository assetAgentJobRepository;
-  private final WorkflowStateRepository workflowStateRepository;
+  private final WorkflowStateStore workflowStateStore;
   private final AttackPathExecutionIngestionService attackPathExecutionIngestionService;
 
   private static final Set<ExecutionStatus> ACTIVE_INJECT_STATUSES =
@@ -303,7 +302,7 @@ public class WorkflowEndService {
    * @param cause the reason the workflow is ending, used for logging
    */
   public void deleteWorkflowStatesBySimulationId(String simulationId, WORKFLOW_END_CAUSE cause) {
-    int count = workflowStateRepository.deleteAllBySimulationId(simulationId);
+    int count = workflowStateStore.deleteAllBySimulationId(simulationId);
     log.info(
         "[Chaining] {} workflow states of simulation {} have been deleted due to {}",
         count,

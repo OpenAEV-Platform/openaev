@@ -32,14 +32,18 @@ import org.springframework.stereotype.Component;
  *       Duplicate global states of a same run (possible before global-state uniqueness was
  *       enforced) are merged into the oldest one, then deleted.
  *   <li>Enforces one global state per run ({@code uq_workflow_state_global}).
- *   <li>Makes the legacy JSONB column nullable: it is no longer read nor written, and is kept one
- *       release as a safety net before being dropped.
+ *   <li>Makes the legacy JSONB column nullable and drops its GIN index: the column is no longer
+ *       read nor written by the application, and is kept one release as a safety net before being
+ *       dropped (its database default still fills it for new rows).
  *   <li>Drops {@code workflows.storage_mode}: unused by any code, so there is no reader to
  *       deprecate first.
  * </ol>
  *
  * <p>Runs in a single transaction (rolled back as a whole on failure). Conversion inserts use
- * {@code ON CONFLICT DO NOTHING}, so re-running the conversion never duplicates entries.
+ * {@code ON CONFLICT DO NOTHING}, so re-running the conversion never duplicates entries — but a
+ * manual re-run is only safe before the engine has run: afterwards the JSONB documents are stale,
+ * and re-converting them would bring back entries the engine has removed since (e.g. execution
+ * hashes cleared to re-arm a step).
  */
 @Component
 public class V6_20261005160000000__Migrate_workflow_state_to_normalized_entries
@@ -107,6 +111,8 @@ public class V6_20261005160000000__Migrate_workflow_state_to_normalized_entries
       // 4. Legacy JSONB column: no longer mapped, kept one release.
       statement.execute(
           "ALTER TABLE workflow_states ALTER COLUMN workflow_state_entries DROP NOT NULL;");
+      // Maintained on every state insert for a column nothing reads any more.
+      statement.execute("DROP INDEX IF EXISTS idx_wf_state_entries_gin;");
       statement.execute(
           "COMMENT ON COLUMN workflow_states.workflow_state_entries IS"
               + " 'DEPRECATED — ADR-011: legacy JSONB state, no longer read nor written."

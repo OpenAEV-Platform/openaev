@@ -89,88 +89,121 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("loadGlobalEntries returns an empty view when the run has no global state")
-    void givenNoGlobalState_loadGlobalEntries_shouldReturnEmptyView() {
+    void given_noGlobalState_should_returnAnEmptyGlobalView() {
+      // Arrange
       when(workflowStateStore.findGlobalStateId("workflow-run")).thenReturn(Optional.empty());
 
+      // Act
       WorkflowStateEntries view =
-          workflowStateService.loadGlobalEntries(workflowRun, Set.of("IPv4"));
+          workflowStateService.loadGlobalEntries(workflowRun, Set.of("IPv4"), true);
 
+      // Assert
       assertTrue(view.getInputs().isEmpty());
       assertTrue(view.getCorrelated().isEmpty());
-      verify(workflowStateStore, never()).load(any(), any(), anyBoolean());
+      verify(workflowStateStore, never()).load(any(), any(), anyBoolean(), anyBoolean());
     }
 
     @Test
-    @DisplayName("loadGlobalEntries loads only the requested keys, without hashes")
-    void givenGlobalState_loadGlobalEntries_shouldLoadRequestedKeysWithoutHashes() {
+    @DisplayName("loadGlobalEntries loads the requested keys and parts, never the hashes")
+    void given_globalState_should_loadTheRequestedKeysWithoutHashes() {
+      // Arrange
       WorkflowStateEntries expected = WorkflowStateEntries.empty();
       when(workflowStateStore.findGlobalStateId("workflow-run")).thenReturn(Optional.of("g"));
-      when(workflowStateStore.load("g", Set.of("IPv4"), false)).thenReturn(expected);
+      when(workflowStateStore.load("g", Set.of("IPv4"), true, false)).thenReturn(expected);
 
-      assertSame(expected, workflowStateService.loadGlobalEntries(workflowRun, Set.of("IPv4")));
+      // Act
+      WorkflowStateEntries view =
+          workflowStateService.loadGlobalEntries(workflowRun, Set.of("IPv4"), true);
+
+      // Assert
+      assertSame(expected, view);
     }
 
     @Test
-    @DisplayName("loadLocalEntries forwards the keys and the hash flag")
-    void givenLocalState_loadLocalEntries_shouldForwardKeysAndHashFlag() {
+    @DisplayName("loadLocalEntries forwards the keys and the correlated / hash flags")
+    void given_localState_should_forwardKeysAndFlags() {
+      // Arrange
       WorkflowStateEntries expected = WorkflowStateEntries.empty();
       when(workflowStateStore.findLocalStateId("step-template", "workflow-run"))
           .thenReturn(Optional.of("l"));
-      when(workflowStateStore.load("l", Set.of("Port"), true)).thenReturn(expected);
+      when(workflowStateStore.load("l", Set.of("Port"), false, true)).thenReturn(expected);
 
-      assertSame(
-          expected,
-          workflowStateService.loadLocalEntries(stepTemplate, workflowRun, Set.of("Port"), true));
+      // Act
+      WorkflowStateEntries view =
+          workflowStateService.loadLocalEntries(
+              stepTemplate, workflowRun, Set.of("Port"), false, true);
+
+      // Assert
+      assertSame(expected, view);
     }
 
     @Test
     @DisplayName("getCommittedHashes returns an empty set when the step has no local state")
-    void givenNoLocalState_getCommittedHashes_shouldReturnEmpty() {
+    void given_noLocalState_should_returnNoCommittedHash() {
+      // Arrange
       when(workflowStateStore.findLocalStateId("step-template", "workflow-run"))
           .thenReturn(Optional.empty());
 
-      assertTrue(workflowStateService.getCommittedHashes(stepTemplate, workflowRun).isEmpty());
+      // Act
+      Set<String> hashes = workflowStateService.getCommittedHashes(stepTemplate, workflowRun);
+
+      // Assert
+      assertTrue(hashes.isEmpty());
     }
 
     @Test
     @DisplayName("commitHashes with no hash neither creates a state nor writes")
-    void givenNoHash_commitHashes_shouldDoNothing() {
-      assertTrue(workflowStateService.commitHashes(stepTemplate, workflowRun, Set.of()).isEmpty());
+    void given_noHash_should_neitherCreateAStateNorWrite() {
+      // Act
+      Set<String> committed =
+          workflowStateService.commitHashes(stepTemplate, workflowRun, Set.of());
 
+      // Assert
+      assertTrue(committed.isEmpty());
       verifyNoInteractions(workflowStateStore);
     }
 
     @Test
     @DisplayName("commitHashes returns only the hashes the store actually committed")
-    void givenHashes_commitHashes_shouldReturnCommittedSubset() {
+    void given_hashes_should_returnOnlyTheCommittedSubset() {
+      // Arrange
       when(workflowStateStore.getOrCreateLocalStateId(stepTemplate, workflowRun)).thenReturn("l");
       when(workflowStateStore.commitExecutionHashes("l", Set.of("h1", "h2")))
           .thenReturn(Set.of("h2"));
 
-      assertEquals(
-          Set.of("h2"),
-          workflowStateService.commitHashes(stepTemplate, workflowRun, Set.of("h1", "h2")));
+      // Act
+      Set<String> committed =
+          workflowStateService.commitHashes(stepTemplate, workflowRun, Set.of("h1", "h2"));
+
+      // Assert
+      assertEquals(Set.of("h2"), committed);
     }
 
     @Test
     @DisplayName("clearExecutionHashes is a no-op when the step has no local state")
-    void givenNoLocalState_clearExecutionHashes_shouldDoNothing() {
+    void given_noLocalState_should_notClearAnything() {
+      // Arrange
       when(workflowStateStore.findLocalStateId("step-template", "workflow-run"))
           .thenReturn(Optional.empty());
 
+      // Act
       workflowStateService.clearExecutionHashes(stepTemplate, workflowRun);
 
+      // Assert
       verify(workflowStateStore, never()).clearExecutionHashes(any());
     }
 
     @Test
     @DisplayName("clearExecutionHashes clears the hashes of the step's local state")
-    void givenLocalState_clearExecutionHashes_shouldClearThem() {
+    void given_localState_should_clearItsHashes() {
+      // Arrange
       when(workflowStateStore.findLocalStateId("step-template", "workflow-run"))
           .thenReturn(Optional.of("l"));
 
+      // Act
       workflowStateService.clearExecutionHashes(stepTemplate, workflowRun);
 
+      // Assert
       verify(workflowStateStore).clearExecutionHashes("l");
     }
   }
@@ -438,7 +471,7 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("global state receives the tuple and its fields decomposed as inputs")
-    void givenComplexOutput_shouldAppendTupleAndInputsToGlobal() {
+    void given_complexOutput_should_appendTupleAndInputsToGlobal() {
       WorkflowStateEntries global = captureGlobalAppends(workflowRun);
       when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
           .thenReturn(emptyValidationContext());
@@ -491,7 +524,7 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("when no value is accepted, no state is created nor written")
-    void givenNoAcceptedValue_shouldNotTouchTheStore() {
+    void given_noAcceptedValue_should_notTouchTheStore() {
       when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
           .thenReturn(emptyValidationContext());
 

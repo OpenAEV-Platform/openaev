@@ -2,9 +2,9 @@ package io.openaev.service.chaining;
 
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
-import io.openaev.database.model.WorkflowState;
 import io.openaev.database.model.WorkflowStateEntries;
 import io.openaev.database.raw.RawWorkflowStateEntry;
+import io.openaev.database.raw.RawWorkflowStateInput;
 import io.openaev.database.repository.WorkflowStateEntryRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
 import java.util.*;
@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Persistence of the chaining engine execution state (ADR-011): one {@link WorkflowState} row per
+ * Persistence of the chaining engine execution state (ADR-011): one {@code workflow_states} row per
  * global/local state, and one {@code workflow_state_entries} row per input value, correlated-tuple
  * field and execution hash.
  *
@@ -32,17 +32,12 @@ public class WorkflowStateStore {
 
   /** Id of the global state of a run, if it exists. */
   public Optional<String> findGlobalStateId(String workflowRunId) {
-    return Optional.ofNullable(
-            workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowRunId))
-        .map(WorkflowState::getId);
+    return workflowStateRepository.findGlobalStateId(workflowRunId);
   }
 
   /** Id of the local state of a step template in a run, if it exists. */
   public Optional<String> findLocalStateId(String stepTemplateId, String workflowRunId) {
-    return Optional.ofNullable(
-            workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-                stepTemplateId, workflowRunId))
-        .map(WorkflowState::getId);
+    return workflowStateRepository.findLocalStateId(stepTemplateId, workflowRunId);
   }
 
   /** Id of the global state of a run, created atomically if missing. */
@@ -52,7 +47,13 @@ public class WorkflowStateStore {
             () -> {
               workflowStateRepository.insertGlobalStateIfAbsent(
                   UUID.randomUUID().toString(), workflowRun.getId());
-              return findGlobalStateId(workflowRun.getId()).orElseThrow();
+              return findGlobalStateId(workflowRun.getId())
+                  .orElseThrow(
+                      () ->
+                          new IllegalStateException(
+                              "Global state of workflow run "
+                                  + workflowRun.getId()
+                                  + " not found after insert-or-ignore"));
             });
   }
 
@@ -63,7 +64,15 @@ public class WorkflowStateStore {
             () -> {
               workflowStateRepository.insertLocalStateIfAbsent(
                   UUID.randomUUID().toString(), workflowRun.getId(), stepTemplate.getId());
-              return findLocalStateId(stepTemplate.getId(), workflowRun.getId()).orElseThrow();
+              return findLocalStateId(stepTemplate.getId(), workflowRun.getId())
+                  .orElseThrow(
+                      () ->
+                          new IllegalStateException(
+                              "Local state of step template "
+                                  + stepTemplate.getId()
+                                  + " in workflow run "
+                                  + workflowRun.getId()
+                                  + " not found after insert-or-ignore"));
             });
   }
 
@@ -166,26 +175,30 @@ public class WorkflowStateStore {
   // -- Reads -------------------------------------------------------------------------------------
 
   /**
-   * Builds a view of a state restricted to {@code keys}: the input values of these keys, and every
-   * correlated tuple holding at least one of them (with all its fields). Execution hashes are
-   * loaded only when {@code withHashes} is set.
+   * Builds a view of a state restricted to {@code keys}: the input values of these keys and, when
+   * {@code withCorrelated} is set, every correlated tuple holding at least one of them (with all
+   * its fields). Execution hashes are loaded only when {@code withHashes} is set. Each part costs
+   * its own queries, so callers ask only for what they read.
    */
-  public WorkflowStateEntries load(String stateId, Collection<String> keys, boolean withHashes) {
+  public WorkflowStateEntries load(
+      String stateId, Collection<String> keys, boolean withCorrelated, boolean withHashes) {
     WorkflowStateEntries view = WorkflowStateEntries.empty();
     if (keys != null && !keys.isEmpty()) {
       Set<String> distinctKeys = new HashSet<>(keys);
-      for (RawWorkflowStateEntry row :
+      for (RawWorkflowStateInput row :
           workflowStateEntryRepository.findInputs(stateId, distinctKeys)) {
         view.getInputByKey(row.getEntryKey()).getValues().add(row.getEntryValue());
       }
-      List<String> candidateHashes =
-          workflowStateEntryRepository.findCorrelationHashesHoldingKeys(stateId, distinctKeys);
-      if (!candidateHashes.isEmpty()) {
-        view.getCorrelated()
-            .addAll(
-                toTuples(
-                    workflowStateEntryRepository.findCorrelatedByHashes(
-                        stateId, candidateHashes.toArray(String[]::new))));
+      if (withCorrelated) {
+        List<String> candidateHashes =
+            workflowStateEntryRepository.findCorrelationHashesHoldingKeys(stateId, distinctKeys);
+        if (!candidateHashes.isEmpty()) {
+          view.getCorrelated()
+              .addAll(
+                  toTuples(
+                      workflowStateEntryRepository.findCorrelatedByHashes(
+                          stateId, candidateHashes.toArray(String[]::new))));
+        }
       }
     }
     if (withHashes) {
@@ -205,7 +218,7 @@ public class WorkflowStateStore {
       return Set.of();
     }
     Set<String> values = new LinkedHashSet<>();
-    for (RawWorkflowStateEntry row :
+    for (RawWorkflowStateInput row :
         workflowStateEntryRepository.findInputs(stateId, new HashSet<>(keys))) {
       values.add(row.getEntryValue());
     }

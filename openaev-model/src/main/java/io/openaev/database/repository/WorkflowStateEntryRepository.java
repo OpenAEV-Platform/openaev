@@ -1,8 +1,8 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.WorkflowStateEntry;
-import io.openaev.database.model.WorkflowStateEntry.EntryType;
 import io.openaev.database.raw.RawWorkflowStateEntry;
+import io.openaev.database.raw.RawWorkflowStateInput;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,35 +23,25 @@ import org.springframework.transaction.annotation.Transactional;
  * insert-or-ignore, and no session side effect is lost — {@link WorkflowStateEntry} is not indexed,
  * audited nor streamed (no entity listener), and inserted rows are never read back from the
  * session.
+ *
+ * <p>Every insert orders its rows ({@code ORDER BY}): a multi-row insert locks the unique-index
+ * keys it writes in row order, so two concurrent inserts of overlapping rows in different orders
+ * would deadlock and PostgreSQL would abort one of them. A deterministic order makes them queue
+ * instead.
  */
 @Repository
 public interface WorkflowStateEntryRepository extends JpaRepository<WorkflowStateEntry, Long> {
-
-  boolean existsByWorkflowState_IdAndEntryTypeAndEntryKeyAndEntryValue(
-      String workflowStateId, EntryType entryType, String entryKey, String entryValue);
-
-  List<WorkflowStateEntry> findByWorkflowState_IdAndEntryType(
-      String workflowStateId, EntryType entryType);
-
-  /**
-   * Rows of one correlated tuple within one state. Always scoped by state: the hash identifies the
-   * tuple content, so the same tuple (and hash) exists in the global state, in every local state it
-   * was propagated to, and in other runs.
-   */
-  List<WorkflowStateEntry> findByWorkflowState_IdAndCorrelationHash(
-      String workflowStateId, String correlationHash);
 
   // -- Reads -------------------------------------------------------------------------------------
 
   /** INPUT values of a state, restricted to the given keys. */
   @Query(
-      "SELECT e.entryKey AS entryKey, e.entryValue AS entryValue,"
-          + " e.correlationHash AS correlationHash, e.correlationType AS correlationType"
+      "SELECT e.entryKey AS entryKey, e.entryValue AS entryValue"
           + " FROM WorkflowStateEntry e"
           + " WHERE e.workflowState.id = :stateId"
           + " AND e.entryType = io.openaev.database.model.WorkflowStateEntry.EntryType.INPUT"
           + " AND e.entryKey IN :keys")
-  List<RawWorkflowStateEntry> findInputs(
+  List<RawWorkflowStateInput> findInputs(
       @Param("stateId") String stateId, @Param("keys") Collection<String> keys);
 
   /**
@@ -74,8 +64,9 @@ public interface WorkflowStateEntryRepository extends JpaRepository<WorkflowStat
    * statement, a plan scanning every correlated row of the state even when only a few tuples match.
    * Here the hashes are known values, so the lookup always goes through {@code uq_wse_correlated}.
    */
-  // Native: = ANY(array) binds a single parameter whatever the number of hashes (a JPQL IN list
-  // binds one parameter per value and hits the JDBC parameter limit); read-only.
+  // Native: an index-usable "= ANY(array)" with a single bind parameter whatever the number of
+  // hashes is not expressible in JPQL (an IN list binds one parameter per value and hits the JDBC
+  // limit; array_contains renders "@>", which cannot use uq_wse_correlated); read-only.
   @Query(
       value =
           "SELECT entry_key AS \"entryKey\", entry_value AS \"entryValue\","
@@ -107,6 +98,7 @@ public interface WorkflowStateEntryRepository extends JpaRepository<WorkflowStat
           "INSERT INTO workflow_state_entries (workflow_state_id, entry_type, entry_key, entry_value)"
               + " SELECT :stateId, 'INPUT', t.k, t.v"
               + " FROM unnest(CAST(:keys AS text[]), CAST(:values AS text[])) AS t(k, v)"
+              + " ORDER BY t.k, t.v"
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
   int insertInputs(
@@ -130,6 +122,7 @@ public interface WorkflowStateEntryRepository extends JpaRepository<WorkflowStat
               + " SELECT :stateId, 'CORRELATED', t.k, t.v, t.h, t.ty"
               + " FROM unnest(CAST(:keys AS text[]), CAST(:values AS text[]),"
               + " CAST(:hashes AS text[]), CAST(:types AS text[])) AS t(k, v, h, ty)"
+              + " ORDER BY t.h, t.k, t.v"
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
   int insertCorrelated(
@@ -157,6 +150,7 @@ public interface WorkflowStateEntryRepository extends JpaRepository<WorkflowStat
               + " (workflow_state_id, entry_type, entry_key, entry_value)"
               + " SELECT :stateId, 'HASH_EXECUTION', 'HASH_EXECUTION', t.h"
               + " FROM unnest(CAST(:hashes AS text[])) AS t(h)"
+              + " ORDER BY t.h"
               + " ON CONFLICT DO NOTHING"
               + " RETURNING entry_value)"
               + " SELECT entry_value FROM inserted",

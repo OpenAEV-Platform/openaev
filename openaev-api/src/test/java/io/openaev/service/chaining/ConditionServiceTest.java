@@ -323,10 +323,10 @@ public class ConditionServiceTest {
               List.of());
       WorkflowStateEntries localEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -360,10 +360,10 @@ public class ConditionServiceTest {
           entries(List.of(input("IPv4", "10.0.0.1"), input("Service", "ssh")), List.of());
       WorkflowStateEntries localEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -404,10 +404,10 @@ public class ConditionServiceTest {
               List.of(correlated("LocalIp", new WorkflowStateEntries.Pair("IPv4", "10.0.0.1"))));
       WorkflowStateEntries globalEntries = entries(List.of(input("Port", "80", "443")), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -447,10 +447,10 @@ public class ConditionServiceTest {
       WorkflowStateEntries globalEntries =
           entries(List.of(input("Host", "0.0.0.0", "1.1.1.1", "2.2.2.2", "3.3.3.3")), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -492,10 +492,8 @@ public class ConditionServiceTest {
                       new WorkflowStateEntries.Pair("Port", "5040"),
                       new WorkflowStateEntries.Pair("Service", "TCP"))));
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
-          .thenReturn(entries(List.of(), List.of()));
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -532,10 +530,10 @@ public class ConditionServiceTest {
       WorkflowStateEntries globalEntries =
           entries(List.of(input("Host", "1.1.1.1", "2.2.2.2")), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -586,10 +584,10 @@ public class ConditionServiceTest {
       WorkflowStateEntries globalEntries =
           entries(List.of(input("Host", "0.0.0.0", "1.1.1.1", "2.2.2.2", "3.3.3.3")), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -631,10 +629,10 @@ public class ConditionServiceTest {
                       new WorkflowStateEntries.Pair("Text", "folder-A"))));
       WorkflowStateEntries localEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -670,10 +668,10 @@ public class ConditionServiceTest {
                       new WorkflowStateEntries.Pair("Port", "8443"))));
       WorkflowStateEntries localEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -698,10 +696,8 @@ public class ConditionServiceTest {
               mapper(MappingType.DEFAULT, PrimitiveType.Text, "admin"),
               mapper(MappingType.DEFAULT, PrimitiveType.Host, "worker-01"));
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
-          .thenReturn(entries(List.of(), List.of()));
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(entries(List.of(), List.of()));
 
       // -------- Act --------
@@ -732,12 +728,9 @@ public class ConditionServiceTest {
       List<Condition> mappers = List.of(valueMapper, value2Mapper);
 
       WorkflowStateEntries localEntries = entries(List.of(input("Text", "key", "pass")), List.of());
-      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
-          .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -793,12 +786,9 @@ public class ConditionServiceTest {
 
       WorkflowStateEntries localEntries =
           entries(List.of(input("Text", "key", "pass")), List.of(), Set.of(executedHash));
-      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
-          .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -840,12 +830,9 @@ public class ConditionServiceTest {
 
       WorkflowStateEntries localEntries =
           entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
-      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
-          .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -876,12 +863,9 @@ public class ConditionServiceTest {
 
       WorkflowStateEntries localEntries =
           entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
-      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
-          .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -908,12 +892,9 @@ public class ConditionServiceTest {
       List<Condition> mappers = List.of(portMapper);
 
       WorkflowStateEntries localEntries = entries(List.of(input("Port", "05", "445")), List.of());
-      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
-          .thenReturn(globalEntries);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localEntries);
 
       // -------- Act --------
@@ -940,10 +921,8 @@ public class ConditionServiceTest {
               mapper(MappingType.DEFAULT, PrimitiveType.Text, "admin"),
               mapper(MappingType.LOCAL, PrimitiveType.Host, null));
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
-          .thenReturn(entries(List.of(), List.of()));
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(entries(List.of(), List.of()));
 
       // -------- Act --------
@@ -981,10 +960,10 @@ public class ConditionServiceTest {
               mapper(MappingType.LOCAL, PrimitiveType.IPv4, null),
               mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(entries(List.of(), List.of()));
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(entries(List.of(), List.of()));
 
       // -------- Act --------
@@ -1231,10 +1210,10 @@ public class ConditionServiceTest {
           buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
       WorkflowStateEntries localState = buildWorkflowState(buildEmptyStateEntriesJson());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalState);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1245,6 +1224,12 @@ public class ConditionServiceTest {
       assertNotNull(result);
       assertEquals(1, result.size());
       assertEquals("{\"in\":1}", result.getFirst().inputString());
+      // Filters read input values only: neither tuples nor execution hashes are loaded (ADR-011)
+      verify(workflowStateService)
+          .loadGlobalEntries(eq(workflowRun), eq(Set.of("IPv4")), eq(false));
+      verify(workflowStateService)
+          .loadLocalEntries(
+              eq(stepTemplate), eq(workflowRun), eq(Set.of("IPv4")), eq(false), eq(false));
     }
 
     @Test
@@ -1268,10 +1253,10 @@ public class ConditionServiceTest {
           buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("192.168.0.1")));
       WorkflowStateEntries localState = buildWorkflowState(buildEmptyStateEntriesJson());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalState);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1304,10 +1289,10 @@ public class ConditionServiceTest {
       WorkflowStateEntries localState =
           buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalState);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1339,10 +1324,10 @@ public class ConditionServiceTest {
       WorkflowStateEntries localState =
           buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(null);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1376,10 +1361,10 @@ public class ConditionServiceTest {
           buildWorkflowState(buildStateEntriesJson("Portscan", Set.of("445")));
       WorkflowStateEntries localState = buildWorkflowState(buildEmptyStateEntriesJson());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalState);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1414,10 +1399,10 @@ public class ConditionServiceTest {
               buildStateEntriesJson("IPv4", Set.of("192.168.0.1", "10.0.0.1", "172.16.0.1")));
       WorkflowStateEntries localState = buildWorkflowState(buildEmptyStateEntriesJson());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalState);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------
@@ -1451,10 +1436,10 @@ public class ConditionServiceTest {
           buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
       WorkflowStateEntries localState = buildWorkflowState(buildEmptyStateEntriesJson());
 
-      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection()))
+      when(workflowStateService.loadGlobalEntries(eq(workflowRun), anyCollection(), anyBoolean()))
           .thenReturn(globalState);
       when(workflowStateService.loadLocalEntries(
-              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean()))
+              eq(stepTemplate), eq(workflowRun), anyCollection(), anyBoolean(), anyBoolean()))
           .thenReturn(localState);
 
       // -------- Act --------

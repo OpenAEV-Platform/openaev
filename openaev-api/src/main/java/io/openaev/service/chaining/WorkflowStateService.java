@@ -87,9 +87,14 @@ public class WorkflowStateService {
       return;
     }
 
-    for (Map.Entry<Step, List<Condition>> stepEntry : stepToConditions.entrySet()) {
-      propagateValuesToStep(stepEntry.getKey(), stepEntry.getValue(), ingestion, workflowRun);
-    }
+    // Deterministic order: concurrent syncs touching the same local states must lock them in the
+    // same order, or they could deadlock when running inside a single transaction.
+    stepToConditions.entrySet().stream()
+        .sorted(Map.Entry.comparingByKey(Comparator.comparing(Step::getId)))
+        .forEach(
+            stepEntry ->
+                propagateValuesToStep(
+                    stepEntry.getKey(), stepEntry.getValue(), ingestion, workflowRun));
   }
 
   /**
@@ -537,26 +542,33 @@ public class WorkflowStateService {
   // -- Read side ---------------------------------------------------------------------------------
 
   /**
-   * View of the global state of a run, restricted to {@code keys} (input values of these keys and
-   * correlated tuples holding at least one of them). Empty when the run has no global state yet.
+   * View of the global state of a run, restricted to {@code keys}: input values of these keys and,
+   * when {@code withCorrelated} is set, the correlated tuples holding at least one of them. Empty
+   * when the run has no global state yet.
    */
-  public WorkflowStateEntries loadGlobalEntries(Workflow workflowRun, Collection<String> keys) {
+  public WorkflowStateEntries loadGlobalEntries(
+      Workflow workflowRun, Collection<String> keys, boolean withCorrelated) {
     return workflowStateStore
         .findGlobalStateId(workflowRun.getId())
-        .map(stateId -> workflowStateStore.load(stateId, keys, false))
+        .map(stateId -> workflowStateStore.load(stateId, keys, withCorrelated, false))
         .orElseGet(WorkflowStateEntries::empty);
   }
 
   /**
-   * View of the local state of a step template in a run, restricted to {@code keys}, with its
+   * View of the local state of a step template in a run, restricted to {@code keys} (with the
+   * correlated tuples holding one of them when {@code withCorrelated} is set), and with its
    * committed execution hashes when {@code withHashes} is set. Empty when the step has no local
    * state yet.
    */
   public WorkflowStateEntries loadLocalEntries(
-      Step stepTemplate, Workflow workflowRun, Collection<String> keys, boolean withHashes) {
+      Step stepTemplate,
+      Workflow workflowRun,
+      Collection<String> keys,
+      boolean withCorrelated,
+      boolean withHashes) {
     return workflowStateStore
         .findLocalStateId(stepTemplate.getId(), workflowRun.getId())
-        .map(stateId -> workflowStateStore.load(stateId, keys, withHashes))
+        .map(stateId -> workflowStateStore.load(stateId, keys, withCorrelated, withHashes))
         .orElseGet(WorkflowStateEntries::empty);
   }
 
