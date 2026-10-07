@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
+  # TEMP: remove before merge.
+  pull_request:
+    paths:
+      - .github/workflows/snyk-rolling-image-scan.yml
 
 permissions:
   contents: read
