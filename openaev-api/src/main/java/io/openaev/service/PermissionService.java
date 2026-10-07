@@ -232,6 +232,10 @@ public class PermissionService {
     return false;
   }
 
+  public boolean hasUserAdminPrivileges(User user) {
+    return user.isAdminOrBypass();
+  }
+
   private Target resolveTarget(
       @NotNull final String resourceId,
       @NotNull final ResourceType resourceType,

@@ -34,6 +34,8 @@ import io.openaev.database.model.autonomous.AutonomousEvent;
 import io.openaev.database.model.autonomous.AutonomousObjectiveTemplate;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.service.PermissionService;
+import io.openaev.service.UserService;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.CapabilityResolverService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,6 +43,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -88,6 +91,8 @@ public class AutonomousRunApi extends RestBehavior {
 
   private final AutonomousRunService autonomousRunService;
   private final CapabilityResolverService capabilityResolverService;
+  private final UserService userService;
+  private final PermissionService permissionService;
 
   // region operator UI
 
@@ -138,11 +143,7 @@ public class AutonomousRunApi extends RestBehavior {
       description = "Persists both the enabled agent ids and each agent's default discovery mode.")
   @PutMapping("/default-agents")
   @Transactional
-  // FIXME: require admin privs
-  @AccessControl(
-      resourceType = ResourceType.AUTONOMOUS_RUN,
-      actionPerformed = Action.LAUNCH,
-      isEnterpriseEdition = true)
+  @AccessControl(requireAdmin = true, isEnterpriseEdition = true)
   public AutonomousDefaultAgentsOutput setDefaultAgents(
       TxCtx ctx, @RequestBody AutonomousDefaultAgentsInput input) {
     List<String> ids =
@@ -243,7 +244,17 @@ public class AutonomousRunApi extends RestBehavior {
       actionPerformed = Action.SEARCH,
       isEnterpriseEdition = true)
   public List<AutonomousRun> list(TxCtx ctx) {
-    return autonomousRunService.list();
+    List<AutonomousRun> runs = autonomousRunService.list();
+    return runs.stream()
+        .filter(
+            run ->
+                permissionService.hasPermission(
+                    userService.currentUser(),
+                    Optional.empty(),
+                    run.getId(),
+                    ResourceType.AUTONOMOUS_RUN,
+                    Action.READ))
+        .toList();
   }
 
   @Operation(summary = "Get one autonomous run")

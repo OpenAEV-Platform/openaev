@@ -26,27 +26,7 @@ import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.ConditionType;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.ExecutionStatus;
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.ExerciseStatus;
-import io.openaev.database.model.Finding;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.MappingType;
-import io.openaev.database.model.PrimitiveType;
-import io.openaev.database.model.Scenario;
-import io.openaev.database.model.ScopeRuleSelectedMode;
-import io.openaev.database.model.ScopeRuleSource;
-import io.openaev.database.model.Setting;
-import io.openaev.database.model.Team;
-import io.openaev.database.model.Tenant;
-import io.openaev.database.model.TenantSettingKeys;
-import io.openaev.database.model.User;
-import io.openaev.database.model.Workflow;
-import io.openaev.database.model.WorkflowScopeRule;
+import io.openaev.database.model.*;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousDirectiveStatus;
 import io.openaev.database.model.autonomous.AutonomousDiscoveryMode;
@@ -3869,7 +3849,7 @@ public class AutonomousRunService {
     // and status leaked to any Enterprise-Edition user regardless of their simulation/scenario
     // access. Bound the DB read at MAX_RUNS_LISTED (newest first) so the table is never loaded
     // whole just to filter it down in memory.
-    // FIXME: check this
+    // FIXME: suboptimal: reduces the fetched set based on post-query filtering
     List<AutonomousRun> runs = runRepository.findRecent(PageRequest.of(0, MAX_RUNS_LISTED));
     // Detach every listed run for the same open-in-view reason as detachForResponse: a listed run
     // left managed is flushed at the Spring Session save and can 500 the whole list.

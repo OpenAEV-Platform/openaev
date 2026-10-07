@@ -27,6 +27,7 @@ public class Grant implements Base {
     SCENARIO,
     SIMULATION,
     ATOMIC_TESTING,
+    AUTONOMOUS_RUN,
     THREAT_ARSENAL,
     @Deprecated(
         since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
