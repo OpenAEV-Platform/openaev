@@ -108,41 +108,14 @@ Once you can build a chained Logic graph by hand, you can go one step further wi
 you give an AI orchestrator an objective in plain language and it plans, executes, and adapts a full attack path on
 its own, live, against your authorized environment.
 
-### 6. Pause, stop, or reset a chained Simulation
+### What happens to the chain on other actions
 
-A chained Simulation supports the same [actions](../evaluate/simulation/simulation.md#actions) as any other
-Simulation:
+The usual [Simulation actions](../evaluate/simulation/simulation.md#actions) also apply to a chained run:
 
-| Action | Available when | Effect on the chained run |
-|--------|----------------|---------------------------|
-| **Pause** | Running | No new Action starts. Actions already running finish and their outputs are kept. The time spent paused does not count toward the timeout |
-| **Resume** | Paused | The chain continues, including the Events met by outputs received while paused. If nothing is left to run, the Simulation ends |
-| **Stop** | Running or Paused | Ends the run. Collected results are kept |
-| **Reset** | Finished or Canceled | Deletes the run: the Injects it created, its results, and its Attack path. The Logic and Scope are kept, so you can launch it again. Assets and Asset groups deleted since the last run are removed from the Scope |
-
-!!! danger
-
-    Deleting a chained Simulation also deletes its Logic, its Scope, and its Attack path. This cannot be undone.
-
-### 7. Duplicate a chained Scenario or Simulation
-
-1. Open the actions menu of the chained Scenario or Simulation, from the list or from its page.
-2. Click **Duplicate**.
-
-The copy is named after the original with a `(duplicate)` suffix. It gets the full Logic (Actions and Events) and
-the Scope (allow and deny lists, Variables, timeout, and rate limit), with the **Simulation time out** toggled on.
-It gets nothing from past runs: no Injects created by the chain, no results, and no Attack path. You can duplicate a
-Simulation in any status, even while it runs.
-
-!!! tip "Enterprise Edition"
-
-    Duplicating a chained Scenario or Simulation requires an Enterprise Edition license. Without one, the
-    duplication fails and no copy is created.
-
-!!! note
-
-    A Simulation driven by an [Autonomous Attack Chaining](../autonomous-attack-chaining/overview.md) run cannot be
-    duplicated.
+- **Pause**: no new Action starts; running Actions finish and their outputs are kept.
+- **Reset**: deletes the run and its Attack path, but keeps the Logic and Scope.
+- **Delete**: also deletes the Logic, Scope and Attack path.
+- **Duplicate**: the copy gets the Logic and Scope, not the past runs. It requires an Enterprise Edition license.
 
 ## What's next?
 
