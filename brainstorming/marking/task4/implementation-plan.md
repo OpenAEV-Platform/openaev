@@ -269,12 +269,12 @@ gives asset groups their own marking semantics.
 
 ### 1) What we observed: two browsers, one admin, one `TLP:GREEN` user
 
-**Setup.** 
+**Setup.**
 
-Browser 1: a user whose group grants `TLP:GREEN` (role with `ACCESS_ASSETS`). 
+- Browser 1: a user whose group grants `TLP:GREEN` (role with `ACCESS_ASSETS`).
+- Browser 2: admin.
 
-Browser 2:
-admin. Endpoint `WWcorinne…` is marked `TLP:RED`, so browser 1 does not see it in Assets → Endpoints
+Endpoint `WWcorinne…` is marked `TLP:RED`, so browser 1 does not see it in Assets → Endpoints
 (the REST search is filtered by the Task 3 rewrite).
 
 **Scenario 1 — the leak.** In browser 2, the admin renames the RED endpoint. In browser 1, DevTools →
@@ -325,28 +325,6 @@ tenant, RBAC and marking filtering (statement inspector) for the **reader**.
 This is the shape of the id-only DELETE `StreamApi` already sends to consumers without READ
 permission, and the pattern of the attack-path version nudge, whose Javadoc states the notification can
 never leak state.
-
-```mermaid
-sequenceDiagram
-    participant PUB as Publisher transaction (admin)
-    participant SA as StreamApi.listenDatabaseUpdate
-    participant FE as Browser (TLP:GREEN user)
-    participant API as REST API (filtered for the reader)
-
-    PUB->>SA: BaseEvent(asset RED updated)
-    SA->>SA: tenant + READ permission (unchanged)
-    rect rgb(255, 205, 205)
-        SA->>SA: marked entity outside the reader's clearance? → send nothing
-        SA->>FE: signal {schema: assets, id} (no payload)
-    end
-    FE->>FE: is this id on screen? (list rows, detail page)
-    alt yes
-        FE->>API: re-run the page search / re-fetch the entity
-        API-->>FE: only what this user may see
-    else no
-        FE->>FE: ignore
-    end
-```
 
 **Backend (`StreamApi`)**
 
@@ -401,19 +379,22 @@ sequenceDiagram
 - **2.5** (optional) Stream each endpoint change once (duplicate `ModelBaseListener` on `Asset` /
   `Endpoint`).
 
-## Chunk 3 - Asset not targetted
-Asset not targetted vs No asset executed, line 100 in ExecutionExecutorService.java, compare assets list the user clearance hold to the list of assets.
-Make sure the asset the user clearance holds is an agent.
-Agentless test with nuclei - a scenario was created with agentless asset. A user can only see one agentless => make sure the agentless the 
+## Chunk 3 — Asset not targeted
 
-# Chunk 4 — OCTI: scenario create 
-We need to add all the markings to the OpenCTI service account in addition to adding the OpenCTI user to the scheduled scenario
-See resolveLaunchedByClearance
+"Asset not targeted" vs "No asset executed", line 100 in `ExecutionExecutorService.java`: compare the list of assets the user's clearance holds to the list of assets.
+For the admin user looking at each asset overview, display "asset not targeted" when the user has no clearance on that asset.
+Same test with an agentless test with Nuclei: a scenario was created with an agentless asset.
+A user can only see one agentless asset => make sure the admin sees "asset not targeted" on the RED asset.
 
-**Question**: which user to add to launchedBy/ScheduledBy?
+## Chunk 4 — OCTI: scenario create
+
+We need to add all the markings to the OpenCTI service account, in addition to adding the OpenCTI user to the scheduled scenario.
+See `resolveLaunchedByClearance`.
+
+**Question**: which user to add to `launchedBy` / `scheduledBy`?
 If we add OCTI user account we have to add all the markings to the OCTI user account as well.
 
-# Chunk 5 — Tests chained simulation
+## Chunk 5 — Tests chained simulation
 
 ## Chunk 100 — End-to-end proof, as a Playwright e2e test (CI-covered) 🔴 not started
 
