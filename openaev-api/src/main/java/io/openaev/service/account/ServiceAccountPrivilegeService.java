@@ -2,6 +2,7 @@ package io.openaev.service.account;
 
 import static io.openaev.service.account.Constants.*;
 
+import io.openaev.config.SessionManager;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
@@ -20,13 +21,17 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
   public static final String SERVICE_EMAIL_PATTERN = "service-%s@openaev.invalid";
   private static final String SERVICE_FIRSTNAME = "service";
 
+  private final SessionManager sessionManager;
+
   @Autowired
   public ServiceAccountPrivilegeService(
       TenantRoleService tenantRoleService,
       TenantGroupService tenantGroupService,
       UserService userService,
-      TenantUserService tenantUserService) {
+      TenantUserService tenantUserService,
+      SessionManager sessionManager) {
     super(tenantRoleService, tenantGroupService, userService, tenantUserService);
+    this.sessionManager = sessionManager;
   }
 
   @Override
@@ -123,6 +128,12 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
    * path if the token embedded in the agent installer command/endpoint leaks to a holder of {@code
    * INSTALL_AGENT} who isn't trusted to manage the account itself.
    *
+   * <p>Also kills every live session of the service account. Token authentications are stateless
+   * (see {@code AppSecurityConfig#hasTokenCredential}), so no new session can be minted from the
+   * leaked token going forward - but a session established before this fix shipped, or before this
+   * rotation runs, would otherwise keep authenticating as the service account without ever
+   * presenting the token again, including to fetch the very token this call just issued.
+   *
    * @param tenantId tenant whose service-account token must be rotated
    */
   @Transactional
@@ -132,5 +143,6 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
             .orElseThrow(() -> new ElementNotFoundException("Service account not found"));
     new ArrayList<>(user.getTokens()).forEach(userService::deleteUserToken);
     userService.createUserToken(user);
+    sessionManager.invalidateUserSession(user.getId());
   }
 }

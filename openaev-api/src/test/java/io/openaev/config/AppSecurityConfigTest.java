@@ -1,15 +1,23 @@
 package io.openaev.config;
 
+import static io.openaev.rest.executor.ExecutorApi.AGENT_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.service.UserService.buildAuthenticationToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.utils.helpers.SessionTestHelper;
+import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.Cookie;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +40,9 @@ public class AppSecurityConfigTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private TokenRepository tokenRepository;
+  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private SessionTestHelper sessionTestHelper;
+  @Autowired private EntityManager entityManager;
 
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String adminToken;
@@ -238,5 +249,45 @@ public class AppSecurityConfigTest extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(SEARCH_BODY))
         .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName(
+      "a pre-rotation session cannot retrieve the replacement installer token after rotation")
+  void given_preRotationSession_should_notRetrieveReplacementTokenAfterRotation() throws Exception {
+    // -- ARRANGE --
+    // Bootstrap the tenant's service account and model a session that already exists while it
+    // holds the soon-to-be-rotated token - the thing the admin rotation remediation must revoke,
+    // regardless of how the session came to exist (token authentications are themselves stateless
+    // post-fix: see AppSecurityConfig#hasTokenCredential).
+    serviceAccountPrivilegeService.ensurePrivilegedUserExists(Tenant.DEFAULT_TENANT_UUID);
+    entityManager.flush();
+    entityManager.clear();
+    User serviceAccount =
+        serviceAccountPrivilegeService
+            .getUserServiceAccountByTenant(Tenant.DEFAULT_TENANT_UUID)
+            .orElseThrow();
+    String sessionId =
+        sessionTestHelper.createAuthenticatedSession(
+            buildAuthenticationToken(serviceAccount), serviceAccount.getId());
+    Cookie sessionCookie = sessionTestHelper.cookieFor(sessionId);
+    String installerTokenUri = AGENT_URI + "/installer/openaev/token";
+
+    // Pre-rotation: the session alone (no token ever presented on this request) reaches the
+    // installer token endpoint, proving it is really an authenticated, reusable session.
+    mockMvc.perform(get(installerTokenUri).cookie(sessionCookie)).andExpect(status().isOk());
+
+    // -- ACT --
+    // The admin remediation path: rotate the tenant's service-account token.
+    serviceAccountPrivilegeService.rotateTokenForTenant(Tenant.DEFAULT_TENANT_UUID);
+    entityManager.flush();
+    entityManager.clear();
+
+    // -- ASSERT --
+    // Replaying the pre-rotation session cannot retrieve the replacement token: rotation killed
+    // the session itself, it is not merely that the old token value stopped working.
+    mockMvc
+        .perform(get(installerTokenUri).cookie(sessionCookie))
+        .andExpect(status().isUnauthorized());
   }
 }
