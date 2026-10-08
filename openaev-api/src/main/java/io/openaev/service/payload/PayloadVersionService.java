@@ -1,6 +1,7 @@
 package io.openaev.service.payload;
 
 import io.openaev.database.model.ContentRevocation;
+import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.database.repository.PayloadRepository;
@@ -73,8 +74,7 @@ public class PayloadVersionService {
 
   private Set<String> revokedVersions(String externalId) {
     return contentRevocationRepository
-        .findAllByTypeAndExternalIdAndLiftedAtIsNull(
-            ContentRevocation.CONTENT_TYPE.PAYLOAD, externalId)
+        .findAllByTypeAndExternalIdAndLiftedAtIsNull(ContentType.PAYLOAD, externalId)
         .stream()
         .map(ContentRevocation::getVersion)
         .collect(Collectors.toSet());
