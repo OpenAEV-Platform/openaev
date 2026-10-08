@@ -2,7 +2,7 @@
 
 !!! info ""
 
-    * **Introduced in**: `OpenAEV 3.260818.1`
+    * **Introduced in**: `OpenAEV [MigrationVersion]`
 
 ## Description of changes
 
