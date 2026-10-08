@@ -56,29 +56,19 @@ jobs:
               return;
             }
 
-            let run;
-            for (let page = 1; page <= 5 && !run; page += 1) {
-              const runsResponse = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: 'core-ci.yml',
-                event: 'push',
-                status: 'completed',
-                per_page: 100,
-                page,
-              });
-
-              run = runsResponse.data.workflow_runs.find(candidate =>
-                candidate.conclusion === 'success' && candidate.head_sha === tagSha
-              );
-
-              if (runsResponse.data.workflow_runs.length < 100) {
-                break;
-              }
-            }
+            const runsResponse = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'core-ci.yml',
+              event: 'push',
+              status: 'success',
+              head_sha: tagSha,
+              per_page: 100,
+            });
+            const run = runsResponse.data.workflow_runs[0];
 
             if (!run) {
-              core.notice(`No successful [Core] CI run found for tag ${tag}`);
+              core.setFailed(`No successful [Core] CI run found for tag ${tag}`);
               return;
             }
 

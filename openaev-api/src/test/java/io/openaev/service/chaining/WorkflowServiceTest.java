@@ -615,6 +615,97 @@ class WorkflowServiceTest {
     }
 
     @Test
+    @DisplayName(
+        "keep-alive launch of an empty scenario keeps the run in RUN and the simulation running")
+    void given_emptyScenarioLaunchedKeepAlive_should_keepRunAliveAndSimulationRunning()
+        throws Exception {
+      // Arrange - an autonomous run launches with no step template at all
+      Exercise simulation = runningSimulation();
+      String scenarioId = givenEmptyScenarioTemplate();
+      Map<String, Workflow> savedWorkflows = givenWorkflowRepositoryPersistence();
+
+      // Act
+      workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation, true);
+
+      // Assert - the run inherited keep-alive from the simulation template before its first
+      // evaluation, so it parks awaiting the orchestrator instead of finishing the simulation
+      Workflow simulationTemplate = workflowWithStatus(savedWorkflows, WorkflowStatus.TEMPLATE);
+      assertTrue(simulationTemplate.isKeepAlive());
+      assertFalse(simulationTemplate.isTimeoutEnabled());
+      Workflow run = workflowWithStatus(savedWorkflows, WorkflowStatus.RUN);
+      assertTrue(run.isKeepAlive());
+      assertFalse(run.isTimeoutEnabled());
+      assertEquals(ExerciseStatus.RUNNING, simulation.getStatus());
+      verify(exerciseRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("plain launch of an empty scenario ends the run and finishes the simulation")
+    void given_emptyScenarioLaunchedWithoutKeepAlive_should_endRunAndFinishSimulation()
+        throws Exception {
+      // Arrange
+      Exercise simulation = runningSimulation();
+      String scenarioId = givenEmptyScenarioTemplate();
+      Map<String, Workflow> savedWorkflows = givenWorkflowRepositoryPersistence();
+
+      // Act
+      workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
+
+      // Assert - a manual chained scenario with nothing to run still ends right away
+      Workflow run = workflowWithStatus(savedWorkflows, WorkflowStatus.END);
+      assertFalse(run.isKeepAlive());
+      assertEquals(ExerciseStatus.FINISHED, simulation.getStatus());
+      verify(exerciseRepository).save(simulation);
+    }
+
+    private Exercise runningSimulation() {
+      Exercise simulation = new Exercise();
+      simulation.setId(UUID.randomUUID().toString());
+      simulation.setTenant(new Tenant(UUID.randomUUID().toString()));
+      simulation.setStatus(ExerciseStatus.RUNNING);
+      return simulation;
+    }
+
+    private String givenEmptyScenarioTemplate() {
+      String scenarioId = UUID.randomUUID().toString();
+      Workflow scenarioTemplate =
+          Workflow.builder()
+              .id(UUID.randomUUID().toString())
+              .status(WorkflowStatus.TEMPLATE)
+              .timeoutEnabled(true)
+              .build();
+      when(workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(scenarioTemplate));
+      return scenarioId;
+    }
+
+    /** Assigns ids on save and serves them back by id, like the real repository. */
+    private Map<String, Workflow> givenWorkflowRepositoryPersistence() {
+      Map<String, Workflow> savedWorkflows = new HashMap<>();
+      when(workflowRepository.save(any(Workflow.class)))
+          .thenAnswer(
+              invocation -> {
+                Workflow workflow = invocation.getArgument(0);
+                if (workflow.getId() == null) {
+                  workflow.setId(UUID.randomUUID().toString());
+                }
+                savedWorkflows.put(workflow.getId(), workflow);
+                return workflow;
+              });
+      when(workflowRepository.findById(anyString()))
+          .thenAnswer(
+              invocation -> Optional.ofNullable(savedWorkflows.get(invocation.getArgument(0))));
+      return savedWorkflows;
+    }
+
+    private Workflow workflowWithStatus(Map<String, Workflow> workflows, WorkflowStatus status) {
+      return workflows.values().stream()
+          .filter(workflow -> workflow.getStatus() == status)
+          .findFirst()
+          .orElseThrow(() -> new AssertionError("No workflow with status " + status));
+    }
+
+    @Test
     @DisplayName("should seed scope values and mapped output types")
     void shouldSeedScopeValuesAndMappedOutputTypes() throws Exception {
       Workflow workflowTemplate =
@@ -2559,8 +2650,6 @@ class WorkflowServiceTest {
           .thenReturn(template);
       when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN))
           .thenReturn(List.of(run));
-      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END))
-          .thenReturn(Collections.emptyList());
 
       // Act
       workflowService.markSimulationWorkflowKeepAlive(simulationId);
@@ -2572,31 +2661,6 @@ class WorkflowServiceTest {
       assertFalse(run.isTimeoutEnabled());
       verify(workflowRepository).save(template);
       verify(workflowRepository).save(run);
-    }
-
-    @Test
-    @DisplayName("restores the empty run the launch evaluation just ended back to RUN")
-    void given_freshlyEndedEmptyRun_should_restoreToRunAndMarkKeepAlive() {
-      // Arrange - an autonomous launch starts EMPTY, so the initial evaluation inside
-      // startWorkflow ENDs the run before this method executes; the RUN finder cannot see it.
-      String simulationId = UUID.randomUUID().toString();
-      Workflow endedRun =
-          Workflow.builder().status(WorkflowStatus.END).timeoutEnabled(true).build();
-      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
-          .thenReturn(null);
-      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN))
-          .thenReturn(Collections.emptyList());
-      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END))
-          .thenReturn(List.of(endedRun));
-
-      // Act
-      workflowService.markSimulationWorkflowKeepAlive(simulationId);
-
-      // Assert - parked back in RUN awaiting the orchestrator, keep-alive on, watchdog off.
-      assertEquals(WorkflowStatus.RUN, endedRun.getStatus());
-      assertTrue(endedRun.isKeepAlive());
-      assertFalse(endedRun.isTimeoutEnabled());
-      verify(workflowRepository).save(endedRun);
     }
 
     @Test
@@ -2614,8 +2678,6 @@ class WorkflowServiceTest {
           .thenReturn(null);
       when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN))
           .thenReturn(List.of(run));
-      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END))
-          .thenReturn(Collections.emptyList());
 
       // Act
       workflowService.markSimulationWorkflowKeepAlive(simulationId);

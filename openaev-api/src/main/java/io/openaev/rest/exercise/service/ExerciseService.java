@@ -33,10 +33,8 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.*;
-import io.openaev.database.specification.LessonsAnswerSpecification;
-import io.openaev.database.specification.LessonsCategorySpecification;
-import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -58,7 +56,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
-import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -138,14 +136,11 @@ public class ExerciseService {
   private final ArticleRepository articleRepository;
   private final ExerciseRepository exerciseRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
-  private final InjectStatusRepository injectStatusRepository;
   private final PauseRepository pauseRepository;
-  private final LessonsQuestionRepository lessonsQuestionRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final InjectRepository injectRepository;
-  private final LessonsAnswerRepository lessonsAnswerRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
   private final LessonsService lessonsService;
   private final UrlAccessTokenService urlAccessTokenService;
@@ -155,12 +150,11 @@ public class ExerciseService {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
 
   private final WorkflowService workflowService;
+  private final WorkflowEndService workflowEndService;
   private final WorkflowPauseService workflowPauseService;
 
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
-
-  private final StepService stepService;
 
   private final HealthCheckUtils healthCheckUtils;
 
@@ -293,14 +287,78 @@ public class ExerciseService {
   }
 
   // -- DUPLICATION --
+
+  /**
+   * Duplicates a simulation in full: its authored content, plus the logic map when it is chained.
+   *
+   * <p>This is the entry point for the duplicate endpoint. The metadata-only {@link
+   * #getDuplicateExercise(String)} stays separate so that no other caller of it silently gains a
+   * second workflow copy.
+   *
+   * @param exerciseId the source simulation
+   * @return the persisted duplicate
+   */
+  @Transactional
+  public Exercise duplicateExercise(@NotBlank String exerciseId) {
+    Exercise duplicate = copyExerciseContent(exerciseId);
+    duplicateChainingWorkflowIfAny(exerciseId, duplicate);
+    return duplicate;
+  }
+
+  /**
+   * Copies the logic map of a chained simulation onto its freshly created duplicate.
+   *
+   * <p>Chaining is an Enterprise Edition feature, but the duplicate endpoint also serves time-based
+   * simulations, so it cannot carry an unconditional {@code isEnterpriseEdition = true} on {@code
+   * AccessControl} - that flag is applied before anything else. The licence is therefore checked
+   * programmatically, and only on the chained branch: silently degrading to a metadata-only copy
+   * would make the user lose the logic map with no signal.
+   *
+   * @param exerciseId the source simulation
+   * @param duplicate the persisted duplicate to attach the copied workflow to
+   */
+  private void duplicateChainingWorkflowIfAny(
+      @NotBlank final String exerciseId, final Exercise duplicate) {
+    if (!workflowService.isSimulationChaining(exerciseId)) {
+      return;
+    }
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
+      throw new EnterpriseEditionException("Enterprise Edition license required");
+    }
+    workflowService.duplicateSimulationWorkflow(exerciseId, duplicate);
+  }
+
+  /**
+   * Duplicates a simulation's authored content only, without its chaining logic map. Use {@link
+   * #duplicateExercise(String)} for the full duplicate.
+   *
+   * @param exerciseId the source simulation
+   * @return the persisted duplicate
+   */
   @Transactional
   public Exercise getDuplicateExercise(@NotBlank String exerciseId) {
+    return copyExerciseContent(exerciseId);
+  }
+
+  /**
+   * The metadata copy itself, shared by both public entry points. Free of {@code @Transactional} so
+   * neither trips the Spring self-invocation trap. Package-private so it can be stubbed when
+   * unit-testing the orchestration.
+   */
+  Exercise copyExerciseContent(@NotBlank String exerciseId) {
     Exercise exerciseOrigin = exercise(exerciseId);
     Exercise exercise = copyExercise(exerciseOrigin);
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
     duplicateGrants(exerciseDuplicate, exerciseOrigin);
-    getListOfDuplicatedInjects(exerciseDuplicate, exerciseOrigin);
+    // A chained simulation has no authored injects: every one of its injects is created at runtime
+    // by the chaining engine from the step templates. Cloning them would copy execution artefacts
+    // into a brand-new, never-run duplicate. Its authored content is the workflow, duplicated by
+    // duplicateChainingWorkflowIfAny.
+    if (!workflowService.isSimulationChaining(exerciseId)) {
+      getListOfDuplicatedInjects(exerciseDuplicate, exerciseOrigin);
+    }
     Map<String, Team> contextualTeams = getListOfExerciseTeams(exerciseDuplicate, exerciseOrigin);
     duplicateTeamUsers(exerciseDuplicate, exerciseOrigin, contextualTeams);
     getListOfArticles(exerciseDuplicate, exerciseOrigin);
@@ -710,42 +768,22 @@ public class ExerciseService {
       }
     }
     if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
-      exercise.setStart(null);
-      exercise.setEnd(null);
       // Reset pauses
-      exercise.setCurrentPause(null);
-      pauseRepository.deleteAll(pauseRepository.findAllForExercise(exerciseId));
+      pauseExerciseService.deleteAllPauseByExerciseId(exercise.getId());
       // Reset injects outcome, communications and expectations
-      this.injectStatusRepository.deleteAllById(
-          exercise.getInjects().stream()
-              .map(Inject::getStatus)
-              .map(i -> i.map(InjectStatus::getId).orElse(""))
-              .toList());
-      exercise.getInjects().forEach(Inject::clean);
+      injectService.resetInjectByExercise(exercise.getId());
       // Reset lessons learned answers
-      List<LessonsAnswer> lessonsAnswers =
-          lessonsCategoryRepository
-              .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
-              .stream()
-              .flatMap(
-                  lessonsCategory ->
-                      lessonsQuestionRepository
-                          .findAll(
-                              LessonsQuestionSpecification.fromCategory(lessonsCategory.getId()))
-                          .stream()
-                          .flatMap(
-                              lessonsQuestion ->
-                                  lessonsAnswerRepository
-                                      .findAll(
-                                          LessonsAnswerSpecification.fromQuestion(
-                                              lessonsQuestion.getId()))
-                                      .stream()))
-              .toList();
-      lessonsAnswerRepository.deleteAll(lessonsAnswers);
+      this.lessonsService.resetLessonsAnswer(exercise.getId());
+
       entityManager.flush();
       entityManager.clear();
-      // Reload exercise after clearing entity manager to avoid detached entity issues
+      // Reload exercise after clearing entity manager to avoid detached entity issues and to ensure
+      // the reset values are re-applied on a fresh managed instance before the final save.
       exercise = this.exercise(exerciseId);
+      exercise.setStart(null);
+      exercise.setEnd(null);
+      exercise.setCurrentPause(null);
+      exerciseRepository.save(exercise);
       // Delete exercise transient files (communications, ...) AFTER commit: this is an external
       // MinIO/S3 call. Running it inside the transaction pinned the DB connection and every row
       // lock taken by the deletes above for the whole duration of the object-storage roundtrips,
@@ -836,6 +874,9 @@ public class ExerciseService {
                   .filter(Inject::isNotExecuted)
                   .toList());
         }
+      } else {
+        workflowEndService.stopActiveInjects(
+            exercise.getId(), WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
       }
     }
     exercise.setUpdatedAt(now());

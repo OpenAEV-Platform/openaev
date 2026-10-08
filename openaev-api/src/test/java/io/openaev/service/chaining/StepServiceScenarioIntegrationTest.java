@@ -175,7 +175,13 @@ class StepServiceScenarioIntegrationTest {
     assertEquals(1, copiedSteps.size());
     Step copiedStep = copiedSteps.getFirst();
     assertNotEquals(scenarioStep.getId(), copiedStep.getId());
-    assertEquals("{\"v\":\"original\"}", copiedStep.getData());
+    // The authored payload is carried over verbatim, except for the owner reference, which the copy
+    // re-points at the destination: the engine builds the inject from this snapshot, so a copy
+    // still
+    // naming the scenario would attach the simulation's injects to the scenario.
+    assertEquals("original", StepService.getField(copiedStep.getData(), "v"));
+    assertEquals(
+        savedSimulation.getId(), StepService.getField(copiedStep.getData(), "inject_exercise"));
 
     // ACT — edit the scenario step AFTER the copy
     scenarioStep.setData("{\"v\":\"edited\"}");
@@ -183,7 +189,7 @@ class StepServiceScenarioIntegrationTest {
 
     // ASSERT — the copied simulation step is untouched (isolation)
     Step reloadedCopiedStep = stepRepository.findById(copiedStep.getId()).orElseThrow();
-    assertEquals("{\"v\":\"original\"}", reloadedCopiedStep.getData());
+    assertEquals("original", StepService.getField(reloadedCopiedStep.getData(), "v"));
   }
 
   /**

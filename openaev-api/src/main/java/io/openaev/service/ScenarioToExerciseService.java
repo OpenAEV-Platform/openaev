@@ -103,16 +103,11 @@ public class ScenarioToExerciseService {
             scenarioTeam -> {
               if (scenarioTeam.getContextual()) {
                 Team team = teamService.copyContextualTeam(scenarioTeam);
-                team.setExercises(
-                    new ArrayList<>() {
-                      {
-                        add(exerciseSaved);
-                      }
-                    });
+                team.setExercises(new HashSet<>(List.of(exerciseSaved)));
                 Team teamSaved = this.teamRepository.save(team);
                 contextualTeams.put(scenarioTeam.getId(), teamSaved);
               } else {
-                List<Exercise> exercises = scenarioTeam.getExercises();
+                Set<Exercise> exercises = scenarioTeam.getExercises();
                 exercises.add(exercise);
                 scenarioTeam.setExercises(exercises);
                 this.teamRepository.save(scenarioTeam);

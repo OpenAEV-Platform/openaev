@@ -26,6 +26,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -44,8 +45,10 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
@@ -57,6 +60,7 @@ import org.springframework.transaction.annotation.Transactional;
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(MockitoExtension.class)
 class ExerciseServiceIntegrationTest extends IntegrationTest {
 
   @Mock EnterpriseEditionService enterpriseEditionService;
@@ -115,6 +119,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
 
   @InjectMocks private ExerciseService exerciseService;
   @Autowired private StepService stepService;
+  @Autowired private WorkflowEndService workflowEndService;
 
   @BeforeEach
   void setUp() {
@@ -142,24 +147,21 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             articleRepository,
             exerciseRepository,
             bulkDeleteExecutor,
-            injectStatusRepository,
             pauseRepository,
-            lessonsQuestionRepository,
             teamRepository,
             userRepository,
             exerciseTeamUserRepository,
             injectRepository,
-            lessonsAnswerRepository,
             lessonsCategoryRepository,
             lessonsService,
             urlAccessTokenService,
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
+            workflowEndService,
             workflowPauseService,
             pauseExerciseService,
             fileService,
-            stepService,
             healthCheckUtils,
             eventPublisher,
             attackPathExecutionService,

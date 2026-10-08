@@ -21,8 +21,12 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -31,6 +35,9 @@ import org.springframework.web.bind.annotation.RequestMethod;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+@ExtendWith(MockitoExtension.class)
+// Lenient, as the Boot 3 MockitoTestExecutionListener that used to init these mocks was.
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class PermissionServiceTest extends IntegrationTest {
   private static final String RESOURCE_ID = "resourceid";
   private static final String USER_ID = "userid";
@@ -258,6 +265,22 @@ public class PermissionServiceTest extends IntegrationTest {
     assertFalse(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.TEAM, Action.WRITE));
+  }
+
+  @Test
+  public void test_hasPermission_read_news_feed_WHEN_has_no_capa() {
+    User user = getUser(USER_ID, false);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.NEWS_FEED, Action.READ));
+  }
+
+  @Test
+  public void test_hasPermission_write_news_feed_WHEN_has_no_capa() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.NEWS_FEED, Action.WRITE));
   }
 
   @Test

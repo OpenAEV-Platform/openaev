@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import jakarta.validation.constraints.NotBlank;
+import java.io.Serializable;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class InjectExpectationResult {
+public class InjectExpectationResult implements Serializable {
 
   private String sourceId;
 

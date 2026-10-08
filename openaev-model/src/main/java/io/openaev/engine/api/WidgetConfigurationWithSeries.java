@@ -2,6 +2,7 @@ package io.openaev.engine.api;
 
 import io.openaev.database.model.Filters;
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +17,7 @@ public class WidgetConfigurationWithSeries extends WidgetConfiguration {
   @NotNull List<Series> series = new ArrayList<>();
 
   @Data
-  public static class Series {
+  public static class Series implements Serializable {
     private String name;
     private Filters.FilterGroup filter = new Filters.FilterGroup();
   }

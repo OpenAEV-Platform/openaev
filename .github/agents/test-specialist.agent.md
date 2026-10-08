@@ -18,7 +18,7 @@ following project conventions: fixtures, composers, integration tests, and cover
 3. **Read `.github/instructions/testing.instructions.md`** for conventions (naming, AAA, fixtures, composers) — for frontend tests on design-system components, its *Design system components in unit tests* section (`TooltipProvider`, `designSystemAssertions.tsx`, accessible-name matchers)
 4. **Read `.github/instructions/backend.instructions.md`** for layering and DTO patterns (to understand what to test)
 5. **Read `.github/instructions/multi-tenancy.instructions.md`** for tenant isolation test patterns — required when writing isolation tests
-6. **Follow `.github/skills/add-test/SKILL.md`** for the step-by-step procedure
+6. **Follow `.claude/skills/add-test/SKILL.md`** for the step-by-step procedure
 7. **Search for existing tests of similar entities** — always replicate existing patterns first
 
 ## Model Policy
@@ -38,7 +38,7 @@ Use **Opus 4.6** for tenant isolation tests — reasoning about cross-tenant sce
 | Deciding **if the production code** actually isolates correctly | ✅ Multi-Tenancy Reviewer |
 
 When you write tenant isolation tests, always follow the patterns in
-`.github/instructions/multi-tenancy.instructions.md` and `.github/skills/add-test/TENANT_ISOLATION.md`.
+`.github/instructions/multi-tenancy.instructions.md` and `.claude/skills/add-test/TENANT_ISOLATION.md`.
 Flag the `multi-tenancy-reviewer` for a correctness review of the isolation logic itself.
 
 ## What to Test (Priority Order)

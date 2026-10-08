@@ -63,6 +63,7 @@ public enum ResourceType {
   PLATFORM_GROUP,
   PLATFORM_USER,
   XTM_HUB_REGISTRATION,
+  NEWS_FEED,
   SNAPSHOT_OBSERVATION,
   // Special resource types
   UNKNOWN,

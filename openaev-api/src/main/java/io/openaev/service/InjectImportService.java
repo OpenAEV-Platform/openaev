@@ -495,6 +495,11 @@ public class InjectImportService {
     return importTestSummary;
   }
 
+  /** POI row indexes start at 0, Excel shows rows from 1: report the number the user sees. */
+  private static String excelRowNumber(int rowIndex) {
+    return String.valueOf(rowIndex + 1);
+  }
+
   private ImportRow importRow(
       Row row,
       ImportMapper importMapper,
@@ -520,7 +525,7 @@ public class InjectImportService {
                       "column_type_num",
                       importMapper.getInjectTypeColumn(),
                       "row_num",
-                      String.valueOf(row.getRowNum()))));
+                      excelRowNumber(row.getRowNum()))));
       return importTestSummary;
     }
 
@@ -544,7 +549,7 @@ public class InjectImportService {
                       "column_type_num",
                       importMapper.getInjectTypeColumn(),
                       "row_num",
-                      String.valueOf(row.getRowNum()))));
+                      excelRowNumber(row.getRowNum()))));
       return importTestSummary;
     }
 
@@ -575,7 +580,7 @@ public class InjectImportService {
                       "column_type_num",
                       importMapper.getInjectTypeColumn(),
                       "row_num",
-                      String.valueOf(row.getRowNum()))));
+                      excelRowNumber(row.getRowNum()))));
       return importTestSummary;
     }
 
@@ -595,7 +600,7 @@ public class InjectImportService {
                       "column_type_num",
                       importMapper.getInjectTypeColumn(),
                       "row_num",
-                      String.valueOf(row.getRowNum()),
+                      excelRowNumber(row.getRowNum()),
                       "possible_matches",
                       listMatchers)));
       return importTestSummary;
@@ -721,7 +726,7 @@ public class InjectImportService {
                             "column_type_num",
                             importMapper.getInjectTypeColumn(),
                             "row_num",
-                            String.valueOf(row.getRowNum()))));
+                            excelRowNumber(row.getRowNum()))));
           }
         }
       }
@@ -757,7 +762,7 @@ public class InjectImportService {
                           "column_type_num",
                           importMapper.getInjectTypeColumn(),
                           "row_num",
-                          String.valueOf(row.getRowNum()))));
+                          excelRowNumber(row.getRowNum()))));
           return importTestSummary;
         }
       }
@@ -964,7 +969,7 @@ public class InjectImportService {
                               "column_type_num",
                               importMapper.getInjectTypeColumn(),
                               "row_num",
-                              String.valueOf(row.getRowNum()),
+                              excelRowNumber(row.getRowNum()),
                               "team_name",
                               teamName)));
                 }
@@ -1016,7 +1021,7 @@ public class InjectImportService {
                               "column_type_num",
                               String.join(", ", columns),
                               "row_num",
-                              String.valueOf(row.getRowNum()))));
+                              excelRowNumber(row.getRowNum()))));
                   return importMessages;
                 }
               }
@@ -1198,7 +1203,7 @@ public class InjectImportService {
                           new ImportMessage(
                               ImportMessage.MessageLevel.ERROR,
                               ImportMessage.ErrorCode.DATE_SET_IN_PAST,
-                              Map.of("row_num", String.valueOf(integerInjectTimeEntry.getKey()))));
+                              Map.of("row_num", excelRowNumber(integerInjectTimeEntry.getKey()))));
                     }
                   } else {
                     // We are in the future, so we need to explore the past to find an absolute date
@@ -1224,7 +1229,7 @@ public class InjectImportService {
                           new ImportMessage(
                               ImportMessage.MessageLevel.ERROR,
                               ImportMessage.ErrorCode.DATE_SET_IN_FUTURE,
-                              Map.of("row_num", String.valueOf(integerInjectTimeEntry.getKey()))));
+                              Map.of("row_num", excelRowNumber(integerInjectTimeEntry.getKey()))));
                     }
                   }
                 }
