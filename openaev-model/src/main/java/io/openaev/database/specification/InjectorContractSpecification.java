@@ -23,14 +23,11 @@ public class InjectorContractSpecification {
     };
   }
 
-  public static Specification<InjectorContract> byPayloadExternalId(
-      final String payloadExternalId) {
-    if (payloadExternalId == null || payloadExternalId.isEmpty()) {
-      throw new IllegalArgumentException("Payload external ID must not be null or empty");
-    }
+  /** Contracts without payload, or whose payload is the latest non-revoked version. */
+  public static Specification<InjectorContract> withLatestPayload() {
     return (root, query, cb) -> {
       Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
-      return cb.equal(payload.get("externalId"), payloadExternalId);
+      return cb.or(cb.isNull(payload.get("id")), cb.isTrue(payload.get("latest")));
     };
   }
 

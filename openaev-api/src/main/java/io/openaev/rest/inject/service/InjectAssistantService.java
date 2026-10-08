@@ -2,6 +2,7 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.utils.AssetUtils.mapEndpointsByPlatformArch;
 import static java.util.Collections.emptyList;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
 import io.openaev.database.helper.InjectorContractRepositoryHelper;
 import io.openaev.database.model.*;
@@ -731,7 +732,11 @@ public class InjectAssistantService {
     // Find in existing list of InjectorContracts
     List<InjectorContract> existingInjectorContract =
         findInjectorContracts(
-            knownInjectorContracts, platformArchitecturePairs, injectsPerAttackPattern);
+            emptyIfNull(knownInjectorContracts).stream()
+                .filter(c -> c.getPayload() == null || c.getPayload().isLatest())
+                .toList(),
+            platformArchitecturePairs,
+            injectsPerAttackPattern);
     if (!existingInjectorContract.isEmpty()) {
       return existingInjectorContract;
     }

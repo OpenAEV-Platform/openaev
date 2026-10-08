@@ -64,6 +64,12 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_description")
   private String description;
 
+  // Stable across versions of a catalogue scenario; links an installed inject to its next version.
+  @Getter
+  @Column(name = "inject_catalog_id")
+  @JsonProperty("inject_catalog_id")
+  private String catalogId;
+
   @Getter
   @Column(name = "inject_country")
   @JsonProperty("inject_country")

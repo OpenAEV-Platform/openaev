@@ -7,16 +7,16 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PayloadRepository
-    extends CrudRepository<Payload, String>, JpaSpecificationExecutor<Payload> {
+    extends JpaRepository<Payload, String>, JpaSpecificationExecutor<Payload> {
   @NotNull
   Optional<Payload> findById(@NotNull String id);
 
@@ -28,7 +28,10 @@ public interface PayloadRepository
   Optional<Payload> findByIdAndTenantId(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
-  Optional<Payload> findByExternalId(@NotNull String externalId);
+  /** Several versions can share an external ID: resolve through PayloadVersionService. */
+  List<Payload> findAllByExternalId(@NotNull String externalId);
+
+  Optional<Payload> findByExternalIdAndLatestTrue(@NotNull String externalId);
 
   /**
    * Icon metadata for a batch of payloads in one read: {@code [id, payloadType,
@@ -51,7 +54,7 @@ public interface PayloadRepository
   @Modifying
   @Query(
       value =
-          "UPDATE payloads SET payload_status = :payloadStatus WHERE payload_external_id IN :payloadExternalIds AND tenant_id = :#{#tenantContext.currentTenant}",
+          "UPDATE payloads SET payload_status = :payloadStatus WHERE payload_external_id IN :payloadExternalIds AND payload_version IS NULL AND tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   void setPayloadStatusByExternalIds(
       @Param("payloadStatus") String payloadStatus,

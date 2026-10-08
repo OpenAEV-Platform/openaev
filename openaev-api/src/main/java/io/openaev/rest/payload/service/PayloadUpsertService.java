@@ -19,7 +19,10 @@ import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
+import io.openaev.utils.SemanticVersion;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -50,13 +53,23 @@ public class PayloadUpsertService {
   private final DomainService domainService;
   private final ResultsMetricCollector resultsMetricCollector;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final PayloadVersionService payloadVersionService;
 
   @Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(TxCtx ctx, PayloadUpsertInput input) {
     // Telemetry: one payload upserted by a collector (attempts semantics).
     resultsMetricCollector.recordPayloadUpserted();
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    Optional<Payload> payload = payloadRepository.findByExternalId(input.getExternalId());
+    List<Payload> existing = payloadVersionService.findAllByExternalId(input.getExternalId());
+    // The legacy upsert never touches a managed version: it is read-only and comes from a release.
+    Optional<Payload> managed =
+        existing.stream()
+            .filter(PayloadVersionService::isManaged)
+            .max(Comparator.comparing(Payload::getVersion, SemanticVersion.ORDER));
+    if (managed.isPresent()) {
+      return managed.get();
+    }
+    Optional<Payload> payload = existing.stream().findFirst();
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);

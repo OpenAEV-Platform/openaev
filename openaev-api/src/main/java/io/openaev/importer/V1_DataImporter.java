@@ -1,6 +1,5 @@
 package io.openaev.importer;
 
-import static io.openaev.database.specification.InjectorContractSpecification.byPayloadExternalId;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
@@ -44,6 +43,7 @@ import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.openaev.rest.payload.regex_group.RegexGroupInput;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.service.*;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.CollectorTypeHumanizer;
 import io.openaev.utils.ConditionKeyTypesUtils;
@@ -102,6 +102,7 @@ public class V1_DataImporter implements Importer {
   private final InjectDependenciesRepository injectDependenciesRepository;
   private final PayloadCreationService payloadCreationService;
   private final PayloadRepository payloadRepository;
+  private final PayloadVersionService payloadVersionService;
   private final SecurityPlatformRepository securityPlatformRepository;
   private final DomainService domainService;
   private final io.openaev.service.chaining.WorkflowService workflowService;
@@ -2049,13 +2050,7 @@ public class V1_DataImporter implements Importer {
             : null;
 
     if (hasText(externalId)) {
-      Optional<InjectorContract> contractFromPayload =
-          injectorContractRepository.findOne(byPayloadExternalId(externalId));
-      if (contractFromPayload.isPresent()) {
-        return contractFromPayload.get();
-      }
-
-      Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
+      Optional<Payload> existingPayload = payloadVersionService.findLatest(externalId);
       if (existingPayload.isPresent()) {
         Optional<InjectorContract> contractFromExternalId =
             injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
@@ -2095,12 +2090,7 @@ public class V1_DataImporter implements Importer {
     if (!hasText(externalId)) {
       return Optional.empty();
     }
-    Optional<InjectorContract> contractFromPayload =
-        injectorContractRepository.findOne(byPayloadExternalId(externalId));
-    if (contractFromPayload.isPresent()) {
-      return contractFromPayload;
-    }
-    Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
+    Optional<Payload> existingPayload = payloadVersionService.findLatest(externalId);
     if (existingPayload.isPresent()) {
       return injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
     }

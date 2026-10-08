@@ -1264,6 +1264,148 @@ class PayloadApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Managed payload versions (ADR-011)")
+  class ManagedVersions {
+
+    private String createCommandPayload() throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          asJsonString(
+                              PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+                                  List.of(domain.getId()))))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.payload_id");
+    }
+
+    private void markAsManaged(String payloadId, String version) {
+      tenantScopedTransaction.execute(
+          io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> {
+            Payload payload = payloadRepository.findById(payloadId).orElseThrow();
+            payload.setVersion(version);
+            return payloadRepository.save(payload);
+          });
+    }
+
+    private String upsert(PayloadUpsertInput input) throws Exception {
+      TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+      try {
+        return mvc.perform(
+                post(PAYLOAD_URI + "/upsert")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+
+    @Test
+    @DisplayName("Updating a managed version is refused")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_managedVersion_should_refuseUpdate() throws Exception {
+      // Arrange
+      String payloadId = createCommandPayload();
+      markAsManaged(payloadId, "1.0.0");
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+
+      // Act & Assert
+      mvc.perform(
+              put(PAYLOAD_URI + "/" + payloadId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      asJsonString(
+                          PayloadInputFixture.getDefaultCommandPayloadUpdateInput(
+                              List.of(domain.getId()))))
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Duplicating a managed version gives an unmanaged copy linked to its origin")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_managedVersion_should_duplicateIntoLocalCopy() throws Exception {
+      // Arrange
+      String payloadId = createCommandPayload();
+      markAsManaged(payloadId, "1.0.0");
+
+      // Act & Assert
+      mvc.perform(post(PAYLOAD_URI + "/" + payloadId + "/duplicate").with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.payload_version").doesNotExist())
+          .andExpect(jsonPath("$.payload_origin_id").value(payloadId));
+    }
+
+    @Test
+    @DisplayName("The legacy upsert never overwrites a managed version")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_managedVersion_should_notBeOverwrittenByLegacyUpsert() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadUpsertInput input =
+          PayloadInputFixture.getDefaultCommandPayloadUpsertInput(Set.of(domain));
+      input.setExternalId(UUID.randomUUID().toString());
+      String payloadId = JsonPath.read(upsert(input), "$.payload_id");
+      markAsManaged(payloadId, "1.0.0");
+      input.setName("Renamed by the legacy collector");
+
+      // Act
+      String response = upsert(input);
+
+      // Assert
+      assertEquals(payloadId, JsonPath.read(response, "$.payload_id"));
+      mvc.perform(get(PAYLOAD_URI + "/" + payloadId).with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.payload_name").value("My Command Payload"))
+          .andExpect(jsonPath("$.payload_version").value("1.0.0"));
+    }
+
+    @Test
+    @DisplayName("The legacy deprecation leaves managed versions untouched")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_managedVersion_should_notBeDeprecatedByLegacyCollector() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadUpsertInput input =
+          PayloadInputFixture.getDefaultCommandPayloadUpsertInput(Set.of(domain));
+      input.setExternalId(UUID.randomUUID().toString());
+      String payloadId = JsonPath.read(upsert(input), "$.payload_id");
+      markAsManaged(payloadId, "1.0.0");
+
+      // Act
+      TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+      try {
+        tenantScopedTransaction.execute(
+            io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> {
+              payloadRepository.setPayloadStatusByExternalIds(
+                  Payload.PAYLOAD_STATUS.DEPRECATED.name(), List.of(input.getExternalId()));
+              return null;
+            });
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+
+      // Assert
+      mvc.perform(get(PAYLOAD_URI + "/" + payloadId).with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.payload_status").value("UNVERIFIED"));
+    }
+  }
+
+  @Nested
   @DisplayName("Tenant Isolation")
   @WithMockUser(
       withCapabilities = {
