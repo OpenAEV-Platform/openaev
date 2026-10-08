@@ -85,15 +85,19 @@ public class OpenSamlConfig {
           Saml2Authentication authentication =
               createDefaultResponseAuthenticationConverter().convert(responseToken);
           assert authentication != null;
-          return saml2UserManagement(authentication);
+          // Spring Security 7 no longer sets the registration id on the default principal (it
+          // moved to Saml2AssertionAuthentication), so read it from the token it came from.
+          String registrationId =
+              responseToken.getToken().getRelyingPartyRegistration().getRegistrationId();
+          return saml2UserManagement(authentication, registrationId);
         });
     return authenticationProvider;
   }
 
   private Saml2Authentication saml2UserManagement(
-      @NotNull final Saml2Authentication authentication) {
+      @NotNull final Saml2Authentication authentication, @NotNull final String registrationId) {
     Saml2AuthenticatedPrincipal user = (Saml2AuthenticatedPrincipal) authentication.getPrincipal();
-    User loginUser = userSaml2Management(user);
+    User loginUser = userSaml2Management(user, registrationId);
 
     List<SimpleGrantedAuthority> roles = new ArrayList<>();
     roles.add(new SimpleGrantedAuthority(ROLE_USER));
@@ -105,9 +109,9 @@ public class OpenSamlConfig {
         new OpenAEVSaml2User(loginUser, roles), authentication.getSaml2Response(), roles);
   }
 
-  private User userSaml2Management(@NotNull final Saml2AuthenticatedPrincipal user) {
+  private User userSaml2Management(
+      @NotNull final Saml2AuthenticatedPrincipal user, @NotNull final String registrationId) {
     String emailAttribute = user.getName();
-    String registrationId = user.getRelyingPartyRegistrationId();
     List<String> rolesFromUser = userMappingService.extractRolesFromUser(user, registrationId);
     List<String> groupsFromUser = userMappingService.extractGroupsFromUser(user, registrationId);
 

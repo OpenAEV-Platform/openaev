@@ -6,6 +6,7 @@ import io.openaev.database.model.Filters;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,7 @@ public class ListConfiguration extends WidgetConfiguration {
   int limit = ENTITIES_CAP;
 
   @Data
-  public static class ListPerspective {
+  public static class ListPerspective implements Serializable {
     private String name;
     private Filters.FilterGroup filter = new Filters.FilterGroup();
   }

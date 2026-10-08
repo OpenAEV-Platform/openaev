@@ -6,7 +6,7 @@ import {
 } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import {
@@ -32,7 +32,7 @@ import {
 } from '../../../utils/api-types';
 import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
@@ -62,7 +62,7 @@ const readViewMode = (): ViewMode => {
 const ThreatArsenal = () => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canDeleteThreatArsenal = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
 
   const [selectedThreatArsenalAction, setSelectedThreatArsenalAction] = useState<ThreatArsenalAction | null>(null);

@@ -46,8 +46,11 @@ public class BaseIntegrationConfiguration {
           instance.getConfigurations().stream()
               .filter(c -> c.getKey().equals(field.getAnnotation(IntegrationConfigKey.class).key()))
               .findFirst();
+      if (config.isEmpty()) {
+        continue;
+      }
       Object value = null;
-      if (config.isPresent() && config.get().isEncrypted() && encryptionService != null) {
+      if (config.get().isEncrypted() && encryptionService != null) {
         // If the field is encrypted and can be decrypted
         // Decrypt the field
         value =
@@ -55,7 +58,7 @@ public class BaseIntegrationConfiguration {
                 new ObjectMapper()
                     .valueToTree(encryptionService.decrypt(config.get().getValue().asText())),
                 field.getType());
-      } else if (config.isPresent()) {
+      } else {
         // Otherwise, we just get the value from the JSON node
         value = JsonUtils.fromJsonNode(config.get().getValue(), field.getType());
       }

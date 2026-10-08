@@ -1,12 +1,8 @@
 import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { Box } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
-import { useParams } from 'react-router';
 
-import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import { type Exercise } from '../../../../utils/api-types';
 import SimulationConfigurationTab from '../SimulationConfigurationTab';
 import ExerciseArticles from './articles/ExerciseArticles';
 import SimulationTeams from './teams/SimulationTeams';
@@ -19,8 +15,6 @@ import SimulationVariables from './variables/SimulationVariables';
 // the hero exposes a "Preview challenges page" action instead.
 const SimulationConfiguration: FunctionComponent<{ initialTab?: SimulationConfigurationTab }> = ({ initialTab = SimulationConfigurationTab.TEAMS }) => {
   const { t } = useFormatter();
-  const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
-  const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   const [tab, setTab] = useState<SimulationConfigurationTab>(initialTab);
 
   return (
@@ -37,7 +31,7 @@ const SimulationConfiguration: FunctionComponent<{ initialTab?: SimulationConfig
           <TabsTrigger value={String(SimulationConfigurationTab.MEDIA_PRESSURE)}>{t('Media pressure')}</TabsTrigger>
         </TabsList>
       </Tabs>
-      {tab === SimulationConfigurationTab.TEAMS && <SimulationTeams exerciseTeamsUsers={exercise.exercise_teams_users ?? []} />}
+      {tab === SimulationConfigurationTab.TEAMS && <SimulationTeams />}
       {tab === SimulationConfigurationTab.VARIABLES && <SimulationVariables />}
       {tab === SimulationConfigurationTab.MEDIA_PRESSURE && <ExerciseArticles />}
     </Box>

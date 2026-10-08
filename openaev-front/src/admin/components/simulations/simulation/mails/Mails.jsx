@@ -150,7 +150,7 @@ const Mails = () => {
     .filterAndSort(injects)
     .filter(i => i.inject_communications_number > 0);
 
-  const teamContext = teamContextForExercise(exerciseId, exercise.exercise_teams_users, exercise.exercise_all_users_number, exercise.exercise_users_number);
+  const teamContext = teamContextForExercise(exerciseId);
 
   // Rendering
   return (

@@ -80,22 +80,6 @@ public class ScopeSnapshotService {
     }
   }
 
-  /**
-   * Clears a provisionally frozen end photo. Used when a freshly launched autonomous run is
-   * reopened (END back to RUN by {@code markSimulationWorkflowKeepAlive}): the launch evaluation
-   * ended the empty run - freezing its end photo on the spot - before keep-alive parked it back in
-   * RUN, and a live run must not carry an end reference or every later drift would be misclassified
-   * as after-execution.
-   *
-   * @param workflowRun the reopened RUN workflow
-   */
-  @Transactional
-  public void clearEnd(Workflow workflowRun) {
-    for (WorkflowScopeRule rule : workflowRun.getWorkflowScopeRules()) {
-      rule.setSnapshotEnd(null);
-    }
-  }
-
   // -- READ / DIFF --
 
   /**

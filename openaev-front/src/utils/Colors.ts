@@ -1,5 +1,7 @@
 import { type ChipSeverity } from '@filigran/design-system';
 
+import { type ThemeInput } from './api-types';
+
 export const stringToColour = (str: string | null | undefined, reversed = false): string => {
   if (!str) {
     return '#5d4037';
@@ -102,3 +104,35 @@ export const validHexColor = (color: string | null | undefined): string | undefi
 
 export const colorOrFallback = (color: string | null | undefined, fallback: string): string =>
   validHexColor(color) ?? fallback;
+
+/** The only format the theme and marking forms accept (and the API enforces): #RRGGBB. */
+export const FORM_HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
+
+const THEME_COLOR_FIELDS = [
+  'background_color',
+  'paper_color',
+  'navigation_color',
+  'primary_color',
+  'secondary_color',
+  'accent_color',
+  'text_color',
+  'login_aside_color',
+  'login_aside_gradient_start',
+  'login_aside_gradient_end',
+] as const;
+
+/**
+ * The theme with every colour field that is not a valid hex dropped (undefined, so the library
+ * default applies). A stored value that is not a colour would otherwise make MUI's
+ * alpha()/lighten()/createTheme throw and take the whole app down, settings page included.
+ */
+export const sanitizeThemeColors = (theme: ThemeInput | null | undefined): ThemeInput | undefined => {
+  if (!theme) {
+    return undefined;
+  }
+  const sanitized = { ...theme };
+  THEME_COLOR_FIELDS.forEach((field) => {
+    sanitized[field] = validHexColor(theme[field]);
+  });
+  return sanitized;
+};

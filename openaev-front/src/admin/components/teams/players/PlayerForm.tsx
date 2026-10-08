@@ -1,5 +1,5 @@
 import { Button, Icon, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent } from 'react';
 import { Form } from 'react-final-form';
 import { z } from 'zod';
 
@@ -8,7 +8,7 @@ import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 import OrganizationField from '../../../../components/OrganizationField';
 import TagField from '../../../../components/TagField';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { PHONE_REGEX, schemaValidator } from '../../../../utils/Zod';
 import { type PlayerInputForm } from './Player';
@@ -40,7 +40,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
       </Tooltip>
     </TooltipProvider>
   );
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const playerFormSchemaValidation = z.object({
     user_email: z.email(t('Should be a valid email address')),

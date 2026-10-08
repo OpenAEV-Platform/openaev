@@ -136,7 +136,7 @@ public class AssetGroup implements TenantBase {
   @JsonProperty("asset_group_injects")
   @JsonIgnore
   @Queryable(filterable = true, dynamicValues = true, path = "injects.id")
-  private List<Inject> injects = new ArrayList<>();
+  private Set<Inject> injects = new HashSet<>();
 
   // -- AUDIT --
 

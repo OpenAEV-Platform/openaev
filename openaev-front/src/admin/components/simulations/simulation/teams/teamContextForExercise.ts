@@ -1,16 +1,22 @@
 import { useMemo } from 'react';
 
 import { addExerciseTeamPlayers, disableExerciseTeamPlayers, enableExerciseTeamPlayers, fetchExerciseTeams, removeExerciseTeamPlayers } from '../../../../../actions/Exercise';
+import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { removeExerciseTeams, replaceExerciseTeams, searchExerciseTeams } from '../../../../../actions/exercises/exercise-teams-action';
 import { addTeam } from '../../../../../actions/teams/team-actions';
 import { type Page } from '../../../../../components/common/queryable/Page';
+import { useHelper } from '../../../../../store';
 import { type Exercise, type ExerciseTeamUser, type SearchPaginationInput, type Team, type TeamCreateInput, type TeamOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { type TeamContextType } from '../../../common/Context';
 import { type UserStore } from '../../../teams/players/Player';
 
-const teamContextForExercise = (exerciseId: Exercise['exercise_id'], exerciseTeamsUsers: Exercise['exercise_teams_users'], allUsersNumber = 0, allUsersEnabledNumber = 0): TeamContextType => {
+const teamContextForExercise = (exerciseId: Exercise['exercise_id']): TeamContextType => {
   const dispatch = useAppDispatch();
+  const exercise: Exercise | undefined = useHelper((helper: ExercisesHelper) => helper.getExercise(exerciseId));
+  const exerciseTeamsUsers = exercise?.exercise_teams_users;
+  const allUsersNumber = exercise?.exercise_all_users_number ?? 0;
+  const allUsersEnabledNumber = exercise?.exercise_users_number ?? 0;
 
   // Stable identity: used as a context provider value on hot screens
   return useMemo(() => ({

@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import {
   deleteCustomDomain,
@@ -9,7 +9,7 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type CustomDomain } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CustomDomainInstructionsPanel from './CustomDomainInstructionsPanel';
 
@@ -21,7 +21,7 @@ interface Props {
 
 const CustomDomainPopover: FunctionComponent<Props> = ({ customDomain, onDelete, onUpdate }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
 
   const [openInstructions, setOpenInstructions] = useState(false);

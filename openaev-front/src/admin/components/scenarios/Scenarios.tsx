@@ -1,7 +1,7 @@
 import { Checkbox } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -23,7 +23,7 @@ import PlatformIconGroup from '../../../components/PlatformIconGroup';
 import { type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ToolBar from '../common/ToolBar';
@@ -173,7 +173,7 @@ const Scenarios = () => {
   };
 
   // Bulk selection
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const {
     selectedElements,
@@ -300,12 +300,9 @@ const Scenarios = () => {
           loading
             ? <PaginatedListLoader Icon={RouteOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
             : scenarios.map((scenario: Scenario) => {
-                const isScenarioChaining = !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id;
-                // A chained scenario owns its attack-path logic and is never duplicated by hand
-                // (its metadata stays editable); a time-based one may also be duplicated.
-                const scenarioActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = isScenarioChaining
-                  ? ['Update', 'Export', 'Delete']
-                  : ['Duplicate', 'Export', 'Delete'];
+                // Chained and time-based scenarios share the same duplicate endpoint: a chained one
+                // gets its logic map copied along with its metadata.
+                const scenarioActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Export', 'Delete'];
                 return (
                   <ListItem
                     key={scenario.scenario_id}

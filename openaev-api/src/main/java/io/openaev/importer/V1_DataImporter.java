@@ -53,6 +53,7 @@ import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -295,6 +296,7 @@ public class V1_DataImporter implements Importer {
             entityManager
                 .createNativeQuery(
                     "SELECT coalesce(current_setting('app.current_tenants', true), '')")
+                .setFlushMode(FlushModeType.COMMIT)
                 .getSingleResult();
     if (guc.isBlank()) {
       return fallback;
@@ -340,7 +342,7 @@ public class V1_DataImporter implements Importer {
       importPayloadAsMain(ctx, importNode, baseIds);
     }
 
-    importOrganizations(importNode, prefix, baseIds);
+    importOrganizations(ctx, importNode, prefix, baseIds);
     importUsers(importNode, prefix, baseIds);
     importTeams(importNode, prefix, savedExercise, savedScenario, baseIds, writeTenant);
     importChallenges(ctx, importNode, prefix, baseIds);
@@ -1026,7 +1028,9 @@ public class V1_DataImporter implements Importer {
 
   // -- ORGANIZATION --
 
-  private void importOrganizations(JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+  private void importOrganizations(
+      TxCtx ctx, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     resolveJsonElements(importNode, prefix + "organizations")
         .forEach(
             nodeOrganization -> {
@@ -1038,7 +1042,7 @@ public class V1_DataImporter implements Importer {
               String name = nodeOrganization.get("organization_name").textValue();
 
               List<Organization> existingOrganizations =
-                  this.organizationRepository.findByNameIgnoreCase(name);
+                  this.organizationRepository.findByNameIgnoreCaseAndTenantId(name, tenantId);
 
               if (!existingOrganizations.isEmpty()) {
                 baseIds.put(id, existingOrganizations.getFirst());
@@ -1046,13 +1050,15 @@ public class V1_DataImporter implements Importer {
                 baseIds.put(
                     id,
                     this.organizationRepository.save(
-                        createOrganization(nodeOrganization, baseIds)));
+                        createOrganization(nodeOrganization, baseIds, tenantId)));
               }
             });
   }
 
-  private Organization createOrganization(JsonNode importNode, Map<String, Base> baseIds) {
+  private Organization createOrganization(
+      JsonNode importNode, Map<String, Base> baseIds, String tenantId) {
     Organization organization = new Organization();
+    organization.setTenant(new Tenant(tenantId));
     organization.setName(importNode.get("organization_name").textValue());
     organization.setDescription(getNodeValue(importNode.get("organization_description")));
     organization.setTags(
@@ -1125,11 +1131,11 @@ public class V1_DataImporter implements Importer {
               if (savedExercise != null) {
                 Set<Exercise> exercises = new HashSet<>(team.getExercises());
                 exercises.add(savedExercise);
-                team.setExercises(exercises.stream().toList());
+                team.setExercises(exercises);
               } else if (savedScenario != null) {
                 Set<Scenario> scenarios = new HashSet<>(team.getScenarios());
                 scenarios.add(savedScenario);
-                team.setScenarios(scenarios.stream().toList());
+                team.setScenarios(scenarios);
               }
             });
     baseIds.putAll(baseTeams);

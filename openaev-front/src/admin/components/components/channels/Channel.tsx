@@ -2,7 +2,7 @@ import { ButtonGroup, ButtonGroupItem, Paper, Tooltip, TooltipContent, TooltipTr
 import { DarkModeOutlined, ImageOutlined, LightModeOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type ReactNode, useCallback, useContext, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchDocumentsChannels, updateChannel, updateChannelLogos } from '../../../../actions/channels/channel-action';
@@ -15,7 +15,7 @@ import { useHelper } from '../../../../store';
 import { type Channel as ChannelType, type ChannelUpdateInput, type Document } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelAddLogo from './ChannelAddLogo';
@@ -102,7 +102,7 @@ const Channel = () => {
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
   const theme = useTheme();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const { channel, documentsMap } = useHelper((helper: ChannelsHelper & DocumentHelper) => ({
     channel: helper.getChannel(channelId) as ChannelType,

@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.261001.0</version>
+        <version>3.261005.0</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -15,11 +15,15 @@
     <properties>
         <commons-collections4.version>4.6.0</commons-collections4.version>
         <commons-email.version>1.5</commons-email.version>
-        <springdoc.version>2.9.0</springdoc.version>
+        <!-- springdoc 3.x targets Spring Boot 4; 2.x (Boot 3) throws
+             TypeNotPresentException/ClassNotFoundException for org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties,
+             a class Boot 4 relocated. -->
+        <springdoc.version>3.0.3</springdoc.version>
         <springdoc-plugin.version>1.5</springdoc-plugin.version>
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
         <opencsv-version>5.12.0</opencsv-version>
+        <bucket4j.version>8.10.1</bucket4j.version>
         <opentelemetry-semconv.version>1.44.0</opentelemetry-semconv.version>
         <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
         <datasource-proxy.version>1.11.0</datasource-proxy.version>
@@ -30,9 +34,9 @@
         <!-- GCP credential status validation: signs the service account RS256 JWT and exchanges
              the OAuth2 refresh token. Same trade-off as Azure — SDK for the token, plain
              HttpClient for the resource probe. BSD-3-Clause. -->
-        <google-auth-library.version>1.53.0</google-auth-library.version>
+        <google-auth-library.version>1.54.0</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
-        <aws-sts.version>2.55.5</aws-sts.version>
+        <aws-sts.version>2.55.10</aws-sts.version>
     </properties>
 
     <profiles>
@@ -42,6 +46,11 @@
     </profiles>
 
     <dependencies>
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>${bucket4j.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -73,7 +82,7 @@
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>3.261001.0</version>
+            <version>3.261005.0</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
@@ -113,6 +122,13 @@
         <dependency>
             <groupId>org.springframework.session</groupId>
             <artifactId>spring-session-jdbc</artifactId>
+        </dependency>
+        <!-- Boot 4 moved the Spring Session auto-configuration out of spring-boot-autoconfigure into
+             dedicated modules. Without it the JDBC session store is never wired and sessions
+             silently fall back to in-memory. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-session-jdbc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -171,7 +187,7 @@
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-hibernate6</artifactId>
+            <artifactId>jackson-datatype-hibernate7</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -196,6 +212,13 @@
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
         </dependency>
+        <!-- Boot 4 moved FlywayAutoConfiguration out of spring-boot-autoconfigure into a dedicated
+             spring-boot-flyway module. Without it Flyway is silently never run and the schema is
+             never migrated. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-database-postgresql</artifactId>
@@ -207,6 +230,12 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-saml2-service-provider</artifactId>
+        </dependency>
+        <!-- Boot 4 split SAML2 auto-configuration into its own module; it is no longer
+             part of spring-boot-autoconfigure and is not pulled in transitively. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-security-saml2</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
@@ -236,7 +265,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.7.1-jre</version>
+            <version>33.7.2-jre</version>
         </dependency>
         <!-- Playwright drives an in-container headless Chromium to render reports (PDF/HTML).
              On dev machines the browser bundle is downloaded automatically on first use; the
@@ -276,6 +305,21 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Boot 4 moved @AutoConfigureMockMvc / MockMvcPrint out of spring-boot-test-autoconfigure
+             into a dedicated spring-boot-webmvc-test module, which is not pulled in by
+             spring-boot-starter-test. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Boot 4 split @AutoConfigureObservability into @AutoConfigureMetrics / @AutoConfigureTracing,
+             each in its own test module that spring-boot-starter-test does not pull in. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-micrometer-metrics-test</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.mock-server</groupId>
             <artifactId>mockserver-netty</artifactId>
@@ -292,6 +336,14 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Boot 4 moved the auto-configuration that applies springSecurity() to MockMvc into this
+             module. Without it MockMvc never sees the test SecurityContext and every authenticated
+             request is rejected with a 401. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-security-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -349,6 +401,13 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-tracing-bridge-brave</artifactId>
         </dependency>
+        <!-- Boot 4 extracted the tracing auto-configuration out of spring-boot-actuator-autoconfigure
+             into dedicated modules that starter-actuator no longer pulls in. Without them the
+             Micrometer Tracing / Brave auto-configuration never runs and correlation ids disappear. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-micrometer-tracing-brave</artifactId>
+        </dependency>
         <!-- Debug mode: SQL statement logging with timing and masked parameters. Apache-2.0. -->
         <dependency>
             <groupId>net.ttddyy</groupId>
@@ -360,7 +419,7 @@
         <dependency>
             <groupId>com.github.jsqlparser</groupId>
             <artifactId>jsqlparser</artifactId>
-            <version>5.3</version>
+            <version>5.4</version>
         </dependency>
     </dependencies>
 
