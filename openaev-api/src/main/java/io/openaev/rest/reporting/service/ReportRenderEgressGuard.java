@@ -7,7 +7,9 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -28,6 +30,13 @@ import org.springframework.stereotype.Component;
  * internal target (Playwright routes every redirect hop as its own new request). Unlike {@code
  * WebhookTargetValidator}, there is no opt-out - report rendering has no legitimate reason to reach
  * an internal endpoint besides the platform's own origin, already allow-listed above.
+ *
+ * <p>The browser context also carries a context-wide {@code Authorization: Bearer <render token>}
+ * header (see {@code PlaywrightReportingRenderer}), which Chromium replays on every request in the
+ * context - including requests to a verified-public, tenant-controlled host such as a dark-theme
+ * logo url. That would hand the render token to whoever controls that host. The guard therefore
+ * strips the header on every request that is not the trusted origin itself, so the token only ever
+ * reaches the platform's own API.
  */
 @Slf4j
 @Component
@@ -52,39 +61,65 @@ public class ReportRenderEgressGuard {
     context.route("**/*", this::handle);
   }
 
-  private void handle(final Route route) {
+  /** Package-private so the resume/abort/header-stripping behavior can be unit-tested. */
+  void handle(final Route route) {
     String rawUrl = route.request().url();
-    if (isAllowed(rawUrl)) {
-      route.resume();
-    } else {
-      log.warn("Report render blocked a request to a disallowed target: {}", rawUrl);
-      route.abort("blockedbyclient");
+    switch (classify(rawUrl)) {
+      case BLOCKED -> {
+        log.warn("Report render blocked a request to a disallowed target: {}", rawUrl);
+        route.abort("blockedbyclient");
+      }
+      case TRUSTED -> route.resume();
+      case PUBLIC -> {
+        // Strip the context-wide render-token header before it reaches a tenant-controlled public
+        // host (e.g. a dark-theme logo url): Chromium would otherwise replay it verbatim, handing
+        // the render token to whoever controls that host.
+        Map<String, String> headers = new HashMap<>(route.request().headers());
+        headers.keySet().removeIf("authorization"::equalsIgnoreCase);
+        route.resume(new Route.ResumeOptions().setHeaders(headers));
+      }
     }
   }
 
   /** Package-private so the allow/deny decision can be unit-tested without a real browser. */
   boolean isAllowed(final String rawUrl) {
+    return classify(rawUrl) != Verdict.BLOCKED;
+  }
+
+  /**
+   * Package-private so the trusted/public distinction can be unit-tested without a real browser.
+   */
+  Verdict classify(final String rawUrl) {
     URI uri;
     try {
       uri = new URI(rawUrl);
     } catch (URISyntaxException e) {
-      return false;
+      return Verdict.BLOCKED;
     }
     String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase(Locale.ROOT) : "";
     if (!"http".equals(scheme) && !"https".equals(scheme)) {
       // data:, blob:, about:blank, ... never reach the network - not an egress.
-      return true;
+      return Verdict.TRUSTED;
     }
     String host = uri.getHost();
     if (host == null || host.isBlank()) {
-      return false;
+      return Verdict.BLOCKED;
     }
     if (scheme.equals(this.trustedScheme)
         && host.equalsIgnoreCase(this.trustedHost)
         && effectivePort(scheme, uri.getPort()) == this.trustedPort) {
-      return true;
+      return Verdict.TRUSTED;
     }
-    return isPublicHost(host);
+    return isPublicHost(host) ? Verdict.PUBLIC : Verdict.BLOCKED;
+  }
+
+  /**
+   * Egress verdict for a single request: block it, let it through as-is, or let it through bare.
+   */
+  enum Verdict {
+    BLOCKED,
+    TRUSTED,
+    PUBLIC
   }
 
   private static boolean isPublicHost(final String host) {
