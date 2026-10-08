@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
+import io.openaev.utils.RequestUtils;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +20,7 @@ class TenantInterceptorTest {
 
   private final TenantMembershipCacheManager tenantMembershipCacheManager =
       mock(TenantMembershipCacheManager.class);
-  private final TenantUriUtils tenantUriUtils = new TenantUriUtils();
+  private final TenantUriUtils tenantUriUtils = new TenantUriUtils(new RequestUtils());
   private final TenantInterceptor interceptor =
       new TenantInterceptor(tenantMembershipCacheManager, tenantUriUtils);
 

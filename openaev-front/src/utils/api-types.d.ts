@@ -10104,6 +10104,7 @@ export interface PlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
     | "MARKING"
+    | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
   )[];
   /** True if the Tanium Executor is enabled */
@@ -10490,6 +10491,7 @@ export interface PublicPlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
     | "MARKING"
+    | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
