@@ -202,22 +202,16 @@ When multi-tenancy is enabled, the API exposes two sets of endpoints:
 Most resource endpoints (Scenarios, Simulations, Assets, Teams) support both patterns. The Tenant ID determines which workspace the request operates on. Accessing a Tenant you are not authorized for returns a `403` response.
 
 ## Rate limiting
+The API is globally rate limited by default. There are different allowances whether the request is authenticated or not.
 
-!!! note "Preview feature"
+- Not authenticated requests (anonymous): limited to 10 requests per seconds by default (configurable, per originating IP address).
+- Authenticated requests: limited to 300 requests per second by default (configurable, per user account).
 
-    Rate limiting is a preview feature, off by default. To turn it on, add `RATE_LIMITING` to the
-    `openaev.enabled-dev-features` property, for example `openaev.enabled-dev-features=RATE_LIMITING`.
-    The value is a comma-separated list: if the property already has a value, extend it.
+Some endpoints may individually have a different maximum authenticated requests per seconds cap, overriding the default global described
+above. However, the unauthenticated cap remains the same always. If the unauthenticated cap is set higher than an individual endpoint
+cap, then the lower bound wins.
 
-When the feature is on, the API applies different allowances to authenticated and anonymous requests:
-
-- Anonymous requests: 10 requests per second by default, per originating IP address.
-- Authenticated requests: 300 requests per second by default, per user account.
-
-Both limits are configurable, see [Rate limiting configuration](../deployment/configuration.md#rate-limiting).
-
-A rate-limited request gets a `429` response. Set `openaev.ratelimit.enabled` to `false` to turn rate limiting off
-while the preview feature stays on.
+Note: the rate limiting function can be disabled by server configuration.
 
 ## What's next?
 
