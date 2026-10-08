@@ -2,6 +2,7 @@ package io.openaev.rest.helper;
 
 import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
@@ -25,7 +26,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityNotFoundException;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +41,7 @@ import org.springdoc.api.ErrorMessage;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -60,6 +67,17 @@ import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 @RestControllerAdvice
 @Slf4j
 public class RestBehavior {
+
+  /** Response header carrying the base64 RSA/SHA-256 signature of a served binary. */
+  public static final String SIGNATURE_HEADER = "X-Signature-Sha256-Rsa";
+
+  /** Response header carrying the release version of a served binary. */
+  public static final String VERSION_HEADER = "X-Release-Version";
+
+  // A version the installer scripts can compare: two to four dot-separated numbers of at most nine
+  // digits, which is what Windows PowerShell's [version] parses.
+  private static final Pattern COMPARABLE_RELEASE_VERSION =
+      Pattern.compile("\\d{1,9}(\\.\\d{1,9}){1,3}");
 
   @Resource protected ObjectMapper mapper;
 
@@ -757,6 +775,53 @@ public class RestBehavior {
       UUID.fromString(id);
     } catch (IllegalArgumentException e) {
       throw new InputValidationException("id", "The ID is not a valid UUID: " + id);
+    }
+  }
+
+  /**
+   * Adds the RSA/SHA-256 signature of a local classpath binary to the response headers, read from
+   * its adjacent {@code .sig} file (base64). Forwarded as is: clients verify it against the keys
+   * they embed. Does nothing when no signature file is shipped.
+   */
+  protected void addLocalSignatureHeader(HttpHeaders headers, String resourcePath)
+      throws IOException {
+    try (InputStream in = getClass().getResourceAsStream(resourcePath + ".sig")) {
+      if (in != null) {
+        addSignatureHeader(headers, in);
+      }
+    }
+  }
+
+  /**
+   * Adds the RSA/SHA-256 signature of a JFrog binary to the response headers, read from the {@code
+   * .sig} file (base64) the release promotion publishes next to it. Forwarded as is: clients verify
+   * it against the keys they embed. Does nothing when no signature is published.
+   */
+  protected void addRepositorySignatureHeader(
+      HttpHeaders headers, String resourcePath, String filename) throws IOException {
+    try (InputStream in = validateJFrogUri(resourcePath, filename + ".sig").toURL().openStream()) {
+      addSignatureHeader(headers, in);
+    } catch (FileNotFoundException e) {
+      log.warn("No signature published for {}{}", resourcePath, filename);
+    }
+  }
+
+  private static void addSignatureHeader(HttpHeaders headers, InputStream in) throws IOException {
+    String signature = new String(in.readAllBytes(), StandardCharsets.US_ASCII).trim();
+    if (!signature.isEmpty()) {
+      headers.add(SIGNATURE_HEADER, signature);
+    }
+  }
+
+  /**
+   * Adds the release version of a served binary to the response headers: the installer scripts
+   * record it and refuse to upgrade to an older one. Left out unless it is a plain numeric release,
+   * because the scripts skip the check when the header is missing, while a value they cannot
+   * compare, such as {@code latest} or a build label, would make them refuse every later upgrade.
+   */
+  protected void addReleaseVersionHeader(HttpHeaders headers, String version) {
+    if (version != null && COMPARABLE_RELEASE_VERSION.matcher(version).matches()) {
+      headers.add(VERSION_HEADER, version);
     }
   }
 

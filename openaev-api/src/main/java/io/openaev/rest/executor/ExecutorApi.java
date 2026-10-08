@@ -28,6 +28,7 @@ import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.AgentUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -61,6 +62,14 @@ public class ExecutorApi extends RestBehavior {
   public static final String AGENT_URI = "/api/agent";
   private static final String TENANT_EXECUTOR_URI = TENANT_PREFIX + "/executors";
   private static final String TENANT_AGENT_URI = TENANT_PREFIX + "/agent";
+
+  private static final String SIGNATURE_HEADER_DESCRIPTION =
+      "Base64 RSA/SHA-256 signature of the served binary. Clients must verify it against the"
+          + " public keys they embed before installing; the installer scripts refuse to install"
+          + " without it. Absent when no signature is published for the binary.";
+  private static final String VERSION_HEADER_DESCRIPTION =
+      "Release version of the served binary, used by the installer scripts to refuse a"
+          + " downgrade. Only sent when the version is a plain numeric release (e.g. 1.2.3).";
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -253,7 +262,19 @@ public class ExecutorApi extends RestBehavior {
   @Transactional
   @ApiResponses(
       value = {
-        @ApiResponse(responseCode = "200", description = "Successfully retrieved the executable."),
+        @ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved the executable.",
+            headers = {
+              @Header(
+                  name = SIGNATURE_HEADER,
+                  description = SIGNATURE_HEADER_DESCRIPTION,
+                  schema = @Schema(type = "string", format = "byte")),
+              @Header(
+                  name = VERSION_HEADER,
+                  description = VERSION_HEADER_DESCRIPTION,
+                  schema = @Schema(type = "string", example = "3.260923.0"))
+            }),
         @ApiResponse(
             responseCode = "400",
             description = "Invalid platform or architecture specified."),
@@ -285,22 +306,26 @@ public class ExecutorApi extends RestBehavior {
     String resolvedArch = AgentUtils.normaliseSupportedAgentArch(architecture).name().toLowerCase();
 
     InputStream in = null;
+    HttpHeaders headers = new HttpHeaders();
     String resourcePath = "/openaev-agent/" + resolvedPlatform + "/" + resolvedArch + "/";
     String filename = "";
 
     if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = "openaev-agent-" + version + (resolvedPlatform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
+      addLocalSignatureHeader(headers, "/agents" + resourcePath + filename);
+      addReleaseVersionHeader(headers, version);
     } else if (agentBinaryOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
       filename =
           "openaev-agent-"
               + agentBinaryVersion
               + (resolvedPlatform.equals("windows") ? ".exe" : "");
+      addRepositorySignatureHeader(headers, resourcePath, filename);
+      addReleaseVersionHeader(headers, agentBinaryVersion);
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in != null) {
-      HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
       // Stream the binary instead of buffering it fully in heap: thousands of concurrent agent
       // downloads with byte[] buffering caused GC churn / OOM risk
@@ -323,7 +348,17 @@ public class ExecutorApi extends RestBehavior {
       value = {
         @ApiResponse(
             responseCode = "200",
-            description = "Successfully retrieved the agent package."),
+            description = "Successfully retrieved the agent package.",
+            headers = {
+              @Header(
+                  name = SIGNATURE_HEADER,
+                  description = SIGNATURE_HEADER_DESCRIPTION,
+                  schema = @Schema(type = "string", format = "byte")),
+              @Header(
+                  name = VERSION_HEADER,
+                  description = VERSION_HEADER_DESCRIPTION,
+                  schema = @Schema(type = "string", example = "3.260923.0"))
+            }),
         @ApiResponse(
             responseCode = "400",
             description = "Invalid platform or architecture specified."),
@@ -362,6 +397,7 @@ public class ExecutorApi extends RestBehavior {
 
     if (resolvedPlatform.equals("windows")) {
       InputStream in = null;
+      HttpHeaders headers = new HttpHeaders();
       String resourcePath = "/openaev-agent/windows/" + resolvedArch + "/";
 
       String filename = "openaev-agent-installer-";
@@ -375,16 +411,19 @@ public class ExecutorApi extends RestBehavior {
       if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
         filename = filename.concat(version).concat(".exe");
         in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
+        addLocalSignatureHeader(headers, "/agents" + resourcePath + filename);
+        addReleaseVersionHeader(headers, version);
       } else if (agentBinaryOrigin.equals(
           "repository")) { // if we want a specific version from artifactory
         filename = filename.concat(agentBinaryVersion).concat(".exe");
+        addRepositorySignatureHeader(headers, resourcePath, filename);
+        addReleaseVersionHeader(headers, agentBinaryVersion);
         in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
       }
       if (in == null) {
         throw new UnsupportedOperationException(
             "Agent version " + agentBinaryVersion + " not found");
       }
-      HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
       // Stream the package instead of buffering it fully in heap
       return ResponseEntity.ok()

@@ -154,6 +154,7 @@ If any of these requirements are not met, installation **will fail or behave unp
 
 * **systemd must be installed and running**
 * **curl** must be available
+* **openssl** must be available, the installer uses it to [verify the agent signature](#signed-agents)
 * TLS support must be enabled
 
 #### Privileges & security
@@ -192,6 +193,7 @@ If any of these requirements are not met, installation **will fail or behave unp
 
 * **launchd must be available and running**
 * **curl** must be available
+* **openssl** must be available, the installer uses it to [verify the agent signature](#signed-agents)
 * TLS support must be enabled
 * The system must allow:
 
@@ -283,6 +285,38 @@ cleanup_interval_seconds = 180
 OpenAEV enforces strict **segregation of duties** for agent token authentication.
 
 The agent token has a deliberately narrow scope: it is only permitted to **retrieve jobs to execute**, **retrieve documents**, and **send back results**. It cannot be used to perform any administrative action or access any resource outside of that execution flow.
+
+### Signed agents
+
+Every OpenAEV Agent executable (the agent binaries and the Windows installers) is signed when its release is
+published. The installer and upgrade scripts verify this signature before they install or replace anything, so a
+tampered or corrupted download is rejected.
+
+How it works:
+
+1. At release time, each executable receives a `.sig` file: the base64 **RSA/SHA-256** signature of its bytes.
+2. When the agent is downloaded from OpenAEV, the platform returns the signature in the `X-Signature-Sha256-Rsa`
+   response header, and the release version in the `X-Release-Version` header.
+3. The installer script checks the signature against the 4096-bit RSA public key embedded in the script. It refuses to
+   install if the signature is missing or invalid.
+4. The version header lets the scripts refuse a downgrade to an older release.
+
+Verification tooling by operating system:
+
+| Operating system | Requirement                                                              |
+|------------------|--------------------------------------------------------------------------|
+| Windows          | None, the script uses the cryptography built into .NET                   |
+| Linux            | `openssl` must be installed and available in the `PATH`                  |
+| macOS            | `openssl` must be installed and available in the `PATH`                  |
+
+!!! warning
+
+    On Linux and macOS, the installer stops with an explicit error if `openssl` is missing. Install it with your package
+    manager (for example `apt install openssl` on Debian and Ubuntu) before running the installation command.
+
+!!! note
+
+    Only the agent executables are signed. Scripts and implants are not signed for now.
 
 ## Troubleshooting
 
