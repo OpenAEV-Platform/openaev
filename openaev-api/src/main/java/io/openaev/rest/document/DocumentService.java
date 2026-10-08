@@ -320,7 +320,7 @@ public class DocumentService {
   public static String sanitizeFileName(String name) {
     return FilenameUtils.getName(name);
   }
-  
+
   public static String encodeFileName(String name) {
     return URLEncoder.encode(sanitizeFileName(name), StandardCharsets.UTF_8).replace("+", "%20");
   }
