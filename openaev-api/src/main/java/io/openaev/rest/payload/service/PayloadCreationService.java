@@ -20,6 +20,7 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.service.UserService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ public class PayloadCreationService {
   private final DocumentService documentService;
   private final ResultsMetricCollector resultsMetricCollector;
   private final UserService userService;
+  private final PayloadApprovalService payloadApprovalService;
   private final TenantWriteScopeResolver writeScopeResolver;
 
   public record PayloadInjectorContractCreationResult(
@@ -111,6 +113,8 @@ public class PayloadCreationService {
     }
 
     Payload payloadSaved = payloadRepository.save(payload);
+    payloadApprovalService.onWrite(
+        payloadSaved, payload.getAuthorUser(), PayloadApproval.ORIGIN.CREATE, null);
     // The id collections default to empty lists on the input, but callers that build the
     // input via BeanUtils.copyProperties (e.g. threat arsenal action creation) can overwrite
     // those defaults with null. Spring Data's findAllById throws IllegalArgumentException

@@ -25,6 +25,7 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.TenantScopedJobRunner;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -34,6 +35,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,6 +69,7 @@ class InjectsExecutionJobTenantScopeTest {
   private static final String INJECT_TENANT = "11111111-2222-3333-4444-555555555555";
 
   @Mock private InjectHelper injectHelper;
+  @Mock private PayloadApprovalGate payloadApprovalGate;
   @Mock private InjectService injectService;
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private InjectStatusService injectStatusService;
@@ -106,6 +109,9 @@ class InjectsExecutionJobTenantScopeTest {
             })
         .when(tenantScopedJobRunner)
         .runInTenant(anyString(), any(Runnable.class));
+    // The scheduled-start sweep opens one cross-tenant transaction: run its work inline.
+    when(tenantScopedJobRunner.supplyAcrossTenants(any()))
+        .thenAnswer(invocation -> invocation.getArgument(0, Supplier.class).get());
 
     // Every sweep around the execution is a no-op here: this test is about the execution scope.
     when(exerciseRepository.findAllShouldBeInRunningState(any())).thenReturn(List.of());

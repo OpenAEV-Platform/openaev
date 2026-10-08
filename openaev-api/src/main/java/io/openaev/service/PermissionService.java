@@ -192,6 +192,18 @@ public class PermissionService {
       @NotNull final User user,
       @NotNull final ResourceType resourceType,
       @NotNull final Action action) {
+    return holdsCapability(user, resourceType, action);
+  }
+
+  /**
+   * Same check as {@link #hasCapabilityPermission}, usable without the service (it reads only the
+   * user): for domain services that need to know whether the acting user holds a capability, such
+   * as the payload services deciding whether a write is auto-approved.
+   */
+  public static boolean holdsCapability(
+      @NotNull final User user,
+      @NotNull final ResourceType resourceType,
+      @NotNull final Action action) {
 
     if (user.isAdmin()) {
       return true;

@@ -11,6 +11,7 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { type ThreatArsenalAction } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
+import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 
@@ -143,6 +144,14 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
               }}
               >
                 <PayloadStatusComponent status={action.action_payload?.payload_status} />
+              </div>
+              <div style={{
+                ...bodyItemsStyles.bodyItem,
+                ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_approval,
+              }}
+              >
+                {/* Payload-less built-in actions need no approval: they show a dash. */}
+                <ApprovalStatusChip status={action.action_payload?.payload_approval_status} />
               </div>
               <Typography
                 component="div"

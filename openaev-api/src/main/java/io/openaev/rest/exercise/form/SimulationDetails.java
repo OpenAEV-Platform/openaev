@@ -10,6 +10,8 @@ import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.Objective;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.raw.RawSimulationIndexing;
+import io.openaev.rest.payload.output.LaunchBlockerOutput;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -215,4 +217,11 @@ public class SimulationDetails {
 
     return details.build();
   }
+
+  @Schema(
+      description =
+          "Payloads that keep this simulation from being started (not approved or changed since"
+              + " their approval); empty when it can be started")
+  @JsonProperty("exercise_launch_blocked_by")
+  private List<LaunchBlockerOutput> launchBlockedBy;
 }

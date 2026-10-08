@@ -2,6 +2,7 @@ package io.openaev.rest.scenario.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
+import io.openaev.rest.payload.output.LaunchBlockerOutput;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
@@ -153,4 +154,20 @@ public class ScenarioOutput {
   @JsonProperty("scenario_autonomous")
   @Schema(description = "Whether the scenario is an autonomous (AI-driven) attack-path scenario")
   private boolean autonomous;
+
+  @Setter
+  @Schema(
+      description =
+          "Payloads that keep this scenario from being launched (not approved or changed since"
+              + " their approval); empty when it can be launched")
+  @JsonProperty("scenario_launch_blocked_by")
+  private List<LaunchBlockerOutput> launchBlockedBy;
+
+  @Setter
+  @Schema(
+      description =
+          "When the schedule was paused (an action not approved, or a sensitive change); null when"
+              + " not paused. Saving or stopping the schedule re-enables it")
+  @JsonProperty("scenario_recurrence_paused_at")
+  private Instant recurrencePausedAt;
 }

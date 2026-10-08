@@ -52,6 +52,7 @@ import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
+import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 
 // Human labels for the predefined expectation types carried by a payload/contract.
@@ -138,6 +139,10 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   const status = action.action_payload?.payload_status ?? payload?.payload_status;
   const statusColor = status ? getStatusColor(theme, status) : undefined;
   const statusLabel = getStatusLabel(status);
+  // A payload that is not approved shows its approval status instead of Verified / Unverified /
+  // Deprecated: the approval decides whether it can be used.
+  const approvalStatus = action.action_payload?.payload_approval_status ?? payload?.payload_approval_status;
+  const approvalWins = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
   const name = tPick(action.action_labels);
   const description = payload?.payload_description ?? '';
   const platforms = payload?.payload_platforms ?? action.action_platforms ?? [];
@@ -278,7 +283,8 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               >
                 {name || '-'}
               </Typography>
-              {statusLabel && statusColor && (
+              {approvalWins && <ApprovalStatusChip status={approvalStatus} />}
+              {!approvalWins && statusLabel && statusColor && (
                 <Box
                   sx={{
                     display: 'inline-flex',

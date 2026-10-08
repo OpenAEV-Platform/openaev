@@ -326,7 +326,8 @@
     "Validations",
     "Variables",
     "Version",
-    "Vision"
+    "Vision",
+    "{count, plural, one {# simulation} other {# simulations}}"
   ],
   "it": [
     "Audio",

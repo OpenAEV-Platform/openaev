@@ -28,6 +28,7 @@ public enum AuditEventScope {
   EXPECTATION_RESULT,
   INJECT_QUEUED,
   INJECT_RESOLVE,
+  EXECUTION_BLOCKED_BY_APPROVAL,
 
   // System
   RETENTION_PURGE,
@@ -41,7 +42,7 @@ public enum AuditEventScope {
       case CREATE -> CREATE;
       case WRITE -> UPDATE;
       case DELETE -> DELETE;
-      case LAUNCH -> STATUS_CHANGE;
+      case LAUNCH, APPROVE -> STATUS_CHANGE;
       case DUPLICATE -> DUPLICATE;
       case RESOLVE -> INJECT_RESOLVE;
       case LOGIN -> LOGIN;

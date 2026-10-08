@@ -61,6 +61,9 @@ import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
+import io.openaev.service.readiness.InjectSensitiveFields;
+import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.FilterUtilsJpa;
@@ -111,6 +114,8 @@ public class InjectService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final InjectAgentResolverService injectAgentResolverService;
+  private final PayloadApprovalGate payloadApprovalGate;
+  private final LaunchReadinessService launchReadinessService;
   private final AiTargetRepository aiTargetRepository;
   private final CollectorService collectorService;
   private final EnterpriseEditionService enterpriseEditionService;
@@ -179,6 +184,12 @@ public class InjectService {
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(input.getInjectorContract());
+    // Only an approved payload can be picked for an inject (payload-less actions always can).
+    payloadApprovalGate.requireApproved(
+        "Adding this action to an inject",
+        injectorContract.getPayload(),
+        ResourceType.INJECT,
+        null);
 
     if (injectorContract.getConvertedContent() == null) {
       injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
@@ -489,6 +500,12 @@ public class InjectService {
   }
 
   public void throwIfInjectNotLaunchable(Inject inject) {
+    // Before the licence shortcut: payload approval applies to every edition.
+    payloadApprovalGate.requireApproved(
+        "Launching \"" + inject.getTitle() + "\"",
+        List.of(inject),
+        ResourceType.INJECT,
+        inject.getId());
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
@@ -765,6 +782,7 @@ public class InjectService {
       @NotBlank final String injectId, @jakarta.validation.constraints.NotNull InjectInput input) {
     Inject inject =
         this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    String sensitiveBefore = InjectSensitiveFields.fingerprint(inject);
     // Managing case where input.dependsDuration is null, as the field is marked as NotNull
     if (input.getDependsDuration() == null) {
       input.setDependsDuration(inject.getDependsDuration());
@@ -900,6 +918,10 @@ public class InjectService {
         });
     inject.setDocuments(injectDocuments);
 
+    // What it runs or targets changed: a scheduled run waits for a deliberate action again.
+    if (!sensitiveBefore.equals(InjectSensitiveFields.fingerprint(inject))) {
+      launchReadinessService.onSensitiveChange(inject);
+    }
     return inject;
   }
 

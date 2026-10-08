@@ -17,6 +17,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.payload_approval.PayloadApprovalImpactException;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -31,6 +32,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -208,12 +211,130 @@ public class ThreatArsenalApi {
       resourceId = "#actionId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "Update an action",
+      description =
+          "With check_approval_impact=true, an edit that would send the approved payload back to"
+              + " pending while it is used is refused with 409 and the usage, so the caller can"
+              + " warn first; nothing is saved. Without it, the edit is saved.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "The updated action"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Only with check_approval_impact: the edit would block launches",
+        content =
+            @Content(schema = @Schema(implementation = ThreatArsenalApprovalImpactOutput.class)))
+  })
   public ThreatArsenalAction updateAction(
       @RequireTenantSelector TxCtx ctx,
       @NotBlank @PathVariable final String actionId,
-      @Valid @RequestBody ThreatArsenalActionUpdateInput input) {
+      @Valid @RequestBody ThreatArsenalActionUpdateInput input,
+      @RequestParam(name = "check_approval_impact", defaultValue = "false")
+          final boolean checkApprovalImpact) {
     writeScopeResolver.tenantForWrite(ctx, null);
-    return threatArsenalService.update(actionId, input);
+    return threatArsenalService.update(actionId, input, checkApprovalImpact);
+  }
+
+  @ExceptionHandler(PayloadApprovalImpactException.class)
+  public ResponseEntity<ThreatArsenalApprovalImpactOutput> handleApprovalImpact(
+      PayloadApprovalImpactException ex) {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(
+            new ThreatArsenalApprovalImpactOutput(
+                ex.getMessage(), ThreatArsenalActionUsageOutput.from(ex.getUsage())));
+  }
+
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/usage",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/usage"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "Where the payload of an action is used",
+      description =
+          "Counts of atomic testings, scenarios and simulations still to run using the payload,"
+              + " with the first names of each for users who can read them.")
+  public ThreatArsenalActionUsageOutput actionUsage(
+      // Unused by the handler body; sets the tenant scope of the transaction (payloads are v2
+      // tenant-scoped).
+      TxCtx ctx, @NotBlank @PathVariable final String actionId) {
+    return ThreatArsenalActionUsageOutput.from(threatArsenalService.usage(actionId));
+  }
+
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/approve",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/approve"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.APPROVE,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "Approve the payload of an action",
+      description =
+          "Requires Approve content. Only a pending payload can be approved, and only if its"
+              + " content is still the one shown (approval_fingerprint).")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "The approved action"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Not pending, payload-less action, or content changed since shown")
+  })
+  public ThreatArsenalActionFullOutput approveAction(
+      @RequireTenantSelector TxCtx ctx,
+      @NotBlank @PathVariable final String actionId,
+      @Valid @RequestBody ThreatArsenalApproveInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
+    return threatArsenalService.approve(actionId, input);
+  }
+
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/reject",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/reject"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.APPROVE,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "Reject the payload of an action",
+      description =
+          "Requires Approve content. Only a pending payload can be rejected; a reason is required.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "The rejected action"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Not pending, payload-less action, or no reason")
+  })
+  public ThreatArsenalActionFullOutput rejectAction(
+      @RequireTenantSelector TxCtx ctx,
+      @NotBlank @PathVariable final String actionId,
+      @Valid @RequestBody ThreatArsenalRejectInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
+    return threatArsenalService.reject(actionId, input);
+  }
+
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/approvals",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/approvals"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(summary = "Approval history of the payload of an action, newest first")
+  public List<PayloadApprovalOutput> actionApprovals(
+      // Unused by the handler body; sets the tenant scope of the transaction (payloads and
+      // payload_approvals are v2 tenant-scoped).
+      TxCtx ctx, @NotBlank @PathVariable final String actionId) {
+    return threatArsenalService.approvals(actionId);
   }
 
   @PostMapping({

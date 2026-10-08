@@ -18,6 +18,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.service.UserService;
 import io.openaev.service.ZipJsonService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.function.Function;
@@ -43,6 +44,7 @@ public class PayloadImportService {
   private final TenantWriteScopeResolver writeScopeResolver;
   private final AmbientTenantBridge ambientTenantBridge;
   private final UserService userService;
+  private final PayloadApprovalService payloadApprovalService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -95,6 +97,8 @@ public class PayloadImportService {
               return payload;
             },
             tenantId);
+    payloadApprovalService.onWrite(
+        response.persistedData(), importingUser, PayloadApproval.ORIGIN.IMPORT, null);
 
     List<AttackPattern> attackPatterns =
         extractRelationshipObjects(

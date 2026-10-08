@@ -37,6 +37,8 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import { splitDuration } from '../../../../utils/Time';
 import { download, isNotEmptyField } from '../../../../utils/utils';
+import { payloadApprovalDisplay } from '../../payloads/payloadApprovalDisplay';
+import PayloadApprovalWarningChip from '../../payloads/PayloadApprovalWarningChip';
 import PayloadDeprecatedChip from '../../payloads/PayloadDeprecatedChip';
 import { InjectContext, InjectTestContext, PermissionsContext, ViewModeContext } from '../Context';
 import ToolBar from '../ToolBar';
@@ -207,6 +209,14 @@ const Injects: FunctionComponent<Props> = ({
       label: 'Status',
       isSortable: false,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
+        const payload = inject.inject_injector_contract?.injector_contract_payload;
+        const approvalStatus = payload?.payload_approval_status;
+        // Not sent yet and its payload is not approved: a compact status chip saying why it will
+        // not run (computed on read, never stored). Once sent, the approval state is an icon next
+        // to the usual status.
+        if (inject.inject_enabled && !inject.inject_sent_at && payloadApprovalDisplay(approvalStatus)) {
+          return <PayloadApprovalWarningChip approvalStatus={approvalStatus} payloadName={payload?.payload_name} />;
+        }
         let injectStatus;
         let injectTooltip = '';
         if (!inject.inject_enabled) {
@@ -222,12 +232,23 @@ const Injects: FunctionComponent<Props> = ({
           injectStatus = t('Enabled');
         }
         return (
-          <ItemBoolean
-            status={inject.inject_ready ? inject.inject_enabled : false}
-            label={injectStatus}
-            variant="inList"
-            tooltip={injectTooltip}
-          />
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            maxWidth: '100%',
+          }}
+          >
+            <ItemBoolean
+              status={inject.inject_ready ? inject.inject_enabled : false}
+              label={injectStatus}
+              variant="inList"
+              tooltip={injectTooltip}
+            />
+            {inject.inject_enabled && (
+              <PayloadApprovalWarningChip approvalStatus={approvalStatus} payloadName={payload?.payload_name} variant="icon" />
+            )}
+          </span>
         );
       },
     },

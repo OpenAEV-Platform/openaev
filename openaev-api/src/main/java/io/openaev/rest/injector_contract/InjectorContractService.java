@@ -905,6 +905,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.payloadJoin().get("id"),
         ctx.payloadJoin().get("type"),
         ctx.payloadJoin().get("status"),
+        ctx.payloadJoin().get("approvalStatus"),
         ctx.payloadJoin().get("executionArch"),
         ctx.payloadCollectorTypeJoin().get("id"),
         ctx.payloadCollectorTypeJoin().get("name"));
@@ -990,6 +991,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.tagsIdsExpression().alias("injector_contract_tags"),
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         ctx.payloadJoin().get("status").alias("payload_status"),
+        ctx.payloadJoin().get("approvalStatus").alias("payload_approval_status"),
         ctx.payloadJoin().get("id").alias("payload_id"),
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
@@ -1049,7 +1051,8 @@ public class InjectorContractService implements DependenciesManager {
                 payloadId,
                 tuple.get("payload_type", String.class),
                 tuple.get("collector_type", String.class),
-                tuple.get("payload_status", Payload.PAYLOAD_STATUS.class))
+                tuple.get("payload_status", Payload.PAYLOAD_STATUS.class),
+                tuple.get("payload_approval_status", Payload.PAYLOAD_APPROVAL_STATUS.class))
             : null;
 
     return new ThreatArsenalAction(
@@ -1138,12 +1141,19 @@ public class InjectorContractService implements DependenciesManager {
    * Shared base specification for the facet-count aggregations: current filters + text search +
    * access control, exactly like the search route.
    */
-  private Specification<InjectorContract> facetBaseSpec(SearchPaginationInput input) {
+  /**
+   * Base specification of every facet count: the user's filters, text search and access, within
+   * {@code scope}. A picker passes the same scope as its list search (e.g. approved payloads only)
+   * so each count equals what the list shows; the Threat Arsenal passes an unrestricted scope.
+   */
+  private Specification<InjectorContract> facetBaseSpec(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
     Specification<InjectorContract> accessSpec =
         InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
     return Specification.<InjectorContract>unrestricted()
+        .and(scope)
         .and(filterSpec)
         .and(searchSpec)
         .and(accessSpec);
@@ -1155,9 +1165,10 @@ public class InjectorContractService implements DependenciesManager {
    * @param input the search and filtering criteria
    * @return the list of domain counts derived from effective contract associations
    */
-  public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
+  public List<InjectorContractDomainCountOutput> getDomainCounts(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input, scope);
 
     CriteriaQuery<InjectorContractDomainCountOutput> qDirect =
         cb.createQuery(InjectorContractDomainCountOutput.class);
@@ -1181,9 +1192,10 @@ public class InjectorContractService implements DependenciesManager {
    * projection). Authorless contracts are excluded here - the UI exposes them via a dedicated "No
    * author" facet.
    */
-  public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
+  public List<InjectorContractAuthorCountOutput> getAuthorCounts(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input, scope);
 
     CriteriaQuery<InjectorContractAuthorCountOutput> q =
         cb.createQuery(InjectorContractAuthorCountOutput.class);
@@ -1239,9 +1251,10 @@ public class InjectorContractService implements DependenciesManager {
    * known platform value using the same {@code array_position_wrapper} membership test as the
    * filter engine ({@link io.openaev.utils.OperationUtilsJpa}).
    */
-  public Map<String, Long> getPlatformCounts(SearchPaginationInput input) {
+  public Map<String, Long> getPlatformCounts(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input, scope);
 
     Map<String, Long> counts = new LinkedHashMap<>();
     for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
@@ -1266,9 +1279,10 @@ public class InjectorContractService implements DependenciesManager {
    * Number of contracts per payload status under the given filters. Contracts without a payload
    * carry no status and are excluded (like the author facet excludes authorless contracts).
    */
-  public Map<String, Long> getStatusCounts(SearchPaginationInput input) {
+  public Map<String, Long> getStatusCounts(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input, scope);
 
     CriteriaQuery<Tuple> q = cb.createTupleQuery();
     Root<InjectorContract> root = q.from(InjectorContract.class);
@@ -1289,13 +1303,43 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Number of contracts per payload approval status under the given filters, so the Threat Arsenal
+   * sidebar can display live counts on its approval facet. Payload-less contracts are not counted:
+   * they need no approval.
+   */
+  public Map<String, Long> getApprovalStatusCounts(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input, scope);
+
+    CriteriaQuery<Tuple> q = cb.createTupleQuery();
+    Root<InjectorContract> root = q.from(InjectorContract.class);
+    Join<InjectorContract, Payload> payloadJoin = root.join("payload", JoinType.INNER);
+    Path<Payload.PAYLOAD_APPROVAL_STATUS> status = payloadJoin.get("approvalStatus");
+
+    Predicate predicate = baseSpec.toPredicate(root, q, cb);
+    if (predicate != null) {
+      q.where(predicate);
+    }
+    q.multiselect(status, cb.countDistinct(root));
+    q.groupBy(status);
+
+    Map<String, Long> counts = new LinkedHashMap<>();
+    for (Tuple tuple : entityManager.createQuery(q).getResultList()) {
+      counts.put(String.valueOf(tuple.get(0)), (Long) tuple.get(1));
+    }
+    return counts;
+  }
+
+  /**
    * Number of contracts per kill chain phase under the given filters (through the attack pattern
    * relation), so the inject-contract picker sidebar can display live counts on its kill chain
    * facets like the domain and platform ones.
    */
-  public Map<String, Long> getKillChainPhaseCounts(SearchPaginationInput input) {
+  public Map<String, Long> getKillChainPhaseCounts(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input, scope);
 
     CriteriaQuery<Tuple> q = cb.createTupleQuery();
     Root<InjectorContract> root = q.from(InjectorContract.class);

@@ -13,11 +13,13 @@ import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
 import { type IconBarElement } from '../common/domains/IconBar-model';
+import { APPROVAL_STATUSES, approvalStatusLabel } from './approval/approvalStatusUtils';
 import { type ThreatArsenalFacetCounts } from './useThreatArsenalFacetCounts';
 
 const PLATFORM_FILTER_KEY = 'action_platforms';
 const STATUS_FILTER_KEY = 'action_payload_status';
 const AUTHOR_FILTER_KEY = 'action_author';
+const APPROVAL_FILTER_KEY = 'action_payload_approval_status';
 const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
 
 interface Props {
@@ -49,6 +51,10 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
   );
   const statusValues = useMemo(
     () => filters.find((f: Filter) => f.key === STATUS_FILTER_KEY)?.values ?? [],
+    [filters],
+  );
+  const approvalValues = useMemo(
+    () => filters.find((f: Filter) => f.key === APPROVAL_FILTER_KEY)?.values ?? [],
     [filters],
   );
   const {
@@ -122,6 +128,15 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
       toggle: value => toggleValue(STATUS_FILTER_KEY, statusValues, value),
     });
 
+    // Payload-less built-in actions carry no approval status, so they never match these rows.
+    const approvalRows: FacetRow[] = APPROVAL_STATUSES.map(status => ({
+      value: status,
+      label: t(approvalStatusLabel(status)),
+      count: facetCounts ? facetCounts.approvals?.[status] ?? 0 : undefined,
+      checked: approvalValues.includes(status),
+      onToggle: () => toggleValue(APPROVAL_FILTER_KEY, approvalValues, status),
+    }));
+
     const authorRows = buildAuthorRows({
       authorOptions,
       authorValues,
@@ -148,12 +163,17 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
         rows: statusRows,
       },
       {
+        id: 'approval',
+        label: t('Approval'),
+        rows: approvalRows,
+      },
+      {
         id: 'author',
         label: t('Author'),
         rows: authorRows,
       },
     ].filter(section => section.rows.length > 0);
-  }, [domainElements, authorOptions, facetCounts, platformValues, statusValues, authorValues, noAuthorActive, toggleValue, toggleAuthorValue, toggleNoAuthor, t]);
+  }, [domainElements, authorOptions, facetCounts, platformValues, statusValues, approvalValues, authorValues, noAuthorActive, toggleValue, toggleAuthorValue, toggleNoAuthor, t]);
 
   return <FacetSidebar sections={sections} />;
 };

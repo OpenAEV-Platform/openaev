@@ -596,6 +596,9 @@ public class ScenarioApi extends RestBehavior {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
     }
     scenario.setUpdateAttributes(input);
+    // Saving or stopping the schedule is the deliberate action that ends a pause (saving is
+    // refused above while the scenario is still blocked).
+    scenario.setRecurrencePausedAt(null);
     return hydrateForResponse(this.scenarioService.updateScenario(scenario));
   }
 
@@ -674,6 +677,7 @@ public class ScenarioApi extends RestBehavior {
     Exercise simulation;
 
     if (workflowService.isScenarioChaining(scenarioId)) {
+      this.scenarioService.throwIfScenarioPayloadsNotApproved(scenario);
       // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
       // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
       // plan or run outcome is no longer the latest activity). No-op when the scenario carries no

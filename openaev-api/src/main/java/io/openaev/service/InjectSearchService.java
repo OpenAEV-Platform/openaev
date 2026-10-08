@@ -159,6 +159,10 @@ public class InjectSearchService {
     Join<Base, Base> injectDependency = injectRoot.join("dependsOn", JoinType.LEFT);
     joinMap.put("dependsOn", injectDependency);
 
+    // Sent date of the inject (null until it runs): the list shows why an inject not run yet will
+    // not run (payload not approved).
+    Join<Base, Base> injectStatusJoin = injectRoot.join("status", JoinType.LEFT);
+
     // Array aggregations
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "tags");
     Expression<String[]> teamIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "teams");
@@ -185,7 +189,8 @@ public class InjectSearchService {
         assetGroupIdsExpression.alias("inject_asset_groups"),
         injectorJoin.get("type").alias("inject_type"),
         domainsContractIdExpression.alias("injector_contract_domains"),
-        injectDependency.alias("inject_depends_on"));
+        injectDependency.alias("inject_depends_on"),
+        injectStatusJoin.get("trackingSentDate").alias("inject_sent_at"));
 
     // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
@@ -196,7 +201,8 @@ public class InjectSearchService {
             injectorContractJoin.get("compositeId"),
             injectorJoin.get("id"),
             injectorJoin.get("type"),
-            injectDependency.get("id")));
+            injectDependency.get("id"),
+            injectStatusJoin.get("id")));
   }
 
   private List<InjectOutput> execInject(TypedQuery<Tuple> query) {
@@ -289,7 +295,10 @@ public class InjectSearchService {
                       : null);
               // Check only for content checks because this result is only used to display the
               // inject list on scenario
-              return injectMapper.toInjectOutput(inject, healthCheckUtils.runContentChecks(inject));
+              InjectOutput output =
+                  injectMapper.toInjectOutput(inject, healthCheckUtils.runContentChecks(inject));
+              output.setSentAt(tuple.get("inject_sent_at", Instant.class));
+              return output;
             })
         .toList();
   }
@@ -674,6 +683,8 @@ public class InjectSearchService {
         injectorContractJoin.get("labels").alias("injector_contract_labels"),
         payloadJoin.get("id").alias("payload_id"),
         payloadJoin.get("type").alias("payload_type"),
+        payloadJoin.get("status").alias("payload_status"),
+        payloadJoin.get("approvalStatus").alias("payload_approval_status"),
         collectorTypeJoin.get("name").alias("payload_collector_type"),
         statusJoin.get("id").alias("status_id"),
         statusJoin.get("name").alias("status_name"),
@@ -693,6 +704,8 @@ public class InjectSearchService {
             injectorJoin.get("type"),
             payloadJoin.get("id"),
             payloadJoin.get("type"),
+            payloadJoin.get("status"),
+            payloadJoin.get("approvalStatus"),
             collectorTypeJoin.get("name"),
             statusJoin.get("id"),
             exerciseJoin.get("id")));
@@ -723,6 +736,10 @@ public class InjectSearchService {
                         .id(payloadId)
                         .type(tuple.get("payload_type", String.class))
                         .collectorType(tuple.get("payload_collector_type", String.class))
+                        .status(tuple.get("payload_status", Payload.PAYLOAD_STATUS.class))
+                        .approvalStatus(
+                            tuple.get(
+                                "payload_approval_status", Payload.PAYLOAD_APPROVAL_STATUS.class))
                         .build();
               }
 

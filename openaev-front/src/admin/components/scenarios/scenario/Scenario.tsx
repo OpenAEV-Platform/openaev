@@ -43,6 +43,7 @@ import {
   type InjectExpectationResultsByAttackPattern,
   type KillChainPhase,
   type Scenario as ScenarioType,
+  type ScenarioOutput,
   type SearchPaginationInput,
   type SortField,
 } from '../../../../utils/api-types';
@@ -59,6 +60,8 @@ import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
+import LaunchBlockedTooltip from '../../payloads/LaunchBlockedTooltip';
+import { isLaunchBlocked, launchBlockedLabel } from '../../payloads/payloadApprovalDisplay';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
 import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
@@ -119,6 +122,10 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
   } = useEnterpriseEdition();
 
   const isScopeMissing = isScenarioChaining && isScopeLaunchBlocked(healthchecks);
+  // An action that is not approved blocks every launch (buttons disabled with the reason).
+  const launchBlockers = (scenario as ScenarioOutput).scenario_launch_blocked_by;
+  const launchBlocked = isLaunchBlocked(launchBlockers);
+  const launchBlockedText = launchBlockedLabel(t, launchBlockers);
 
   const agentsActive = useMemo(() => {
     const injectAssetIds: string[] = injects.flatMap((inject: Inject) => inject.inject_assets);
@@ -441,12 +448,12 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Box component="span" sx={{ display: 'inline-flex' }}>
-                    <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} disabled={isScopeMissing} onClick={() => setOpenInstantiateSimulationAndStart(true)}>
+                    <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} disabled={isScopeMissing || launchBlocked} onClick={() => setOpenInstantiateSimulationAndStart(true)}>
                       {t('Normal')}
                     </Button>
                   </Box>
                 </TooltipTrigger>
-                <TooltipContent>{isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch a normal, operator-driven simulation from this scenario')}</TooltipContent>
+                <TooltipContent>{launchBlockedText ?? (isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch a normal, operator-driven simulation from this scenario'))}</TooltipContent>
               </Tooltip>
               {/* Autonomous is an XTM One-driven EE feature: hidden when XTM One is unavailable (only
                   the Normal CTA remains), and an EE call-to-action when the platform is not
@@ -475,6 +482,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
                           }
                           navigate(`/admin/scenarios/${scenarioId}?openAiLaunch=true`);
                         }}
+                        disabled={launchBlocked}
                         style={{ whiteSpace: 'nowrap' }}
                       >
                         {t('Autonomous')}
@@ -482,15 +490,17 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
                       {!isEnterpriseEdition && <EEChip />}
                     </Box>
                   </TooltipTrigger>
-                  <TooltipContent>{t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}</TooltipContent>
+                  <TooltipContent>{launchBlockedText ?? t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}</TooltipContent>
                 </Tooltip>
               )}
             </Box>
           )}
           {canLaunch && !isRunActive && !isScenarioChaining && (
-            <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenInstantiateSimulationAndStart(true)}>
-              {t('Launch simulation now')}
-            </Button>
+            <LaunchBlockedTooltip blockers={launchBlockers}>
+              <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} disabled={launchBlocked} onClick={() => setOpenInstantiateSimulationAndStart(true)}>
+                {t('Launch simulation now')}
+              </Button>
+            </LaunchBlockedTooltip>
           )}
         </Paper>
       )}

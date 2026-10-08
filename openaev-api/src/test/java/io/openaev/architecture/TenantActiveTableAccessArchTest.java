@@ -61,6 +61,7 @@ import io.openaev.database.repository.NotificationRepository;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.OrganizationRepository;
+import io.openaev.database.repository.PayloadApprovalRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
@@ -238,6 +239,7 @@ import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
@@ -336,6 +338,7 @@ class TenantActiveTableAccessArchTest {
           "attackpath_execution_remediation",
           "asset_agent_jobs",
           "payloads",
+          "payload_approvals",
           "vulnerabilities",
           "phishing_results",
           "reporting_schedules",
@@ -2034,6 +2037,24 @@ class TenantActiveTableAccessArchTest {
               "attackpath_execution_remediation is tenant-active: an accessor without a tenant"
                   + " scope silently reads zero rows. New accessors must carry a scope and be"
                   + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule payload_approvals_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // The only accessor. Called from the payload write services (creation, update,
+              // upsert, duplicate, import), from ThreatArsenalService for approve / reject /
+              // history and from ThreatArsenalMapper for the latest decision: all behind
+              // TxCtx-carrying ThreatArsenalApi / PayloadApi / importer entrypoints, so the
+              // transaction is scoped when it reads or writes the history.
+              PayloadApprovalService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PayloadApprovalRepository.class)
+          .because(
+              "payload_approvals is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule payloads_repository_access_is_reviewed =

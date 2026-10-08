@@ -111,4 +111,15 @@ public record ThreatArsenalActionFullOutput(
         String lastModifiedById,
     @Schema(description = "Display name of the user who last modified the action payload")
         @JsonProperty("action_last_modified_by_name")
-        String lastModifiedByName) {}
+        String lastModifiedByName,
+    @Schema(description = "Approval status of the action payload, null for payload-less actions")
+        @JsonProperty("action_approval_status")
+        Payload.PAYLOAD_APPROVAL_STATUS approvalStatus,
+    @Schema(
+            description =
+                "Fingerprint of the current executable content, to send back when approving")
+        @JsonProperty("action_approval_fingerprint")
+        String approvalFingerprint,
+    @Schema(description = "Latest entry of the approval history")
+        @JsonProperty("action_approval_latest")
+        PayloadApprovalOutput approvalLatest) {}
