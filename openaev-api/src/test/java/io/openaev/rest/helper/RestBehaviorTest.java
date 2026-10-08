@@ -865,7 +865,7 @@ class RestBehaviorTest {
         })
     @DisplayName("a version the installer scripts cannot compare is left out")
     void given_uncomparableVersion_should_omitHeader(String version) {
-      assertFalse(headersFor(version).containsKey(RestBehavior.VERSION_HEADER));
+      assertFalse(headersFor(version).containsHeader(RestBehavior.VERSION_HEADER));
     }
   }
 }
