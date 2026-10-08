@@ -23,8 +23,6 @@ various detection and response systems and fulfill expectations for detection an
 
 These Collectors fetch data for 45 minutes after an Inject executes. If no data is found after 45 minutes, OpenAEV updates the Inject result to "Not detected".
 
-Each Collector runs on its own period, set by `COLLECTOR_PERIOD`. See the [default periods](../../deployment/ecosystem/collectors.md#collection-period).
-
 #### Detection & prevention with EDR
 
 The platform analyzes EDR logs to identify matches for the hostname and the parent process name associated with

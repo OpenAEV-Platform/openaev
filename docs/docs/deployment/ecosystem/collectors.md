@@ -138,20 +138,6 @@ collector:
   log_level: 'info'
 ```
 
-### Collection period
-
-`COLLECTOR_PERIOD` sets the time between two runs of a collector, as an ISO 8601 duration (for example `PT1M` for one
-minute, `P7D` for seven days). The default values in the catalog are:
-
-| Default period          | Collectors                                                                                                                                                                                   |
-|:------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `PT1M` (1 minute)       | CrowdStrike, Elastic Security, IBM QRadar, LogRhythm, Microsoft Azure, Microsoft Defender, Microsoft Sentinel, NetWitness, Splunk Enterprise Security, Tanium Threat Response                |
-| `PT2M` or `PT120S` (2 minutes) | Cisco AI Defense, HiddenLayer AIDR, Lakera Guard, Microsoft Defender for Office 365, Palo Alto Cortex XDR, Palo Alto Cortex XSOAR, Palo Alto Prisma AIRS, Prompt Security, SentinelOne |
-| `PT5M` (5 minutes)      | XTM One                                                                                                                                                                                      |
-| `PT1H` (1 hour)         | Amazon Web Service Resources, Google Workspace, Microsoft Entra, Microsoft Intune                                                                                                            |
-| `PT2H` (2 hours)        | NVD NIST                                                                                                                                                                                     |
-| `P7D` (7 days)          | Atomic Red Team, MITRE ATLAS, MITRE ATT&CK, OpenAEV Library                                                                                                                                  |
-
 ### Run a collector outside the Integration Manager
 
 You can run a collector on your own network, for example next to an on-premises SIEM when OpenAEV is hosted as SaaS.
