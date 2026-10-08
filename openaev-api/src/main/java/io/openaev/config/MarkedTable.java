@@ -37,7 +37,7 @@ public record MarkedTable(
 
   /**
    * Identifiers end up verbatim in generated SQL, so they are restricted to plain names. They come
-   * from configuration, not from users, but a typo must fail at startup rather than at query time.
+   * from code, not from users, but a typo must fail at startup rather than at query time.
    */
   private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 

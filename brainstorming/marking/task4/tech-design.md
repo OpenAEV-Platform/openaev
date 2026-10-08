@@ -60,7 +60,7 @@ have no clearance for?*
 | | [Option 1: fine granularity](#1--option-1-fine-granularity) | [Option 2: hide parents](#2--option-2-hide-parents) |
 |---|---|---|
 | **In one line** | The parent stays visible; restricted assets are filtered out of it in depth, including partial/scoped execution | Any parent that holds a restricted asset is completely hidden from that user |
-| **Status** | PoC on the `task4-poc` branch (execution side) | Design exploration (C-1 / C-2 / C-3 variants), not implemented |
+| **Status** | PoC on the `task4-poc` branch: execution side, and derived tables (findings, expectations) filtered through their asset | Design exploration (C-1 / C-2 / C-3 variants), not implemented |
 
 §3 compares the two side by side, shows which part of the Option 2 design Option 1 reuses for findings,
 and records the current leaning.
@@ -668,7 +668,7 @@ fix is to use `hasBypassIn(...)` / `hasTenantBypass()` or to test the role capab
 
 ---
 
-## Marking the objects linked to an asset (proposed — not yet decided)
+## Marking the objects linked to an asset (Solution B, implemented)
 
 Everything above is about *execution*. A second question is about *reads*: the asset row is filtered
 by the Task 3 rewrite, but the rows that **point at** an asset are not, so they can still leak what
@@ -751,23 +751,20 @@ sequenceDiagram
 | Constant cost per query: no extra join | Write amplification when an asset's marking changes (N linked rows) |
 | Rollout stays table-by-table via the allowlist | Backfill needed to mark rows that link to an *already marked* asset |
 
-### Solution B — Rewrite through the join (`EXISTS` on the parent asset)
+### Solution B — Derived tables, filtered through the asset (✅ chosen, implemented)
 
-Keep **no** column on the linked table. Teach the rewrite that a table is *marked by its parent*:
+Keep **no** column on the linked table. A table *derived* from assets is filtered by asking whether
+the asset row it comes from is visible:
 
 ```sql
--- agents, rewritten
-EXISTS (SELECT 1 FROM assets a
-        WHERE a.asset_id = t.agent_asset
-          AND is_marking_set_allowed(a.marking_ids))
+-- injects_expectations, rewritten
+(ie.asset_id IS NULL OR EXISTS (
+   SELECT 1 FROM assets a
+   WHERE a.asset_id = ie.asset_id
+     AND is_marking_set_allowed(a.marking_ids)))
 ```
 
-This needs a new `ScopeDimension` shape (or a `ParentMarkedTable(table, fkColumn, parentTable)`
-variant of `MarkedTable`) with its own `readPredicate`/`writePredicate`; `MarkingDimension` today is
-column-only and its Javadoc states the marked table's primary key never appears in the predicate.
-For join tables the predicate is on the asset-side column (`asset_id`).
-
-Red = what Solution B adds (the parent-based rewrite). There is no write path to maintain: the
+Red = what Solution B adds (the rewrite through the asset). There is no write path to maintain: the
 asset row is the only place a marking is stored.
 
 ```mermaid
@@ -781,137 +778,302 @@ sequenceDiagram
     Note over U,DB: Write path - nothing to propagate
     U->>SVC: PUT asset markings (TLP:RED)
     SVC->>DB: UPDATE assets SET marking_ids = {RED}
-    Note over DB: agents, findings_assets, injects_assets...<br/>are untouched
+    Note over DB: findings, findings_assets, injects_expectations<br/>are untouched
 
-    Note over R,DB: Read path - parent-based rewrite
-    R->>INS: SELECT ... FROM agents
+    Note over R,DB: Read path - rewrite through the asset
+    R->>INS: SELECT ... FROM injects_expectations
     rect rgb(255, 205, 205)
-        INS->>INS: agents is marked by parent assets<br/>via agent_asset (new mapping)
-        INS->>DB: SELECT ... FROM agents t WHERE EXISTS (<br/>SELECT 1 FROM assets a WHERE a.asset_id = t.agent_asset<br/>AND is_marking_set_allowed(a.marking_ids))
+        INS->>INS: injects_expectations is derived from assets<br/>through asset_id (MarkingDerivedTables)
+        INS->>DB: SELECT ... FROM injects_expectations ie WHERE (ie.asset_id IS NULL OR EXISTS (<br/>SELECT 1 FROM assets a WHERE a.asset_id = ie.asset_id<br/>AND is_marking_set_allowed(a.marking_ids)))
     end
-    DB-->>R: only agents whose parent asset the reader can see
-    Note over INS,DB: The assets sub-select is itself a scoped table,<br/>so it must not be rewritten twice (to be covered by a test)
+    DB-->>R: only expectations whose asset the reader can see
 ```
 
 - **Always consistent**: the asset is the single source of truth; changing its markings changes what
-  every linked row shows, instantly, with nothing to propagate.
-- **Costs**: one correlated sub-select per linked table per query; the unmarked fast path
+  every derived row shows, instantly, with nothing to propagate.
+- **Costs**: one correlated sub-select per derived table per query; the unmarked fast path
   (`COALESCE(marking_ids,'{}')` on a local column) is lost, and the planner must use the asset PK /
-  FK indexes. The inspector must also avoid recursing into the sub-select it just added (it rewrites
-  `assets` itself, which is harmless but must be tested — `MarkingRewriteHypothesisTest` is the
-  place). Rows whose parent is not visible disappear (inner semantics), which is the intended result.
-- **Writes**: the same predicate on UPDATE/DELETE targets works, but an INSERT of a linked row cannot
-  be checked by a WHERE; that stays a service-layer guard (as already stated for markings in
+  FK indexes.
+- **Writes**: the same predicate on UPDATE/DELETE targets works, but an INSERT of a derived row
+  cannot be checked by a WHERE; that stays a service-layer guard (as already stated for markings in
   `MarkingDimension`).
 
 | Pros | Cons |
 |---|---|
-| No copy, no sync, no backfill, no fail-open on a missed write path | New dimension type in the inspector: more engine surface and risk (it is the security boundary) |
+| No copy, no sync, no backfill, no fail-open on a missed write path | More engine surface in the inspector (it is the security boundary) |
 | Asset marking change is O(1) | Extra join cost on hot tables (`injects_expectations`, `findings`) |
-| Adding a linked table is configuration, not a migration | Needs a per-table FK/parent mapping to maintain |
+| Adding a derived table is one line of code, not a migration | The stream (SSE) has no SQL to rewrite: see [StreamApi](#marking-and-the-real-time-stream-streamapi-proposed--not-yet-decided) |
 
-### Comparison and recommendation
+### Comparison
 
-| | A — column copy | B — `EXISTS` through the join |
+| | A — column copy | B — derived through the asset |
 |---|---|---|
-| Engine change | none | new parent-based dimension |
+| Engine change | none | three shapes of `MarkedTable`, inside `MarkingDimension` |
 | Source of truth | duplicated | single (asset) |
 | Failure mode | stale/missing copy → leak | none by construction; cost is performance |
 | Query cost | local test, GIN-indexable | correlated sub-select |
 | Migration/backfill | per table | none |
-| Fits the current design doc | yes (§3.2 Option 2) | extends it |
 
-Proposed: **A** for the high-volume, read-hot tables where a local test matters, if the sync can be
-centralized in one listener; **B** if the number of linked tables grows or correctness must not
-depend on application write paths, since it removes the fail-open mode entirely. This is a proposal
-for discussion — it does not change the Option 1 decision below, and it is not recorded in the
-Decisions Log until chosen. It also does not answer which tables to mark (open items 1 and 3).
+**B was chosen** (decisions log, 2026-10-06): correctness must not depend on every application
+write path remembering to copy a marking. The stream is the one consumer where A would have been
+simpler; it is handled in its own section.
 
-### Status: Solution B is implemented (engine and configuration, off by default)
+### Implementation of Solution B
 
-Solution B was chosen and built; nothing is switched on yet, so the emitted SQL is unchanged until a
-table is configured.
+#### Where it lives: inside `MarkingDimension`, not a new `ScopeDimension`
 
-- **Model**: `MarkedTable` is marked in exactly one of three ways: its own column, a `ParentLink
-  (foreignKeyColumn, parentTable, parentKeyColumn)`, or `LinkRows` (see below). A linked table has no
-  marking column of its own. `MarkedTables` validates every chain at construction: it must end on a
-  table with its own column (a missing parent, a missing link table or a cycle fails the startup).
-- **Predicate**: `MarkingDimension` emits, recursively down a chain,
-  `(t.fk IS NULL OR EXISTS (SELECT 1 FROM parent p WHERE p.key = t.fk AND <parent predicate>))`,
-  identical for reads and writes. Aliases are `mkp<depth>_<table>`, clear of the query's own.
-- **Configuration**: `openaev.marking.linked-tables` (default empty), entries
-  `child.foreign_key>parent.parent_key`, e.g. `agents.agent_asset>assets.asset_id`, or
-  `table.key<link.foreign_key` for link rows. The parent must
-  be in `openaev.marking.active-tables`; the columns are checked against the schema at startup, and
-  a malformed entry fails the startup instead of being skipped. Identifiers are restricted to plain
-  names because they end up verbatim in SQL.
-- **Chains work**: `asset_agent_jobs.asset_agent_agent>agents.agent_id` on top of the `agents` link
-  resolves job → agent → asset.
+A derived table is "marked" in exactly the same sense as `assets`: same clearance, same
+`is_marking_set_allowed`, same rule for reads and writes. So it is not a new dimension, it is a new
+**shape** of `MarkedTable`, handled by the existing `MarkingDimension`:
 
-Semantics worth knowing before activating a table:
+| `MarkedTable` shape | Example | Predicate emitted by `MarkingDimension.predicate()` |
+|---|---|---|
+| **Own column** | `assets` | `is_marking_set_allowed(t.marking_ids)` |
+| **Parent link** (`linkedTo`) — the table points to one marked row | `injects_expectations.asset_id → assets` | `(t.fk IS NULL OR EXISTS (SELECT 1 FROM parent p WHERE p.key = t.fk AND <parent predicate>))` |
+| **Link rows** (`throughLinkRows`) — rows of a link table point to it | `findings ← findings_assets` | `(NOT EXISTS (<links>) OR EXISTS (<links> AND <link table predicate>))` |
 
-- **A NULL foreign key is visible.** A row attached to no asset (a team expectation, a parentless
-  agent) has no marking to inherit, exactly like an empty marking set.
+`<parent predicate>` / `<link table predicate>` are produced by the same method, recursively, so a
+chain resolves hop by hop down to the one table that holds `marking_ids`. A separate dimension would
+have duplicated the active-table set, the chain validation and the recursion, and the inspector would
+only have ANDed two predicates that test the same clearance.
+
+#### Which tables: a registry in code, not a property
+
+The derived tables are part of the **data model**, not of the deployment, so they live in
+`MarkingDerivedTables` (`io.openaev.config`) and nothing is configured for them:
+
+```java
+// The links from a parent to an asset (editing them must keep the hidden ones)
+public static final List<MarkedTable> LINKS_TO_ASSETS =
+    List.of(
+        linkedTo("injects_assets", "asset_id", "assets", "asset_id"),                 // (4)
+        linkedTo("asset_groups_assets", "asset_id", "assets", "asset_id"));           // (5)
+
+// What a run produces on an asset
+public static final List<MarkedTable> FROM_ASSETS =
+    List.of(
+        linkedTo("findings_assets", "asset_id", "assets", "asset_id"),                // (1)
+        throughLinkRows("findings", "finding_id", "findings_assets", "finding_id"),   // (2)
+        linkedTo("injects_expectations", "asset_id", "assets", "asset_id"),           // (3)
+        linkedTo("agents", "agent_asset", "assets", "asset_id"),                      // (6)
+        linkedTo("execution_traces", "execution_agent_id", "agents", "agent_id"));    // (7)
+```
+
+- **One property, one meaning.** `openaev.marking.active-tables` lists only tables that carry a
+  `marking_ids` column (`assets`). Activating `assets` filters every table derived from it
+  (`MarkedTables.withDerived`); if `assets` is not active, its derived tables stay unfiltered. Listing
+  a derived table in `active-tables` fails the startup: it has no marking column.
+- **Why the columns are spelled out.** The predicate is generated SQL and must name its join columns.
+  Deriving them from the foreign keys was considered and rejected: `injects_expectations` has three
+  candidate columns (`asset_id`, `agent_id`, `asset_group_id`), `findings` has no foreign key to
+  `assets` at all, some tables have no FK constraint, and "follow every FK to `assets`" would also
+  hide `injects` and `asset_groups` (Option 2). A few readable lines tell exactly what SQL is emitted.
+- **Checked against the schema** by `MarkingLinkedTablesRowsTest` (every column of the registry
+  exists), instead of a startup check.
+- **Removed**: the `openaev.marking.linked-tables` property, its `child.fk>parent.key` /
+  `table.key<link.fk` syntax and parser, and the startup column check that came with it.
+
+#### How the inspector applies it
+
+Nothing changes in `ScopeStatementInspector`; it already works table by table:
+
+1. **Fast gate, before parsing**: a regex on `activeTables()` of every dimension. `MarkingDimension`
+   returns `assets` **and** its derived tables, so a statement on `findings` alone is not skipped.
+   A statement naming none of them (`scenarios`, `tags`…) is returned unchanged, never parsed.
+2. **Per table, after parsing**: for each table of the statement, each dimension that `covers()` it
+   adds its predicate; several dimensions are ANDed.
+
+| Statement touches | `TenantDimension` | `MarkingDimension` |
+|---|---|---|
+| `scenarios` only | — | — (stopped at the fast gate) |
+| `assets` | `can_access_tenant(…)` | own column |
+| `injects_expectations` | — | parent link (3) |
+| `findings` | `can_access_tenant(…)` | link rows (2) |
+| `findings_assets` | — | parent link (1) |
+| `injects_assets` / `asset_groups_assets` | — | parent link (4) / (5) |
+| `agents` | `can_access_tenant(…)` if v2-active | parent link (6) |
+| `execution_traces` | — | parent link (7), a two-hop chain: trace → agent → asset |
+
+#### Concrete example: a lower-clearance user opens a simulation run by an admin
+
+An admin (full clearance) runs a scenario on `ASSET_GREEN` and `ASSET_RED`. A `TLP:GREEN` user then
+opens the simulation's results.
+
+**Findings.** `SELECT * FROM findings f`, as rewritten. `<findings_assets predicate>` in (2) is
+predicate (1) applied to the link row `l`:
+
+```sql
+SELECT * FROM findings f
+WHERE (
+  -- a) the finding is attached to no asset → nothing marks it → visible
+  NOT EXISTS (SELECT 1 FROM findings_assets l WHERE l.finding_id = f.finding_id)
+  OR
+  -- b) at least one of its assets is visible to me: (2), with (1) inlined for the link row
+  EXISTS (SELECT 1 FROM findings_assets l
+          WHERE l.finding_id = f.finding_id
+            AND (l.asset_id IS NULL OR EXISTS (
+                   SELECT 1 FROM assets a
+                   WHERE a.asset_id = l.asset_id
+                     AND is_marking_set_allowed(a.marking_ids))))
+)
+```
+
+`findings_assets.asset_id` is part of the primary key, so the `IS NULL` branch never matches here;
+it belongs to the generic parent-link shape, where a NULL foreign key is real. Branch b) is, by hand,
+`EXISTS (SELECT 1 FROM findings_assets l JOIN assets a ON a.asset_id = l.asset_id WHERE
+l.finding_id = f.finding_id AND is_marking_set_allowed(a.marking_ids))`.
+
+| Finding | `findings_assets` rows | a) no link? | b) a visible asset? | `TLP:GREEN` user sees it |
+|---|---|---|---|---|
+| port 445 open | GREEN, RED | no | yes (GREEN) | ✅, with only GREEN in its asset list |
+| CVE-2024-xxxx | RED | no | no | ❌ |
+| finding with no asset | — | yes | — | ✅ |
+
+**Expectations and scores.** The rows computed on `ASSET_RED` (its asset expectation and its agents'
+expectations, which carry `asset_id` too) are removed by (3); team, player and asset-group rows have
+no `asset_id` and stay. Global scores are computed at read time from these rows
+(`ResultUtils.computeGlobalExpectationResults`), so they cover the GREEN asset only.
+
+**Execution traces (the RED agent's output).** A trace is derived from its agent (7), the agent from
+its asset (6):
+
+```sql
+(t.execution_agent_id IS NULL OR EXISTS (
+   SELECT 1 FROM agents ag WHERE ag.agent_id = t.execution_agent_id
+     AND (ag.agent_asset IS NULL OR EXISTS (
+          SELECT 1 FROM assets a WHERE a.asset_id = ag.agent_asset
+            AND is_marking_set_allowed(a.marking_ids)))))
+```
+
+In the UI the traces are reached by clicking a target in the target list (Atomic testing or
+Simulation inject → target → *Execution* and *Terminal view*, also the *Terminal view* of the attack
+path), which already hides `ASSET_RED`. But the API takes any target id
+(`GET /api/injects/execution-traces?targetId=…`, `GET /api/injects/{id}/execution-result?targetId=…`),
+and the raw `Inject` responses embed `inject_status.status_traces`: the RED agent's output was
+reachable for anyone who knew or guessed the RED asset id. With (6) and (7), the RED agent and its
+traces do not exist for the `TLP:GREEN` user. Global traces (no agent) stay visible.
+
+**Editing the targets of an inject.** The `TLP:GREEN` user adds `ASSET_NEW` to an inject that
+targets `ASSET_GREEN` and `ASSET_RED`. They load `[GREEN]` (the join to `assets` hides RED) and send
+`[GREEN, NEW]`. `Inject.assets` is a `List` (a Hibernate bag), so changing it emits:
+
+```sql
+DELETE FROM injects_assets WHERE inject_id = ?            -- 1. drop every link
+INSERT INTO injects_assets VALUES (?, GREEN), (?, NEW)     -- 2. re-insert what the user sent
+```
+
+Without (4), statement 1 deletes the RED link: **editing an inject silently removed a target the
+user could not see** (reproduced by `InjectAssetsMarkingUpdateTest`, both for scenario/simulation
+injects and atomic testings). With (4), the inspector narrows it:
+
+```sql
+DELETE FROM injects_assets WHERE inject_id = ?
+  AND (injects_assets.asset_id IS NULL OR EXISTS (SELECT 1 FROM assets a
+       WHERE a.asset_id = injects_assets.asset_id AND is_marking_set_allowed(a.marking_ids)))
+```
+
+The RED link is out of reach, so it survives; statement 2 re-inserts GREEN and NEW, with no
+conflict. Static asset groups (`AssetGroup.assets`, also a `List`) behave the same way, fixed by (5).
+Reading `inject.getAssets()` is unchanged (the joined `assets` already hides RED), so launch,
+duplication and the scenario → simulation copy behave exactly as before.
+
+**Loading a finding's asset list.** For `finding.getAssets()` Hibernate emits:
+
+```sql
+SELECT fa.finding_id, a.*
+FROM findings_assets fa
+JOIN assets a ON a.asset_id = fa.asset_id
+WHERE fa.finding_id = ?
+```
+
+| Table | `TenantDimension` | `MarkingDimension` | Rewrite |
+|---|---|---|---|
+| `findings_assets` (main) | not covered | parent link (1) | `AND (fa.asset_id IS NULL OR EXISTS (… assets …))` in the `WHERE` |
+| `assets` (joined) | `can_access_tenant(…)` | own column | `JOIN (SELECT * FROM assets a WHERE can_access_tenant(…) AND is_marking_set_allowed(…)) a` |
+
+Here the RED link already disappears through the joined `assets` (inner join, Task 3), so (1) is
+redundant for this query. (1) is what protects the statements that read `findings_assets` **without**
+joining `assets`:
+
+- ids or counts: `SELECT asset_id FROM findings_assets WHERE finding_id = ?` would return the RED id;
+- the collection rewrite: `DELETE FROM findings_assets WHERE finding_id = ?` when a lower-clearance
+  user changes the finding's assets is narrowed to visible links, so the RED link survives instead of being
+  silently dropped;
+- the `EXISTS` of predicate (2) itself.
+
+#### Semantics worth knowing
+
+- **A NULL foreign key is visible.** A row attached to no asset (a team expectation) has no marking
+  to inherit, exactly like an empty marking set.
 - **A hidden parent hides the row everywhere the table is read**, including as a joined table, a
-  sub-query, and a join table read on its own.
-- **A hidden link survives a lower-clearance edit.** Hibernate rewrites a collection with
-  `DELETE ... WHERE inject_id = ?` then re-inserts what it loaded. With a join table linked
-  (`injects_assets`, `findings_assets`, `asset_groups_assets`), that DELETE is narrowed to visible
-  links, so a user who cannot see an asset edits an inject without dropping it from the inject — the
-  "may update a parent without reading every asset it references" principle. Re-adding the same
-  hidden asset is not possible for that user (they cannot see it).
+  sub-query, and a link table read on its own.
+- **Findings use a permissive rule**: visible when there is no link, or at least one visible asset.
+  A finding attached to a visible and to a restricted asset stays visible, and may carry information
+  that came from the restricted one. The strict alternative (hidden as soon as one asset is hidden)
+  is a one-branch change in `MarkingDimension.linkRowsPredicate`. To confirm with the PO (open item 3).
 - **The parent's tenant is not re-checked inside the sub-select**: the foreign key already ties the
   row to a parent of its own tenant, and the child is tenant-filtered on its own where it is a
   tenant table.
-- **Findings are marked through their link rows** (third shape, below), with a deliberately
-  permissive rule: **a finding is visible when it has no link, or when at least one of its assets is
-  visible.** A finding attached to a visible and to a restricted asset therefore stays visible; the
-  cost is that it may carry information that came from the restricted asset. The strict alternative
-  (hide the finding as soon as one asset is hidden, the AND reading used on a single row) is a
-  one-branch change in `MarkingDimension.linkRowsPredicate`. This is a product decision to confirm
-  with the PO, and it is what open item 3 is about.
+- **Who sees agents.** An HTTP transaction carrying a `TxCtx` gets the caller's clearance; the agent
+  callbacks (`/api/endpoints/register`, jobs, expectation updates) run as the agent service account,
+  whose `AGENT_RUNTIME_ACCESS` is a read bypass, so an agent always sees itself. The external
+  executors (CrowdStrike, MDE, SentinelOne, Tanium, Palo Alto Cortex, Caldera) sync agents through
+  `TenantScopedTransaction`, i.e. with system clearance. A transaction with no `TxCtx` has an empty
+  clearance and does not see agents of marked assets, exactly as it already does not see the assets.
+- **Not covered yet**:
+  - **Agentless traces of a marked asset.** `findByInjectIdAndAssetId` also matches traces through
+    `execution_context_identifiers`, an array of asset / team / player ids with no foreign key. A trace
+    with no agent whose context names `ASSET_RED` stays visible. Closing it needs a predicate on the
+    array (no `MarkedTable` shape for that today).
+  - `asset_agent_jobs` (the command queued for an agent): one more line,
+    `linkedTo("asset_agent_jobs", "asset_agent_agent", "agents", "agent_id")`, once the implant job
+    path is checked.
+  - The asset-group expectation row is a **stored** aggregate rolled up from all members, RED
+    included (see §3.2).
 
-### Third shape: a table marked through link rows (`findings`)
+#### Tests
 
-A finding has no single parent: it reaches assets through the many-to-many `findings_assets`, so
-there is no foreign key on `findings` to follow. `MarkedTable` therefore has a third shape,
-`LinkRows(keyColumn, linkTable, linkForeignKeyColumn)`: the table is marked by the rows of a link
-table that point to it, and that link table is itself marked through its parent (`findings_assets`
-through `assets`). `MarkedTables` validates the whole chain findings → findings_assets → assets like
-any other.
+- `MarkingLinkedTablesTest` (unit): the predicate of each shape (including the two-hop trace →
+  agent → asset chain), every statement shape through the inspector, `withDerived` (chains in any
+  order, inactive marked table → derived tables inert, conflicts refused), and the registry (`assets`
+  activates every derived table; a derived table cannot be listed in `active-tables`).
+- `MarkingLinkedTablesRowsTest` (Postgres): the same SQL on real rows (children follow parents, NULL
+  foreign key, a two-hop chain, nothing to copy, a DELETE reaching only visible rows, the findings
+  rule), and every registry column exists in the schema.
+- `InjectAssetsMarkingUpdateTest` (Postgres, through the real services, clearance `TLP:GREEN`):
+  editing the targets of a scenario/simulation inject and of an atomic testing, and the members of a
+  static asset group, keeps the hidden RED one; the RED agent and its traces are not returned. The
+  three editing cases failed before `injects_assets` / `asset_groups_assets` were derived.
+- The test profile runs with `MARKING` enabled and `assets` active, so every test reads the derived
+  tables through the rewrite. Run on 2026-10-07: the marking tests above plus the integration tests
+  of agents, endpoints, asset groups, atomic testings, injects (API, scenario, simulation), inject
+  statuses, execution traces (including the retention job), findings and the inject execution job —
+  471 tests, all green. The full suite has not been run on this change.
 
-```sql
--- findings, rewritten
-(NOT EXISTS (SELECT 1 FROM findings_assets l WHERE l.finding_id = f.finding_id)
- OR EXISTS (SELECT 1 FROM findings_assets l
-            WHERE l.finding_id = f.finding_id
-              AND (l.asset_id IS NULL OR EXISTS (SELECT 1 FROM assets a
-                   WHERE a.asset_id = l.asset_id AND is_marking_set_allowed(a.marking_ids)))))
-```
+#### Performance
 
-Configuration, in this order of concern (the parent of each link must be activated):
+Every join column of the registry is indexed (`injects_assets.asset_id`,
+`asset_groups_assets.asset_id`, `findings_assets` primary key, `injects_expectations.asset_id`,
+`agents.agent_asset`, `execution_traces.execution_agent_id`, and the `assets` / `agents` primary
+keys), so each sub-select is a semi-join resolved by index lookups, never a scan.
 
-```properties
-openaev.marking.active-tables=assets
-openaev.marking.linked-tables=findings_assets.asset_id>assets.asset_id,findings.finding_id<findings_assets.finding_id
-```
+| Path | Frequency | Cost |
+|---|---|---|
+| Traces of one target (UI *Execution* / *Terminal view*) | on click | already narrowed to one inject → negligible |
+| **`InjectStatus.status_traces`**, loaded eagerly with every inject status (execution job, expectation updates, raw `Inject` responses) | **hot** | the main cost: 2 index lookups (agent, then asset) × number of traces of the inject |
+| `findings` lists | per page | 2 correlated sub-selects per row (link rows, then asset) |
+| `injects_expectations` (results, scores) | hot | 1 lookup on the `assets` primary key per row |
+| `agents` reads and updates (registration, ping, `last_seen`) | very frequent, one row | 1 lookup on the `assets` primary key → negligible |
+| `injects_assets` / `asset_groups_assets` | per inject / group load | 1 lookup per link → negligible |
+| `ExecutionTraceRetentionJob` batched DELETE | background | the predicate runs even with system clearance; batches are bounded |
+| INSERTs (traces, expectations, links) | very frequent | none: an INSERT is not rewritten |
 
-The arrow says which way the link points: `>` the table points to its parent, `<` link rows point to
-the table. The columns of both shapes are checked against the schema at startup.
-
-Cost to keep in mind: two correlated sub-selects per statement on `findings`, a hot table. Check the
-plan once the table is enabled; `findings_assets` is keyed by `(finding_id, asset_id)`.
-
-Tests: `MarkingLinkedTablesTest` (predicate shape for all three shapes, every statement shape
-through the inspector, startup checks, configuration parsing) passes. `MarkingLinkedTablesRowsTest`
-runs the same SQL on real rows in Postgres (children follow parents, NULL foreign key, a two-hop
-chain, no copy to keep in sync, a DELETE reaching only visible rows, and the findings rule: no link,
-one visible link, only hidden links, mixed); it compiles but **has not been run** — it needs
-Postgres and RabbitMQ.
-
-**Before enabling a table**: the rewrite is applied to every statement touching it, including
-native queries, and the inspector refuses (fail-closed) shapes it does not understand. Activate one
-table at a time in an environment with the full integration suite, starting with `agents`.
+- **No fast path for unmarked data.** The sub-selects run even when no asset of the tenant is marked,
+  and even for a bypass or system clearance. Two shortcuts are available if a plan shows it matters:
+  skip the predicate when the clearance is "everything", or when the tenant has no marked asset.
+- **Not measured yet.** The dev database is empty; restore a main-environment dump and compare
+  `EXPLAIN ANALYZE` of the inject-status load of a large simulation, and of a findings page, with and
+  without the rewrite.
 
 ---
 
@@ -1016,7 +1178,9 @@ solution is retained above:
   Workable only with a short-lived cache keyed by asset id, i.e. the pattern that already had to be
   built for permissions after #6868.
 
-This is an additional argument for Solution A on the streamed entities.
+Solution B was chosen for the SQL reads (see "Marking the objects linked to an asset"), so for
+the streamed derived entities (findings, expectations) this lookup is the cost to design here. It is
+not decided yet.
 
 ### Out of scope / unchanged
 
@@ -1163,6 +1327,7 @@ Decisions Log addition (to be reflected in [`../user-stories.md`](../user-storie
 | 2026-10-01 | Manual e2e validation found the PoC's initial enforcement point (`resolveAllAssetsToExecute`, path 1) filters expectations/findings but not real dispatch. Scope expanded to all three independent asset-resolution paths (see "Execution dispatch has three independent asset-resolution paths, not one") — path 2 (agent routing) is the primary fix, path 3 (external-push payload) required for non-agent connectors. | — |
 | 2026-10-06 | **Proposed, to validate with the PO**: the OpenCTI connector user (`MANAGE_STIX_BUNDLE`) gets a read bypass in `HttpMarkingScopeSupplier`, like `AGENT_RUNTIME_ACCESS`, so security-coverage scenarios are generated from all assets. Dispatch is unchanged: a coverage scenario still runs with zero clearance (`scheduled_by` null). See "STIX security coverage". | — |
 | 2026-10-06 | **Chosen and built, off by default**: objects linked to an asset are marked through the join (Solution B), not by a copied column (Solution A). Findings are marked through their link rows with the permissive rule "visible when it has no asset or at least one visible asset"; the strict rule (hide when any asset is hidden) is to be confirmed with the PO. | — |
+| 2026-10-07 | The tables derived from assets are declared in code (`MarkingDerivedTables`: `injects_assets`, `asset_groups_assets`, `findings_assets`, `findings`, `injects_expectations`, `agents`, `execution_traces`), as a shape of `MarkedTable` inside `MarkingDimension`, not as a new `ScopeDimension`. They are filtered whenever `assets` is in `openaev.marking.active-tables`; the `openaev.marking.linked-tables` property is removed. | — |
 
 ---
 
@@ -1180,10 +1345,10 @@ document:
    [§2 Option 2](#2--option-2-hide-parents) explores the "hide" answer.
 3. **Should a Finding inherit its asset's marking?** (Q4) — affects whether `launched_by`'s clearance
    check needs to extend past execution into Findings/Remediations read paths, or whether that's
-   already covered by ordinary asset-marking read filtering. Findings are *not* filtered until the
-   tables are activated (only `assets` is marked); the mechanism is built (see [Marking the objects
-   linked to an asset](#marking-the-objects-linked-to-an-asset-proposed--not-yet-decided), "Third
-   shape") with the rule **a finding is visible when it has no asset or at least one visible asset**.
+   already covered by ordinary asset-marking read filtering. Findings are filtered whenever
+   `assets` is marking-active (see [Marking the objects linked to an
+   asset](#marking-the-objects-linked-to-an-asset-solution-b-implemented), "Concrete example"), with
+   the rule **a finding is visible when it has no asset or at least one visible asset**.
    To confirm with the PO: should a finding attached to both a visible and a restricted asset stay
    visible (current), or be hidden as soon as one of its assets is (strict)?
 4. **Stream (SSE) gate** — the proposal in [Marking and the real-time stream](#marking-and-the-real-time-stream-streamapi-proposed--not-yet-decided)
@@ -1405,11 +1570,14 @@ findings:     [parent finding_inject_id → injects (ALL), findings_assets → a
 
 ## 3 / Comparison: Option 1 vs. Option 2
 
-### 3.1 Common ground: the C-2 mechanism also serves Option 1's findings
+### 3.1 Common ground: filtering the objects generated at execution
 
-> 💡 **Reusable whichever option is chosen.** Option 1 also has to filter the objects generated at
-> execution, and the `DerivedMarkingDimension` + link registry + SQL functions designed for Option 2
-> (C-2) is the right tool for that too.
+> ✅ **Implemented for Option 1 with Solution B.** The need described below is met by the derived
+> tables of [Marking the objects linked to an asset](#marking-the-objects-linked-to-an-asset-solution-b-implemented):
+> a `MarkedTable` shape inside the existing `MarkingDimension`, declared in `MarkingDerivedTables`.
+> Its link-rows shape expresses the **ANY** mode below, and its parent-link shape the per-row links.
+> The separate `DerivedMarkingDimension` + SQL functions of C-2 is only needed for what Option 2 adds
+> (ALL links on containers, dynamic groups).
 
 **Why Option 1 needs it.** `findings` has a unique key on `(finding_inject_id, finding_type,
 finding_value, finding_field)`, so **one finding row is shared by every asset it was observed on**
@@ -1433,13 +1601,12 @@ row itself:
 
 Consequences:
 
-- **C-2 is enough for Option 1.** These links are stored (`findings_assets`, `asset_id`, `agent_id`), so no
-  dynamic membership is involved. C-3's table is only needed when Option 2 registers `asset_groups`.
+- **Derived tables are enough for Option 1.** These links are stored (`findings_assets`, `asset_id`,
+  `agent_id`), so no dynamic membership is involved. C-3's table is only needed when Option 2 registers `asset_groups`.
 - **C-1 cannot serve Option 1.** A single stored set cannot express ANY, because the result depends on
   which assets *this* viewer can see.
-- **Low-risk first step.** Build the dimension + registry and register `findings` (ANY), then
-  `injects_expectations` and `execution_traces`. This closes Option 1's open Q4 leak today, and it is the
-  foundation Option 2 would extend with ALL links on containers.
+- **Done for `findings` (ANY), `injects_expectations`, `agents` and `execution_traces`** (see the
+  registry). Option 2 would extend the same mechanism with ALL links on containers.
 
 ### 3.2 Pros and cons
 

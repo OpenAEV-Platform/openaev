@@ -201,6 +201,26 @@ class MarkingLinkedTablesRowsTest {
     assertEquals(List.of("f_none", "f_open", "f_red_open"), visibleFindings());
   }
 
+  @Test
+  @DisplayName("every column the derived tables registry names exists in the schema")
+  void registryMatchesTheSchema() {
+    for (MarkedTable derived : MarkingDerivedTables.ALL) {
+      for (MarkedTable.ColumnRef ref : derived.linkedColumns()) {
+        Number found =
+            (Number)
+                entityManager
+                    .createNativeQuery(
+                        "SELECT count(*) FROM information_schema.columns"
+                            + " WHERE table_schema = current_schema()"
+                            + " AND table_name = :table AND column_name = :column")
+                    .setParameter("table", ref.table())
+                    .setParameter("column", ref.column())
+                    .getSingleResult();
+        assertEquals(1, found.intValue(), ref.table() + "." + ref.column());
+      }
+    }
+  }
+
   private void execute(String sql) {
     entityManager.createNativeQuery(sql).executeUpdate();
   }

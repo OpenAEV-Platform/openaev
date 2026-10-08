@@ -13,9 +13,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Covers marking a table <i>through a parent row</i> (Solution B of the task 4 design): the
- * predicate it emits, how the inspector applies it on every statement shape, and the startup checks
- * that keep a mis-wired link from leaving a table silently unprotected.
+ * Covers the tables <i>derived</i> from a marked one (Solution B of the task 4 design): the
+ * predicate they get, how the inspector applies it on every statement shape, the startup checks
+ * that keep a mis-wired link from leaving a table silently unprotected, and the registry of {@link
+ * MarkingDerivedTables}.
  *
  * <p>The semantics against real rows are the job of the database-backed test; this one pins the
  * shape of the SQL and the guard rails.
@@ -171,17 +172,6 @@ class MarkingLinkedTablesTest {
     }
 
     @Test
-    @DisplayName("parses table.key<link.fk, and keeps the other arrow for a parent")
-    void configurationArrow() {
-      assertEquals(
-          List.of(FINDINGS, FINDINGS_ASSETS),
-          MarkingFilteringConfig.parseLinkedTables(
-              List.of(
-                  "findings.finding_id<findings_assets.finding_id",
-                  "findings_assets.asset_id>assets.asset_id")));
-    }
-
-    @Test
     @DisplayName("names the columns to check against the schema")
     void columnsToCheck() {
       assertEquals(
@@ -296,7 +286,7 @@ class MarkingLinkedTablesTest {
           assertThrows(
               IllegalArgumentException.class, () -> new MarkedTables(Map.of("agents", AGENTS)));
       assertTrue(error.getMessage().contains("assets"), error.getMessage());
-      assertTrue(error.getMessage().contains("active-tables"), error.getMessage());
+      assertTrue(error.getMessage().contains("not an active marked table"), error.getMessage());
     }
 
     @Test
@@ -312,33 +302,53 @@ class MarkingLinkedTablesTest {
     }
 
     @Test
-    @DisplayName("withLinked refuses to link a table that already has its own marking column")
-    void cannotLinkAnOwnColumnTable() {
+    @DisplayName("withDerived refuses a derived table that is also active through its own column")
+    void cannotDeriveAnOwnColumnTable() {
       MarkedTables own = new MarkedTables(Map.of("assets", ASSETS));
-      MarkedTable relink = MarkedTable.linkedTo("assets", "x", "assets", "asset_id");
-      assertThrows(IllegalArgumentException.class, () -> own.withLinked(List.of(relink)));
+      MarkedTable rederive = MarkedTable.linkedTo("assets", "x", "assets", "asset_id");
+      assertThrows(IllegalArgumentException.class, () -> own.withDerived(List.of(rederive)));
     }
 
     @Test
-    @DisplayName("withLinked refuses a table listed twice")
-    void cannotLinkTwice() {
+    @DisplayName("withDerived refuses a table listed twice")
+    void cannotDeriveTwice() {
       MarkedTables own = new MarkedTables(Map.of("assets", ASSETS));
-      assertThrows(IllegalArgumentException.class, () -> own.withLinked(List.of(AGENTS, AGENTS)));
+      assertThrows(IllegalArgumentException.class, () -> own.withDerived(List.of(AGENTS, AGENTS)));
     }
 
     @Test
-    @DisplayName("withLinked adds the link on top of the activated tables")
-    void withLinkedAddsTheLink() {
-      MarkedTables linked = new MarkedTables(Map.of("assets", ASSETS)).withLinked(List.of(AGENTS));
-      assertEquals(Set.of("assets", "agents"), linked.tableNames());
-      assertTrue(linked.get("agents").isLinked());
+    @DisplayName("withDerived refuses a table with its own marking column")
+    void cannotDeriveAnUnlinkedTable() {
+      MarkedTables own = new MarkedTables(Map.of("assets", ASSETS));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> own.withDerived(List.of(new MarkedTable("documents"))));
     }
 
     @Test
-    @DisplayName("an inactive parent is refused rather than leaving the child unprotected")
-    void inactiveParentIsRefused() {
-      MarkedTables noAssets = new MarkedTables(Map.of("documents", new MarkedTable("documents")));
-      assertThrows(IllegalArgumentException.class, () -> noAssets.withLinked(List.of(AGENTS)));
+    @DisplayName("withDerived adds a derived table on top of the active ones")
+    void withDerivedAddsTheTable() {
+      MarkedTables derived =
+          new MarkedTables(Map.of("assets", ASSETS)).withDerived(List.of(AGENTS));
+      assertEquals(Set.of("assets", "agents"), derived.tableNames());
+      assertTrue(derived.get("agents").isLinked());
+    }
+
+    @Test
+    @DisplayName("withDerived resolves a chain whatever the order of the entries")
+    void withDerivedResolvesChainsInAnyOrder() {
+      MarkedTables derived =
+          new MarkedTables(Map.of("assets", ASSETS)).withDerived(List.of(JOBS, AGENTS));
+      assertEquals(Set.of("assets", "agents", "asset_agent_jobs"), derived.tableNames());
+    }
+
+    @Test
+    @DisplayName("a derived table whose marked table is not active stays unfiltered")
+    void inactiveMarkedTableLeavesDerivedTablesInert() {
+      MarkedTables noAssets =
+          new MarkedTables(Map.of("documents", new MarkedTable("documents")))
+              .withDerived(List.of(AGENTS, JOBS));
+      assertEquals(Set.of("documents"), noAssets.tableNames());
     }
 
     @Test
@@ -366,42 +376,87 @@ class MarkingLinkedTablesTest {
   }
 
   @Nested
-  @DisplayName("configuration")
-  class Configuration {
+  @DisplayName("derived tables registry")
+  class Registry {
+
+    private final MarkedTables fromSchema =
+        new MarkedTables(
+            Map.of(
+                "assets", ASSETS, "marking_definitions", new MarkedTable("marking_definitions")));
 
     @Test
-    @DisplayName("parses child.fk>parent.key entries")
-    void parsesEntries() {
+    @DisplayName("activating assets filters every table derived from it")
+    void activatingAssetsActivatesItsDerivedTables() {
+      MarkedTables active =
+          fromSchema.restrictTo(List.of("assets")).withDerived(MarkingDerivedTables.ALL);
       assertEquals(
-          List.of(AGENTS, INJECTS_ASSETS),
-          MarkingFilteringConfig.parseLinkedTables(
-              List.of(
-                  "agents.agent_asset>assets.asset_id",
-                  " injects_assets.asset_id>assets.asset_id ")));
+          Set.of(
+              "assets",
+              "injects_assets",
+              "asset_groups_assets",
+              "findings_assets",
+              "findings",
+              "injects_expectations",
+              "agents",
+              "execution_traces"),
+          active.tableNames());
     }
 
     @Test
-    @DisplayName("ignores blank entries, so an empty property is inert")
-    void ignoresBlankEntries() {
-      assertTrue(MarkingFilteringConfig.parseLinkedTables(List.of("", "  ")).isEmpty());
-      assertTrue(MarkingFilteringConfig.parseLinkedTables(List.of()).isEmpty());
+    @DisplayName("with assets inactive, no derived table is filtered")
+    void derivedTablesFollowAssets() {
+      MarkedTables active =
+          fromSchema
+              .restrictTo(List.of("marking_definitions"))
+              .withDerived(MarkingDerivedTables.ALL);
+      assertEquals(Set.of("marking_definitions"), active.tableNames());
     }
 
     @Test
-    @DisplayName("a malformed entry fails the startup instead of being skipped")
-    void malformedEntryFails() {
-      for (String bad :
-          List.of(
-              "agents.agent_asset",
-              "agents>assets.asset_id",
-              "agents.agent_asset>assets",
-              "agents.agent_asset > assets.asset_id",
-              "agents.agent_asset>assets.asset_id;x")) {
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> MarkingFilteringConfig.parseLinkedTables(List.of(bad)),
-            bad);
-      }
+    @DisplayName("a derived table cannot be listed in active-tables: it has no marking column")
+    void derivedTableIsNotAnActiveTable() {
+      IllegalArgumentException error =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> fromSchema.restrictTo(List.of("assets", "findings")));
+      assertTrue(error.getMessage().contains("findings"), error.getMessage());
+    }
+
+    @Test
+    @DisplayName("an expectation follows the asset it was computed on")
+    void expectationPredicate() {
+      MarkingDimension registry =
+          new MarkingDimension(
+              fromSchema.restrictTo(List.of("assets")).withDerived(MarkingDerivedTables.ALL));
+      assertEquals(
+          "(ie.asset_id IS NULL OR EXISTS (SELECT 1 FROM assets mkp0_assets"
+              + " WHERE mkp0_assets.asset_id = ie.asset_id"
+              + " AND is_marking_set_allowed(mkp0_assets.marking_ids)))",
+          registry.readPredicate("injects_expectations", "ie"));
+    }
+
+    @Test
+    @DisplayName("a finding is filtered through its findings_assets rows")
+    void findingPredicate() {
+      MarkingDimension registry =
+          new MarkingDimension(
+              fromSchema.restrictTo(List.of("assets")).withDerived(MarkingDerivedTables.ALL));
+      assertEquals(FINDINGS_PREDICATE, registry.readPredicate("findings", "f"));
+    }
+
+    @Test
+    @DisplayName("a trace follows the asset of the agent that produced it")
+    void tracePredicate() {
+      MarkingDimension registry =
+          new MarkingDimension(
+              fromSchema.restrictTo(List.of("assets")).withDerived(MarkingDerivedTables.ALL));
+      assertEquals(
+          "(t.execution_agent_id IS NULL OR EXISTS (SELECT 1 FROM agents mkp0_agents"
+              + " WHERE mkp0_agents.agent_id = t.execution_agent_id"
+              + " AND (mkp0_agents.agent_asset IS NULL OR EXISTS (SELECT 1 FROM assets mkp1_assets"
+              + " WHERE mkp1_assets.asset_id = mkp0_agents.agent_asset"
+              + " AND is_marking_set_allowed(mkp1_assets.marking_ids)))))",
+          registry.readPredicate("execution_traces", "t"));
     }
 
     @Test

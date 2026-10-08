@@ -49,7 +49,7 @@ public record MarkedTables(Map<String, MarkedTable> byTable) {
               current.table()
                   + " is marked through "
                   + parentName
-                  + ", which is not a marked table (is it missing from openaev.marking.active-tables?)");
+                  + ", which is not an active marked table");
         }
         current = parent;
       }
@@ -86,7 +86,11 @@ public record MarkedTables(Map<String, MarkedTable> byTable) {
     unknown.removeAll(byTable.keySet());
     if (!unknown.isEmpty()) {
       throw new IllegalArgumentException(
-          "marking active-tables have no " + MarkedTable.MARKING_COLUMN + " column: " + unknown);
+          "marking active-tables have no "
+              + MarkedTable.MARKING_COLUMN
+              + " column: "
+              + unknown
+              + " (a table derived from a marked one is filtered with it and is not listed)");
     }
     Map<String, MarkedTable> kept = new LinkedHashMap<>();
     byTable.forEach(
@@ -99,22 +103,39 @@ public record MarkedTables(Map<String, MarkedTable> byTable) {
   }
 
   /**
-   * Adds tables that are marked through a parent row instead of a column of their own. Applied
-   * after {@link #restrictTo}, so a parent must be among the activated tables: linking a child to
-   * an inactive parent would silently leave it unfiltered, and is refused instead.
+   * Adds the tables derived from the active ones (see {@link MarkingDerivedTables}). Applied after
+   * {@link #restrictTo}: a derived table is filtered exactly when the marked table its chain ends
+   * on is active, and left unfiltered otherwise, so activating {@code assets} is the one switch for
+   * everything derived from it.
    *
-   * @throws IllegalArgumentException when a linked table already has its own marking column, is
-   *     listed twice, or points to a parent that is not marked
+   * @throws IllegalArgumentException when a derived table is not linked, is listed twice, or is
+   *     also active through a marking column of its own
    */
-  public MarkedTables withLinked(Collection<MarkedTable> linked) {
+  public MarkedTables withDerived(Collection<MarkedTable> derived) {
     Map<String, MarkedTable> merged = new LinkedHashMap<>(byTable);
-    for (MarkedTable link : linked) {
-      if (!link.isLinked()) {
-        throw new IllegalArgumentException(link.table() + " is not a linked marked table");
+    Map<String, MarkedTable> pending = new LinkedHashMap<>();
+    for (MarkedTable table : derived) {
+      if (!table.isLinked()) {
+        throw new IllegalArgumentException(table.table() + " is not a derived marked table");
       }
-      if (merged.putIfAbsent(link.table(), link) != null) {
+      if (merged.containsKey(table.table()) || pending.putIfAbsent(table.table(), table) != null) {
         throw new IllegalArgumentException(
-            link.table() + " is already marked (own column or listed twice); it cannot be linked");
+            table.table()
+                + " is already marked (own column or listed twice); it cannot be derived");
+      }
+    }
+    // A derived table may hang off another derived one, so keep adding until a pass adds nothing;
+    // what is left points, through its chain, to a marked table that is not active.
+    boolean added = true;
+    while (added) {
+      added = false;
+      for (var it = pending.values().iterator(); it.hasNext(); ) {
+        MarkedTable table = it.next();
+        if (merged.containsKey(table.linkedTable())) {
+          merged.put(table.table(), table);
+          it.remove();
+          added = true;
+        }
       }
     }
     return new MarkedTables(merged);
