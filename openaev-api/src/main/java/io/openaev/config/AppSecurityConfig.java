@@ -19,8 +19,8 @@ import io.openaev.security.SsoRefererAuthenticationFailureHandler;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.UserMappingService;
-import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.RequestUtils;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -81,11 +81,11 @@ public class AppSecurityConfig {
   private final OpenSamlConfig openSamlConfig;
   private final SecurityService securityService;
   private final UserEventService userEventService;
-  private final UserService userService;
   private final UserMappingService userMappingService;
   private final RateLimitService rateLimitService;
   private final RateLimitConfig rateLimitConfig;
   private final SessionManager sessionManager;
+  private final RequestUtils requestUtils;
 
   private final Optional<AuditLogger> auditLogger;
 
@@ -245,7 +245,7 @@ public class AppSecurityConfig {
 
   @Bean
   public PreliminaryRateLimitFilter rateLimitFilter() {
-    return new PreliminaryRateLimitFilter(rateLimitService, rateLimitConfig, userService);
+    return new PreliminaryRateLimitFilter(rateLimitService, rateLimitConfig, requestUtils);
   }
 
   public User userOauth2Management(ClientRegistration clientRegistration, OAuth2User user) {

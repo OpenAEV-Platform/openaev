@@ -8,12 +8,13 @@ import io.openaev.ratelimit.service.RateLimitService;
 import io.openaev.ratelimit.store.Limit;
 import io.openaev.ratelimit.store.request.LimitConsumptionRequest;
 import io.openaev.ratelimit.store.request.LimitSpecification;
-import io.openaev.service.UserService;
+import io.openaev.utils.RequestUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.core5.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContext;
@@ -24,13 +25,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class PreliminaryRateLimitFilter extends OncePerRequestFilter {
   private final RateLimitService rateLimitService;
   private final RateLimitConfig config;
-  private final UserService userService;
+  private final RequestUtils requestUtils;
+
+  private final Set<String> rateLimitedPrefixes =
+      Set.of("/api", "/login", "logout", "/csrf", "/oauth2", "/saml2", "/actuator", "/xtm");
 
   public PreliminaryRateLimitFilter(
-      RateLimitService rateLimitService, RateLimitConfig config, UserService userService) {
+      RateLimitService rateLimitService, RateLimitConfig config, RequestUtils requestUtils) {
     this.rateLimitService = rateLimitService;
     this.config = config;
-    this.userService = userService;
+    this.requestUtils = requestUtils;
   }
 
   @Override
@@ -38,7 +42,8 @@ public class PreliminaryRateLimitFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
     // only handle /api
-    if (request.getRequestURI().startsWith("/api")) {
+    if (rateLimitedPrefixes.stream()
+        .anyMatch(prefix -> requestUtils.getContextStrippedUri(request).startsWith(prefix))) {
       SecurityContext ctx = SecurityContextHolder.getContext();
 
       boolean authenticated =
