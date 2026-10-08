@@ -18,6 +18,7 @@
   "{count, plural, one {# atomic testing} other {# atomic testings}}": "{count, plural, one {# test atomico} other {# test atomici}}",
   "{count, plural, one {# scenario} other {# scenarios}}": "{count, plural, one {# scenario} other {# scenari}}",
   "{count, plural, one {# simulation} other {# simulations}}": "{count, plural, one {# simulazione} other {# simulazioni}}",
+  "{count, plural, one {# selected action was not added: its payload is not approved} other {# selected actions were not added: their payload is not approved}}": "{count, plural, one {# azione selezionata non è stata aggiunta: il suo payload non è approvato} other {# azioni selezionate non sono state aggiunte: il loro payload non è approvato}}",
   "{count} / page": "{count} / pagina",
   "{count} action(s) added successfully.": "{count} azione/i aggiunta/e con successo.",
   "{count} actions available": "{count} azioni disponibili",

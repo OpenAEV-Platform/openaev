@@ -18,6 +18,7 @@
   "{count, plural, one {# atomic testing} other {# atomic testings}}": "{count, plural, other {# 件のアトミックテスト}}",
   "{count, plural, one {# scenario} other {# scenarios}}": "{count, plural, other {# 件のシナリオ}}",
   "{count, plural, one {# simulation} other {# simulations}}": "{count, plural, other {# 件のシミュレーション}}",
+  "{count, plural, one {# selected action was not added: its payload is not approved} other {# selected actions were not added: their payload is not approved}}": "{count, plural, other {選択した # 件のアクションは追加されませんでした: ペイロードが承認されていません}}",
   "{count} / page": "{count} / ページ",
   "{count} action(s) added successfully.": "{count} アクションが正常に追加されました。",
   "{count} actions available": "利用可能なアクション {count} 件",

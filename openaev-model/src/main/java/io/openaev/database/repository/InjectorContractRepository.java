@@ -322,6 +322,8 @@ public interface InjectorContractRepository
   void deleteAllByIdAndTenantId(
       @Param("ids") @NotNull String[] ids, @Param("tenantId") @NotNull String tenantId);
 
+  // Automatic selection (security coverage): only approved payloads, or none, filtered before the
+  // per-vulnerability cut so a non-approved action never takes the place of an approved one.
   @Query(
       value =
           """
@@ -337,8 +339,11 @@ public interface InjectorContractRepository
               ON ic.injector_contract_id = icv.injector_contract_id
             JOIN vulnerabilities vulnerability
               ON icv.vulnerability_id = vulnerability.vulnerability_id
+            LEFT JOIN payloads p
+              ON ic.injector_contract_payload = p.payload_id
             WHERE LOWER(vulnerability.vulnerability_external_id) IN (:externalIds)
               AND ic.tenant_id = :#{#tenantContext.currentTenant}
+              AND (p.payload_id IS NULL OR p.payload_approval_status = 'APPROVED')
         ) ranked
         WHERE ranked.rn <= :contractsPerVulnerability
         """,

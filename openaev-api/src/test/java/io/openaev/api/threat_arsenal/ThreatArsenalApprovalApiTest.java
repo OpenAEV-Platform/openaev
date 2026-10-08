@@ -20,17 +20,23 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalApproveInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalRejectInput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.DocumentRepository;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.migration.V6_20261008160000000__Grant_approve_content_to_threat_arsenal_managers;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.role.form.RoleInput;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
@@ -49,6 +55,11 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private PayloadRepository payloadRepository;
+  @Autowired private PayloadService payloadService;
+  @Autowired private PayloadApprovalService payloadApprovalService;
+  @Autowired private DocumentRepository documentRepository;
+  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private TenantGroupComposer tenantGroupComposer;
@@ -527,6 +538,138 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
                                   Capability.MANAGE_THREAT_ARSENALS)))))
           .andExpect(status().is2xxSuccessful());
       updateAs(asAuthor, actionId, update("echo maker-checker", "Command line payload"));
+
+      // -- ASSERT --
+      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+    }
+  }
+
+  @Nested
+  @DisplayName("System-generated payloads are approved (Task 4, US4.1)")
+  class SystemGeneratedPayloads {
+
+    private final TxCtx defaultTenant = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+
+    private String newDocument() {
+      return documentRepository.save(DocumentFixture.getDocumentJpeg()).getId();
+    }
+
+    private Set<String> entryIds(Payload payload) {
+      return payloadApprovalService.history(payload.getId()).stream()
+          .map(PayloadApproval::getId)
+          .collect(Collectors.toSet());
+    }
+
+    private PayloadApproval latestEntry(Payload payload) {
+      return payloadApprovalService.latest(payload.getId()).orElseThrow();
+    }
+
+    /** A file drop created the way it was before Task 4: pending, never written by a human. */
+    private FileDrop legacyPendingFileDrop(String documentId) {
+      // Created in its own tenant-scoped transaction: set the legacy state on the persisted row
+      String id = payloadService.createFileDropPayload(defaultTenant, documentId).getId();
+      FileDrop fileDrop = (FileDrop) payloadRepository.findById(id).orElseThrow();
+      payloadApprovalService.onWrite(fileDrop, null, PayloadApproval.ORIGIN.IMPORT, null);
+      payloadRepository.save(fileDrop);
+      entityManager.flush();
+      assertThat(fileDrop.getApprovalStatus()).isEqualTo(Payload.PAYLOAD_APPROVAL_STATUS.PENDING);
+      return fileDrop;
+    }
+
+    @Test
+    @DisplayName("a security-coverage file drop is approved, recorded as a system approval")
+    void given_securityCoverageFileDrop_should_beApprovedAsSystem() {
+      // -- ACT --
+      FileDrop fileDrop = payloadService.createFileDropPayload(defaultTenant, newDocument());
+
+      // -- ASSERT --
+      assertThat(fileDrop.getApprovalStatus()).isEqualTo(Payload.PAYLOAD_APPROVAL_STATUS.APPROVED);
+      PayloadApproval entry = latestEntry(fileDrop);
+      assertThat(entry.getOrigin()).isEqualTo(PayloadApproval.ORIGIN.SYSTEM);
+      assertThat(entry.isAutomatic()).isTrue();
+      assertThat(entry.getActor()).isNull();
+    }
+
+    @Test
+    @DisplayName(
+        "a pending file drop never written by a human is approved when the coverage reuses it")
+    void given_legacyPendingFileDrop_should_beApprovedOnReuse() {
+      // -- ARRANGE --
+      String documentId = newDocument();
+      FileDrop legacy = legacyPendingFileDrop(documentId);
+      Scenario scenario =
+          scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
+      Set<String> entriesBefore = entryIds(legacy);
+
+      // -- ACT --
+      FileDrop reused =
+          payloadService.getFileDropPayloadByDocument(defaultTenant, documentId, scenario);
+
+      // -- ASSERT --
+      assertThat(reused.getId()).isEqualTo(legacy.getId());
+      assertThat(reused.getApprovalStatus()).isEqualTo(Payload.PAYLOAD_APPROVAL_STATUS.APPROVED);
+      // Entries written in the same instant cannot be ordered by time: compare by id instead
+      List<PayloadApproval> added =
+          payloadApprovalService.history(reused.getId()).stream()
+              .filter(entry -> !entriesBefore.contains(entry.getId()))
+              .toList();
+      assertThat(added).hasSize(1);
+      assertThat(added.getFirst().getOrigin()).isEqualTo(PayloadApproval.ORIGIN.SYSTEM);
+      assertThat(added.getFirst().isAutomatic()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a pending file drop a human wrote stays pending when the coverage reuses it")
+    void given_humanWrittenPendingFileDrop_should_stayPendingOnReuse() {
+      // -- ARRANGE --
+      String documentId = newDocument();
+      FileDrop edited = legacyPendingFileDrop(documentId);
+      edited.setLastModifiedBy(testUserHolder.get());
+      payloadRepository.save(edited);
+      Scenario scenario =
+          scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
+
+      // -- ACT --
+      FileDrop reused =
+          payloadService.getFileDropPayloadByDocument(defaultTenant, documentId, scenario);
+
+      // -- ASSERT --
+      assertThat(reused.getApprovalStatus()).isEqualTo(Payload.PAYLOAD_APPROVAL_STATUS.PENDING);
+    }
+
+    @Test
+    @DisplayName("an author without approve content changing the dropped file makes it pending")
+    void given_authorEditsFileDropContent_should_makeItPending() throws Exception {
+      // -- ARRANGE --
+      FileDrop fileDrop = payloadService.createFileDropPayload(defaultTenant, newDocument());
+      String actionId =
+          injectorContractRepository.findInjectorContractByPayload(fileDrop).orElseThrow().getId();
+      entityManager.flush();
+      ThreatArsenalActionUpdateInput input =
+          new ThreatArsenalActionUpdateInput(
+              fileDrop.getName(),
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              fileDrop.getDescription(),
+              null,
+              null,
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              newDocument(),
+              null,
+              Collections.emptyList(),
+              Collections.emptyList(),
+              null,
+              null,
+              Collections.emptyList(),
+              Collections.emptyList(),
+              null,
+              null,
+              List.of());
+
+      // -- ACT --
+      updateAs(author, actionId, input);
 
       // -- ASSERT --
       assertThat(approvalStatus(actionId)).isEqualTo("PENDING");

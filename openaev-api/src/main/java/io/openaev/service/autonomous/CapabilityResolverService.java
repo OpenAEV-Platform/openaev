@@ -18,6 +18,7 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,6 +57,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CapabilityResolverService {
 
   private final InjectorContractRepository injectorContractRepository;
+  private final PayloadApprovalGate payloadApprovalGate;
   private final CatalogConnectorRepository catalogConnectorRepository;
   private final InjectorRepository injectorRepository;
   private final AgentRepository agentRepository;
@@ -241,6 +243,10 @@ public class CapabilityResolverService {
   private ContractIndex buildIndex() {
     ContractIndex index = new ContractIndex();
     for (InjectorContract contract : injectorContractRepository.findAll()) {
+      // The orchestrator only gets actions that can run (approved payload, or none)
+      if (!payloadApprovalGate.isRunnable(contract.getPayload())) {
+        continue;
+      }
       ResolvedContract resolved = toResolved(contract);
       for (AttackPattern pattern : contract.getAttackPatterns()) {
         String extId = pattern.getExternalId();

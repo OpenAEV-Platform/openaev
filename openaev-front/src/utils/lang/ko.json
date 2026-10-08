@@ -18,6 +18,7 @@
   "{count, plural, one {# atomic testing} other {# atomic testings}}": "{count, plural, other {원자 테스트 #개}}",
   "{count, plural, one {# scenario} other {# scenarios}}": "{count, plural, other {시나리오 #개}}",
   "{count, plural, one {# simulation} other {# simulations}}": "{count, plural, other {시뮬레이션 #개}}",
+  "{count, plural, one {# selected action was not added: its payload is not approved} other {# selected actions were not added: their payload is not approved}}": "{count, plural, other {선택한 작업 #개가 추가되지 않았습니다: 페이로드가 승인되지 않았습니다}}",
   "{count} / page": "{count} / 페이지",
   "{count} action(s) added successfully.": "{count}개의 작업이 성공적으로 추가되었습니다.",
   "{count} actions available": "사용 가능한 액션 {count}개",

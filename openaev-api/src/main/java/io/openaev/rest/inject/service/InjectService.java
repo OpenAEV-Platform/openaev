@@ -1545,6 +1545,9 @@ public class InjectService {
       return;
     }
 
+    // Automatic selection only adds actions whose payload is approved (or payload-less), whatever
+    // filter the client sent: the others are skipped (see countActionsWithoutApprovedPayload).
+    input.setApprovedPayloadsOnly(true);
     input.setSize(INJECTOR_CONTRACT_PAGE_SIZE);
     int pageNumber = 0;
     Page<? extends InjectorContractBaseOutput> page;
@@ -1573,6 +1576,28 @@ public class InjectService {
         bulkOperationMonitor.fail(operationId);
       }
       throw e;
+    }
+  }
+
+  /**
+   * How many actions of a threat arsenal selection a bulk "add to scenario(s)" skips because their
+   * payload is not approved. Leaves the input as it was.
+   */
+  public long countActionsWithoutApprovedPayload(InjectorContractSearchPaginationInput input) {
+    boolean approvedPayloadsOnly = input.isApprovedPayloadsOnly();
+    var size = input.getSize();
+    var page = input.getPage();
+    try {
+      input.setSize(1);
+      input.setApprovedPayloadsOnly(false);
+      long selected = fetchInjectorContractsPage(input, 0).getTotalElements();
+      input.setApprovedPayloadsOnly(true);
+      long approved = fetchInjectorContractsPage(input, 0).getTotalElements();
+      return Math.max(0, selected - approved);
+    } finally {
+      input.setApprovedPayloadsOnly(approvedPayloadsOnly);
+      input.setSize(size);
+      input.setPage(page);
     }
   }
 

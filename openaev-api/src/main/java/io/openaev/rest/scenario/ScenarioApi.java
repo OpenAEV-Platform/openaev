@@ -37,6 +37,7 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.scenario.form.*;
 import io.openaev.rest.scenario.response.ScenarioOutput;
@@ -140,6 +141,19 @@ public class ScenarioApi extends RestBehavior {
     return savedScenario;
   }
 
+  /**
+   * Response header of the bulk "add to scenario(s)": how many selected actions were skipped
+   * because their payload is not approved (only approved or payload-less actions are added).
+   */
+  public static final String SKIPPED_ACTIONS_HEADER = "X-OpenAEV-Skipped-Actions";
+
+  private void setSkippedActionsHeader(
+      HttpServletResponse response, InjectorContractSearchPaginationInput input) {
+    response.setHeader(
+        SKIPPED_ACTIONS_HEADER,
+        String.valueOf(scenarioService.countActionsWithoutApprovedPayload(input)));
+  }
+
   @PostMapping({
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
@@ -150,7 +164,10 @@ public class ScenarioApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public ScenarioSimple createScenarioWithInjectorContracts(
-      TxCtx ctx, @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+      TxCtx ctx,
+      @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs,
+      HttpServletResponse response) {
+    setSkippedActionsHeader(response, inputs.getInjectorContractSearchPaginationInput());
     return BulkOperationContext.runSuppressed(
         () ->
             this.scenarioService.createScenarioWithInjectorContracts(
@@ -171,7 +188,10 @@ public class ScenarioApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<ScenarioSimple> updateScenariosWithInjectorContracts(
-      TxCtx ctx, @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
+      TxCtx ctx,
+      @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs,
+      HttpServletResponse response) {
+    setSkippedActionsHeader(response, inputs.getInjectorContractSearchPaginationInput());
     return BulkOperationContext.runSuppressed(
         () ->
             this.scenarioService.updateScenariosWithInjectorContracts(
