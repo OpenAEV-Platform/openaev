@@ -26,6 +26,7 @@ import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.execution.ExecutionContext;
@@ -45,6 +46,7 @@ import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionServi
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.payload_approval.BlockedPayloadsException;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
@@ -54,6 +56,7 @@ import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
@@ -84,6 +87,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private ExecutionContextService executionContextService;
   @MockitoBean private InjectExpectationService injectExpectationService;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private PayloadRepository payloadRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private TeamRepository teamRepository;
@@ -2016,5 +2020,25 @@ public class InjectExecutionStepTest extends IntegrationTest {
     readyStep.setData("{\"inject_title\":\"Scan\"}");
 
     assertFalse(injectExecutionStep.isAlreadyRun(readyStep));
+  }
+
+  @Test
+  @DisplayName(
+      "Given an action whose payload is not approved, authoring a step with it should be refused"
+          + " (Task 4, US4.4)")
+  void given_pendingPayload_should_refuseStepAuthoring() throws Exception {
+    // PREPARE
+    Payload pending = PayloadFixture.createDefaultCommand();
+    pending.setApprovalStatus(Payload.PAYLOAD_APPROVAL_STATUS.PENDING);
+    pending.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    injectorContractSaved.setPayload(payloadRepository.save(pending));
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    // ACT & ASSERT
+    assertThrows(
+        BlockedPayloadsException.class, () -> injectExecutionStep.create(step, workflowTemplate));
   }
 }

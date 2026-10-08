@@ -21,6 +21,7 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.SecurityCoverageUtils;
 import java.util.*;
@@ -57,6 +58,7 @@ public class SecurityCoverageInjectService {
 
   private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
+  private final PayloadApprovalGate payloadApprovalGate;
   private final TagService tagService;
 
   private final SecurityCoverageUtils securityCoverageUtils;
@@ -897,6 +899,18 @@ public class SecurityCoverageInjectService {
   }
 
   /**
+   * Automatic selection only uses payloads that can run. The platform's own DNS resolution and file
+   * drop payloads are approved; this skips them if a human edit sent them back to approval.
+   */
+  private boolean isNotRunnable(Payload payload) {
+    if (payloadApprovalGate.isRunnable(payload)) {
+      return false;
+    }
+    log.info("Security coverage: payload {} is not approved, no inject created", payload.getId());
+    return true;
+  }
+
+  /**
    * Create an inject for all the injector contracts by payload, and link them to the scenario
    *
    * @param hostname to set on inject
@@ -910,6 +924,9 @@ public class SecurityCoverageInjectService {
       Payload payload,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Scenario scenario) {
+    if (isNotRunnable(payload)) {
+      return;
+    }
     Optional<InjectorContract> injectorContract =
         injectorContractRepository.findInjectorContractByPayload(payload);
 
@@ -969,6 +986,9 @@ public class SecurityCoverageInjectService {
       Payload payload,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Scenario scenario) {
+    if (isNotRunnable(payload)) {
+      return;
+    }
     Optional<InjectorContract> injectorContract =
         injectorContractRepository.findInjectorContractByPayload(payload);
     if (injectorContract.isEmpty()) {

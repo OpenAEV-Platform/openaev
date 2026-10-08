@@ -213,6 +213,13 @@ public class ScenarioService {
     return ScenarioSimple.fromScenario(scenario);
   }
 
+  /** How many selected actions a bulk "add to scenario(s)" skips (payload not approved). */
+  public long countActionsWithoutApprovedPayload(
+      @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput) {
+    return this.injectService.countActionsWithoutApprovedPayload(
+        injectorContractSearchPaginationInput);
+  }
+
   @Transactional
   public List<ScenarioSimple> updateScenariosWithInjectorContracts(
       final TxCtx ctx,

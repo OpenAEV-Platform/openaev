@@ -18,6 +18,7 @@
   "{count, plural, one {# atomic testing} other {# atomic testings}}": "{count, plural, one {# атомный тест} few {# атомных теста} many {# атомных тестов} other {# атомного теста}}",
   "{count, plural, one {# scenario} other {# scenarios}}": "{count, plural, one {# сценарий} few {# сценария} many {# сценариев} other {# сценария}}",
   "{count, plural, one {# simulation} other {# simulations}}": "{count, plural, one {# симуляция} few {# симуляции} many {# симуляций} other {# симуляции}}",
+  "{count, plural, one {# selected action was not added: its payload is not approved} other {# selected actions were not added: their payload is not approved}}": "{count, plural, one {# выбранное действие не добавлено: его полезная нагрузка не утверждена} few {# выбранных действия не добавлены: их полезная нагрузка не утверждена} many {# выбранных действий не добавлены: их полезная нагрузка не утверждена} other {# выбранного действия не добавлены: их полезная нагрузка не утверждена}}",
   "{count} / page": "{count} / страница",
   "{count} action(s) added successfully.": "{count} действие(и) добавлено(ы) успешно.",
   "{count} actions available": "Доступно действий: {count}",

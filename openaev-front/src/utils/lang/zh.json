@@ -18,6 +18,7 @@
   "{count, plural, one {# atomic testing} other {# atomic testings}}": "{count, plural, other {# 个自动测试}}",
   "{count, plural, one {# scenario} other {# scenarios}}": "{count, plural, other {# 个场景}}",
   "{count, plural, one {# simulation} other {# simulations}}": "{count, plural, other {# 个模拟组}}",
+  "{count, plural, one {# selected action was not added: its payload is not approved} other {# selected actions were not added: their payload is not approved}}": "{count, plural, other {# 个所选动作未添加：其载荷未获批准}}",
   "{count} / page": "{count} / 页",
   "{count} action(s) added successfully.": "{count} 项操作已成功添加。",
   "{count} actions available": "{count} 个可用动作",

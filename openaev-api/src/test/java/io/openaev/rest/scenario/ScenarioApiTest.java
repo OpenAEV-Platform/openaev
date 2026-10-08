@@ -47,6 +47,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -771,6 +772,69 @@ public class ScenarioApiTest extends IntegrationTest {
     String scenarioId = JsonPath.read(response, "$.scenario_id");
     assertFalse(scenarioId.isEmpty());
     assertFalse(injectRepository.findByScenarioId(scenarioId).isEmpty());
+  }
+
+  @DisplayName(
+      "Bulk add skips selected actions whose payload is not approved and reports how many"
+          + " (Task 4, US4.3)")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_selectionWithPendingPayload_should_skipItAndReportCount() throws Exception {
+    // -- PREPARE --
+    InjectorContract approvedContract = InjectorContractFixture.createDefaultInjectorContract();
+    approvedContract.setLabels(Map.of("en", "Approved action"));
+    InjectorContract approved =
+        injectorContractComposer
+            .forInjectorContract(approvedContract)
+            .withInjector(InjectorFixture.createDefaultPayloadInjector())
+            .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))
+            .persist()
+            .get();
+    Payload pendingPayload = PayloadFixture.createDefaultCommand();
+    pendingPayload.setApprovalStatus(Payload.PAYLOAD_APPROVAL_STATUS.PENDING);
+    InjectorContract pendingContract = InjectorContractFixture.createDefaultInjectorContract();
+    pendingContract.setLabels(Map.of("en", "Pending action"));
+    InjectorContract pending =
+        injectorContractComposer
+            .forInjectorContract(pendingContract)
+            .withInjector(InjectorFixture.createDefaultPayloadInjector())
+            .withPayload(payloadComposer.forPayload(pendingPayload))
+            .persist()
+            .get();
+
+    ScenarioInput scenarioInput = new ScenarioInput();
+    scenarioInput.setName("Scenario from a mixed selection");
+    scenarioInput.setFromName("no-reply@openaev.io");
+    InjectorContractSearchPaginationInput paginationInput =
+        new InjectorContractSearchPaginationInput();
+    paginationInput.setIncludeFullDetails(true);
+    // The client does not ask for approved actions only: the server applies it anyway
+    paginationInput.setInjectorContractIdsToProcess(List.of(approved.getId(), pending.getId()));
+    ScenarioAndInjectorContractsInputs input = new ScenarioAndInjectorContractsInputs();
+    input.setLocale("en");
+    input.setScenarioInput(scenarioInput);
+    input.setInjectorContractSearchPaginationInput(paginationInput);
+
+    // -- EXECUTE --
+    MvcResult result =
+        this.mvc
+            .perform(
+                post(SCENARIO_URI + "/with-injector-contracts")
+                    .with(csrf())
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn();
+
+    // -- ASSERT --
+    assertEquals("1", result.getResponse().getHeader(ScenarioApi.SKIPPED_ACTIONS_HEADER));
+    String scenarioId = JsonPath.read(result.getResponse().getContentAsString(), "$.scenario_id");
+    List<String> contractIds =
+        injectRepository.findByScenarioId(scenarioId).stream()
+            .map(inject -> inject.getInjectorContract().orElseThrow().getId())
+            .toList();
+    assertEquals(List.of(approved.getId()), contractIds);
   }
 
   @DisplayName("Create scenario with injector contracts carries default expectations")

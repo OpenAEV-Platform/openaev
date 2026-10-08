@@ -59,7 +59,8 @@ How the status is set:
 
 * Creating, editing, duplicating or importing a payload is **auto-approved** when you hold *Approve content*; the approval history records it as an automatic approval by its author. Otherwise the payload becomes **Pending**.
 * Editing only the name, description, tags, attack patterns or domains keeps the current status: only what the payload runs (command, executor, arguments, prerequisites, cleanup, platforms, files…) requires a new approval.
-* Payloads synchronized by a collector are **Pending** when they are new or their content changed.
+* Payloads synchronized by a collector are **Pending** when they are new or their content changed: collectors bring scripts written by third parties, which is what an approver must review.
+* Payloads the platform generates itself are **Approved** automatically, recorded as a *System* approval in the history: for example the file drop created for a security coverage. If someone later changes what such a payload runs, the usual rules apply.
 * Payloads that existed before approval was introduced are **Approved**.
 * Built-in Actions without a payload need no approval.
 
@@ -77,6 +78,11 @@ To approve or reject, open the Action, then use **Approve** or **Reject** in its
     * a Simulation planned for later goes back to **Draft** (its start date is removed): plan it or start it again once approved;
     * a running Simulation keeps running; its injects using the Action that have not run yet are refused and end in error, the others run normally.
 * **Warning before impact.** When a payload is used, the **Reject** dialog and the edit confirmation (for a user without *Approve content* changing what an approved payload runs) say how many Atomic Tests, Scenarios and Simulations still to run use it, grouped by type with links to the first 20 of each (names only for users who can open them; the counts are always complete). In both cases you can go ahead.
+* **Actions picked by the platform.** Wherever the platform picks Actions on its own, it follows the same rule as the picker: only approved payloads, plus built-in Actions without a payload.
+    * The inject assistant (injects generated from attack patterns) and the security coverage generation (from attack patterns, vulnerabilities, indicators and files) never pick a non-approved Action. When no approved Action matches, they create the usual manual placeholder inject.
+    * **Add to scenario(s)** from a selection of Actions adds only the approved ones and tells you how many were skipped.
+    * The AI orchestrator is only offered approved Actions, and a chaining step using a non-approved Action is refused.
+    * Imports are unchanged: a spreadsheet import (with an import mapper) and a Scenario, Simulation or Atomic Test file import keep their injects. An inject whose payload is not approved shows its approval chip, and its launch stays blocked until the payload is approved.
 * **Last check before running.** Right before an inject runs, the platform checks its payload again: if it is no longer approved, or its content changed since the approval, the inject ends in error instead of running.
 
 ## Create an Action

@@ -50,6 +50,9 @@ public class InjectorContractRepositoryHelper {
                 + "JOIN injectors_contracts_attack_patterns injectorAttack ON ic.injector_contract_id = injectorAttack.injector_contract_id "
                 + "JOIN attack_patterns a ON injectorAttack.attack_pattern_id = a.attack_pattern_id "
                 + "WHERE ic.tenant_id = :tenantId "
+                // Automatic selection only picks approved payloads, filtered before the random
+                // pick so a non-approved action never takes the place of an approved one
+                + "AND p.payload_approval_status = 'APPROVED' "
                 + "AND a.attack_pattern_external_id LIKE :attackPatternExternalId");
 
     // Build parameterized query to prevent SQL injection
