@@ -161,7 +161,6 @@ const Injects: FunctionComponent<Props> = ({
             {inject.inject_title}
           </span>
           <PayloadDeprecatedChip status={inject.inject_injector_contract?.injector_contract_payload?.payload_status} />
-          <PayloadApprovalWarningChip approvalStatus={inject.inject_injector_contract?.injector_contract_payload?.payload_approval_status} />
         </span>
       ),
     },
@@ -210,17 +209,18 @@ const Injects: FunctionComponent<Props> = ({
       label: 'Status',
       isSortable: false,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
+        const payload = inject.inject_injector_contract?.injector_contract_payload;
+        const approvalStatus = payload?.payload_approval_status;
+        // Not sent yet and its payload is not approved: a compact status chip saying why it will
+        // not run (computed on read, never stored). Once sent, the approval state is an icon next
+        // to the usual status.
+        if (inject.inject_enabled && !inject.inject_sent_at && payloadApprovalDisplay(approvalStatus)) {
+          return <PayloadApprovalWarningChip approvalStatus={approvalStatus} payloadName={payload?.payload_name} />;
+        }
         let injectStatus;
         let injectTooltip = '';
-        // Not sent yet and its payload is not approved: computed on read, never stored.
-        const approvalDisplay = inject.inject_sent_at
-          ? undefined
-          : payloadApprovalDisplay(inject.inject_injector_contract?.injector_contract_payload?.payload_approval_status);
         if (!inject.inject_enabled) {
           injectStatus = t('Disabled');
-        } else if (approvalDisplay) {
-          injectStatus = t(approvalDisplay.label);
-          injectTooltip = t(approvalDisplay.tooltip);
         } else if (!inject.inject_ready) {
           injectStatus = t('Missing content');
           injectTooltip = inject.inject_healthchecks
@@ -232,12 +232,23 @@ const Injects: FunctionComponent<Props> = ({
           injectStatus = t('Enabled');
         }
         return (
-          <ItemBoolean
-            status={inject.inject_ready && !approvalDisplay ? inject.inject_enabled : false}
-            label={injectStatus}
-            variant="inList"
-            tooltip={injectTooltip}
-          />
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            maxWidth: '100%',
+          }}
+          >
+            <ItemBoolean
+              status={inject.inject_ready ? inject.inject_enabled : false}
+              label={injectStatus}
+              variant="inList"
+              tooltip={injectTooltip}
+            />
+            {inject.inject_enabled && (
+              <PayloadApprovalWarningChip approvalStatus={approvalStatus} payloadName={payload?.payload_name} variant="icon" />
+            )}
+          </span>
         );
       },
     },

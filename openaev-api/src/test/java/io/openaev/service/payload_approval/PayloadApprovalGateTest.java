@@ -82,7 +82,11 @@ class PayloadApprovalGateTest {
 
       assertThat(gate.check(command))
           .contains(
-              new BlockedPayload(command.getId(), "Mimikatz", PayloadApprovalGate.PENDING_REASON));
+              new BlockedPayload(
+                  command.getId(),
+                  "Mimikatz",
+                  PayloadApprovalGate.PENDING_REASON,
+                  PAYLOAD_APPROVAL_STATUS.PENDING));
     }
 
     @Test

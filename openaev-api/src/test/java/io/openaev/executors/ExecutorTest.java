@@ -247,7 +247,12 @@ class ExecutorTest {
       when(inject.getTitle()).thenReturn("Dump credentials");
       when(payloadApprovalGate.check(payload))
           .thenReturn(
-              Optional.of(new BlockedPayload("payload-001", "Mimikatz", "pending approval")));
+              Optional.of(
+                  new BlockedPayload(
+                      "payload-001",
+                      "Mimikatz",
+                      "pending approval",
+                      Payload.PAYLOAD_APPROVAL_STATUS.PENDING)));
 
       // -------- Act / Assert --------
       assertThatThrownBy(() -> executor.execute(executableInject))

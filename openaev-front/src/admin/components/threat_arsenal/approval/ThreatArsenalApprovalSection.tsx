@@ -19,7 +19,7 @@ import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../../utils/
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../utils/permissions/types';
 import ApprovalStatusChip from './ApprovalStatusChip';
-import { APPROVAL_COMMENT_MAX_LENGTH, approvalOriginLabel, approvalStatusLabel } from './approvalStatusUtils';
+import { APPROVAL_COMMENT_MAX_LENGTH, approvalOriginLabel, approvalStatusLabel, isPayloadUsed } from './approvalStatusUtils';
 import PayloadUsageWarning from './PayloadUsageWarning';
 
 interface Props {
@@ -250,7 +250,9 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
         open={rejectOpen}
         handleClose={closeReject}
         handleSubmit={handleReject}
-        text={t('Reject this payload? It stays blocked until it is edited and approved.')}
+        text={isPayloadUsed(usage)
+          ? t('Reject this payload? It will block the launch of the items below until it is edited and approved again.')
+          : t('Reject this payload? It stays blocked until it is edited and approved.')}
         submitLabel={t('Reject')}
         submitColor="error"
         extraContent={(
@@ -264,7 +266,7 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
               gap: theme.spacing(2),
             }}
           >
-            <PayloadUsageWarning usage={usage} kind="reject" />
+            <PayloadUsageWarning usage={usage} />
             <Textarea
               label={t('Reason')}
               required

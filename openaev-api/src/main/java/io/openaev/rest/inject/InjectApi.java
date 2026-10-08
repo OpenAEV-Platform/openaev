@@ -526,11 +526,13 @@ public class InjectApi extends RestBehavior {
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
+    // Read before the update: a sensitive change moves a planned simulation back to draft.
+    boolean planned = exercise.getStart().isPresent();
     Inject inject = injectService.updateInject(injectId, input);
 
     // It should not be possible to add a EE executor on inject when the exercise is already
     // started.
-    if (exercise.getStart().isPresent()) {
+    if (planned) {
       this.injectService.throwIfInjectNotLaunchable(inject);
     }
 

@@ -325,8 +325,9 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given scheduled simulation using a payload that is not approved should cancel it and log EXECUTION_BLOCKED_BY_APPROVAL")
-    void given_scheduledSimulationWithUnapprovedPayload_should_cancelAndLogBlockedByApproval() {
+        "given scheduled simulation using a payload that is not approved should move it back to draft and log EXECUTION_BLOCKED_BY_APPROVAL")
+    void
+        given_scheduledSimulationWithUnapprovedPayload_should_goBackToDraftAndLogBlockedByApproval() {
       // Arrange
       Payload pending = PayloadFixture.createDefaultCommand();
       pending.setName("Pending payload");
@@ -356,8 +357,9 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
       // Assert
       assertThat(started).extracting(Exercise::getId).doesNotContain(exercise.getId());
-      assertThat(exerciseRepository.findById(exercise.getId()).orElseThrow().getStatus())
-          .isEqualTo(ExerciseStatus.CANCELED);
+      Exercise draft = exerciseRepository.findById(exercise.getId()).orElseThrow();
+      assertThat(draft.getStatus()).isEqualTo(ExerciseStatus.SCHEDULED);
+      assertThat(draft.getStart()).isEmpty();
       ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
       verify(auditLogger, atLeastOnce()).logEvent(eventCaptor.capture());
       AuditEvent blocked =

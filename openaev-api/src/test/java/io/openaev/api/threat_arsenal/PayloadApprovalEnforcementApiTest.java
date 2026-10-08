@@ -16,6 +16,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Filters;
 import io.openaev.database.model.Payload.PAYLOAD_APPROVAL_STATUS;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectInput;
@@ -23,7 +24,9 @@ import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationI
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -64,6 +67,18 @@ class PayloadApprovalEnforcementApiTest extends IntegrationTest {
         .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
         .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
         .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+        .withPayload(payloadComposer.forPayload(payload));
+  }
+
+  private InjectorContractComposer.Composer contractIn(
+      DomainComposer.Composer domain, String payloadName, PAYLOAD_APPROVAL_STATUS s) {
+    Payload payload = PayloadFixture.createDefaultCommand();
+    payload.setName(payloadName);
+    payload.setApprovalStatus(s);
+    return injectorContractComposer
+        .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+        .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+        .withDomain(domain)
         .withPayload(payloadComposer.forPayload(payload));
   }
 
@@ -126,6 +141,106 @@ class PayloadApprovalEnforcementApiTest extends IntegrationTest {
           .containsExactlyInAnyOrder(approved, payloadLess);
       assertThat(searchIds(THREAT_ARSENAL_URL + "/search", true, all))
           .containsExactlyInAnyOrder(approved, payloadLess);
+    }
+
+    private Filters.Filter filter(String key, String value) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey(key);
+      filter.setOperator(Filters.FilterOperator.eq);
+      filter.setMode(Filters.FilterMode.or);
+      filter.setValues(List.of(value));
+      return filter;
+    }
+
+    private InjectorContractSearchPaginationInput scoped(
+        boolean approvedOnly, Filters.Filter... filters) {
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(Filters.FilterMode.and);
+      group.setFilters(new ArrayList<>(List.of(filters)));
+      InjectorContractSearchPaginationInput input = new InjectorContractSearchPaginationInput();
+      input.setPage(0);
+      input.setSize(100);
+      input.setIncludeFullDetails(false);
+      input.setApprovedPayloadsOnly(approvedOnly);
+      input.setFilterGroup(group);
+      return input;
+    }
+
+    private String postJson(String uri, Object body) throws Exception {
+      return mvc.perform(
+              post(uri)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(body))
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    private long listed(InjectorContractSearchPaginationInput input) throws Exception {
+      return ((Number)
+              JsonPath.read(postJson(INJECTOR_CONTRACT_URL + "/search", input), "$.totalElements"))
+          .longValue();
+    }
+
+    private long domainCount(
+        String uri, InjectorContractSearchPaginationInput input, String domainId) throws Exception {
+      List<Number> counts =
+          JsonPath.read(postJson(uri, input), "$[?(@.domain == '" + domainId + "')].count");
+      return counts.isEmpty() ? 0 : counts.get(0).longValue();
+    }
+
+    @Test
+    @DisplayName(
+        "Given approved_payloads_only, every facet count should use the same scope as the picker list")
+    void given_approvedPayloadsOnly_should_countExactlyWhatTheListShows() throws Exception {
+      // Arrange: one domain holding a pending, a rejected, an approved and a payload-less action
+      DomainComposer.Composer domain =
+          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist();
+      contractIn(domain, "Pending", PAYLOAD_APPROVAL_STATUS.PENDING).persist();
+      contractIn(domain, "Rejected", PAYLOAD_APPROVAL_STATUS.REJECTED).persist();
+      contractIn(domain, "Approved", PAYLOAD_APPROVAL_STATUS.APPROVED).persist();
+      injectorContractComposer
+          .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+          .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+          .withDomain(domain)
+          .persist();
+      String domainId = domain.get().getId();
+      Filters.Filter inDomain = filter("injector_contract_domains", domainId);
+
+      // Act / Assert: domain count = list in that domain (approved + payload-less)
+      long listedInDomain = listed(scoped(true, inDomain));
+      assertThat(listedInDomain).isEqualTo(2);
+      assertThat(domainCount(INJECTOR_CONTRACT_URL + "/domain-counts", scoped(true), domainId))
+          .isEqualTo(listedInDomain);
+
+      // Act / Assert: every platform and status count = list filtered on that value
+      String facets = postJson(INJECTOR_CONTRACT_URL + "/facet-counts", scoped(true, inDomain));
+      Map<String, Number> platforms = JsonPath.read(facets, "$.platforms");
+      assertThat(platforms).isNotEmpty();
+      for (Map.Entry<String, Number> platform : platforms.entrySet()) {
+        assertThat(platform.getValue().longValue())
+            .as("platform %s", platform.getKey())
+            .isEqualTo(
+                listed(
+                    scoped(
+                        true, inDomain, filter("injector_contract_platforms", platform.getKey()))));
+      }
+      Map<String, Number> statuses = JsonPath.read(facets, "$.statuses");
+      assertThat(statuses.values().stream().mapToLong(Number::longValue).sum()).isEqualTo(1);
+
+      // Act / Assert: authors use the same scope (the fixtures carry no author: no count at all)
+      List<Object> authors =
+          JsonPath.read(
+              postJson(INJECTOR_CONTRACT_URL + "/author-counts", scoped(true, inDomain)), "$");
+      assertThat(authors).isEmpty();
+
+      // Act / Assert: without the flag (and on the Threat Arsenal page) everything is counted
+      assertThat(domainCount(INJECTOR_CONTRACT_URL + "/domain-counts", scoped(false), domainId))
+          .isEqualTo(4);
+      assertThat(domainCount(THREAT_ARSENAL_URL + "/domain-counts", scoped(false), domainId))
+          .isEqualTo(4);
     }
 
     @Test

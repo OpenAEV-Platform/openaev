@@ -50,6 +50,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ThreatArsenalService {
 
+  /** The Threat Arsenal counts every action, approved or not (unlike the inject pickers). */
+  private static final Specification<InjectorContract> ALL_ACTIONS = Specification.unrestricted();
+
   private final PayloadCreationService payloadCreationService;
   private final PayloadUpdateService payloadUpdateService;
   private final PayloadService payloadService;
@@ -142,7 +145,7 @@ public class ThreatArsenalService {
   public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    return injectorContractService.getDomainCounts(filtered);
+    return injectorContractService.getDomainCounts(filtered, ALL_ACTIONS);
   }
 
   /**
@@ -153,7 +156,7 @@ public class ThreatArsenalService {
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    return injectorContractService.getAuthorCounts(filtered);
+    return injectorContractService.getAuthorCounts(filtered, ALL_ACTIONS);
   }
 
   /**
@@ -165,9 +168,9 @@ public class ThreatArsenalService {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
     return new ThreatArsenalFacetCountsOutput(
-        injectorContractService.getPlatformCounts(filtered),
-        injectorContractService.getStatusCounts(filtered),
-        injectorContractService.getApprovalStatusCounts(filtered));
+        injectorContractService.getPlatformCounts(filtered, ALL_ACTIONS),
+        injectorContractService.getStatusCounts(filtered, ALL_ACTIONS),
+        injectorContractService.getApprovalStatusCounts(filtered, ALL_ACTIONS));
   }
 
   /**

@@ -4,7 +4,7 @@ import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCal
 import type {
   InjectorContractSearchPaginationInput, SearchPaginationInput,
   ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
-  ThreatArsenalApproveInput, ThreatArsenalRejectInput,
+  ThreatArsenalApprovalImpactOutput, ThreatArsenalApproveInput, ThreatArsenalRejectInput,
 } from '../../utils/api-types';
 import { notifyErrorHandler } from '../../utils/error/errorHandlerUtil';
 import { arrayOfSecurityPlatforms } from '../assets/asset-schema';
@@ -28,21 +28,62 @@ export const fetchThreatArsenalAction = (actionId: string) => {
   return simpleCall(uri);
 };
 
-/**
- * With checkApprovalImpact, the server answers 409 (nothing saved) when the edit would send the
- * approved payload back to pending while it is used: the caller warns, then saves again without
- * the check. That 409 is left to the caller; any other error is notified as usual.
- */
-export const updateThreatArsenalAction = (actionId: string, data: ThreatArsenalActionUpdateInput, checkApprovalImpact = false) => {
+export const updateThreatArsenalAction = (actionId: string, data: ThreatArsenalActionUpdateInput) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
-  if (!checkApprovalImpact) {
-    return simplePutCall(uri, data, {}, true, true);
+  return simplePutCall(uri, data, {}, true, true);
+};
+
+/**
+ * The approval impact carried by a failed update, if the server refused it because saving would
+ * send the approved payload back to pending while it is used (409 with the usage). The API
+ * interceptor rejects with the response body spread on `{ status }`, not with an AxiosError.
+ */
+export const approvalImpactOf = (error: unknown): ThreatArsenalApprovalImpactOutput | null => {
+  const rejected = error as ({ status?: number } & Partial<ThreatArsenalApprovalImpactOutput>) | null | undefined;
+  if (rejected?.status === 409 && rejected.usage && typeof rejected.message === 'string') {
+    return {
+      message: rejected.message,
+      usage: rejected.usage,
+    };
   }
+  return null;
+};
+
+export type ApprovalImpactCheckedUpdate
+  = | {
+    saved: true;
+    data: unknown;
+  }
+  | {
+    saved: false;
+    approvalImpact: ThreatArsenalApprovalImpactOutput;
+  };
+
+/**
+ * Updates an action, but lets the server refuse (nothing saved) an edit that would send the
+ * approved payload back to pending while it is used: resolves with the approval impact instead,
+ * so the caller can ask for confirmation, then save with {@link updateThreatArsenalAction}. That
+ * refusal is not notified; any other error is notified and rethrown as usual.
+ */
+export const updateThreatArsenalActionCheckingApprovalImpact = (
+  actionId: string,
+  data: ThreatArsenalActionUpdateInput,
+): Promise<ApprovalImpactCheckedUpdate> => {
+  const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
   return simplePutCall(uri, data, { params: { check_approval_impact: true } }, false, true)
+    .then(response => ({
+      saved: true as const,
+      data: response.data,
+    }))
     .catch((error) => {
-      if (error?.response?.status !== 409) {
-        notifyErrorHandler(error);
+      const approvalImpact = approvalImpactOf(error);
+      if (approvalImpact) {
+        return {
+          saved: false as const,
+          approvalImpact,
+        };
       }
+      notifyErrorHandler(error);
       throw error;
     });
 };

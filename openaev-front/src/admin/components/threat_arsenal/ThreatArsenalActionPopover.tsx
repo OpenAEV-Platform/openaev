@@ -1,7 +1,7 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
-import { type AxiosError } from 'axios';
+import { useTheme } from '@mui/material/styles';
 import { type MouseEvent, useState } from 'react';
 
 import {
@@ -10,6 +10,7 @@ import {
   exportThreatArsenalAction,
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
+  updateThreatArsenalActionCheckingApprovalImpact,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogConfirmation from '../../../components/common/DialogConfirmation';
 import DialogDelete from '../../../components/common/DialogDelete';
@@ -21,7 +22,6 @@ import {
   type ThreatArsenalActionFullOutput,
   type ThreatArsenalActionUpdateInput,
   type ThreatArsenalActionUsageOutput,
-  type ThreatArsenalApprovalImpactOutput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
@@ -120,6 +120,7 @@ const ThreatArsenalActionPopover = ({
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const { t, tPick } = useFormatter();
+  const theme = useTheme();
   const ability = useAbility();
 
   // -- Popover --
@@ -142,18 +143,29 @@ const ThreatArsenalActionPopover = ({
     setFetchedAction(null);
   };
 
-  // Edit waiting for confirmation because it would block launches (warning before impact).
+  // Edit waiting for confirmation because it would block launches (warning before impact, US2.4).
   const [approvalImpact, setApprovalImpact] = useState<{
     input: ThreatArsenalActionUpdateInput;
     usage: ThreatArsenalActionUsageOutput;
   } | null>(null);
 
-  const saveEdit = async (inputValues: ThreatArsenalActionUpdateInput, checkApprovalImpact: boolean) => {
-    const response = await updateThreatArsenalAction(actionId, inputValues, checkApprovalImpact);
-    if (response.data && onUpdate) {
-      onUpdate(response.data as ThreatArsenalAction);
+  const handleSaved = (data: unknown) => {
+    if (data && onUpdate) {
+      onUpdate(data as ThreatArsenalAction);
     }
     handleCloseEdit();
+  };
+
+  // Confirmed: save the same edit without the check. Errors are notified by the call; the drawer
+  // stays open with the user's edits.
+  const confirmApprovalImpact = () => {
+    if (!approvalImpact) return undefined;
+    return updateThreatArsenalAction(actionId, approvalImpact.input)
+      .then((response) => {
+        setApprovalImpact(null);
+        handleSaved(response.data);
+      })
+      .catch(() => setApprovalImpact(null));
   };
 
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
@@ -177,21 +189,17 @@ const ThreatArsenalActionPopover = ({
         }),
     } as ThreatArsenalActionUpdateInput;
 
-    try {
-      await saveEdit(inputValues, true);
-    } catch (error) {
-      // The edit would send the approved payload back to pending while it is used: nothing was
-      // saved, warn first (US2.4). Saving anyway re-sends it without the check.
-      const response = (error as AxiosError<ThreatArsenalApprovalImpactOutput>)?.response;
-      if (response?.status === 409 && response.data?.usage) {
-        setApprovalImpact({
-          input: inputValues,
-          usage: response.data.usage,
-        });
-        return;
-      }
-      throw error;
+    // First save asks the server to refuse an edit that would block launches; it then answers
+    // with the impact (nothing saved) and the user confirms or cancels.
+    const result = await updateThreatArsenalActionCheckingApprovalImpact(actionId, inputValues);
+    if (result.saved) {
+      handleSaved(result.data);
+      return;
     }
+    setApprovalImpact({
+      input: inputValues,
+      usage: result.approvalImpact.usage,
+    });
   };
 
   const onSubmitInjectorContractEdit = (data: InjectorContractFormValues) => {
@@ -284,12 +292,14 @@ const ThreatArsenalActionPopover = ({
       <DialogConfirmation
         open={approvalImpact !== null}
         handleClose={() => setApprovalImpact(null)}
-        handleSubmit={approvalImpact
-          ? () => saveEdit(approvalImpact.input, false).finally(() => setApprovalImpact(null))
-          : null}
-        text=""
-        richContent={<PayloadUsageWarning usage={approvalImpact?.usage} kind="edit" />}
-        submitLabel={t('Save anyway')}
+        handleSubmit={confirmApprovalImpact}
+        text={t('Saving sends this payload back to pending approval. It will block the launch of the items below until it is approved again.')}
+        extraContent={(
+          <div style={{ marginTop: theme.spacing(2) }}>
+            <PayloadUsageWarning usage={approvalImpact?.usage} />
+          </div>
+        )}
+        submitLabel={t('Confirm')}
       />
 
       <DialogDelete

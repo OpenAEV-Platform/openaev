@@ -20,13 +20,19 @@ public record ThreatArsenalActionUsageOutput(
     @Schema(description = "Number of simulations still to run (scheduled, running, paused)")
         @JsonProperty("usage_simulations_count")
         long simulationsCount,
-    @Schema(description = "First atomic testings by name, null without access to atomic testings")
+    @Schema(
+            description =
+                "First 20 atomic testings by name (the count is exact), null without access to atomic testings")
         @JsonProperty("usage_atomic_testings")
         List<ThreatArsenalActionUsageItem> atomicTestings,
-    @Schema(description = "First scenarios by name, null without access to scenarios")
+    @Schema(
+            description =
+                "First 20 scenarios by name (the count is exact), null without access to scenarios")
         @JsonProperty("usage_scenarios")
         List<ThreatArsenalActionUsageItem> scenarios,
-    @Schema(description = "First simulations by name, null without access to simulations")
+    @Schema(
+            description =
+                "First 20 simulations by name (the count is exact), null without access to simulations")
         @JsonProperty("usage_simulations")
         List<ThreatArsenalActionUsageItem> simulations) {
 

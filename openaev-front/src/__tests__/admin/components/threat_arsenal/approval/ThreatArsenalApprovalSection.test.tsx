@@ -162,7 +162,7 @@ describe('ThreatArsenalApprovalSection', () => {
       fireEvent.click(screen.getByRole('button', { name: /Reject/ }));
 
       // Assert
-      expect(await screen.findByText(/Rejecting it blocks their launch\./)).toBeTruthy();
+      expect(await screen.findByText(/It will block the launch of the items below until it is edited and approved again\./)).toBeTruthy();
       expect(mockUsage).toHaveBeenCalledWith('action-1');
     });
 
@@ -177,7 +177,7 @@ describe('ThreatArsenalApprovalSection', () => {
 
       // Assert
       await waitFor(() => expect(mockUsage).toHaveBeenCalled());
-      expect(screen.queryByText(/Rejecting it blocks their launch\./)).toBeNull();
+      expect(screen.queryByText(/It will block the launch of the items below until it is edited and approved again\./)).toBeNull();
     });
   });
 });

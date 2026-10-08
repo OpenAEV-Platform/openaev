@@ -1,6 +1,6 @@
 import { type ChipSeverity } from '@filigran/design-system';
 
-import { type PayloadApprovalOutput } from '../../../../utils/api-types';
+import { type PayloadApprovalOutput, type ThreatArsenalActionUsageOutput } from '../../../../utils/api-types';
 
 export type ApprovalStatus = NonNullable<PayloadApprovalOutput['approval_status']>;
 export type ApprovalOrigin = NonNullable<PayloadApprovalOutput['approval_origin']>;
@@ -40,3 +40,7 @@ export const approvalStatusLabel = (status: ApprovalStatus): string => STATUS_LA
 export const approvalOriginLabel = (origin: ApprovalOrigin): string => ORIGIN_LABELS[origin] ?? origin;
 
 export const APPROVAL_COMMENT_MAX_LENGTH = 2000;
+
+/** Whether a payload is used by at least one atomic testing, scenario or simulation still to run. */
+export const isPayloadUsed = (usage?: ThreatArsenalActionUsageOutput) => !!usage
+  && (usage.usage_atomic_testings_count ?? 0) + (usage.usage_scenarios_count ?? 0) + (usage.usage_simulations_count ?? 0) > 0;

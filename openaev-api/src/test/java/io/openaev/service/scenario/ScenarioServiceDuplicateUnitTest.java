@@ -14,6 +14,7 @@ import io.openaev.ee.License;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
+import io.openaev.service.readiness.LaunchReadinessService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,7 @@ class ScenarioServiceDuplicateUnitTest {
 
   @Mock private WorkflowService workflowService;
   @Mock private PayloadApprovalGate payloadApprovalGate;
+  @Mock private LaunchReadinessService launchReadinessService;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
 

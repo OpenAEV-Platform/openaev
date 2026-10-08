@@ -26,11 +26,20 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PayloadUsageService {
 
-  /** Simulations that a non-approved payload would still block: not finished nor canceled. */
+  /**
+   * Simulations a non-approved payload still blocks: those that can still be started or will still
+   * run (scheduled, including "draft" ones without a start date, running or paused) and in which an
+   * inject using the payload has not run yet. Finished and canceled simulations cannot run again,
+   * and a running one whose injects using the payload already ran is not affected.
+   */
   static final List<ExerciseStatus> SIMULATIONS_TO_RUN =
       List.of(ExerciseStatus.SCHEDULED, ExerciseStatus.RUNNING, ExerciseStatus.PAUSED);
 
-  static final int NAMES_LIMIT = 5;
+  /**
+   * Names listed per type: enough for the warning dialogs, capped so a payload used in hundreds of
+   * items stays fast (the counts are always exact).
+   */
+  static final int NAMES_LIMIT = 20;
 
   private final InjectRepository injectRepository;
 

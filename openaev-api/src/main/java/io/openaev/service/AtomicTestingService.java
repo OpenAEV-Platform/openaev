@@ -18,6 +18,8 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
+import io.openaev.service.readiness.InjectSensitiveFields;
+import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectUtils;
@@ -46,6 +48,7 @@ public class AtomicTestingService {
   @Resource protected ObjectMapper mapper;
   private final InjectMapper injectMapper;
   private final PayloadApprovalGate payloadApprovalGate;
+  private final LaunchReadinessService launchReadinessService;
   private final ActionMetricCollector actionMetricCollector;
 
   private final AssetGroupRepository assetGroupRepository;
@@ -107,8 +110,10 @@ public class AtomicTestingService {
   @Transactional
   public InjectResultOverviewOutput createOrUpdate(AtomicTestingInput input, String injectId) {
     Inject injectToSave = new Inject();
+    String sensitiveBefore = null;
     if (injectId != null) {
       injectToSave = findInject(injectId);
+      sensitiveBefore = InjectSensitiveFields.fingerprint(injectToSave);
     }
 
     InjectorContract injectorContract =
@@ -186,6 +191,11 @@ public class AtomicTestingService {
       actionMetricCollector.addAtomicTestingCreatedCount();
     }
     injectToSave = injectRepository.save(injectToSave);
+    // What it runs or targets changed: a recurring atomic testing waits for a deliberate action.
+    if (sensitiveBefore != null
+        && !sensitiveBefore.equals(InjectSensitiveFields.fingerprint(injectToSave))) {
+      launchReadinessService.onSensitiveChange(injectToSave);
+    }
     return injectMapper.toInjectResultOverviewOutput(injectToSave);
   }
 
@@ -287,10 +297,12 @@ public class AtomicTestingService {
 
   /** Atomic testing is recurring AND end date is after now (or has no end date). */
   public List<Inject> recurringAtomicTestings(@NotNull final Instant instant) {
+    // A paused recurrence runs nothing until a user re-enables it.
     return injectRepository.findAll(
         InjectSpecification.isAtomicTesting()
             .and(InjectSpecification.isRecurring())
-            .and(InjectSpecification.recurrenceStopDateAfter(instant)));
+            .and(InjectSpecification.recurrenceStopDateAfter(instant))
+            .and((root, query, cb) -> cb.isNull(root.get("recurrencePausedAt"))));
   }
 
   /**
@@ -328,6 +340,9 @@ public class AtomicTestingService {
       injectService.throwIfInjectNotLaunchable(inject);
     }
     inject.setRecurrence(recurrence);
+    // Saving or removing the schedule is the deliberate action that ends a pause (saving is refused
+    // above while the atomic testing is still blocked).
+    inject.setRecurrencePausedAt(null);
     inject.setRecurrenceStart(input.getRecurrenceStart());
     inject.setRecurrenceEnd(input.getRecurrenceEnd());
     Inject saved = injectRepository.save(inject);

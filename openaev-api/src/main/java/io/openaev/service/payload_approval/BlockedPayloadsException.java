@@ -1,5 +1,6 @@
 package io.openaev.service.payload_approval;
 
+import io.openaev.database.model.Payload;
 import io.openaev.rest.exception.BadRequestException;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -9,8 +10,15 @@ import lombok.Getter;
 @Getter
 public class BlockedPayloadsException extends BadRequestException {
 
-  /** One payload that blocks the operation, with the reason. */
-  public record BlockedPayload(String payloadId, String payloadName, String reason) {
+  /**
+   * One payload that blocks the operation, with the reason and its approval status (APPROVED with
+   * the "content changed since its approval" reason).
+   */
+  public record BlockedPayload(
+      String payloadId,
+      String payloadName,
+      String reason,
+      Payload.PAYLOAD_APPROVAL_STATUS approvalStatus) {
 
     String describe() {
       return "\"" + payloadName + "\" (" + reason + ")";

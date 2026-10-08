@@ -31,6 +31,7 @@ import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
+import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -125,6 +126,7 @@ class ScenarioServiceTest extends IntegrationTest {
   private static String INJECT_ID;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private PayloadApprovalGate payloadApprovalGate;
+  @Autowired private LaunchReadinessService launchReadinessService;
 
   @BeforeEach
   void setUp() {
@@ -141,6 +143,7 @@ class ScenarioServiceTest extends IntegrationTest {
             licenseCacheManager,
             enterpriseEditionService,
             payloadApprovalGate,
+            launchReadinessService,
             variableService,
             challengeService,
             teamService,

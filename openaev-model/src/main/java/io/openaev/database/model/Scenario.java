@@ -278,6 +278,15 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_recurrence_end")
   private Instant recurrenceEnd;
 
+  /**
+   * When the schedule was paused because the scenario stopped being launchable (an action not
+   * approved, or a sensitive change). Null when not paused. A user re-enables it on purpose by
+   * saving or stopping the schedule; saving is refused while the scenario is still blocked.
+   */
+  @Column(name = "scenario_recurrence_paused_at")
+  @JsonProperty("scenario_recurrence_paused_at")
+  private Instant recurrencePausedAt;
+
   // -- MESSAGE --
 
   @Column(name = "scenario_message_header")

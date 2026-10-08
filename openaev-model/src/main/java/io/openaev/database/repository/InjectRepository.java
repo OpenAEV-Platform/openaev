@@ -87,6 +87,16 @@ public interface InjectRepository
    * deliberately not counted: the inner join on {@code status} drops it, and it is not in flight so
    * it cannot justify the orchestrator's silence.
    */
+  // -- LAUNCH READINESS (pause schedules when a payload is blocked) --
+
+  /** Recurring atomic testings using the payload whose schedule is not paused yet. */
+  @Query(
+      "SELECT i FROM Inject i WHERE i.injectorContract.payload.id = :payloadId "
+          + "AND i.scenario IS NULL AND i.exercise IS NULL "
+          + "AND i.recurrence IS NOT NULL AND i.recurrencePausedAt IS NULL")
+  List<Inject> findRecurringAtomicTestingsNotPausedByPayloadId(
+      @Param("payloadId") String payloadId);
+
   // -- PAYLOAD USAGE (approval impact warnings) --
 
   @Query(
@@ -112,16 +122,19 @@ public interface InjectRepository
   List<RawPayloadUsageItem> findScenariosByPayloadId(
       @Param("payloadId") String payloadId, Pageable pageable);
 
+  // A simulation is impacted only while an inject using the payload has not run yet (no status).
   @Query(
-      "SELECT COUNT(DISTINCT e.id) FROM Inject i JOIN i.exercise e "
-          + "WHERE i.injectorContract.payload.id = :payloadId AND e.status IN :statuses")
+      "SELECT COUNT(DISTINCT e.id) FROM Inject i JOIN i.exercise e LEFT JOIN i.status st "
+          + "WHERE i.injectorContract.payload.id = :payloadId AND e.status IN :statuses "
+          + "AND st.id IS NULL")
   long countSimulationsByPayloadIdAndStatusIn(
       @Param("payloadId") String payloadId, @Param("statuses") Collection<ExerciseStatus> statuses);
 
   @Query(
       "SELECT DISTINCT e.id AS id, e.name AS name FROM Inject i JOIN i.exercise e "
+          + "LEFT JOIN i.status st "
           + "WHERE i.injectorContract.payload.id = :payloadId AND e.status IN :statuses "
-          + "ORDER BY e.name")
+          + "AND st.id IS NULL ORDER BY e.name")
   List<RawPayloadUsageItem> findSimulationsByPayloadIdAndStatusIn(
       @Param("payloadId") String payloadId,
       @Param("statuses") Collection<ExerciseStatus> statuses,

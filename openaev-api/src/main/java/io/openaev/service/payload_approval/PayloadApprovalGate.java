@@ -165,6 +165,7 @@ public class PayloadApprovalGate {
   }
 
   private static BlockedPayload blocked(Payload payload, String reason) {
-    return new BlockedPayload(payload.getId(), payload.getName(), reason);
+    return new BlockedPayload(
+        payload.getId(), payload.getName(), reason, payload.getApprovalStatus());
   }
 }

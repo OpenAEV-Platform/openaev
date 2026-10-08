@@ -1,92 +1,116 @@
-import { Alert } from '@filigran/design-system';
+import { ExpandMoreOutlined } from '@mui/icons-material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type ThreatArsenalActionUsageItem, type ThreatArsenalActionUsageOutput } from '../../../../utils/api-types';
+import { isPayloadUsed } from './approvalStatusUtils';
 
-export type PayloadUsageWarningKind = 'reject' | 'edit';
+interface Props { usage?: ThreatArsenalActionUsageOutput }
 
-interface Props {
-  usage?: ThreatArsenalActionUsageOutput;
-  kind: PayloadUsageWarningKind;
+interface UsageGroup {
+  key: string;
+  label: string;
+  count: number;
+  items?: ThreatArsenalActionUsageItem[];
+  path: (id: string) => string;
 }
 
-const MESSAGES: Record<PayloadUsageWarningKind, string> = {
-  reject: 'This payload is used in {atomicTestings} atomic testings, {scenarios} scenarios, {simulations} simulations. Rejecting it blocks their launch.',
-  edit: 'Saving will send this payload back to Pending approval and block the launch of {atomicTestings} atomic testings, {scenarios} scenarios, {simulations} simulations until it is approved again.',
+// ICU plurals (react-intl): every language gets its own plural categories.
+const COUNT_MESSAGES = {
+  atomicTestings: '{count, plural, one {# atomic testing} other {# atomic testings}}',
+  scenarios: '{count, plural, one {# scenario} other {# scenarios}}',
+  simulations: '{count, plural, one {# simulation} other {# simulations}}',
 };
 
-const isPayloadUsed = (usage?: ThreatArsenalActionUsageOutput) => !!usage
-  && (usage.usage_atomic_testings_count ?? 0) + (usage.usage_scenarios_count ?? 0) + (usage.usage_simulations_count ?? 0) > 0;
-
 /**
- * Warning shown before an approval change blocks launches (rejecting a payload, or an edit that
- * sends it back to pending): the counts, and links to the first atomic testings, scenarios and
- * simulations when the user can open them. Renders nothing when the payload is not used.
+ * Where a payload is used, shown before an approval change blocks launches (rejecting it, or an
+ * edit that sends it back to pending): a warning with the pluralized counts, then one collapsible
+ * group per type in use, each a compact scrollable list of links (new tab) to the first items the
+ * user can open. Renders nothing when the payload is not used.
  */
-const PayloadUsageWarning: FunctionComponent<Props> = ({ usage, kind }) => {
+const PayloadUsageWarning: FunctionComponent<Props> = ({ usage }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   if (!usage || !isPayloadUsed(usage)) {
     return null;
   }
 
-  const groups: {
-    label: string;
-    count: number;
-    items?: ThreatArsenalActionUsageItem[];
-    path: (id: string) => string;
-  }[] = [
+  const groups: UsageGroup[] = ([
     {
+      key: 'atomicTestings',
       label: t('Atomic testings'),
       count: usage.usage_atomic_testings_count ?? 0,
       items: usage.usage_atomic_testings,
-      path: id => `/admin/atomic_testings/${id}`,
+      path: (id: string) => `/admin/atomic_testings/${id}`,
     },
     {
+      key: 'scenarios',
       label: t('Scenarios'),
       count: usage.usage_scenarios_count ?? 0,
       items: usage.usage_scenarios,
-      path: id => `/admin/scenarios/${id}`,
+      path: (id: string) => `/admin/scenarios/${id}`,
     },
     {
+      key: 'simulations',
       label: t('Simulations'),
       count: usage.usage_simulations_count ?? 0,
       items: usage.usage_simulations,
-      path: id => `/admin/simulations/${id}`,
+      path: (id: string) => `/admin/simulations/${id}`,
     },
-  ];
-  const listed = groups.filter(group => group.items && group.items.length > 0);
+  ] as UsageGroup[]).filter(group => group.count > 0);
+
+  const summary = groups
+    .map(group => t(COUNT_MESSAGES[group.key as keyof typeof COUNT_MESSAGES], { count: String(group.count) }))
+    .join(', ');
 
   return (
-    <Alert
-      severity="warning"
-      title={t(MESSAGES[kind], {
-        atomicTestings: usage.usage_atomic_testings_count ?? 0,
-        scenarios: usage.usage_scenarios_count ?? 0,
-        simulations: usage.usage_simulations_count ?? 0,
-      })}
-      description={listed.length > 0 && (
-        <ul style={{
-          margin: 0,
-          paddingLeft: 16,
-        }}
-        >
-          {listed.map(group => (
-            <li key={group.label}>
-              {`${group.label}: `}
-              {group.items!.map((item, index) => (
-                <span key={item.id}>
-                  {index > 0 && ', '}
-                  <Link to={group.path(item.id)} target="_blank">{item.name}</Link>
-                </span>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing(1),
+    }}
+    >
+      <Alert severity="warning">{t('Used in {items}.', { items: summary })}</Alert>
+      {groups.filter(group => group.items && group.items.length > 0).map(group => (
+        <Accordion key={group.key} disableGutters variant="outlined">
+          <AccordionSummary expandIcon={<ExpandMoreOutlined />}>
+            {`${group.label} (${group.count})`}
+          </AccordionSummary>
+          <AccordionDetails sx={{ pt: 0 }}>
+            <ul
+              aria-label={group.label}
+              style={{
+                margin: 0,
+                paddingLeft: theme.spacing(2),
+                maxHeight: 200,
+                overflowY: 'auto',
+              }}
+            >
+              {group.items!.map(item => (
+                <li key={item.id}>
+                  <Link to={group.path(item.id)} target="_blank" rel="noopener noreferrer">{item.name}</Link>
+                </li>
               ))}
-              {group.count > group.items!.length && ` ${t('and {count} more', { count: group.count - group.items!.length })}`}
-            </li>
-          ))}
-        </ul>
-      )}
-    />
+            </ul>
+            {group.count > group.items!.length && (
+              <div style={{
+                marginTop: theme.spacing(1),
+                color: theme.palette.text.secondary,
+              }}
+              >
+                {t('Showing {shown} of {count}', {
+                  shown: String(group.items!.length),
+                  count: String(group.count),
+                })}
+              </div>
+            )}
+          </AccordionDetails>
+        </Accordion>
+      ))}
+    </div>
   );
 };
 

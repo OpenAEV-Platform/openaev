@@ -1,3 +1,5 @@
+import { Alert } from '@mui/material';
+
 import { fetchPlatformParameters } from '../../actions/Application';
 import type { LoggedHelper } from '../../actions/helper';
 import {
@@ -10,16 +12,22 @@ import {
   tenantHomeDashboardSeries,
   tenantHomeWidgetToEntitiesRuntime,
 } from '../../actions/settings/tenant-settings-action';
+import { useFormatter } from '../../components/i18n';
 import { useHelper } from '../../store';
 import { type TenantSettingsOutput, type User } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
+import { useAbility } from '../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import DefaultHomeDashboard from './default_dashboard/DefaultHomeDashboard';
 import CustomDashboardWrapper from './workspaces/custom_dashboards/CustomDashboardWrapper';
 import XtmHubDialogPermissionRequired from './xtm_hub/dialog/permission-required/XtmHubDialogPermissionRequired';
 
 const Home = () => {
   const dispatch = useAppDispatch();
+  const { t } = useFormatter();
+  const ability = useAbility();
+  const canReadDashboards = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
   const { tenantSettings, me }: {
     tenantSettings: TenantSettingsOutput;
     me: User;
@@ -32,6 +40,17 @@ const Home = () => {
     dispatch(fetchPlatformParameters());
     dispatch(fetchTenantSettings());
   });
+
+  // Every home dashboard (default or custom) fetches its widgets through endpoints that need
+  // "Access tenant settings": without it, show why instead of a grid of refused widgets.
+  if (!canReadDashboards) {
+    return (
+      <>
+        <XtmHubDialogPermissionRequired />
+        <Alert severity="info">{t('The home dashboard needs the "Access tenant settings" capability. Use the menu to open your scenarios, simulations, atomic testings and Threat Arsenal.')}</Alert>
+      </>
+    );
+  }
 
   // Resolution order: built-in platform default, overridden by the tenant
   // setting, overridden by the user profile preference. The backend resolves

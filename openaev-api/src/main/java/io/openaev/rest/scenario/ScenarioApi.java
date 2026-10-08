@@ -596,6 +596,9 @@ public class ScenarioApi extends RestBehavior {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
     }
     scenario.setUpdateAttributes(input);
+    // Saving or stopping the schedule is the deliberate action that ends a pause (saving is
+    // refused above while the scenario is still blocked).
+    scenario.setRecurrencePausedAt(null);
     return hydrateForResponse(this.scenarioService.updateScenario(scenario));
   }
 

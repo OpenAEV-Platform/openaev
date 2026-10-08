@@ -113,16 +113,16 @@ public class InjectsExecutionJob implements Job {
     if (exercises.isEmpty()) {
       return List.of();
     }
-    // A scheduled run that uses a payload which is not approved does not start at all: it is
-    // canceled once and the refusal is audited (the next occurrence of a recurring scenario is
-    // checked again).
+    // A scheduled run that uses a payload which is not approved does not start at all: it goes
+    // back to draft (no start date, so the user plans it again on purpose) and the refusal is
+    // audited. Normally done as soon as the payload is blocked; this covers any race.
     List<Exercise> startedExercises = new ArrayList<>();
     for (Exercise exercise : exercises) {
       List<BlockedPayload> blocked = payloadApprovalGate.blockedPayloads(exercise.getInjects());
       if (blocked.isEmpty()) {
         startedExercises.add(exercise);
       } else {
-        exercise.setStatus(ExerciseStatus.CANCELED);
+        exercise.setStart(null);
         exercise.setUpdatedAt(now());
         exerciseRepository.save(exercise);
         payloadApprovalGate.auditBlocked(
@@ -132,7 +132,7 @@ public class InjectsExecutionJob implements Job {
             exercise.getId(),
             SYSTEM);
         log.warn(
-            "Scheduled simulation {} canceled: {} payload(s) not approved",
+            "Scheduled simulation {} moved back to draft: {} payload(s) not approved",
             exercise.getId(),
             blocked.size());
       }
