@@ -112,6 +112,14 @@
             datasourceTemplate: 'maven',
             versioningTemplate: 'maven',
         },
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<tomcat\.version>(?<currentValue>.*?)</tomcat\.version>'],
+            depNameTemplate: 'org.apache.tomcat.embed:tomcat-embed-core',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
     ],
     packageRules: [
         {
