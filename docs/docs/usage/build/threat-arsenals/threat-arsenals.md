@@ -63,6 +63,8 @@ How the status is set:
 * Payloads that existed before approval was introduced are **Approved**.
 * Built-in Actions without a payload need no approval.
 
+**Who approves by default.** When payload approval is introduced, every tenant role that can manage threat arsenal actions also receives *Approve content*, and so does the default *Manager* role of new tenants. Their authors' payloads stay approved, so nothing changes for them. Maker-checker is **opt-in**: remove *Approve content* from the roles of the authors who must be checked, and their new or edited payloads become **Pending** until someone else approves them.
+
 To approve or reject, open the Action, then use **Approve** or **Reject** in its *Approval* section. A rejection requires a reason. If the payload changed while you were reviewing it, the approval is refused and you review the new content first. The *Approval* section also shows the latest decision and the approval history, and the list can be filtered by approval status.
 
 ### Only approved payloads can run
