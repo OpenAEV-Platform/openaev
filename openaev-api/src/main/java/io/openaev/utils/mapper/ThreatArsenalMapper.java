@@ -139,7 +139,9 @@ public class ThreatArsenalMapper {
         injectorContract.getCreatedAt(),
         injectorContract.getUpdatedAt(),
         injectorContract.getProviding(),
-        toExpectationDetails(injectorContract));
+        toExpectationDetails(injectorContract),
+        null,
+        null);
   }
 
   /**
@@ -235,6 +237,8 @@ public class ThreatArsenalMapper {
 
     // Mirrors InjectorContract#getProviding for the payload branch: the output types a payload
     // produces are the distinct contract output element types across its output parsers.
+    User lastModifiedBy = resolveAuthor(User.class, payload.getLastModifiedBy());
+
     List<ContractOutputType> providing =
         payload.getOutputParsers().stream()
             .flatMap(op -> op.getContractOutputElements().stream())
@@ -274,6 +278,8 @@ public class ThreatArsenalMapper {
         providing,
         // Payloads declare expectations by type only (no per-expectation name/description/order),
         // so there are no details to expose - readers fall back to action_expectations.
-        null);
+        null,
+        lastModifiedBy != null ? lastModifiedBy.getId() : null,
+        lastModifiedBy != null ? lastModifiedBy.getNameOrEmail() : null);
   }
 }

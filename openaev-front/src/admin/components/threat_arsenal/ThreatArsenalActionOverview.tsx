@@ -91,6 +91,9 @@ interface Props {
   // update drawer) that fetch the payload documents ad hoc instead of loading
   // the whole store.
   documentsMap?: Record<string, ApiDocument>;
+  // Name of the user who last modified the payload: null when unknown (collector or system
+  // write), undefined when the host does not load it (the field is then not shown).
+  lastModifiedByName?: string | null;
   loading: boolean;
 }
 
@@ -102,6 +105,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   expectedSecurityPlatforms,
   providing,
   documentsMap: documentsMapOverride,
+  lastModifiedByName,
   loading,
 }) => {
   const { t, tPick, nsdt } = useFormatter();
@@ -482,6 +486,14 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                 )
               : <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>}
           </Field>
+
+          {payload && lastModifiedByName !== undefined && (
+            <Field label="Last modified by">
+              {lastModifiedByName
+                ? <Typography variant="body2">{lastModifiedByName}</Typography>
+                : <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>}
+            </Field>
+          )}
         </Box>
       </Section>
 

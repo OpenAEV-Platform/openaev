@@ -377,6 +377,8 @@ public class PayloadService {
     // duplication. System flows without an authenticated user keep the author copied
     // from the origin.
     User duplicatingUser = userService.currentUserOrNull();
+    // The copy is a new write of the duplicating user (null in system flows), never the origin's.
+    duplicatedPayload.setLastModifiedBy(duplicatingUser);
     if (duplicatingUser != null) {
       duplicatedPayload.setAuthorUser(duplicatingUser);
       duplicatedPayload.setAuthorTeam(null);

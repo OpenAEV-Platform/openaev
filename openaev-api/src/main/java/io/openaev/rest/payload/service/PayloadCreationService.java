@@ -101,6 +101,7 @@ public class PayloadCreationService {
     // stay authorless.
     if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
       payload.setAuthorUser(userService.currentUser());
+      payload.setLastModifiedBy(payload.getAuthorUser());
     }
 
     if (payload instanceof Executable executable) {

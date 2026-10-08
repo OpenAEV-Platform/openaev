@@ -96,6 +96,7 @@ Below is a full list of capabilities in OpenAEV:
 | `Access threat arsenal actions` | Read-only access to the threat arsenal action library (attack scripts, tools, and techniques used in Simulations).                        |
 | &nbsp;&nbsp;`Manage threat arsenal actions` | Create and update threat arsenal actions in the library. Requires *Access threat arsenal actions*.                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete threat arsenal actions` | Permanently delete threat arsenal actions from the library. Requires *Manage threat arsenal actions*.                                     |
+| &nbsp;&nbsp;`Approve content` | Trust the content of threat arsenal payloads (payload approval, being introduced). A content decision, separate from *Launch assessment*. Requires *Access threat arsenal actions*. |
 |  **Reporting** |                                                                                                                                           |
 | `Access reporting` | Read-only access to tenant reporting and generated reports.                                                                               |
 | &nbsp;&nbsp;`Manage reporting` | Create, update, and configure reporting content. Requires *Access reporting*.                                                             |
