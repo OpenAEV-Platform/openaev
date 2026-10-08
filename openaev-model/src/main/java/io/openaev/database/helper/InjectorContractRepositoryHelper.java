@@ -50,6 +50,7 @@ public class InjectorContractRepositoryHelper {
                 + "JOIN injectors_contracts_attack_patterns injectorAttack ON ic.injector_contract_id = injectorAttack.injector_contract_id "
                 + "JOIN attack_patterns a ON injectorAttack.attack_pattern_id = a.attack_pattern_id "
                 + "WHERE ic.tenant_id = :tenantId "
+                + "AND p.payload_is_latest "
                 + "AND a.attack_pattern_external_id LIKE :attackPatternExternalId");
 
     // Build parameterized query to prevent SQL injection

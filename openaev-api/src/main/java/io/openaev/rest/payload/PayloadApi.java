@@ -1,6 +1,7 @@
 package io.openaev.rest.payload;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.utils.mapper.PayloadMapper.toPayloadOutput;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
@@ -13,7 +14,6 @@ import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.payload.service.*;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
-import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,7 +42,6 @@ public class PayloadApi extends RestBehavior {
   private final PayloadUpsertService payloadUpsertService;
   private final DocumentService documentService;
   private final DetectionRemediationService detectionRemediationService;
-  private final PayloadMapper payloadMapper;
 
   @PostMapping({PAYLOAD_URI + "/search", TENANT_PAYLOAD_URI + "/search"})
   @Transactional
@@ -61,7 +60,7 @@ public class PayloadApi extends RestBehavior {
   public PayloadOutput payload(TxCtx ctx, @PathVariable String payloadId) {
     PayloadService.PayloadWithRelatedEntities payloadWithRelatedEntities =
         payloadService.findPayloadWithRelatedEntities(payloadId);
-    return payloadMapper.toPayloadOutput(
+    return toPayloadOutput(
         payloadWithRelatedEntities.payload(),
         payloadWithRelatedEntities.attackPatternIds(),
         payloadWithRelatedEntities.domainIds(),

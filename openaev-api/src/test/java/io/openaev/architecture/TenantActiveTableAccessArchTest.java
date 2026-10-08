@@ -249,6 +249,7 @@ import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
@@ -2118,7 +2119,10 @@ class TenantActiveTableAccessArchTest {
               V1_DataImporter.class,
               // One-shot repair migration, tenant-scoped by MigrationProcessor's per-tenant
               // transaction and reading with an explicit tenantId parameter regardless:
-              V20260725_Fix_starter_pack_payload_contracts.class)
+              V20260725_Fix_starter_pack_payload_contracts.class,
+              // Version resolution by external ID; only reached from PayloadUpsertService
+              // (TxCtx-carrying upsert) and V1_DataImporter (scoped import transaction):
+              PayloadVersionService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(PayloadRepository.class)

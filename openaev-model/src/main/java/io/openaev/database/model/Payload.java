@@ -12,6 +12,8 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.Auditable;
+import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
@@ -40,7 +42,7 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "payloads")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, AuditableListener.class})
 // payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
 // TenantBaseListener (#6437, #6430). A create path that forgets to stamp the tenant fails loudly
 // on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.
@@ -67,7 +69,7 @@ import org.hibernate.type.SqlTypes;
       @DiscriminatorMapping(value = AiAttack.AI_ATTACK_TYPE, schema = AiAttack.class)
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
-public class Payload implements GrantableBase, TenantBase {
+public class Payload implements GrantableBase, TenantBase, Auditable {
 
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
@@ -80,7 +82,8 @@ public class Payload implements GrantableBase, TenantBase {
   public enum PAYLOAD_STATUS {
     UNVERIFIED,
     VERIFIED,
-    DEPRECATED
+    DEPRECATED,
+    REVOKED
   }
 
   public enum PAYLOAD_EXECUTION_ARCH {
@@ -277,15 +280,35 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonIgnore
   private List<Grant> grants = new ArrayList<>();
 
+  // -- VERSIONING --
+  // ADR-011: immutable repository versions, shared by scenarios; null version = local copy.
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "payload_version")
+  @JsonProperty("payload_version")
+  private String version;
+
+  @Column(name = "payload_content_hash")
+  @JsonProperty("payload_content_hash")
+  private String contentHash;
+
+  @Column(name = "payload_origin_id")
+  @JsonProperty("payload_origin_id")
+  private String originId;
+
+  // Written by PayloadVersionService only: pickers and searches read it instead of resolving.
+  @Queryable(filterable = true)
+  @Column(name = "payload_is_latest")
+  @JsonProperty("payload_is_latest")
+  private boolean latest = true;
+
   // -- AUDIT --
 
-  @CreationTimestamp
-  @Column(name = "payload_created_at")
+  @Column(name = "payload_created_at", updatable = false)
   @JsonProperty("payload_created_at")
   @NotNull
   private Instant createdAt = now();
 
-  @UpdateTimestamp
   @Queryable(filterable = true, sortable = true)
   @Column(name = "payload_updated_at")
   @JsonProperty("payload_updated_at")

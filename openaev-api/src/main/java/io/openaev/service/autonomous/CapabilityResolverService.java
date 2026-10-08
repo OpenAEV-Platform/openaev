@@ -1,5 +1,7 @@
 package io.openaev.service.autonomous;
 
+import static io.openaev.database.specification.InjectorContractSpecification.withLatestPayload;
+
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
 import io.openaev.api.autonomous.dto.CapabilityReport.ArsenalInventory;
@@ -240,7 +242,7 @@ public class CapabilityResolverService {
 
   private ContractIndex buildIndex() {
     ContractIndex index = new ContractIndex();
-    for (InjectorContract contract : injectorContractRepository.findAll()) {
+    for (InjectorContract contract : injectorContractRepository.findAll(withLatestPayload())) {
       ResolvedContract resolved = toResolved(contract);
       for (AttackPattern pattern : contract.getAttackPatterns()) {
         String extId = pattern.getExternalId();
