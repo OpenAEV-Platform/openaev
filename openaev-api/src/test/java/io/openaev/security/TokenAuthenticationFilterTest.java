@@ -23,7 +23,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -31,6 +35,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
+@ExtendWith(MockitoExtension.class)
+// Lenient, as the Boot 3 MockitoTestExecutionListener that used to init these mocks was.
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class TokenAuthenticationFilterTest extends IntegrationTest {
   private static final String TRUSTED_ISSUER_URL = "https://xtmone.test.filigran.io";
 

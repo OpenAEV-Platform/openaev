@@ -33,6 +33,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -464,18 +466,18 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
       name = "scenarios_exercises",
       joinColumns = @JoinColumn(name = "scenario_id"),
       inverseJoinColumns = @JoinColumn(name = "exercise_id"))
-  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("scenario_exercises")
   @Setter(NONE)
-  private List<Exercise> exercises;
+  private Set<Exercise> exercises;
 
-  public void setExercises(List<Exercise> exercises) {
+  public void setExercises(Collection<Exercise> exercises) {
     if (exercises != null) {
       for (Exercise exercise : exercises) {
         if (exercise != null) exercise.setUpdatedAt(now());
       }
     }
-    this.exercises = exercises;
+    this.exercises = exercises == null ? null : new HashSet<>(exercises);
     this.setUpdatedAt(now());
   }
 
@@ -605,6 +607,9 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
     if (this == o) return true;
     if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
     Base base = (Base) o;
+    if (base.getId() == null || this.getId() == null) {
+      return false;
+    }
     return id.equals(base.getId());
   }
 

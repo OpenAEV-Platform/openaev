@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.Serializable;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,7 +18,7 @@ import lombok.Setter;
 @Setter
 @EqualsAndHashCode
 @NoArgsConstructor
-public class ReportingBranding {
+public class ReportingBranding implements Serializable {
 
   @JsonProperty("theme_mode")
   private ReportingThemeMode themeMode = ReportingThemeMode.DARK;

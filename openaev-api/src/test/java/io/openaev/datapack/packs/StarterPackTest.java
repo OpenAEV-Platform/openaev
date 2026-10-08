@@ -34,7 +34,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.support.ResourcePatternResolver;
@@ -49,6 +53,9 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("StarterPack process tests")
 @Transactional
+@ExtendWith(MockitoExtension.class)
+// Lenient, as the Boot 3 MockitoTestExecutionListener that used to init these mocks was.
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class StarterPackTest extends IntegrationTest {
 
   @Autowired private TagRepository tagRepository;
