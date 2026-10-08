@@ -33,6 +33,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -120,34 +121,46 @@ public class StreamApi extends RestBehavior {
    * misses of the same key may race and both hit the database: bounded and far cheaper than one
    * resolution per event per consumer.
    *
-   * <p>Fails closed: a check that throws counts as denied and is not cached. This is the normal
-   * outcome for deletions of parent-scoped resources (inject, objective, evaluation, workflow,
-   * step, condition): the event is delivered after commit, so the entity whose parent decides the
-   * permission can no longer be loaded. Treated as denied, the deletion still reaches the client as
-   * an id-only tombstone.
+   * <p>The check targets the resource captured on the event (the parent simulation, scenario or
+   * atomic testing for child entities, see {@link BaseEvent#getPermissionResourceId()}), so it
+   * needs no reload of the entity and is cached per parent rather than per child.
+   *
+   * <p>Fails closed: a check that throws counts as denied and is not cached.
    */
   private boolean hasReadPermission(StreamConsumer consumer, User user, BaseEvent event) {
+    String resourceId = event.getPermissionResourceId();
+    ResourceType resourceType = event.getPermissionResourceType();
     try {
       return hasReadPermission(
           consumer,
-          event.getInstance().getId(),
-          event.getInstance().getResourceType(),
+          resourceId,
+          resourceType,
           CHECK_ENTITY_EVENT,
           () ->
               permissionService.hasPermission(
-                  user,
-                  Optional.empty(),
-                  event.getInstance().getId(),
-                  event.getInstance().getResourceType(),
-                  Action.READ));
+                  user, Optional.empty(), resourceId, resourceType, Action.READ));
     } catch (Exception e) {
       log.debug(
           "Stream permission check failed for {} {}, treated as denied",
-          event.getInstance().getResourceType(),
-          event.getInstance().getId(),
+          resourceType,
+          resourceId,
           e);
       return false;
     }
+  }
+
+  /**
+   * Whether a denied event must still reach the consumer, as an id-only tombstone: only the
+   * deletion of a grant-managed root (scenario, simulation, atomic testing). Its grants are deleted
+   * with it, so the check, run after commit, denies everyone who read it through a grant, and the
+   * tombstone is what removes it from their client. Any other denial is a real one: capability
+   * checks still hold once the row is gone, and a child is checked against its parent, which still
+   * exists.
+   */
+  private static boolean isGrantManagedRootDeletion(BaseEvent event) {
+    return DATA_DELETE.equals(event.getType())
+        && Objects.equals(event.getInstance().getId(), event.getPermissionResourceId())
+        && PermissionService.isManagedByGrants(event.getPermissionResourceType());
   }
 
   /**
@@ -294,12 +307,9 @@ public class StreamApi extends RestBehavior {
     try {
       FluxSink<Object> fluxSink = consumer.fluxSink();
       if (!hasReadPermission(consumer, user, event)) {
-        // A consumer that cannot read the entity gets nothing for creations and updates:
-        // even an id-only tombstone would disclose the id, schema and timing of every
-        // unreadable mutation, and would wipe rows the client loaded through
-        // parent-scoped reads (e.g. simulation expectations). Only actual deletions are
-        // relayed, as an id-only tombstone, so such rows still leave the client store
-        if (!DATA_DELETE.equals(event.getType())) {
+        // A consumer that cannot read the entity gets nothing: even an id-only tombstone
+        // discloses the id, schema and timing of an unreadable mutation.
+        if (!isGrantManagedRootDeletion(event)) {
           return;
         }
         try {

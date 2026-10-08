@@ -25,6 +25,7 @@ import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperation;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperationEvent;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperationStatus;
+import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -142,13 +143,21 @@ public class StreamApiTest {
 
   private void stubRead(User user, Base resource, boolean allowed) {
     when(permissionService.hasPermission(
-            user, Optional.empty(), RESOURCE_ID, resource.getResourceType(), Action.READ))
+            user,
+            Optional.empty(),
+            resource.getPermissionResourceId(),
+            resource.getPermissionResourceType(),
+            Action.READ))
         .thenReturn(allowed);
   }
 
   private void failRead(User user, Base resource) {
     when(permissionService.hasPermission(
-            user, Optional.empty(), RESOURCE_ID, resource.getResourceType(), Action.READ))
+            user,
+            Optional.empty(),
+            resource.getPermissionResourceId(),
+            resource.getPermissionResourceType(),
+            Action.READ))
         .thenThrow(new ElementNotFoundException("Not found with id: " + RESOURCE_ID));
   }
 
@@ -240,44 +249,137 @@ public class StreamApiTest {
     return expectation;
   }
 
+  private static Scenario restrictedScenario() {
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setId(RESOURCE_ID);
+    return scenario;
+  }
+
+  private static Exercise simulation(String id) {
+    Exercise simulation = ExerciseFixture.getExercise();
+    simulation.setId(id);
+    return simulation;
+  }
+
+  private static PreventionInjectExpectation simulationExpectation(String id) {
+    PreventionInjectExpectation expectation = new PreventionInjectExpectation();
+    expectation.setId(id);
+    expectation.setExercise(simulation(SIMULATION_ID));
+    return expectation;
+  }
+
+  // -- Denied events --
+  //
+  // A consumer that cannot read an entity receives nothing about it, deletions included: an id-only
+  // tombstone would still disclose the id, schema and timing of the change.
+
   @ParameterizedTest
-  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE})
-  public void given_agentMutation_when_userCannotRead_should_notReceiveIt(String eventType) {
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_agentEvent_when_userCannotRead_should_notReceiveIt(String eventType) {
     assertDeniedMutationIsDropped(restrictedAgent(), eventType);
   }
 
-  @Test
-  public void given_agentDeletion_when_userCannotRead_should_receiveAnIdOnlyTombstone() {
-    assertDeniedDeletionIsMasked(restrictedAgent(), "agent_id");
-  }
-
-  @Test
-  public void given_assetDeletion_when_userCannotRead_should_receiveAnIdOnlyTombstone() {
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_assetEvent_when_userCannotRead_should_notReceiveIt(String eventType) {
     Asset asset = new Asset();
     asset.setId(RESOURCE_ID);
-    assertDeniedDeletionIsMasked(asset, "asset_id");
+    assertDeniedMutationIsDropped(asset, eventType);
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE})
-  public void given_endpointMutation_when_userCannotRead_should_notReceiveIt(String eventType) {
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_endpointEvent_when_userCannotRead_should_notReceiveIt(String eventType) {
     assertDeniedMutationIsDropped(restrictedEndpoint(), eventType);
   }
 
-  @Test
-  public void given_endpointDeletion_when_userCannotRead_should_maskTheInheritedId() {
-    assertDeniedDeletionIsMasked(restrictedEndpoint(), "asset_id");
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_expectationEvent_when_userCannotRead_should_notReceiveIt(String eventType) {
+    assertDeniedMutationIsDropped(restrictedExpectation(), eventType);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_simulationChildEvent_when_userCannotReadTheSimulation_should_notReceiveIt(
+      String eventType) {
+    assertDeniedMutationIsDropped(simulationExpectation(RESOURCE_ID), eventType);
   }
 
   @ParameterizedTest
   @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE})
-  public void given_expectationMutation_when_userCannotRead_should_notReceiveIt(String eventType) {
-    assertDeniedMutationIsDropped(restrictedExpectation(), eventType);
+  public void given_scenarioMutation_when_userCannotRead_should_notReceiveIt(String eventType) {
+    assertDeniedMutationIsDropped(restrictedScenario(), eventType);
   }
 
   @Test
-  public void given_expectationDeletion_when_userCannotRead_should_maskTheInheritedId() {
-    assertDeniedDeletionIsMasked(restrictedExpectation(), "inject_expectation_id");
+  public void given_scenarioDeletion_when_userCannotRead_should_receiveAnIdOnlyTombstone() {
+    // Its grants are deleted with it, so the check after commit denies everyone who read it
+    // through a grant: the tombstone is what removes it from their client.
+    assertDeniedDeletionIsMasked(restrictedScenario(), "scenario_id");
+  }
+
+  @Test
+  public void given_simulationDeletion_when_userCannotRead_should_receiveAnIdOnlyTombstone() {
+    assertDeniedDeletionIsMasked(simulation(RESOURCE_ID), "exercise_id");
+  }
+
+  // -- Parent permissions --
+  //
+  // Child entities are checked against the resource captured on the event, without reloading
+  // them: expectations against their simulation, agents against their asset.
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_simulationExpectation_when_userCanReadTheSimulation_should_receiveIt(
+      String eventType) {
+    ObjectMapper jsonMapper = useRealMapper();
+    when(permissionService.hasPermission(
+            mockUser, Optional.empty(), SIMULATION_ID, ResourceType.SIMULATION, Action.READ))
+        .thenReturn(true);
+
+    BaseEvent event = new BaseEvent(eventType, simulationExpectation(RESOURCE_ID), jsonMapper);
+    JsonNode originalData = event.getInstanceData().deepCopy();
+    streamApi.listenDatabaseUpdate(event);
+
+    JsonNode wire = captureWireEvent(mockSink, jsonMapper);
+    assertEquals(eventType, wire.path("event_type").asText());
+    assertEquals(originalData, wire.path("instance"));
+  }
+
+  @Test
+  public void given_childrenOfOneSimulation_should_resolvePermissionOnce() {
+    ObjectMapper jsonMapper = useRealMapper();
+    when(permissionService.hasPermission(
+            mockUser, Optional.empty(), SIMULATION_ID, ResourceType.SIMULATION, Action.READ))
+        .thenReturn(true);
+
+    streamApi.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, simulationExpectation("expectation-1"), jsonMapper));
+    streamApi.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, simulationExpectation("expectation-2"), jsonMapper));
+
+    verify(permissionService, times(1))
+        .hasPermission(
+            mockUser, Optional.empty(), SIMULATION_ID, ResourceType.SIMULATION, Action.READ);
+    verify(mockSink, times(2)).next(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void given_agentEvent_should_followTheReadPermissionOfItsAsset(boolean canReadAssets) {
+    ObjectMapper jsonMapper = useRealMapper();
+    Endpoint endpoint = restrictedEndpoint();
+    endpoint.setId("endpoint-1");
+    Agent agent = restrictedAgent();
+    agent.setAsset(endpoint);
+    when(permissionService.hasPermission(
+            mockUser, Optional.empty(), "endpoint-1", ResourceType.ASSET, Action.READ))
+        .thenReturn(canReadAssets);
+
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, agent, jsonMapper));
+
+    verify(mockSink, times(canReadAssets ? 1 : 0)).next(any());
   }
 
   @ParameterizedTest
@@ -286,9 +388,9 @@ public class StreamApiTest {
   public void given_deniedDeletion_when_eventHasNoIdAttribute_should_sendNothing(
       String attributeId) {
     ObjectMapper jsonMapper = useRealMapper();
-    Agent agent = restrictedAgent();
-    denyRead(agent);
-    BaseEvent event = new BaseEvent(DATA_DELETE, agent, jsonMapper);
+    Scenario scenario = restrictedScenario();
+    denyRead(scenario);
+    BaseEvent event = new BaseEvent(DATA_DELETE, scenario, jsonMapper);
     event.setAttributeId(attributeId);
 
     streamApi.listenDatabaseUpdate(event);
@@ -309,18 +411,18 @@ public class StreamApiTest {
     ObjectMapper jsonMapper = useRealMapper();
     User otherUser = mock(User.class);
     FluxSink<Object> otherSink = registerSecondConsumer(otherUser);
-    Agent agent = restrictedAgent();
-    stubRead(mockUser, agent, !defaultConsumerDenied);
-    stubRead(otherUser, agent, defaultConsumerDenied);
+    Scenario scenario = restrictedScenario();
+    stubRead(mockUser, scenario, !defaultConsumerDenied);
+    stubRead(otherUser, scenario, defaultConsumerDenied);
     FluxSink<Object> deniedSink = defaultConsumerDenied ? mockSink : otherSink;
     FluxSink<Object> allowedSink = defaultConsumerDenied ? otherSink : mockSink;
 
-    BaseEvent event = new BaseEvent(DATA_DELETE, agent, jsonMapper);
+    BaseEvent event = new BaseEvent(DATA_DELETE, scenario, jsonMapper);
     JsonNode originalData = event.getInstanceData().deepCopy();
     streamApi.listenDatabaseUpdate(event);
 
     assertEquals(
-        jsonMapper.createObjectNode().put("agent_id", RESOURCE_ID),
+        jsonMapper.createObjectNode().put("scenario_id", RESOURCE_ID),
         captureWireEvent(deniedSink, jsonMapper).path("instance"));
     assertEquals(originalData, captureWireEvent(allowedSink, jsonMapper).path("instance"));
     assertEquals(originalData, event.getInstanceData());
@@ -330,23 +432,23 @@ public class StreamApiTest {
   @ValueSource(booleans = {true, false})
   public void given_deletion_when_permissionCheckThrows_should_sendTombstoneAndServeOthers(
       boolean defaultConsumerFails) throws Exception {
-    // A deleted inject (or objective, evaluation, workflow...) can no longer be resolved to its
-    // parent, so the check throws for every non-admin consumer: the deletion must still reach them.
+    // A check that throws counts as denied: a deleted scenario still reaches the failing consumer
+    // as a tombstone, and the other consumer is served as usual.
     ObjectMapper jsonMapper = useRealMapper();
     User otherUser = mock(User.class);
     FluxSink<Object> otherSink = registerSecondConsumer(otherUser);
-    Agent agent = restrictedAgent();
-    failRead(defaultConsumerFails ? mockUser : otherUser, agent);
-    stubRead(defaultConsumerFails ? otherUser : mockUser, agent, true);
+    Scenario scenario = restrictedScenario();
+    failRead(defaultConsumerFails ? mockUser : otherUser, scenario);
+    stubRead(defaultConsumerFails ? otherUser : mockUser, scenario, true);
     FluxSink<Object> failingSink = defaultConsumerFails ? mockSink : otherSink;
     FluxSink<Object> healthySink = defaultConsumerFails ? otherSink : mockSink;
 
-    BaseEvent event = new BaseEvent(DATA_DELETE, agent, jsonMapper);
+    BaseEvent event = new BaseEvent(DATA_DELETE, scenario, jsonMapper);
     JsonNode originalData = event.getInstanceData().deepCopy();
     streamApi.listenDatabaseUpdate(event);
 
     assertEquals(
-        jsonMapper.createObjectNode().put("agent_id", RESOURCE_ID),
+        jsonMapper.createObjectNode().put("scenario_id", RESOURCE_ID),
         captureWireEvent(failingSink, jsonMapper).path("instance"));
     assertEquals(originalData, captureWireEvent(healthySink, jsonMapper).path("instance"));
   }
