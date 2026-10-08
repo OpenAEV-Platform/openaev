@@ -57,6 +57,14 @@ public class PayloadOutput {
   @JsonProperty("payload_external_id")
   private String externalId;
 
+  @Schema(description = "Managed version from a repository release; null for a local copy")
+  @JsonProperty("payload_version")
+  private String version;
+
+  @Schema(description = "Payload this local copy was duplicated from")
+  @JsonProperty("payload_origin_id")
+  private String originId;
+
   @Schema(description = "Payload source origin")
   @JsonProperty("payload_source")
   @NotNull

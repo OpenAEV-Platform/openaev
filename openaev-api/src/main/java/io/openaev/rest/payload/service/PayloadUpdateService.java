@@ -14,8 +14,10 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ManagedPayloadNotEditableException;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
+import io.openaev.service.payload.PayloadVersionService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -50,6 +52,10 @@ public class PayloadUpdateService {
 
     Payload payload =
         this.payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
+    if (PayloadVersionService.isManaged(payload)) {
+      throw new ManagedPayloadNotEditableException(
+          "Payload " + payloadId + " is a managed version and is read-only: duplicate it to edit.");
+    }
     // Same guard as PayloadCreationService: callers converting action inputs (threat arsenal
     // update) can carry null id collections, which findAllById rejects with "Ids must not be
     // null". An absent collection means "no associations".

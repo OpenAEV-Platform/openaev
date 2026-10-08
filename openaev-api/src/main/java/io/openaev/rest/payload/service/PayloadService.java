@@ -15,6 +15,7 @@ import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWith
 import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.service.stix.SecurityCoverageInjectService.ALL_PLATFORMS;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
+import static io.openaev.utils.mapper.PayloadMapper.toPayloadOutput;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -51,7 +52,6 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
-import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
@@ -94,8 +94,6 @@ public class PayloadService {
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;
-
-  private final PayloadMapper payloadMapper;
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
@@ -300,7 +298,7 @@ public class PayloadService {
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
       PayloadCreationService.PayloadInjectorContractCreationResult result) {
-    return payloadMapper.toPayloadOutput(
+    return toPayloadOutput(
         result.payload(),
         result.injectorContract().getAttackPatterns().stream()
             .map(AttackPattern::getId)

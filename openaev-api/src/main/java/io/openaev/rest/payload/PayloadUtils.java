@@ -173,10 +173,15 @@ public class PayloadUtils {
         "arguments",
         "prerequisites",
         "detectionRemediations",
-        "grants");
+        "grants",
+        "latest");
     duplicate.setId(null);
     duplicate.setName(duplicateString(origin.getName()));
     duplicate.setExternalId(null);
+    // A duplicate is a local copy: unmanaged, linked to the version it comes from.
+    duplicate.setVersion(null);
+    duplicate.setContentHash(null);
+    duplicate.setOriginId(origin.getId());
     duplicate.setArguments(
         Optional.ofNullable(origin.getArguments()).map(ArrayList::new).orElseGet(ArrayList::new));
     duplicate.setPrerequisites(
