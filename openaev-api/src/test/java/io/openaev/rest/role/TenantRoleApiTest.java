@@ -106,6 +106,40 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+          Capability.MANAGE_THREAT_ARSENALS,
+          Capability.APPROVE_THREAT_ARSENALS
+        })
+    @DisplayName(
+        "Given a new role with manage threat arsenal, should not add approve content"
+            + " (only the upgrade granted it)")
+    void given_newRoleWithManageThreatArsenal_should_notAddApproveContent() throws Exception {
+      // -------- Arrange --------
+      RoleInput input = new RoleInput("Authors", null, Set.of(Capability.MANAGE_THREAT_ARSENALS));
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  post(tenantUri("/api/tenants/{tenantId}/roles"))
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> caps = JsonPath.read(response, "$.role_capabilities");
+      assertTrue(caps.contains(Capability.MANAGE_THREAT_ARSENALS.name()));
+      assertTrue(caps.contains(Capability.ACCESS_THREAT_ARSENALS.name()));
+      assertFalse(caps.contains(Capability.APPROVE_THREAT_ARSENALS.name()));
+    }
+
+    @Test
     @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("Given ACCESS_TENANT_USERS_GROUPS_AND_ROLES only, should be forbidden to create")
     void given_accessTenantUsersGroupsAndRoles_should_forbidCreate() throws Exception {
@@ -355,6 +389,44 @@ public class TenantRoleApiTest extends IntegrationTest {
 
       // -------- Assert --------
       assertEquals("NewName", JsonPath.read(response, "$.role_name"));
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+          Capability.MANAGE_THREAT_ARSENALS,
+          Capability.APPROVE_THREAT_ARSENALS
+        })
+    @DisplayName(
+        "Given an edit granting manage threat arsenal, should not add approve content"
+            + " (only the upgrade granted it)")
+    void given_editGrantingManageThreatArsenal_should_notAddApproveContent() throws Exception {
+      // -------- Arrange --------
+      Role role =
+          tenantRoleComposer
+              .forRole(TenantRoleFixture.getRole("Readers", Set.of(Capability.ACCESS_ASSETS)))
+              .persist()
+              .get();
+      RoleInput input = new RoleInput("Authors", null, Set.of(Capability.MANAGE_THREAT_ARSENALS));
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  put(tenantUri("/api/tenants/{tenantId}/roles/") + role.getId())
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> caps = JsonPath.read(response, "$.role_capabilities");
+      assertTrue(caps.contains(Capability.MANAGE_THREAT_ARSENALS.name()));
+      assertFalse(caps.contains(Capability.APPROVE_THREAT_ARSENALS.name()));
     }
 
     @Test

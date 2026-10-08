@@ -23,12 +23,17 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.migration.V6_20261008160000000__Grant_approve_content_to_threat_arsenal_managers;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
+import io.openaev.rest.role.form.RoleInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.*;
+import org.flywaydb.core.api.configuration.Configuration;
+import org.flywaydb.core.api.migration.Context;
+import org.hibernate.Session;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -51,6 +56,10 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
+
+  @Autowired
+  private V6_20261008160000000__Grant_approve_content_to_threat_arsenal_managers
+      approveContentUpgrade;
 
   private Authentication author;
   private Authentication approver;
@@ -435,6 +444,92 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
           .isGreaterThanOrEqualTo(1);
       assertThat(((Number) JsonPath.read(counts, "$.approvals.APPROVED")).longValue())
           .isGreaterThanOrEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Upgrade: existing authors approve, maker-checker is opt-in (Task 3)")
+  class UpgradeOptIn {
+
+    private void runUpgrade() {
+      entityManager.flush();
+      entityManager
+          .unwrap(Session.class)
+          .doWork(
+              connection -> {
+                try {
+                  approveContentUpgrade.migrate(
+                      new Context() {
+                        @Override
+                        public Configuration getConfiguration() {
+                          return null;
+                        }
+
+                        @Override
+                        public java.sql.Connection getConnection() {
+                          return connection;
+                        }
+                      });
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              });
+      entityManager.clear();
+    }
+
+    @Test
+    @DisplayName(
+        "an upgraded author is auto-approved; once approve content is removed from their role,"
+            + " their content edit makes the action pending")
+    void given_upgradedAuthorThenCapabilityRemoved_should_requireApproval() throws Exception {
+      // -- ARRANGE --
+      TenantRoleComposer.Composer authorsRoleComposer =
+          tenantRoleComposer.forRole(
+              TenantRoleFixture.getRole(
+                  new HashSet<>(
+                      Set.of(
+                          Capability.ACCESS_THREAT_ARSENALS, Capability.MANAGE_THREAT_ARSENALS))));
+      User upgradedAuthor =
+          userComposer
+              .forUser(
+                  UserFixture.getUser(
+                      "Upgraded", "Author", UUID.randomUUID() + "@unittests.invalid"))
+              .withGroup(
+                  tenantGroupComposer
+                      .forGroup(TenantGroupFixture.getGroup())
+                      .withRole(authorsRoleComposer))
+              .persist()
+              .get();
+      Role authorsRole = authorsRoleComposer.get();
+      tenantRepository.addUserToTenant(upgradedAuthor.getId(), Tenant.DEFAULT_TENANT_UUID);
+      tenantMembershipCacheManager.evict(upgradedAuthor.getId(), Tenant.DEFAULT_TENANT_UUID);
+
+      // -- ACT: upgrade --
+      runUpgrade();
+      Authentication asAuthor = buildAuthenticationToken(upgradedAuthor);
+      String actionId = createAction(asAuthor);
+
+      // -- ASSERT: nothing changes for an existing author --
+      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+
+      // -- ACT: an admin turns maker-checker on for this role --
+      mvc.perform(
+              put(tenantUri("/api/tenants/{tenantId}/roles/") + authorsRole.getId())
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      asJsonString(
+                          new RoleInput(
+                              authorsRole.getName(),
+                              null,
+                              Set.of(
+                                  Capability.ACCESS_THREAT_ARSENALS,
+                                  Capability.MANAGE_THREAT_ARSENALS)))))
+          .andExpect(status().is2xxSuccessful());
+      updateAs(asAuthor, actionId, update("echo maker-checker", "Command line payload"));
+
+      // -- ASSERT --
+      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
     }
   }
 }

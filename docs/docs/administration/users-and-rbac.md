@@ -96,7 +96,7 @@ Below is a full list of capabilities in OpenAEV:
 | `Access threat arsenal actions` | Read-only access to the threat arsenal action library (attack scripts, tools, and techniques used in Simulations).                        |
 | &nbsp;&nbsp;`Manage threat arsenal actions` | Create and update threat arsenal actions in the library. Requires *Access threat arsenal actions*.                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete threat arsenal actions` | Permanently delete threat arsenal actions from the library. Requires *Manage threat arsenal actions*.                                     |
-| &nbsp;&nbsp;`Approve content` | Trust the content of threat arsenal payloads (payload approval, being introduced). A content decision, separate from *Launch assessment*. Requires *Access threat arsenal actions*. |
+| &nbsp;&nbsp;`Approve content` | Approve or reject threat arsenal payloads; payloads its holders create or edit are approved automatically (see [Approval of payloads](../usage/build/threat-arsenals/threat-arsenals.md#approval-of-payloads)). A content decision, separate from *Launch assessment*. Requires *Access threat arsenal actions*. |
 |  **Reporting** |                                                                                                                                           |
 | `Access reporting` | Read-only access to tenant reporting and generated reports.                                                                               |
 | &nbsp;&nbsp;`Manage reporting` | Create, update, and configure reporting content. Requires *Access reporting*.                                                             |
@@ -164,6 +164,10 @@ Below is a full list of capabilities in OpenAEV:
 
 Once the role is created, it can be assigned to a **group**. All users in that group will automatically inherit the role's permissions.
 
+
+!!! note "Approve content after an upgrade"
+
+    When payload approval is introduced, every tenant role that can manage threat arsenal actions also receives *Approve content*, and so does the default *Manager* role of new tenants: authors keep working as before, their payloads are approved automatically. To require a second person's approval (maker-checker), remove *Approve content* from the roles of the authors who must be checked. Roles you create or edit afterwards never receive it automatically.
 
 ## Delegating capabilities
 

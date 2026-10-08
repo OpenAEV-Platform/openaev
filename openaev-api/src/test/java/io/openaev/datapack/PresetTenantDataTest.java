@@ -55,6 +55,15 @@ class PresetTenantDataTest {
               Capability.MANAGE_TENANT_SETTINGS,
               Capability.DELETE_TENANT_SETTINGS);
     }
+
+    @Test
+    @DisplayName("given_managerRole_should_approveContent")
+    void given_managerRole_should_approveContent() {
+      // -- ASSERT --
+      // New tenants are opt-in for maker-checker, like upgraded ones
+      assertThat(capabilities)
+          .contains(Capability.MANAGE_THREAT_ARSENALS, Capability.APPROVE_THREAT_ARSENALS);
+    }
   }
 
   @Nested
