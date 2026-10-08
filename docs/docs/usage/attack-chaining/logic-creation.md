@@ -63,19 +63,38 @@ satisfied, it triggers the Action(s) it is linked to. Nothing runs until its ups
 
           - **Operator**: `Equals`, `Not equals`, `Is null`, `Is not null`, `Contains`, `Not contains` — plus
             `Greater than`, `Greater than or equals`, `Less than`, `Less than or equals` on numeric fields only
-            (`Number`, `Port`, `Severity`). Those four compare numerically, so they are hidden on text-like fields
-            (a hostname or a CVE id can't be ordered). Changing the **Field to Check** to a non-numeric field
-            resets an ordering operator back to `Equals`. Despite the name, `Contains`/`Not contains` performs a
-            set-style match against the field's value rather than a literal list-membership check — use it to test
-            whether a field matches one of several expected values.
+            (`Number`, `Port`). Those four compare numerically, so they are hidden on text-like fields (a hostname,
+            a CVE id, or a `Severity` can't be ordered). Changing the **Field to Check** to a non-numeric field
+            resets an ordering operator back to `Equals`. `Contains`/`Not contains` takes a comma-separated list
+            and matches when the field's value contains any item of it — use it to test whether a field matches
+            one of several expected values.
           - **Expected value** (not required for `Is null` / `Is not null`), with an optional case-sensitive toggle,
-            available only for `Equals`, `Not equals`, `Contains`, and `Not contains` on non-numeric fields.
+            available only for `Equals`, `Not equals`, `Contains`, and `Not contains`. The toggle is hidden on
+            fields whose values have no case: numbers, IP addresses and subnets, CVE ids, SIDs, hashes, and Asset
+            or Asset group ids.
 
             The value must be a number when the inspected field only holds numbers (`Number`, `Port`) or when the
             operator is a numeric comparison (`Greater than`, `Greater than or equals`, `Less than`, `Less than or
             equals`) — those operators compare numerically, so a text value could never match. Anything else shows
-            *"The value should be a number"* and blocks saving. The case-sensitive toggle is also hidden on numeric
-            fields, since it is meaningless on numbers.
+            *"The value should be a number"* and blocks saving.
+
+            With `Equals` and `Not equals`, the value must also match the format of the field type. An invalid
+            value shows an error and blocks saving:
+
+            | Field type | Accepted value | Error message |
+            |------------|----------------|---------------|
+            | `IPv4` | An IPv4 address | *"Expected a valid IPv4 address"* |
+            | `IPv6` | An IPv6 address | *"Expected a valid IPv6 address"* |
+            | `Ip subnet` | An IPv4 or IPv6 subnet in CIDR notation | *"Expected a valid IPv4 subnet"* |
+            | `Domain` | A domain or host name | *"Expected a valid domain name"* |
+            | `Host` | An IPv4 address, an IPv6 address, or a domain name | *"Expected a valid IPv4 address"* |
+            | `Email` | An email address | *"Expected a valid email address"* |
+            | `CVE` | A CVE id, such as `CVE-2024-12345` | *"Expected a valid CVE identifier (e.g. CVE-2024-12345)"* |
+            | `SID` | A Windows SID, such as `S-1-5-21-...` | *"Expected a valid Windows SID (e.g. S-1-5-21-...)"* |
+            | `Port` | A whole number from 0 to 65535 | *"Expected a valid port (0-65535)"* |
+
+            Other field types accept any value. `Contains` and `Not contains` skip this check, since they match
+            part of a value.
 4. Save, then connect the Event to the Action(s) it should trigger.
 
 !!! note

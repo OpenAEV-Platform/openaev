@@ -61,7 +61,12 @@ Defining Variables is optional; add one only if you need to reuse a value across
 1. In the **Variables** section, click the **+** icon.
 2. Provide a **key**, a **type**, a **value**, and an optional **description**. The **type** is required: it is how
    the platform matches Variables to Action inputs.
-3. In the [Logic](logic-creation.md) tab, when an Action input has the same type as a Variable, that Variable is
+3. Click **Create**. The value must match the format of the type, or the dialog shows an error and blocks saving.
+   For example, an `IPv4` Variable needs a valid IPv4 address (*"Expected a valid IPv4 address"*), and a `Port`
+   Variable needs a whole number from 0 to 65535 (*"Expected a valid port (0-65535)"*). The checks are the same as
+   for an Event's expected value: see the format table in [Logic Creation](logic-creation.md#add-an-event). Other
+   types accept any value.
+4. In the [Logic](logic-creation.md) tab, when an Action input has the same type as a Variable, that Variable is
    available for that input and can be used by linking it instead of typing a static value. If no Action input matches
    a Variable's type, that Variable stays unused.
 
