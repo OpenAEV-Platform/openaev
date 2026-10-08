@@ -1,17 +1,31 @@
 ## TODO discussed Corinne / Damien 
-- [ ] OpenCTI recurring scenarios -> launch all assets + set user service account OpenCTI in the scenario -> Damien
-- [ ] Tests scheduled scenario, scenario, exercise -> Damien
-- [ ] Tests inject expectations and external executors -> Damien
+- [x] OpenCTI recurring scenarios -> launch all assets + set user service account OpenCTI in the scenario? -> Damien
+    - We need to add all the markings to the OpenCTI service account in addition to adding the OpenCTI user to the scheduled scenario
+    - See resolveLaunchedByClearance
+
+- [ ] Tests chained simulation
+- [x] Tests with OpenAEV agent and external executors:
+    - Atomic testing -> OK
+    - Simulation manual and scheduled -> OK
+    - Scenario manual and scheduled -> OK
+    - Inject expectations -> same global score is seen even if we don't see the assets linked, different global score if manual asset
 
 - [ ] StreamApi and solutions A/B to check -> Corinne
 
 - [x] Clean the tech design -> Corinne
 
-- [ ] POC "asset not targetted" VS "no agent found" -> Corinne
+  - [ ] POC "asset not targetted" VS "no agent found" -> Corinne
+    - Damien's proposal -> in ExecutionExecutorService, at the end, check the assets list with and without markings
 
 - [ ] Do a brainstorm/choose the solution with Laurent
 
-- [ ] Little UX bugs with the new solution? -> mark it
+- [ ] Little UX bugs with the new solution?
+    - A lot of "Access denied" when I am not an admin user
+    - Execution details are weird for Injects when you launch it with an admin and you look it with a user
+    - Header overview number of assets for simulation KO when logged as a user while the simulation's list is OK
+    - Global inject status status can be weird if you don't see all the assets
+    - Platforms in scenario's list are KO for a user
+    - Bugs with inject expectations (see above)
 
 - [ ] Last spike to POC (dashboards)
 
