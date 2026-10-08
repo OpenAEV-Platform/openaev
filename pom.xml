@@ -35,6 +35,7 @@
         <jackson-2-bom.version>2.22.3</jackson-2-bom.version>
         <netty.version>4.2.18.Final</netty.version>
         <commons-lang3.version>3.21.0</commons-lang3.version>
+        <tomcat.version>11.0.26</tomcat.version>
         <!-- Override Spring Boot BOM: httpcore5-h2 HTTP/2 HPACK DoS CVE-2026-54428 -->
         <httpcore5.version>5.4.4</httpcore5.version>
         <velocity-engine-core.version>2.4.1</velocity-engine-core.version>
