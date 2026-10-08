@@ -61,23 +61,12 @@ satisfied, it triggers the Action(s) it is linked to. Nothing runs until its ups
 
             ![Editing an Event's trigger conditions: two AND condition groups — "Share name is not null" AND "Group name equals" in one, "Password is not null" AND "Kerberoastable account is not null" in the other](assets/logic-creation-event-conditions-groups.png)
 
-          - **Operator**: `Equals`, `Not equals`, `Is null`, `Is not null`, `Contains`, `Not contains` — plus
-            `Greater than`, `Greater than or equals`, `Less than`, `Less than or equals` on numeric fields only
-            (`Number`, `Port`). Those four compare numerically, so they are hidden on text-like fields (a hostname,
-            a CVE id, or a `Severity` can't be ordered). Changing the **Field to Check** to a non-numeric field
-            resets an ordering operator back to `Equals`. `Contains`/`Not contains` takes a comma-separated list
-            and matches when the field's value contains any item of it — use it to test whether a field matches
-            one of several expected values.
-          - **Expected value** (not required for `Is null` / `Is not null`), with an optional case-sensitive toggle,
-            available only for `Equals`, `Not equals`, `Contains`, and `Not contains` on fields where case matters.
-
-            The value must be a number when the inspected field only holds numbers (`Number`, `Port`) or when the
-            operator is a numeric comparison (`Greater than`, `Greater than or equals`, `Less than`, `Less than or
-            equals`) — those operators compare numerically, so a text value could never match. Anything else shows
-            *"The value should be a number"* and blocks saving.
-
-            With `Equals` and `Not equals`, the value must also match the field type, for example a valid IP
-            address, CVE id or port (0-65535). Otherwise the form shows an error and blocks saving.
+          - **Operator**: how the field is compared with the expected value: equality, presence (`Is null`),
+            `Contains` to match one of several comma-separated values, and greater/less than on numeric fields such
+            as a port.
+          - **Expected value** (not needed for presence checks): it must fit the field, for example a number for a
+            port or a valid IP address or CVE id, otherwise the form shows an error. A toggle makes text comparisons
+            case-sensitive.
 4. Save, then connect the Event to the Action(s) it should trigger.
 
 !!! note
