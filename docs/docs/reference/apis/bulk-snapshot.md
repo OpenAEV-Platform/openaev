@@ -82,7 +82,7 @@ All fields are optional.
 | `cursor` | string | `null` | Opaque resume token from a previous page. Mutually exclusive with `since` — sending both returns a **400**. |
 | `since` | ISO-8601 instant | `null` | Full reconciliation lower bound. Mutually exclusive with `cursor`. |
 | `page_size` | integer | `500` | Silently clamped to `[1, 1000]`. |
-| `safety_lag_seconds` | integer | `120` | Silently clamped to `[max(60, grace), 3600]`, where `grace` is the `engine.indexing-grace-window-seconds` [configuration parameter](../../deployment/configuration.md). |
+| `safety_lag_seconds` | integer | `120` | Silently clamped to `[max(60, grace), 3600]`, where `grace` is the `engine.indexing-grace-window-seconds` [configuration parameter](../deployment/configuration.md). |
 
 Clamping is silent: an out-of-range `page_size` or `safety_lag_seconds` is corrected rather than
 rejected. A client that sends `page_size: 5000` receives 1000 items, not an error.
@@ -329,5 +329,5 @@ A client integrating against this export must honor the following:
 
 - [Users and RBAC](../../administration/users-and-rbac.md) — create the connector's user account and
   grant it the `Access observation snapshots` capability
-- [Configuration](../../deployment/configuration.md) — the `engine.indexing-grace-window-seconds`
+- [Configuration](../deployment/configuration.md) — the `engine.indexing-grace-window-seconds`
   parameter that bounds `safety_lag_seconds`

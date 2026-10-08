@@ -36,7 +36,7 @@ define (allowed targets, timeout, rate limit).
 
 !!! note
 
-    Attack Chaining is a different mechanism from [Inject chaining and transfer](../inject-chaining.md), which links
+    Attack Chaining is a different mechanism from [Inject chaining and transfer](inject-chaining.md), which links
     individual Injects with a simple parent/child condition. Use Attack Chaining when you need a full graph of Actions
     and Events, shared outputs, and platform-enforced execution boundaries (scope, timeout, rate limit).
 
@@ -104,13 +104,13 @@ between steps).
 See [Attack Path Map](attack-path-map.md) for details on both the live execution view and the resulting graph.
 
 Once you can build a chained Logic graph by hand, you can go one step further with
-[Autonomous Attack Chaining](../autonomous-attack-chaining/overview.md): instead of authoring every Action and Event yourself,
+[Autonomous Attack Chaining](autonomous/overview.md): instead of authoring every Action and Event yourself,
 you give an AI orchestrator an objective in plain language and it plans, executes, and adapts a full attack path on
 its own, live, against your authorized environment.
 
 ### What happens to the chain on other actions
 
-The usual [Simulation actions](../evaluate/simulation/simulation.md#actions) also apply to a chained run:
+The usual [Simulation actions](../run-and-evaluate/simulation/simulation.md#actions) also apply to a chained run:
 
 - **Pause**: no new Action starts; running Actions finish and their outputs are kept.
 - **Reset**: deletes the run and its Attack path, but keeps the Logic and Scope.
@@ -122,6 +122,6 @@ The usual [Simulation actions](../evaluate/simulation/simulation.md#actions) als
 - [Scope Definition](scope-definition.md): allow/deny lists, Variables, timeout, and rate limit.
 - [Logic Creation](logic-creation.md): Actions, Events, conditions, and output linking.
 - [Attack Path Map](attack-path-map.md): follow a chained run live, then read the resulting graph across your Assets.
-- [Autonomous Attack Chaining](../autonomous-attack-chaining/overview.md): let an AI orchestrator plan and drive a chained run
+- [Autonomous Attack Chaining](autonomous/overview.md): let an AI orchestrator plan and drive a chained run
   for you.
-- [Inject chaining and transfer](../inject-chaining.md): the simpler, non-EE parent/child linking mechanism.
+- [Inject chaining and transfer](inject-chaining.md): the simpler, non-EE parent/child linking mechanism.

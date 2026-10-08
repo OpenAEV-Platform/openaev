@@ -26,7 +26,7 @@ We developed our own XTM agent and also support third-party agents, with more be
 
 !!! tip "Tips"
 
-      If you want to learn more about how to deploy executors, you can have more info [here](../ecosystem/executors.md).
+      If you want to learn more about how to deploy executors, you can have more info [here](../../integrations/executors/executors.md).
 
 ### Injectors
 
@@ -36,7 +36,7 @@ standalone Python processes.
 
 !!! tip "Tips"
 
-      If you want to learn more about how to deploy injectors, you can have more info [here](../ecosystem/injectors.md).
+      If you want to learn more about how to deploy injectors, you can have more info [here](../../integrations/injectors/deploy-injectors.md).
 
 ### Collectors
 
@@ -45,7 +45,7 @@ if an inject (execution, emails, etc.) has been detected or prevented and fill t
 
 !!! tip "Tips"
 
-      If you want to learn more about how to deploy collectors, you can have more info [here](../ecosystem/collectors.md).
+      If you want to learn more about how to deploy collectors, you can have more info [here](../../integrations/collectors/deploy-collectors.md).
 
 ## Infrastructure requirements
 
