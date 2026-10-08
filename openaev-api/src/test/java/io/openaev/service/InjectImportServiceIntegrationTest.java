@@ -40,7 +40,7 @@ public class InjectImportServiceIntegrationTest extends IntegrationTest {
 
     ImportMapper importMapper =
         ImportMapperFixture.createImportMapper(XlsFixture.DEFAULT_INJECT_TYPE);
-    InjectImporter importer = importMapper.getInjectImporters().getFirst();
+    InjectImporter importer = importMapper.getInjectImporters().iterator().next();
     importer.getRuleAttributes().add(createRuleAttribute("expectation_name"));
     importer.getRuleAttributes().add(createRuleAttribute("expectation_description"));
     importer.getRuleAttributes().add(createRuleAttribute("expectation_score"));

@@ -1486,14 +1486,43 @@ public class WorkflowService {
   @Transactional(rollbackFor = Exception.class)
   public void startWorkflowByScenarioIdAndSimulation(String scenarioId, Exercise simulation)
       throws ChainingException {
+    doStartWorkflowByScenarioIdAndSimulation(scenarioId, simulation, false);
+  }
+
+  /**
+   * Start workflow for given scenario, optionally as a keep-alive (autonomous) simulation.
+   *
+   * <p>With {@code keepAlive}, the simulation TEMPLATE is marked keep-alive with its timeout off
+   * BEFORE the run is created and evaluated, so the run inherits it from the start. An autonomous
+   * run launches with an empty workflow: a run that is not yet keep-alive at its first evaluation
+   * is ended for NO_MORE_PROGRESS, which also finishes the simulation before the orchestrator has
+   * authored a single step.
+   *
+   * @param scenarioId id of the scenario to start
+   * @param simulation the simulation the workflow is launched for
+   * @param keepAlive whether the launched workflow must stay in RUN awaiting an orchestrator
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowByScenarioIdAndSimulation(
+      String scenarioId, Exercise simulation, boolean keepAlive) throws ChainingException {
+    doStartWorkflowByScenarioIdAndSimulation(scenarioId, simulation, keepAlive);
+  }
+
+  private void doStartWorkflowByScenarioIdAndSimulation(
+      String scenarioId, Exercise simulation, boolean keepAlive) throws ChainingException {
     Workflow workflowTemplateScenario =
         findWorkflowTemplateByScenarioId(scenarioId)
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-    Workflow workflowTemplateSimulation =
-        saveWorkflowRun(copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation));
+    Workflow workflowTemplateSimulationToSave =
+        copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation);
+    if (keepAlive) {
+      workflowTemplateSimulationToSave.setKeepAlive(true);
+      workflowTemplateSimulationToSave.setTimeoutEnabled(false);
+    }
+    Workflow workflowTemplateSimulation = saveWorkflowRun(workflowTemplateSimulationToSave);
     stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
     doStartWorkflowBySimulationId(workflowTemplateSimulation);
@@ -1765,13 +1794,10 @@ public class WorkflowService {
    * scenario can be relaunched in normal mode and run-and-end normally. A no-op when the simulation
    * has no workflow yet.
    *
-   * <p>Must be called at launch time, in the SAME transaction as the launch, on a freshly
-   * provisioned simulation. The initial evaluation inside {@code startWorkflow} ENDs an empty
-   * non-keep-alive run on the spot - and an autonomous run always launches empty - so the freshly
-   * ended run is invisible to the RUN-status finder. This method therefore also picks up the
-   * simulation's END runs and restores them to RUN: on a fresh simulation the only possible END run
-   * is the one the launch itself just ended (nothing ever executed), so the restore can never
-   * resurrect a legitimately finished run.
+   * <p>It does NOT reopen an ended run: ending a run also finishes its simulation, so a live
+   * autonomous launch must already start keep-alive (see {@link
+   * #startWorkflowByScenarioIdAndSimulation(String, Exercise, boolean)}) for its empty run to
+   * survive the initial evaluation.
    *
    * @param simulationId the launched simulation whose workflows should keep themselves alive
    */
@@ -1783,26 +1809,10 @@ public class WorkflowService {
     List<Workflow> workflows = new ArrayList<>();
     findWorkflowTemplateBySimulationId(simulationId).ifPresent(workflows::add);
     workflows.addAll(findWorkflowRunBySimulationId(simulationId));
-    // Recover the empty run the launch evaluation just ended (see javadoc): parked back in RUN, it
-    // awaits the orchestrator's first authored step instead of staying terminally closed.
-    workflows.addAll(
-        workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END));
     for (Workflow workflow : workflows) {
-      boolean dirty = false;
-      if (workflow.getStatus() == WorkflowStatus.END) {
-        workflow.setStatus(WorkflowStatus.RUN);
-        // The launch evaluation provisionally ended this empty run and froze its end scope
-        // snapshot; reopening it must clear that photo or the live autonomous run would
-        // misclassify every later drift as after-execution. See ADR-006.
-        scopeSnapshotService.clearEnd(workflow);
-        dirty = true;
-      }
       if (!workflow.isKeepAlive() || workflow.isTimeoutEnabled()) {
         workflow.setKeepAlive(true);
         workflow.setTimeoutEnabled(false);
-        dirty = true;
-      }
-      if (dirty) {
         workflowRepository.save(workflow);
       }
     }

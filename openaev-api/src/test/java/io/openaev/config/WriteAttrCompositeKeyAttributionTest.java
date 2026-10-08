@@ -11,6 +11,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.executors.ExecutorService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.WithoutTenantScope;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -41,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Import(WriteAttrDetectorTestConfig.class)
 @WithMockUser(isAdmin = true)
 @DisplayName("Write-attribution: a composite-key row is attributed to the asking production frame")
+@WithoutTenantScope
 class WriteAttrCompositeKeyAttributionTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;

@@ -172,7 +172,7 @@ public class ElasticService implements EngineService {
                         return WildcardQuery.of(
                                 w ->
                                     w.field(toElasticField(field))
-                                        .value("*" + val.stringValue() + "*"))
+                                        .value("*" + escapeWildcard(val.stringValue()) + "*"))
                             ._toQuery();
                       } else {
                         // Champ text : match
@@ -196,7 +196,9 @@ public class ElasticService implements EngineService {
                       FieldValue val = toVal(field, v, parameters);
                       if (propertyField != null && propertyField.isKeyword()) {
                         return WildcardQuery.of(
-                                w -> w.field(elasticField).value("*" + val.stringValue() + "*"))
+                                w ->
+                                    w.field(elasticField)
+                                        .value("*" + escapeWildcard(val.stringValue()) + "*"))
                             ._toQuery();
                       } else {
                         return MatchQuery.of(m -> m.field(elasticField).query(val))._toQuery();
@@ -269,9 +271,12 @@ public class ElasticService implements EngineService {
   }
 
   private Query queryFromSearch(String search) {
-    QueryStringQuery.Builder queryStringQuery = new QueryStringQuery.Builder();
-    queryStringQuery.query(search).analyzeWildcard(true).fields(BASE_FIELDS);
-    return queryStringQuery.build()._toQuery();
+    String text = search.trim();
+    Query byText =
+        MatchBoolPrefixQuery.of(m -> m.field(SEARCH_TEXT_FIELD).query(text).operator(Operator.And))
+            ._toQuery();
+    Query byId = TermQuery.of(t -> t.field(SEARCH_ID_FIELD).value(FieldValue.of(text)))._toQuery();
+    return BoolQuery.of(b -> b.should(byText, byId).minimumShouldMatch("1"))._toQuery();
   }
 
   private Query queryFromFilter(

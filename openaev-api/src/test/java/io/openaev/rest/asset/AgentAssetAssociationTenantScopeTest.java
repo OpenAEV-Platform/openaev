@@ -80,6 +80,7 @@ class AgentAssetAssociationTenantScopeTest extends IntegrationTest {
     // This matters more than a null association would. A caller reading agents outside a scope does
     // not get degraded data it might notice, it gets an empty result that looks like "no agents
     // exist", which is the same answer a healthy platform gives a tenant that installed none.
+    tenantHelper.clearScope();
     entityManager.clear();
     assertTrue(
         agentRepository.findById(agentId).isEmpty(),

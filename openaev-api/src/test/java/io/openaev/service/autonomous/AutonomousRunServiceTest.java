@@ -790,7 +790,8 @@ class AutonomousRunServiceTest {
     // simulation torn down before the fresh one is provisioned from the SAME scenario.
     verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
     verify(exerciseService).deleteById("sim-old");
-    verify(workflowService).startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any());
+    verify(workflowService)
+        .startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any(), eq(true));
     // Keep-alive is applied to the freshly provisioned SIMULATION, never the reusable scenario
     // template, so the scenario keeps its own "Simulation time out" config.
     verify(workflowService).markSimulationWorkflowKeepAlive("sim-new");
@@ -819,7 +820,8 @@ class AutonomousRunServiceTest {
 
     verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
     verify(exerciseService).deleteById("sim-old");
-    verify(workflowService).startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any());
+    verify(workflowService)
+        .startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any(), eq(true));
     assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
     assertThat(restarted.getSimulationId()).isEqualTo("sim-new");
   }
@@ -834,7 +836,8 @@ class AutonomousRunServiceTest {
     AutonomousRun restarted = service.restart("run-1");
 
     verify(exerciseService).deleteById("sim-old");
-    verify(workflowService).startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any());
+    verify(workflowService)
+        .startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any(), eq(true));
     assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
     assertThat(restarted.getSimulationId()).isEqualTo("sim-new");
   }
@@ -850,7 +853,8 @@ class AutonomousRunServiceTest {
     AutonomousRun restarted = service.restart("run-1");
 
     verify(workflowService).provisionSimulationTemplateWorkflow(eq("scenario-1"), any());
-    verify(workflowService, never()).startWorkflowByScenarioIdAndSimulation(anyString(), any());
+    verify(workflowService, never())
+        .startWorkflowByScenarioIdAndSimulation(anyString(), any(), anyBoolean());
     assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
   }
 

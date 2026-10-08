@@ -70,6 +70,9 @@ public class InjectImporter implements Base {
     if (this == o) return true;
     if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
     Base base = (Base) o;
+    if (base.getId() == null || this.getId() == null) {
+      return false;
+    }
     return id.equals(base.getId());
   }
 

@@ -411,7 +411,7 @@ class FindingApiTest extends IntegrationTest {
         ScenarioComposer.Composer scenarioWrapper = getScenarioWithSimulationsWrapper();
         scenarioWrapper.persist();
 
-        Exercise ex = scenarioWrapper.get().getExercises().getFirst();
+        Exercise ex = scenarioWrapper.get().getExercises().iterator().next();
 
         SearchPaginationInput input = PaginationFixture.getDefault().build();
         input.setSorts(
@@ -477,7 +477,8 @@ class FindingApiTest extends IntegrationTest {
         ScenarioComposer.Composer scenarioWrapper = getScenarioWithSimulationsWrapper();
         scenarioWrapper.persist();
 
-        Inject inject = scenarioWrapper.get().getExercises().getFirst().getInjects().getFirst();
+        Inject inject =
+            scenarioWrapper.get().getExercises().iterator().next().getInjects().getFirst();
 
         SearchPaginationInput input = PaginationFixture.getDefault().build();
 
@@ -1005,7 +1006,7 @@ class FindingApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      savedSimulation = savedScenario.getExercises().getFirst();
+      savedSimulation = savedScenario.getExercises().iterator().next();
     }
 
     @DisplayName("Search global findings")

@@ -80,10 +80,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
         const executorId = agent.agent_executor?.executor_id;
         const executor = executorId ? executorsMap[executorId] : undefined;
         const showEEChip = !settings.platform_license?.license_is_validated
-          && (executor?.executor_type === 'openaev_tanium'
-            || executor?.executor_type === 'openaev_crowdstrike_executor'
-            || executor?.executor_type === 'openaev_sentinelone_executor'
-            || executor?.executor_type === 'openaev_paloaltocortex_executor');
+          && executor?.executor_enterprise;
         return (
           <Box
             key={agent.agent_id}

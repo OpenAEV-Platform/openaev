@@ -1,15 +1,18 @@
 package io.openaev.config;
 
+import io.openaev.utils.RequestUtils;
 import io.openaev.utils.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerMapping;
 
 @Component
+@RequiredArgsConstructor
 public final class TenantUriUtils {
 
   public static final String TENANT_ID_PATH_VARIABLE = "tenantId";
@@ -25,6 +28,8 @@ public final class TenantUriUtils {
   private final Pattern tenantPattern =
       Pattern.compile("^" + TENANT_BASE_PATH + "(" + UUID_REGEX + ")(?:/|$)");
 
+  private final RequestUtils requestUtils;
+
   public Optional<String> getTenantIdFromRequestUrl(HttpServletRequest request) {
     Object pathVariablesAttribute =
         request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
@@ -37,12 +42,8 @@ public final class TenantUriUtils {
     // (e.g. authentication filters): parse the tenant id straight from the request URI.
     // getRequestURI() includes the servlet context path, so strip it first to keep the
     // anchored pattern working for deployments served under a non-root context path.
-    String uri = request.getRequestURI();
+    String uri = requestUtils.getContextStrippedUri(request);
     if (!StringUtils.isBlank(uri)) {
-      String contextPath = request.getContextPath();
-      if (!StringUtils.isBlank(contextPath) && uri.startsWith(contextPath)) {
-        uri = uri.substring(contextPath.length());
-      }
       Matcher matcher = tenantPattern.matcher(uri);
       if (matcher.find()) {
         return Optional.of(matcher.group(1));
