@@ -44,6 +44,7 @@ import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
+import io.openaev.database.repository.ContentHistoryRepository;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.CustomDomainRepository;
 import io.openaev.database.repository.CweRepository;
@@ -240,6 +241,7 @@ import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.service.expectation.ChallengeBehavior;
 import io.openaev.service.finding.FindingValueDisplayBackfill;
@@ -357,7 +359,8 @@ class TenantActiveTableAccessArchTest {
           "teams",
           "attack_patterns",
           "agents",
-          "autonomous_objective_templates");
+          "autonomous_objective_templates",
+          "content_history");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -2193,6 +2196,21 @@ class TenantActiveTableAccessArchTest {
           .because(
               "reportings is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule content_history_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Joins the caller's scoped transaction; attributes each row from the entity's
+              // own tenant:
+              ContentHistoryService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ContentHistoryRepository.class)
+          .because(
+              "content_history is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule reporting_generations_repository_access_is_reviewed =

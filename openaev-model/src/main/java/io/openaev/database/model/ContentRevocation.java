@@ -23,11 +23,6 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class, AuditableListener.class})
 public class ContentRevocation implements Base, Auditable {
 
-  public enum CONTENT_TYPE {
-    PAYLOAD,
-    SCENARIO
-  }
-
   @Id
   @Column(name = "content_revocation_id")
   @GeneratedValue(generator = "UUID")
@@ -40,7 +35,7 @@ public class ContentRevocation implements Base, Auditable {
   @Enumerated(EnumType.STRING)
   @JsonProperty("content_revocation_type")
   @NotNull
-  private CONTENT_TYPE type;
+  private ContentType type;
 
   @Column(name = "content_revocation_external_id")
   @JsonProperty("content_revocation_external_id")

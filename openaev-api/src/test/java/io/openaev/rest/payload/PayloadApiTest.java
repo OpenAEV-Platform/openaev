@@ -22,6 +22,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
+import io.openaev.database.repository.ContentHistoryRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
@@ -68,6 +69,7 @@ class PayloadApiTest extends IntegrationTest {
   @Autowired private DocumentRepository documentRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadRepository payloadRepository;
+  @Autowired private ContentHistoryRepository contentHistoryRepository;
   @Autowired private CollectorRepository collectorRepository;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
@@ -1346,6 +1348,38 @@ class PayloadApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.payload_version").doesNotExist())
           .andExpect(jsonPath("$.payload_origin_id").value(payloadId));
+    }
+
+    @Test
+    @DisplayName("Duplicating a payload records it in the content history")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_duplication_should_recordContentHistory() throws Exception {
+      // Arrange
+      String payloadId = createCommandPayload();
+      markAsManaged(payloadId, "1.0.0");
+
+      // Act
+      String response =
+          mvc.perform(post(PAYLOAD_URI + "/" + payloadId + "/duplicate").with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String copyId = JsonPath.read(response, "$.payload_id");
+
+      // Assert
+      List<ContentHistory> history =
+          tenantScopedTransaction.execute(
+              io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+              () ->
+                  java.util.stream.StreamSupport.stream(
+                          contentHistoryRepository.findAll().spliterator(), false)
+                      .filter(h -> copyId.equals(h.getEntityId()))
+                      .toList());
+      assertEquals(1, history.size());
+      assertEquals(ContentHistory.ACTION.DUPLICATE, history.getFirst().getAction());
+      assertEquals("1.0.0", history.getFirst().getVersion());
+      assertFalse(history.getFirst().isAutomatic());
     }
 
     @Test

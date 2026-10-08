@@ -51,6 +51,7 @@ import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
+import io.openaev.service.content.ContentHistoryService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -94,6 +95,7 @@ public class PayloadService {
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final ContentHistoryService contentHistoryService;
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
@@ -391,6 +393,7 @@ public class PayloadService {
                 ? originInjectorContract.get().getDomains()
                 : Set.of(),
             originInjectorContract.isPresent() ? originInjectorContract.get().getTags() : Set.of());
+    contentHistoryService.payloadDuplicated(origin, duplicated);
     return new PayloadCreationService.PayloadInjectorContractCreationResult(
         duplicated, injectorContract);
   }
