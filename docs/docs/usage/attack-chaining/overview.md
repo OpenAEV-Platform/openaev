@@ -103,16 +103,6 @@ between steps).
 
 See [Attack Path Map](attack-path-map.md) for details on both the live execution view and the resulting graph.
 
-To run it later instead of now, schedule it:
-
-- On a chained Scenario, click the **Scheduling** icon and pick **Once** for a single run, or **Hourly**, **Daily**,
-  **Weekly**, or **Monthly** for a recurring run.
-- On a chained Simulation, click the **Scheduling** icon and set the start date and time. You can change it only
-  while the Simulation is **Scheduled**.
-
-At the scheduled time, the chained run starts on its own, like a time-based Simulation. Until then, you can still
-edit its Logic and Scope.
-
 Once you can build a chained Logic graph by hand, you can go one step further with
 [Autonomous Attack Chaining](../autonomous-attack-chaining/overview.md): instead of authoring every Action and Event yourself,
 you give an AI orchestrator an objective in plain language and it plans, executes, and adapts a full attack path on
