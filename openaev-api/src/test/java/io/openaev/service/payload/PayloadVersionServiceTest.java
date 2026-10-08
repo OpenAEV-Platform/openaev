@@ -9,6 +9,7 @@ import io.openaev.database.model.ContentRevocation;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.database.repository.PayloadRepository;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +28,7 @@ class PayloadVersionServiceTest {
 
   @Mock private PayloadRepository payloadRepository;
   @Mock private ContentRevocationRepository contentRevocationRepository;
+  @Mock private EntityManager entityManager;
   @InjectMocks private PayloadVersionService payloadVersionService;
 
   private static Payload payload(String version, Payload.PAYLOAD_STATUS status, boolean latest) {
@@ -84,9 +86,10 @@ class PayloadVersionServiceTest {
       payloadVersionService.refreshLatest(EXTERNAL_ID);
 
       // Assert
-      InOrder order = inOrder(payloadRepository);
-      order.verify(payloadRepository).saveAllAndFlush(List.of(v1));
-      order.verify(payloadRepository).saveAndFlush(v2);
+      InOrder order = inOrder(payloadRepository, entityManager);
+      order.verify(payloadRepository).saveAll(List.of(v1));
+      order.verify(entityManager).flush();
+      order.verify(payloadRepository).save(v2);
     }
 
     @Test

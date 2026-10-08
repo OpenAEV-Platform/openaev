@@ -5,6 +5,7 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.utils.SemanticVersion;
+import jakarta.persistence.EntityManager;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class PayloadVersionService {
 
   private final PayloadRepository payloadRepository;
   private final ContentRevocationRepository contentRevocationRepository;
+  private final EntityManager entityManager;
 
   public static boolean isManaged(Payload payload) {
     return payload.getVersion() != null;
@@ -57,13 +59,14 @@ public class PayloadVersionService {
         cleared.add(payload);
       }
     }
-    payloadRepository.saveAllAndFlush(cleared);
+    payloadRepository.saveAll(cleared);
+    entityManager.flush();
     latest
         .filter(l -> !l.isLatest())
         .ifPresent(
             l -> {
               l.setLatest(true);
-              payloadRepository.saveAndFlush(l);
+              payloadRepository.save(l);
             });
     return latest;
   }
