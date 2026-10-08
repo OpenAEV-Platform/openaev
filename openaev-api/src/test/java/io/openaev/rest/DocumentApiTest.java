@@ -5,8 +5,10 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.http.HttpHeaders.CONTENT_DISPOSITION;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +29,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -582,6 +585,107 @@ class DocumentApiTest extends IntegrationTest {
       assertEquals("My test document", JsonPath.read(response, "$.document_description"));
       assertEquals(scenario.getId(), JsonPath.read(response, "$.document_scenarios[0]"));
       assertEquals(exercise.getId(), JsonPath.read(response, "$.document_exercises[0]"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Document file name sanitization (path traversal)")
+  class DocumentFileNameSanitization {
+
+    private static final String TRAVERSAL_FILE_NAME = "../../ba03_direct.txt";
+    private static final String SANITIZED_FILE_NAME = "ba03_direct.txt";
+
+    private String uploadWithFileName(String route, String fileName) throws Exception {
+      MockPart inputPart =
+          new MockPart("input", mapper.writeValueAsBytes(new DocumentCreateInput()));
+      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+      MockMultipartFile filePart =
+          new MockMultipartFile(
+              "file",
+              fileName,
+              MediaType.TEXT_PLAIN_VALUE,
+              UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
+
+      return mvc.perform(
+              multipart(route)
+                  .part(inputPart)
+                  .file(filePart)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("Given names carrying a path should encode only the last component")
+    void given_names_carrying_a_path_should_encode_only_the_last_component() {
+      // Arrange
+      Map<String, String> expectedByName =
+          Map.of(
+              "../../ba03_direct.txt", "ba03_direct.txt",
+              "..\\..\\evil.exe", "evil.exe",
+              "/etc/cron.d/evil", "evil",
+              "C:\\Windows\\System32\\evil.dll", "evil.dll",
+              // Stays literal: one percent-decoding on the agent side gives back "..%2F..%2F..."
+              "..%2F..%2Fba03_encoded.txt", "..%252F..%252Fba03_encoded.txt");
+
+      // Act & Assert
+      expectedByName.forEach(
+          (name, expected) -> assertEquals(expected, DocumentService.encodeFileName(name)));
+    }
+
+    @Test
+    @DisplayName("Given an uploaded file name carrying a path should store only the last component")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_uploaded_file_name_carrying_a_path_should_store_only_the_last_component()
+        throws Exception {
+      // Act
+      String response = uploadWithFileName(DOCUMENT_API, TRAVERSAL_FILE_NAME);
+
+      // Assert
+      assertEquals(SANITIZED_FILE_NAME, JsonPath.read(response, "$.document_name"));
+    }
+
+    @Test
+    @DisplayName("Given an upserted file name carrying a path should store only the last component")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_upserted_file_name_carrying_a_path_should_store_only_the_last_component()
+        throws Exception {
+      // Act
+      String response = uploadWithFileName(DOCUMENT_API + "/upsert", TRAVERSAL_FILE_NAME);
+
+      // Assert
+      assertEquals(SANITIZED_FILE_NAME, JsonPath.read(response, "$.document_name"));
+    }
+
+    @Test
+    @DisplayName(
+        "Given a stored name carrying a path should serve only the last component to agents")
+    @WithMockUser(
+        withCapabilities = {Capability.AGENT_RUNTIME_ACCESS, Capability.AGENT_DOCUMENT_ACCESS})
+    void given_stored_name_carrying_a_path_should_serve_only_the_last_component_to_agents()
+        throws Exception {
+      // Arrange: a document stored before the upload sanitization existed
+      BinaryFile badCoffeeFileContent = FileFixture.getBadCoffeeFileContent();
+      Document legacyDocument = DocumentFixture.getDocument(badCoffeeFileContent);
+      legacyDocument.setName(TRAVERSAL_FILE_NAME);
+      Document document =
+          documentComposer
+              .forDocument(legacyDocument)
+              .withInMemoryFile(badCoffeeFileContent)
+              .persist()
+              .get();
+
+      // Act & Assert
+      mvc.perform(
+              get(tenantUri(
+                      "/api/tenants/{tenantId}/documents/" + document.getId() + "/agent-file"))
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(
+              header().string(CONTENT_DISPOSITION, "attachment; filename=" + SANITIZED_FILE_NAME));
     }
   }
 

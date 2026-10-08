@@ -95,6 +95,7 @@ public class DocumentService {
       DocumentCreateInput input,
       String tenantId)
       throws Exception {
+    fileName = sanitizeFileName(fileName);
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
@@ -316,8 +317,12 @@ public class DocumentService {
         });
   }
 
+  public static String sanitizeFileName(String name) {
+    return FilenameUtils.getName(name);
+  }
+  
   public static String encodeFileName(String name) {
-    return URLEncoder.encode(name, StandardCharsets.UTF_8).replace("+", "%20");
+    return URLEncoder.encode(sanitizeFileName(name), StandardCharsets.UTF_8).replace("+", "%20");
   }
 
   public List<Document> documentsForScenario(String scenarioId) {

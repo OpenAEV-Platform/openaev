@@ -151,7 +151,7 @@ public class DocumentApi extends RestBehavior {
       Document document = new Document();
       document.setTenant(new Tenant(tenantId));
       document.setTarget(fileTarget);
-      document.setName(file.getOriginalFilename());
+      document.setName(DocumentService.sanitizeFileName(file.getOriginalFilename()));
       document.setDescription(input.getDescription());
       if (!input.getExerciseIds().isEmpty()) {
         document.setExercises(
@@ -643,7 +643,9 @@ public class DocumentApi extends RestBehavior {
             .orElseThrow(() -> new ElementNotFoundException("File not found"));
 
     return ResponseEntity.ok()
-        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + doc.getName())
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            "attachment; filename=" + DocumentService.encodeFileName(doc.getName()))
         .header(HttpHeaders.CONTENT_TYPE, doc.getType())
         .body(new InputStreamResource(in));
   }
