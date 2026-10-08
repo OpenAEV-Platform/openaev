@@ -16,9 +16,9 @@ implemented.
 | [OpenAEV renaming](#openaev-renaming)                         | 1.18.20       | 2.0.0      |
 | [OpenAEV CSRF (Cross-Site Request Forgery)](#openaev-csrf)     | -             | 2.3.4      |
 | [URL access token enforcement](#url-access-token-enforcement) | -             | 2.260622.0 |
-| [Injector contract expectation format](#injector-contract-expectation-format) | -             | 3.260729.0 |
-| [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | 3.260818.1 |
-| [Elasticsearch 9](#elasticsearch-9)                            | -             | 3.260921.0 |
+| [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
+| [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
+| [Elasticsearch 9](#elasticsearch-9)                            | -             | \[MigrationVersion\]        |
 
 ## OpenAEV 2.2.0
 
@@ -106,7 +106,7 @@ OpenAEV now requires token-based links using `/url/access?token=<raw-token>`, fo
 
 For more details, see [this migration guide](breaking-changes/2.260622.0-url-access-token-enforcement.md)
 
-## OpenAEV 3.260729.0
+## OpenAEV \[MigrationVersion\]
 
 ### Introduction
 
@@ -114,32 +114,24 @@ For more details, see [this migration guide](breaking-changes/2.260622.0-url-acc
 
 #### Injector contract expectation format
 
-Starting with **OpenAEV 3.260729.0**, the `predefinedExpectations` list in `injector_contract_content` has been removed. All expectations are now under a single `availableExpectations` list, each with an `expectation_is_predefined` flag.
+Starting with **OpenAEV \[MigrationVersion\]**, the `predefinedExpectations` list in `injector_contract_content` has been removed. All expectations are now under a single `availableExpectations` list, each with an `expectation_is_predefined` flag.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-injector-contract-expectation-format.md)
-
-## OpenAEV 3.260818.1
-
-### Introduction
 
 <a id="tenant-users-groups-and-roles-capabilities"></a>
 
 #### Tenant users, groups and roles capabilities
 
-Starting with **OpenAEV 3.260818.1**, managing a tenant's users, groups and roles is governed by its own *Access / Manage / Delete tenant users, groups and roles* capabilities, instead of the *tenant settings* ones which also cover collectors, injectors and tag rules. Existing roles are migrated automatically and keep the access they had.
+Starting with **OpenAEV \[MigrationVersion\]**, managing a tenant's users, groups and roles is governed by its own *Access / Manage / Delete tenant users, groups and roles* capabilities, instead of the *tenant settings* ones which also cover collectors, injectors and tag rules. Existing roles are migrated automatically and keep the access they had.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md)
-
-## OpenAEV 3.260921.0
-
-### Introduction
 
 <a id="elasticsearch-9"></a>
 
 #### Elasticsearch 9
 
-Starting with **OpenAEV 3.260921.0**, the platform can use an Elasticsearch 9 cluster with
-`engine.engine-selector=elk9`. The default `elk` selector keeps the Elasticsearch 8 client, so existing Elasticsearch 8
-and OpenSearch deployments are unaffected.
+Starting with **OpenAEV \[MigrationVersion\]**, the platform requires an Elasticsearch 9 cluster. The 9.x client
+tags its requests as `compatible-with=9`, which an 8.x server rejects, so every engine call fails against
+Elasticsearch 8. OpenSearch deployments are unaffected.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-elasticsearch-9.md)
