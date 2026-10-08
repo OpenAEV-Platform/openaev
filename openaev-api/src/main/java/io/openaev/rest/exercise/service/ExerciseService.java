@@ -51,6 +51,7 @@ import io.openaev.rest.exercise.response.ExercisesGlobalScoresOutput;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.payload.output.LaunchBlockerOutput;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
@@ -59,6 +60,8 @@ import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
+import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -113,6 +116,8 @@ public class ExerciseService {
   @PersistenceContext private EntityManager entityManager;
 
   private final EnterpriseEditionService enterpriseEditionService;
+  private final PayloadApprovalGate payloadApprovalGate;
+  private final LaunchReadinessService launchReadinessService;
   private final InjectDuplicateService injectDuplicateService;
   private final TeamService teamService;
   private final VariableService variableService;
@@ -884,7 +889,20 @@ public class ExerciseService {
     return exerciseRepository.save(exercise);
   }
 
+  /** Payloads that keep this simulation from being started; empty when it can be started. */
+  public List<LaunchBlockerOutput> launchBlockers(String exerciseId) {
+    return LaunchBlockerOutput.from(
+        payloadApprovalGate.blockedPayloads(injectRepository.findByExerciseId(exerciseId)));
+  }
+
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
+    // Before the licence shortcut: payload approval applies to every edition. All the blocking
+    // payloads of the simulation are listed in one message.
+    payloadApprovalGate.requireApproved(
+        "Launching the simulation \"" + exercise.getName() + "\"",
+        exercise.getInjects(),
+        ResourceType.SIMULATION,
+        exercise.getId());
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
@@ -1206,6 +1224,7 @@ public class ExerciseService {
   @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
       @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
+    launchReadinessService.onSimulationTargetsChanged(exerciseId);
     // Remove teams from exercise
     this.exerciseRepository.removeTeams(exerciseId, teamIds);
     // Remove only associations for this exercise
@@ -1224,6 +1243,7 @@ public class ExerciseService {
   @Transactional(rollbackFor = Exception.class)
   public List<TeamOutput> replaceTeams(
       @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
+    launchReadinessService.onSimulationTargetsChanged(exerciseId);
     Exercise exercise = this.exercise(exerciseId);
     Set<String> previousTeamIds =
         exercise.getTeams().stream().map(Team::getId).collect(Collectors.toSet());
@@ -1271,6 +1291,7 @@ public class ExerciseService {
       @NotBlank final String exerciseId,
       @NotNull final Team team,
       @NotNull final List<String> playerIds) {
+    launchReadinessService.onSimulationTargetsChanged(exerciseId);
     Exercise exercise = this.exercise(exerciseId);
     playerIds.forEach(
         playerId -> {

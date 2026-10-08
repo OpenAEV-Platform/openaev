@@ -2,6 +2,7 @@ package io.openaev.rest.atomic_testing.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.rest.payload.output.LaunchBlockerOutput;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -96,4 +97,18 @@ public class InjectResultOverviewOutput {
   @JsonProperty("inject_expectation_results")
   @NotNull
   private List<ExpectationResultsByType> expectationResultByTypes = new ArrayList<>();
+
+  @Schema(
+      description =
+          "Payloads that keep this atomic testing from being launched (not approved or changed"
+              + " since their approval); empty when it can be launched")
+  @JsonProperty("inject_launch_blocked_by")
+  private List<LaunchBlockerOutput> launchBlockedBy;
+
+  @Schema(
+      description =
+          "When the recurrence was paused (an action not approved, or a sensitive change); null"
+              + " when not paused. Saving or removing the schedule re-enables it")
+  @JsonProperty("inject_recurrence_paused_at")
+  private Instant recurrencePausedAt;
 }

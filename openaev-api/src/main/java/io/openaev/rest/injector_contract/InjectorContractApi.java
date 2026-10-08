@@ -32,6 +32,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -85,8 +86,8 @@ public class InjectorContractApi extends RestBehavior {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec,
-                specCount,
+                input.restrictToPickable(spec),
+                input.restrictToPickable(specCount),
                 pageable,
                 input.isIncludeFullDetails()
                     ? InjectorContractService.OutputMode.FULL
@@ -106,7 +107,7 @@ public class InjectorContractApi extends RestBehavior {
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
-    return injectorContractService.getDomainCounts(filtered);
+    return injectorContractService.getDomainCounts(filtered, pickerScope(input));
   }
 
   /**
@@ -125,9 +126,9 @@ public class InjectorContractApi extends RestBehavior {
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
     return new InjectorContractFacetCountsOutput(
-        injectorContractService.getPlatformCounts(filtered),
-        injectorContractService.getKillChainPhaseCounts(filtered),
-        injectorContractService.getStatusCounts(filtered));
+        injectorContractService.getPlatformCounts(filtered, pickerScope(input)),
+        injectorContractService.getKillChainPhaseCounts(filtered, pickerScope(input)),
+        injectorContractService.getStatusCounts(filtered, pickerScope(input)));
   }
 
   /**
@@ -144,7 +145,7 @@ public class InjectorContractApi extends RestBehavior {
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
-    return injectorContractService.getAuthorCounts(filtered);
+    return injectorContractService.getAuthorCounts(filtered, pickerScope(input));
   }
 
   /**
@@ -259,5 +260,11 @@ public class InjectorContractApi extends RestBehavior {
   private InjectorContract hydrated(InjectorContract injectorContract) {
     AttackPatternInitializer.initializeFromContract(injectorContract);
     return injectorContract;
+  }
+
+  /** Same scope as the picker list search, so every facet count equals what the list shows. */
+  private static Specification<InjectorContract> pickerScope(
+      InjectorContractSearchPaginationInput input) {
+    return input.restrictToPickable(Specification.unrestricted());
   }
 }

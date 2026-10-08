@@ -59,6 +59,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
+import io.openaev.rest.payload.output.LaunchBlockerOutput;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
 import io.openaev.rest.scenario.form.ScenarioBulkProcessingInput;
 import io.openaev.rest.scenario.form.ScenarioInput;
@@ -71,6 +72,8 @@ import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
+import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -145,6 +148,8 @@ public class ScenarioService {
   private final LicenseCacheManager licenseCacheManager;
 
   private final EnterpriseEditionService enterpriseEditionService;
+  private final PayloadApprovalGate payloadApprovalGate;
+  private final LaunchReadinessService launchReadinessService;
   private final VariableService variableService;
   private final ChallengeService challengeService;
   private final TeamService teamService;
@@ -481,17 +486,33 @@ public class ScenarioService {
   }
 
   public void throwIfScenarioNotLaunchable(Scenario scenario) {
+    // Before the licence shortcut: payload approval applies to every edition.
+    throwIfScenarioPayloadsNotApproved(scenario);
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     scenario.getInjects().forEach(injectService::throwIfInjectNotLaunchable);
   }
 
+  /**
+   * Refuses to launch a scenario that uses a payload which is not approved, listing all of them in
+   * one message. Also used by the chaining launch, which skips the licence checks.
+   */
+  public void throwIfScenarioPayloadsNotApproved(Scenario scenario) {
+    payloadApprovalGate.requireApproved(
+        "Launching the scenario \"" + scenario.getName() + "\"",
+        scenario.getInjects(),
+        ResourceType.SCENARIO,
+        scenario.getId());
+  }
+
   /** Scenario is recurring AND end date is after now */
   public List<Scenario> recurringScenarios(@NotNull final Instant instant) {
+    // A paused schedule creates nothing until a user re-enables it.
     return this.scenarioRepository.findAll(
         ScenarioSpecification.isRecurring()
-            .and(ScenarioSpecification.recurrenceStopDateAfter(instant)));
+            .and(ScenarioSpecification.recurrenceStopDateAfter(instant))
+            .and((root, query, cb) -> cb.isNull(root.get("recurrencePausedAt"))));
   }
 
   /** Scenario is recurring AND start date is before now OR stop date is before now */
@@ -533,7 +554,14 @@ public class ScenarioService {
         log.error("Error reading scenarioTeamUsers from scenario id {}", scenarioId, e);
       }
     }
-    return scenarioMapper.toScenarioOutput(rawScenario, killChainPhases, scenarioTeamUsers);
+    ScenarioOutput output =
+        scenarioMapper.toScenarioOutput(rawScenario, killChainPhases, scenarioTeamUsers);
+    output.setLaunchBlockedBy(
+        LaunchBlockerOutput.from(
+            payloadApprovalGate.blockedPayloads(injectRepository.findByScenarioId(scenarioId))));
+    output.setRecurrencePausedAt(
+        scenarioRepository.findById(scenarioId).map(Scenario::getRecurrencePausedAt).orElse(null));
+    return output;
   }
 
   /**
@@ -1010,6 +1038,7 @@ public class ScenarioService {
   @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
       @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
+    launchReadinessService.onScenarioTargetsChanged(scenarioId);
     // Remove teams from scenario
     this.scenarioRepository.removeTeams(scenarioId, teamIds);
     // Remove only associations for this scenario
@@ -1028,6 +1057,7 @@ public class ScenarioService {
   @Transactional(rollbackFor = Exception.class)
   public List<TeamOutput> replaceTeams(
       @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
+    launchReadinessService.onScenarioTargetsChanged(scenarioId);
     Scenario scenario = this.scenario(scenarioId);
     Set<String> previousTeamIds =
         scenario.getTeams().stream().map(Team::getId).collect(Collectors.toSet());
@@ -1100,6 +1130,7 @@ public class ScenarioService {
       @NotBlank final String scenarioId,
       @NotBlank final Team team,
       @NotNull final List<String> playerIds) {
+    launchReadinessService.onScenarioTargetsChanged(scenarioId);
     Scenario scenario = this.scenario(scenarioId);
     playerIds.forEach(
         playerId -> {
@@ -1122,6 +1153,7 @@ public class ScenarioService {
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
+    launchReadinessService.onScenarioTargetsChanged(scenarioId);
     playerIds.forEach(
         playerId -> {
           ScenarioTeamUserId scenarioTeamUserId = new ScenarioTeamUserId();

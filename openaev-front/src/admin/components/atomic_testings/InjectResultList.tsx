@@ -32,6 +32,8 @@ import InjectImportJsonDialog from '../common/injects/InjectImportJsonDialog';
 import InjectorContract from '../common/injects/InjectorContract';
 import InjectStatus from '../common/injects/status/InjectStatus';
 import ToolBar from '../common/ToolBar';
+import { payloadApprovalDisplay } from '../payloads/payloadApprovalDisplay';
+import PayloadApprovalWarningChip from '../payloads/PayloadApprovalWarningChip';
 import PayloadDeprecatedChip from '../payloads/PayloadDeprecatedChip';
 import AtomicTestingPopover from './atomic_testing/AtomicTestingPopover';
 import AtomicTestingResult from './atomic_testing/AtomicTestingResult';
@@ -79,6 +81,10 @@ interface Props {
   // callers in that context can display them as PENDING instead. Disabled injects
   // always display as "Disabled" regardless of this flag.
   displayDraftAsPending?: boolean;
+  // Atomic testings list: an atomic testing whose payload is not approved shows "Draft" (with the
+  // approval icon) whether it ran or not, like its own page; its launch is blocked until approved.
+  // Simulation results keep the real execution status (a refused inject stays in Error).
+  displayDraftWhenPayloadBlocked?: boolean;
   // External trigger to refresh the paginated list when data changes outside
   // the list controls (e.g. live execution updates).
   reloadContentCount?: number;
@@ -95,6 +101,7 @@ const InjectResultList: FunctionComponent<Props> = ({
   onBulkDelete,
   deleteConfirmation,
   displayDraftAsPending,
+  displayDraftWhenPayloadBlocked = false,
   reloadContentCount = 0,
 }) => {
   // Standard hooks
@@ -203,10 +210,44 @@ const InjectResultList: FunctionComponent<Props> = ({
           );
         }
         const statusName = injectResultOutput.inject_status?.status_name;
+        const approvalStatus = injectResultOutput.inject_injector_contract?.injector_contract_payload?.payload_approval_status;
+        const actionName = tPick(injectResultOutput.inject_injector_contract?.injector_contract_labels);
+        // Not run yet and its payload is not approved: say why it will not run. Computed on read
+        // from the payload approval status, never stored; once run, the real status shows, with
+        // the approval state as an icon next to it.
+        if (displayDraftWhenPayloadBlocked && payloadApprovalDisplay(approvalStatus)) {
+          return (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              maxWidth: '100%',
+            }}
+            >
+              <InjectStatus status="DRAFT" />
+              <PayloadApprovalWarningChip approvalStatus={approvalStatus} payloadName={actionName} variant="icon" />
+            </span>
+          );
+        }
+        const notRunYet = !statusName || statusName === 'DRAFT' || statusName === 'QUEUING';
+        if (notRunYet && payloadApprovalDisplay(approvalStatus)) {
+          return <PayloadApprovalWarningChip approvalStatus={approvalStatus} payloadName={actionName} />;
+        }
         const displayStatus = displayDraftAsPending && (!statusName || statusName === 'DRAFT')
           ? 'PENDING'
           : statusName;
-        return (<InjectStatus status={displayStatus as InjectStatusType['status_name']} />);
+        return (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            maxWidth: '100%',
+          }}
+          >
+            <InjectStatus status={displayStatus as InjectStatusType['status_name']} />
+            <PayloadApprovalWarningChip approvalStatus={approvalStatus} payloadName={actionName} variant="icon" />
+          </span>
+        );
       },
     },
     {

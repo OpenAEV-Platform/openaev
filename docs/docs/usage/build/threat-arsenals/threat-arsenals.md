@@ -65,6 +65,18 @@ How the status is set:
 
 To approve or reject, open the Action, then use **Approve** or **Reject** in its *Approval* section. A rejection requires a reason. If the payload changed while you were reviewing it, the approval is refused and you review the new content first. The *Approval* section also shows the latest decision and the approval history, and the list can be filtered by approval status.
 
+### Only approved payloads can run
+
+* **Picking an action.** When you add an Action to an Atomic Test, a Scenario, a Simulation or a chaining workflow, the picker lists only Actions whose payload is **Approved**, plus built-in Actions without a payload; its filter counts (domains, platforms, kill chain, status, authors) count exactly what it lists. Adding a non-approved payload through the API is refused too.
+* **Launch buttons.** When an Atomic Test, a Scenario or a Simulation uses an Action that is not approved (*Pending*, *Rejected*, or changed since its approval), its **Launch**, **Launch now**, **Relaunch now** and **Start now** buttons are disabled; hovering them tells why, for example *Can't launch: TEST-A is pending approval* (up to three Actions, then "+N"). The server refuses such launches on every path (including the API and scheduled runs) and writes the refusal to the audit log.
+* **Indicators.** An inject whose payload is *Pending* or *Rejected* shows a compact **Pending** or **Rejected** chip (the full text is in its tooltip). In the Atomic Tests list and on an Atomic Test page, a blocked Atomic Test shows **Draft**; its last results stay visible. In a Simulation's results, an inject that has not run yet shows the chip in its status; one that already ran keeps its execution status.
+* **What happens to scheduled runs** when an Action becomes *Pending* or *Rejected*:
+    * a recurring Scenario or Atomic Test is **paused**: its header shows *Paused* and no new run is created. It **stays paused after the Action is approved again**: open the schedule and save it to resume (saving is refused while an Action is still blocked), or stop it;
+    * a Simulation planned for later goes back to **Draft** (its start date is removed): plan it or start it again once approved;
+    * a running Simulation keeps running; its injects using the Action that have not run yet are refused and end in error, the others run normally.
+* **Warning before impact.** When a payload is used, the **Reject** dialog and the edit confirmation (for a user without *Approve content* changing what an approved payload runs) say how many Atomic Tests, Scenarios and Simulations still to run use it, grouped by type with links to the first 20 of each (names only for users who can open them; the counts are always complete). In both cases you can go ahead.
+* **Last check before running.** Right before an inject runs, the platform checks its payload again: if it is no longer approved, or its content changed since the approval, the inject ends in error instead of running.
+
 ## Create an Action
 
 To create a new Action, follow these steps:

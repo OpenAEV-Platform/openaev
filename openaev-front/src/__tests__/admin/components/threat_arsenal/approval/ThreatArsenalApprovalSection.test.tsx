@@ -9,6 +9,7 @@ import { type ThreatArsenalActionFullOutput } from '../../../../../utils/api-typ
 const mockCan = vi.fn();
 const mockApprove = vi.fn();
 const mockReject = vi.fn();
+const mockUsage = vi.fn();
 
 vi.mock('../../../../../components/i18n', () => ({
   useFormatter: () => ({
@@ -23,6 +24,7 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   approveThreatArsenalAction: (...args: unknown[]) => mockApprove(...args),
   rejectThreatArsenalAction: (...args: unknown[]) => mockReject(...args),
   fetchThreatArsenalActionApprovals: () => Promise.resolve({ data: [] }),
+  fetchThreatArsenalActionUsage: (...args: unknown[]) => mockUsage(...args),
 }));
 
 const pendingAction = {
@@ -52,6 +54,8 @@ describe('ThreatArsenalApprovalSection', () => {
     mockCan.mockReset();
     mockApprove.mockReset();
     mockReject.mockReset();
+    mockUsage.mockReset();
+    mockUsage.mockResolvedValue({ data: {} });
   });
 
   afterEach(() => {
@@ -140,6 +144,40 @@ describe('ThreatArsenalApprovalSection', () => {
       // Assert
       expect(await screen.findByText('A reason is required to reject a payload.')).toBeTruthy();
       expect(mockReject).not.toHaveBeenCalled();
+    });
+
+    it('warns that rejecting blocks the launch of what uses the payload (US2.4)', async () => {
+      // Arrange
+      mockCan.mockReturnValue(true);
+      mockUsage.mockResolvedValue({
+        data: {
+          usage_atomic_testings_count: 2,
+          usage_scenarios_count: 1,
+          usage_simulations_count: 0,
+        },
+      });
+      renderSection(pendingAction);
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: /Reject/ }));
+
+      // Assert
+      expect(await screen.findByText(/It will block the launch of the items below until it is edited and approved again\./)).toBeTruthy();
+      expect(mockUsage).toHaveBeenCalledWith('action-1');
+    });
+
+    it('shows no usage warning when the payload is not used', async () => {
+      // Arrange
+      mockCan.mockReturnValue(true);
+      renderSection(pendingAction);
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: /Reject/ }));
+      await screen.findAllByRole('button', { name: 'Reject' });
+
+      // Assert
+      await waitFor(() => expect(mockUsage).toHaveBeenCalled());
+      expect(screen.queryByText(/It will block the launch of the items below until it is edited and approved again\./)).toBeNull();
     });
   });
 });

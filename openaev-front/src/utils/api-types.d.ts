@@ -7195,10 +7195,17 @@ export interface InjectResultOverviewOutput {
   inject_injector_contract?: AtomicInjectorContractOutput;
   /** Kill chain phases */
   inject_kill_chain_phases?: KillChainPhaseSimple[];
+  /** Payloads that keep this atomic testing from being launched (not approved or changed since their approval); empty when it can be launched */
+  inject_launch_blocked_by?: LaunchBlockerOutput[];
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
   /** Recurrence cron expression for scheduled relaunch */
   inject_recurrence?: string;
+  /**
+   * When the recurrence was paused (an action not approved, or a sensitive change); null when not paused. Saving or removing the schedule re-enables it
+   * @format date-time
+   */
+  inject_recurrence_paused_at?: string;
   /**
    * End date of the recurrence scheduling
    * @format date-time
@@ -7593,6 +7600,8 @@ export interface InjectorContractInput {
 }
 
 export interface InjectorContractSearchPaginationInput {
+  /** Return only the actions that can be picked for an inject: payload-less actions and actions whose payload is approved */
+  approved_payloads_only?: boolean;
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
   /** Include the injector contract content on the returned object if set to true */
@@ -7883,6 +7892,21 @@ export interface KillChainPhaseUpdateInput {
 
 export interface KillChainPhaseUpsertInput {
   kill_chain_phases: KillChainPhaseCreateInput[];
+}
+
+/**
+ * A payload that keeps an atomic testing, a scenario or a simulation from being launched: not
+ * approved, or its content changed since its approval.
+ */
+export interface LaunchBlockerOutput {
+  /** Approval status of the payload (APPROVED when its content changed) */
+  approval_status: "PENDING" | "APPROVED" | "REJECTED";
+  /** Payload identifier */
+  id: string;
+  /** Payload name */
+  name: string;
+  /** Why it blocks the launch */
+  reason: string;
 }
 
 export interface LessonsAnswer {
@@ -11368,6 +11392,8 @@ export interface ScenarioOutput {
   scenario_id: string;
   /** @uniqueItems true */
   scenario_kill_chain_phases?: KillChainPhaseOutput[];
+  /** Payloads that keep this scenario from being launched (not approved or changed since their approval); empty when it can be launched */
+  scenario_launch_blocked_by?: LaunchBlockerOutput[];
   /** Whether the lessons learned module is enabled for the scenario */
   scenario_lessons_enabled?: boolean;
   /**
@@ -11394,6 +11420,11 @@ export interface ScenarioOutput {
   scenario_platforms?: string[];
   /** Recurrence of the scenario */
   scenario_recurrence?: string;
+  /**
+   * When the schedule was paused (an action not approved, or a sensitive change); null when not paused. Saving or stopping the schedule re-enables it
+   * @format date-time
+   */
+  scenario_recurrence_paused_at?: string;
   /**
    * Recurrence end date of the scenario
    * @format date-time
@@ -12061,6 +12092,8 @@ export interface SimulationDetails {
   /** @minLength 1 */
   exercise_id: string;
   exercise_kill_chain_phases?: KillChainPhase[];
+  /** Payloads that keep this simulation from being started (not approved or changed since their approval); empty when it can be started */
+  exercise_launch_blocked_by?: LaunchBlockerOutput[];
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
@@ -13182,6 +13215,42 @@ export interface ThreatArsenalActionUpdateInput {
   file_drop_file?: string;
 }
 
+/** An atomic testing, scenario or simulation using the payload of an action. */
+export interface ThreatArsenalActionUsageItem {
+  /** Identifier */
+  id: string;
+  /** Name */
+  name: string;
+}
+
+/**
+ * Where the payload of an action is used, to warn before an approval change blocks launches. The
+ * name lists are null when the user cannot read that type of resource (counts only).
+ */
+export interface ThreatArsenalActionUsageOutput {
+  /** First 20 atomic testings by name (the count is exact), null without access to atomic testings */
+  usage_atomic_testings?: ThreatArsenalActionUsageItem[];
+  /**
+   * Number of atomic testings using the payload
+   * @format int64
+   */
+  usage_atomic_testings_count?: number;
+  /** First 20 scenarios by name (the count is exact), null without access to scenarios */
+  usage_scenarios?: ThreatArsenalActionUsageItem[];
+  /**
+   * Number of scenarios using the payload
+   * @format int64
+   */
+  usage_scenarios_count?: number;
+  /** First 20 simulations by name (the count is exact), null without access to simulations */
+  usage_simulations?: ThreatArsenalActionUsageItem[];
+  /**
+   * Number of simulations still to run (scheduled, running, paused)
+   * @format int64
+   */
+  usage_simulations_count?: number;
+}
+
 export interface ThreatArsenalActionWithContentOutput {
   /** CPU architecture targeted for action execution */
   action_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
@@ -13224,6 +13293,17 @@ export interface ThreatArsenalActionWithContentOutput {
    * @format date-time
    */
   injector_contract_updated_at: string;
+}
+
+/**
+ * Body of the 409 answer to an action update sent with check_approval_impact: the edit would send
+ * the approved payload back to pending while it is used. Nothing was saved.
+ */
+export interface ThreatArsenalApprovalImpactOutput {
+  /** What saving would do */
+  message: string;
+  /** Where the payload is used */
+  usage: ThreatArsenalActionUsageOutput;
 }
 
 export interface ThreatArsenalBulkDeleteOutput {

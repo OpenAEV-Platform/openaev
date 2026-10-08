@@ -4,9 +4,11 @@ import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 
 import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.raw.RawInjectIndexing;
+import io.openaev.database.raw.RawPayloadUsageItem;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -85,6 +87,59 @@ public interface InjectRepository
    * deliberately not counted: the inner join on {@code status} drops it, and it is not in flight so
    * it cannot justify the orchestrator's silence.
    */
+  // -- LAUNCH READINESS (pause schedules when a payload is blocked) --
+
+  /** Recurring atomic testings using the payload whose schedule is not paused yet. */
+  @Query(
+      "SELECT i FROM Inject i WHERE i.injectorContract.payload.id = :payloadId "
+          + "AND i.scenario IS NULL AND i.exercise IS NULL "
+          + "AND i.recurrence IS NOT NULL AND i.recurrencePausedAt IS NULL")
+  List<Inject> findRecurringAtomicTestingsNotPausedByPayloadId(
+      @Param("payloadId") String payloadId);
+
+  // -- PAYLOAD USAGE (approval impact warnings) --
+
+  @Query(
+      "SELECT COUNT(i) FROM Inject i WHERE i.injectorContract.payload.id = :payloadId "
+          + "AND i.scenario IS NULL AND i.exercise IS NULL")
+  long countAtomicTestingsByPayloadId(@Param("payloadId") String payloadId);
+
+  @Query(
+      "SELECT i.id AS id, i.title AS name FROM Inject i "
+          + "WHERE i.injectorContract.payload.id = :payloadId "
+          + "AND i.scenario IS NULL AND i.exercise IS NULL ORDER BY i.title")
+  List<RawPayloadUsageItem> findAtomicTestingsByPayloadId(
+      @Param("payloadId") String payloadId, Pageable pageable);
+
+  @Query(
+      "SELECT COUNT(DISTINCT s.id) FROM Inject i JOIN i.scenario s "
+          + "WHERE i.injectorContract.payload.id = :payloadId")
+  long countScenariosByPayloadId(@Param("payloadId") String payloadId);
+
+  @Query(
+      "SELECT DISTINCT s.id AS id, s.name AS name FROM Inject i JOIN i.scenario s "
+          + "WHERE i.injectorContract.payload.id = :payloadId ORDER BY s.name")
+  List<RawPayloadUsageItem> findScenariosByPayloadId(
+      @Param("payloadId") String payloadId, Pageable pageable);
+
+  // A simulation is impacted only while an inject using the payload has not run yet (no status).
+  @Query(
+      "SELECT COUNT(DISTINCT e.id) FROM Inject i JOIN i.exercise e LEFT JOIN i.status st "
+          + "WHERE i.injectorContract.payload.id = :payloadId AND e.status IN :statuses "
+          + "AND st.id IS NULL")
+  long countSimulationsByPayloadIdAndStatusIn(
+      @Param("payloadId") String payloadId, @Param("statuses") Collection<ExerciseStatus> statuses);
+
+  @Query(
+      "SELECT DISTINCT e.id AS id, e.name AS name FROM Inject i JOIN i.exercise e "
+          + "LEFT JOIN i.status st "
+          + "WHERE i.injectorContract.payload.id = :payloadId AND e.status IN :statuses "
+          + "AND st.id IS NULL ORDER BY e.name")
+  List<RawPayloadUsageItem> findSimulationsByPayloadIdAndStatusIn(
+      @Param("payloadId") String payloadId,
+      @Param("statuses") Collection<ExerciseStatus> statuses,
+      Pageable pageable);
+
   @Query(
       "SELECT COUNT(i) FROM Inject i WHERE i.exercise.id = :exerciseId "
           + "AND i.status.name IN :statuses")

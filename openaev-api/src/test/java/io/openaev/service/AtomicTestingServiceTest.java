@@ -10,6 +10,8 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.atomic_testing.form.InjectResultOverviewOutput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
+import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectUtils;
@@ -41,6 +43,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class AtomicTestingServiceTest {
 
   @Mock private InjectMapper injectMapper;
+  @Mock private PayloadApprovalGate payloadApprovalGate;
+  @Mock private LaunchReadinessService launchReadinessService;
   @Mock private ActionMetricCollector actionMetricCollector;
   @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
   @Mock private io.openaev.database.repository.AssetRepository assetRepository;

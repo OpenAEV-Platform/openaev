@@ -12,6 +12,7 @@ import { type Domain, type ThreatArsenalAction } from '../../../utils/api-types'
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
 import { tint } from '../../../utils/tint';
 import InjectIcon from '../common/injects/InjectIcon';
+import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 
@@ -66,6 +67,10 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const status = action.action_payload?.payload_status;
   const statusColor = getStatusColor(theme, status);
   const statusLabel = getStatusLabel(status);
+  // A payload that is not approved shows its approval status instead of Verified / Unverified /
+  // Deprecated: the approval decides whether it can be used.
+  const approvalStatus = action.action_payload?.payload_approval_status;
+  const approvalWins = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
   const name = tPick(action.action_labels);
 
   const showCheckbox = anySelected || selected || checked;
@@ -135,7 +140,17 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           />
         </Box>
 
-        {statusLabel && (
+        {approvalWins && (
+          <Box sx={{
+            position: 'absolute',
+            top: 12,
+            right: 48,
+          }}
+          >
+            <ApprovalStatusChip status={approvalStatus} />
+          </Box>
+        )}
+        {!approvalWins && statusLabel && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Box

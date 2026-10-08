@@ -1,5 +1,6 @@
 package io.openaev.rest.inject.service;
 
+import static io.openaev.aop.audit_log.AuditEventOrigin.SYSTEM;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY;
@@ -21,6 +22,8 @@ import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.payload_approval.BlockedPayloadsException;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.utils.command.CommandArgumentBinder;
 import jakarta.annotation.Resource;
 import java.time.Instant;
@@ -50,6 +53,7 @@ public class ExecutableInjectService {
   private final PayloadService payloadService;
   private final AgentRepository agentRepository;
   private final AssetGroupService assetGroupService;
+  private final PayloadApprovalGate payloadApprovalGate;
 
   @Resource protected ObjectMapper mapper;
 
@@ -358,6 +362,18 @@ public class ExecutableInjectService {
     if (contract.getPayload() == null) {
       throw new ElementNotFoundException("Payload not found");
     }
+    // Second line of the payload approval check (the executor refuses before dispatch): the payload
+    // could have been edited between the dispatch and this download by the implant.
+    payloadApprovalGate
+        .check(contract.getPayload())
+        .ifPresent(
+            blocked -> {
+              String operation = "Serving the payload of the inject \"" + inject.getTitle() + "\"";
+              payloadApprovalGate.auditBlocked(
+                  operation, List.of(blocked), ResourceType.INJECT, inject.getId(), SYSTEM);
+              throw new ForbiddenException(
+                  BlockedPayloadsException.message(operation, List.of(blocked)));
+            });
     Payload payloadToExecute = payloadService.generateDuplicatedPayload(contract.getPayload());
     JsonNode injectorContractFieldsNode = contract.getConvertedContent().get("fields");
     List<ObjectNode> injectorContractFields =

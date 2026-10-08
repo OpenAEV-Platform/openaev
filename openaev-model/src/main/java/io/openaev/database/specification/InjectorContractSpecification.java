@@ -23,6 +23,19 @@ public class InjectorContractSpecification {
     };
   }
 
+  /**
+   * Only the contracts a user may pick for an inject: payload-less built-in actions and actions
+   * whose payload is approved.
+   */
+  public static Specification<InjectorContract> withApprovedOrNoPayload() {
+    return (root, query, cb) -> {
+      Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
+      return cb.or(
+          cb.isNull(payload.get("id")),
+          cb.equal(payload.get("approvalStatus"), Payload.PAYLOAD_APPROVAL_STATUS.APPROVED));
+    };
+  }
+
   public static Specification<InjectorContract> byPayloadExternalId(
       final String payloadExternalId) {
     if (payloadExternalId == null || payloadExternalId.isEmpty()) {

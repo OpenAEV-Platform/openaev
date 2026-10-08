@@ -13,6 +13,8 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.payload_approval.BlockedPayloadsException.BlockedPayload;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
 import jakarta.persistence.EntityManager;
@@ -24,6 +26,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
@@ -34,6 +37,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @DisallowConcurrentExecution
+@Slf4j
 public class ScenarioExecutionJob implements Job {
 
   private final ScenarioService scenarioService;
@@ -44,6 +48,7 @@ public class ScenarioExecutionJob implements Job {
   private final EntityManager entityManager;
   private final TenantScopedTransaction tenantTx;
   private final TenantRepository tenantRepository;
+  private final PayloadApprovalGate payloadApprovalGate;
 
   @Override
   @LogExecutionTime
@@ -51,6 +56,18 @@ public class ScenarioExecutionJob implements Job {
     // Disable tenant filter — this job runs cross-tenant
     createExercisesFromScenarios();
     cleanOutdatedRecurringScenario();
+  }
+
+  private boolean isNotBlockedByApproval(Scenario scenario) {
+    List<BlockedPayload> blocked = payloadApprovalGate.blockedPayloads(scenario.getInjects());
+    if (blocked.isEmpty()) {
+      return true;
+    }
+    log.info(
+        "Recurring scenario {} paused: {} payload(s) not approved",
+        scenario.getId(),
+        blocked.size());
+    return false;
   }
 
   private void createExercisesFromScenarios() {
@@ -101,6 +118,9 @@ public class ScenarioExecutionJob implements Job {
           // Filter scenarios with this results
           validScenarios.stream()
               .filter(scenario -> !alreadyExistIds.contains(scenario.getId()))
+              // A scenario using a payload that is not approved is paused: no new simulation
+              // while it is blocked (its launch is refused anyway).
+              .filter(this::isNotBlockedByApproval)
               // Time-based scenarios stay scheduled and are auto-started later.
               // Chained scenarios only provision their simulation template here; the workflow run
               // is created when the scheduled simulation is auto-started.

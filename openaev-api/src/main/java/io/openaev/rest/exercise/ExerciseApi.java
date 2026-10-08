@@ -50,6 +50,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -116,6 +117,7 @@ public class ExerciseApi extends RestBehavior {
   private final InjectService injectService;
   private final ImportService importService;
   private final ExerciseService exerciseService;
+  private final LaunchReadinessService launchReadinessService;
   private final TeamService teamService;
   private final ExportService exportService;
   private final ChannelService channelService;
@@ -422,6 +424,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
+    launchReadinessService.onSimulationTargetsChanged(exerciseId);
     input
         .getPlayersIds()
         .forEach(
@@ -797,6 +800,7 @@ public class ExerciseApi extends RestBehavior {
     detail.setPlatforms(platforms);
     detail.setCommunicationsNumber(communicationsNumber);
     detail.setKillChainPhases(killChainPhases);
+    detail.setLaunchBlockedBy(exerciseService.launchBlockers(exerciseId));
     if (rawGrants.get(Grant.GRANT_TYPE.OBSERVER.name()) != null) {
       detail.setObservers(
           rawGrants.get(Grant.GRANT_TYPE.OBSERVER.name()).stream()

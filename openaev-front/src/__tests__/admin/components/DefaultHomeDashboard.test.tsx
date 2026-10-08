@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type EsSeries } from '../../../utils/api-types';
 
-const { mockDispatch, adHocSeriesMock, gridMountSpy } = vi.hoisted(() => ({
+const { mockCan, mockDispatch, adHocSeriesMock, gridMountSpy } = vi.hoisted(() => ({
+  mockCan: vi.fn((_action: string, _subject: string) => true),
   mockDispatch: vi.fn(),
   adHocSeriesMock: vi.fn(),
   gridMountSpy: vi.fn(),
@@ -31,6 +32,8 @@ vi.mock('../../../utils/hooks/useDataLoader', () => ({
     loader();
   },
 }));
+
+vi.mock('../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: mockCan }) }));
 
 vi.mock('../../../actions/assets/securityPlatform-actions', () => ({ fetchSecurityPlatforms: () => ({ type: 'fetchSecurityPlatforms' }) }));
 
@@ -81,6 +84,8 @@ const probeResponse = (value: number): { data: EsSeries[] } => ({
 describe('DefaultHomeDashboard first load (#7599)', () => {
   beforeEach(() => {
     mockDispatch.mockClear();
+    mockCan.mockReset();
+    mockCan.mockReturnValue(true);
     adHocSeriesMock.mockReset();
     gridMountSpy.mockClear();
   });
@@ -152,5 +157,30 @@ describe('DefaultHomeDashboard first load (#7599)', () => {
     // Assert: the gauge defaults to hidden, the dashboard still renders
     expect(await screen.findByTestId('dashboard-grid')).toBeDefined();
     expect(gridMountSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fetch security platforms without "Access security platforms" (no "Access denied" toast)', async () => {
+    // Arrange
+    mockCan.mockImplementation((_action: string, subject: string) => subject !== 'SECURITY_PLATFORMS');
+    adHocSeriesMock.mockResolvedValue(probeResponse(0));
+
+    // Act
+    renderDashboard();
+    await act(async () => {});
+
+    // Assert
+    expect(mockDispatch).not.toHaveBeenCalledWith({ type: 'fetchSecurityPlatforms' });
+  });
+
+  it('fetches security platforms with "Access security platforms"', async () => {
+    // Arrange
+    adHocSeriesMock.mockResolvedValue(probeResponse(0));
+
+    // Act
+    renderDashboard();
+    await act(async () => {});
+
+    // Assert
+    expect(mockDispatch).toHaveBeenCalledWith({ type: 'fetchSecurityPlatforms' });
   });
 });

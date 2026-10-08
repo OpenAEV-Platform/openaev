@@ -13,6 +13,7 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTO;
 import io.openaev.execution.ExecutableInjectDTOMapper;
+import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
@@ -20,6 +21,8 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.payload_approval.BlockedPayloadsException.BlockedPayload;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +62,7 @@ class ExecutorTest {
   @Mock private ExecutableInjectDTOMapper executableInjectDTOMapper;
   @Mock private ConnectorInstanceService connectorInstanceService;
   @Mock private InjectExpectationService injectExpectationService;
+  @Mock private PayloadApprovalGate payloadApprovalGate;
 
   @InjectMocks private Executor executor;
 
@@ -226,6 +230,37 @@ class ExecutorTest {
           .contains("secret-ref-1");
       assertThat(payload.path("attachments").path("authorisation_code").asText())
           .isEqualTo("auth-code");
+    }
+  }
+
+  @Nested
+  @DisplayName("execute - payload approval check")
+  class PayloadApprovalCheck {
+
+    @Test
+    @DisplayName(
+        "Given a payload that is not approved, execute should refuse the inject before any status change or dispatch")
+    void given_payloadNotApproved_should_refuseBeforeAnyStatusChangeOrDispatch() {
+      // -------- Arrange --------
+      Payload payload = mock(Payload.class);
+      when(injectorContract.getPayload()).thenReturn(payload);
+      when(inject.getTitle()).thenReturn("Dump credentials");
+      when(payloadApprovalGate.check(payload))
+          .thenReturn(
+              Optional.of(
+                  new BlockedPayload(
+                      "payload-001",
+                      "Mimikatz",
+                      "pending approval",
+                      Payload.PAYLOAD_APPROVAL_STATUS.PENDING)));
+
+      // -------- Act / Assert --------
+      assertThatThrownBy(() -> executor.execute(executableInject))
+          .isInstanceOf(ExecutionExecutorException.class)
+          .hasMessageContaining("\"Mimikatz\" (pending approval)");
+      verify(payloadApprovalGate)
+          .auditBlocked(any(), any(), eq(ResourceType.INJECT), eq(INJECT_ID), any());
+      verifyNoInteractions(injectStatusService, rabbitmqService, injectorRepository);
     }
   }
 }

@@ -127,6 +127,16 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_recurrence_end")
   private Instant recurrenceEnd;
 
+  /**
+   * When the recurrence of this atomic testing was paused (an action not approved, or a sensitive
+   * change). Null when not paused. A user re-enables it on purpose by saving or removing the
+   * schedule; saving is refused while it is still blocked.
+   */
+  @Getter
+  @Column(name = "inject_recurrence_paused_at")
+  @JsonProperty("inject_recurrence_paused_at")
+  private Instant recurrencePausedAt;
+
   @Getter
   @Column(name = "inject_content")
   @Convert(converter = ContentConverter.class)

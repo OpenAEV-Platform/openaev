@@ -38,4 +38,25 @@ describe('i18n tokens', () => {
   it('ignores a repeated placeholder', () => {
     expect(tokens('{count} sur {count}')).toEqual(['{count}']);
   });
+
+  it('compares an ICU plural by its argument only, whatever the translated branches', () => {
+    const english = '{count, plural, one {# atomic testing} other {# atomic testings}}';
+    expect(tokens(english)).toEqual(['{count, plural}']);
+    expect(tokens('{count, plural, one {# атомный тест} few {# атомных теста} many {# атомных тестов} other {# атомного теста}}'))
+      .toEqual(tokens(english));
+  });
+
+  it('keeps a placeholder outside an ICU plural', () => {
+    expect(tokens('Used in {items} ({count, plural, one {# item} other {# items}})')).toEqual(['{count, plural}', '{items}']);
+  });
+
+  it('detects a renamed ICU plural argument', () => {
+    expect(tokens('{total, plural, one {# test} other {# tests}}')).not.toEqual(tokens('{count, plural, one {# test} other {# tests}}'));
+  });
+
+  // Regression: "esposizione {score}" ends with "one" and was read as an ICU branch.
+  it('leaves a placeholder after a word ending like a plural category untouched', () => {
+    expect(tokens('Punteggio di esposizione {score} / 100')).toEqual(['{score}']);
+    expect(tokens('Il test per l\'iniezione {injectTitle} è stato inviato')).toEqual(['{injectTitle}']);
+  });
 });

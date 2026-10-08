@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionStatus.EXECUTING;
 import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Injector;
@@ -11,6 +12,7 @@ import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTOMapper;
+import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
@@ -18,10 +20,13 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.payload_approval.BlockedPayloadsException;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +55,7 @@ public class Executor {
   private final ConnectorInstanceService connectorInstanceService;
   private final InjectExpectationService injectExpectationService;
   private final OpenAEVConfig openAEVConfig;
+  private final PayloadApprovalGate payloadApprovalGate;
 
   public static final String CMD = "cmd";
   public static final String PSH = "psh";
@@ -107,6 +113,30 @@ public class Executor {
     return injectStatusService.saveAndStreamInject(completeStatus);
   }
 
+  /**
+   * Last line of defence of payload approval, for every path that reaches the executor (scheduled
+   * or manual launches, chaining, autonomous runs, direct execution): refuses an inject whose
+   * payload is not approved or changed since its approval, before any status change or dispatch.
+   * Thrown as {@link ExecutionExecutorException} so that every caller fails the inject with the
+   * message instead of retrying.
+   */
+  private void refuseUnapprovedPayload(Inject inject, InjectorContract injectorContract) {
+    payloadApprovalGate
+        .check(injectorContract.getPayload())
+        .ifPresent(
+            blocked -> {
+              String operation = "Executing the inject \"" + inject.getTitle() + "\"";
+              payloadApprovalGate.auditBlocked(
+                  operation,
+                  List.of(blocked),
+                  ResourceType.INJECT,
+                  inject.getId(),
+                  AuditEventOrigin.SYSTEM);
+              throw new ExecutionExecutorException(
+                  BlockedPayloadsException.message(operation, List.of(blocked)));
+            });
+  }
+
   public InjectStatus execute(ExecutableInject executableInject) throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     InjectorContract injectorContract =
@@ -114,6 +144,7 @@ public class Executor {
             .getInjectorContract()
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
+    refuseUnapprovedPayload(inject, injectorContract);
 
     // Resolve the injector instance from the inject entity directly
     Injector injector = inject.getInjector();

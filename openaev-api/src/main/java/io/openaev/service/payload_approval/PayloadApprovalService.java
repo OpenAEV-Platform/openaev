@@ -10,6 +10,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.PayloadApprovalRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.PermissionService;
+import io.openaev.service.readiness.LaunchReadinessService;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -44,6 +45,7 @@ public class PayloadApprovalService {
   static final String SYSTEM_COMMENT = "Built-in payload created by the platform";
 
   private final PayloadApprovalRepository payloadApprovalRepository;
+  private final LaunchReadinessService launchReadinessService;
 
   /** Whether the user may approve payload content ("Approve content", admin or tenant bypass). */
   public static boolean canApprove(@Nullable final User user) {
@@ -163,7 +165,11 @@ public class PayloadApprovalService {
     entry.setActorName(actor != null ? actor.getNameOrEmail() : null);
     entry.setComment(comment);
     entry.setFingerprint(fingerprint);
-    return payloadApprovalRepository.save(entry);
+    PayloadApproval saved = payloadApprovalRepository.save(entry);
+    if (status != PAYLOAD_APPROVAL_STATUS.APPROVED) {
+      launchReadinessService.onPayloadBlocked(payload);
+    }
+    return saved;
   }
 
   private static void requirePending(Payload payload) {

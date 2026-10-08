@@ -85,6 +85,10 @@ Once the Scenario is defined, click **Simulate now** to evaluate your security p
 
 A visual indicator next to the Scenario title shows whether a Simulation is currently running. Results of each Simulation populate the Scenario overview.
 
+!!! note "Payload approval and paused schedules"
+
+    While a Scenario uses an Action whose payload is not approved, its **Launch** buttons are disabled (the tooltip names the blocking Actions) and its schedule is **paused**. A schedule is also paused when an inject changes what it runs or targets (content, arguments, expectations, Action, targets, documents) or when the Scenario's teams or players change. A paused schedule creates no Simulation and stays paused until you open the schedule and save it again (refused while an Action is still blocked), or stop it. See [Approval of payloads](../threat-arsenals/threat-arsenals.md#approval-of-payloads).
+
 ## What's next?
 
 - [Simulation](../../evaluate/simulation/simulation.md) -- Run and monitor Simulations

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mockStatic;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.WorkflowStatus;
@@ -19,7 +20,14 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -28,13 +36,17 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
 import org.mockito.MockedStatic;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -47,6 +59,11 @@ class ScenarioExecutionJobTest extends IntegrationTest {
   @Autowired private ScenarioExecutionJob job;
   @Autowired private InjectsExecutionJob injectsExecutionJob;
   @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private PayloadComposer payloadComposer;
+  @Autowired private InjectorFixture injectorFixture;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   @Autowired private ScenarioService scenarioService;
   @Autowired private ScenarioRepository scenarioRepository;
@@ -133,6 +150,88 @@ class ScenarioExecutionJobTest extends IntegrationTest {
       assertThat(workflowRepository.existsBySimulationId(createdExercise.getId())).isFalse();
 
       EXERCISE_ID = createdExercise.getId();
+    }
+
+    @Test
+    @DisplayName(
+        "Given a recurring scenario whose schedule is paused, no new simulation should be created")
+    void given_pausedRecurringScenario_should_not_create_simulation() throws JobExecutionException {
+      // -- PREPARE --
+      ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"));
+      int minuteToStart = (zonedDateTime.getMinute() + 1) % 60;
+      int hourToStart = (zonedDateTime.getHour() + ((zonedDateTime.getMinute() + 1) / 60)) % 24;
+      Scenario scenario = ScenarioFixture.getScenario();
+      scenario.setRecurrence("0 " + minuteToStart + " " + hourToStart + " * * *");
+      scenario.setRecurrencePausedAt(Instant.now());
+      String scenarioId = scenarioService.createScenario(scenario).getId();
+
+      // -- EXECUTE --
+      job.execute(null);
+
+      // -- ASSERT --
+      assertThat(fromIterable(exerciseRepository.findAll()))
+          .noneMatch(
+              exercise ->
+                  exercise.getScenario() != null
+                      && scenarioId.equals(exercise.getScenario().getId()));
+    }
+
+    @Test
+    @DisplayName(
+        "Given a recurring scenario using a payload that is not approved, no new simulation should be created (schedule paused)")
+    void given_recurringScenarioWithPendingPayload_should_not_create_simulation()
+        throws JobExecutionException {
+      // -- PREPARE --
+      ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"));
+      int minuteToStart = (zonedDateTime.getMinute() + 1) % 60;
+      int hourToStart = (zonedDateTime.getHour() + ((zonedDateTime.getMinute() + 1) / 60)) % 24;
+      Scenario scenario = ScenarioFixture.getScenario();
+      scenario.setRecurrence("0 " + minuteToStart + " " + hourToStart + " * * *");
+      // Committed before the job runs (it opens its own transactions); built in one transaction so
+      // the well-known injector is loaded, not inserted again.
+      List<InjectorContractComposer.Composer> contracts = new ArrayList<>();
+      String scenarioId =
+          new TransactionTemplate(transactionManager)
+              .execute(
+                  status -> {
+                    Payload pending = PayloadFixture.createDefaultCommand();
+                    pending.setApprovalStatus(Payload.PAYLOAD_APPROVAL_STATUS.PENDING);
+                    InjectorContractComposer.Composer contract =
+                        injectorContractComposer
+                            .forInjectorContract(
+                                InjectorContractFixture.createDefaultInjectorContract())
+                            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                            .withPayload(payloadComposer.forPayload(pending));
+                    contracts.add(contract);
+                    return scenarioComposer
+                        .forScenario(scenario)
+                        .withInject(
+                            injectComposer
+                                .forInject(InjectFixture.getDefaultInject())
+                                .withInjectorContract(contract))
+                        .persist()
+                        .get()
+                        .getId();
+                  });
+
+      try {
+        // -- EXECUTE --
+        job.execute(null);
+
+        // -- ASSERT --
+        assertThat(fromIterable(exerciseRepository.findAll()))
+            .noneMatch(
+                exercise ->
+                    exercise.getScenario() != null
+                        && scenarioId.equals(exercise.getScenario().getId()));
+      } finally {
+        new TransactionTemplate(transactionManager)
+            .executeWithoutResult(
+                status -> {
+                  scenarioRepository.deleteById(scenarioId);
+                  contracts.forEach(InjectorContractComposer.Composer::delete);
+                });
+      }
     }
 
     /**

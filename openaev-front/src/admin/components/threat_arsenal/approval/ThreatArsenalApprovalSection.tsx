@@ -6,19 +6,21 @@ import { type FunctionComponent, type ReactElement, useEffect, useState } from '
 import {
   approveThreatArsenalAction,
   fetchThreatArsenalActionApprovals,
+  fetchThreatArsenalActionUsage,
   rejectThreatArsenalAction,
 } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogConfirmation from '../../../../components/common/DialogConfirmation';
 import Field from '../../../../components/common/overview/Field';
 import Section from '../../../../components/common/overview/Section';
 import { useFormatter } from '../../../../components/i18n';
-import { type PayloadApprovalOutput, type ThreatArsenalActionFullOutput } from '../../../../utils/api-types';
+import { type PayloadApprovalOutput, type ThreatArsenalActionFullOutput, type ThreatArsenalActionUsageOutput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../../utils/fdsLayer';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../utils/permissions/types';
 import ApprovalStatusChip from './ApprovalStatusChip';
-import { APPROVAL_COMMENT_MAX_LENGTH, approvalOriginLabel, approvalStatusLabel } from './approvalStatusUtils';
+import { APPROVAL_COMMENT_MAX_LENGTH, approvalOriginLabel, approvalStatusLabel, isPayloadUsed } from './approvalStatusUtils';
+import PayloadUsageWarning from './PayloadUsageWarning';
 
 interface Props {
   action: ThreatArsenalActionFullOutput;
@@ -42,6 +44,7 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState<string | undefined>(undefined);
   const [history, setHistory] = useState<PayloadApprovalOutput[]>([]);
+  const [usage, setUsage] = useState<ThreatArsenalActionUsageOutput | undefined>(undefined);
 
   const status = action.action_approval_status;
   const latest = action.action_approval_latest;
@@ -60,6 +63,25 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
       cancelled = true;
     };
   }, [action.action_id, status, latest?.approval_id]);
+
+  // Warning before impact: where the payload is used, loaded when the Reject dialog opens.
+  useEffect(() => {
+    if (!rejectOpen) {
+      setUsage(undefined);
+      return undefined;
+    }
+    let cancelled = false;
+    fetchThreatArsenalActionUsage(action.action_id)
+      .then((response) => {
+        if (!cancelled) setUsage(response.data as ThreatArsenalActionUsageOutput);
+      })
+      .catch(() => {
+        if (!cancelled) setUsage(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rejectOpen, action.action_id]);
 
   const closeApprove = () => {
     setApproveOpen(false);
@@ -228,7 +250,9 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
         open={rejectOpen}
         handleClose={closeReject}
         handleSubmit={handleReject}
-        text={t('Reject this payload? It stays blocked until it is edited and approved.')}
+        text={isPayloadUsed(usage)
+          ? t('Reject this payload? It will block the launch of the items below until it is edited and approved again.')
+          : t('Reject this payload? It stays blocked until it is edited and approved.')}
         submitLabel={t('Reject')}
         submitColor="error"
         extraContent={(
@@ -237,8 +261,12 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
             style={{
               ...layerInputVars,
               marginTop: theme.spacing(2),
+              display: 'flex',
+              flexDirection: 'column',
+              gap: theme.spacing(2),
             }}
           >
+            <PayloadUsageWarning usage={usage} />
             <Textarea
               label={t('Reason')}
               required
