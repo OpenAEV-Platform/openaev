@@ -108,6 +108,15 @@ Once you can build a chained Logic graph by hand, you can go one step further wi
 you give an AI orchestrator an objective in plain language and it plans, executes, and adapts a full attack path on
 its own, live, against your authorized environment.
 
+### What happens to the chain on other actions
+
+The usual [Simulation actions](../evaluate/simulation/simulation.md#actions) also apply to a chained run:
+
+- **Pause**: no new Action starts; running Actions finish and their outputs are kept.
+- **Reset**: deletes the run and its Attack path, but keeps the Logic and Scope.
+- **Delete**: also deletes the Logic, Scope and Attack path.
+- **Duplicate**: the copy gets the Logic and Scope, not the past runs. It requires an Enterprise Edition license.
+
 ## What's next?
 
 - [Scope Definition](scope-definition.md): allow/deny lists, Variables, timeout, and rate limit.
