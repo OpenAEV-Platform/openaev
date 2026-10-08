@@ -263,47 +263,6 @@ scoped gap, not an oversight**: a marked AI-target asset reachable only through 
 dispatched to a non-agent external connector, is not covered by this fix. Revisit once US1 (POC 2)
 gives asset groups their own marking semantics.
 
-#### Step 4.7 — End-to-end proof, as a Playwright e2e test (CI-covered) 🔴 not started
-
-Replaces the earlier `curl`-based demo-script idea: Task 2/3's UI is now actually implemented
-(`GroupManageMarkings.tsx`, `MarkingDefinitions.tsx`, `ItemMarkings.tsx`), Playwright is already wired
-into `core-ci.yml`/`nightly-ci.yml` (`yarn test:e2e`), and no e2e test currently touches markings at
-all — so a real through-the-UI test both proves this PoC and becomes permanent regression coverage,
-for free, instead of a one-off manual demo.
-
-New file: `openaev-front/tests_e2e/tests/marking/marking-scoped-launch.spec.ts` (new `marking/` folder —
-none exists yet, alongside the existing `scenario/`, `threat-arsenals/` groupings).
-
-Reproduces the `FULL_ADMIN` / `USER_GREEN` / `ASSET_RED` / `ASSET_GREEN` worked example from
-`user-stories.md`, fixtures created via API (matching `scenario-teams.spec.ts`'s pattern of API setup +
-UI-driven assertions, not clicking through every setup step):
-
-1. *(API setup)* `FULL_ADMIN` creates `ASSET_RED` (`TLP:RED`) and `ASSET_GREEN` (unmarked), a group
-   cleared for `TLP:GREEN` with `USER_GREEN` as a member, and a Scenario with an inject targeting both.
-2. *(UI, as `USER_GREEN`)* open the Scenario — assert `ASSET_RED` never appears in the target list
-   (Task 3's existing read filter, incidentally exercised here too).
-3. *(UI, as `USER_GREEN`)* click Launch.
-4. *(UI, as `USER_GREEN`)* open the resulting Simulation — assert only `ASSET_GREEN` shows as a
-   target/result; no count, placeholder, or error hints that a second target exists. **Also assert no
-   execution trace exists for the `TLP:RED` agent** (via API, not just UI) — a UI-only assertion here
-   would have passed even with the step 4.5-only gap manual testing found, since the overview already
-   hid the restricted asset while it was still actually executing underneath.
-5. *(UI, as `FULL_ADMIN`)* open the same Simulation — assert both `ASSET_GREEN` and `ASSET_RED` are
-   still configured as targets, proving the underlying data wasn't altered, only filtered per-viewer
-   (the "configurations and results are not altered or corrupted" acceptance principle in
-   `user-stories.md`).
-
-**Genuinely new test infrastructure this requires** (not a rename of something that already exists):
-
-- A second authenticated session for `USER_GREEN`. Every project today shares one `storageState`
-  (`tests_e2e/.auth/user.json`) written once by the `setup` project (`auth.setup.ts`) — there's no
-  existing multi-user fixture in this suite, so a second `browser.newContext()` + login (or a second
-  storageState file) has to be added.
-- New API helpers under `tests_e2e/api-helpers/` for Asset, Group/User, and Marking setup — only
-  `ScenarioApiHelpers`, `TeamApiHelpers`, `DocumentApiHelpers`, `TenantApiHelpers` exist today.
-
-**DoD**: spec green in CI under the existing `test:e2e` job, no new pipeline required.
-
 ## Chunk 2 — SSE - Stream API revisited
 
 **Status**: leak reproduced (2026-10-08), fix not started.
@@ -442,4 +401,57 @@ sequenceDiagram
 - **2.5** (optional) Stream each endpoint change once (duplicate `ModelBaseListener` on `Asset` /
   `Endpoint`).
 
-## Chunk 3 — OCTI: scenario create 
+## Chunk 3 - Asset not targetted
+Asset not targetted vs No asset executed, line 100 in ExecutionExecutorService.java, compare assets list the user clearance hold to the list of assets.
+Make sure the asset the user clearance holds is an agent.
+Agentless test with nuclei - a scenario was created with agentless asset. A user can only see one agentless => make sure the agentless the 
+
+# Chunk 4 — OCTI: scenario create 
+We need to add all the markings to the OpenCTI service account in addition to adding the OpenCTI user to the scheduled scenario
+See resolveLaunchedByClearance
+
+**Question**: which user to add to launchedBy/ScheduledBy?
+If we add OCTI user account we have to add all the markings to the OCTI user account as well.
+
+# Chunk 5 — Tests chained simulation
+
+## Chunk 100 — End-to-end proof, as a Playwright e2e test (CI-covered) 🔴 not started
+
+Replaces the earlier `curl`-based demo-script idea: Task 2/3's UI is now actually implemented
+(`GroupManageMarkings.tsx`, `MarkingDefinitions.tsx`, `ItemMarkings.tsx`), Playwright is already wired
+into `core-ci.yml`/`nightly-ci.yml` (`yarn test:e2e`), and no e2e test currently touches markings at
+all — so a real through-the-UI test both proves this PoC and becomes permanent regression coverage,
+for free, instead of a one-off manual demo.
+
+New file: `openaev-front/tests_e2e/tests/marking/marking-scoped-launch.spec.ts` (new `marking/` folder —
+none exists yet, alongside the existing `scenario/`, `threat-arsenals/` groupings).
+
+Reproduces the `FULL_ADMIN` / `USER_GREEN` / `ASSET_RED` / `ASSET_GREEN` worked example from
+`user-stories.md`, fixtures created via API (matching `scenario-teams.spec.ts`'s pattern of API setup +
+UI-driven assertions, not clicking through every setup step):
+
+1. *(API setup)* `FULL_ADMIN` creates `ASSET_RED` (`TLP:RED`) and `ASSET_GREEN` (unmarked), a group
+   cleared for `TLP:GREEN` with `USER_GREEN` as a member, and a Scenario with an inject targeting both.
+2. *(UI, as `USER_GREEN`)* open the Scenario — assert `ASSET_RED` never appears in the target list
+   (Task 3's existing read filter, incidentally exercised here too).
+3. *(UI, as `USER_GREEN`)* click Launch.
+4. *(UI, as `USER_GREEN`)* open the resulting Simulation — assert only `ASSET_GREEN` shows as a
+   target/result; no count, placeholder, or error hints that a second target exists. **Also assert no
+   execution trace exists for the `TLP:RED` agent** (via API, not just UI) — a UI-only assertion here
+   would have passed even with the step 4.5-only gap manual testing found, since the overview already
+   hid the restricted asset while it was still actually executing underneath.
+5. *(UI, as `FULL_ADMIN`)* open the same Simulation — assert both `ASSET_GREEN` and `ASSET_RED` are
+   still configured as targets, proving the underlying data wasn't altered, only filtered per-viewer
+   (the "configurations and results are not altered or corrupted" acceptance principle in
+   `user-stories.md`).
+
+**Genuinely new test infrastructure this requires** (not a rename of something that already exists):
+
+- A second authenticated session for `USER_GREEN`. Every project today shares one `storageState`
+  (`tests_e2e/.auth/user.json`) written once by the `setup` project (`auth.setup.ts`) — there's no
+  existing multi-user fixture in this suite, so a second `browser.newContext()` + login (or a second
+  storageState file) has to be added.
+- New API helpers under `tests_e2e/api-helpers/` for Asset, Group/User, and Marking setup — only
+  `ScenarioApiHelpers`, `TeamApiHelpers`, `DocumentApiHelpers`, `TenantApiHelpers` exist today.
+
+**DoD**: spec green in CI under the existing `test:e2e` job, no new pipeline required.
