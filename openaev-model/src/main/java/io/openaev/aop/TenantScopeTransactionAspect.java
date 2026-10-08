@@ -4,6 +4,7 @@ import io.openaev.context.MarkingCtx;
 import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -122,16 +123,21 @@ public class TenantScopeTransactionAspect {
     return guc.isEmpty() ? Set.of() : new HashSet<>(Arrays.asList(guc.split(",")));
   }
 
+  // The scope queries touch no table, so they must not trigger Hibernate's auto-flush (Hibernate 7
+  // flushes the whole session before any native query): flushing here would write pending entity
+  // changes before the scope they are inspected under is set, scoping those updates to no row.
   private String currentScope() {
     return (String)
         entityManager
             .createNativeQuery("SELECT coalesce(current_setting('app.current_tenants', true), '')")
+            .setFlushMode(FlushModeType.COMMIT)
             .getSingleResult();
   }
 
   private void setScope(String scope) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
+        .setFlushMode(FlushModeType.COMMIT)
         .setParameter("scope", scope)
         .getSingleResult();
   }
@@ -139,6 +145,7 @@ public class TenantScopeTransactionAspect {
   private void setMarkingScope(String scope) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_markings', :scope, true)")
+        .setFlushMode(FlushModeType.COMMIT)
         .setParameter("scope", scope)
         .getSingleResult();
   }

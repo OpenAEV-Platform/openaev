@@ -623,6 +623,9 @@ public class ExerciseApi extends RestBehavior {
     }
     exerciseService.throwIfExerciseNotLaunchable(exercise);
     exercise.setUpdateAttributes(input);
+    // The scheduler starts this simulation later with no live user: the person who scheduled it
+    // gates dispatch, same as a manual start.
+    exercise.setLaunchedBy(userService.currentUser());
     return hydrateForResponse(exerciseRepository.save(exercise));
   }
 

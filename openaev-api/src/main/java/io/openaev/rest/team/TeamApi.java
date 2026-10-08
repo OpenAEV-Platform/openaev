@@ -203,8 +203,8 @@ public class TeamApi extends RestBehavior {
     team.setOrganization(
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
     team.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    team.setExercises(fromIterable(exerciseRepository.findAllById(input.getExerciseIds())));
-    team.setScenarios(fromIterable(scenarioRepository.findAllById(input.getScenarioIds())));
+    team.setExercises(iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
+    team.setScenarios(iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
     return teamRepository.save(team);
   }
 
@@ -240,8 +240,8 @@ public class TeamApi extends RestBehavior {
           updateRelation(
               input.getOrganizationId(), newTeam.getOrganization(), organizationRepository));
       newTeam.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-      newTeam.setExercises(fromIterable(exerciseRepository.findAllById(input.getExerciseIds())));
-      newTeam.setScenarios(fromIterable(scenarioRepository.findAllById(input.getScenarioIds())));
+      newTeam.setExercises(iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
+      newTeam.setScenarios(iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
       return teamRepository.save(newTeam);
     }
   }

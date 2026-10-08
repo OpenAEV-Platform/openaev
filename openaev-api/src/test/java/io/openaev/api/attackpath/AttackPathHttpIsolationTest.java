@@ -12,6 +12,7 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
@@ -48,6 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
     properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path POC read isolation through the real HTTP endpoints")
+@WithoutTenantScope
 class AttackPathHttpIsolationTest extends IntegrationTest {
 
   private static final String SIM = "SIM-ISO";

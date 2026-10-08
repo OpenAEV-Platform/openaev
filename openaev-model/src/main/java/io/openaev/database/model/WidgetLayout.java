@@ -2,10 +2,11 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import lombok.Data;
 
 @Data
-public class WidgetLayout {
+public class WidgetLayout implements Serializable {
 
   @JsonProperty("widget_layout_w")
   @NotNull
