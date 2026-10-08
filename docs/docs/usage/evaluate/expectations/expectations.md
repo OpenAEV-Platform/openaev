@@ -88,13 +88,23 @@ When automated result retrieval is not possible (e.g., non-technical Injects), r
 
 ### How the final result is computed
 
-1. All results are collected.
-2. Results are ordered by severity.
-3. The highest result always wins.
+Each expected security platform adds its own result to the Expectation. The final score is the highest score among the results received.
+
+When the score is set depends on the Expectation type:
+
+- **Detection and Prevention**: OpenAEV settles the Expectation as soon as one result reaches the expected score. OpenAEV does not wait for the other security platforms. A result they send later is still recorded but cannot lower the score.
+- **Detection and Prevention without a success**: OpenAEV waits until every expected security platform has answered, then keeps the highest score. If the Expectation expires first, OpenAEV marks the missing results as failed.
+- **Vulnerability**: OpenAEV always waits until every expected source has answered, even after a first result.
 
 !!! warning
 
     A negative result never overrides a positive one. If one tool detects the attack and another does not, the Expectation is marked as detected.
+
+### When no security platform can answer
+
+Only security platform Collectors can fulfill Detection and Prevention Expectations. When the Inject executes, OpenAEV checks for a Collector linked to one of the expected security platform types (any type if none is selected). If there is none, OpenAEV marks the Expectation as failed (score 0) at once instead of waiting for its expiration. Its result card shows **No automated security platform detected**.
+
+This check runs only when the Inject executes. Vulnerability Expectations are not affected.
 
 ## Status propagation
 
