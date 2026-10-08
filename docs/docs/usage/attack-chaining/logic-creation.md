@@ -69,32 +69,15 @@ satisfied, it triggers the Action(s) it is linked to. Nothing runs until its ups
             and matches when the field's value contains any item of it — use it to test whether a field matches
             one of several expected values.
           - **Expected value** (not required for `Is null` / `Is not null`), with an optional case-sensitive toggle,
-            available only for `Equals`, `Not equals`, `Contains`, and `Not contains`. The toggle is hidden on
-            fields whose values have no case: numbers, IP addresses and subnets, CVE ids, SIDs, hashes, and Asset
-            or Asset group ids.
+            available only for `Equals`, `Not equals`, `Contains`, and `Not contains` on fields where case matters.
 
             The value must be a number when the inspected field only holds numbers (`Number`, `Port`) or when the
             operator is a numeric comparison (`Greater than`, `Greater than or equals`, `Less than`, `Less than or
             equals`) — those operators compare numerically, so a text value could never match. Anything else shows
             *"The value should be a number"* and blocks saving.
 
-            With `Equals` and `Not equals`, the value must also match the format of the field type. An invalid
-            value shows an error and blocks saving:
-
-            | Field type | Accepted value | Error message |
-            |------------|----------------|---------------|
-            | `IPv4` | An IPv4 address | *"Expected a valid IPv4 address"* |
-            | `IPv6` | An IPv6 address | *"Expected a valid IPv6 address"* |
-            | `Ip subnet` | An IPv4 or IPv6 subnet in CIDR notation | *"Expected a valid IPv4 subnet"* |
-            | `Domain` | A domain or host name | *"Expected a valid domain name"* |
-            | `Host` | An IPv4 address, an IPv6 address, or a domain name | *"Expected a valid IPv4 address"* |
-            | `Email` | An email address | *"Expected a valid email address"* |
-            | `CVE` | A CVE id, such as `CVE-2024-12345` | *"Expected a valid CVE identifier (e.g. CVE-2024-12345)"* |
-            | `SID` | A Windows SID, such as `S-1-5-21-...` | *"Expected a valid Windows SID (e.g. S-1-5-21-...)"* |
-            | `Port` | A whole number from 0 to 65535 | *"Expected a valid port (0-65535)"* |
-
-            Other field types accept any value. `Contains` and `Not contains` skip this check, since they match
-            part of a value.
+            With `Equals` and `Not equals`, the value must also match the field type, for example a valid IP
+            address, CVE id or port (0-65535). Otherwise the form shows an error and blocks saving.
 4. Save, then connect the Event to the Action(s) it should trigger.
 
 !!! note
