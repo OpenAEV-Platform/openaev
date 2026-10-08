@@ -88,7 +88,7 @@ When automated result retrieval is not possible (e.g., non-technical Injects), r
 
 ### How the final result is computed
 
-Each expected security platform adds its own result to the Expectation. The final score is the highest score among the results received.
+Each expected security platform adds its own result to the Expectation. For Detection and Prevention, the final score is the highest score among the results received. For Vulnerability, it is the opposite: if one source reports the Asset as vulnerable, that result wins, even when other sources found nothing.
 
 When the score is set depends on the Expectation type:
 
@@ -98,7 +98,7 @@ When the score is set depends on the Expectation type:
 
 !!! warning
 
-    A negative result never overrides a positive one. If one tool detects the attack and another does not, the Expectation is marked as detected.
+    For Detection and Prevention, a negative result never overrides a positive one. If one tool detects the attack and another does not, the Expectation is marked as detected.
 
 ### When no security platform can answer
 
