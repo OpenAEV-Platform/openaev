@@ -215,13 +215,15 @@ public interface InjectRepository
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
+  // Ids only: Hibernate 7 cannot map Inject from a native result set, its tenant-scoped
+  // @JoinFormula associations need generated column aliases a plain select i.* does not carry.
   @Query(
       value =
-          "select i.*, i.tenant_id as tenantId from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+          "select i.inject_id from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
               + " and i.inject_content like :challengeId"
               + " and i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
-  List<Inject> findAllForChallengeId(@Param("challengeId") String challengeId);
+  List<String> findAllIdsForChallengeId(@Param("challengeId") String challengeId);
 
   @Query(
       value =

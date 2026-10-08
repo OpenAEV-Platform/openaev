@@ -28,9 +28,11 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.Temporal;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -511,7 +513,7 @@ public class InjectImportServiceTest {
       importer.setImportTypeValue("^email$");
       ImportMapper importMapper = new ImportMapper();
       importMapper.setInjectTypeColumn("A");
-      importMapper.setInjectImporters(List.of(importer));
+      importMapper.setInjectImporters(new HashSet<>(Set.of(importer)));
 
       // -------- Act --------
       ImportTestSummary summary =

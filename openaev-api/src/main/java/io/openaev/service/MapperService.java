@@ -109,7 +109,7 @@ public class MapperService {
       ImportMapperAddInput importMapperAddInput, String tenantId) {
     ImportMapper importMapper = new ImportMapper();
     importMapper.setUpdateAttributes(importMapperAddInput);
-    importMapper.setInjectImporters(new ArrayList<>());
+    importMapper.setInjectImporters(new HashSet<>());
 
     Map<String, InjectorContract> mapInjectorContracts =
         getMapOfInjectorContracts(
@@ -160,18 +160,18 @@ public class MapperService {
       ImportMapper importMapper =
           CopyObjectListUtils.copyObjectWithoutId(importMapperOrigin, ImportMapper.class);
       importMapper.setName(duplicateString(importMapperOrigin.getName()));
-      List<InjectImporter> injectImporters =
-          getInjectImportersDuplicated(importMapperOrigin.getInjectImporters());
-      importMapper.setInjectImporters(injectImporters);
+      importMapper.setInjectImporters(
+          getInjectImportersDuplicated(importMapperOrigin.getInjectImporters()));
       return importMapperRepository.save(importMapper);
     }
     throw new ElementNotFoundException();
   }
 
-  private List<InjectImporter> getInjectImportersDuplicated(
-      List<InjectImporter> injectImportersOrigin) {
+  private Set<InjectImporter> getInjectImportersDuplicated(
+      Collection<InjectImporter> injectImportersOrigin) {
     List<InjectImporter> injectImporters =
-        CopyObjectListUtils.copyWithoutIds(injectImportersOrigin, InjectImporter.class);
+        CopyObjectListUtils.copyWithoutIds(
+            new ArrayList<>(injectImportersOrigin), InjectImporter.class);
     injectImporters.forEach(
         injectImport -> {
           List<RuleAttribute> ruleAttributes =
@@ -179,7 +179,7 @@ public class MapperService {
                   injectImport.getRuleAttributes(), RuleAttribute.class);
           injectImport.setRuleAttributes(ruleAttributes);
         });
-    return injectImporters;
+    return new HashSet<>(injectImporters);
   }
 
   /**
@@ -282,7 +282,7 @@ public class MapperService {
    */
   private void updateInjectImporter(
       List<InjectImporterUpdateInput> injectImportersInput,
-      List<InjectImporter> injectImporters,
+      Collection<InjectImporter> injectImporters,
       Map<String, InjectorContract> mapInjectorContracts) {
     // First, we remove the entities that are no longer linked to the mapper
     injectImporters.removeIf(

@@ -52,7 +52,7 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
 
     public Composer withSimulation(ExerciseComposer.Composer simulationComposer) {
       simulationComposers.add(simulationComposer);
-      List<Exercise> simulations = this.scenario.getExercises();
+      Set<Exercise> simulations = this.scenario.getExercises();
       simulations.add(simulationComposer.get());
       this.scenario.setExercises(simulations);
       return this;
