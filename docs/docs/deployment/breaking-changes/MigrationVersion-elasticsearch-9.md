@@ -10,6 +10,10 @@ The platform can now use an Elasticsearch 9 cluster. Set `engine.engine-selector
 Elasticsearch Java client. The default `elk` selector keeps the 8.x client, so Elasticsearch 8 and OpenSearch
 deployments are unaffected.
 
+!!! note "Future requirement"
+
+    A future release will require Elasticsearch 9. No version is planned yet; this page will say when.
+
 The 9.x client stamps every request with an `application/vnd.elasticsearch+json; compatible-with=9` content type,
 which an 8.x server rejects outright:
 
