@@ -72,18 +72,12 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### Rate limiting
 
-!!! note "Preview feature"
-
-    Rate limiting is a preview feature, off by default. To turn it on, add `RATE_LIMITING` to
-    `openaev.enabled-dev-features` (comma-separated list, empty by default), for example
-    `openaev.enabled-dev-features=RATE_LIMITING`. The parameters below apply only when the feature is on.
-
-| Parameter                           | Environment variable                | Default value | Description                                                                                                         |
-|:------------------------------------|:------------------------------------|:--------------|:--------------------------------------------------------------------------------------------------------------------|
-| openaev.ratelimit.enabled           | OPENAEV_RATELIMIT_ENABLED           | `true`        | Set to `false` to turn off rate limiting on the REST API while the `RATE_LIMITING` preview feature is on            |
-| openaev.ratelimit.store-backend     | OPENAEV_RATELIMIT_STORE-BACKEND     | `IN_MEMORY`   | Rate limit bucket store backend. As of writing, `IN_MEMORY` is the only store backend available.                    |
-| openaev.ratelimit.default-rps       | OPENAEV_RATELIMIT_DEFAULT-RPS       | 10            | Maximum requests per second for unauthenticated requests, segmented per originating IP address.                     |
-| openaev.ratelimit.authenticated-rps | OPENAEV_RATELIMIT_AUTHENTICATED-RPS | 300           | Maximum requests per second for authenticated requests, segmented per user account.                                 |
+| Parameter                           | Environment variable                | Default value | Description                                                                                               |
+|:------------------------------------|:------------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------|
+| openaev.ratelimit.enabled           | OPENAEV_RATELIMIT_ENABLED           | `true`        | Turn on to enable global rate limiting on the REST API                                                    |
+| openaev.ratelimit.store-backend     | OPENAEV_RATELIMIT_STORE-BACKEND     | `IN_MEMORY`   | Selects the rate limit bucket store backend. As fo writing, only the `IN_MEMORY` store backend available. |
+| openaev.ratelimit.default-rps       | OPENAEV_RATELIMIT_DEFAULT-RPS       | 10            | Maximum requests per second for unauthenticated requests, segmented per originating IP address.           |
+| openaev.ratelimit.authenticated-rps | OPENAEV_RATELIMIT_AUTHENTICATED-RPS | 300           | Maximum requests per second for authenticated requests, segmented per user account.                       |
 
 #### Logging
 
