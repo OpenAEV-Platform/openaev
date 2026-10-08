@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.Command;
 import io.openaev.database.model.ContentRevocation;
+import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.database.repository.PayloadRepository;
@@ -43,7 +44,7 @@ class PayloadVersionServiceTest {
 
   private static ContentRevocation revocation(String version) {
     ContentRevocation revocation = new ContentRevocation();
-    revocation.setType(ContentRevocation.CONTENT_TYPE.PAYLOAD);
+    revocation.setType(ContentType.PAYLOAD);
     revocation.setExternalId(EXTERNAL_ID);
     revocation.setVersion(version);
     return revocation;
@@ -52,7 +53,7 @@ class PayloadVersionServiceTest {
   private void givenRows(List<Payload> payloads, List<ContentRevocation> revocations) {
     when(payloadRepository.findAllByExternalId(EXTERNAL_ID)).thenReturn(payloads);
     when(contentRevocationRepository.findAllByTypeAndExternalIdAndLiftedAtIsNull(
-            ContentRevocation.CONTENT_TYPE.PAYLOAD, EXTERNAL_ID))
+            ContentType.PAYLOAD, EXTERNAL_ID))
         .thenReturn(revocations);
   }
 
