@@ -7,23 +7,11 @@
 `MarkingClearanceCacheManager`); [Task 3 — Marking-based Access Control for Assets](../task3/tech-design.md)
 (asset marking = read filter, enforced via the statement-inspector rewrite).
 
-**Status**: POC 1 steps 4.1–4.6, 4.8, 4.9 done and verified (unit tests green, integration tests green
-against a real Postgres, no regressions in any known caller of the two methods steps 4.8/4.9 touched).
-Step 4.5, on its own, was found during manual e2e validation to filter expectations/findings but not
-real dispatch — steps 4.8 (agent-routing dispatch, the actual fix for what manual testing caught) and
-4.9 (external-push payload) close that gap; see `tech-design.md`'s "Execution dispatch has three
-independent asset-resolution paths, not one" for the full finding. One known, deliberately scoped-out
-gap remains from step 4.9: asset groups are not marking-filtered in the external-push path, since asset
-groups carry no marking of their own yet (depends on US1, POC 2). All changes remain uncommitted on this
-branch. Step 4.7 (Playwright e2e) not started.
-
-This plan is organized as a series of PoCs, each scoped narrowly enough to ship and demo on its own.
-POC 1 below covers only the launch/execution enforcement path already decided in `tech-design.md`;
-further POCs will be added to this same document to cover the items each POC deliberately defers.
+**Status**: 
 
 ---
 
-## POC 1 — Launch scoping for Scenario/Simulation/Atomic Testing with marking clearance
+# Chunk 1: POC — Launch scoping for Scenario/Simulation/Atomic Testing with marking clearance
 
 ### 1) Scope of this implementation (PoC)
 
@@ -178,7 +166,7 @@ instead.
 **Done**: 14 new tests in `InjectServiceTest` cover the launch/relaunch stamping and the
 `duplicateInject()` trap specifically (manual relaunch does not inherit the prior launcher).
 
-#### Step 4.5 — Dispatch-time enforcement, expectations/findings only ⚠️ done, but not the fix this PoC needs
+#### Step 4.5 — Dispatch-time enforcement ✅ done
 
 Inside `InjectService.resolveAllAssetsToExecute`, called from `InjectsExecutionJob.executeInject()`
 (`InjectsExecutionJob.java:149`):
@@ -194,22 +182,6 @@ Inside `InjectService.resolveAllAssetsToExecute`, called from `InjectsExecutionJ
 **DoD**: unit tests covering full clearance (all targets run), partial clearance (`ASSET_GREEN` runs,
 `ASSET_RED` silently skipped — the canonical worked example from `user-stories.md`), zero clearance (no
 targets run), bypass actor (all targets run regardless of grants), and null actor (no targets run).
-
-**Done**: all five scenarios covered in `InjectServiceTest`'s "dispatch-time marking clearance
-enforcement" nested class; also verified against real Postgres via `ScenarioExecutionJobTest` /
-`InjectsExecutionJobTest` / `InjectsExecutionJobUnitTest` / `AtomicTestingExecutionJobTest` (26 tests,
-green) — these exercise the full creation → dispatch path end to end, not just the mocked unit slice.
-
-**Found during manual e2e validation, not caught by any of the above**: this method
-(`resolveAllAssetsToExecute`) only feeds expectation/scoring/finding computation. It is not what
-decides which agents actually get commanded to execute, nor what's serialized into the external-push
-dispatch payload — those are two further, independent asset-resolution points (`InjectService.java:1111-1126`
-and `ExecutableInjectDTOMapper.java:23-39`) that this step never touched. A `TLP:RED` agent targeted
-alongside an unmarked asset, launched by a `TLP:GREEN` user, genuinely executed the payload — confirmed
-via `execution_traces`. See steps 4.8 and 4.9, and `tech-design.md`'s "Execution dispatch has three
-independent asset-resolution paths, not one" for the full finding. None of the 26+54 tests above caught
-this because none of them asserted anything about the real agent dispatch path or the external-push DTO
-— they only ever exercised `resolveAllAssetsToExecute()`'s own return value.
 
 #### Step 4.6 — Guardrail test against the bypass leak ✅ done
 
@@ -332,82 +304,142 @@ UI-driven assertions, not clicking through every setup step):
 
 **DoD**: spec green in CI under the existing `test:e2e` job, no new pipeline required.
 
-### 4) Deliberately deferred (not this task)
+## Chunk 2 — SSE - Stream API revisited
 
-Restated from §1 against concrete steps — none of these have a step above, by design:
+**Status**: leak reproduced (2026-10-08), fix not started.
 
-- Asset Group behaviour (US1) — Option 1/2/3 for a group containing a restricted asset.
-- Whether a Scenario/Simulation/Atomic Testing with mixed targets is itself hidden or filtered
-  (Row 2) in lists, detail pages, and target pickers.
-- Whether a Finding inherits its asset's marking (Q4).
-- Surfacing a partial run clearly to a higher-clearance viewer (no UI/API shape decided).
+### 1) What we observed: two browsers, one admin, one `TLP:GREEN` user
 
-### 5) Validation matrix
+**Setup.** 
 
-**Steps 4.1–4.4, 4.6 ✅** — green and verified:
+Browser 1: a user whose group grants `TLP:GREEN` (role with `ACCESS_ASSETS`). 
 
-- New/updated unit tests: `InjectServiceTest` (54 tests total, including 14 new — stamping, the
-  `duplicateInject` trap, and the step 4.6 guardrail).
-- Existing suites updated for the new `toExercise()` parameter and fields, green:
-  `ScenarioToExerciseServiceTest`, `ScenarioToExerciseDocumentAttributionTest`, `AutonomousRunServiceTest`
-  (the step 4.3 correction — new `UserRepository` mock + `SecurityContextHolder` setup).
-- Full creation path verified against a real Postgres (Podman-managed compose stack, not
-  Testcontainers — this repo doesn't use it): `ScenarioExecutionJobTest`, `InjectsExecutionJobTest`,
-  `InjectsExecutionJobUnitTest`, `AtomicTestingExecutionJobTest` (26 tests, green), plus a regression
-  check of `AtomicTestingServiceTest` (unaffected, green).
-- Tenant isolation suite unaffected — this PoC adds no new statement-inspector dimension.
+Browser 2:
+admin. Endpoint `WWcorinne…` is marked `TLP:RED`, so browser 1 does not see it in Assets → Endpoints
+(the REST search is filtered by the Task 3 rewrite).
 
-**Step 4.5 ⚠️ green, but proven insufficient on its own** — all 54+26 tests above stayed green through
-manual e2e validation that found a real agent still executes a restricted target. None of them asserted
-anything about the real agent-dispatch path or the external-push DTO, only about
-`resolveAllAssetsToExecute()`'s own return value — a gap in what was tested, not a flaky result. Steps
-4.8/4.9 close it.
+**Scenario 1 — the leak.** In browser 2, the admin renames the RED endpoint. In browser 1, DevTools →
+Network → `stream` → EventStream shows a `message` event with the **full RED endpoint**: name,
+hostname, every IP and MAC address, `asset_markings` (the `TLP:RED` id), tags, and its embedded agent
+(`agent_external_reference`, executor, run-as user). Nothing appears on screen.
 
-**Steps 4.8, 4.9 ✅** — green and verified:
+**Scenario 2 — the UI does not refresh either.** In browser 1, the GREEN user renames a visible
+endpoint `toto` → `toto3`. Browser 2 (admin) receives the event with `asset_name: "toto3"`, but its
+Endpoints table keeps showing `toto` until the page is reloaded.
 
-- `InjectServiceTest`'s new `AgentRoutingDispatchFilterTests` (3 tests) and `ExecutableInjectDTOMapperTest`
-  (3 tests, new file) — green, covering each step's DoD.
-- Regression across every known caller of `getAgentsAndAgentlessAssetsByInject`:
-  `ExecutionExecutorServiceTest`, `InjectExecutionStepTest`, `AttackPathExecutionIngestionServiceTest`
-  (82 tests) — green.
-- Full integration regression against real Postgres (Podman): `ScenarioToExerciseServiceTest`,
-  `ScenarioToExerciseDocumentAttributionTest`, `ScenarioExecutionJobTest`, `InjectsExecutionJobTest`,
-  `InjectsExecutionJobUnitTest`, `AtomicTestingExecutionJobTest`, `AtomicTestingServiceTest`,
-  `AutonomousRunServiceTest` (92 tests) — green.
-- One failure surfaced on a full-module run, `AccessControlAuditLogAspectTest`
-  (`ObjectOptimisticLockingFailureException` during Spring context startup) — isolated and re-run alone
-  (13/13 green); confirmed a pre-existing environmental flake from the long-lived, reused test Postgres
-  container accumulating state across many runs this session, unrelated to inject/asset/marking logic.
-- Known, deliberately scoped-out gap from step 4.9: asset groups are not marking-filtered in the
-  external-push path (see step 4.9's "Done" note) — tracked against US1, not a test gap.
+**Why: the event carries the data, but nothing displays it.**
 
-**Step 4.7 🔴 not started.**
+- **The stream is always open.** `admin/Index.tsx` (the root layout) calls `useDataLoader`, so every
+  logged-in browser keeps one `EventSource` on `/api/stream`, whatever page it is on. 110 components
+  register a loader, but they only say *what to reload on reconnection*; one global handler
+  (`useDataLoader.js`, `addEventListener('message', …)`) receives every event.
+- **Events go to the Redux store, under the wrong key for endpoints.** The handler normalizes each
+  event under its `attribute_schema`. `BaseEvent` takes it from the class declaring the `@Id`
+  (`Asset`), so an endpoint lands in `entities.assets`, while every endpoint helper reads
+  `entities.endpoints` (`Schema.js`, `getEndpoint` / `getEndpoints`).
+- **The table is not store-driven anyway.** `Endpoints.tsx` keeps its rows in local state filled by
+  the paginated REST search (`PaginationComponentV2 … setContent={setEndpoints}`); a stream event never
+  touches it. Same for every `useQueryableWithLocalStorage` + `PaginationComponentV2` list.
+- **The backend gate ignores markings.** `StreamApi.listenDatabaseUpdate` checks the consumer's tenant
+  and READ permission (for assets, the `ACCESS_ASSETS` capability only), then serializes the instance
+  loaded under the **publisher's** clearance and sends it.
 
-- No *new* frontend UI is built in this PoC — the launch/relaunch actions and the marking-assignment
-  screens all already exist (Task 1/2/3). Step 4.7's e2e test will *exercise* that existing UI as proof
-  and as permanent CI regression coverage; it does not add or change any product UI.
-- Not yet committed: all changes remain as uncommitted working-tree modifications, deliberately,
-  pending review.
+So the UI *looks* right (the RED asset never shows in browser 1) while the data is in the browser: in
+the network stream and in the Redux store, readable by DevTools or by any component that later reads
+`entities.assets`. And the legitimate update of scenario 2 is lost for the same reason.
 
-### 6) Traceability to user stories
+> Side observation: each endpoint change is streamed **twice** (1 ms apart). `Asset` and `Endpoint`
+> both declare `@EntityListeners(ModelBaseListener.class)`, and JPA invokes a superclass's listeners as
+> well as the subclass's. Not verified further; unrelated to markings.
 
-- **US2** (Scenarios, Simulations, Atomic testing: restricted assets hidden in targets, execution
-  details, results, scores, findings, remediations) — **execution/dispatch enforcement done** (steps
-  4.1–4.6, 4.8, 4.9) for directly-targeted and asset-group-targeted endpoints alike, across agent-routing
-  and external-push dispatch. One scoped exception: a marked AI-target asset reachable only through an
-  asset group, dispatched via a non-agent external connector, is not yet covered — depends on US1 giving
-  asset groups their own marking semantics. Target/result/score/finding display-filtering already runs
-  through Task 3's existing per-asset read filter. Whether the *entity itself* is hidden or filtered when
-  it has mixed targets (Row 2) is explicitly **not** decided or built here — see §4.
-- **US1** (Asset Groups) — **not addressed**; deferred, §4.
-- **US0** (Dashboards) — **not addressed**; per `user-stories.md`'s own open question #8, dashboards
-  reuse US2's result filtering once Row 2 is settled, so this PoC is a prerequisite input, not a
-  completion, for US0.
+### 2) Proposal: stream a signal, not the content
 
----
+`StreamApi` stops sending the entity. It sends **"entity `<id>` of type `<schema>` changed / was
+deleted"**, and the client re-reads what it displays through the REST API, which already applies
+tenant, RBAC and marking filtering (statement inspector) for the **reader**.
 
-## POC 2 — planned, not yet drafted
+```json
+{ "event_type": "DATA_UPDATE_SUCCESS", "attribute_schema": "assets", "attribute_id": "asset_id",
+  "instance": { "asset_id": "5a962860-…" } }
+```
 
-Will cover the items POC 1 deliberately defers (§4 above): Asset Group behaviour (US1), entity-level
-hide/filter for mixed-target entities (Row 2), Finding marking inheritance (Q4), and partial-run
-reporting. Scoped once POC 1 has shipped and those user-story-level decisions are confirmed.
+This is the shape of the id-only DELETE `StreamApi` already sends to consumers without READ
+permission, and the pattern of the attack-path version nudge, whose Javadoc states the notification can
+never leak state.
+
+```mermaid
+sequenceDiagram
+    participant PUB as Publisher transaction (admin)
+    participant SA as StreamApi.listenDatabaseUpdate
+    participant FE as Browser (TLP:GREEN user)
+    participant API as REST API (filtered for the reader)
+
+    PUB->>SA: BaseEvent(asset RED updated)
+    SA->>SA: tenant + READ permission (unchanged)
+    rect rgb(255, 205, 205)
+        SA->>SA: marked entity outside the reader's clearance? → send nothing
+        SA->>FE: signal {schema: assets, id} (no payload)
+    end
+    FE->>FE: is this id on screen? (list rows, detail page)
+    alt yes
+        FE->>API: re-run the page search / re-fetch the entity
+        API-->>FE: only what this user may see
+    else no
+        FE->>FE: ignore
+    end
+```
+
+**Backend (`StreamApi`)**
+
+- `sendStreamEvent` sends `{ <id attribute>: <id> }` instead of `mapper.valueToTree(instance)`, for
+  every event (or, as a first step, for the schemas that can carry marked data: `assets`, `agents`,
+  `findings`, `injects_expectations`, `execution_traces`, `injects`, `asset_groups`).
+- Keep the tenant and READ-permission gate: it stops ids reaching consumers who may not read the type.
+- Add a marking gate on marked entities (`Asset` first, via a small `Marked` interface):
+  `MarkingClearanceCacheManager.findClearance(userId, tenantId, user.isAdminOrBypass())`, cached, no
+  query per event. Outside the clearance → send nothing (an id alone still reveals that a RED asset
+  exists and changed).
+
+**Frontend (`useDataLoader.js` + consumers)**
+
+- The `message` handler no longer normalizes `instance` into the store. It notifies subscribers per
+  schema with the changed / deleted ids (the existing `SseActionBatcher` already coalesces by entity).
+- Lists subscribe and refetch only when a visible row is signalled. For `Endpoints.tsx`: bump
+  `reloadContentCount` on `PaginationComponentV2` (already supported, used by `AtomicTesting`,
+  `ThreatArsenal`, `GroupDetail`), debounced.
+- Detail pages re-fetch their entity when its id is signalled.
+- Fixes scenario 2 as a side effect: a list that subscribes now refreshes on another user's change.
+
+**Why a signal rather than filtering the payload per consumer**
+
+- **Nothing to sanitize.** Parent payloads embed restricted data (an asset embeds its agents; an
+  inject or asset group embeds asset ids). Filtering the payload means per-type knowledge of every
+  embedded marked reference, easy to miss one. A signal carries none.
+- **One rule for every entity**, derived ones included: with Variant B, findings / expectations / traces
+  carry no marking, and the refetch goes through the SQL rewrite that already filters them.
+- **Same answer as the REST API by construction**: the screen shows what the reader's own query returns.
+
+**Costs and residual risks**
+
+- One REST request per refresh instead of zero. Bounded by: refetch only for ids on screen, debounce,
+  and coalescing per schema + id. To watch on a running simulation (many inject / expectation events).
+- Store-driven views lose the instant payload and depend on their refetch; every view relying on the
+  pushed payload must be migrated (110 `useDataLoader` callers to review, most only reload taxonomies).
+- Derived entities without a marking (a finding of a RED asset): the signal still reaches the GREEN
+  user, but only an id, and their refetch returns nothing. Acceptable, or gate with a parent-asset
+  lookup later.
+
+### 3) Steps
+
+- **2.1** Failing test first: a `TLP:GREEN` consumer of `StreamApi` must not receive the `instance` of a
+  `TLP:RED` asset update (today it does).
+- **2.2** Backend: signal-only events + marking gate on `Asset`; tests for an unmarked asset (signal to
+  everyone with READ), a RED asset (nothing to a GREEN consumer), a RED-cleared consumer (signal).
+- **2.3** Frontend: signal handling in `useDataLoader.js` (per-schema subscribers), then `Endpoints.tsx`
+  refetch via `reloadContentCount`.
+- **2.4** Review the remaining `useDataLoader` / store-driven views and migrate those that relied on
+  the pushed payload.
+- **2.5** (optional) Stream each endpoint change once (duplicate `ModelBaseListener` on `Asset` /
+  `Endpoint`).
+
+## Chunk 3 — OCTI: scenario create 
