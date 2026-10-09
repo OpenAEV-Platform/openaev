@@ -59,14 +59,14 @@ microdnf clean all
 RUN set -eux; \
     microdnf install -y nss nspr dbus-libs expat glib2 atk at-spi2-atk at-spi2-core \
         cups-libs libdrm libX11 libXcomposite libXdamage libXext libXfixes libXrandr \
-        libxcb libxkbcommon pango cairo alsa-lib mesa-libgbm; \
+        libxcb libxkbcommon alsa-lib mesa-libgbm; \
     microdnf clean all
 
 WORKDIR /opt/openaev
 COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 # The boot jar uses the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI
 RUN set -eux; \
-    java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install chromium; \
+    java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install --only-shell chromium; \
     chmod -R a+rX /ms-playwright
 
 # curl is only needed to build the image; without it microdnf can no longer download packages
