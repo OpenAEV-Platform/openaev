@@ -50,11 +50,22 @@ public class ScenarioToExerciseService {
   private final TenantScopedTransaction tenantTx;
   @Resource protected ObjectMapper mapper;
 
+  /**
+   * @param launchedBy the actor whose marking clearance this Exercise's inject dispatch is filtered
+   *     against — the live caller for a manual/operator-triggered launch, or {@code
+   *     scenario.getScheduledBy()} when called with no live user present ({@code
+   *     ScenarioExecutionJob}). Resolved by the caller, not here: this method has no way to know
+   *     its own calling context (HTTP, cron, or autonomous).
+   */
   @Transactional(rollbackFor = Exception.class)
   public Exercise toExercise(
-      @NotBlank final Scenario scenario, @Nullable final Instant start, final boolean isRunning) {
+      @NotBlank final Scenario scenario,
+      @Nullable final Instant start,
+      final boolean isRunning,
+      @Nullable final User launchedBy) {
     Exercise exercise = new Exercise();
     exercise.setScenario(scenario);
+    exercise.setLaunchedBy(launchedBy);
     exercise.setName(scenario.getName());
     exercise.setDescription(scenario.getDescription());
     exercise.setSubtitle(scenario.getSubtitle());

@@ -1,5 +1,6 @@
 package io.openaev.service.autonomous;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
@@ -351,6 +352,17 @@ public class AutonomousRunService {
   // region lifecycle
 
   /**
+   * The live operator's clearance gates dispatch on every simulation this service creates (Task 4)
+   * - {@code create}/{@code restart}/{@code promoteToRealRun} are all reached only through an
+   * {@code accessControl.assertCanManage*} gate, so a real user is always present here.
+   */
+  private User resolveLaunchedBy() {
+    return userRepository
+        .findById(currentUser().getId())
+        .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /**
    * Creates a run: resolves the objective (free text or template), auto-provisions the attack-path
    * (chaining) substrate, spins up its running simulation, and persists the durable run handle in
    * {@code CREATED}. The run is fully autonomous - the operator never authors an attack path; the
@@ -403,7 +415,7 @@ public class AutonomousRunService {
     boolean planMode = input.isPlanMode();
     Exercise simulation =
         scenarioToExerciseService.toExercise(
-            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, resolveLaunchedBy());
     // Dry-run: provision the simulation substrate so the orchestrator's authoring / mirror / read
     // tools work unchanged, but never start its RUN workflow. With no run workflow the chaining
     // engine has nothing to ready or dispatch, so a plan authors a full attack path without ever
@@ -1531,7 +1543,7 @@ public class AutonomousRunService {
     run.setStepMirror(new HashMap<>());
     Exercise simulation =
         scenarioToExerciseService.toExercise(
-            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, resolveLaunchedBy());
     try {
       // Mirror create(): a plan-mode restart provisions the simulation TEMPLATE workflow only (no
       // RUN), so the restarted plan can be re-authored without executing; a live restart starts the
@@ -1622,7 +1634,7 @@ public class AutonomousRunService {
     run.setStepMirror(new HashMap<>());
     Exercise simulation =
         scenarioToExerciseService.toExercise(
-            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, resolveLaunchedBy());
     try {
       workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation, true);
     } catch (ChainingException e) {

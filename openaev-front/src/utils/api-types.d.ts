@@ -5738,6 +5738,7 @@ export interface Exercise {
   exercise_injects?: string[];
   exercise_injects_statistics?: Record<string, number>;
   exercise_kill_chain_phases?: KillChainPhase[];
+  exercise_launched_by?: string;
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
@@ -6548,12 +6549,14 @@ export interface Inject {
   inject_injector?: string;
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
+  inject_launched_by?: string;
   inject_recurrence?: string;
   /** @format date-time */
   inject_recurrence_end?: string;
   /** @format date-time */
   inject_recurrence_start?: string;
   inject_scenario?: string;
+  inject_scheduled_by?: string;
   inject_secret_references?: string[];
   /** @format date-time */
   inject_sent_at?: string;
@@ -11182,6 +11185,7 @@ export interface Scenario {
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
+  scenario_scheduled_by?: string;
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
   scenario_tags?: string[];

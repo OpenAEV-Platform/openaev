@@ -30,6 +30,10 @@ import org.springframework.util.StringUtils;
  * <p>The derived set is then narrowed to the activation allowlist ({@code
  * openaev.marking.active-tables}), empty by default, so the dimension stays inert until a table is
  * onboarded.
+ *
+ * <p>The tables derived from an active one ({@link MarkingDerivedTables}) are then added, so they
+ * are hidden whenever the row they come from is. They are part of the data model and live in code:
+ * there is nothing to configure for them.
  */
 @AllowRawJdbc(reason = "reads information_schema metadata only; no marked rows are accessed")
 @Configuration
@@ -60,7 +64,7 @@ public class MarkingFilteringConfig {
       return MarkedTables.EMPTY;
     }
     List<String> allowlist = activeTables.stream().filter(name -> !name.isBlank()).toList();
-    return deriveFromSchema(dataSource).restrictTo(allowlist);
+    return deriveFromSchema(dataSource).restrictTo(allowlist).withDerived(MarkingDerivedTables.ALL);
   }
 
   /**

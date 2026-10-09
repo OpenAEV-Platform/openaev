@@ -21,6 +21,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.ConvertToManualMode;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantScopedTransaction;
@@ -31,6 +32,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousRun;
@@ -38,6 +40,7 @@ import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.model.autonomous.AutonomousScopeTarget;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -50,6 +53,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -63,6 +67,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
@@ -94,6 +100,8 @@ class AutonomousRunServiceTest {
   // Lenient by default (void asserts are no-ops): these unit tests exercise lifecycle logic, not
   // authorization. The deny paths are covered by AutonomousRunAccessControlTest.
   @Mock private AutonomousRunAccessControl accessControl;
+  // Only exercised by resolveLaunchedBy(), reached from the restart() tests below.
+  @Mock private UserRepository userRepository;
 
   @InjectMocks private AutonomousRunService service;
 
@@ -102,6 +110,18 @@ class AutonomousRunServiceTest {
   @BeforeEach
   void stubTenantWriteScope() {
     lenient().when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn("tenant-1");
+    // resolveLaunchedBy() reads the live caller via SessionHelper.currentUser() - not every test
+    // reaches it (only restart(), via stubRestartCollaborators()), so both stubs are lenient.
+    DefaultOpenAEVPrincipal principal =
+        new DefaultOpenAEVPrincipal("operator-1", List.of(), false, "en");
+    SecurityContextHolder.getContext()
+        .setAuthentication(new TestingAuthenticationToken(principal, null));
+    lenient().when(userRepository.findById("operator-1")).thenReturn(Optional.of(new User()));
+  }
+
+  @AfterEach
+  void clearSecurityContext() {
+    SecurityContextHolder.clearContext();
   }
 
   @Test
@@ -765,7 +785,8 @@ class AutonomousRunServiceTest {
     when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
     Exercise freshSimulation = new Exercise();
     freshSimulation.setId("sim-new");
-    when(scenarioToExerciseService.toExercise(eq(scenario), any(Instant.class), eq(true)))
+    when(scenarioToExerciseService.toExercise(
+            eq(scenario), any(Instant.class), eq(true), any(User.class)))
         .thenReturn(freshSimulation);
     when(runRepository.save(any(AutonomousRun.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));

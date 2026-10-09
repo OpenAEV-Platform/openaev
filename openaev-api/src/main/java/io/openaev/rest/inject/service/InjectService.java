@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
@@ -110,6 +112,7 @@ public class InjectService {
   private final ExecutionTraceRepository executionTraceRepository;
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final InjectAgentResolverService injectAgentResolverService;
   private final AiTargetRepository aiTargetRepository;
   private final CollectorService collectorService;
@@ -424,7 +427,62 @@ public class InjectService {
               }
             });
 
-    return assetToExecutes;
+    return filterByMarkingClearance(inject, assetToExecutes);
+  }
+
+  /**
+   * Drop every resolved asset whose marking is not covered by {@link #resolveLaunchedByClearance}'s
+   * <b>current</b> result for this inject - partial/scoped execution. A null/zero clearance means
+   * every marked target is skipped, nothing throws, nothing runs.
+   */
+  private List<AssetToExecute> filterByMarkingClearance(
+      Inject inject, List<AssetToExecute> assetToExecutes) {
+    MarkingCtx clearance = resolveLaunchedByClearance(inject);
+    return assetToExecutes.stream()
+        .filter(assetToExecute -> isVisibleUnderClearance(assetToExecute.asset(), clearance))
+        .toList();
+  }
+
+  /**
+   * Resolves the live, current marking clearance of the actor whose launch/relaunch gates this
+   * inject's dispatch - the parent Exercise's {@code launchedBy} for a scenario-linked inject, or
+   * the inject's own {@code launchedBy} for a root/atomic-testing inject. Never cached on the
+   * entity: a group-membership change between launch and dispatch is picked up automatically. A
+   * null actor (deleted user, or an old row created before this field existed) resolves to zero
+   * clearance.
+   *
+   * <p>Calls {@link MarkingClearanceCacheManager} directly, never {@code HttpMarkingScopeSupplier}:
+   * {@code bypass} here is the actor's own {@code isAdminOrBypass()} only, not the unrelated {@code
+   * AGENT_RUNTIME_ACCESS} agent-callback bypass that supplier also grants full clearance to.
+   *
+   * <p>Shared by every independent asset-resolution point that must honor partial/scoped execution
+   * (expectation computation, agent-routing dispatch, external-push dispatch) so the rule is
+   * implemented once, not reinvented per call site.
+   */
+  private MarkingCtx resolveLaunchedByClearance(Inject inject) {
+    User launchedBy =
+        inject.getExercise() != null
+            ? inject.getExercise().getLaunchedBy()
+            : inject.getLaunchedBy();
+    if (launchedBy == null) {
+      return MarkingCtx.none();
+    }
+    boolean bypass = launchedBy.isAdminOrBypass();
+    return markingClearanceCacheManager.findClearance(
+        launchedBy.getId(), inject.getTenant().getId(), bypass);
+  }
+
+  /**
+   * An asset with no marking is visible to everyone (Task 3). A marked asset is visible only when
+   * the clearance covers <b>every</b> marking it carries (STIX AND-of-markings reading, not OR).
+   */
+  private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
+    String[] assetMarkingIds = asset.getMarkingIds();
+    if (assetMarkingIds == null || assetMarkingIds.length == 0) {
+      return true;
+    }
+    return clearance instanceof MarkingCtx.Restricted restricted
+        && restricted.markingIds().containsAll(Arrays.asList(assetMarkingIds));
   }
 
   /**
@@ -507,6 +565,10 @@ public class InjectService {
     this.throwIfInjectNotLaunchable(inject);
     inject.clean();
     inject.setUpdatedAt(Instant.now());
+    // The actor whose marking clearance this launch's dispatch is filtered against.
+    // Only ever reached from AtomicTestingService.launch(), a live-user, HTTP-triggered call -
+    // atomic testing has no "launch with no live user" path (only relaunch does).
+    inject.setLaunchedBy(userService.currentUser());
     Inject savedInject = saveInjectAndStatusAsQueuing(inject);
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
@@ -534,6 +596,12 @@ public class InjectService {
     if (checkLaunchable) {
       this.throwIfInjectNotLaunchable(duplicatedInject);
     }
+    // The actor whose marking clearance this relaunch's dispatch is filtered against.
+    // checkLaunchable distinguishes a manual relaunch (live user, checkLaunchable=true) from a
+    // scheduled one fired by AtomicTestingExecutionJob (no live user, checkLaunchable=false) -
+    // deliberately NOT copied forward from the inject being replaced; see duplicateInject().
+    duplicatedInject.setLaunchedBy(
+        checkLaunchable ? userService.currentUser() : duplicatedInject.getScheduledBy());
     Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
     deleteForRelaunch(id, savedInject.getId());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
@@ -1036,17 +1104,29 @@ public class InjectService {
         });
   }
 
+  /**
+   * Builds the real agent/agentless-asset sets a launch actually acts on - this is what {@link
+   * io.openaev.execution.ExecutionExecutorService#launchExecutorContext} commands to execute, so
+   * partial/scoped execution is enforced here directly rather than relying on {@link
+   * #resolveAllAssetsToExecute}'s result (which only feeds expectation/finding computation and is a
+   * separate, independent resolution of the same inject's targets).
+   */
   public AgentsAndAssetsAgentless getAgentsAndAgentlessAssetsByInject(Inject inject) {
     Set<Agent> agents = new HashSet<>();
     Set<Asset> assetsAgentless = new HashSet<>();
+    MarkingCtx clearance = resolveLaunchedByClearance(inject);
 
     for (Asset asset : inject.getAssets()) {
-      extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
+      if (isVisibleUnderClearance(asset, clearance)) {
+        extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
+      }
     }
 
     for (AssetGroup assetGroup : inject.getAssetGroups()) {
       for (Asset asset : assetGroupService.assetsFromAssetGroup(assetGroup.getId())) {
-        extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
+        if (isVisibleUnderClearance(asset, clearance)) {
+          extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
+        }
       }
     }
 
