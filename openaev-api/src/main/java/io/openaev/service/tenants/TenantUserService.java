@@ -199,17 +199,4 @@ public class TenantUserService implements DependenciesManager {
     }
     return tenantId;
   }
-
-  public UserOutput updatePassword(String userId, @Valid ChangePasswordInput input)
-      throws InputValidationException {
-    if (!input.passwordsMatch()) {
-      throw new InputValidationException("password_validation", "Bad password validation");
-    }
-    Specification<User> spec = inTenant(tenantId()).and(UserSpecification.byId(userId));
-    User existing =
-        userRepository
-            .findOne(spec)
-            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
-    return toOutput(userService.updatePassword(existing, input.getPassword()));
-  }
 }

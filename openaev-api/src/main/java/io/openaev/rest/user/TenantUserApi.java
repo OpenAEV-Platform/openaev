@@ -113,16 +113,6 @@ public class TenantUserApi extends RestBehavior {
       TxCtx ctx, @PathVariable String userId, @Valid @RequestBody UserInput input) {
     return tenantUserService.update(userId, input);
   }
-//
-//  @Operation(summary = "Update the user's password")
-//  @AccessControl(requireTenantAdmin = true)
-//  @Transactional
-//  @PutMapping("/{userId}/password")
-//  public UserOutput updatePassword(
-//      TxCtx ctx, @PathVariable String userId, @Valid @RequestBody ChangePasswordInput input)
-//      throws InputValidationException {
-//    return tenantUserService.updatePassword(userId, input);
-//  }
 
   // -- DELETE --
 
