@@ -2,6 +2,7 @@ package io.openaev.config;
 
 import static io.openaev.rest.executor.ExecutorApi.AGENT_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.user.MeApi.ME_URI;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -51,6 +52,9 @@ public class AppSecurityConfigTest extends IntegrationTest {
   private static final String AUTH_COOKIE_NAME = "openaev_token";
   private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
   private static final String CSRF_HEADER_NAME = "X-XSRF-TOKEN";
+  // base64("proxyuser:proxypass") - shape of a reverse-proxy-injected Basic auth header, never an
+  // OpenAEV token.
+  private static final String BASIC_AUTH_HEADER_VALUE = "Basic cHJveHl1c2VyOnByb3h5cGFzcw==";
   private static final String SEARCH_BODY =
       """
       {
@@ -203,6 +207,72 @@ public class AppSecurityConfigTest extends IntegrationTest {
 
     assertThat(result.getResponse().getCookie("JSESSIONID")).isNull();
     assertThat(result.getRequest().getSession(false)).isNull();
+  }
+
+  @Test
+  @DisplayName("given pure auth cookie request, should not create session nor issue JSESSIONID")
+  void given_pureAuthCookieRequest_should_notCreateSessionNorIssueJsessionId() throws Exception {
+    // The auth-cookie form of TokenAuthenticationFilter is also a token authentication: like the
+    // bearer header form, it must never establish a server-side session nor emit a JSESSIONID for
+    // the client to replay.
+    Cookie authCookie = new Cookie(AUTH_COOKIE_NAME, adminToken);
+
+    MvcResult result =
+        mockMvc.perform(get(ME_URI).cookie(authCookie)).andExpect(status().isOk()).andReturn();
+
+    assertThat(result.getResponse().getCookie("JSESSIONID")).isNull();
+    assertThat(result.getRequest().getSession(false)).isNull();
+  }
+
+  @Test
+  @DisplayName("given raw token header request, should not create session nor issue JSESSIONID")
+  void given_rawTokenHeaderRequest_should_notCreateSessionNorIssueJsessionId() throws Exception {
+    // A raw (non-bearer-prefixed) Authorization header is the other stateless form
+    // TokenAuthenticationFilter accepts; it must give the same no-session guarantee as the
+    // bearer-prefixed form.
+    MvcResult result =
+        mockMvc
+            .perform(get(ME_URI).header(HttpHeaders.AUTHORIZATION, adminToken))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    assertThat(result.getResponse().getCookie("JSESSIONID")).isNull();
+    assertThat(result.getRequest().getSession(false)).isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "given valid session and a reverse-proxy Basic auth header, should authenticate via session")
+  void given_sessionWithBasicAuthHeader_should_authenticateViaSession() throws Exception {
+    // A reverse proxy in front of SSO/local login can inject its own Authorization: Basic ...
+    // header on every request. TokenAuthenticationFilter only ever treats "Bearer <token>" or a
+    // bare <token> as an OpenAEV credential, so a Basic header must not force the request onto the
+    // stateless path - otherwise the session carrying the actual login is never loaded, and the
+    // user is logged out right after logging in.
+    Token currentAdminToken = tokenRepository.findByValue(adminToken).orElseThrow();
+    User adminUser = currentAdminToken.getUser();
+    String sessionId =
+        sessionTestHelper.createAuthenticatedSession(
+            buildAuthenticationToken(adminUser), adminUser.getId());
+    Cookie sessionCookie = sessionTestHelper.cookieFor(sessionId);
+
+    mockMvc
+        .perform(
+            get(ME_URI)
+                .cookie(sessionCookie)
+                .header(HttpHeaders.AUTHORIZATION, BASIC_AUTH_HEADER_VALUE))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("given only a Basic auth header, should return HTTP 401")
+  void given_onlyBasicAuthHeader_should_returnUnauthorized() throws Exception {
+    // A Basic header alone is not an OpenAEV credential - it must not be mistaken for a raw token
+    // (TokenAuthenticationFilter's plain-token extractor would just fail to match it) nor for an
+    // existing session, so the request stays unauthenticated.
+    mockMvc
+        .perform(get(ME_URI).header(HttpHeaders.AUTHORIZATION, BASIC_AUTH_HEADER_VALUE))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test

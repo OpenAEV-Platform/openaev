@@ -383,9 +383,19 @@ public class AppSecurityConfig {
    * so a holder of a disclosed token (e.g. the installer token behind {@code INSTALL_AGENT}, see
    * #271) could use either form once to mint a session cookie, then keep replaying that session -
    * including after the token itself was rotated, since the session never re-checks it.
+   *
+   * <p>A header is only a raw-token candidate when it carries no other scheme: {@link
+   * TokenAuthenticationFilter} passes a non-bearer header to its plain-token extractor whole, and
+   * every issued token is a bare UUID with no whitespace, so a "{@code <Scheme> <value>}" header
+   * for a different scheme (e.g. a reverse proxy injecting {@code Authorization: Basic ...} in
+   * front of SSO) can never match. Treating it as a token credential anyway forced every such
+   * request stateless, so the browser session was never read or saved and SSO/local-login users
+   * behind such a proxy were logged out right after logging in.
    */
   private static boolean hasTokenCredential(HttpServletRequest request, String tokenCookieName) {
-    if (!isBlank(request.getHeader(HttpHeaders.AUTHORIZATION))) {
+    String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+    if (!isBlank(header)
+        && (startsWithIgnoreCase(header, BEARER_PREFIX) || !header.contains(" "))) {
       return true;
     }
     Cookie[] cookies = request.getCookies();
