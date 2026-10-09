@@ -175,6 +175,8 @@ public class PayloadUtils {
         "detectionRemediations",
         "grants");
     duplicate.setId(null);
+    // The copy starts from the active version only: a pending version stays with the origin.
+    duplicate.setPendingVersion(false);
     duplicate.setName(duplicateString(origin.getName()));
     duplicate.setExternalId(null);
     duplicate.setArguments(

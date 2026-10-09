@@ -13,7 +13,8 @@ import { setNotifyErrorHandler } from '../../../../utils/error/errorHandlerUtil'
 // The HTTP layer is real (Action.ts helpers and the network.ts interceptor, which rejects with
 // `{ status, ...body }`): only the transport is stubbed, so the test sees the error shape the app
 // really gets.
-const { requests, responses, submitErrors } = vi.hoisted(() => ({
+const { requests, responses, submitErrors, permissions } = vi.hoisted(() => ({
+  permissions: { canApprove: true },
   requests: [] as InternalAxiosRequestConfig[],
   responses: [] as {
     status: number;
@@ -62,7 +63,7 @@ vi.mock('../../../../components/i18n', async importOriginal => ({
   }),
 }));
 
-vi.mock('../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: () => true }) }));
+vi.mock('../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: (action: string) => action !== 'APPROVE' || permissions.canApprove }) }));
 
 vi.mock('../../../../components/common/Drawer', () => ({
   default: ({ open, children }: {
@@ -79,38 +80,50 @@ const SUBMIT_EDIT = 'Submit edit';
 // The form itself is not under test: a button submits a command edit like the real form does
 // (an exception from onSubmit is what the real form surfaced as an uncaught error).
 vi.mock('../../../../admin/components/threat_arsenal/ThreatArsenalActionForm', () => ({
-  default: ({ onSubmit }: { onSubmit: (data: object) => Promise<void> }) => (
-    <button
-      type="button"
-      onClick={() => {
-        onSubmit({
-          action_name: 'Whoami',
-          command_content: 'whoami /all',
-        }).catch((error: unknown) => submitErrors.push(error));
-      }}
-    >
-      {SUBMIT_EDIT}
-    </button>
+  default: ({ onSubmit, initialValues }: {
+    onSubmit: (data: object) => Promise<void>;
+    initialValues: { command_content?: string };
+  }) => (
+    <>
+      <output data-testid="initial-command">{initialValues.command_content}</output>
+      <button
+        type="button"
+        onClick={() => {
+          onSubmit({
+            action_name: 'Whoami',
+            command_content: 'whoami /all',
+          }).catch((error: unknown) => submitErrors.push(error));
+        }}
+      >
+        {SUBMIT_EDIT}
+      </button>
+    </>
   ),
 }));
 
-const IMPACT_MESSAGE = 'Saving will send this payload back to Pending approval and block the launch of 1 atomic testing, 1 scenario until it is approved again.';
-const approvalImpact = {
-  status: 409,
-  data: {
-    message: IMPACT_MESSAGE,
-    usage: {
-      usage_atomic_testings_count: 1,
-      usage_scenarios_count: 1,
-      usage_simulations_count: 0,
-    },
-  },
-};
 const fetchedAction = {
   status: 200,
   data: {
     action_id: 'action-1',
     action_labels: { en: 'Whoami' },
+    action_type: 'Command',
+    command_content: 'whoami',
+    action_approval_status: 'APPROVED',
+  },
+};
+const fetchedWithPendingVersion = {
+  status: 200,
+  data: {
+    ...fetchedAction.data,
+    action_pending_version: {
+      version_id: 'version-2',
+      version_number: 2,
+      version_status: 'PENDING',
+      version_origin: 'UPDATE',
+      version_fingerprint: 'fp-2',
+      version_created_at: '2026-10-09T10:00:00Z',
+      version_content: { content: 'whoami /priv' },
+    },
   },
 };
 const updatedAction = {
@@ -137,17 +150,26 @@ const renderPopover = (onUpdate = vi.fn()) => {
   return onUpdate;
 };
 
-const submitEdit = async () => {
+const openEdit = async () => {
   fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
   fireEvent.click(await screen.findByRole('menuitem', { name: 'Update' }));
-  fireEvent.click(await screen.findByRole('button', { name: SUBMIT_EDIT }));
+  await screen.findByRole('button', { name: SUBMIT_EDIT });
 };
 
-describe('ThreatArsenalActionPopover: edit that would send an approved payload in use back to pending (US2.4)', () => {
+const submitEdit = async () => {
+  await openEdit();
+  fireEvent.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
+};
+
+const PENDING_FOR_AUTHOR = 'This action has a pending version: the form shows it. Saving replaces it; the approved version keeps running until a version is approved.';
+const APPROVED_FOR_AUTHOR = 'Changes to what this action runs wait for approval as a new version; the approved version keeps running meanwhile. Other changes apply now.';
+
+describe('ThreatArsenalActionPopover: editing an approved action (payload versioning, Task 5)', () => {
   beforeEach(() => {
     requests.length = 0;
     responses.length = 0;
     submitErrors.length = 0;
+    permissions.canApprove = true;
     notifyError.mockReset();
     setNotifyErrorHandler(notifyError);
     document.cookie = 'XSRF-TOKEN=test-token';
@@ -157,54 +179,7 @@ describe('ThreatArsenalActionPopover: edit that would send an approved payload i
     cleanup();
   });
 
-  it('asks for confirmation on the 409, then saves the same edit without the check', async () => {
-    // Arrange
-    responses.push(fetchedAction, approvalImpact, updatedAction);
-    const onUpdate = renderPopover();
-
-    // Act
-    await submitEdit();
-
-    // Assert: a confirmation instead of an error toast, nothing thrown to the form
-    expect(await screen.findByText(/Saving sends this payload back to pending approval\. It will block the launch of the items below until it is approved again\./)).toBeTruthy();
-    expect(notifyError).not.toHaveBeenCalled();
-    expect(submitErrors).toHaveLength(0);
-    expect(puts()).toHaveLength(1);
-    expect(puts()[0].url).toMatch(/\/threat_arsenals\/action-1$/);
-    expect(puts()[0].params).toEqual({ check_approval_impact: true });
-
-    // Act: confirm
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
-
-    // Assert: same edit sent again without the check, saved, drawer closed
-    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(updatedAction.data));
-    expect(puts()).toHaveLength(2);
-    expect(puts()[1].params?.check_approval_impact).toBeUndefined();
-    expect(JSON.parse(puts()[1].data as string)).toEqual(JSON.parse(puts()[0].data as string));
-    await waitFor(() => expect(screen.queryByTestId('edit-drawer')).toBeNull());
-    expect(notifyError).not.toHaveBeenCalled();
-  });
-
-  it('keeps the form open and sends nothing more when the user cancels', async () => {
-    // Arrange
-    responses.push(fetchedAction, approvalImpact);
-    const onUpdate = renderPopover();
-    await submitEdit();
-    await screen.findByText(/Saving sends this payload back to pending approval/);
-
-    // Act
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    // Assert
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(screen.getByTestId('edit-drawer')).toBeTruthy();
-    expect(screen.getByRole('button', { name: SUBMIT_EDIT })).toBeTruthy();
-    expect(puts()).toHaveLength(1);
-    expect(onUpdate).not.toHaveBeenCalled();
-    expect(notifyError).not.toHaveBeenCalled();
-  });
-
-  it('saves directly, with no dialog, when the edit has no approval impact', async () => {
+  it('saves with a single update, without any approval impact check, and closes', async () => {
     // Arrange
     responses.push(fetchedAction, updatedAction);
     const onUpdate = renderPopover();
@@ -215,29 +190,50 @@ describe('ThreatArsenalActionPopover: edit that would send an approved payload i
     // Assert
     await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(updatedAction.data));
     expect(puts()).toHaveLength(1);
-    expect(screen.queryByText(/Saving sends this payload back to pending approval/)).toBeNull();
+    expect(puts()[0].url).toMatch(/\/threat_arsenals\/action-1$/);
+    expect(puts()[0].params).toBeUndefined();
     await waitFor(() => expect(screen.queryByTestId('edit-drawer')).toBeNull());
+    expect(notifyError).not.toHaveBeenCalled();
   });
 
-  it('keeps the usual error handling for another 409', async () => {
+  it('prefills the form from the pending version and tells an author that saving replaces it', async () => {
     // Arrange
-    responses.push(fetchedAction, {
-      status: 409,
-      data: { message: 'Conflict' },
-    });
-    const onUpdate = renderPopover();
+    permissions.canApprove = false;
+    responses.push(fetchedWithPendingVersion);
+    renderPopover();
 
     // Act
-    await submitEdit();
+    await openEdit();
 
     // Assert
-    await waitFor(() => expect(notifyError).toHaveBeenCalledWith(expect.objectContaining({
-      status: 409,
-      message: 'Conflict',
-    })));
-    await waitFor(() => expect(submitErrors).toHaveLength(1));
-    expect(screen.queryByText(/Saving sends this payload back to pending approval/)).toBeNull();
-    expect(puts()).toHaveLength(1);
-    expect(onUpdate).not.toHaveBeenCalled();
+    expect(screen.getByTestId('initial-command').textContent).toBe('whoami /priv');
+    expect(screen.getByText(PENDING_FOR_AUTHOR)).toBeTruthy();
+  });
+
+  it('tells an author that content changes of an approved action wait for approval', async () => {
+    // Arrange
+    permissions.canApprove = false;
+    responses.push(fetchedAction);
+    renderPopover();
+
+    // Act
+    await openEdit();
+
+    // Assert
+    expect(screen.getByTestId('initial-command').textContent).toBe('whoami');
+    expect(screen.getByText(APPROVED_FOR_AUTHOR)).toBeTruthy();
+  });
+
+  it('shows no note to an approver editing an approved action without pending version', async () => {
+    // Arrange
+    responses.push(fetchedAction);
+    renderPopover();
+
+    // Act
+    await openEdit();
+
+    // Assert
+    expect(screen.queryByText(APPROVED_FOR_AUTHOR)).toBeNull();
+    expect(screen.queryByText(PENDING_FOR_AUTHOR)).toBeNull();
   });
 });

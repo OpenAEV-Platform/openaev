@@ -20,7 +20,7 @@ import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
-import io.openaev.service.payload_approval.PayloadFingerprint;
+import io.openaev.service.payload_approval.PayloadVersionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import java.util.HashSet;
 import java.util.List;
@@ -53,6 +53,7 @@ public class PayloadUpsertService {
   private final ResultsMetricCollector resultsMetricCollector;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final PayloadApprovalService payloadApprovalService;
+  private final PayloadVersionService payloadVersionService;
 
   @Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(TxCtx ctx, PayloadUpsertInput input) {
@@ -164,7 +165,7 @@ public class PayloadUpsertService {
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
-    String fingerprintBefore = PayloadFingerprint.of(payload);
+    PayloadVersionService.Active active = PayloadVersionService.Active.of(payload);
     payloadUtils.copyProperties(input, payload, true);
     // A collector write is not a user's modification.
     payload.setLastModifiedBy(null);
@@ -191,9 +192,12 @@ public class PayloadUpsertService {
       fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
     }
 
+    // A collector update of an approved payload becomes a pending version (see
+    // PayloadVersionService): the payload keeps running its approved content.
+    payloadVersionService.onEdit(payload, active, null, PayloadVersion.ORIGIN.COLLECTOR);
     Payload saved = payloadRepository.save(payload);
     payloadApprovalService.onWrite(
-        saved, null, PayloadApproval.ORIGIN.COLLECTOR, fingerprintBefore);
+        saved, null, PayloadApproval.ORIGIN.COLLECTOR, active.fingerprint());
     payloadService.synchroniseInjectorContractBasedOnPayload(
         saved,
         attackPatterns,

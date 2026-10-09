@@ -4,9 +4,8 @@ import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCal
 import type {
   InjectorContractSearchPaginationInput, SearchPaginationInput,
   ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
-  ThreatArsenalApprovalImpactOutput, ThreatArsenalApproveInput, ThreatArsenalRejectInput,
+  ThreatArsenalApproveInput, ThreatArsenalRejectInput,
 } from '../../utils/api-types';
-import { notifyErrorHandler } from '../../utils/error/errorHandlerUtil';
 import { arrayOfSecurityPlatforms } from '../assets/asset-schema';
 
 const THREAT_ARSENAL_URI = '/api/threat_arsenals';
@@ -33,63 +32,9 @@ export const updateThreatArsenalAction = (actionId: string, data: ThreatArsenalA
   return simplePutCall(uri, data, {}, true, true);
 };
 
-/**
- * The approval impact carried by a failed update, if the server refused it because saving would
- * send the approved payload back to pending while it is used (409 with the usage). The API
- * interceptor rejects with the response body spread on `{ status }`, not with an AxiosError.
- */
-export const approvalImpactOf = (error: unknown): ThreatArsenalApprovalImpactOutput | null => {
-  const rejected = error as ({ status?: number } & Partial<ThreatArsenalApprovalImpactOutput>) | null | undefined;
-  if (rejected?.status === 409 && rejected.usage && typeof rejected.message === 'string') {
-    return {
-      message: rejected.message,
-      usage: rejected.usage,
-    };
-  }
-  return null;
-};
-
-export type ApprovalImpactCheckedUpdate
-  = | {
-    saved: true;
-    data: unknown;
-  }
-  | {
-    saved: false;
-    approvalImpact: ThreatArsenalApprovalImpactOutput;
-  };
-
-/**
- * Updates an action, but lets the server refuse (nothing saved) an edit that would send the
- * approved payload back to pending while it is used: resolves with the approval impact instead,
- * so the caller can ask for confirmation, then save with {@link updateThreatArsenalAction}. That
- * refusal is not notified; any other error is notified and rethrown as usual.
- */
-export const updateThreatArsenalActionCheckingApprovalImpact = (
-  actionId: string,
-  data: ThreatArsenalActionUpdateInput,
-): Promise<ApprovalImpactCheckedUpdate> => {
-  const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
-  return simplePutCall(uri, data, { params: { check_approval_impact: true } }, false, true)
-    .then(response => ({
-      saved: true as const,
-      data: response.data,
-    }))
-    .catch((error) => {
-      const approvalImpact = approvalImpactOf(error);
-      if (approvalImpact) {
-        return {
-          saved: false as const,
-          approvalImpact,
-        };
-      }
-      notifyErrorHandler(error);
-      throw error;
-    });
-};
-
-// Payload approval: approve / reject need "Approve content"; errors (not pending, content changed
-// since shown, missing reason) are surfaced by the default error handling.
+// Payload approval: approve / reject need "Approve content" and act on the pending version when
+// there is one; errors (nothing pending, content changed since shown, missing reason) are surfaced
+// by the default error handling.
 // notifyError false: the caller handles errors itself (e.g. a 403 when Approve content was removed).
 export const approveThreatArsenalAction = (actionId: string, data: ThreatArsenalApproveInput, notifyError = true) => {
   return simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/approve`, data, undefined, notifyError);
@@ -105,6 +50,10 @@ export const fetchThreatArsenalActionApprovals = (actionId: string) => {
 
 export const fetchThreatArsenalActionUsage = (actionId: string) => {
   return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usage`);
+};
+
+export const fetchThreatArsenalActionVersions = (actionId: string) => {
+  return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/versions`);
 };
 
 export const duplicateThreatArsenalAction = (actionId: string) => {

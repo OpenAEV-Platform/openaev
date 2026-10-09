@@ -4,18 +4,18 @@ import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import PayloadUsageWarning from '../../../../../admin/components/threat_arsenal/approval/PayloadUsageWarning';
+import PayloadUsage from '../../../../../admin/components/threat_arsenal/approval/PayloadUsage';
 import { type ThreatArsenalActionUsageItem, type ThreatArsenalActionUsageOutput } from '../../../../../utils/api-types';
 import en from '../../../../../utils/lang/en.json';
 import fr from '../../../../../utils/lang/fr.json';
 import ru from '../../../../../utils/lang/ru.json';
 
 // Real react-intl and real catalogs: the plural forms are the translated ICU messages.
-const renderWarning = (usage: ThreatArsenalActionUsageOutput | undefined, locale = 'en', messages: Record<string, string> = en) => render(
+const renderUsage = (usage: ThreatArsenalActionUsageOutput | undefined, locale = 'en', messages: Record<string, string> = en) => render(
   <IntlProvider locale={locale} defaultLocale="en" messages={messages} onError={() => {}}>
     <MemoryRouter>
       <ThemeProvider theme={createTheme()}>
-        <PayloadUsageWarning usage={usage} />
+        <PayloadUsage usage={usage} />
       </ThemeProvider>
     </MemoryRouter>
   </IntlProvider>,
@@ -36,14 +36,14 @@ const usage = (atomicTestings: number, scenarios: number, simulations: number): 
   usage_simulations: items('Simulation', Math.min(simulations, 20)),
 });
 
-describe('PayloadUsageWarning', () => {
+describe('PayloadUsage', () => {
   afterEach(() => {
     cleanup();
   });
 
   it('renders nothing when the payload is not used (0 items)', () => {
     // Arrange / Act
-    const { container } = renderWarning(usage(0, 0, 0));
+    const { container } = renderUsage(usage(0, 0, 0));
 
     // Assert
     expect(container.textContent).toBe('');
@@ -51,10 +51,10 @@ describe('PayloadUsageWarning', () => {
 
   it('uses the singular for 1 item and does not mention types with 0 items', () => {
     // Arrange / Act
-    renderWarning(usage(1, 0, 0));
+    renderUsage(usage(1, 0, 0));
 
     // Assert
-    expect(screen.getByRole('alert').textContent).toBe('Used in 1 atomic testing.');
+    expect(screen.getByText('Used in 1 atomic testing.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Atomic testings (1)' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Scenarios/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Simulations/ })).toBeNull();
@@ -62,10 +62,10 @@ describe('PayloadUsageWarning', () => {
 
   it('groups 3 items by type, each group with its count and links opening in a new tab', () => {
     // Arrange / Act
-    renderWarning(usage(1, 2, 0));
+    renderUsage(usage(1, 2, 0));
 
     // Assert
-    expect(screen.getByRole('alert').textContent).toBe('Used in 1 atomic testing, 2 scenarios.');
+    expect(screen.getByText('Used in 1 atomic testing, 2 scenarios.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Scenarios (2)' }));
     const scenarios = screen.getByRole('list', { name: 'Scenarios' });
     const links = within(scenarios).getAllByRole('link');
@@ -76,10 +76,10 @@ describe('PayloadUsageWarning', () => {
 
   it('keeps 50 items scalable: exact count, capped scrollable list and "Showing 20 of 50"', () => {
     // Arrange / Act
-    renderWarning(usage(0, 0, 50));
+    renderUsage(usage(0, 0, 50));
 
     // Assert
-    expect(screen.getByRole('alert').textContent).toBe('Used in 50 simulations.');
+    expect(screen.getByText('Used in 50 simulations.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Simulations (50)' }));
     const list = screen.getByRole('list', { name: 'Simulations' });
     expect(within(list).getAllByRole('link')).toHaveLength(20);
@@ -89,26 +89,26 @@ describe('PayloadUsageWarning', () => {
 
   it('gives the counts only when the user cannot open the items', () => {
     // Arrange / Act
-    renderWarning({
+    renderUsage({
       usage_atomic_testings_count: 0,
       usage_scenarios_count: 2,
       usage_simulations_count: 0,
     });
 
     // Assert
-    expect(screen.getByRole('alert').textContent).toBe('Used in 2 scenarios.');
+    expect(screen.getByText('Used in 2 scenarios.')).toBeTruthy();
     expect(screen.queryAllByRole('link')).toHaveLength(0);
     expect(screen.queryByRole('button', { name: /Scenarios/ })).toBeNull();
   });
 
   it('uses each language\'s plural forms', () => {
     // French: one / other
-    renderWarning(usage(1, 3, 0), 'fr', fr);
-    expect(screen.getByRole('alert').textContent).toBe('Utilisé dans 1 test atomique, 3 scénarios.');
+    renderUsage(usage(1, 3, 0), 'fr', fr);
+    expect(screen.getByText('Utilisé dans 1 test atomique, 3 scénarios.')).toBeTruthy();
     cleanup();
 
     // Russian: one / few / many
-    renderWarning(usage(1, 3, 5), 'ru', ru);
-    expect(screen.getByRole('alert').textContent).toBe('Используется в: 1 атомный тест, 3 сценария, 5 симуляций.');
+    renderUsage(usage(1, 3, 5), 'ru', ru);
+    expect(screen.getByText('Используется в: 1 атомный тест, 3 сценария, 5 симуляций.')).toBeTruthy();
   });
 });

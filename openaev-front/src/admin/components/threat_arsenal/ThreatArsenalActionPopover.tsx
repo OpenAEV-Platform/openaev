@@ -1,4 +1,4 @@
-import { Button, IconButton } from '@filigran/design-system';
+import { Alert, Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -10,9 +10,7 @@ import {
   exportThreatArsenalAction,
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
-  updateThreatArsenalActionCheckingApprovalImpact,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
-import DialogConfirmation from '../../../components/common/DialogConfirmation';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
@@ -21,7 +19,6 @@ import {
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
   type ThreatArsenalActionUpdateInput,
-  type ThreatArsenalActionUsageOutput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
@@ -29,7 +26,6 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
-import PayloadUsageWarning from './approval/PayloadUsageWarning';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 
@@ -60,32 +56,63 @@ const buildInitialValues
       };
     });
 
+    // An action with a pending version is edited from that version: saving replaces it (the active
+    // version keeps running until a version is approved).
+    const pending = action.action_pending_version?.version_content;
+    const executable = pending
+      ? {
+          command_executor: pending.executor,
+          command_content: pending.content,
+          dns_resolution_hostname: pending.hostname,
+          action_arguments: pending.arguments,
+          action_prerequisites: pending.prerequisites,
+          file_drop_file: action.action_type === 'FileDrop' ? pending.file_id : undefined,
+          executable_file: action.action_type === 'Executable' ? pending.file_id : undefined,
+          action_execution_arch: pending.execution_arch as ThreatArsenalActionFullOutput['action_execution_arch'],
+          action_platforms: pending.platforms as ThreatArsenalActionFullOutput['action_platforms'],
+          action_cleanup_executor: pending.cleanup_executor,
+          action_cleanup_command: pending.cleanup_command,
+        }
+      : {
+          command_executor: action.command_executor as string | undefined,
+          command_content: action.command_content as string | undefined,
+          dns_resolution_hostname: action.dns_resolution_hostname as string | undefined,
+          action_arguments: action.action_arguments,
+          action_prerequisites: action.action_prerequisites,
+          file_drop_file: action.file_drop_file as string | undefined,
+          executable_file: action.executable_file as string | undefined,
+          action_execution_arch: action.action_execution_arch,
+          action_platforms: action.action_platforms,
+          action_cleanup_executor: action.action_cleanup_executor,
+          action_cleanup_command: action.action_cleanup_command,
+        };
+
     return {
       action_id: action.action_id,
       action_name: actionName,
       action_description: action.action_description,
       action_type: action.action_type as ThreatArsenalActionCreateCustomInput['action_type'],
-      command_executor: action.command_executor as string | undefined,
-      command_content: action.command_content as string | undefined,
-      dns_resolution_hostname: action.dns_resolution_hostname as string | undefined,
-      action_arguments: action.action_arguments?.map(arg => ({
+      command_executor: executable.command_executor,
+      command_content: executable.command_content,
+      dns_resolution_hostname: executable.dns_resolution_hostname,
+      action_arguments: executable.action_arguments?.map(arg => ({
         ...arg,
         type: String(arg.type) === 'targeted_asset' ? 'targeted-asset' : arg.type,
         description: arg.description ?? undefined,
         separator: arg.separator ?? undefined,
       })),
-      action_prerequisites: action.action_prerequisites,
-      file_drop_file: action.file_drop_file as string | undefined,
+      action_prerequisites: executable.action_prerequisites,
+      file_drop_file: executable.file_drop_file,
       action_attack_patterns: action.action_attack_patterns,
       action_tags: action.action_tags as string[] | undefined,
       action_expectations: action.action_expectations ?? ['PREVENTION', 'DETECTION'],
       action_expected_security_platforms: action.action_expected_security_platforms ?? {},
-      action_execution_arch: action.action_execution_arch,
+      action_execution_arch: executable.action_execution_arch,
       action_output_parsers: action.action_output_parsers as ThreatArsenalActionCreateCustomInput['action_output_parsers'],
-      action_platforms: action.action_platforms,
-      executable_file: action.executable_file as string | undefined,
-      action_cleanup_executor: action.action_cleanup_executor ?? '',
-      action_cleanup_command: action.action_cleanup_command ?? '',
+      action_platforms: executable.action_platforms,
+      executable_file: executable.executable_file,
+      action_cleanup_executor: executable.action_cleanup_executor ?? '',
+      action_cleanup_command: executable.action_cleanup_command ?? '',
       remediations: remediations as ThreatArsenalActionCreateCustomInput['remediations'],
       action_domains: action.action_domains,
     } as Partial<ThreatArsenalActionCreateCustomInput> & {
@@ -120,8 +147,8 @@ const ThreatArsenalActionPopover = ({
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const { t, tPick } = useFormatter();
-  const theme = useTheme();
   const ability = useAbility();
+  const theme = useTheme();
 
   // -- Popover --
   const handlePopoverOpen = (event: MouseEvent<HTMLButtonElement>) => {
@@ -141,31 +168,6 @@ const ThreatArsenalActionPopover = ({
   const handleCloseEdit = () => {
     setOpenEdit(false);
     setFetchedAction(null);
-  };
-
-  // Edit waiting for confirmation because it would block launches (warning before impact, US2.4).
-  const [approvalImpact, setApprovalImpact] = useState<{
-    input: ThreatArsenalActionUpdateInput;
-    usage: ThreatArsenalActionUsageOutput;
-  } | null>(null);
-
-  const handleSaved = (data: unknown) => {
-    if (data && onUpdate) {
-      onUpdate(data as ThreatArsenalAction);
-    }
-    handleCloseEdit();
-  };
-
-  // Confirmed: save the same edit without the check. Errors are notified by the call; the drawer
-  // stays open with the user's edits.
-  const confirmApprovalImpact = () => {
-    if (!approvalImpact) return undefined;
-    return updateThreatArsenalAction(actionId, approvalImpact.input)
-      .then((response) => {
-        setApprovalImpact(null);
-        handleSaved(response.data);
-      })
-      .catch(() => setApprovalImpact(null));
   };
 
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
@@ -189,17 +191,11 @@ const ThreatArsenalActionPopover = ({
         }),
     } as ThreatArsenalActionUpdateInput;
 
-    // First save asks the server to refuse an edit that would block launches; it then answers
-    // with the impact (nothing saved) and the user confirms or cancels.
-    const result = await updateThreatArsenalActionCheckingApprovalImpact(actionId, inputValues);
-    if (result.saved) {
-      handleSaved(result.data);
-      return;
+    const response = await updateThreatArsenalAction(actionId, inputValues);
+    if (response.data && onUpdate) {
+      onUpdate(response.data as ThreatArsenalAction);
     }
-    setApprovalImpact({
-      input: inputValues,
-      usage: result.approvalImpact.usage,
-    });
+    handleCloseEdit();
   };
 
   const onSubmitInjectorContractEdit = (data: InjectorContractFormValues) => {
@@ -244,6 +240,20 @@ const ThreatArsenalActionPopover = ({
   };
 
   const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
+
+  // Editing an approved action: what changes in what it runs waits for approval as a new version.
+  const versionNote = (action: ThreatArsenalActionFullOutput): string | null => {
+    if (action.action_approval_status !== 'APPROVED') return null;
+    const canApprove = ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS);
+    if (action.action_pending_version) {
+      return canApprove
+        ? t('This action has a pending version: the form shows it. Saving applies it directly as a new approved version.')
+        : t('This action has a pending version: the form shows it. Saving replaces it; the approved version keeps running until a version is approved.');
+    }
+    return canApprove
+      ? null
+      : t('Changes to what this action runs wait for approval as a new version; the approved version keeps running meanwhile. Other changes apply now.');
+  };
   const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
 
@@ -289,19 +299,6 @@ const ThreatArsenalActionPopover = ({
         )}
       </Menu>
 
-      <DialogConfirmation
-        open={approvalImpact !== null}
-        handleClose={() => setApprovalImpact(null)}
-        handleSubmit={confirmApprovalImpact}
-        text={t('Saving sends this payload back to pending approval. It will block the launch of the items below until it is approved again.')}
-        extraContent={(
-          <div style={{ marginTop: theme.spacing(2) }}>
-            <PayloadUsageWarning usage={approvalImpact?.usage} />
-          </div>
-        )}
-        submitLabel={t('Confirm')}
-      />
-
       <DialogDelete
         open={deletion}
         handleClose={handleCloseDelete}
@@ -332,6 +329,11 @@ const ThreatArsenalActionPopover = ({
         title={`${t('Update the action :')} ${name}`}
       >
         <>
+          {fetchedAction && !!payloadId && versionNote(fetchedAction) && (
+            <div style={{ marginBottom: theme.spacing(2) }}>
+              <Alert severity="info" title={versionNote(fetchedAction)} />
+            </div>
+          )}
           {fetchedAction && !!payloadId && (
             <SnapshotRemediationProvider>
               <ThreatArsenalActionForm

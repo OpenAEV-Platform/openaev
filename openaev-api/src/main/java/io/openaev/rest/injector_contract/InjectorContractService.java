@@ -916,6 +916,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.payloadJoin().get("type"),
         ctx.payloadJoin().get("status"),
         ctx.payloadJoin().get("approvalStatus"),
+        ctx.payloadJoin().get("pendingVersion"),
         ctx.payloadJoin().get("executionArch"),
         ctx.payloadCollectorTypeJoin().get("id"),
         ctx.payloadCollectorTypeJoin().get("name"));
@@ -1002,6 +1003,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         ctx.payloadJoin().get("status").alias("payload_status"),
         ctx.payloadJoin().get("approvalStatus").alias("payload_approval_status"),
+        ctx.payloadJoin().get("pendingVersion").alias("payload_pending_version"),
         ctx.payloadJoin().get("id").alias("payload_id"),
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
@@ -1062,7 +1064,8 @@ public class InjectorContractService implements DependenciesManager {
                 tuple.get("payload_type", String.class),
                 tuple.get("collector_type", String.class),
                 tuple.get("payload_status", Payload.PAYLOAD_STATUS.class),
-                tuple.get("payload_approval_status", Payload.PAYLOAD_APPROVAL_STATUS.class))
+                tuple.get("payload_approval_status", Payload.PAYLOAD_APPROVAL_STATUS.class),
+                Boolean.TRUE.equals(tuple.get("payload_pending_version", Boolean.class)))
             : null;
 
     return new ThreatArsenalAction(

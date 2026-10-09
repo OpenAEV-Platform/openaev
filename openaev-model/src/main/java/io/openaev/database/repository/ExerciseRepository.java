@@ -33,13 +33,6 @@ public interface ExerciseRepository
   @Query(value = "DELETE FROM exercises WHERE exercise_id = :simulationId", nativeQuery = true)
   void deleteById(@Param("simulationId") String simulationId);
 
-  /** Scheduled simulations with a planned start that use the given payload. */
-  @Query(
-      "SELECT DISTINCT e FROM Exercise e JOIN e.injects i "
-          + "WHERE i.injectorContract.payload.id = :payloadId "
-          + "AND e.status = 'SCHEDULED' AND e.start IS NOT NULL")
-  List<Exercise> findPlannedUsingPayload(@Param("payloadId") String payloadId);
-
   /** Called by background job (scheduled task) — cross-tenant scoped by design. */
   @Query(value = "select e from Exercise e where e.status = 'SCHEDULED' and e.start <= :start")
   List<Exercise> findAllShouldBeInRunningState(@Param("start") Instant start);

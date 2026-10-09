@@ -32,7 +32,7 @@ Use the search bar and filters to narrow results.
 
 !!! note "Payload approval"
 
-    Only Actions whose payload is approved are listed, plus built-in Actions without a payload. An Atomic Test whose payload went back to *Pending* or was *Rejected* shows **Draft** with a *Pending* or *Rejected* chip, in the list and on its page, and its **Launch now** / **Relaunch now** button is disabled until the payload is approved again; its last results stay visible. See [Approval of payloads](../../build/threat-arsenals/threat-arsenals.md#approval-of-payloads).
+    Only Actions whose payload is approved are listed, plus built-in Actions without a payload. An Atomic Test whose payload has no approved version (for example after an import) shows **Draft** with a *Pending* or *Rejected* chip, in the list and on its page, and its **Launch now** / **Relaunch now** button is disabled until the payload is approved; its last results stay visible. Editing an approved payload never blocks the Atomic Test: it keeps running the approved version while a new version is pending. See [Approval of payloads](../../build/threat-arsenals/threat-arsenals.md#approval-of-payloads).
 
 ## Schedule a recurring Atomic Test
 
@@ -45,7 +45,7 @@ Recurring Atomic Tests are the simplest way to continuously validate that a prev
 
 The platform checks for due recurring Atomic Tests every minute and launches them automatically. Each execution archives previous results and creates new Expectations for all targets.
 
-A recurring Atomic Test is **paused** when its payload stops being approved, or when what it runs or targets changes (content, arguments, expectations, Action, targets, documents). Its header shows *Paused* and nothing runs until you open the schedule and save it again (refused while the payload is not approved), or remove it.
+A recurring Atomic Test is **paused** when what it runs or targets changes (content, arguments, expectations, Action, targets, documents). Its header shows *Paused* and nothing runs until you open the schedule and save it again (refused while its payload has no approved version), or remove it. A new version of its payload waiting for approval does not pause it.
 
 !!! note
 

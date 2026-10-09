@@ -313,6 +313,23 @@ public class PayloadService {
         result.injectorContract().getTags().stream().map(Tag::getId).collect(Collectors.toList()));
   }
 
+  /**
+   * Re-synchronises the contract of a payload whose executable content changed outside an edit (an
+   * approved version), keeping its attack patterns, domains and tags.
+   */
+  public InjectorContract resynchroniseInjectorContract(Payload payload) {
+    Optional<InjectorContract> contract =
+        injectorContractRepository.findInjectorContractByPayload(payload);
+    return synchroniseInjectorContractBasedOnPayload(
+        payload,
+        // Copies: the synchronisation may rewrite the contract's own collections.
+        contract
+            .<List<AttackPattern>>map(c -> new ArrayList<>(c.getAttackPatterns()))
+            .orElse(List.of()),
+        contract.<Set<Domain>>map(c -> new HashSet<>(c.getDomains())).orElse(Set.of()),
+        contract.<Set<Tag>>map(c -> new HashSet<>(c.getTags())).orElse(Set.of()));
+  }
+
   public record PayloadWithRelatedEntities(
       Payload payload,
       List<String> attackPatternIds,

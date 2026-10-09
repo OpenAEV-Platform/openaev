@@ -13,6 +13,7 @@ import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
 import { tint } from '../../../utils/tint';
 import InjectIcon from '../common/injects/InjectIcon';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
+import PendingVersionChip from './approval/PendingVersionChip';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 
@@ -71,6 +72,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   // Deprecated: the approval decides whether it can be used.
   const approvalStatus = action.action_payload?.payload_approval_status;
   const approvalWins = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
+  // An approved action with a new version waiting shows it the same way.
+  const pendingVersion = !approvalWins && !!action.action_payload?.payload_pending_version;
   const name = tPick(action.action_labels);
 
   const showCheckbox = anySelected || selected || checked;
@@ -150,7 +153,17 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
             <ApprovalStatusChip status={approvalStatus} />
           </Box>
         )}
-        {!approvalWins && statusLabel && (
+        {pendingVersion && (
+          <Box sx={{
+            position: 'absolute',
+            top: 12,
+            right: 48,
+          }}
+          >
+            <PendingVersionChip />
+          </Box>
+        )}
+        {!approvalWins && !pendingVersion && statusLabel && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Box

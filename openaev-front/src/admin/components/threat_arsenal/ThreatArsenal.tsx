@@ -142,6 +142,8 @@ const ThreatArsenal = () => {
     // Approval status of the payload (Pending / Approved / Rejected): one or more values, like
     // the sidebar Approval facet.
     'action_payload_approval_status',
+    // Approved actions with a new version waiting for approval (Yes / No).
+    'action_payload_pending_version',
     'action_updated_at',
     'action_author',
   ];
@@ -613,13 +615,14 @@ const ThreatArsenal = () => {
           open={true}
           onClose={() => setSelectedThreatArsenalAction(null)}
           threatArsenalAction={selectedThreatArsenalAction}
-          onApprovalChanged={(actionId, status) => setThreatArsenalActions(prev => prev.map(a => (
+          onApprovalChanged={(actionId, status, pendingVersion) => setThreatArsenalActions(prev => prev.map(a => (
             a.injector_contract_id === actionId && a.action_payload
               ? {
                   ...a,
                   action_payload: {
                     ...a.action_payload,
                     payload_approval_status: status,
+                    payload_pending_version: pendingVersion,
                   },
                 }
               : a)))}

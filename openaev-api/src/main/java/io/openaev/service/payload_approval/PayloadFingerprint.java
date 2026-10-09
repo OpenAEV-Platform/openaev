@@ -78,6 +78,7 @@ public final class PayloadFingerprint {
           "lastModifiedBy",
           "approvalStatus",
           "approvedFingerprint",
+          "pendingVersion",
           "grants",
           "createdAt",
           "updatedAt",

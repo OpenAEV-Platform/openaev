@@ -289,6 +289,13 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonIgnore
   private String approvedFingerprint;
 
+  // A new version of the executable content waits for approval (see PayloadVersion); the payload
+  // keeps running its approved content meanwhile. Kept here so lists and filters need no join.
+  @Queryable(filterable = true)
+  @Column(name = "payload_pending_version", nullable = false)
+  @JsonProperty("payload_pending_version")
+  private boolean pendingVersion;
+
   @OneToMany(
       mappedBy = "payload",
       cascade = CascadeType.ALL,

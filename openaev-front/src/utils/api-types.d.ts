@@ -41,6 +41,67 @@ export interface PayloadApprovalOutput {
   approval_status: "PENDING" | "APPROVED" | "REJECTED";
 }
 
+export interface PayloadExecutableContent {
+  arguments?: PayloadArgument[];
+  category?: string;
+  cleanup_command?: string;
+  cleanup_executor?: string;
+  content?: string;
+  converters?: string[];
+  elevation_required?: boolean;
+  engine?: string;
+  execution_arch?: string;
+  executor?: string;
+  file_id?: string;
+  file_name?: string;
+  hostname?: string;
+  ip_dst?: string;
+  ip_src?: string;
+  multi_turn?: Record<string, object>;
+  platforms?: string[];
+  /** @format int32 */
+  port_dst?: number;
+  /** @format int32 */
+  port_src?: number;
+  prerequisites?: PayloadPrerequisite[];
+  protocol?: string;
+  success_detector?: Record<string, object>;
+}
+
+export interface PayloadVersionOutput {
+  /** Display name of the author, null for a collector */
+  version_author_name?: string;
+  /** Comment of an approval, or reason of a rejection */
+  version_comment?: string;
+  /** Executable content of the version */
+  version_content: PayloadExecutableContent;
+  /**
+   * When the version was submitted
+   * @format date-time
+   */
+  version_created_at: string;
+  /**
+   * When the version was decided
+   * @format date-time
+   */
+  version_decided_at?: string;
+  /** Display name of the user who decided (approved, rejected, superseded) */
+  version_decider_name?: string;
+  /** Fingerprint of the executable content, to send back when approving the version */
+  version_fingerprint: string;
+  /** Version identifier */
+  version_id: string;
+  /**
+   * Version number (1 is the initial content of the payload)
+   * @format int32
+   */
+  version_number?: number;
+  /** What submitted the version */
+  version_origin: "UPDATE" | "COLLECTOR";
+  /** Status of the version */
+  version_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
+}
+
 export interface ThreatArsenalApproveInput {
   /**
    * Optional comment recorded in the approval history
@@ -348,6 +409,7 @@ export interface AiAttack {
   payload_name: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
+  payload_pending_version?: boolean;
   /** @minItems 1 */
   payload_platforms: (
     | "Linux"
@@ -2236,6 +2298,7 @@ interface BasePayload {
   payload_name: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
+  payload_pending_version?: boolean;
   /** @minItems 1 */
   payload_platforms: (
     | "Linux"
@@ -2911,6 +2974,7 @@ export interface Command {
   payload_name: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
+  payload_pending_version?: boolean;
   /** @minItems 1 */
   payload_platforms: (
     | "Linux"
@@ -3999,6 +4063,7 @@ export interface DnsResolution {
   payload_name: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
+  payload_pending_version?: boolean;
   /** @minItems 1 */
   payload_platforms: (
     | "Linux"
@@ -5615,6 +5680,7 @@ export interface Executable {
   payload_name: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
+  payload_pending_version?: boolean;
   /** @minItems 1 */
   payload_platforms: (
     | "Linux"
@@ -6082,6 +6148,7 @@ export interface FileDrop {
   payload_name: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
+  payload_pending_version?: boolean;
   /** @minItems 1 */
   payload_platforms: (
     | "Linux"
@@ -7395,6 +7462,7 @@ export interface InjectorContract {
   injector_contract_payload_author_organization?: Organization;
   injector_contract_payload_author_team?: Team;
   injector_contract_payload_author_user?: User;
+  injector_contract_payload_pending_version?: boolean;
   injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
     | "Linux"
@@ -8354,6 +8422,7 @@ export interface NetworkTraffic {
   payload_name: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
+  payload_pending_version?: boolean;
   /** @minItems 1 */
   payload_platforms: (
     | "Linux"
@@ -9907,6 +9976,7 @@ export interface PayloadSimple {
   payload_approval_status?: "PENDING" | "APPROVED" | "REJECTED";
   payload_collector_type?: string;
   payload_id?: string;
+  payload_pending_version?: boolean;
   payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
 }
@@ -13011,6 +13081,13 @@ export interface ThreatArsenalActionCreateInput {
 }
 
 export interface ThreatArsenalActionFullOutput {
+  /** Executable content the action runs, as a version content; only set when a version is pending, to compare them */
+  action_active_content?: PayloadExecutableContent;
+  /**
+   * Number of the version the action runs (1 until a later version is approved), null for payload-less actions
+   * @format int32
+   */
+  action_active_version?: number;
   /** Fingerprint of the current executable content, to send back when approving */
   action_approval_fingerprint?: string;
   /** Latest entry of the approval history */
@@ -13085,6 +13162,8 @@ export interface ThreatArsenalActionFullOutput {
    * @uniqueItems true
    */
   action_output_parsers?: OutputParser[];
+  /** Version waiting for approval; the action keeps running the active one */
+  action_pending_version?: PayloadVersionOutput;
   /** Supported endpoint platforms for this action */
   action_platforms?: (
     | "Linux"
@@ -13299,13 +13378,6 @@ export interface ThreatArsenalActionWithContentOutput {
  * Body of the 409 answer to an action update sent with check_approval_impact: the edit would send
  * the approved payload back to pending while it is used. Nothing was saved.
  */
-export interface ThreatArsenalApprovalImpactOutput {
-  /** What saving would do */
-  message: string;
-  /** Where the payload is used */
-  usage: ThreatArsenalActionUsageOutput;
-}
-
 export interface ThreatArsenalBulkDeleteOutput {
   /**
    * Number of actions that were actually deleted

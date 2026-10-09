@@ -16,7 +16,6 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.PayloadApprovalRepository;
 import io.openaev.rest.exception.BadRequestException;
-import io.openaev.service.readiness.LaunchReadinessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -32,7 +31,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PayloadApprovalServiceTest {
 
   @Mock private PayloadApprovalRepository payloadApprovalRepository;
-  @Mock private LaunchReadinessService launchReadinessService;
   @InjectMocks private PayloadApprovalService service;
 
   private User approver;

@@ -154,6 +154,12 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return ofNullable(getPayload()).map(Payload::getStatus).orElse(null);
   }
 
+  @Queryable(filterable = true, path = "payload.pendingVersion")
+  @JsonProperty("injector_contract_payload_pending_version")
+  public boolean getPayloadPendingVersion() {
+    return ofNullable(getPayload()).map(Payload::isPendingVersion).orElse(false);
+  }
+
   @Queryable(
       filterable = true,
       path = "payload.approvalStatus",

@@ -18,9 +18,7 @@ import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.service.UserService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
-import io.openaev.service.payload_approval.PayloadFingerprint;
-import io.openaev.service.payload_approval.PayloadUsage;
-import io.openaev.service.payload_approval.PayloadUsageService;
+import io.openaev.service.payload_approval.PayloadVersionService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -46,30 +44,11 @@ public class PayloadUpdateService {
   private final DocumentService documentService;
   private final UserService userService;
   private final PayloadApprovalService payloadApprovalService;
-  private final PayloadUsageService payloadUsageService;
+  private final PayloadVersionService payloadVersionService;
 
   @Transactional(rollbackFor = Exception.class)
   public PayloadCreationService.PayloadInjectorContractCreationResult updatePayload(
       String payloadId, PayloadUpdateInput input) {
-    return doUpdatePayload(payloadId, input, false);
-  }
-
-  /**
-   * Same as {@link #updatePayload(String, PayloadUpdateInput)}; with {@code checkApprovalImpact},
-   * refuses (nothing written) an edit that would send an approved payload in use back to pending,
-   * so the UI can warn first. See {@link PayloadUsageService}.
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public PayloadCreationService.PayloadInjectorContractCreationResult updatePayload(
-      String payloadId, PayloadUpdateInput input, boolean checkApprovalImpact) {
-    return doUpdatePayload(payloadId, input, checkApprovalImpact);
-  }
-
-  // Non-transactional body shared by both @Transactional entry points: an intra-class call to a
-  // @Transactional method bypasses the Spring proxy (self-invocation), so the overloads never call
-  // each other directly.
-  private PayloadCreationService.PayloadInjectorContractCreationResult doUpdatePayload(
-      String payloadId, PayloadUpdateInput input, boolean checkApprovalImpact) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
@@ -83,24 +62,18 @@ public class PayloadUpdateService {
     List<AttackPattern> attackPatterns =
         fromIterable(
             attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds())));
-    return update(input, payload, attackPatterns, checkApprovalImpact);
+    return update(input, payload, attackPatterns);
   }
 
   private PayloadCreationService.PayloadInjectorContractCreationResult update(
-      PayloadUpdateInput input,
-      Payload existingPayload,
-      List<AttackPattern> attackPatterns,
-      boolean checkApprovalImpact) {
+      PayloadUpdateInput input, Payload existingPayload, List<AttackPattern> attackPatterns) {
     PayloadType payloadType = PayloadType.fromString(existingPayload.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
-    String fingerprintBefore = PayloadFingerprint.of(payload);
+    PayloadVersionService.Active active = PayloadVersionService.Active.of(payload);
     // Null outside an authenticated request (system flows): an unknown modifier, never a stale one.
     User actor = userService.currentUserOrNull();
-    // Read before the edit is applied, so the usage queries never flush a half-edited payload.
-    PayloadUsage usageAtRisk =
-        checkApprovalImpact ? payloadUsageService.usageAtRiskOfEdit(payload, actor) : null;
     payloadUtils.copyProperties(input, payload);
     payload.setLastModifiedBy(actor);
 
@@ -116,10 +89,12 @@ public class PayloadUpdateService {
       fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
     }
 
-    payloadUsageService.refuseUnconfirmedSendBackToPending(usageAtRisk, fingerprintBefore, payload);
+    // An executable edit of an approved payload that needs approval becomes a pending version: the
+    // payload keeps its approved content and only the cosmetic part of the edit is saved.
+    payloadVersionService.onEdit(payload, active, actor, PayloadVersion.ORIGIN.UPDATE);
     Payload saved = payloadRepository.save(payload);
     payloadApprovalService.onWrite(
-        saved, saved.getLastModifiedBy(), PayloadApproval.ORIGIN.UPDATE, fingerprintBefore);
+        saved, saved.getLastModifiedBy(), PayloadApproval.ORIGIN.UPDATE, active.fingerprint());
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             saved,
