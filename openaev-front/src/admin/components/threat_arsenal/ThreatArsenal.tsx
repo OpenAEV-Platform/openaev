@@ -2,10 +2,10 @@ import { Box } from '@mui/material';
 import { Navigate, useLocation } from 'react-router';
 
 import Breadcrumbs from '../../../components/Breadcrumbs';
+import MarketplaceTabs from '../../../components/common/marketplace/MarketplaceTabs';
 import { useFormatter } from '../../../components/i18n';
 import { isFeatureEnabled } from '../../../utils/utils';
 import ThreatArsenalAvailable from './catalog/ThreatArsenalAvailable';
-import ThreatArsenalTabs from './catalog/ThreatArsenalTabs';
 import ThreatArsenalInstalled from './ThreatArsenalInstalled';
 
 const ThreatArsenal = () => {
@@ -33,7 +33,21 @@ const ThreatArsenal = () => {
 
       {isMarketplace && (
         <Box sx={{ marginBottom: 2 }}>
-          <ThreatArsenalTabs active={isAvailableTab ? 'available' : 'installed'} />
+          <MarketplaceTabs
+            active={isAvailableTab ? 'available' : 'installed'}
+            tabs={[
+              {
+                value: 'installed',
+                label: t('Installed'),
+                to: '/admin/threat-arsenal',
+              },
+              {
+                value: 'available',
+                label: t('Available'),
+                to: '/admin/threat-arsenal/available',
+              },
+            ]}
+          />
         </Box>
       )}
 

@@ -318,6 +318,7 @@ const Index = () => {
               )}
             />
             <Route path="scenarios" element={errorWrapper(Scenarios)()} />
+            <Route path="scenarios/available" element={errorWrapper(Scenarios)()} />
             <Route
               path="autonomous/:runId"
               element={(
