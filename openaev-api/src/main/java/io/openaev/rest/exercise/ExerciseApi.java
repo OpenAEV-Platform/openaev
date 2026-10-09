@@ -224,7 +224,12 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<Log> logs(TxCtx ctx, @PathVariable String exercise) {
-    return exerciseLogRepository.findAll(ExerciseLogSpecification.fromExercise(exercise));
+    List<Log> logs = exerciseLogRepository.findAll(ExerciseLogSpecification.fromExercise(exercise));
+    // log_tags is serialized open-in-view after the commit, when a lazy load on the v2-active tags
+    // table fails closed to an empty array: the log edit form, filled from this response, then
+    // erased the log's tags. Load them while the tenant scope is still set.
+    logs.forEach(log -> Hibernate.initialize(log.getTags()));
+    return logs;
   }
 
   @PostMapping({EXERCISE_URI + "/{exerciseId}/logs", TENANT_EXERCISE_URI + "/{exerciseId}/logs"})
