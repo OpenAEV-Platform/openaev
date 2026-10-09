@@ -174,4 +174,25 @@ class PayloadVersionServiceTest {
       assertDoesNotThrow(() -> payloadVersionService.assertDeletable(copy));
     }
   }
+
+  @Nested
+  @DisplayName("Link candidates for an import (F4)")
+  class LinkCandidates {
+
+    @Test
+    void given_sameContent_should_preferManagedVersionOfSameIdThenLocalCopies() {
+      // Arrange
+      Payload v1 = payload("1.0.0", Payload.PAYLOAD_STATUS.VERIFIED, false);
+      Payload v2 = payload("2.0.0", Payload.PAYLOAD_STATUS.VERIFIED, true);
+      Payload otherId = payload("3.0.0", Payload.PAYLOAD_STATUS.VERIFIED, true);
+      otherId.setExternalId("another-id");
+      Payload copy = payload(null, Payload.PAYLOAD_STATUS.UNVERIFIED, true);
+      when(payloadRepository.findAllByContentHash("hash", "tenant"))
+          .thenReturn(List.of(copy, v1, otherId, v2));
+
+      // Act & Assert
+      assertThat(payloadVersionService.findLinkCandidates(EXTERNAL_ID, "hash", "tenant"))
+          .containsExactly(v2, v1, copy);
+    }
+  }
 }
