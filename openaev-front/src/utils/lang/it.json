@@ -3637,6 +3637,7 @@
   "Should not be empty": "Non deve essere vuoto",
   "Should not exceed {max_length} characters": "Non deve superare i {max_length} caratteri",
   "Show alerts": "Mostra allerte",
+  "Show all actions again": "Mostra di nuovo tutte le azioni",
   "Show all assets": "Mostra tutti gli asset",
   "Show conversations": "Mostra conversazioni",
   "Show covered TTP only": "Mostra solo il TTP coperto",

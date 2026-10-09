@@ -19,7 +19,6 @@ import Breadcrumbs from '../../../components/Breadcrumbs';
 import DialogDelete from '../../../components/common/DialogDelete';
 import ExportButton from '../../../components/common/ExportButton';
 import { useAuthorFacetOptions } from '../../../components/common/facets/ContractFacets';
-import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -44,6 +43,7 @@ import ThreatArsenalHero from './ThreatArsenalHero';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 import ThreatArsenalListRow from './ThreatArsenalListRow';
+import { hasOrphanedScopeFilters, toggleOrphanedScope } from './threatArsenalOrphanedScopeUtils';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
 import ThreatArsenalSortSelect from './ThreatArsenalSortSelect';
@@ -183,36 +183,14 @@ const ThreatArsenal = () => {
     queryableHelpers.textSearchHelpers.handleTextSearch('');
   };
 
-  // Quick "purge orphans" shortcut: narrow the list to the dead "question mark"
-  // cards and turn on select-all so the floating Delete action purges them at
-  // once. A question-mark card is an action with NO injector AND NO payload:
-  //  - no injector (`action_injectors` empty) => its injector was removed, so it
-  //    can never run;
-  //  - no payload (`action_payload_status` empty) => this excludes manually
-  //    created payloads, which have a payload (hence a real icon) and run fine
-  //    even when momentarily unlinked from an injector.
-  // Scoping via filters keeps the bulk delete from touching healthy actions.
-  const handleSelectOrphaned = () => {
-    queryableHelpers.filterHelpers.handleRemoveFilterByKey('action_injectors');
-    queryableHelpers.filterHelpers.handleRemoveFilterByKey('action_payload_status');
-    queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue({
-      id: generateFilterId(),
-      key: 'action_injectors',
-      operator: 'empty',
-      values: [],
-      mode: 'and',
-    });
-    queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue({
-      id: generateFilterId(),
-      key: 'action_payload_status',
-      operator: 'empty',
-      values: [],
-      mode: 'and',
-    });
-    if (!selectAll) {
-      handleToggleSelectAll();
-    }
-  };
+  const isOrphanedScopeActive = hasOrphanedScopeFilters(searchPaginationInput.filterGroup);
+  const handleToggleOrphaned = () => toggleOrphanedScope({
+    isActive: isOrphanedScopeActive,
+    filterHelpers: queryableHelpers.filterHelpers,
+    selectAll,
+    handleToggleSelectAll,
+    handleClearSelectedElements,
+  });
 
   // Fire and forget, like every other massive operation in the platform: the dialog
   // closes and the selection clears immediately, progress is reported by the
@@ -587,12 +565,18 @@ const ThreatArsenal = () => {
                           <IconButton
                             icon={<LinkOffOutlined fontSize="small" />}
                             aria-label={t('Select orphaned actions')}
-                            onClick={handleSelectOrphaned}
+                            aria-pressed={isOrphanedScopeActive}
+                            active={isOrphanedScopeActive}
+                            onClick={handleToggleOrphaned}
                             priority="tertiary"
                             size="sm"
                           />
                         </TooltipTrigger>
-                        <TooltipContent>{t('Select orphaned actions (no injector, no payload) to purge them at once')}</TooltipContent>
+                        <TooltipContent>
+                          {isOrphanedScopeActive
+                            ? t('Show all actions again')
+                            : t('Select orphaned actions (no injector, no payload) to purge them at once')}
+                        </TooltipContent>
                       </Tooltip>
                     )}
                   </Box>
