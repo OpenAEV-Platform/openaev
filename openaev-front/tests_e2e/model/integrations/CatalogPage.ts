@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import { TIMEOUT } from '../../utils/constants';
 class CatalogPage {
@@ -29,8 +29,14 @@ class CatalogPage {
     return this.page.getByTestId('connector-card').filter({ hasText: namePattern });
   }
 
+  /**
+   * Types in the catalog search and waits for the debounced filter to apply
+   * (the keyword is synced to `?search=` once the filtered grid renders), so
+   * callers never act on cards from the unfiltered grid while it re-renders.
+   */
   async searchConnector(text: string): Promise<void> {
     await this.searchInput.fill(text);
+    await expect.poll(() => new URL(this.page.url()).searchParams.get('search'), { timeout: TIMEOUT }).toBe(text);
   }
 
   /**
