@@ -148,6 +148,7 @@ public class SimulationInjectApi extends RestBehavior {
             .sorted(Inject.executionComparator)
             .toList();
     KillChainPhaseInitializer.initializeFromInjects(injects);
+    InjectLinksInitializer.initialize(injects);
     return injects;
   }
 
