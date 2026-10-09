@@ -58,9 +58,9 @@ const SecurityLanding = () => {
     canAccessSession,
   } = useSecurityScope();
   const ability = useAbility();
-  const canManageMarkingDefinitions
+  const canAccessMarkingDefinitions
     = isFeatureEnabled('MARKING')
-      && ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_DEFINITION);
+      && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   // The landing arbitrates between both scopes, so each one is named explicitly.
   const canManageSessions = canAccessSession('TENANT');
   const canManagePlatformSessions = canAccessSession('PLATFORM');
@@ -73,7 +73,7 @@ const SecurityLanding = () => {
   if (ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS)) {
     return <Navigate to="tenants" replace={true} />;
   }
-  if (canManageMarkingDefinitions) {
+  if (canAccessMarkingDefinitions) {
     return <Navigate to="marking_definitions" replace={true} />;
   }
   if (canManageSessions || canManagePlatformSessions) {
@@ -151,7 +151,7 @@ const Index = () => {
             <ProtectedRoute
               checks={[
                 {
-                  action: ACTIONS.MANAGE,
+                  action: ACTIONS.ACCESS,
                   subject: SUBJECTS.MARKING_DEFINITION,
                 },
               ]}

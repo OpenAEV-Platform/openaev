@@ -37,7 +37,7 @@ export const SETTINGS_ACCESS_CHECKS: {
     subject: SUBJECTS.TENANTS,
   },
   {
-    action: ACTIONS.MANAGE,
+    action: ACTIONS.ACCESS,
     subject: SUBJECTS.MARKING_DEFINITION,
   },
   {
@@ -73,8 +73,8 @@ const settingsEntries = (ability: AppAbility): NavMenuItem[] => {
   const canAccessPlatformSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
   const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
-  const canManageMarkingDefinitions = isFeatureEnabled('MARKING')
-    && ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_DEFINITION);
+  const canAccessMarkingDefinitions = isFeatureEnabled('MARKING')
+    && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   const canAccessLessonsLearned = ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED);
   const hasTagsAccess = canAccessTags(ability);
   const canManageAnySessions = ability.can(ACTIONS.MANAGE, SUBJECTS.SESSIONS)
@@ -90,7 +90,7 @@ const settingsEntries = (ability: AppAbility): NavMenuItem[] => {
       link: '/admin/settings/security',
       label: 'Security',
       userRight: hasTenantSettingsAccess || canAccessTenantUsers || canAccessPlatformUGR || canAccessTenants
-        || canManageAnySessions || canManageMarkingDefinitions,
+        || canManageAnySessions || canAccessMarkingDefinitions,
     },
     {
       // Section root: redirects to asset_rules; Notifiers and Lessons learned

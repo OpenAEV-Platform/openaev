@@ -183,7 +183,7 @@ public class PresetTenantData {
   /**
    * Capability sets of the auto-generated roles for every new tenant. Observer holds every
    * user-facing "access" capability, Manager every "access"/"manage"/"delete" one (tenant settings
-   * and marking definition management excluded — those stay Admin-only).
+   * and marking definitions excluded on both — those stay Admin-only).
    *
    * <p>When introducing a new capability group, add it here too (and ship a {@code
    * io.openaev.processor.core.RuntimeMigration} to heal already-created tenants), otherwise
@@ -196,7 +196,6 @@ public class PresetTenantData {
               Capability.ACCESS_ASSESSMENT,
               Capability.ACCESS_ASSETS,
               Capability.ACCESS_CREDENTIALS,
-              Capability.ACCESS_MARKING_DEFINITION,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.ACCESS_DASHBOARDS,
               Capability.ACCESS_REPORTINGS,
@@ -220,7 +219,6 @@ public class PresetTenantData {
               Capability.DELETE_ASSETS,
               Capability.MANAGE_CREDENTIALS,
               Capability.DELETE_CREDENTIALS,
-              Capability.ACCESS_MARKING_DEFINITION,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.MANAGE_THREAT_ARSENALS,
               Capability.DELETE_THREAT_ARSENALS,

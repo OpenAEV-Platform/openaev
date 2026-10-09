@@ -18,10 +18,8 @@ import { type MarkingDefinitionOutput } from '../api-types';
  * rendering is otherwise gated.
  * @param options.assignableOnly when true, loads only the definitions the current user is cleared
  * to assign (server-filtered, cumulative per type - see `fetchAssignableMarkingDefinitions`)
- * instead of every definition in the tenant. Use this for an assignment picker, where offering a
- * marking the caller cannot actually grant would just fail at submit time; plain display uses
- * (resolving an already-assigned id to its label/color) don't need it, since a row's markings are
- * always a subset of whoever can see the row in the first place.
+ * instead of every definition in the tenant. Needs no capability, so use it for pickers and for
+ * displaying markings on rows (a row's markings are always within the viewer's clearance).
  */
 const useMarkingDefinitions = (options?: {
   skip?: boolean;

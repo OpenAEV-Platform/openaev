@@ -63,7 +63,8 @@ public class MarkingDefinitionApi extends RestBehavior {
   @LogExecutionTime
   @GetMapping("/assignable")
   @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
+  // No capability needed: the result is already narrowed to the caller's own clearance.
+  @AccessControl(skipRBAC = true)
   @Operation(
       summary = "Get the marking definitions the current user may assign",
       description =
