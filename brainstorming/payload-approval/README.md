@@ -14,7 +14,7 @@ These are the design and delivery notes of the payload approval proof of concept
 | Task 3: existing threat arsenal managers receive *Approve content* at upgrade | [#8376](https://github.com/OpenAEV-Platform/openaev/issues/8376) | [#8377](https://github.com/OpenAEV-Platform/openaev/pull/8377) |
 | Task 4: system-generated payloads approved; automatic selection only picks approved payloads | [#8378](https://github.com/OpenAEV-Platform/openaev/issues/8378) | [#8379](https://github.com/OpenAEV-Platform/openaev/pull/8379) |
 | Fix: approval rights refreshed; content of payload-backed actions locked | [#8410](https://github.com/OpenAEV-Platform/openaev/issues/8410) | [#8412](https://github.com/OpenAEV-Platform/openaev/pull/8412) |
-| Task 5: payload versioning | [#8414](https://github.com/OpenAEV-Platform/openaev/issues/8414) | to come |
+| Task 5: payload versioning (revises Task 2) | [#8414](https://github.com/OpenAEV-Platform/openaev/issues/8414) | [#8417](https://github.com/OpenAEV-Platform/openaev/pull/8417) (draft) |
 | Task 6: notify approvers when a payload or a new version goes Pending | [#8415](https://github.com/OpenAEV-Platform/openaev/issues/8415) | to come |
 
 ## Status (2026-10-09)
@@ -23,11 +23,11 @@ These are the design and delivery notes of the payload approval proof of concept
 |---|---|
 | **Task 0** (PMF-774) | Merged (squash) into `feature/approval-prototype` as `8f284c15d` |
 | **Task 1** (PMF-788) | Merged (squash) into `feature/approval-prototype` as `f34533971`; this commit also carries Task 2 |
-| **Task 2** (PMF-776) | Merged (squash) into the Task 1 branch as `ee7b4ae1f`, then into `feature/approval-prototype` with #8355. Its scope changes with Task 5 |
+| **Task 2** (PMF-776) | Merged (squash) into the Task 1 branch as `ee7b4ae1f`, then into `feature/approval-prototype` with #8355. **Revised by Task 5** (#8414): #8356's body marks the revised parts |
 | **Task 3** (PMF-795, US3.1) | Merged (squash) into `feature/approval-prototype` as `49c5a2316` |
 | **Task 4** (US4.1–US4.4) | Merged (squash) into `feature/approval-prototype` as `e6e301579` |
 | **Fix** (#8410) | Merged (squash) into `feature/approval-prototype` as `baaa2fa02` |
-| **Task 5** (#8414) | Issue created; not started |
+| **Task 5** (#8414) | Implemented in draft PR [#8417](https://github.com/OpenAEV-Platform/openaev/pull/8417), to merge into `feature/approval-prototype` for testing on staging |
 | **Task 6** (#8415) | Issue created; not started |
 
 - **`feature/approval-prototype` = `baaa2fa02`**: `main` (`f1a2d2d3c`) + Tasks 0 to 4 + these notes (#8393) + the fix (#8412).
@@ -54,12 +54,20 @@ The approved version keeps running while a new version is pending.
 - **Storage**: a new `payload_versions` table: number, status, snapshot of the edit, fingerprint, author, decider. At most one pending version per payload; no backfill (the current content is version 1).
 - **Cosmetic changes** apply directly. In a mixed edit, the cosmetic part applies now and the executable part goes to the pending version.
 - **Approvers' edits** apply directly as a new approved version.
-- **Changes to Task 2 (#8356)**: its blocking, chips, paused schedules / back to Draft and edit warning will only apply to payloads that never had an approved version. The 409 "approval impact" flow and the warnings are removed; "Used in …" stays as information. A payload edit no longer pauses schedules (the pause on a sensitive inject change stays).
+- **Changes to Task 2 (#8356)**: its blocking, chips and *Draft* display only apply to payloads that never had an approved version. The 409 "approval impact" flow and the warnings are removed; "Used in …" stays as information. A payload edit no longer pauses schedules or moves planned simulations back to Draft (the pause on a sensitive inject change stays). Issue #8356's body marks the revised parts.
 - **UI**: the drawer shows the active and pending versions, a comparison of the executable content and the version history; the list shows "New version pending" and offers a filter.
-- **Open questions (PO to confirm, with recommendations, in #8414)**:
+- **Decisions (PO, 2026-10-09, in #8414)**:
+  - mixed edit: the cosmetic part applies now, the executable part goes to the pending version;
   - anyone with *Manage* can edit a pending version, the author recorded per version;
   - no revoke of an approved version;
-  - existing injects keep the argument values they store.
+  - "Used in …" stays in the drawer as information, the warnings are removed;
+  - existing injects keep the argument values they store (documented).
+- **Delivered in #8417**:
+  - `payload_versions` table and migration; one pending version per payload (a new edit supersedes it, an identical one changes nothing);
+  - collector updates of approved payloads create a pending version; approvers' edits apply directly as a new approved version;
+  - approve applies the version (the fingerprint the approver saw is checked) and re-synchronises the action; reject keeps the active version, with a mandatory reason;
+  - drawer: active and pending versions, comparison (command as a line diff, "Show unchanged fields"), version history, "Used in …"; the edit form opens on the pending version with a short note; "New version pending" chip and filter in the list; 9 languages; product docs updated.
+  - An edit that sends back exactly the active content leaves the pending version as is; to drop it, reject it.
 - **US5.6** (content of payload-backed actions locked) was delivered in #8412.
 
 **Task 6, notifications (#8415)**
@@ -83,7 +91,7 @@ Notifications about new versions depend on Task 5.
 | #8376 | #8377 + final #8366 | #8366; #8377 as cross-reference |
 | #8378 | #8379 + final #8366 | #8366; #8379 as cross-reference |
 | #8410 | #8412 | #8412 as cross-reference |
-| #8414 | Task 5 PR (to come) + final #8366 | #8366 |
+| #8414 | #8417 + final #8366 | #8366; #8417 as cross-reference |
 | #8415 | Task 6 PR (to come) + final #8366 | #8366 |
 | #8416 (parent) | final #8366 | #8366 |
 
