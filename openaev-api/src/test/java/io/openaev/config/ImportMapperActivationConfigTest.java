@@ -475,4 +475,10 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesAttackPatterns() throws Exception {
     assertActiveTableEntry("attack_patterns");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains agents")
+  void prodConfigActivatesAgents() throws Exception {
+    assertActiveTableEntry("agents");
+  }
 }
