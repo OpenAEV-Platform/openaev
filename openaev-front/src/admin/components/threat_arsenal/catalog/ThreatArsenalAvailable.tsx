@@ -1,17 +1,28 @@
 import { Button } from '@filigran/design-system';
-import { Alert } from '@mui/material';
 
+import {
+  CATALOG_AUTHOR_FILTER,
+  CATALOG_DOMAIN_FILTER,
+  CATALOG_PLATFORM_FILTER,
+  fetchCatalogPayloadFacets,
+  installAllCatalogPayloads,
+  installCatalogPayloads,
+  searchCatalogPayloads,
+} from '../../../../actions/catalog/payload-catalog-actions';
+import { type CatalogPayload } from '../../../../actions/catalog/payload-catalog-preview';
 import MarketplaceBrowser from '../../../../components/common/marketplace/MarketplaceBrowser';
+import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/MarketplaceFacetSidebar';
 import MarketplaceGrid from '../../../../components/common/marketplace/MarketplaceGrid';
+import MarketplacePreviewNotice from '../../../../components/common/marketplace/MarketplacePreviewNotice';
 import MarketplaceSortSelect from '../../../../components/common/marketplace/MarketplaceSortSelect';
+import useMarketplaceCatalog from '../../../../components/common/marketplace/useMarketplaceCatalog';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../../components/i18n';
+import PlatformIcon from '../../../../components/PlatformIcon';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ThreatArsenalEmptyState from '../ThreatArsenalEmptyState';
 import ThreatArsenalCatalogCard from './ThreatArsenalCatalogCard';
-import ThreatArsenalCatalogSidebar from './ThreatArsenalCatalogSidebar';
-import useCatalogPayloads from './useCatalogPayloads';
 
 const CATALOG_SORT_OPTIONS = [
   {
@@ -21,6 +32,23 @@ const CATALOG_SORT_OPTIONS = [
   {
     field: 'catalog_item_published_at',
     label: 'Published',
+  },
+];
+
+const CATALOG_FACETS: MarketplaceFacet[] = [
+  {
+    filterKey: CATALOG_DOMAIN_FILTER,
+    label: 'Domains',
+  },
+  {
+    filterKey: CATALOG_PLATFORM_FILTER,
+    label: 'Platform',
+    values: ['Windows', 'Linux', 'MacOS'],
+    icon: platform => <PlatformIcon platform={platform} width={16} />,
+  },
+  {
+    filterKey: CATALOG_AUTHOR_FILTER,
+    label: 'Author',
   },
 ];
 
@@ -40,17 +68,24 @@ const ThreatArsenalAvailable = () => {
     isInstalled,
     install,
     installAll,
-  } = useCatalogPayloads();
+  } = useMarketplaceCatalog<CatalogPayload>({
+    storageKey: 'threat-arsenal-catalog',
+    defaultSorts: [{
+      property: 'catalog_item_published_at',
+      direction: 'DESC',
+    }],
+    search: searchCatalogPayloads,
+    fetchFacets: fetchCatalogPayloadFacets,
+    installOne: id => installCatalogPayloads([id]),
+    installAll: installAllCatalogPayloads,
+  });
 
   return (
     <MarketplaceBrowser
-      hero={(
-        <Alert severity="info">
-          {t('Preview: the catalog content is simulated until the catalog sync is available.')}
-        </Alert>
-      )}
+      hero={<MarketplacePreviewNotice />}
       sidebar={(
-        <ThreatArsenalCatalogSidebar
+        <MarketplaceFacetSidebar
+          facets={CATALOG_FACETS}
           facetCounts={facetCounts}
           searchPaginationInput={searchPaginationInput}
           filterHelpers={queryableHelpers.filterHelpers}

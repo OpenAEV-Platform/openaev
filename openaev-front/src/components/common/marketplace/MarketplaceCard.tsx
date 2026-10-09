@@ -2,6 +2,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system
 import { Box, Card, CardActionArea, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
+import { Link } from 'react-router';
 
 import PlatformIcon from '../../PlatformIcon';
 
@@ -19,6 +20,8 @@ interface Props {
   topRight?: ReactNode;
   selected?: boolean;
   onClick?: () => void;
+  /** Makes the card body a real link (keeps open-in-new-tab and copy link). */
+  linkTo?: string;
   testId?: string;
 }
 
@@ -37,6 +40,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
   topRight,
   selected = false,
   onClick,
+  linkTo,
   testId,
 }) => {
   const theme = useTheme();
@@ -254,9 +258,9 @@ const MarketplaceCard: FunctionComponent<Props> = ({
         </Box>
       )}
 
-      {onClick
-        ? <CardActionArea onClick={onClick} sx={bodySx}>{body}</CardActionArea>
-        : <Box sx={bodySx}>{body}</Box>}
+      {linkTo && <CardActionArea component={Link} to={linkTo} sx={bodySx}>{body}</CardActionArea>}
+      {!linkTo && onClick && <CardActionArea onClick={onClick} sx={bodySx}>{body}</CardActionArea>}
+      {!linkTo && !onClick && <Box sx={bodySx}>{body}</Box>}
     </Card>
   );
 };
