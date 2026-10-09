@@ -255,6 +255,7 @@ export interface AiAttack {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -287,8 +288,10 @@ export interface AiAttack {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -306,10 +309,11 @@ export interface AiAttack {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -2141,6 +2145,7 @@ interface BasePayload {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -2173,8 +2178,10 @@ interface BasePayload {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -2192,10 +2199,11 @@ interface BasePayload {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -2267,7 +2275,7 @@ interface BasePayloadCreateInput {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_tags?: string[];
   /** @minLength 1 */
   payload_type: string;
@@ -2813,6 +2821,7 @@ export interface Command {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -2845,8 +2854,10 @@ export interface Command {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -2864,10 +2875,11 @@ export interface Command {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -3895,6 +3907,7 @@ export interface DnsResolution {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -3927,8 +3940,10 @@ export interface DnsResolution {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -3946,10 +3961,11 @@ export interface DnsResolution {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -5509,6 +5525,7 @@ export interface Executable {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -5541,8 +5558,10 @@ export interface Executable {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -5560,10 +5579,11 @@ export interface Executable {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -5965,6 +5985,7 @@ export interface FileDrop {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -5997,8 +6018,10 @@ export interface FileDrop {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -6016,10 +6039,11 @@ export interface FileDrop {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -6510,6 +6534,7 @@ export interface Inject {
   inject_assets?: string[];
   inject_attack_patterns?: AttackPattern[];
   inject_authorisation?: InjectAuthorisation;
+  inject_catalog_id?: string;
   inject_city?: string;
   inject_collect_status?: "COLLECTING" | "COMPLETED";
   inject_communications?: string[];
@@ -6976,6 +7001,7 @@ export interface InjectInput {
   inject_all_teams?: boolean;
   inject_asset_groups?: string[];
   inject_assets?: string[];
+  inject_catalog_id?: string;
   inject_city?: string;
   inject_content?: object;
   inject_country?: string;
@@ -7331,7 +7357,11 @@ export interface InjectorContract {
   injector_contract_payload_author_organization?: Organization;
   injector_contract_payload_author_team?: Team;
   injector_contract_payload_author_user?: User;
-  injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  injector_contract_payload_status?:
+    | "UNVERIFIED"
+    | "VERIFIED"
+    | "DEPRECATED"
+    | "REVOKED";
   injector_contract_platforms?: (
     | "Linux"
     | "Windows"
@@ -8234,6 +8264,7 @@ export interface NetworkTraffic {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -8266,8 +8297,10 @@ export interface NetworkTraffic {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -8285,10 +8318,11 @@ export interface NetworkTraffic {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -9773,6 +9807,8 @@ export interface PayloadOutput {
    * @minLength 1
    */
   payload_name: string;
+  /** Payload this local copy was duplicated from */
+  payload_origin_id?: string;
   /**
    * Parsers used to process payload outputs
    * @uniqueItems true
@@ -9796,7 +9832,7 @@ export interface PayloadOutput {
   /** Payload source origin */
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   /** Current payload lifecycle status */
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   /** Tags attached to the payload */
   payload_tags?: string[];
   /** Payload implementation type */
@@ -9806,6 +9842,8 @@ export interface PayloadOutput {
    * @format date-time
    */
   payload_updated_at: string;
+  /** Managed version from a repository release; null for a local copy */
+  payload_version?: string;
 }
 
 export interface PayloadPrerequisite {
@@ -9820,7 +9858,7 @@ export interface PayloadPrerequisite {
 export interface PayloadSimple {
   payload_collector_type?: string;
   payload_id?: string;
-  payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
 }
 
@@ -9954,7 +9992,7 @@ export interface PayloadUpsertInput {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_tags?: string[];
   /** @minLength 1 */
   payload_type: string;
@@ -10126,6 +10164,7 @@ export interface PlatformSettings {
     | "MARKING"
     | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
+    | "MARKETPLACE"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -10513,6 +10552,7 @@ export interface PublicPlatformSettings {
     | "MARKING"
     | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
+    | "MARKETPLACE"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -12904,7 +12944,7 @@ export interface ThreatArsenalActionCreateInput {
   )[];
   action_prerequisites?: PayloadPrerequisite[];
   action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   action_tags?: string[];
   /** @minLength 1 */
   action_type: string;
@@ -13025,7 +13065,7 @@ export interface ThreatArsenalActionFullOutput {
   /** Action source origin */
   action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   /** Current action lifecycle status */
-  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   /** Tags attached to the action */
   action_tags?: string[];
   /** Action implementation type */
