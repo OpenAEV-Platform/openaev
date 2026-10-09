@@ -65,5 +65,5 @@ When the recipient opens the link, the platform serves the sanitized Landing Pag
 ## What's next?
 
 - [Results and scoring](results.md) -- Read the outcome of the exercise
-- [Inject status](../../../evaluate/injects/inject-status.md) -- Interpret execution status and traces
-- [Findings](../../../evaluate/findings/findings.md) -- Work with the captured credentials
+- [Inject status](../../../run-and-evaluate/injects/inject-status.md) -- Interpret execution status and traces
+- [Findings](../../../run-and-evaluate/findings/findings.md) -- Work with the captured credentials

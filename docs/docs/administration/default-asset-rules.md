@@ -19,7 +19,7 @@ Manage rules in **Settings > Customization**.
 
 A rule for the **opencti** tag is created automatically. This tag is applied to all Scenarios generated from OpenCTI data (see [Generating Scenarios from OpenCTI](../usage/build/scenario/security-coverage.md)). The OpenCTI default rule cannot be removed, and its tag cannot be modified.
 
-![Asset Rules](../usage/assets/asset_rules.png)
+![Asset Rules](../usage/build/scenario/assets/asset_rules.png)
 
 ## What's next?
 

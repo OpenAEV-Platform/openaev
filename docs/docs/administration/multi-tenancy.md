@@ -102,5 +102,5 @@ OPENAEV_PROVIDER_AZURE_TENANT_ID=<your-tenant-uuid>
 
 - [Users and RBAC](users-and-rbac.md) -- Configure roles and capabilities within a Tenant
 - [Enterprise Edition](enterprise.md) -- Activate your EE license
-- [Authentication](../deployment/authentication.md) -- Set up SSO providers for Tenant mapping
+- [Authentication](../deployment/platform/authentication.md) -- Set up SSO providers for Tenant mapping
 - [Hub](hub.md) -- Manage platform-wide resources shared across Tenants

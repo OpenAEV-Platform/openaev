@@ -99,6 +99,6 @@ The API returns standard HTTP status codes. Handle errors based on the status co
 
 ## What's next?
 
-- [REST API](../usage/rest-api.md) -- Full API documentation with pagination and filtering details
+- [REST API](../reference/apis/rest-api.md) -- Full API documentation with pagination and filtering details
 - [Filters reference](../reference/apis/filters.md) -- Filter format documentation
 - [Platform development](platform.md) -- Set up a local development environment

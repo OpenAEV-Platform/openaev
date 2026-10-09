@@ -32,7 +32,7 @@ The **Preview** pane on the right renders the page exactly as recipients see it,
 
 !!! note
 
-    Only the *Capture submitted data* setting is reflected in the Threat Arsenal action: a capture-enabled Landing Page declares a `Credentials` output, so it can feed findings-based [Inject chaining](../../../inject-chaining.md). A page that captures nothing declares no output.
+    Only the *Capture submitted data* setting is reflected in the Threat Arsenal action: a capture-enabled Landing Page declares a `Credentials` output, so it can feed findings-based [Inject chaining](../../../attack-chaining/inject-chaining.md). A page that captures nothing declares no output.
 
 ## Write the form
 
@@ -66,7 +66,7 @@ If the field already has content, the generation refines it instead of starting 
 
 !!! tip "Enterprise Edition"
 
-    AI generation requires the Enterprise Edition with XTM One configured. See [XTM Suite connector](../../../evaluate/xtm-suite-connector.md).
+    AI generation requires the Enterprise Edition with XTM One configured. See [XTM Suite connector](../../../../integrations/xtm-suite/xtm-suite-connector.md).
 
 ## What's next?
 

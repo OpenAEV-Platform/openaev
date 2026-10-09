@@ -48,4 +48,4 @@ The main Domain icon reflects the aggregated state using a worst-case rule: if a
 
 - [Threat Arsenal](threat-arsenals.md) -- Manage Actions and their Domains
 - [Action properties](action-properties.md) -- Reference of every field of the Action form
-- [Custom Dashboards](../../evaluate/dashboards/custom-dashboards.md) -- Build Dashboards with the Security Coverage widget
+- [Custom Dashboards](../../run-and-evaluate/dashboards/custom-dashboards.md) -- Build Dashboards with the Security Coverage widget

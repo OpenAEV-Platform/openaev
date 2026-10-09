@@ -6,7 +6,7 @@ Navigate to **Settings > Parameters** to view and modify these settings. You nee
 
 !!! note
 
-    Parameters are runtime settings managed through the UI. For deployment-level configuration (environment variables, properties files), see [Configuration](../deployment/configuration.md).
+    Parameters are runtime settings managed through the UI. For deployment-level configuration (environment variables, properties files), see [Configuration](../reference/deployment/configuration.md).
 
 ## Configuration
 
@@ -137,4 +137,4 @@ To revert to the platform default, clear the Tenant-level value.
 - [Policies](policies.md) -- Configure login messages and consent banners
 - [Enterprise Edition](enterprise.md) -- Activate and manage your EE license
 - [Multi-tenancy](multi-tenancy.md) -- Manage isolated workspaces and Tenant settings
-- [Configuration](../deployment/configuration.md) -- Deployment-level configuration (environment variables, properties)
+- [Configuration](../reference/deployment/configuration.md) -- Deployment-level configuration (environment variables, properties)
