@@ -1,0 +1,63 @@
+import { useEffect, useState } from 'react';
+
+import { type SearchPaginationInput, type SortField } from '../../../utils/api-types';
+import { type Page } from '../queryable/Page';
+import { buildSearchPagination } from '../queryable/QueryableUtils';
+import { useQueryableWithLocalStorage } from '../queryable/useQueryableWithLocalStorage';
+
+interface Options<T> {
+  storageKey: string;
+  defaultSorts: SortField[];
+  search: (input: SearchPaginationInput) => Promise<{ data: Page<T> }>;
+  fetchFacets: (input: SearchPaginationInput) => Promise<{ data: Record<string, Record<string, number>> }>;
+  installOne: (id: string) => Promise<string[]>;
+  installAll: () => Promise<string[]>;
+}
+
+// Search, facets and installation state of a marketplace "Available" tab.
+const useMarketplaceCatalog = <T>({ storageKey, defaultSorts, search, fetchFacets, installOne, installAll }: Options<T>) => {
+  const [items, setItems] = useState<T[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [facetCounts, setFacetCounts] = useState<Record<string, Record<string, number>> | null>(null);
+  const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
+
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
+    storageKey,
+    buildSearchPagination({ sorts: defaultSorts }),
+  );
+
+  const fetchItems = (input: SearchPaginationInput) => {
+    setLoading(true);
+    return search(input).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchFacets(searchPaginationInput).then(({ data }) => setFacetCounts(data));
+  }, [searchPaginationInput]);
+
+  const markInstalled = (ids: string[]) => setInstalledIds(previous => new Set([...previous, ...ids]));
+
+  const hasActiveFilters = (searchPaginationInput.filterGroup?.filters?.length ?? 0) > 0
+    || !!searchPaginationInput.textSearch;
+  const handleResetFilters = () => {
+    queryableHelpers.filterHelpers.handleClearAllFilters();
+    queryableHelpers.textSearchHelpers.handleTextSearch('');
+  };
+
+  return {
+    items,
+    setItems,
+    loading,
+    fetchItems,
+    queryableHelpers,
+    searchPaginationInput,
+    facetCounts,
+    hasActiveFilters,
+    handleResetFilters,
+    isInstalled: (id: string) => installedIds.has(id),
+    install: (id: string) => installOne(id).then(markInstalled),
+    installAll: () => installAll().then(markInstalled),
+  };
+};
+
+export default useMarketplaceCatalog;

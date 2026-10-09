@@ -2,7 +2,7 @@ import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 
-import { useFormatter } from '../../../components/i18n';
+import { useFormatter } from '../../i18n';
 
 interface Stat {
   id: string;
@@ -12,13 +12,17 @@ interface Stat {
 }
 
 interface Props {
+  title: string;
+  totalLabel: string;
   totalElements: number;
   stats: Stat[];
   rightSlot?: ReactNode;
   bottomSlot?: ReactNode;
 }
 
-const ThreatArsenalHero: FunctionComponent<Props> = ({
+const MarketplaceHero: FunctionComponent<Props> = ({
+  title,
+  totalLabel,
   totalElements,
   stats,
   rightSlot,
@@ -32,7 +36,7 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({
   return (
     <Box
       component="section"
-      aria-label={t('Threat Arsenal')}
+      aria-label={title}
       sx={{
         // Same hero surface as the Integrations marketplace (shared visual language).
         position: 'relative',
@@ -93,7 +97,7 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            {t('Threat Arsenal')}
+            {title}
           </Typography>
 
           <Box sx={{
@@ -128,7 +132,7 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({
                 fontSize: 13,
               }}
               >
-                {t('total actions')}
+                {totalLabel}
               </Typography>
             </Box>
             {stats.map(stat => (
@@ -197,4 +201,4 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({
   );
 };
 
-export default ThreatArsenalHero;
+export default MarketplaceHero;
