@@ -44,6 +44,18 @@ public interface ChallengeRepository
   List<Challenge> findAllFetchingDocuments();
 
   /**
+   * Initializes the {@code challenge_tags} of the given challenges inside the scoped transaction,
+   * for the same reason as {@link #findAllByIdInFetchingDocuments(List)}: {@code tags} is
+   * v2-active, so a lazy load at serialization time fails closed to an empty array. Run it after
+   * one of the document-fetching queries, in the same session: Hibernate fills the tags of the
+   * challenges it already manages. It is a separate query because fetching both collections at once
+   * would repeat each document in the {@code documents} list once per tag.
+   */
+  @Query("select distinct c from Challenge c left join fetch c.tags where c.id in :ids")
+  @NotNull
+  List<Challenge> findAllByIdInFetchingTags(@Param("ids") @NotNull final List<String> ids);
+
+  /**
    * Per-tenant business-key lookup for find-or-create paths (e.g. import): looking up by the bare
    * name under a multi-tenant read scope could match one row per in-scope tenant and silently reuse
    * another tenant's challenge. Callers must resolve the write tenant first and look up scoped to

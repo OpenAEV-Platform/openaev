@@ -80,6 +80,35 @@ public class ChallengeService {
     return challenge;
   }
 
+  /**
+   * Loads every in-scope challenge with its documents and tags. The challenge read endpoints return
+   * the raw entity, serialized open-in-view after the scoped transaction commits: a lazy {@code
+   * documents} or {@code tags} load at that point fails closed to an empty array, so both are
+   * loaded here, inside the scope.
+   */
+  public List<Challenge> findAllWithDocumentsAndTags() {
+    List<Challenge> challenges = challengeRepository.findAllFetchingDocuments();
+    fetchTags(challenges);
+    return challenges;
+  }
+
+  /**
+   * Loads the given challenges with their documents and tags, for the same reason as {@link
+   * #findAllWithDocumentsAndTags()}.
+   */
+  public List<Challenge> findAllByIdWithDocumentsAndTags(@NotNull final List<String> ids) {
+    List<Challenge> challenges = challengeRepository.findAllByIdInFetchingDocuments(ids);
+    fetchTags(challenges);
+    return challenges;
+  }
+
+  private void fetchTags(List<Challenge> challenges) {
+    if (!challenges.isEmpty()) {
+      challengeRepository.findAllByIdInFetchingTags(
+          challenges.stream().map(Challenge::getId).toList());
+    }
+  }
+
   public Iterable<Challenge> getExerciseChallenges(@NotBlank final String exerciseId) {
     Exercise exercise =
         exerciseRepository
