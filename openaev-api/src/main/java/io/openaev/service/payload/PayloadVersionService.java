@@ -44,6 +44,22 @@ public class PayloadVersionService {
     return payloadRepository.findByExternalIdAndLatestTrue(externalId);
   }
 
+  /**
+   * Payloads an imported one can link to (F4), best first: a managed version only when its external
+   * ID matches too, then local copies, whatever their external ID.
+   */
+  @Transactional(readOnly = true)
+  public List<Payload> findLinkCandidates(String externalId, String hash, String tenantId) {
+    List<Payload> sameContent = payloadRepository.findAllByContentHash(hash, tenantId);
+    List<Payload> candidates = new ArrayList<>();
+    sameContent.stream()
+        .filter(p -> isManaged(p) && Objects.equals(p.getExternalId(), externalId))
+        .sorted(Comparator.comparing(Payload::getVersion, SemanticVersion.ORDER).reversed())
+        .forEach(candidates::add);
+    sameContent.stream().filter(p -> !isManaged(p)).forEach(candidates::add);
+    return candidates;
+  }
+
   // -- UPDATE --
 
   /**

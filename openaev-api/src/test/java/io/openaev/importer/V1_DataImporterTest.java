@@ -3304,6 +3304,79 @@ class V1_DataImporterTest extends IntegrationTest {
         "there must remain exactly one payload with that name after re-import");
   }
 
+  private Payload importOnceAndMarkManaged() throws Exception {
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    this.importer.importData(
+        txCtx(),
+        readMissingContractWithPayloadFixture(),
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Payload payload = findSinglePayloadByName("step missing contract payload");
+    addGrantToCurrentUser(
+        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
+        Grant.GRANT_TYPE.OBSERVER,
+        injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow().getId());
+    payload.setExternalId("PAYLOAD_STEP_MISSING_CONTRACT");
+    payload.setVersion("1.0.0");
+    return payloadRepository.save(payload);
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void given_zipClaimingManagedVersionWithOtherContent_when_importing_should_createLocalCopy()
+      throws Exception {
+    // -- Arrange --
+    importOnceAndMarkManaged();
+    ObjectNode tampered = (ObjectNode) readMissingContractWithPayloadFixture();
+    ((ObjectNode)
+            tampered.at(
+                "/scenario_workflow/workflow_steps/0/step_data/inject_injector_contract"
+                    + "/injector_contract_payload"))
+        .put("command_content", "echo tampered");
+    long payloadCountBefore = payloadRepository.count();
+
+    // -- Act --
+    this.importer.importData(
+        txCtx(), tampered, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    assertEquals(
+        payloadCountBefore + 1,
+        payloadRepository.count(),
+        "a zip reusing a managed version's external ID with other content must not link to it");
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void given_zipWithSameContentAsManagedVersion_when_importing_should_linkToIt() throws Exception {
+    // -- Arrange --
+    importOnceAndMarkManaged();
+    long payloadCountBefore = payloadRepository.count();
+
+    // -- Act --
+    this.importer.importData(
+        txCtx(),
+        readMissingContractWithPayloadFixture(),
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    assertEquals(
+        payloadCountBefore,
+        payloadRepository.count(),
+        "a zip whose payload content matches the managed version must link to it");
+  }
+
   @Test
   @Transactional
   @WithMockUser
