@@ -30,6 +30,15 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Write attribution, refusal and own-tenant reads for the custom-dashboard widget endpoints.
+ *
+ * <p>The cross-tenant read below is not an isolation proof and does not claim to be: every widget
+ * endpoint addresses a widget through its parent dashboard, so the 404 on another tenant's widget
+ * comes from the dashboard id not matching, and it holds with both tables de-activated. The
+ * isolation proof for {@code widgets} is {@code WidgetTenantScopeTest}, on the by-widget-id read
+ * behind the dashboard count route.
+ */
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=custom_dashboards,widgets")
 @WithMockUser(isAdmin = true)
@@ -59,8 +68,10 @@ class CustomDashboardWidgetHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("under tenant A's path: A's widget is readable and B's is not")
+  @DisplayName("under tenant A's path: A's widget is readable and B's is not found")
   void widgetReadsStayScoped() throws Exception {
+    // B's widget hangs off B's dashboard, so this 404 is the parent mismatch, not the tenant scope.
+    // See the class javadoc.
     mvc.perform(
             get(
                 TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantA)
