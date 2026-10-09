@@ -24,6 +24,17 @@ public interface OrganizationRepository
   List<Organization> findAllByIdInAndTenantId(
       @NotNull final Collection<String> ids, @NotNull final String tenantId);
 
+  /**
+   * Loads the tags of the given organizations inside the scoped transaction. The organization
+   * endpoints return the raw entity, serialized open-in-view after the commit: a lazy {@code tags}
+   * load at that point fails closed to an empty array once {@code tags} is v2-active. Run it in the
+   * same session as the query that loaded the organizations: Hibernate fills the tags of the
+   * entities it already manages.
+   */
+  @Query("select distinct o from Organization o left join fetch o.tags where o.id in :ids")
+  @NotNull
+  List<Organization> findAllByIdInFetchingTags(@Param("ids") @NotNull Collection<String> ids);
+
   // Native array_agg builds the read-only projection; no ORM write/listener side effects are lost.
   @Query(
       value =
