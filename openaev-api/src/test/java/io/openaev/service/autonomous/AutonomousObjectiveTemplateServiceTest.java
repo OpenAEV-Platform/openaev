@@ -2,11 +2,14 @@ package io.openaev.service.autonomous;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.autonomous.AutonomousObjectiveTemplate;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import java.io.IOException;
@@ -16,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -29,19 +31,28 @@ import org.mockito.junit.jupiter.MockitoExtension;
  * Unit test for the objective-template gallery seeding. Focuses on the {@code scopeMode}
  * classification, which the orchestrator relies on to decide (deterministically, on its first
  * cycle) whether an objective needs a specific target the operator must pick.
+ *
+ * <p>Tenant isolation and write attribution are not provable here, since mocks do not run the
+ * statement inspector: they are covered on the real stack by {@code
+ * AutonomousObjectiveTemplateHttpIsolationTest}.
  */
 @ExtendWith(MockitoExtension.class)
 class AutonomousObjectiveTemplateServiceTest {
 
+  private static final String TENANT = "11111111-1111-1111-1111-111111111111";
+
   @Mock private AutonomousObjectiveTemplateRepository repository;
+
+  @Mock private TenantWriteScopeResolver writeScopeResolver;
 
   @InjectMocks private AutonomousObjectiveTemplateService service;
 
   /** Seed into an empty tenant and return the persisted templates by key. */
   private Map<String, AutonomousObjectiveTemplate> seedAll() {
     List<AutonomousObjectiveTemplate> saved = new ArrayList<>();
-    // Empty tenant: no built-in exists yet, so every one is materialised.
-    when(repository.findByKey(anyString())).thenReturn(Optional.empty());
+    // Empty tenant: no built-in exists yet, so every one is materialised. The seed reads the keys
+    // in one query before the loop, so no statement inside it can auto-flush a pending insert.
+    when(repository.findByKeyIn(anyCollection())).thenReturn(List.of());
     when(repository.save(any(AutonomousObjectiveTemplate.class)))
         .thenAnswer(
             invocation -> {
@@ -50,8 +61,9 @@ class AutonomousObjectiveTemplateServiceTest {
               return t;
             });
     when(repository.findByEnabledTrueOrderByOrderAsc()).thenReturn(saved);
+    when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn(TENANT);
 
-    List<AutonomousObjectiveTemplate> result = service.listForCurrentTenant();
+    List<AutonomousObjectiveTemplate> result = service.listForScope(TxCtx.forTenant(TENANT));
     return result.stream().collect(Collectors.toMap(AutonomousObjectiveTemplate::getKey, t -> t));
   }
 
@@ -62,6 +74,10 @@ class AutonomousObjectiveTemplateServiceTest {
     assertFalse(byKey.isEmpty(), "built-ins should be seeded into an empty tenant");
     for (AutonomousObjectiveTemplate template : byKey.values()) {
       assertTrue(template.isBuiltin(), "seeded templates are built-in");
+      assertEquals(
+          TENANT,
+          template.getTenant().getId(),
+          "the seed attributes the tenant explicitly; the entity listener is gone");
       String mode = template.getScopeMode();
       assertNotNull(mode, "scopeMode must never be null (DB column is NOT NULL)");
       assertTrue(
@@ -99,12 +115,12 @@ class AutonomousObjectiveTemplateServiceTest {
 
     // Every key already exists AND already matches the code definition, so the scope-mode sync
     // finds nothing to change and nothing is saved.
-    when(repository.findByKey(anyString()))
-        .thenAnswer(inv -> Optional.ofNullable(seeded.get(inv.getArgument(0, String.class))));
+    when(repository.findByKeyIn(anyCollection())).thenReturn(new ArrayList<>(seeded.values()));
     when(repository.findByEnabledTrueOrderByOrderAsc())
         .thenReturn(new ArrayList<>(seeded.values()));
+    when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn(TENANT);
 
-    service.listForCurrentTenant();
+    service.listForScope(TxCtx.forTenant(TENANT));
 
     verify(repository, never()).save(any());
   }

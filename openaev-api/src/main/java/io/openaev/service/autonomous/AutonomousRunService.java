@@ -4012,9 +4012,10 @@ public class AutonomousRunService {
     return directiveRepository.findByRunIdOrderByCreatedAtAsc(runId);
   }
 
-  @Transactional(readOnly = true)
-  public List<AutonomousObjectiveTemplate> objectiveTemplates() {
-    return templateService.listForCurrentTenant();
+  // Not readOnly: the gallery materialises the calling tenant's built-ins on first read.
+  @Transactional
+  public List<AutonomousObjectiveTemplate> objectiveTemplates(TxCtx ctx) {
+    return templateService.listForScope(ctx);
   }
 
   /**

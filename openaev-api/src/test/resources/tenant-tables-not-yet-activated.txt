@@ -26,7 +26,6 @@
 # Lines starting with # and blank lines are ignored.
 
 agents | #7938 | No blocker found. Every writer attributes the tenant explicitly, the background writers are already on the tenant-scoped transaction primitive, no query shape breaks and the table is not indexed. Waiting on its activation only.
-autonomous_objective_templates | #7945 | Nothing isolates this table today, so its activation is also its first isolation and has to cover the per-tenant seeding of the built-in templates. No schema blocker.
 exercises | #6434 | Named work (three background entry points to scope, ten SpEL tenant predicates to drop, a lazy-collection sweep) plus one open scope question on the chaining engine timeout path. Sequenced with injects and scenarios.
 injects | #6404 | Named work: four background entry points to scope and seven SpEL tenant predicates to drop. The hottest table in the product, so its read plans are measured before go-live.
 injectors_contracts | #7905 | Blocked on the schema. injectors_contracts_injector_contract_external_id_key is a global unique index on injector_contract_external_id with no tenant column, so two tenants cannot import a scenario carrying the same external id. Needs a reviewed migration, or a decision that published contracts are platform-shared reference data.
