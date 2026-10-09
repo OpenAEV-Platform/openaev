@@ -32,12 +32,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.AssetService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.InjectorService;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.UserService;
+import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
@@ -55,10 +50,6 @@ import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.util.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -86,6 +77,8 @@ class InjectServiceTest {
   @Mock private InjectAgentResolverService injectAgentResolverService;
   @Mock private TeamRepository teamRepository;
   @Mock private AgentRepository agentRepository;
+  @Mock private SecretReferenceRepository secretReferenceRepository;
+  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
   @Mock private InjectStatusRepository injectStatusRepository;
@@ -154,7 +147,10 @@ class InjectServiceTest {
         injectService,
         "healthCheckUtils",
         new HealthCheckUtils(
-            new ExecutorUtils(assetAgentJobRepository), stepTargetingService, conditionService));
+            new ExecutorUtils(assetAgentJobRepository),
+            stepTargetingService,
+            conditionService,
+            previewFeatureService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -166,7 +162,8 @@ class InjectServiceTest {
             new HealthCheckUtils(
                 new ExecutorUtils(assetAgentJobRepository),
                 stepTargetingService,
-                conditionService)));
+                conditionService,
+                previewFeatureService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -1376,6 +1373,57 @@ class InjectServiceTest {
 
       assertThat(code).isNull();
       verifyNoInteractions(injectAuthorisationRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("updateInject credential references")
+  class UpdateInjectCredentialReferencesTests {
+
+    @Test
+    @DisplayName("given_requestedCredentials_should_setTheResolvedReferencesOnTheInject")
+    void given_requestedCredentials_should_setTheResolvedReferencesOnTheInject() {
+      // Arrange
+      Inject inject = new Inject();
+      inject.setId(INJECT_ID);
+      when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
+      CredentialSecretReference credential = new CredentialSecretReference();
+      credential.setId("credential-1");
+      InjectInput input = new InjectInput();
+      input.setTitle("inject");
+      input.setDependsDuration(0L);
+      input.setSecretReferences(List.of("credential-1"));
+      when(secretReferenceRepository.findAllById(List.of("credential-1")))
+          .thenReturn(List.of(credential));
+
+      // Act
+      Inject result = injectService.updateInject(INJECT_ID, input);
+
+      // Assert
+      assertThat(result.getSecretReferences()).containsExactly(credential);
+    }
+
+    @Test
+    @DisplayName("given_noRequestedCredential_should_detachTheExistingOnes")
+    void given_noRequestedCredential_should_detachTheExistingOnes() {
+      // Arrange
+      CredentialSecretReference credential = new CredentialSecretReference();
+      credential.setId("credential-1");
+      Inject inject = new Inject();
+      inject.setId(INJECT_ID);
+      inject.setSecretReferences(new ArrayList<>(List.of(credential)));
+      when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
+      InjectInput input = new InjectInput();
+      input.setTitle("inject");
+      input.setDependsDuration(0L);
+      input.setSecretReferences(List.of());
+
+      // Act
+      Inject result = injectService.updateInject(INJECT_ID, input);
+
+      // Assert
+      assertThat(result.getSecretReferences()).isEmpty();
+      verify(secretReferenceRepository).findAllById(List.of());
     }
   }
 }

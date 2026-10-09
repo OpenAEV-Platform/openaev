@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -362,6 +361,7 @@ public class InjectUtils {
 
     duplicatedInject.setExercise(injectOrigin.getExercise());
     duplicatedInject.setScenario(injectOrigin.getScenario());
+    duplicatedInject.setSecretReferences(new ArrayList<>(injectOrigin.getSecretReferences()));
     // Carry the recurrence schedule forward so a scheduled atomic testing keeps relaunching after
     // each occurrence (relaunch = duplicate + delete old).
     duplicatedInject.setRecurrence(injectOrigin.getRecurrence());
