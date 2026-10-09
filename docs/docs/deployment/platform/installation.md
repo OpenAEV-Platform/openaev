@@ -28,28 +28,16 @@ manual [installation packages](https://github.com/OpenAEV-Platform/openaev/relea
     [:octicons-arrow-right-24:{ .middle } Explore](#manual-installation)
 </div>
 
-!!! tip "Docker deployment of the full XTM suite (OpenCTI - OpenAEV - OpenGRC)"
+!!! tip "Full XTM suite"
 
-    If you're looking for information about the deployment of the full eXtended Threat Management (XTM) suite using Docker, please refer [to this repository and documentation](https://github.com/FiligranHQ/xtm-docker).
+    To deploy the full eXtended Threat Management (XTM) suite (OpenCTI, OpenAEV and XTM One) with Docker, use the [XTM Docker repository](https://github.com/FiligranHQ/xtm-docker).
 
 ## Using Docker
 
-### Introduction
+### Prerequisites
 
-OpenAEV can be deployed using the *docker compose* command.
-
-### Pre-requisites
-
-**:material-linux:{ .middle } Linux**
-
-```bash
-sudo apt install docker-compose
-```
-
-**:material-microsoft-windows:{ .middle } Windows and MacOS**
-
-Just download the appropriate [Docker for Desktop](https://www.docker.com/products/docker-desktop) version for your
-operating system.
+- **Linux**: install [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin.
+- **Windows and macOS**: install [Docker Desktop](https://www.docker.com/products/docker-desktop).
 
 ### Clone the repository
 
@@ -64,19 +52,11 @@ cd docker
 
 ### Configure the environment
 
-Before running the `docker compose` command, the `docker-compose.yml` file should be configured. By default, the
-`docker-compose.yml` file is using environment variables available in the `.env.sample` file, available [here](https://github.com/OpenAEV-Platform/docker/blob/master/.env.sample).
-
-You can either rename the file `.env.sample` in `.env` and put the expected values or just fill directly the
-`docker-compose.yml` with the values corresponding to your environment.
+The `docker-compose.yml` file reads its values from environment variables. Copy [`.env.sample`](https://github.com/OpenAEV-Platform/docker/blob/master/.env.sample) to `.env` and fill in the values for your environment.
 
 ### Run OpenAEV
 
-After changing your `.env` file run `docker compose` in detached (-d) mode:
-
 ```bash
-sudo systemctl start docker.service
-# Run docker compose in detached
 docker compose up -d
 ```
 
@@ -87,7 +67,6 @@ docker compose up -d
 ### Troubleshooting
 
 #### PostgreSQL: password authentication failed
-
 
 This error occurs when the PostgreSQL container cannot authenticate with the credentials provided in your `.env` file.
 
@@ -111,9 +90,7 @@ If the OpenAEV container exits immediately after starting:
 
 ## Manual installation
 
-This section provides instructions to install and run a pre-built OpenAEV server with its dependencies. Note that this
-does not cover building from source,
-which you will find in the [Development section](../../development/build-from-source.md) instead.
+This section explains how to install and run a pre-built OpenAEV server with its dependencies. To build from source, see the [Development section](../../development/build-from-source.md).
 
 ### Prepare the installation
 
@@ -144,11 +121,11 @@ If you choose to install the dependencies manually, please refer to their respec
 
 #### Download the application files
 
-First, you have to [download and extract the latest release file](https://github.com/OpenAEV-Platform/openaev/releases).
+Download and extract the [latest release file](https://github.com/OpenAEV-Platform/openaev/releases).
 
 ```bash
 mkdir /path/to/your/app && cd /path/to/your/app
-wget <https://github.com/OpenAEV-Platform/openaev/releases/download/{RELEASE_VERSION}/openaev-release-{RELEASE_VERSION}.tar.gz>
+wget https://github.com/OpenAEV-Platform/openaev/releases/download/{RELEASE_VERSION}/openaev-release-{RELEASE_VERSION}.tar.gz
 tar xvfz openaev-release-{RELEASE_VERSION}.tar.gz
 ```
 
@@ -159,10 +136,10 @@ tar xvfz openaev-release-{RELEASE_VERSION}.tar.gz
 You may change the `application.properties` file (located at the root of the extracted release archive)
 according to your needs; alternatively you may set the equivalent environment variables.
 
-```shell
-$ cd openaev
-$ ls
-application.properties  openaev-api.jar
+```bash
+cd openaev
+ls
+# application.properties  openaev-api.jar
 ```
 
 !!! note "Mandatory configuration"
@@ -190,14 +167,29 @@ java -jar openaev-api.jar
 
     You can now go to [http://localhost:8080](http://localhost:8080) and log in with the credentials configured in your `application.properties` file.
 
-#### Build the application locally
+## Deploy behind a reverse proxy
 
-1. cd openaev-front yarn build
-2. cp -r builder/prod/* ../openaev-api/src/main/resources/static/
-3. cd ../openaev-api
-4. mvn clean install -DskipTests
-5. create an application.properties based on the existing one in openaev-api and fill all the mandatory fields
-6. run java -jar target/openaev-api.jar --spring.config.location=%PATH%\application.properties
+To serve OpenAEV under a context path, like `https://example.com/openaev`, set the Spring context path and include it in the base URL:
+
+```properties
+server.servlet.context-path=/openaev
+openaev.base-url=https://example.com/openaev
+```
+
+OpenAEV uses WebSockets, so configure your proxy for them. Example with Nginx:
+
+```nginx
+location / {
+    proxy_cache                 off;
+    proxy_buffering             off;
+    proxy_http_version          1.1;
+    proxy_set_header Upgrade    $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host       $host;
+    chunked_transfer_encoding   off;
+    proxy_pass                  http://YOUR_UPSTREAM_BACKEND;
+}
+```
 
 ## Community contributions
 
@@ -209,32 +201,16 @@ java -jar openaev-api.jar
 
     ---
 
-    OpenAEV Helm Charts for Kubernetes with a global configuration file. More information how to deploy here 
-    on [basic installation](https://github.com/devops-ia/helm-openaev/blob/main/charts/openaev/docs/configuration.md)
+    OpenAEV Helm Charts for Kubernetes, maintained by the community. See the
+    [configuration](https://github.com/devops-ia/helm-openaev/blob/main/charts/openaev/docs/configuration.md)
     and [examples](https://github.com/devops-ia/helm-openaev/blob/main/charts/openaev/docs/examples.md).
 
     [:material-github:{ .middle } GitHub Repository](https://github.com/devops-ia/helm-openaev/tree/main/charts/openaev)
 
 </div>
 
-### Deploy behind a reverse proxy
+## What's next?
 
-If you want to use OpenAEV behind a reverse proxy with a context path, like `https://example.com/openaev`, please change
-the `base_path` static parameter.
-
-- `APP__BASE_PATH=/openaev`
-
-By default OpenAEV use websockets so don't forget to configure your proxy for this usage, an example with `Nginx`:
-
-```bash
-location / {
-    proxy_cache                 off;
-    proxy_buffering             off;
-    proxy_http_version          1.1;
-    proxy_set_header Upgrade    $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host       $host;
-    chunked_transfer_encoding   off;
-    proxy_pass                  http://YOUR_UPSTREAM_BACKEND;
-  }
-```
+- [Authentication](authentication.md) -- Configure local, OpenID or SAML2 login
+- [Configuration](../../reference/deployment/configuration.md) -- All platform parameters
+- [Upgrade](upgrade.md) -- Upgrade an existing deployment

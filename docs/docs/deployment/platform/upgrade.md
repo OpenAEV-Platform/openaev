@@ -1,35 +1,40 @@
 # Upgrade
 
-Depending on your [installation mode](installation.md), upgrade path may change.
+This page explains how to upgrade OpenAEV. The steps depend on your [installation mode](installation.md).
 
 !!! note "Migrations"
 
-    The platform is taking care of all necessary underlying migrations in the databases if any, you can upgrade OpenAEV from any version to the latest one, including skipping multiple major releases.
+    OpenAEV runs the database migrations on startup. You can upgrade from any version to the latest one, including across several major releases. Check the [breaking changes](../breaking-changes.md) before you upgrade.
 
 ## Using Docker
 
-Before applying this procedure, please update your `docker-compose.yml` file with the new version number of container images.
+Update the image versions in your `docker-compose.yml` file first.
 
-### For single node Docker
+### Single node Docker
 
 ```bash
-$ sudo docker compose stop
-$ sudo docker compose pull
-$ sudo docker compose up -d
+docker compose stop
+docker compose pull
+docker compose up -d
 ```
 
-### For Docker swarm
+### Docker Swarm
 
-For each of services, you have to run the following command:
+Run this command for each service:
 
 ```bash
-$ sudo docker service update --force service_name
+docker service update --force service_name
 ```
 
 ## Manual installation
 
-When upgrading the platform, you have to replace all files and restart the platform, the database migrations will be done automatically:
+Replace all the files with the new release, then restart the platform:
 
 ```bash
-$ java -jar openaev-api.jar
+java -jar openaev-api.jar
 ```
+
+## What's next?
+
+- [Breaking changes](../breaking-changes.md) -- Changes that need an action during the upgrade
+- [Configuration](../../reference/deployment/configuration.md) -- Platform configuration parameters
