@@ -29,6 +29,12 @@ These are the design and delivery notes of the payload approval proof of concept
 - **Exercise composition review**: out of scope of this proof of concept.
 - **Merge note**: #8355 first showed a conflict after #8353 was squash-merged. The squash had the same content as the original Task 0 commit still on the Task 1 branch. It was fixed with a merge commit on the Task 1 branch that left the content unchanged (no force push).
 
+### Next steps (staff feedback, 2026-10-09)
+
+- **Task 5, payload versioning**: an approved payload edited by a non-approver keeps its approved version in use; the edit becomes a pending version, applied only when approved. This changes Task 2: blocking, chips, paused schedules / back to Draft and the edit warning will only apply to payloads that never had an approved version. It is delivered by a new Task 5 PR, not by editing Task 2.
+- **Task 6, notifications**: approvers are notified (in-app, optional email) when a payload or a new version goes Pending; authors are told the outcome.
+- **Open bug, investigating**: after *Approve content* is removed from a user's role, the *Approve* button is still shown. First finding: the server refuses the approval (403) and the payload stays Pending; the UI loads capabilities once at app start and keeps showing the button until reload.
+
 ### Issue ↔ PR links
 
 | Issue | PR | Shown in the issue's "Development" sidebar |
