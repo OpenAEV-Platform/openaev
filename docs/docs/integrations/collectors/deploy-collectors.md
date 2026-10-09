@@ -1,135 +1,66 @@
-# Collectors
+# Deploy Collectors
 
-!!! tip "Tips"
-
-      If you want to learn more about the concept and features of collectors, you can have more info [here](collectors.md).
-
-!!! question "Collectors list"
-
-    You are looking for the available collectors? The list is in the [OpenAEV Ecosystem](https://filigran.notion.site/OpenAEV-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
-
+This page explains how to deploy and configure Collectors. To learn what Collectors do, see [Collectors](collectors.md).
 
 ## Installing a collector
 
-There are multiple ways to deploy a collector from OpenAEV:
+You can deploy a Collector in three ways:
 
-- Integration Manager (Recommended)
-- Docker deployment
-- Manual deployment
+- with the Integration Manager (recommended);
+- with Docker;
+- manually.
 
-!!! info
+!!! note
 
-    All collectors require access to the OpenAEV API. See [Configuration](#configuration) for required parameters.
+    Collectors must reach the OpenAEV API. See [Configuration](#configuration) for the required parameters.
 
 ### Integration Manager (recommended)
-The easiest way to deploy collectors is through the Integration Manager, which allows automatic deployment directly from the OpenAEV interface.
 
-See the [Integration Manager documentation](../../deployment/integration-manager/overview.md) for detailed instructions.
-
+The Integration Manager deploys Collectors directly from the OpenAEV interface. See the [Integration Manager documentation](../../deployment/integration-manager/overview.md).
 
 ### Docker deployment
-Several options are available for Docker deployment:
 
-#### Add a collector to your existing deployment
-For instance, to enable the MITRE ATT&CK collector, you can add a new service to your `docker-compose.yml` file:
+To add a Collector to your existing deployment, for example MITRE ATT&CK, add a service to your `docker-compose.yml` file:
 
-```docker
+```yaml
   collector-mitre-attack:
-    image: openaev/collector-mitre-attack:1.0.0
+    image: openaev/collector-mitre-attack:latest
     environment:
       - OPENAEV_URL=http://localhost
       - OPENAEV_TOKEN=ChangeMe
-      - COLLECTOR_ID=ChangeMe
+      - COLLECTOR_ID=ChangeMe # a valid UUIDv4 of your choice
       - "COLLECTOR_NAME=MITRE ATT&CK"
       - COLLECTOR_LOG_LEVEL=error
     restart: always
 ```
-Note: Collector images and available versions can be found on Docker Hub.
 
-#### Launch a standalone collector
-To launch a standalone collector, you can use the `docker-compose.yml` file of the collector itself. Just download the latest [release](https://github.com/OpenAEV-Platform/collectors/releases) and start the collector:
+Collector images and versions are on [Docker Hub](https://hub.docker.com/u/openaev).
 
-```
-$ wget https://github.com/OpenAEV-Platform/collectors/archive/{RELEASE_VERSION}.zip
-$ unzip {RELEASE_VERSION}.zip
-$ cd collectors-{RELEASE_VERSION}/mitre-attack/
-```
+To run a Collector on its own, use the `docker-compose.yml` file in its folder of the [collectors repository](https://github.com/OpenAEV-Platform/collectors), set its parameters, then run:
 
-Change the configuration in the `docker-compose.yml` according to the parameters of the platform and of the targeted service. Then launch the collector:
-
-```
-$ docker compose up
+```bash
+docker compose up -d
 ```
 
 ### Manual deployment
-If you want to manually launch a collector without docker, you just have to install Python 3 and pip3 for dependencies:
 
-```
-$ apt install python3 python3-pip
-```
-
-Download the release of the collectors:
-
-```
-$ wget <https://github.com/OpenAEV-Platform/collectors/archive/{RELEASE_VERSION}.zip>
-$ unzip {RELEASE_VERSION}.zip
-$ cd collectors-{RELEASE_VERSION}/mitre-attack/src/
-```
-
-Install dependencies and initialize the configuration:
-
-```
-$ pip3 install -r requirements.txt
-$ cp config.yml.sample config.yml
-```
-
-Change the `config.yml` content according to the parameters of the platform and of the targeted service.
-For example :
-
-```yaml
-
-openaev:
-  url: 'http://localhost:3001'
-  token: 'ChangeMe'
-
-collector:
-  id: 'ChangeMe'
-  name: 'MITRE ATT&CK'
-  log_level: 'info'
-
-```
-
-
-Finally : launch the collector:
-
-```
-$ python3 openaev_mitre.py
-```
+Manual deployment needs Python 3.14 or later and [Poetry](https://python-poetry.org/). Follow the **Manual deployment** section of the Collector's README: copy `config.yml.sample` to `config.yml`, set the values, then install and run the Collector with Poetry.
 
 ### Configuration
 
-All external collectors have to be able to access the OpenAEV API. To allow this connection, they have 2 mandatory configuration parameters, the `OPENAEV_URL` and the `OPENAEV_TOKEN`. In addition to these 2 parameters, collectors have other mandatory parameters that need to be set to make them work.
+Collectors need `OPENAEV_URL` and `OPENAEV_TOKEN`, plus their own mandatory parameters, listed in each Collector's README.
 
-!!! info "Collector tokens"
+!!! note "Collector tokens"
 
     You can use your administrator token or [create a dedicated account](#create-a-dedicated-account-for-collectors) to put in your collectors. It is not necessary to have one dedicated user for each collector.
 
     When you deploy a collector from the Integration Manager, OpenAEV fills `OPENAEV_TOKEN` with the token of the user who creates the instance, and `OPENAEV_TENANT_ID` with the current Tenant.
 
-Here is an example of a collector `docker-compose.yml` file:
-```yaml
-- OPENAEV_URL=http://localhost
-- OPENAEV_TOKEN=ChangeMe
-- COLLECTOR_ID=ChangeMe # Specify a valid UUIDv4 of your choice 
-- "COLLECTOR_NAME=MITRE ATT&CK"
-- COLLECTOR_LOG_LEVEL=error
-```
-
-Here is an example in a collector `config.yml` file:
+Example of `config.yml`:
 
 ```yaml
 openaev:
-  url: 'http://localhost:3001'
+  url: 'http://localhost:8080'
   token: 'ChangeMe'
 
 collector:
@@ -165,6 +96,11 @@ OpenAEV URL.
 
 ## Collectors status
 
-The Collector status can be displayed in the dedicated section of the platform available in **Integrations > Collectors**. You will be able to see the statistics of the RabbitMQ queue of the Collector:
+To see a Collector's status, open **Integrations** and the **Deployed** tab. Each card shows whether the Collector is started and when it was last seen. If the Integration Manager deployed it, select it to see its logs in the **Logs** tab.
 
-![collectors](assets/collectors-status.png)
+![Collector status](assets/collectors-status.png)
+
+## What's next?
+
+- [Collectors](collectors.md) -- Main types of Collectors
+- [Collector development](../../development/collectors.md) -- Build your own Collector

@@ -1,33 +1,23 @@
 # Collectors
 
-!!! tip "Collectors list"
+Collectors pull data from external services for two purposes:
 
-    You are looking for the available collectors? The list is in the [OpenAEV Ecosystem](https://filigran.notion.site/OpenAEV-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
+- Match alerts, logs and traces with the Injects of a Simulation, to check what your security tools detected and prevented.
+- Import data that helps build Simulations, such as Assets, identities or Threat Arsenal Actions.
 
-## Introduction
-
-Collectors are one of the cornerstones of the OpenAEV platform, they are responsible for pulling data from various
-external services for two purposes:
-
-- Collect all alerts, logs and traces related to attacks, incidents or crisis and match them to simulated injects to
-  evaluate the security posture.
-- Collect any data that may help to schedule breach and attack simulations such as list of assets, groups, identities,
-  Threat Arsenal Actions, etc.
+To see the Collectors you can deploy, open **Integrations** and the **Available** tab, or browse the [collectors repository](https://github.com/OpenAEV-Platform/collectors).
 
 ### Detection & prevention (SIEM, XDR, EDR, NDR)
 
-*SIEM: Security Information and Event Management, XDR: Extended Detection and Response, EDR: Endpoint Detection and Response, NDR: Network Detection and Response.*
+These Collectors connect to SIEM (Security Information and Event Management), XDR (Extended Detection and Response), EDR (Endpoint Detection and Response) and NDR (Network Detection and Response) tools. They fill the detection and prevention expectations of Injects.
 
-Those collectors are the most important ones as they are used to evaluate the security posture (response to injects) from
-various detection and response systems and fulfill expectations for detection and prevention.
-
-These Collectors fetch data for 45 minutes after an Inject executes. If no data is found after 45 minutes, OpenAEV updates the Inject result to "Not detected".
+If no matching data is found before the expectation expires (6 hours by default), the Inject is marked as not detected or not prevented.
 
 #### Detection & prevention with EDR
 
 The platform analyzes EDR logs to identify matches for the hostname and the parent process name associated with
-the attack. If the OpenAEV Agent initiates the attack, the parent process name follows this format:
-`openaev-implant-INJECT_ID.exe`.
+the attack. If the OpenAEV agent runs the attack, the parent process name follows this format:
+`oaev-implant-INJECT_ID-agent-AGENT_ID` (with `.exe` on Windows).
 
 #### Detection & prevention with SIEM
 
@@ -39,19 +29,21 @@ This means the EDR Collector must first validate the Expectation before the SIEM
 
 ### Threat intelligence
 
-Those collectors are used to collect threat intelligence data such as kill chains, Scenarios, TTPs (Tactics, Techniques, and Procedures), Threat Arsenal Actions, etc.
+These Collectors import threat intelligence data such as kill chains, Scenarios, TTPs (Tactics, Techniques, and Procedures), Threat Arsenal Actions, etc.
 
 ### Endpoint management
 
-Those collectors are pulling alternative information about your endpoints and assets to complete the overview about your
-current posture in terms of vulnerabilities and compliance.
+These Collectors import information about your endpoints and Assets, such as vulnerabilities and compliance.
 
 ### Identities
 
-Those collectors are pulling all information related to identities, including human assets, to be used in scenario or to
-complete the view overview about your current posture.
+These Collectors import identities, such as users and groups, to use as Players and Teams in Scenarios.
 
 ### Others
 
-All other system OpenAEV can pull from, to add more meaningful and relevant information to the view of your security
-posture.
+Other Collectors import any other data that helps assess your security posture.
+
+## What's next?
+
+- [Deploy Collectors](deploy-collectors.md) -- Deploy and configure Collectors
+- [Collector development](../../development/collectors.md) -- Build your own Collector
