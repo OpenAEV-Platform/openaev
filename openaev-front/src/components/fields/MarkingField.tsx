@@ -108,10 +108,6 @@ const MarkingField: FunctionComponent<Props> = ({
     fieldOnChange(next.map(marking => marking.marking_definition_id));
   };
 
-  if (!canAccessMarkingDefinitions) {
-    return null;
-  }
-
   return (
     <div style={{
       position: 'relative',
