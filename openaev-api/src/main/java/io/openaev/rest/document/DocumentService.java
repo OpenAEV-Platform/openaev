@@ -40,6 +40,8 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class DocumentService {
 
+  public static final String DEFAULT_DOWNLOAD_FILE_NAME = "file";
+
   @Resource private ObjectMapper mapper;
 
   private final DocumentRepository documentRepository;
@@ -95,6 +97,7 @@ public class DocumentService {
       DocumentCreateInput input,
       String tenantId)
       throws Exception {
+    fileName = sanitizeFileName(fileName);
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
@@ -316,8 +319,21 @@ public class DocumentService {
         });
   }
 
+  public static String sanitizeFileName(String name) {
+    String sanitizedName = FilenameUtils.getName(name);
+    if (sanitizedName == null || sanitizedName.isBlank()) {
+      throw new BadRequestException("Filename must not be empty");
+    }
+    return sanitizedName;
+  }
+
+  public static String safeFileName(String name) {
+    String fileName = FilenameUtils.getName(name);
+    return fileName == null || fileName.isBlank() ? DEFAULT_DOWNLOAD_FILE_NAME : fileName;
+  }
+
   public static String encodeFileName(String name) {
-    return URLEncoder.encode(name, StandardCharsets.UTF_8).replace("+", "%20");
+    return URLEncoder.encode(safeFileName(name), StandardCharsets.UTF_8).replace("+", "%20");
   }
 
   public List<Document> documentsForScenario(String scenarioId) {

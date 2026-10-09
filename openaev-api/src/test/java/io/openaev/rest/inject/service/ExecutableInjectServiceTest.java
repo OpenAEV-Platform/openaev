@@ -2,12 +2,16 @@ package io.openaev.rest.inject.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PrimitiveType;
+import io.openaev.rest.document.DocumentService;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -120,6 +124,29 @@ class ExecutableInjectServiceTest {
 
     // Assert
     assertThat(result).isEqualTo("tool run ");
+  }
+
+  @Test
+  @DisplayName("Should point a document argument at the last component of the stored name")
+  void given_documentArgumentWithStoredPath_should_resolveToLastComponent() {
+    // Arrange: a document stored before the upload sanitization existed
+    Document legacyDocument = new Document();
+    legacyDocument.setName("../../ba03_direct.txt");
+    DocumentService documentService = mock(DocumentService.class);
+    when(documentService.document("document-id")).thenReturn(legacyDocument);
+    ExecutableInjectService serviceWithDocuments =
+        new ExecutableInjectService(null, documentService, null, null, null, null, null);
+
+    PayloadArgument fileArgument = payloadArgument("file", "document-id");
+    fileArgument.setType(PrimitiveType.Document);
+
+    // Act
+    String result =
+        serviceWithDocuments.resolveArgumentsForDisplay(
+            "cat #{file}", List.of(fileArgument), List.of(), JsonNodeFactory.instance.objectNode());
+
+    // Assert
+    assertThat(result).isEqualTo("cat #{location}/ba03_direct.txt");
   }
 
   private static PayloadArgument payloadArgument(String key, String defaultValue) {
