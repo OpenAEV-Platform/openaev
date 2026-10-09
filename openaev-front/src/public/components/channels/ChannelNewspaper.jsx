@@ -1,6 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { ChatBubbleOutlineOutlined, FavoriteBorderOutlined, MoreHorizOutlined, ShareOutlined } from '@mui/icons-material';
-import { Avatar, Card, CardContent, CardHeader, CardMedia, Dialog, DialogContent, DialogTitle, GridLegacy, Typography } from '@mui/material';
+import { Avatar, Card, CardContent, CardHeader, CardMedia, Dialog, DialogContent, DialogTitle, Grid, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useState } from 'react';
@@ -106,9 +106,9 @@ const ChannelNewspaper = ({ channelReader }) => {
           <Empty message={t('No media pressure entry in this channel yet.')} />
         </div>
       )}
-      <GridLegacy container={true} spacing={3} style={{ marginTop: 10 }}>
+      <Grid container={true} spacing={3} style={{ marginTop: 10 }}>
         {firstArticle && (
-          <GridLegacy item={true} xs={headArticles.length > 0 ? 8 : 12}>
+          <Grid size={headArticles.length > 0 ? 8 : 12}>
             <Card
               variant="outlined"
               classes={{ root: classes.card }}
@@ -126,21 +126,17 @@ const ChannelNewspaper = ({ channelReader }) => {
                 title={firstArticle.article_author || t('Unknown')}
                 subheader={fldt(firstArticle.article_virtual_publication)}
               />
-              <GridLegacy container={true} spacing={3}>
+              <Grid container={true} spacing={3}>
                 {firstArticleImages.map(doc => (
-                  <GridLegacy
-                    key={doc.document_id}
-                    item={true}
-                    xs={firstArticleColumns}
-                  >
+                  <Grid key={doc.document_id} size={firstArticleColumns}>
                     <CardMedia
                       component="img"
                       height="200"
                       src={`${baseUri}/documents/${doc.document_id}/file${queryParams}`}
                     />
-                  </GridLegacy>
+                  </Grid>
                 ))}
-              </GridLegacy>
+              </Grid>
               <CardContent style={{ marginBottom: 30 }}>
                 <Typography
                   gutterBottom
@@ -185,10 +181,10 @@ const ChannelNewspaper = ({ channelReader }) => {
                 </div>
               </CardContent>
             </Card>
-          </GridLegacy>
+          </Grid>
         )}
         {headArticles.length > 0 && (
-          <GridLegacy item={true} xs={4}>
+          <Grid size={4}>
             {headArticles.map((article, index) => {
               const images = article.article_documents
                 .map(docId => (documentsMap[docId] ? documentsMap[docId] : undefined))
@@ -219,17 +215,17 @@ const ChannelNewspaper = ({ channelReader }) => {
                     title={article.article_author || t('Unknown')}
                     subheader={fldt(article.article_virtual_publication)}
                   />
-                  <GridLegacy container={true} spacing={3}>
+                  <Grid container={true} spacing={3}>
                     {images.map(doc => (
-                      <GridLegacy key={doc.document_id} item={true} xs={columns}>
+                      <Grid key={doc.document_id} size={columns}>
                         <CardMedia
                           component="img"
                           height="100"
                           src={`${baseUri}/documents/${doc.document_id}/file${queryParams}`}
                         />
-                      </GridLegacy>
+                      </Grid>
                     ))}
-                  </GridLegacy>
+                  </Grid>
                   <CardContent style={{ marginBottom: 30 }}>
                     <Typography
                       gutterBottom
@@ -269,10 +265,10 @@ const ChannelNewspaper = ({ channelReader }) => {
                 </Card>
               );
             })}
-          </GridLegacy>
+          </Grid>
         )}
-      </GridLegacy>
-      <GridLegacy container={true} spacing={3} style={{ marginTop: 0 }}>
+      </Grid>
+      <Grid container={true} spacing={3} style={{ marginTop: 0 }}>
         {otherArticles.map((article) => {
           const images = article.article_documents
             .map(docId => (documentsMap[docId] ? documentsMap[docId] : undefined))
@@ -287,7 +283,7 @@ const ChannelNewspaper = ({ channelReader }) => {
             columns = 3;
           }
           return (
-            <GridLegacy key={article.article_id} item={true} xs={4}>
+            <Grid key={article.article_id} size={4}>
               <Card
                 variant="outlined"
                 classes={{ root: classes.card }}
@@ -305,17 +301,17 @@ const ChannelNewspaper = ({ channelReader }) => {
                   title={article.article_author || t('Unknown')}
                   subheader={fldt(article.article_virtual_publication)}
                 />
-                <GridLegacy container={true} spacing={3}>
+                <Grid container={true} spacing={3}>
                   {images.map(doc => (
-                    <GridLegacy key={doc.document_id} item={true} xs={columns}>
+                    <Grid key={doc.document_id} size={columns}>
                       <CardMedia
                         component="img"
                         height="150"
                         src={`${baseUri}/documents/${doc.document_id}/file${queryParams}`}
                       />
-                    </GridLegacy>
+                    </Grid>
                   ))}
-                </GridLegacy>
+                </Grid>
                 <CardContent style={{ marginBottom: 30 }}>
                   <Typography
                     gutterBottom
@@ -353,10 +349,10 @@ const ChannelNewspaper = ({ channelReader }) => {
                   </div>
                 </CardContent>
               </Card>
-            </GridLegacy>
+            </Grid>
           );
         })}
-      </GridLegacy>
+      </Grid>
       <Dialog
         open={currentArticle !== null}
         onClose={() => setCurrentArticle(null)}

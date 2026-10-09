@@ -1,5 +1,5 @@
 import { Button } from '@filigran/design-system';
-import { GridLegacy, Paper, Typography } from '@mui/material';
+import { Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { Form } from 'react-final-form';
@@ -165,12 +165,12 @@ const LessonsPreview = (props) => {
                           classes={{ root: classes.paper }}
                           style={{ marginTop: 14 }}
                         >
-                          <GridLegacy
+                          <Grid
                             container
                             spacing={3}
                             style={{ marginTop: -10 }}
                           >
-                            <GridLegacy item xs={3}>
+                            <Grid size={3}>
                               <Typography
                                 variant="h4"
                                 style={{ marginBottom: 15 }}
@@ -186,8 +186,8 @@ const LessonsPreview = (props) => {
                                 {question.lessons_question_explanation
                                   || t('No explanation')}
                               </Typography>
-                            </GridLegacy>
-                            <GridLegacy item xs={3}>
+                            </Grid>
+                            <Grid size={3}>
                               <Typography
                                 variant="h4"
                                 style={{ marginBottom: 15 }}
@@ -206,8 +206,8 @@ const LessonsPreview = (props) => {
                                 max={100}
                                 defaultValue={0}
                               />
-                            </GridLegacy>
-                            <GridLegacy item xs={3}>
+                            </Grid>
+                            <Grid size={3}>
                               <Typography variant="h4">
                                 {t('What worked well')}
                               </Typography>
@@ -218,8 +218,8 @@ const LessonsPreview = (props) => {
                                 multiline
                                 rows={2}
                               />
-                            </GridLegacy>
-                            <GridLegacy item xs={3}>
+                            </Grid>
+                            <Grid size={3}>
                               <Typography variant="h4">
                                 {t('What didn\'t work well')}
                               </Typography>
@@ -230,8 +230,8 @@ const LessonsPreview = (props) => {
                                 multiline
                                 rows={2}
                               />
-                            </GridLegacy>
-                          </GridLegacy>
+                            </Grid>
+                          </Grid>
                         </Paper>
                       );
                     })}
