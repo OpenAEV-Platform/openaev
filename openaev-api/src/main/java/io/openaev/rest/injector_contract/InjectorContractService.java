@@ -38,6 +38,7 @@ import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.form.*;
@@ -388,6 +389,15 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRepository
             .findByIdOrExternalId(injectorContractId, injectorContractId)
             .orElseThrow(ElementNotFoundException::new);
+    // The content of an action backed by a payload is generated from the payload, whose approval
+    // covers what runs: it cannot be changed here, only by editing the payload.
+    if (injectorContract.getPayload() != null
+        && input.getContent() != null
+        && !input.getContent().equals(injectorContract.getContent())) {
+      throw new BadRequestException(
+          "The content of an action backed by a payload is generated from its payload: edit the"
+              + " payload instead.");
+    }
     injectorContract.setUpdateAttributes(input);
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(

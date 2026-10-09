@@ -1745,4 +1745,69 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
     }
   }
+
+  @Nested
+  @DisplayName("Content of an action backed by a payload (#8410)")
+  class PayloadBackedContent {
+
+    private InjectorContract payloadBackedContract() {
+      InjectorContract contract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+              .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))
+              .persist()
+              .get();
+      em.flush();
+      em.clear();
+      return contract;
+    }
+
+    private InjectorContractUpdateInput updateWithContent(String content) {
+      InjectorContractUpdateInput input = new InjectorContractUpdateInput();
+      input.setContent(content);
+      input.setDomains(Set.of());
+      return input;
+    }
+
+    @Test
+    @DisplayName("given_payloadBackedContract_should_refuseContentChange")
+    void given_payloadBackedContract_should_refuseContentChange() throws Exception {
+      // -- ARRANGE --
+      InjectorContract contract = payloadBackedContract();
+      String contentBefore =
+          injectorContractRepository.findById(contract.getId()).orElseThrow().getContent();
+
+      // -- ACT --
+      mvc.perform(
+              put(INJECTOR_CONTRACT_URL + "/" + contract.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      mapper.writeValueAsString(
+                          updateWithContent("{\"fields\":[],\"changed\":true}")))
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest());
+      em.clear();
+      assertThat(injectorContractRepository.findById(contract.getId()).orElseThrow().getContent())
+          .isEqualTo(contentBefore);
+    }
+
+    @Test
+    @DisplayName("given_payloadBackedContract_should_acceptUnchangedContent")
+    void given_payloadBackedContract_should_acceptUnchangedContent() throws Exception {
+      // -- ARRANGE --
+      InjectorContract contract = payloadBackedContract();
+      String content =
+          injectorContractRepository.findById(contract.getId()).orElseThrow().getContent();
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              put(INJECTOR_CONTRACT_URL + "/" + contract.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(updateWithContent(content)))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+  }
 }

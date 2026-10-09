@@ -6,6 +6,7 @@
   " is not available for current payload type": "当前有效载荷类型不可用",
   " is not available for this security platform": " 不适用于此安全平台",
   " is only available for empty content": " 仅适用于空内容",
+  "You can no longer approve or reject payloads: Approve content was removed from your role.": "您无法再批准或拒绝载荷：您的角色已被移除批准内容权限。",
   "_": "_",
   "-": "-",
   ",": ",",

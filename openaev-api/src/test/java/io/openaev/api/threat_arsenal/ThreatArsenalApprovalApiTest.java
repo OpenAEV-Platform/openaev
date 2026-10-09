@@ -675,4 +675,78 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
       assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
     }
   }
+
+  @Nested
+  @DisplayName("Approval rights removed during a session (#8410)")
+  class ApprovalRightsRemoved {
+
+    @Test
+    @DisplayName(
+        "once approve content is removed from their role, a user's edit is pending and they can"
+            + " neither approve nor reject it")
+    void given_approveContentRemovedMidSession_should_refuseDecisions() throws Exception {
+      // -- ARRANGE --
+      TenantRoleComposer.Composer roleComposer =
+          tenantRoleComposer.forRole(
+              TenantRoleFixture.getRole(
+                  new HashSet<>(
+                      Set.of(
+                          Capability.ACCESS_THREAT_ARSENALS,
+                          Capability.MANAGE_THREAT_ARSENALS,
+                          Capability.APPROVE_THREAT_ARSENALS))));
+      User formerApprover =
+          userComposer
+              .forUser(
+                  UserFixture.getUser(
+                      "Former", "Approver", UUID.randomUUID() + "@unittests.invalid"))
+              .withGroup(
+                  tenantGroupComposer
+                      .forGroup(TenantGroupFixture.getGroup())
+                      .withRole(roleComposer))
+              .persist()
+              .get();
+      tenantRepository.addUserToTenant(formerApprover.getId(), Tenant.DEFAULT_TENANT_UUID);
+      tenantMembershipCacheManager.evict(formerApprover.getId(), Tenant.DEFAULT_TENANT_UUID);
+      Role role = roleComposer.get();
+      // One authentication reused for every request, like an active browser session
+      Authentication session = buildAuthenticationToken(formerApprover);
+      String actionId = createAction(session);
+      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+
+      // -- ACT: an admin removes Approve content from the role, then the user edits --
+      mvc.perform(
+              put(tenantUri("/api/tenants/{tenantId}/roles/") + role.getId())
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      asJsonString(
+                          new RoleInput(
+                              role.getName(),
+                              null,
+                              Set.of(
+                                  Capability.ACCESS_THREAT_ARSENALS,
+                                  Capability.MANAGE_THREAT_ARSENALS)))))
+          .andExpect(status().is2xxSuccessful());
+      updateAs(session, actionId, update("echo after removal", "Command line payload"));
+
+      // -- ASSERT --
+      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      mvc.perform(
+              post(url("/" + actionId + "/approve"))
+                  .with(authentication(session))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      asJsonString(new ThreatArsenalApproveInput(fingerprint(actionId), null))))
+          .andExpect(status().isForbidden());
+      mvc.perform(
+              post(url("/" + actionId + "/reject"))
+                  .with(authentication(session))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(new ThreatArsenalRejectInput("Not mine to reject"))))
+          .andExpect(status().isForbidden());
+      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+    }
+  }
 }

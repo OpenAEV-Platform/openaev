@@ -6,6 +6,7 @@
   " is not available for current payload type": "は現在のペイロードタイプでは利用できません",
   " is not available for this security platform": " はこのセキュリティプラットフォームでは利用できません",
   " is only available for empty content": "は空のコンテンツでのみ利用可能",
+  "You can no longer approve or reject payloads: Approve content was removed from your role.": "ペイロードを承認または却下できなくなりました: コンテンツの承認の権限がロールから削除されました。",
   "_": "_",
   "-": "なし",
   ",": ",",
