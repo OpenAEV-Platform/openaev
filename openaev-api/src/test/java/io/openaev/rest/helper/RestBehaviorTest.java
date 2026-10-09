@@ -23,11 +23,15 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springdoc.api.ErrorMessage;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -822,6 +826,46 @@ class RestBehaviorTest {
       assertNotNull(bag);
       assertEquals(500, bag.getCode());
       assertTrue(bag.getMessage().contains("must not be blank"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Release version header")
+  class ReleaseVersionHeader {
+
+    private HttpHeaders headersFor(String version) {
+      HttpHeaders headers = new HttpHeaders();
+      new RestBehavior().addReleaseVersionHeader(headers, version);
+      return headers;
+    }
+
+    @ParameterizedTest(name = "\"{0}\" is sent")
+    @ValueSource(strings = {"3.260923.0", "1.2", "1.2.3.4", "3.260923.01"})
+    @DisplayName("a numeric release is sent as is")
+    void given_numericRelease_should_addHeader(String version) {
+      assertEquals(List.of(version), headersFor(version).get(RestBehavior.VERSION_HEADER));
+    }
+
+    // Values the installer scripts cannot compare: once recorded on a host, one of them would
+    // block every later upgrade there.
+    @ParameterizedTest(name = "\"{0}\" is left out")
+    @NullAndEmptySource
+    @ValueSource(
+        strings = {
+          "latest",
+          "prerelease",
+          "Testing",
+          "unknown",
+          "3",
+          "1.2.3.4.5",
+          "3.260923.0-SNAPSHOT",
+          "v3.260923.0",
+          " 3.260923.0",
+          "1.9999999999"
+        })
+    @DisplayName("a version the installer scripts cannot compare is left out")
+    void given_uncomparableVersion_should_omitHeader(String version) {
+      assertFalse(headersFor(version).containsHeader(RestBehavior.VERSION_HEADER));
     }
   }
 }

@@ -853,3 +853,14 @@ Once decoded, verify:
     Running the command manually on the endpoint isolates whether the failure is in the delivery layer or the command itself.
 
 Connect to the target endpoint via CLI and run the decoded command directly. Capture the **full CLI output** — this is the most actionable error information for diagnosis.
+
+### `TIMEOUT` while the Asset is active
+
+An active Agent and a `TIMEOUT` trace measure different things:
+
+- **Active** means the Agent was seen in the last hour. For EDR-based Executors, this last-seen date comes from the EDR platform.
+- **`TIMEOUT`** means the implant never sent its result to OpenAEV within `INJECT_EXECUTION_THRESHOLD_MINUTES` (10 minutes by default).
+
+If the steps above show that the command ran, check that the endpoint can reach the OpenAEV URL (network, proxy,
+firewall, TLS certificate) and that no antivirus or EDR blocks or deletes the implant. See
+[Inject status](../../usage/evaluate/injects/inject-status.md#execution-time-limits).

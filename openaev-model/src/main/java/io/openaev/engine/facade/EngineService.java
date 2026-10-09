@@ -23,6 +23,12 @@ public interface EngineService {
 
   List<String> BASE_FIELDS = List.of("base_id", "base_entity", "base_representative");
 
+  /** Analyzed-text field the free-text {@link #search} matches its terms (and last prefix) on. */
+  String SEARCH_TEXT_FIELD = "base_representative";
+
+  /** Exact-value field the free-text {@link #search} matches a whole id on. */
+  String SEARCH_ID_FIELD = "base_id.keyword";
+
   /**
    * Upper bound on ids per engine call inside {@link #bulkDelete(List)}: keeps the terms clauses
    * and the side-cleanup script parameters bounded however large the deletion cascade is.
