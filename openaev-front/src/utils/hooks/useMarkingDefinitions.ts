@@ -23,20 +23,26 @@ import { type MarkingDefinitionOutput } from '../api-types';
  * (resolving an already-assigned id to its label/color) don't need it, since a row's markings are
  * always a subset of whoever can see the row in the first place.
  */
-const useMarkingDefinitions = (options?: {
+export const useMarkingDefinitionsWithLoading = (options?: {
   skip?: boolean;
   assignableOnly?: boolean;
-}): Record<string, MarkingDefinitionOutput> => {
+}): {
+  definitions: Record<string, MarkingDefinitionOutput>;
+  loading: boolean;
+} => {
   const skip = options?.skip ?? false;
   const assignableOnly = options?.assignableOnly ?? false;
   const [definitions, setDefinitions] = useState<Record<string, MarkingDefinitionOutput>>({});
+  const [loading, setLoading] = useState(!skip);
 
   useEffect(() => {
     if (skip) {
       setDefinitions({});
+      setLoading(false);
       return undefined;
     }
     let cancelled = false;
+    setLoading(true);
     const request = assignableOnly
       ? fetchAssignableMarkingDefinitions().then((result: { data?: MarkingDefinitionOutput[] }) => result?.data ?? [])
       : searchMarkingDefinitions({
@@ -56,13 +62,26 @@ const useMarkingDefinitions = (options?: {
         if (!cancelled) {
           setDefinitions({});
         }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [skip, assignableOnly]);
 
-  return definitions;
+  return {
+    definitions,
+    loading,
+  };
 };
+
+const useMarkingDefinitions = (options?: {
+  skip?: boolean;
+  assignableOnly?: boolean;
+}): Record<string, MarkingDefinitionOutput> => useMarkingDefinitionsWithLoading(options).definitions;
 
 export default useMarkingDefinitions;

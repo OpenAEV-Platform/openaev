@@ -5,7 +5,7 @@ import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
 import { type MarkingDefinitionOutput } from '../../../../utils/api-types';
-import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
+import { useMarkingDefinitionsWithLoading } from '../../../../utils/hooks/useMarkingDefinitions';
 
 interface Props {
   initialState: string[];
@@ -35,7 +35,7 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   title,
 }) => {
   const { t } = useFormatter();
-  const markingDefinitions = useMarkingDefinitions({ skip: !open });
+  const { definitions: markingDefinitions, loading } = useMarkingDefinitionsWithLoading({ skip: !open });
   // Most restrictive first within a type (TLP:RED at the top), so the cumulative cutoff a user
   // picks reads top-down as "this and everything below it".
   const markingValues = useMemo(
@@ -135,6 +135,7 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   return (
     <SelectListPicker<MarkingDefinitionOutput>
       open={open}
+      isLoading={loading}
       onClose={handleClose}
       onSubmit={handleSubmit}
       title={title ?? t('Manage markings for group: {groupName}', { groupName })}
