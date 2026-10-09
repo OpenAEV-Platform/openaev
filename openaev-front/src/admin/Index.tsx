@@ -525,6 +525,10 @@ const Index = () => {
               element={errorWrapper(ThreatArsenal)()}
             />
             <Route
+              path="threat-arsenal/available"
+              element={errorWrapper(ThreatArsenal)()}
+            />
+            <Route
               path="integrations/*"
               element={(
                 <ProtectedRoute
