@@ -1,6 +1,19 @@
 # Administration
 
-The Administration section covers everything related to configuring the OpenAEV platform, managing users and access control, and maintaining the system. Use this page as a starting point to navigate to the relevant sub-sections.
+The Administration section covers the configuration of the OpenAEV platform, users and access control. Most of these settings are in the **Settings** menu:
+
+- **Parameters**: platform name, theme, language, branding and home dashboards;
+- **Security**: users, groups, roles, organizations, sessions, policies and Tenants;
+- **Customization**: default Asset rules, custom domains, notifiers, lessons learned and autonomous attack;
+- **Taxonomies**: tags, attack patterns, kill chain phases and vulnerabilities;
+- **Data ingestion**: XLS mappers to import Scenarios;
+- **Filigran Experience**: Enterprise Edition and XTM Hub.
+
+## User profile
+
+Each user manages their password, email address and notifications from their profile.
+
+[User profile](profile.md)
 
 ## Platform settings
 
@@ -10,7 +23,7 @@ Platform settings control the appearance and behavior of the OpenAEV interface, 
 
 ## Security
 
-OpenAEV provides a full Role-Based Access Control (RBAC) system. Manage users, groups, and roles to control who can access and modify resources. Capabilities and grants define fine-grained permissions across the platform. Login policies allow administrators to display consent messages and login banners.
+OpenAEV provides a full Role-Based Access Control (RBAC) system. Manage users, groups, and roles to control who can access and modify resources. Login policies display consent messages and login banners.
 
 [Users and RBAC](users-and-rbac.md) | [Policies](policies.md)
 
@@ -32,13 +45,13 @@ The Enterprise Edition unlocks advanced features such as multi-tenancy, white-la
 
 ## Taxonomies
 
-Taxonomies provide the reference data used across Scenarios and Simulations, including tags, kill chain phases, attack patterns (MITRE ATT&CK), and CVEs (Common Vulnerabilities and Exposures). Administrators can manage and update these taxonomies from the platform settings.
+Taxonomies provide the reference data used across Scenarios and Simulations, including tags, kill chain phases, attack patterns (MITRE ATT&CK), and CVEs (Common Vulnerabilities and Exposures).
 
-[Taxonomies](taxonomies.md)
+[Taxonomies](taxonomies.md) | [Default Asset rules](default-asset-rules.md)
 
 ## XTM Hub
 
-The XTM Hub is a centralized repository of pre-built Scenarios and integrations maintained by Filigran. Connect your OpenAEV instance to the hub to browse and import ready-to-use content.
+The XTM Hub provides pre-built Threat Arsenal Actions and Scenarios maintained by Filigran. Connect your OpenAEV instance to the hub to deploy them in one click.
 
 [XTM Hub](hub.md)
 
@@ -50,8 +63,13 @@ Debug mode provides diagnostic tools for troubleshooting platform issues, includ
 
 ## What's next?
 
+- [User profile](profile.md) -- Manage your password and email address
 - [Parameters](parameters.md) -- Configure platform appearance and behavior
 - [Users and RBAC](users-and-rbac.md) -- Manage users, groups, roles, and permissions
 - [Policies](policies.md) -- Configure login messages and consent banners
 - [Multi-tenancy](multi-tenancy.md) -- Set up isolated workspaces
 - [Enterprise Edition](enterprise.md) -- Activate your EE license
+- [Taxonomies](taxonomies.md) -- Manage tags, attack patterns, kill chain phases and vulnerabilities
+- [Default Asset rules](default-asset-rules.md) -- Apply Asset groups to Injects from Scenario tags
+- [XTM Hub](hub.md) -- Connect to the XTM Hub
+- [Debug mode](debug-mode.md) -- Diagnose platform issues

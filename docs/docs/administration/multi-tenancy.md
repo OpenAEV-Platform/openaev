@@ -44,7 +44,7 @@ A user or group can exist at both levels. For example, a platform administrator 
 
 ## Managing Tenants
 
-Manage Tenants from **Settings > Security > Platform > Tenants**. You need the `Manage platform settings` capability (platform administrator).
+Manage Tenants from **Settings > Security > Platform > Tenants**. You need the `Manage tenants` capability (`Delete tenants` to delete).
 
 From this page you can create, edit, and delete Tenants. When you create a Tenant, it is immediately active and all built-in integrations (Injectors, Collectors) are automatically registered for it.
 
@@ -68,7 +68,7 @@ Tenant deletion is a **soft-delete** operation. The Tenant and all its data are 
 
 ### Assigning users to a Tenant
 
-You assign a user to a Tenant directly from the Tenant's user management. Once assigned, the user's permissions within that Tenant are determined by the groups and roles they belong to in that Tenant context.
+Set the user's **Tenants** in the platform Users list. Once assigned, the user's permissions within that Tenant are determined by the groups and roles they belong to in that Tenant context.
 
 A user can belong to **multiple Tenants** simultaneously. Permissions are evaluated independently in each Tenant context.
 
