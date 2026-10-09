@@ -31,6 +31,7 @@ Here are the configuration keys, for both containers (environment variables) and
 | server.address                                        | SERVER_ADDRESS                                        | 0.0.0.0               | Listen address of the application                                                                                                                                                          |
 | server.port                                           | SERVER_PORT                                           | 8080                  | Listen port of the application                                                                                                                                                             |
 | openaev.base-url                                      | OPENAEV_BASE-URL                                      | http://localhost:8080 | Base URL of the application, used for some email links and as the default agent URL (agent installer scripts and executor commands) unless `openaev.agent-url` is set. In production environments, ensure this URL can be resolved from endpoints where agents will be deployed.               |
+| openaev.agent-url                                     | OPENAEV_AGENT-URL                                     |                       | Optional URL agents use to reach the platform when it differs from `openaev.base-url` (reverse proxy, VPN, load balancer, network segregation). When unset, agent installer scripts and executor commands fall back to `openaev.base-url`. |
 | server.servlet.session.timeout                        | SERVER_SERVLET_SESSION_TIMEOUT                        | 1440m                 | Rolling session timeout: every request extends the session by this duration. Sessions are persisted in PostgreSQL and survive platform restarts                                            |
 | openaev.session-idle-timeout                          | OPENAEV_SESSION-IDLE-TIMEOUT                          | 0                     | Idle time before the UI locks the screen and asks the user to continue or log out (0 = disabled, e.g. 30m). Must be lower than the session timeout                                          |
 | openaev.session-cookie                                | OPENAEV_SESSION-COOKIE                                | `false`               | When `true`, the session cookie dies when the browser closes (server-side timeout still applies). When `false`, users stay logged in across browser restarts: the cookie is re-issued on every request (sliding Max-Age), so it only expires after `openaev.cookie-duration` of inactivity |
@@ -90,11 +91,20 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### Audit logging
 
-Audit logging will allow you to have a trace of the actions performed using API calls.
+Audit logging records the actions performed through the API, and some actions the platform performs on its own.
 
 !!! warning "Modifying actions only"
 
-    Please note that only modifying actions are logged (creating, updating, deleting) and not reading actions.
+    Only modifying API calls are logged (create, update, delete, duplicate, launch). Reading actions are not logged,
+    except when access is denied.
+
+Since OpenAEV 3.260917.1, audit logs also record the following events:
+
+| Event                       | `event_type` | `event_scope`        | `event_status` | Description                                                                                                                                                                                                                                                           |
+|:----------------------------|:-------------|:---------------------|:---------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Expectation result          | `execution`  | `expectation_result` | `success`      | A Collector, a security platform or the expectation expiration manager sets the result of an expectation. The context holds the Inject, the expectation type, the result and its source.                                                                              |
+| Agent inactive              | `execution`  | `coverage_gap`       | `warning`      | An agent sent no heartbeat for 1 hour and becomes inactive. The check runs every `openaev.cron.config.agent.inactivity.monitor.interval` minutes. The context holds the agent, its Endpoint and its last heartbeat.                                                   |
+| Connector activity          | `mutation`   | `create` or `update` | `success`      | Registration of a Collector, Injector or Executor, and health checks of connector instances. Collector, Injector and connector instance calls that change nothing significant (heartbeats) are not logged, nor are XTM Composer connectivity checks and connector logs. |
 
 | Parameter                          | Environment variable               | Default value | Description                                                                                                                                               |
 |:-----------------------------------|:-----------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -214,6 +224,7 @@ Tuning parameters applicable to both engines:
 |:-----------------------------------------|:-----------------------------------------|:--------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | engine.indexing-grace-window-seconds     | ENGINE_INDEXING_GRACE_WINDOW_SECONDS     | 60            | Indexing cursor grace window in seconds. The cursor persisted after each indexing round never gets closer to wall-clock than this window, so rows committed late by long write transactions are still indexed. Must exceed the longest expected write transaction. |
 | engine.indexing-misfire-threshold-ms     | ENGINE_INDEXING_MISFIRE_THRESHOLD_MS     | 120000        | Threshold in milliseconds after which a model synchronisation is declared misfired and is rescheduled.                                                                                                                                                             |
+| engine.indexing-reset-epoch-reassert-delay-seconds | ENGINE_INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS | 180 | Delay in seconds after which an instance that reset an index during a rolling deploy re-asserts the indexing cursor of that model, so a stale cursor written by an instance still running an older version does not skip rows. Must exceed the longest indexing round. Set to `0` to disable once every instance runs OpenAEV 3.261001.0 or later. |
 
 If you switch your engine selector, you'll need to delete the `indexing_status` table in PostgreSQL to trigger a full
 reindex.
