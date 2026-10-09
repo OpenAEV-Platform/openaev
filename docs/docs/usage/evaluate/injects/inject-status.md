@@ -64,7 +64,7 @@ Every execution step reports a **trace status**. Below is the complete list of a
 | `COMMAND CANNOT BE EXECUTED` | Command exists but cannot run | Check file execute permissions (`chmod +x`) or architecture compatibility |
 | `PREREQUISITE FAILED`        | A prerequisite check failed before the main command | Review prerequisite dependencies and ensure they are met on the target |
 | `INVALID USAGE`              | Incorrect arguments or syntax | The command was invoked with incorrect arguments or syntax Verify the inject parameters and command |
-| `TIMEOUT`                    | Execution exceeded time threshold | The agent did not complete execution within the allowed time threshold. Consider investigating target performance |
+| `TIMEOUT`                    | No result received within the execution threshold | The Agent never reported back to OpenAEV. See [Execution time limits](#execution-time-limits) |
 | `INTERRUPTED`                | Inject interrupted before completion | This may be caused by a system signal, user intervention, or resource constraint |
 
 ### Informational statuses (excluded from status computation)
@@ -77,7 +77,47 @@ Every execution step reports a **trace status**. Below is the complete list of a
 
 !!! note "Deprecated statuses"
 
-    `MAYBE PREVENTED` and `MAYBE PARTIAL PREVENTED` are deprecated.
+    `MAYBE PREVENTED` and `MAYBE PARTIAL PREVENTED` are deprecated. OpenAEV no longer sets them: an Agent that does not report back in time gets a `TIMEOUT` trace.
+
+## Execution time limits
+
+OpenAEV applies two separate time checks to an Inject.
+
+### Late start: "too old for execution"
+
+When a scheduled Inject starts later than its planned time plus a grace period, OpenAEV does not run it. The Inject ends
+in `ERROR` with the trace message `Inject is now too old for execution`, followed by the Inject ID, its launch date and
+the current date.
+
+- The grace period is 4 minutes by default. Set it with `openaev.scheduling.inject-staleness-threshold` (minimum 1). See
+  [Configuration](../../../deployment/configuration.md#inject-execution).
+- This check applies to Injectors built into the platform, such as Email, SMS and the OpenAEV implant.
+- It happens when the platform could not start the Inject in time, for example after a restart or under heavy load.
+
+### Execution threshold: `TIMEOUT`
+
+Once an Inject is sent, OpenAEV waits for each targeted Agent to report back. The wait is set by
+`INJECT_EXECUTION_THRESHOLD_MINUTES` (10 minutes by default). When it expires:
+
+- Each Agent that did not report gets a `TIMEOUT` trace: `Agent <user> did not respond within the <n> minutes threshold.`
+- An Inject without Agents gets a `TIMEOUT` trace: `The inject did not complete within the <n> minutes threshold and was marked as timed out.`
+- OpenAEV computes the final Inject status (`ERROR` or `PARTIAL`).
+
+The OpenAEV implant started on the endpoint is also stopped after this delay.
+
+### `TIMEOUT` on an Asset shown as active
+
+The Agent status and the `TIMEOUT` trace measure different things:
+
+- **Active** means the Agent was seen in the last hour. For EDR-based Executors, this last-seen date comes from the EDR
+  platform, not from OpenAEV.
+- **`TIMEOUT`** means the implant on the endpoint never sent its result to OpenAEV.
+
+An Asset can therefore be active and still time out. Check that:
+
+1. The endpoint can reach the OpenAEV URL (network, proxy, firewall, TLS certificate).
+2. No antivirus or EDR blocks or deletes the implant.
+3. The Executor delivered the command. See [Executors troubleshooting](../../../deployment/ecosystem/executors.md#troubleshooting).
 
 ## Status computation hierarchy
 
