@@ -283,7 +283,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
       variant="caption"
       noWrap={!isSmall}
       title={!isSmall ? (description ?? undefined) : undefined}
-      sx={[{ color: 'text.secondary' }, isSmall ? { whiteSpace: 'normal' } : undefined]}
+      sx={[{ color: 'text.secondary' }, isSmall ? { whiteSpace: 'normal' } : false]}
     >
       {description ?? '-'}
     </Typography>
