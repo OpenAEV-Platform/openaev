@@ -3,6 +3,7 @@ import { CheckCircleOutlined, DoNotDisturbOnOutlined, FactCheckOutlined } from '
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactElement, useEffect, useState } from 'react';
 
+import { fetchMe } from '../../../../actions/Application';
 import {
   approveThreatArsenalAction,
   fetchThreatArsenalActionApprovals,
@@ -15,7 +16,9 @@ import Section from '../../../../components/common/overview/Section';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadApprovalOutput, type ThreatArsenalActionFullOutput, type ThreatArsenalActionUsageOutput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
+import { type Error as ApiError, notifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../../utils/fdsLayer';
+import { useAppDispatch } from '../../../../utils/hooks';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../utils/permissions/types';
 import ApprovalStatusChip from './ApprovalStatusChip';
@@ -36,6 +39,7 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
   const { t, nsdt } = useFormatter();
   const theme = useTheme();
   const ability = useAbility();
+  const dispatch = useAppDispatch();
   const canApprove = ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS);
 
   const [approveOpen, setApproveOpen] = useState(false);
@@ -49,6 +53,24 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
   const status = action.action_approval_status;
   const latest = action.action_approval_latest;
   const isPending = status === 'PENDING';
+
+  // Capabilities are loaded at app start: refresh them before offering a decision, so a user whose
+  // Approve content was removed meanwhile sees the buttons disabled (the server refuses anyway).
+  useEffect(() => {
+    if (isPending) {
+      dispatch(fetchMe());
+    }
+  }, [action.action_id, isPending]);
+
+  const onDecisionError = (error: ApiError, close: () => void) => {
+    if (error?.status === 403) {
+      close();
+      dispatch(fetchMe());
+      MESSAGING$.notifyError(t('You can no longer approve or reject payloads: Approve content was removed from your role.'));
+      return;
+    }
+    notifyErrorHandler(error);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -97,11 +119,11 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
   const handleApprove = () => approveThreatArsenalAction(action.action_id, {
     approval_fingerprint: action.action_approval_fingerprint ?? '',
     approval_comment: comment.trim() || undefined,
-  }).then((response) => {
+  }, false).then((response) => {
     closeApprove();
     onDecided(response.data as ThreatArsenalActionFullOutput);
     MESSAGING$.notifySuccess(t('The payload has been approved.'));
-  });
+  }).catch(error => onDecisionError(error, closeApprove));
 
   const handleReject = (resetLoading?: () => void) => {
     const trimmed = reason.trim();
@@ -110,11 +132,11 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
       resetLoading?.();
       return undefined;
     }
-    return rejectThreatArsenalAction(action.action_id, { approval_reason: trimmed }).then((response) => {
+    return rejectThreatArsenalAction(action.action_id, { approval_reason: trimmed }, false).then((response) => {
       closeReject();
       onDecided(response.data as ThreatArsenalActionFullOutput);
       MESSAGING$.notifySuccess(t('The payload has been rejected.'));
-    });
+    }).catch(error => onDecisionError(error, closeReject));
   };
 
   // A disabled button fires no pointer event, so the tooltip hangs on an enabled wrapper.

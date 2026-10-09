@@ -90,12 +90,13 @@ export const updateThreatArsenalActionCheckingApprovalImpact = (
 
 // Payload approval: approve / reject need "Approve content"; errors (not pending, content changed
 // since shown, missing reason) are surfaced by the default error handling.
-export const approveThreatArsenalAction = (actionId: string, data: ThreatArsenalApproveInput) => {
-  return simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/approve`, data);
+// notifyError false: the caller handles errors itself (e.g. a 403 when Approve content was removed).
+export const approveThreatArsenalAction = (actionId: string, data: ThreatArsenalApproveInput, notifyError = true) => {
+  return simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/approve`, data, undefined, notifyError);
 };
 
-export const rejectThreatArsenalAction = (actionId: string, data: ThreatArsenalRejectInput) => {
-  return simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/reject`, data);
+export const rejectThreatArsenalAction = (actionId: string, data: ThreatArsenalRejectInput, notifyError = true) => {
+  return simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/reject`, data, undefined, notifyError);
 };
 
 export const fetchThreatArsenalActionApprovals = (actionId: string) => {

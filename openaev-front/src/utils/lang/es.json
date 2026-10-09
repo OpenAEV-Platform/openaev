@@ -6,6 +6,7 @@
   " is not available for current payload type": " no está disponible para el tipo de payload actual",
   " is not available for this security platform": " no está disponible para esta plataforma de seguridad",
   " is only available for empty content": " solo está disponible para contenido vacío",
+  "You can no longer approve or reject payloads: Approve content was removed from your role.": "Ya no puede aprobar ni rechazar payloads: la capacidad Aprobar contenido se ha retirado de su rol.",
   "_": "_",
   "-": "Ninguno",
   ",": ",",

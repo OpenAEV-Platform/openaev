@@ -5,11 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ThreatArsenalApprovalSection from '../../../../../admin/components/threat_arsenal/approval/ThreatArsenalApprovalSection';
 import { type ThreatArsenalActionFullOutput } from '../../../../../utils/api-types';
+import type * as EnvironmentModule from '../../../../../utils/Environment';
 
 const mockCan = vi.fn();
 const mockApprove = vi.fn();
 const mockReject = vi.fn();
 const mockUsage = vi.fn();
+const { mockDispatch, mockNotifyError } = vi.hoisted(() => ({
+  mockDispatch: vi.fn(),
+  mockNotifyError: vi.fn(),
+}));
 
 vi.mock('../../../../../components/i18n', () => ({
   useFormatter: () => ({
@@ -19,6 +24,22 @@ vi.mock('../../../../../components/i18n', () => ({
 }));
 
 vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: mockCan }) }));
+
+vi.mock('../../../../../utils/hooks', () => ({ useAppDispatch: () => mockDispatch }));
+
+vi.mock('../../../../../actions/Application', () => ({ fetchMe: () => 'FETCH_ME' }));
+
+vi.mock('../../../../../utils/Environment', async (importOriginal) => {
+  const original = await importOriginal<typeof EnvironmentModule>();
+  return {
+    ...original,
+    MESSAGING$: {
+      ...original.MESSAGING$,
+      notifyError: mockNotifyError,
+      notifySuccess: vi.fn(),
+    },
+  };
+});
 
 vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   approveThreatArsenalAction: (...args: unknown[]) => mockApprove(...args),
@@ -56,6 +77,8 @@ describe('ThreatArsenalApprovalSection', () => {
     mockReject.mockReset();
     mockUsage.mockReset();
     mockUsage.mockResolvedValue({ data: {} });
+    mockDispatch.mockReset();
+    mockNotifyError.mockReset();
   });
 
   afterEach(() => {
@@ -127,7 +150,7 @@ describe('ThreatArsenalApprovalSection', () => {
       await waitFor(() => expect(mockApprove).toHaveBeenCalledWith('action-1', {
         approval_fingerprint: 'fingerprint-1',
         approval_comment: undefined,
-      }));
+      }, false));
       await waitFor(() => expect(onDecided).toHaveBeenCalled());
     });
 
@@ -178,6 +201,54 @@ describe('ThreatArsenalApprovalSection', () => {
       // Assert
       await waitFor(() => expect(mockUsage).toHaveBeenCalled());
       expect(screen.queryByText(/It will block the launch of the items below until it is edited and approved again\./)).toBeNull();
+    });
+  });
+
+  describe('approval rights refresh (#8410)', () => {
+    it('refreshes the user capabilities when a pending payload is shown', () => {
+      // Arrange
+      mockCan.mockReturnValue(true);
+
+      // Act
+      renderSection(pendingAction);
+
+      // Assert
+      expect(mockDispatch).toHaveBeenCalledWith('FETCH_ME');
+    });
+
+    it('does not refresh them for an approved payload (no decision offered)', () => {
+      // Arrange
+      mockCan.mockReturnValue(true);
+
+      // Act
+      renderSection({
+        ...pendingAction,
+        action_approval_status: 'APPROVED',
+      } as ThreatArsenalActionFullOutput);
+
+      // Assert
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    it('explains a 403 on approve and refreshes the capabilities', async () => {
+      // Arrange
+      mockCan.mockReturnValue(true);
+      mockApprove.mockRejectedValue({ status: 403 });
+      const onDecided = vi.fn();
+      renderSection(pendingAction, onDecided);
+      mockDispatch.mockClear();
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: /Approve/ }));
+      const dialogButtons = await screen.findAllByRole('button', { name: 'Approve' });
+      fireEvent.click(dialogButtons[dialogButtons.length - 1]);
+
+      // Assert
+      await waitFor(() => expect(mockNotifyError).toHaveBeenCalledWith(
+        'You can no longer approve or reject payloads: Approve content was removed from your role.',
+      ));
+      expect(mockDispatch).toHaveBeenCalledWith('FETCH_ME');
+      expect(onDecided).not.toHaveBeenCalled();
     });
   });
 });
