@@ -76,7 +76,7 @@ import org.springframework.web.bind.annotation.*;
 public class TeamApi extends RestBehavior {
 
   public static final String TEAM_URI = "/api/teams";
-  private static final String TENANT_TEAM_URI = TENANT_PREFIX + "/teams";
+  static final String TENANT_TEAM_URI = TENANT_PREFIX + "/teams";
 
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;
@@ -171,7 +171,7 @@ public class TeamApi extends RestBehavior {
   @Transactional
   public Team getTeam(
       TxCtx ctx, @PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamService.teamInScope(ctx, teamId);
+    return teamService.teamInScopeWithTags(ctx, teamId);
   }
 
   @GetMapping({"/api/teams/{teamId}/players", TENANT_TEAM_URI + "/{teamId}/players"})
@@ -185,7 +185,7 @@ public class TeamApi extends RestBehavior {
   @Transactional
   public Iterable<User> getTeamPlayers(
       TxCtx ctx, @PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamService.teamInScope(ctx, teamId).getUsers();
+    return teamService.teamPlayersInScope(ctx, teamId);
   }
 
   @PostMapping({TEAM_URI, TENANT_TEAM_URI})
