@@ -1,7 +1,6 @@
 import { Chip, type ChipSeverity, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AssignmentTurnedIn, ExpandMore, PersonOutlined } from '@mui/icons-material';
 import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
-import * as R from 'ramda';
 import { type FunctionComponent, type SyntheticEvent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
