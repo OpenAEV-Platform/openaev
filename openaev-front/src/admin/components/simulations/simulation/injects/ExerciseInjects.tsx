@@ -147,7 +147,7 @@ const ExerciseInjects: FunctionComponent = () => {
             </Box>
           </Box>
           <Grid container spacing={3}>
-            <Grid container spacing={3}>
+            <Grid container spacing={3} size={12}>
               <Grid
                 sx={{
                   display: 'flex',

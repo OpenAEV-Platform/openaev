@@ -168,7 +168,7 @@ const LessonsPreview = (props) => {
                           <Grid
                             container
                             spacing={3}
-                            style={{ marginTop: -10 }}
+                            style={{ marginTop: 14 }}
                           >
                             <Grid size={3}>
                               <Typography

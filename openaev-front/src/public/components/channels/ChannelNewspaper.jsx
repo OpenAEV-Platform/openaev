@@ -106,7 +106,7 @@ const ChannelNewspaper = ({ channelReader }) => {
           <Empty message={t('No media pressure entry in this channel yet.')} />
         </div>
       )}
-      <Grid container={true} spacing={3} style={{ marginTop: 10 }}>
+      <Grid container={true} spacing={3} style={{ marginTop: 34 }}>
         {firstArticle && (
           <Grid size={headArticles.length > 0 ? 8 : 12}>
             <Card
@@ -268,7 +268,7 @@ const ChannelNewspaper = ({ channelReader }) => {
           </Grid>
         )}
       </Grid>
-      <Grid container={true} spacing={3} style={{ marginTop: 0 }}>
+      <Grid container={true} spacing={3} style={{ marginTop: 24 }}>
         {otherArticles.map((article) => {
           const images = article.article_documents
             .map(docId => (documentsMap[docId] ? documentsMap[docId] : undefined))

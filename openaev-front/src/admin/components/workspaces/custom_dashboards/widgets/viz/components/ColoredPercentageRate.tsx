@@ -35,10 +35,10 @@ const ColoredPercentageRate = ({ style = {} }) => {
           key={label}
           sx={{
             backgroundColor: color,
+            color: 'white',
             padding: `${theme.spacing(0.5)} ${theme.spacing(1)}`,
           }}
           variant="body2"
-          color="white"
         >
           {label}
         </Typography>
