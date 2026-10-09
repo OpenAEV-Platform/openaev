@@ -24,7 +24,7 @@ public class AssetGroupMapper {
         .description(assetGroup.getDescription())
         .dynamicFilter(assetGroup.getDynamicFilter())
         .assets(assetGroup.getAssets().stream().map(Asset::getId).collect(Collectors.toSet()))
-        .tags(assetGroup.getTags().stream().map(Tag::getName).collect(Collectors.toSet()))
+        .tags(assetGroup.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
         .build();
   }
 }
