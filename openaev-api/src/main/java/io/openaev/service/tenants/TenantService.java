@@ -6,6 +6,8 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
@@ -43,6 +45,7 @@ public class TenantService {
   private final List<DependenciesManager> dependencies;
   private final EngineService engineService;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final TenantScopedTransaction tenantScopedTransaction;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -210,6 +213,13 @@ public class TenantService {
     List<String> purgedIds = new java.util.ArrayList<>();
     for (Tenant tenant : expired) {
       try {
+        // Each tenant's cleanup reads and deletes that tenant's own rows, several of them on
+        // tenant-scoped tables: deleting a default injector contract hydrates its documents,
+        // domains, payloads, tags and vulnerabilities to cascade them. Unscoped, every one of those
+        // reads is fail-closed, so a manager that has to look at what it is removing sees nothing.
+        // The scope is narrowed per iteration and reset below for the statement that spans the
+        // whole purged set, so no tenant ever inherits the previous one's scope.
+        tenantScopedTransaction.setScopeOnCurrentTransaction(TxCtx.forTenant(tenant.getId()));
         for (DependenciesManager dependency : dependencies) {
           dependency.deleteDependencyForTenant(tenant.getId());
         }
@@ -224,6 +234,9 @@ public class TenantService {
     }
 
     if (!purgedIds.isEmpty()) {
+      // One batch statement over every tenant purged above: the scope is that whole set, stated
+      // explicitly rather than left on whichever tenant the loop ended on.
+      tenantScopedTransaction.setScopeOnCurrentTransaction(TxCtx.forTenants(purgedIds));
       tenantRepository.deleteAllByIdsNative(purgedIds);
       // Tenant data is removed via native SQL (no JPA lifecycle events): clean the search engine
       // explicitly so the purged tenants' documents don't survive as permanent index garbage.
