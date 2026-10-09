@@ -1,5 +1,5 @@
 import { Button, Chip, Paper } from '@filigran/design-system';
-import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
+import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutlineOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
 import { Alert, Box, Divider, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
@@ -622,7 +622,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
           {run.autonomous_run_objective}
         </Typography>
         {run.autonomous_run_last_error && (
-          <Alert severity="error" icon={<ErrorOutline />} sx={{ marginTop: 1 }}>
+          <Alert severity="error" icon={<ErrorOutlineOutlined />} sx={{ marginTop: 1 }}>
             {run.autonomous_run_last_error}
           </Alert>
         )}

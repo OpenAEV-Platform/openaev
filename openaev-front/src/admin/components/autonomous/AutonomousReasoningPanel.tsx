@@ -1,8 +1,8 @@
 import { Chip, IconButton, Radio, RadioGroup } from '@filigran/design-system';
 import {
   AutoAwesome,
-  ErrorOutline,
-  HelpOutline,
+  ErrorOutlineOutlined,
+  HelpOutlineOutlined,
   HourglassEmpty,
   SendOutlined,
   WarningAmber,
@@ -1090,7 +1090,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     }}
                     >
                       {runNotice.severity === 'error'
-                        ? <ErrorOutline fontSize="small" color="error" sx={{ marginTop: '2px' }} />
+                        ? <ErrorOutlineOutlined fontSize="small" color="error" sx={{ marginTop: '2px' }} />
                         : <WarningAmber fontSize="small" color="warning" sx={{ marginTop: '2px' }} />}
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="subtitle2" sx={{ margin: 0 }}>
@@ -1135,7 +1135,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                       gap: 1,
                     }}
                     >
-                      <HelpOutline fontSize="small" color="warning" sx={{ marginTop: '2px' }} />
+                      <HelpOutlineOutlined fontSize="small" color="warning" sx={{ marginTop: '2px' }} />
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="subtitle2" sx={{ margin: 0 }}>
                           {sanitizeEventText(pendingQuestion.autonomous_event_title) || t('The AI needs your input to continue')}

@@ -5,7 +5,7 @@ import {
   FilterAltOffOutlined,
   FullscreenExitOutlined,
   FullscreenOutlined,
-  HelpOutline,
+  HelpOutlineOutlined,
   ImageOutlined,
   LocalFireDepartment,
   MoreHorizOutlined,
@@ -486,7 +486,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             labelAdornment={(
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <HelpOutline sx={{
+                  <HelpOutlineOutlined sx={{
                     fontSize: 13,
                     color: 'text.disabled',
                     flexShrink: 0,
