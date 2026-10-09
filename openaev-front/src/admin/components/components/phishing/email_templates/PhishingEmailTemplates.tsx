@@ -136,7 +136,13 @@ const PhishingEmailTemplates = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.PHISHING}>
               <ButtonCreate onClick={() => navigate('/admin/components/phishing/email_templates/create')} />
             </Can>

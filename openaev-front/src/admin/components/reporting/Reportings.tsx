@@ -201,7 +201,13 @@ const Reportings = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             {viewSwitcher}
             <ReportingCreation />
           </Box>
@@ -239,7 +245,12 @@ const Reportings = () => {
                       key={reporting.reporting_id}
                       divider
                       secondaryAction={(
-                        <Box display="flex" alignItems="center">
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
                           {downloadable && (
                             <Tooltip>
                               <TooltipTrigger asChild>

@@ -130,7 +130,13 @@ const ExerciseInjects: FunctionComponent = () => {
               marginBottom: 1,
             }}
           >
-            <Box display="flex" gap={1} alignItems="center">
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1,
+                alignItems: 'center',
+              }}
+            >
               <InjectsListButtons
                 availableButtons={availableButtons}
                 setViewMode={handleViewMode}

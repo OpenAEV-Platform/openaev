@@ -227,7 +227,12 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
               }}
             >
               {renderShape(s.shape)}
-              <Typography variant="caption" color="text.secondary">{s.label}</Typography>
+              <Typography
+                variant="caption"
+                sx={{ color: 'text.secondary' }}
+              >
+                {s.label}
+              </Typography>
             </Box>
           ))}
           <Divider sx={{ my: 0.5 }} />
@@ -263,7 +268,12 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
                   }}
                 />
               </Box>
-              <Typography variant="caption" color="text.secondary">{c.label}</Typography>
+              <Typography
+                variant="caption"
+                sx={{ color: 'text.secondary' }}
+              >
+                {c.label}
+              </Typography>
             </Box>
           ))}
         </Box>

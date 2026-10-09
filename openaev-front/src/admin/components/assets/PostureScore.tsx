@@ -307,14 +307,21 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
               >
                 {band.label}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary' }}
+              >
                 {total === 0 ? strings.empty : strings.verdict}
               </Typography>
             </Box>
           </Box>
 
           <Typography variant="h4" gutterBottom>{t('What it measures')}</Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
+          <Typography
+            variant="body2"
+            paragraph
+            sx={{ color: 'text.secondary' }}
+          >
             {strings.measures}
           </Typography>
           <Box sx={{
@@ -345,7 +352,11 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
               {score === null ? '-' : score}
             </Box>
           </Box>
-          <Typography variant="body2" color="text.secondary" paragraph>
+          <Typography
+            variant="body2"
+            paragraph
+            sx={{ color: 'text.secondary' }}
+          >
             {t('Every validated expectation counts equally - there is no per-pillar weighting. Pending or unscored expectations are excluded until they resolve.')}
           </Typography>
 
@@ -367,7 +378,10 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {t(PILLAR_LABELS[pillar.key.toUpperCase()] ?? pillar.key)}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography
+                        variant="body2"
+                        sx={{ color: 'text.secondary' }}
+                      >
                         {t('{met} / {total} met ({pct}%)', {
                           met: pillar.success,
                           total: pillarTotal,
@@ -426,7 +440,12 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                     background: theme.palette.success.main,
                   }}
                   />
-                  <Typography variant="body2" color="text.secondary">{t('Met')}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    {t('Met')}
+                  </Typography>
                 </Box>
                 <Box sx={{
                   display: 'flex',
@@ -441,7 +460,12 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                     background: theme.palette.error.main,
                   }}
                   />
-                  <Typography variant="body2" color="text.secondary">{t('Missed')}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    {t('Missed')}
+                  </Typography>
                 </Box>
               </Box>
             </>
@@ -480,7 +504,12 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                     {`${entry.range} - ${entry.label}`}
                     {isCurrent ? ` - ${t('current')}` : ''}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">{entry.desc}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    {entry.desc}
+                  </Typography>
                 </Box>
               </Box>
             );

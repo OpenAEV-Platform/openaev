@@ -322,8 +322,10 @@ const AttackPathHeader: FunctionComponent<Props> = ({
                 <Typography
                   component="span"
                   variant="caption"
-                  color="text.secondary"
-                  sx={{ marginLeft: 'auto' }}
+                  sx={{
+                    color: 'text.secondary',
+                    marginLeft: 'auto',
+                  }}
                 >
                   {`${o.endpointCount ?? 0} ${t('endpoints')} · ${o.executionCount ?? 0} ${t('exec.')}`}
                 </Typography>

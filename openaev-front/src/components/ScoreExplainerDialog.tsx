@@ -131,14 +131,21 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
             >
               {bandLabel}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography
+              variant="body2"
+              sx={{ color: 'text.secondary' }}
+            >
               {verdict}
             </Typography>
           </Box>
         </Box>
 
         <Typography variant="h4" gutterBottom>{t('What it measures')}</Typography>
-        <Typography variant="body2" color="text.secondary" paragraph>
+        <Typography
+          variant="body2"
+          paragraph
+          sx={{ color: 'text.secondary' }}
+        >
           {measures}
         </Typography>
         <Box sx={{
@@ -156,7 +163,11 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
           {formula}
         </Box>
         {footnote && (
-          <Typography variant="body2" color="text.secondary" paragraph>
+          <Typography
+            variant="body2"
+            paragraph
+            sx={{ color: 'text.secondary' }}
+          >
             {footnote}
           </Typography>
         )}
@@ -224,7 +235,10 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                     <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap title={row.label}>
                       {row.label}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography
+                      variant="body2"
+                      sx={{ color: 'text.secondary' }}
+                    >
                       {row.valueLabel}
                     </Typography>
                   </Box>
@@ -239,9 +253,9 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                   {row.sublabel && (
                     <Typography
                       variant="caption"
-                      color="text.secondary"
                       noWrap
                       sx={{
+                        color: 'text.secondary',
                         display: 'block',
                         mt: 0.25,
                       }}
@@ -275,7 +289,12 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                       background: l.color,
                     }}
                     />
-                    <Typography variant="body2" color="text.secondary">{l.label}</Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: 'text.secondary' }}
+                    >
+                      {l.label}
+                    </Typography>
                   </Box>
                 ))}
               </Box>
@@ -317,7 +336,12 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                       {`${entry.range} - ${entry.label}`}
                       {isCurrent ? ` - ${t('current')}` : ''}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">{entry.desc}</Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: 'text.secondary' }}
+                    >
+                      {entry.desc}
+                    </Typography>
                   </Box>
                 </Box>
               );

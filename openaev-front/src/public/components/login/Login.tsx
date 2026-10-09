@@ -70,8 +70,8 @@ const Login = () => {
   return (
     <LoginLayout>
       <Stack
-        gap={1}
         sx={{
+          gap: 1,
           width: '100%',
           maxWidth: 500,
           paddingInline: 2,
@@ -80,7 +80,13 @@ const Login = () => {
         {isConsentMessage && (
           <Paper padding={16} style={{ textAlign: 'center' }}>
             <Markdown>{consentMessage}</Markdown>
-            <Box display="flex" justifyContent="center" alignItems="center">
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
               <Markdown>{consentConfirmText}</Markdown>
               <Checkbox
                 name="consent"
@@ -94,9 +100,9 @@ const Login = () => {
         {isLoginMessage && (
           <Typography
             component="div"
-            textAlign="center"
             variant="body2"
             sx={{
+              textAlign: 'center',
               maxHeight: '25vh',
               overflowY: 'auto',
               marginBottom: 1,
@@ -134,11 +140,13 @@ const Login = () => {
             {isLocal && reset && <Reset onCancel={() => setReset(false)} />}
             {(isOpenId || isSaml2) && ssoProviders.length > 0 && (
               <Stack
-                mt={3}
                 direction="row"
-                justifyContent="center"
-                flexWrap="wrap"
-                gap={1}
+                sx={{
+                  mt: 3,
+                  justifyContent: 'center',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                }}
               >
                 {ssoProviders.map(provider => (
                   <LoginSSOButton

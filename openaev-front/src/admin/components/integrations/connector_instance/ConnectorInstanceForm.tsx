@@ -315,7 +315,12 @@ const ConnectorInstanceForm = ({
         ))}
         {optionalFields.length > 0 && (
           <>
-            <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Configuration')}</Typography>
+            <Typography
+              variant="h5"
+              sx={{ marginTop: theme.spacing(3) }}
+            >
+              {t('Configuration')}
+            </Typography>
             <Accordion>
               <AccordionSummary
                 aria-controls="panel1-content"

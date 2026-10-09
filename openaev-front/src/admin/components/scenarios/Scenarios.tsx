@@ -217,7 +217,13 @@ const Scenarios = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             {
               isXTMHubAccessible && (
                 <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>

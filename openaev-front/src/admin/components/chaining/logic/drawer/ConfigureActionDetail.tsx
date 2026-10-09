@@ -447,7 +447,10 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               )}
             >
               {loadingContract && (
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Loading contract fields...')}
                 </Typography>
               )}
@@ -473,7 +476,10 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
                 availableExpectations={expectationField.availableExpectations ?? []}
               />
               {expectations.length === 0 && (
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('No expectations for this action.')}
                 </Typography>
               )}

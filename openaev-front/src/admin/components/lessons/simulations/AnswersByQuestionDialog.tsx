@@ -69,7 +69,10 @@ const AnswersByQuestionDialog: FunctionComponent<Props> = ({ open, onClose, ques
                     marginRight: 8,
                   }}
                 />
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {answer.lessons_answer_score}
                   %
                 </Typography>

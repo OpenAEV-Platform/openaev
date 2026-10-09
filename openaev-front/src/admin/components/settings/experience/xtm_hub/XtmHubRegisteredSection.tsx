@@ -34,7 +34,12 @@ const XtmHubRegisteredSection: React.FC = () => {
           <InfoChip label={connectionDate} tone="accent" />
         </ExperienceDetailRow>
         <ExperienceDetailRow label={t('Connected by')} divider={false}>
-          <Typography variant="body2" color="text.primary">{connectedBy}</Typography>
+          <Typography
+            variant="body2"
+            sx={{ color: 'text.primary' }}
+          >
+            {connectedBy}
+          </Typography>
         </ExperienceDetailRow>
       </div>
     </>

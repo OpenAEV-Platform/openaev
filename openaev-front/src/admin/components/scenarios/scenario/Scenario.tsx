@@ -423,7 +423,10 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
             >
               {hasNeverRun ? t('This scenario has not run yet') : t('No results to display yet')}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography
+              variant="body2"
+              sx={{ color: 'text.secondary' }}
+            >
               {t('The insights below are a sample preview. Launch a simulation to populate them with your real posture.')}
             </Typography>
           </Box>

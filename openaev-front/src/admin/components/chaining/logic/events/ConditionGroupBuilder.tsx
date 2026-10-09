@@ -86,8 +86,19 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
       p: 2,
     }}
     >
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Stack direction="row" alignItems="center" spacing={1}>
+      <Stack
+        direction="row"
+        sx={{
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 2,
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ alignItems: 'center' }}
+        >
           <LogicalOperatorSelect
             value={group.operator}
             onChange={handleOperatorChange}

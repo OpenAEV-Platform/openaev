@@ -138,7 +138,10 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
             {event.autonomous_event_title ?? (kind === 'PROOF' ? t('Proof') : t('Capability gap'))}
           </Typography>
           {event.autonomous_event_created_at && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              sx={{ color: 'text.secondary' }}
+            >
               {nsdt(event.autonomous_event_created_at)}
             </Typography>
           )}
@@ -174,7 +177,10 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
           {kind === 'PROOF' && (
             <>
               <Divider textAlign="left">
-                <Typography variant="overline" color="text.secondary">
+                <Typography
+                  variant="overline"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Associated findings')}
                 </Typography>
               </Divider>
@@ -237,7 +243,10 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
           {kind === 'GAP' && nextSteps.length > 0 && (
             <>
               <Divider textAlign="left">
-                <Typography variant="overline" color="text.secondary">
+                <Typography
+                  variant="overline"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Next steps in the platform')}
                 </Typography>
               </Divider>
@@ -287,7 +296,13 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
                         )}
                       </Stack>
                       {description && (
-                        <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            whiteSpace: 'pre-wrap',
+                          }}
+                        >
                           {description}
                         </Typography>
                       )}

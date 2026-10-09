@@ -292,7 +292,13 @@ const InjectResultList: FunctionComponent<Props> = ({
         contextId={contextId}
         reloadContentCount={reloadContentCount + reloadCount}
         topBarButtons={showActions ? (
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <Tooltip>
                 <TooltipTrigger asChild>

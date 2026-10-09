@@ -45,7 +45,12 @@ const MarkDownFieldController: FunctionComponent<Props> = ({
       <InputLabel shrink={true} variant="standard">
         {label}
       </InputLabel>
-      <Box flexGrow={1} position="relative">
+      <Box
+        sx={{
+          flexGrow: 1,
+          position: 'relative',
+        }}
+      >
         <MarkDownField
           initialValue={value}
           disabled={disabled}

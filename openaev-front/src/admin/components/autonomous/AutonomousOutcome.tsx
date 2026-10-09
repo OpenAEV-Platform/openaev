@@ -176,8 +176,8 @@ const OutcomeCard: FunctionComponent<{
         {createdAtLabel && (
           <Typography
             variant="caption"
-            color="text.secondary"
             sx={{
+              color: 'text.secondary',
               flex: '0 0 auto',
               whiteSpace: 'nowrap',
             }}
@@ -190,8 +190,8 @@ const OutcomeCard: FunctionComponent<{
       {body && (
         <Typography
           variant="caption"
-          color="text.secondary"
           sx={{
+            color: 'text.secondary',
             marginTop: 0.5,
             ...clampSx(3),
           }}
@@ -758,7 +758,13 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                           <Chip label={t(eventTypeLabel(event.autonomous_event_type))} color={color} />
                           <Box sx={{ flex: 1 }} />
                           {time && (
-                            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: 'text.secondary',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
                               {time}
                             </Typography>
                           )}
@@ -828,7 +834,13 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                         {eventTitle || t(eventTypeLabel(event.autonomous_event_type))}
                       </Typography>
                       {time && (
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            fontSize: 10,
+                          }}
+                        >
                           {time}
                         </Typography>
                       )}

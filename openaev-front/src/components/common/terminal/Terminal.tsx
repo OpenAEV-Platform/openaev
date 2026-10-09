@@ -54,7 +54,7 @@ const Terminal = ({ lines, maxHeight = 400 }: TerminalProps) => {
   };
 
   return (
-    <Box position="relative">
+    <Box sx={{ position: 'relative' }}>
       <div
         ref={containerRef}
         style={{

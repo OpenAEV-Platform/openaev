@@ -980,7 +980,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                   fontSize: 40,
                 }}
                 />
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('No decisions recorded for this run.')}
                 </Typography>
               </Stack>
@@ -1030,7 +1033,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                         <Chip label={t(eventTypeLabel(event.autonomous_event_type))} color={color} />
                         <Box sx={{ flex: 1 }} />
                         {event.autonomous_event_created_at && (
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography
+                            variant="caption"
+                            sx={{ color: 'text.secondary' }}
+                          >
                             {nsdt(event.autonomous_event_created_at)}
                           </Typography>
                         )}
@@ -1185,7 +1191,13 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           borderTop: `1px solid ${theme.palette.divider}`,
         }}
         >
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              display: 'block',
+            }}
+          >
             {t('Observe-only view. Steer and control this run from the parent scenario.')}
           </Typography>
         </Box>
@@ -1249,8 +1261,8 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
             >
               <Typography
                 variant="caption"
-                color="text.secondary"
                 sx={{
+                  color: 'text.secondary',
                   fontSize: '0.6875rem',
                   opacity: 0.7,
                 }}

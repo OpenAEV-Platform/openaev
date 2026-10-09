@@ -23,10 +23,12 @@ const TabPanel = ({
       aria-labelledby={`simple-tab-${index}`}
     >
       <Box
-        display="flex"
-        flexDirection="column"
-        gap={2}
-        sx={{ mt: 2 }}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          mt: 2,
+        }}
       >
         {children}
       </Box>

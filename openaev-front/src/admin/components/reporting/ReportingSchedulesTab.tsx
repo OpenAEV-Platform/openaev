@@ -275,7 +275,13 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                     divider
                     classes={{ root: classes.item }}
                     secondaryAction={(
-                      <Box display="flex" alignItems="center" gap={0.5}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                        }}
+                      >
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span className="inline-flex">

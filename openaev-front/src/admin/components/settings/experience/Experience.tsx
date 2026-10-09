@@ -36,7 +36,11 @@ const Experience: React.FC = () => {
         }]}
       />
 
-      <Grid container spacing={3} alignItems="stretch">
+      <Grid
+        container
+        spacing={3}
+        sx={{ alignItems: 'stretch' }}
+      >
         {canAccessPlatformSettings && (
           <Grid size={6}>
             <EnterpriseEditionSettings />
