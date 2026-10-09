@@ -14,18 +14,18 @@
 
 - [x] Clean the tech design -> Corinne
 
-  - [x] POC "asset not targetted" VS "no agent found" -> Corinne, chunk3
+- [x] POC "asset not targetted" VS "no agent found" -> Corinne, chunk3
     - Damien's proposal -> in ExecutionExecutorService, at the end, check the assets list with and without markings
 
 - [ ] Do a brainstorm/choose the solution with Laurent
 
 - [ ] Little UX bugs with the new solution?
-    - A lot of "Access denied" when I am not an admin user
-    - Execution details are weird for Injects when you launch it with an admin and you look it with a user "Distributing inject to 1 agent(s) across 1 endpoint(s)"
-    - Header overview number of assets for simulation KO when logged as a user while the simulation's list is OK
-    - Global inject status status can be weird if you don't see all the assets
-    - Platforms in scenario's list are KO for a user
-    - Bugs with inject expectations (see above) => Damien to retest
+    - [x] A lot of "Access denied" when I am not an admin user
+    - [ ] Execution details are weird for Injects when you launch it with an admin and you look it with a user "Distributing inject to 2 agent(s) across 2 endpoint(s)"  -> check with PO before doing it?
+    - [x] Header overview number of assets for simulation KO when logged as a user while the simulation's list is OK
+    - [ ] Global inject status can be weird if you don't see all the assets -> check with PO before doing it?
+    - [ ] Platforms in scenario's list are KO for a user -> platforms queries never read assets but injectors contracts -> check with PO before doing it?
+    - [x] Bugs with inject expectations (see above) => Damien to retest
 
 - [ ] Last spike to POC (dashboards) => Corinne
 
