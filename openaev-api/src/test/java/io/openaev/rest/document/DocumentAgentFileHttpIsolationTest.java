@@ -27,6 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
  * on the brand-new agent route so it cannot regress into the cross-tenant defect tracked for the
  * legacy /file route in #294. Runs as admin so RBAC is bypassed and only the tenant boundary is
  * under test.
+ *
+ * <p>The guard being pinned is controller code, so this test is green with {@code documents}
+ * removed from {@code openaev.tenant.active-tables} as well: it proves the route's own scope check,
+ * not the activation. The activation proofs for the table are elsewhere ({@code
+ * DocumentHttpIsolationTest} and {@code DocumentByIdScopeTest}, whose cross-tenant assertions do go
+ * red with it disarmed).
  */
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=documents")
