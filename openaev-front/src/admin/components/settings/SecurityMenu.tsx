@@ -46,9 +46,9 @@ const SecurityMenuComponent: FunctionComponent = () => {
   } = useSecurityScope();
   const ability = useAbility();
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
-  const canAccessMarkingDefinitions
+  const canManageMarkingDefinitions
     = isFeatureEnabled('MARKING')
-      && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
+      && ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_DEFINITION);
 
   // The platform scope is an EE feature: in Community Edition the switcher is
   // not displayed at all and the section stays on the tenant scope.
@@ -134,7 +134,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
     });
   }
 
-  if (!isPlatform && canAccessMarkingDefinitions) {
+  if (!isPlatform && canManageMarkingDefinitions) {
     entries.push({
       path: `${SECURITY_BASE}/marking_definitions`,
       icon: () => (<CenterFocusStrongOutlined />),
