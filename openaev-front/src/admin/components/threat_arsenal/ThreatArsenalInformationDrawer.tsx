@@ -48,7 +48,7 @@ interface Props {
   onClose: () => void;
   threatArsenalAction: ThreatArsenalAction | null;
   /** Called after an approve / reject decision, so the list can refresh the row. */
-  onApprovalChanged?: (actionId: string, status: ThreatArsenalActionFullOutput['action_approval_status']) => void;
+  onApprovalChanged?: (actionId: string, status: ThreatArsenalActionFullOutput['action_approval_status'], pendingVersion: boolean) => void;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
@@ -118,7 +118,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
                 action={fullOutput}
                 onDecided={(updated) => {
                   setFullOutput(updated);
-                  onApprovalChanged?.(updated.action_id, updated.action_approval_status);
+                  onApprovalChanged?.(updated.action_id, updated.action_approval_status, !!updated.action_pending_version);
                 }}
               />
             </div>

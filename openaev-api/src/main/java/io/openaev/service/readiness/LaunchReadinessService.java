@@ -6,7 +6,6 @@ import static java.time.Instant.now;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Inject;
-import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
@@ -16,7 +15,6 @@ import io.openaev.service.payload_approval.BlockedPayloadsException.BlockedPaylo
 import io.openaev.service.payload_approval.PayloadApprovalGate;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,9 +33,10 @@ import org.springframework.stereotype.Service;
  *       approved (they end in Error) and runs the rest.
  * </ul>
  *
- * <p>Triggers: a payload becoming pending or rejected, and a sensitive change of an inject (see
- * {@link InjectSensitiveFields}). Manual launches are a deliberate action: they stay possible after
- * a sensitive change, and are blocked only while a payload is not approved.
+ * <p>Trigger: a sensitive change of an inject (see {@link InjectSensitiveFields}). A payload edit
+ * never triggers it: the approved version keeps running while a new version is pending. Manual
+ * launches are a deliberate action: they stay possible after a sensitive change, and are blocked
+ * only while a payload has no approved version.
  */
 @Service
 @RequiredArgsConstructor
@@ -48,44 +47,6 @@ public class LaunchReadinessService {
   private final ExerciseRepository exerciseRepository;
   private final InjectRepository injectRepository;
   private final PayloadApprovalGate payloadApprovalGate;
-
-  /** A payload just became pending or rejected. */
-  public void onPayloadBlocked(@NotNull final Payload payload) {
-    if (payload.getId() == null) {
-      return;
-    }
-    Optional<BlockedPayload> blocked = payloadApprovalGate.check(payload);
-    if (blocked.isEmpty()) {
-      return;
-    }
-    List<BlockedPayload> reason = List.of(blocked.get());
-    for (Exercise simulation : exerciseRepository.findPlannedUsingPayload(payload.getId())) {
-      unplan(simulation);
-      audit(
-          "Planning the simulation \"" + simulation.getName() + "\"",
-          reason,
-          ResourceType.SIMULATION,
-          simulation.getId());
-    }
-    for (Scenario scenario :
-        scenarioRepository.findRecurringNotPausedByPayloadId(payload.getId())) {
-      pause(scenario);
-      audit(
-          "Scheduling the scenario \"" + scenario.getName() + "\"",
-          reason,
-          ResourceType.SCENARIO,
-          scenario.getId());
-    }
-    for (Inject atomicTesting :
-        injectRepository.findRecurringAtomicTestingsNotPausedByPayloadId(payload.getId())) {
-      pause(atomicTesting);
-      audit(
-          "Scheduling the atomic testing \"" + atomicTesting.getTitle() + "\"",
-          reason,
-          ResourceType.ATOMIC_TESTING,
-          atomicTesting.getId());
-    }
-  }
 
   /** What an inject runs or targets changed (option A: pause on change). */
   public void onSensitiveChange(@NotNull final Inject inject) {

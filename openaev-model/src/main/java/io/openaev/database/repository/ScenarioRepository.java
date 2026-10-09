@@ -43,13 +43,6 @@ public interface ScenarioRepository
         StatisticRepository,
         JpaSpecificationExecutor<Scenario> {
 
-  /** Recurring scenarios using the payload whose schedule is not paused yet. */
-  @Query(
-      "SELECT DISTINCT s FROM Scenario s JOIN s.injects i "
-          + "WHERE i.injectorContract.payload.id = :payloadId "
-          + "AND s.recurrence IS NOT NULL AND s.recurrencePausedAt IS NULL")
-  List<Scenario> findRecurringNotPausedByPayloadId(@Param("payloadId") String payloadId);
-
   @Query("SELECT s.name FROM Scenario s WHERE s.id = :scenarioId")
   Optional<String> findNameById(@Param("scenarioId") String scenarioId);
 

@@ -3,6 +3,7 @@ package io.openaev.api.threat_arsenal;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
@@ -26,9 +27,11 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -47,8 +50,8 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("Threat Arsenal payload approval: warning before impact (US2.4)")
-class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
+@DisplayName("Threat Arsenal payload versioning: the approved version keeps running (Task 5)")
+class ThreatArsenalPayloadVersionApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private DomainComposer domainComposer;
@@ -65,6 +68,7 @@ class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private InjectService injectService;
+  @Autowired private PayloadRepository payloadRepository;
 
   private Authentication author;
   private Authentication approver;
@@ -171,15 +175,32 @@ class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
         .getContentAsString();
   }
 
-  private void approveAs(Authentication as, String actionId) throws Exception {
-    String fingerprint = JsonPath.read(detail(actionId), "$.action_approval_fingerprint");
-    mvc.perform(
-            post(url("/" + actionId + "/approve"))
-                .with(authentication(as))
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(Map.of("approval_fingerprint", fingerprint))))
-        .andExpect(status().is2xxSuccessful());
+  private ResultActions approveAs(Authentication as, String actionId, String fingerprint)
+      throws Exception {
+    return mvc.perform(
+        post(url("/" + actionId + "/approve"))
+            .with(authentication(as))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(asJsonString(Map.of("approval_fingerprint", fingerprint))));
+  }
+
+  private ResultActions rejectAs(Authentication as, String actionId, String reason)
+      throws Exception {
+    return mvc.perform(
+        post(url("/" + actionId + "/reject"))
+            .with(authentication(as))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(asJsonString(Map.of("approval_reason", reason))));
+  }
+
+  private String pendingFingerprint(String actionId) throws Exception {
+    return JsonPath.read(detail(actionId), "$.action_pending_version.version_fingerprint");
+  }
+
+  private String versions(String actionId) throws Exception {
+    return getJson(url("/" + actionId + "/versions"));
   }
 
   /** The action used by one atomic testing, one scenario and two simulations (one finished). */
@@ -196,9 +217,14 @@ class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
   }
 
   private ThreatArsenalActionUpdateInput update(String content, String description) {
+    return update(content, description, Endpoint.PLATFORM_TYPE.Linux);
+  }
+
+  private ThreatArsenalActionUpdateInput update(
+      String content, String description, Endpoint.PLATFORM_TYPE platform) {
     return new ThreatArsenalActionUpdateInput(
         "Command line payload",
-        new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+        new Endpoint.PLATFORM_TYPE[] {platform},
         description,
         "bash",
         content,
@@ -220,11 +246,9 @@ class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
   }
 
   private ResultActions updateAs(
-      Authentication as, String actionId, ThreatArsenalActionUpdateInput input, boolean check)
-      throws Exception {
+      Authentication as, String actionId, ThreatArsenalActionUpdateInput input) throws Exception {
     return mvc.perform(
         put(url("/" + actionId))
-            .param("check_approval_impact", String.valueOf(check))
             .with(authentication(as))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
@@ -239,8 +263,13 @@ class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
         .getContentAsString();
   }
 
-  private String approvalStatus(String actionId) throws Exception {
-    return JsonPath.read(detail(actionId), "$.action_approval_status");
+  private String commandContent(String actionId) throws Exception {
+    return JsonPath.read(detail(actionId), "$.command_content");
+  }
+
+  private void flushAndClear() {
+    entityManager.flush();
+    entityManager.clear();
   }
 
   @Nested
@@ -352,150 +381,384 @@ class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Edit sending an approved payload in use back to pending")
-  class EditWarning {
+  @DisplayName("An edit of an approved action becomes a pending version (US5.1)")
+  class PendingVersion {
 
     @Test
     @DisplayName(
-        "Given check_approval_impact, a content edit of a used payload by an author should be refused with the usage and save nothing")
-    void given_checkAndContentEditOfUsedPayload_should_refuseWithUsageAndSaveNothing()
+        "Given an approved action, a content edit by an author should create a pending version and keep running the approved content")
+    void given_authorContentEdit_should_createPendingVersionAndKeepApprovedContent()
         throws Exception {
       // Arrange
-      String actionId = usedAction();
+      String actionId = approvedAction();
+      String approvedContent = commandContent(actionId);
 
       // Act
-      String body =
-          updateAs(author, actionId, update("echo changed", "Description"), true)
-              .andExpect(status().isConflict())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // Assert
-      assertThat((String) JsonPath.read(body, "$.message"))
-          .isEqualTo(
-              "Saving will send this payload back to Pending approval and block the launch of 1"
-                  + " atomic testing, 1 scenario, 1 simulation until it is approved again.");
-      assertThat((Integer) JsonPath.read(body, "$.usage.usage_simulations_count")).isEqualTo(1);
-      // The test shares one transaction with the request: drop the refused in-memory edit and
-      // re-read what the database holds (a real request rolls its own transaction back).
-      entityManager.clear();
-      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
-      assertThat((String) JsonPath.read(detail(actionId), "$.command_content"))
-          .isNotEqualTo("echo changed");
-    }
-
-    @Test
-    @DisplayName("Without check_approval_impact, the same edit should be saved and become pending")
-    void given_noCheck_should_saveAndBecomePending() throws Exception {
-      // Arrange
-      String actionId = usedAction();
-
-      // Act
-      updateAs(author, actionId, update("echo changed", "Description"), false)
+      updateAs(
+              author,
+              actionId,
+              update("echo changed", "Description", Endpoint.PLATFORM_TYPE.Windows))
           .andExpect(status().is2xxSuccessful());
+      flushAndClear();
 
-      // Assert
-      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      // Assert: the action and its contract keep the approved content
+      String detail = detail(actionId);
+      assertThat((String) JsonPath.read(detail, "$.action_approval_status")).isEqualTo("APPROVED");
+      assertThat((String) JsonPath.read(detail, "$.command_content")).isEqualTo(approvedContent);
+      assertThat(injectorContractRepository.findById(actionId).orElseThrow().getPlatforms())
+          .containsExactly(Endpoint.PLATFORM_TYPE.Linux);
+      // Assert: the pending version holds the edit
+      assertThat((Integer) JsonPath.read(detail, "$.action_active_version")).isEqualTo(1);
+      assertThat((Integer) JsonPath.read(detail, "$.action_pending_version.version_number"))
+          .isEqualTo(2);
+      assertThat((String) JsonPath.read(detail, "$.action_pending_version.version_origin"))
+          .isEqualTo("UPDATE");
+      assertThat((String) JsonPath.read(detail, "$.action_pending_version.version_author_name"))
+          .startsWith("Author");
+      assertThat((String) JsonPath.read(detail, "$.action_pending_version.version_content.content"))
+          .isEqualTo("echo changed");
+      assertThat((String) JsonPath.read(detail, "$.action_active_content.content"))
+          .isEqualTo(approvedContent);
     }
 
     @Test
-    @DisplayName("Given check_approval_impact, a cosmetic edit should be saved and stay approved")
-    void given_checkAndCosmeticEdit_should_saveAndStayApproved() throws Exception {
+    @DisplayName(
+        "Given an edit changing the description and the content, the description should apply now and the content wait for approval")
+    void given_mixedEdit_should_applyCosmeticPartNow() throws Exception {
       // Arrange
-      String actionId = usedAction();
-      String content = JsonPath.read(detail(actionId), "$.command_content");
+      String actionId = approvedAction();
+      String approvedContent = commandContent(actionId);
 
       // Act
-      updateAs(author, actionId, update(content, "A clearer description"), true)
+      updateAs(author, actionId, update("echo changed", "A clearer description"))
           .andExpect(status().is2xxSuccessful());
+      flushAndClear();
 
       // Assert
-      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+      String detail = detail(actionId);
+      assertThat((String) JsonPath.read(detail, "$.action_description"))
+          .isEqualTo("A clearer description");
+      assertThat((String) JsonPath.read(detail, "$.command_content")).isEqualTo(approvedContent);
+      assertThat((Object) JsonPath.read(detail, "$.action_pending_version")).isNotNull();
     }
 
     @Test
-    @DisplayName("Given check_approval_impact, a content edit of an unused payload should be saved")
-    void given_checkAndUnusedPayload_should_save() throws Exception {
+    @DisplayName("Given a cosmetic edit, it should apply directly without a version")
+    void given_cosmeticEdit_should_applyWithoutVersion() throws Exception {
       // Arrange
       String actionId = approvedAction();
 
       // Act
-      updateAs(author, actionId, update("echo changed", "Description"), true)
+      updateAs(author, actionId, update(commandContent(actionId), "A clearer description"))
           .andExpect(status().is2xxSuccessful());
+      flushAndClear();
 
       // Assert
-      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      String detail = detail(actionId);
+      assertThat((String) JsonPath.read(detail, "$.action_description"))
+          .isEqualTo("A clearer description");
+      assertThat((Object) JsonPath.read(detail, "$.action_pending_version")).isNull();
+      assertThat((List<Object>) JsonPath.read(versions(actionId), "$")).isEmpty();
     }
 
     @Test
     @DisplayName(
-        "Given check_approval_impact, a content edit by an Approve content holder should be saved and stay approved")
-    void given_checkAndApproverEdit_should_saveAndStayApproved() throws Exception {
+        "Given a pending version, a new content edit should supersede it, and the same edit again should change nothing")
+    void given_newEdit_should_supersedePendingVersion() throws Exception {
       // Arrange
-      String actionId = usedAction();
+      String actionId = approvedAction();
+      updateAs(author, actionId, update("echo first", "Description"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
 
       // Act
-      updateAs(approver, actionId, update("echo changed", "Description"), true)
+      updateAs(author, actionId, update("echo second", "Description"))
           .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+      updateAs(author, actionId, update("echo second", "Description"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
 
-      // Assert
-      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+      // Assert: one pending version, the previous one superseded
+      String versions = versions(actionId);
+      assertThat((List<String>) JsonPath.read(versions, "$[*].version_status"))
+          .containsExactly("PENDING", "SUPERSEDED");
+      assertThat((List<Integer>) JsonPath.read(versions, "$[*].version_number"))
+          .containsExactly(3, 2);
+      assertThat(
+              (String)
+                  JsonPath.read(
+                      detail(actionId), "$.action_pending_version.version_content.content"))
+          .isEqualTo("echo second");
     }
-  }
-
-  @Nested
-  @DisplayName("Both warnings use the same usage (item 2)")
-  class SameUsage {
 
     @Test
     @DisplayName(
-        "Given a used payload, the edit warning and the reject dialog should report the same usage, counting only simulations where it has not run yet")
-    void given_usedPayload_should_reportTheSameUsageInBothDialogs() throws Exception {
-      // Arrange: usedAction() = 1 atomic testing, 1 scenario, 1 scheduled + 1 finished simulation
-      String actionId = usedAction();
-      simulationWithInject(
-          "Running, not run yet", ExerciseStatus.RUNNING, Instant.now(), actionId, false);
-      simulationWithInject(
-          "Running, already ran", ExerciseStatus.RUNNING, Instant.now(), actionId, true);
+        "Given a pending version, a content edit by an Approve content holder should apply directly and supersede it (US5.4)")
+    void given_approverEdit_should_applyDirectlyAndSupersedePending() throws Exception {
+      // Arrange
+      String actionId = approvedAction();
+      updateAs(author, actionId, update("echo by author", "Description"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
 
-      // Act: what the reject dialog reads, then what the edit warning gets, for the same user
-      Object rejectUsage =
-          JsonPath.read(
-              mvc.perform(get(url("/" + actionId + "/usage")).with(authentication(author)))
-                  .andExpect(status().isOk())
-                  .andReturn()
-                  .getResponse()
-                  .getContentAsString(),
-              "$");
-      String conflict =
-          updateAs(author, actionId, update("echo changed", "Description"), true)
-              .andExpect(status().isConflict())
+      // Act
+      updateAs(approver, actionId, update("echo by approver", "Description"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+
+      // Assert
+      String detail = detail(actionId);
+      assertThat((String) JsonPath.read(detail, "$.action_approval_status")).isEqualTo("APPROVED");
+      assertThat((String) JsonPath.read(detail, "$.command_content")).isEqualTo("echo by approver");
+      assertThat((Object) JsonPath.read(detail, "$.action_pending_version")).isNull();
+      assertThat((Integer) JsonPath.read(detail, "$.action_active_version")).isEqualTo(3);
+      assertThat((List<String>) JsonPath.read(versions(actionId), "$[*].version_status"))
+          .containsExactly("APPROVED", "SUPERSEDED");
+    }
+
+    @Test
+    @DisplayName(
+        "Given an action that was never approved, a content edit should apply in place without a version")
+    void given_neverApprovedAction_should_beEditedInPlace() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      String created =
+          mvc.perform(
+                  post(url(""))
+                      .with(authentication(author))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          asJsonString(
+                              ThreatArsenalInputFixture.createDefaultCommandLineAction(
+                                  List.of(domain.getId())))))
+              .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
               .getContentAsString();
-      Object editUsage = JsonPath.read(conflict, "$.usage");
+      String actionId = JsonPath.read(created, "$.injector_contract_id");
+
+      // Act
+      updateAs(author, actionId, update("echo changed", "Description"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
 
       // Assert
-      assertThat(editUsage).isEqualTo(rejectUsage);
-      assertThat((Integer) JsonPath.read(conflict, "$.usage.usage_simulations_count")).isEqualTo(2);
-      // Names, for a user who can open simulations: finished and already-run ones are not listed
+      String detail = detail(actionId);
+      assertThat((String) JsonPath.read(detail, "$.action_approval_status")).isEqualTo("PENDING");
+      assertThat((String) JsonPath.read(detail, "$.command_content")).isEqualTo("echo changed");
+      assertThat((Object) JsonPath.read(detail, "$.action_pending_version")).isNull();
+    }
+
+    @Test
+    @DisplayName(
+        "Given an action with a pending version, the list should flag it and the pending version filter should find it")
+    void given_pendingVersion_should_beFlaggedAndFilterable() throws Exception {
+      // Arrange
+      String withVersion = approvedAction();
+      String without = approvedAction();
+      updateAs(author, withVersion, update("echo changed", "Description"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("action_payload_pending_version");
+      filter.setOperator(Filters.FilterOperator.eq);
+      filter.setMode(Filters.FilterMode.or);
+      filter.setValues(List.of("true"));
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+
+      // Act
+      String page =
+          mvc.perform(
+                  post(url("/search"))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          asJsonString(
+                              PaginationFixture.getDefault()
+                                  .size(1000)
+                                  .filterGroup(filterGroup)
+                                  .build())))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(page, "$.content[*].injector_contract_id");
+      assertThat(ids).contains(withVersion).doesNotContain(without);
+      assertThat(
+              (List<Boolean>)
+                  JsonPath.read(page, "$.content[*].action_payload.payload_pending_version"))
+          .containsOnly(true);
       assertThat(
               (List<String>)
-                  JsonPath.read(
-                      getJson(url("/" + actionId + "/usage")), "$.usage_simulations[*].name"))
-          .containsExactlyInAnyOrder("Scheduled simulation", "Running, not run yet");
+                  JsonPath.read(page, "$.content[*].action_payload.payload_approval_status"))
+          .containsOnly("APPROVED");
     }
   }
 
   @Nested
-  @DisplayName("Launch state when an action becomes pending (items 3 and 4)")
+  @DisplayName("Approve or reject a pending version (US5.2)")
+  class Decisions {
+
+    @Test
+    @DisplayName(
+        "Given a pending version, approving it with its fingerprint should apply it to the action and its contract")
+    void given_approve_should_applyVersion() throws Exception {
+      // Arrange
+      String actionId = approvedAction();
+      updateAs(
+              author,
+              actionId,
+              update("echo changed", "Description", Endpoint.PLATFORM_TYPE.Windows))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+
+      // Act
+      approveAs(approver, actionId, pendingFingerprint(actionId))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+
+      // Assert
+      String detail = detail(actionId);
+      assertThat((String) JsonPath.read(detail, "$.command_content")).isEqualTo("echo changed");
+      assertThat((String) JsonPath.read(detail, "$.action_approval_status")).isEqualTo("APPROVED");
+      assertThat((Object) JsonPath.read(detail, "$.action_pending_version")).isNull();
+      assertThat((Integer) JsonPath.read(detail, "$.action_active_version")).isEqualTo(2);
+      assertThat((String) JsonPath.read(detail, "$.action_approval_latest.approval_origin"))
+          .isEqualTo("APPROVE");
+      assertThat(injectorContractRepository.findById(actionId).orElseThrow().getPlatforms())
+          .containsExactly(Endpoint.PLATFORM_TYPE.Windows);
+      assertThat((List<String>) JsonPath.read(versions(actionId), "$[*].version_status"))
+          .containsExactly("APPROVED");
+    }
+
+    @Test
+    @DisplayName(
+        "Given a pending version, approving with the fingerprint of the active content should be refused")
+    void given_staleFingerprint_should_refuseApproval() throws Exception {
+      // Arrange
+      String actionId = approvedAction();
+      updateAs(author, actionId, update("echo changed", "Description"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+      String activeFingerprint = JsonPath.read(detail(actionId), "$.action_approval_fingerprint");
+
+      // Act & Assert
+      approveAs(approver, actionId, activeFingerprint).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a pending version, rejecting it should need a reason and keep the approved content")
+    void given_reject_should_keepActiveVersion() throws Exception {
+      // Arrange
+      String actionId = approvedAction();
+      String approvedContent = commandContent(actionId);
+      updateAs(author, actionId, update("echo changed", "Description"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+
+      // Act & Assert: no reason
+      rejectAs(approver, actionId, " ").andExpect(status().isBadRequest());
+
+      // Act
+      rejectAs(approver, actionId, "Too broad").andExpect(status().is2xxSuccessful());
+      flushAndClear();
+
+      // Assert
+      String detail = detail(actionId);
+      assertThat((String) JsonPath.read(detail, "$.action_approval_status")).isEqualTo("APPROVED");
+      assertThat((String) JsonPath.read(detail, "$.command_content")).isEqualTo(approvedContent);
+      assertThat((Object) JsonPath.read(detail, "$.action_pending_version")).isNull();
+      String versions = versions(actionId);
+      assertThat((List<String>) JsonPath.read(versions, "$[*].version_status"))
+          .containsExactly("REJECTED");
+      assertThat((List<String>) JsonPath.read(versions, "$[*].version_comment"))
+          .containsExactly("Too broad");
+    }
+
+    @Test
+    @DisplayName("Given a pending version, an author without Approve content should not decide it")
+    void given_author_should_notDecide() throws Exception {
+      // Arrange
+      String actionId = approvedAction();
+      updateAs(author, actionId, update("echo changed", "Description"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+
+      // Act & Assert
+      approveAs(author, actionId, pendingFingerprint(actionId)).andExpect(status().isForbidden());
+      rejectAs(author, actionId, "No").andExpect(status().isForbidden());
+    }
+  }
+
+  @Nested
+  @DisplayName("Collector updates (US5.4)")
+  class Collector {
+
+    private void upsert(String externalId, String content) throws Exception {
+      PayloadUpsertInput input = PayloadInputFixture.getDefaultCommandPayloadUpsertInput(Set.of());
+      input.setExternalId(externalId);
+      input.setContent(content);
+      mvc.perform(
+              post(PAYLOAD_URI + "/upsert")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+    }
+
+    @Test
+    @DisplayName(
+        "Given an approved collector payload, a changed update should create a pending version, the same update again should change nothing, and another one should supersede it")
+    void given_collectorUpdates_should_createAndSupersedePendingVersions() throws Exception {
+      // Arrange: collected, then approved
+      String externalId = "collector-" + UUID.randomUUID();
+      upsert(externalId, "cd ..");
+      Payload payload = payloadRepository.findByExternalId(externalId).orElseThrow();
+      String actionId =
+          injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow().getId();
+      approveAs(
+              approver, actionId, JsonPath.read(detail(actionId), "$.action_approval_fingerprint"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+
+      // Act
+      upsert(externalId, "cd /tmp");
+      String firstPending = JsonPath.read(detail(actionId), "$.action_pending_version.version_id");
+      upsert(externalId, "cd /tmp");
+
+      // Assert: one pending version, origin collector, the action still runs "cd .."
+      String detail = detail(actionId);
+      assertThat((String) JsonPath.read(detail, "$.command_content")).isEqualTo("cd ..");
+      assertThat((String) JsonPath.read(detail, "$.action_pending_version.version_id"))
+          .isEqualTo(firstPending);
+      assertThat((String) JsonPath.read(detail, "$.action_pending_version.version_origin"))
+          .isEqualTo("COLLECTOR");
+
+      // Act
+      upsert(externalId, "cd /var");
+
+      // Assert
+      assertThat((List<String>) JsonPath.read(versions(actionId), "$[*].version_status"))
+          .containsExactly("PENDING", "SUPERSEDED");
+    }
+  }
+
+  @Nested
+  @DisplayName("Launch state while a version is pending (US5.1, US5.5)")
   class LaunchState {
 
     @Test
     @DisplayName(
-        "Given an action that becomes pending, a planned simulation should go back to draft, a running one should keep running, and the GETs should name the blocking payload")
-    void given_actionBecomesPending_should_blockLaunchesAndUnplanSimulations() throws Exception {
+        "Given an action in use, a pending version should block nothing: a planned simulation keeps its start and nothing names the action as blocking")
+    void given_pendingVersion_should_blockNothing() throws Exception {
       // Arrange
       String actionId = approvedAction();
       String atomicId = injectUsing(actionId, "Atomic whoami").persist().get().getId();
@@ -514,67 +777,34 @@ class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
                   actionId,
                   false)
               .getId();
-      String runningId =
-          simulationWithInject("Running", ExerciseStatus.RUNNING, Instant.now(), actionId, false)
-              .getId();
+
+      // Act
+      updateAs(author, actionId, update("echo changed", "Description"))
+          .andExpect(status().is2xxSuccessful());
+      flushAndClear();
+
+      // Assert
+      assertThat(exerciseRepository.findById(plannedId).orElseThrow().getStart()).isPresent();
       assertThat(
               (List<Object>)
                   JsonPath.read(
                       getJson(ATOMIC_TESTING_URI + "/" + atomicId), "$.inject_launch_blocked_by"))
           .isEmpty();
-
-      // Act: an author edits what the action runs: it becomes pending
-      updateAs(author, actionId, update("echo changed", "Description"), false)
-          .andExpect(status().is2xxSuccessful());
-      entityManager.flush();
-      entityManager.clear();
-
-      // Assert: planned simulation back to draft, running one untouched
-      Exercise planned = exerciseRepository.findById(plannedId).orElseThrow();
-      assertThat(planned.getStatus()).isEqualTo(ExerciseStatus.SCHEDULED);
-      assertThat(planned.getStart()).isEmpty();
-      assertThat(exerciseRepository.findById(runningId).orElseThrow().getStatus())
-          .isEqualTo(ExerciseStatus.RUNNING);
-
-      // Assert: the three GETs name the blocking payload
-      String atomic = getJson(ATOMIC_TESTING_URI + "/" + atomicId);
-      assertThat((String) JsonPath.read(atomic, "$.inject_launch_blocked_by[0].name"))
-          .isEqualTo("Command line payload");
-      assertThat((String) JsonPath.read(atomic, "$.inject_launch_blocked_by[0].approval_status"))
-          .isEqualTo("PENDING");
       assertThat(
               (List<Object>)
                   JsonPath.read(
                       getJson(SCENARIO_URI + "/" + scenarioId), "$.scenario_launch_blocked_by"))
-          .hasSize(1);
+          .isEmpty();
       assertThat(
               (List<Object>)
                   JsonPath.read(
                       getJson(EXERCISE_URI + "/" + plannedId), "$.exercise_launch_blocked_by"))
-          .hasSize(1);
-
-      // Act: approved again
-      approveAs(approver, actionId);
-      entityManager.flush();
-      entityManager.clear();
-
-      // Assert: launches are possible again, the simulation stays in draft until planned again
-      assertThat(
-              (List<Object>)
-                  JsonPath.read(
-                      getJson(ATOMIC_TESTING_URI + "/" + atomicId), "$.inject_launch_blocked_by"))
           .isEmpty();
-      assertThat(
-              (List<Object>)
-                  JsonPath.read(
-                      getJson(SCENARIO_URI + "/" + scenarioId), "$.scenario_launch_blocked_by"))
-          .isEmpty();
-      assertThat(exerciseRepository.findById(plannedId).orElseThrow().getStart()).isEmpty();
     }
   }
 
   @Nested
-  @DisplayName("Paused schedules (decisions 1 and 2)")
+  @DisplayName("Paused schedules: only a sensitive inject change pauses")
   class PausedSchedules {
 
     private String recurringScenario(String actionId) {
@@ -588,14 +818,6 @@ class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
           .getId();
     }
 
-    private ResultActions putRecurrence(String scenarioId, String cron) throws Exception {
-      return mvc.perform(
-          put(SCENARIO_URI + "/" + scenarioId + "/recurrence")
-              .with(csrf())
-              .contentType(MediaType.APPLICATION_JSON)
-              .content(asJsonString(Map.of("scenario_recurrence", cron))));
-    }
-
     private Object scenarioPausedAt(String scenarioId) throws Exception {
       return JsonPath.read(
           getJson(SCENARIO_URI + "/" + scenarioId), "$.scenario_recurrence_paused_at");
@@ -603,8 +825,8 @@ class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Given an action that becomes pending, recurring scenarios and atomic testings should stay paused after re-approval until a user saves the schedule again")
-    void given_actionBecomesPending_should_pauseSchedulesUntilReEnabled() throws Exception {
+        "Given an approved action with recurring schedules, an edit by an author should pause nothing (US5.5)")
+    void given_editOfApprovedAction_should_pauseNothing() throws Exception {
       // Arrange
       String actionId = approvedAction();
       String scenarioId = recurringScenario(actionId);
@@ -614,35 +836,20 @@ class ThreatArsenalApprovalImpactApiTest extends IntegrationTest {
       recurringAtomic.setInjectorContract(
           injectorContractRepository.findById(actionId).orElseThrow());
       String atomicId = injectComposer.forInject(recurringAtomic).persist().get().getId();
-      assertThat(scenarioPausedAt(scenarioId)).isNull();
 
-      // Act: blocked
-      updateAs(author, actionId, update("echo changed", "Description"), false)
+      // Act
+      updateAs(author, actionId, update("echo changed", "Description"))
           .andExpect(status().is2xxSuccessful());
-      entityManager.flush();
-      entityManager.clear();
+      flushAndClear();
 
-      // Assert: both paused, and re-enabling is refused while blocked
-      assertThat(scenarioPausedAt(scenarioId)).isNotNull();
+      // Assert
+      assertThat(scenarioPausedAt(scenarioId)).isNull();
       assertThat(
               (Object)
                   JsonPath.read(
                       getJson(ATOMIC_TESTING_URI + "/" + atomicId),
                       "$.inject_recurrence_paused_at"))
-          .isNotNull();
-      putRecurrence(scenarioId, "0 0 * * * *").andExpect(status().isBadRequest());
-
-      // Act: approved again
-      approveAs(approver, actionId);
-      entityManager.flush();
-      entityManager.clear();
-
-      // Assert: still paused (no automatic resume); saving the schedule re-enables it
-      assertThat(scenarioPausedAt(scenarioId)).isNotNull();
-      putRecurrence(scenarioId, "0 0 * * * *").andExpect(status().is2xxSuccessful());
-      entityManager.flush();
-      entityManager.clear();
-      assertThat(scenarioPausedAt(scenarioId)).isNull();
+          .isNull();
     }
 
     @Test

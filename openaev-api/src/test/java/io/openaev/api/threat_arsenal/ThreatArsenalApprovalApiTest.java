@@ -187,6 +187,17 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful());
   }
 
+  /** An edit of an approved action waits as a pending version; the action stays approved. */
+  private void assertPendingVersion(String actionId) throws Exception {
+    String detail = detail(actionId);
+    assertThat((String) JsonPath.read(detail, "$.action_approval_status")).isEqualTo("APPROVED");
+    assertThat((Object) JsonPath.read(detail, "$.action_pending_version")).isNotNull();
+  }
+
+  private String pendingFingerprint(String actionId) throws Exception {
+    return JsonPath.read(detail(actionId), "$.action_pending_version.version_fingerprint");
+  }
+
   @Nested
   @DisplayName("Status computed on write")
   class Writes {
@@ -213,15 +224,17 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "an author's content edit sends an approved action back to pending, a cosmetic one does not")
-    void given_authorEdits_should_onlyResetOnContentChange() throws Exception {
+        "an author's content edit of an approved action waits as a pending version, a cosmetic one"
+            + " applies directly (Task 5)")
+    void given_authorEdits_should_createPendingVersionOnContentChangeOnly() throws Exception {
       String actionId = createAction(approver);
 
       updateAs(author, actionId, update("echo hello", "A clearer description"));
       assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+      assertThat((Object) JsonPath.read(detail(actionId), "$.action_pending_version")).isNull();
 
       updateAs(author, actionId, update("echo changed", "A clearer description"));
-      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      assertPendingVersion(actionId);
     }
 
     @Test
@@ -491,7 +504,7 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
     @Test
     @DisplayName(
         "an upgraded author is auto-approved; once approve content is removed from their role,"
-            + " their content edit makes the action pending")
+            + " their content edit waits as a pending version")
     void given_upgradedAuthorThenCapabilityRemoved_should_requireApproval() throws Exception {
       // -- ARRANGE --
       TenantRoleComposer.Composer authorsRoleComposer =
@@ -540,7 +553,7 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
       updateAs(asAuthor, actionId, update("echo maker-checker", "Command line payload"));
 
       // -- ASSERT --
-      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      assertPendingVersion(actionId);
     }
   }
 
@@ -638,8 +651,9 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("an author without approve content changing the dropped file makes it pending")
-    void given_authorEditsFileDropContent_should_makeItPending() throws Exception {
+    @DisplayName(
+        "an author without approve content changing the dropped file creates a pending version")
+    void given_authorEditsFileDropContent_should_createPendingVersion() throws Exception {
       // -- ARRANGE --
       FileDrop fileDrop = payloadService.createFileDropPayload(defaultTenant, newDocument());
       String actionId =
@@ -672,7 +686,7 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
       updateAs(author, actionId, input);
 
       // -- ASSERT --
-      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      assertPendingVersion(actionId);
     }
   }
 
@@ -682,8 +696,8 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "once approve content is removed from their role, a user's edit is pending and they can"
-            + " neither approve nor reject it")
+        "once approve content is removed from their role, a user's edit waits as a pending version"
+            + " and they can neither approve nor reject it")
     void given_approveContentRemovedMidSession_should_refuseDecisions() throws Exception {
       // -- ARRANGE --
       TenantRoleComposer.Composer roleComposer =
@@ -730,14 +744,15 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
       updateAs(session, actionId, update("echo after removal", "Command line payload"));
 
       // -- ASSERT --
-      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      assertPendingVersion(actionId);
       mvc.perform(
               post(url("/" + actionId + "/approve"))
                   .with(authentication(session))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(
-                      asJsonString(new ThreatArsenalApproveInput(fingerprint(actionId), null))))
+                      asJsonString(
+                          new ThreatArsenalApproveInput(pendingFingerprint(actionId), null))))
           .andExpect(status().isForbidden());
       mvc.perform(
               post(url("/" + actionId + "/reject"))
@@ -746,7 +761,7 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(new ThreatArsenalRejectInput("Not mine to reject"))))
           .andExpect(status().isForbidden());
-      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      assertPendingVersion(actionId);
     }
   }
 }

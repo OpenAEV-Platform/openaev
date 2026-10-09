@@ -11,6 +11,7 @@ const mockCan = vi.fn();
 const mockApprove = vi.fn();
 const mockReject = vi.fn();
 const mockUsage = vi.fn();
+const mockVersions = vi.fn();
 const { mockDispatch, mockNotifyError } = vi.hoisted(() => ({
   mockDispatch: vi.fn(),
   mockNotifyError: vi.fn(),
@@ -46,6 +47,7 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   rejectThreatArsenalAction: (...args: unknown[]) => mockReject(...args),
   fetchThreatArsenalActionApprovals: () => Promise.resolve({ data: [] }),
   fetchThreatArsenalActionUsage: (...args: unknown[]) => mockUsage(...args),
+  fetchThreatArsenalActionVersions: (...args: unknown[]) => mockVersions(...args),
 }));
 
 const pendingAction = {
@@ -59,6 +61,31 @@ const pendingAction = {
     approval_automatic: true,
     approval_actor_name: 'Author User',
     approval_created_at: '2026-10-07T10:00:00Z',
+  },
+} as unknown as ThreatArsenalActionFullOutput;
+
+// An approved action whose author submitted a new version (Task 5).
+const actionWithPendingVersion = {
+  ...pendingAction,
+  action_approval_status: 'APPROVED',
+  action_approval_fingerprint: 'fingerprint-active',
+  action_active_version: 1,
+  action_active_content: {
+    content: 'whoami',
+    executor: 'sh',
+  },
+  action_pending_version: {
+    version_id: 'version-2',
+    version_number: 2,
+    version_status: 'PENDING',
+    version_origin: 'UPDATE',
+    version_fingerprint: 'fingerprint-2',
+    version_author_name: 'Author User',
+    version_created_at: '2026-10-09T10:00:00Z',
+    version_content: {
+      content: 'whoami\nid',
+      executor: 'sh',
+    },
   },
 } as unknown as ThreatArsenalActionFullOutput;
 
@@ -77,6 +104,8 @@ describe('ThreatArsenalApprovalSection', () => {
     mockReject.mockReset();
     mockUsage.mockReset();
     mockUsage.mockResolvedValue({ data: {} });
+    mockVersions.mockReset();
+    mockVersions.mockResolvedValue({ data: [] });
     mockDispatch.mockReset();
     mockNotifyError.mockReset();
   });
@@ -169,7 +198,7 @@ describe('ThreatArsenalApprovalSection', () => {
       expect(mockReject).not.toHaveBeenCalled();
     });
 
-    it('warns that rejecting blocks the launch of what uses the payload (US2.4)', async () => {
+    it('shows where the payload is used as information, with no usage warning when rejecting (Task 5)', async () => {
       // Arrange
       mockCan.mockReturnValue(true);
       mockUsage.mockResolvedValue({
@@ -182,25 +211,92 @@ describe('ThreatArsenalApprovalSection', () => {
       renderSection(pendingAction);
 
       // Act
+      expect(await screen.findByText('Used in')).toBeTruthy();
       fireEvent.click(screen.getByRole('button', { name: /Reject/ }));
 
       // Assert
-      expect(await screen.findByText(/It will block the launch of the items below until it is edited and approved again\./)).toBeTruthy();
+      expect(await screen.findByText('Reject this payload? It stays blocked until it is edited and approved.')).toBeTruthy();
       expect(mockUsage).toHaveBeenCalledWith('action-1');
     });
+  });
 
-    it('shows no usage warning when the payload is not used', async () => {
+  describe('pending version (Task 5)', () => {
+    it('offers the decision on an approved action with a pending version and shows its changes', async () => {
       // Arrange
       mockCan.mockReturnValue(true);
-      renderSection(pendingAction);
+
+      // Act
+      renderSection(actionWithPendingVersion);
+
+      // Assert
+      expect((screen.getByRole('button', { name: /Approve/ }) as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.getByText('Pending version')).toBeTruthy();
+      expect(screen.getByText('v1')).toBeTruthy();
+      const diff = screen.getByLabelText('Command');
+      expect(diff.textContent).toContain('  whoami');
+      expect(diff.textContent).toContain('+ id');
+      expect(screen.queryByText('Executor')).toBeNull();
+    });
+
+    it('approves the pending version with the fingerprint of that version', async () => {
+      // Arrange
+      mockCan.mockReturnValue(true);
+      mockApprove.mockResolvedValue({ data: actionWithPendingVersion });
+      renderSection(actionWithPendingVersion);
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: /Approve/ }));
+      expect(await screen.findByText('Approve version {number}? It replaces the active version: the next runs use it.')).toBeTruthy();
+      const dialogButtons = await screen.findAllByRole('button', { name: 'Approve' });
+      fireEvent.click(dialogButtons[dialogButtons.length - 1]);
+
+      // Assert
+      await waitFor(() => expect(mockApprove).toHaveBeenCalledWith('action-1', {
+        approval_fingerprint: 'fingerprint-2',
+        approval_comment: undefined,
+      }, false));
+    });
+
+    it('rejects the pending version, keeping the active one', async () => {
+      // Arrange
+      mockCan.mockReturnValue(true);
+      renderSection(actionWithPendingVersion);
 
       // Act
       fireEvent.click(screen.getByRole('button', { name: /Reject/ }));
-      await screen.findAllByRole('button', { name: 'Reject' });
 
       // Assert
-      await waitFor(() => expect(mockUsage).toHaveBeenCalled());
-      expect(screen.queryByText(/It will block the launch of the items below until it is edited and approved again\./)).toBeNull();
+      expect(await screen.findByText('Reject version {number}? The active version stays in use.')).toBeTruthy();
+    });
+
+    it('lists the version history', async () => {
+      // Arrange
+      mockCan.mockReturnValue(true);
+      mockVersions.mockResolvedValue({
+        data: [{
+          version_id: 'version-2',
+          version_number: 2,
+          version_status: 'REJECTED',
+          version_origin: 'UPDATE',
+          version_fingerprint: 'fingerprint-2',
+          version_author_name: 'Author User',
+          version_decider_name: 'Approver User',
+          version_comment: 'Too broad',
+          version_created_at: '2026-10-09T10:00:00Z',
+          version_content: {},
+        }],
+      });
+
+      // Act
+      renderSection({
+        ...pendingAction,
+        action_approval_status: 'APPROVED',
+      } as ThreatArsenalActionFullOutput);
+
+      // Assert
+      expect(await screen.findByText('Version history')).toBeTruthy();
+      expect(screen.getByText(/^v2 · Rejected · Author User/)).toBeTruthy();
+      expect(screen.getByText('Too broad')).toBeTruthy();
     });
   });
 

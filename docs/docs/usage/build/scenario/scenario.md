@@ -87,7 +87,7 @@ A visual indicator next to the Scenario title shows whether a Simulation is curr
 
 !!! note "Payload approval and paused schedules"
 
-    While a Scenario uses an Action whose payload is not approved, its **Launch** buttons are disabled (the tooltip names the blocking Actions) and its schedule is **paused**. A schedule is also paused when an inject changes what it runs or targets (content, arguments, expectations, Action, targets, documents) or when the Scenario's teams or players change. A paused schedule creates no Simulation and stays paused until you open the schedule and save it again (refused while an Action is still blocked), or stop it. See [Approval of payloads](../threat-arsenals/threat-arsenals.md#approval-of-payloads).
+    While a Scenario uses an Action whose payload has no approved version (for example after an import), its **Launch** buttons are disabled (the tooltip names the blocking Actions) and its scheduled runs are refused. A new version of a payload waiting for approval changes nothing: the Scenario runs the approved version. A schedule is **paused** when an inject changes what it runs or targets (content, arguments, expectations, Action, targets, documents) or when the Scenario's teams or players change. A paused schedule creates no Simulation and stays paused until you open the schedule and save it again (refused while an Action is still blocked), or stop it. See [Approval of payloads](../threat-arsenals/threat-arsenals.md#approval-of-payloads).
 
 ## What's next?
 

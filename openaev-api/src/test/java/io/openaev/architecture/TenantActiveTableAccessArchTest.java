@@ -63,6 +63,7 @@ import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.PayloadApprovalRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.database.repository.PayloadVersionRepository;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.database.repository.PhishingResultRepository;
@@ -240,6 +241,7 @@ import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
+import io.openaev.service.payload_approval.PayloadVersionService;
 import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
@@ -339,6 +341,7 @@ class TenantActiveTableAccessArchTest {
           "asset_agent_jobs",
           "payloads",
           "payload_approvals",
+          "payload_versions",
           "vulnerabilities",
           "phishing_results",
           "reporting_schedules",
@@ -2054,6 +2057,23 @@ class TenantActiveTableAccessArchTest {
           .areAssignableTo(PayloadApprovalRepository.class)
           .because(
               "payload_approvals is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule payload_versions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // The only accessor. Called from the payload write services (update, upsert), from
+              // ThreatArsenalService for approve / reject / versions and from ThreatArsenalMapper
+              // for the pending and active versions: all behind TxCtx-carrying ThreatArsenalApi /
+              // PayloadApi / collector entrypoints.
+              PayloadVersionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PayloadVersionRepository.class)
+          .because(
+              "payload_versions is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest

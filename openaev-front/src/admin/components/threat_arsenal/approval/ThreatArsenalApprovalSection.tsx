@@ -8,13 +8,19 @@ import {
   approveThreatArsenalAction,
   fetchThreatArsenalActionApprovals,
   fetchThreatArsenalActionUsage,
+  fetchThreatArsenalActionVersions,
   rejectThreatArsenalAction,
 } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogConfirmation from '../../../../components/common/DialogConfirmation';
 import Field from '../../../../components/common/overview/Field';
 import Section from '../../../../components/common/overview/Section';
 import { useFormatter } from '../../../../components/i18n';
-import { type PayloadApprovalOutput, type ThreatArsenalActionFullOutput, type ThreatArsenalActionUsageOutput } from '../../../../utils/api-types';
+import {
+  type PayloadApprovalOutput,
+  type PayloadVersionOutput,
+  type ThreatArsenalActionFullOutput,
+  type ThreatArsenalActionUsageOutput,
+} from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { type Error as ApiError, notifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../../utils/fdsLayer';
@@ -22,8 +28,9 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../utils/permissions/types';
 import ApprovalStatusChip from './ApprovalStatusChip';
-import { APPROVAL_COMMENT_MAX_LENGTH, approvalOriginLabel, approvalStatusLabel, isPayloadUsed } from './approvalStatusUtils';
-import PayloadUsageWarning from './PayloadUsageWarning';
+import { APPROVAL_COMMENT_MAX_LENGTH, approvalOriginLabel, approvalStatusLabel, isPayloadUsed, versionStatusLabel } from './approvalStatusUtils';
+import PayloadUsage from './PayloadUsage';
+import PayloadVersionComparison from './PayloadVersionComparison';
 
 interface Props {
   action: ThreatArsenalActionFullOutput;
@@ -33,7 +40,10 @@ interface Props {
 
 /**
  * Approval block of an action drawer: the status, the latest decision, the Approve / Reject
- * actions for holders of "Approve content" and the approval history.
+ * actions for holders of "Approve content" and the approval history. When an approved action has
+ * a pending version, the decision acts on that version: the block shows the active and pending
+ * versions, what the pending one changes, and the version history. "Used in" is information only:
+ * a pending version never blocks what uses the action.
  */
 const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDecided }) => {
   const { t, nsdt } = useFormatter();
@@ -49,10 +59,13 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
   const [reasonError, setReasonError] = useState<string | undefined>(undefined);
   const [history, setHistory] = useState<PayloadApprovalOutput[]>([]);
   const [usage, setUsage] = useState<ThreatArsenalActionUsageOutput | undefined>(undefined);
+  const [versions, setVersions] = useState<PayloadVersionOutput[]>([]);
 
   const status = action.action_approval_status;
   const latest = action.action_approval_latest;
-  const isPending = status === 'PENDING';
+  const pendingVersion = action.action_pending_version;
+  const activeNumber = action.action_active_version ?? 1;
+  const isPending = status === 'PENDING' || !!pendingVersion;
 
   // Capabilities are loaded at app start: refresh them before offering a decision, so a user whose
   // Approve content was removed meanwhile sees the buttons disabled (the server refuses anyway).
@@ -86,12 +99,8 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
     };
   }, [action.action_id, status, latest?.approval_id]);
 
-  // Warning before impact: where the payload is used, loaded when the Reject dialog opens.
+  // Where the payload is used: information only (an approval change never blocks it anymore).
   useEffect(() => {
-    if (!rejectOpen) {
-      setUsage(undefined);
-      return undefined;
-    }
     let cancelled = false;
     fetchThreatArsenalActionUsage(action.action_id)
       .then((response) => {
@@ -103,7 +112,21 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
     return () => {
       cancelled = true;
     };
-  }, [rejectOpen, action.action_id]);
+  }, [action.action_id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchThreatArsenalActionVersions(action.action_id)
+      .then((response) => {
+        if (!cancelled) setVersions((response.data ?? []) as PayloadVersionOutput[]);
+      })
+      .catch(() => {
+        if (!cancelled) setVersions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [action.action_id, status, latest?.approval_id, pendingVersion?.version_id]);
 
   const closeApprove = () => {
     setApproveOpen(false);
@@ -115,27 +138,28 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
     setReasonError(undefined);
   };
 
-  // The approval is bound to the content shown here: the server refuses it if the payload changed.
+  // The approval is bound to the content shown here (the pending version when there is one): the
+  // server refuses it if that content changed meanwhile.
   const handleApprove = () => approveThreatArsenalAction(action.action_id, {
-    approval_fingerprint: action.action_approval_fingerprint ?? '',
+    approval_fingerprint: pendingVersion?.version_fingerprint ?? action.action_approval_fingerprint ?? '',
     approval_comment: comment.trim() || undefined,
   }, false).then((response) => {
     closeApprove();
     onDecided(response.data as ThreatArsenalActionFullOutput);
-    MESSAGING$.notifySuccess(t('The payload has been approved.'));
+    MESSAGING$.notifySuccess(pendingVersion ? t('The new version has been approved.') : t('The payload has been approved.'));
   }).catch(error => onDecisionError(error, closeApprove));
 
   const handleReject = (resetLoading?: () => void) => {
     const trimmed = reason.trim();
     if (!trimmed) {
-      setReasonError(t('A reason is required to reject a payload.'));
+      setReasonError(pendingVersion ? t('A reason is required to reject a version.') : t('A reason is required to reject a payload.'));
       resetLoading?.();
       return undefined;
     }
     return rejectThreatArsenalAction(action.action_id, { approval_reason: trimmed }, false).then((response) => {
       closeReject();
       onDecided(response.data as ThreatArsenalActionFullOutput);
-      MESSAGING$.notifySuccess(t('The payload has been rejected.'));
+      MESSAGING$.notifySuccess(pendingVersion ? t('The new version has been rejected.') : t('The payload has been rejected.'));
     }).catch(error => onDecisionError(error, closeReject));
   };
 
@@ -192,6 +216,13 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
     return `${what} · ${who} · ${nsdt(entry.approval_created_at)}`;
   };
 
+  const describeVersion = (version: PayloadVersionOutput) => {
+    const who = version.version_origin === 'COLLECTOR'
+      ? t('Synchronized by a collector')
+      : version.version_author_name ?? t('Unknown user');
+    return `${who} · ${nsdt(version.version_created_at)}`;
+  };
+
   return (
     <Section
       title={t('Approval')}
@@ -210,11 +241,64 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
         <Field label="Last decision">
           <Text variant="content-base">{latest ? describe(latest) : '-'}</Text>
         </Field>
+        {status === 'APPROVED' && (
+          <Field label="Active version">
+            <Text variant="content-base">{`v${activeNumber}`}</Text>
+          </Field>
+        )}
+        {pendingVersion && (
+          <Field label="Pending version">
+            <Text variant="content-base">{describeVersion(pendingVersion)}</Text>
+          </Field>
+        )}
       </div>
+      {pendingVersion && action.action_active_content && (
+        <div style={{ marginTop: theme.spacing(1.5) }}>
+          <Field label="Changes in the pending version">
+            <PayloadVersionComparison
+              active={action.action_active_content}
+              pending={pendingVersion.version_content}
+              activeNumber={activeNumber}
+              pendingNumber={pendingVersion.version_number ?? activeNumber + 1}
+            />
+          </Field>
+        </div>
+      )}
       {latest?.approval_comment && (
         <div style={{ marginTop: theme.spacing(1.5) }}>
           <Field label={latest.approval_status === 'REJECTED' ? 'Reason' : 'Comment'}>
             <Text variant="content-base">{latest.approval_comment}</Text>
+          </Field>
+        </div>
+      )}
+      {versions.length > 0 && (
+        <div style={{ marginTop: theme.spacing(1.5) }}>
+          <Field label="Version history">
+            <ul style={{
+              margin: 0,
+              paddingLeft: theme.spacing(2),
+            }}
+            >
+              {versions.map(version => (
+                <li key={version.version_id}>
+                  <Text variant="content-caption">
+                    {`v${version.version_number} · ${t(versionStatusLabel(version.version_status))} · ${describeVersion(version)}${version.version_decider_name && version.version_status !== 'PENDING' ? ` · ${t('Decided by {name}', { name: version.version_decider_name })}` : ''}`}
+                  </Text>
+                  {version.version_comment && (
+                    <Text variant="content-caption" className="text-default-secondary" style={{ display: 'block' }}>
+                      {version.version_comment}
+                    </Text>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Field>
+        </div>
+      )}
+      {isPayloadUsed(usage) && (
+        <div style={{ marginTop: theme.spacing(1.5) }}>
+          <Field label="Used in">
+            <PayloadUsage usage={usage} />
           </Field>
         </div>
       )}
@@ -246,7 +330,9 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
         open={approveOpen}
         handleClose={closeApprove}
         handleSubmit={handleApprove}
-        text={t('Approve this payload? It can then be used in atomic testings, scenarios and simulations.')}
+        text={pendingVersion
+          ? t('Approve version {number}? It replaces the active version: the next runs use it.', { number: String(pendingVersion.version_number) })
+          : t('Approve this payload? It can then be used in atomic testings, scenarios and simulations.')}
         submitLabel={t('Approve')}
         extraContent={(
           <div
@@ -272,8 +358,8 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
         open={rejectOpen}
         handleClose={closeReject}
         handleSubmit={handleReject}
-        text={isPayloadUsed(usage)
-          ? t('Reject this payload? It will block the launch of the items below until it is edited and approved again.')
+        text={pendingVersion
+          ? t('Reject version {number}? The active version stays in use.', { number: String(pendingVersion.version_number) })
           : t('Reject this payload? It stays blocked until it is edited and approved.')}
         submitLabel={t('Reject')}
         submitColor="error"
@@ -288,11 +374,10 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
               gap: theme.spacing(2),
             }}
           >
-            <PayloadUsageWarning usage={usage} />
             <Textarea
               label={t('Reason')}
               required
-              placeholder={t('Why this payload is rejected, shown to its author')}
+              placeholder={pendingVersion ? t('Why this version is rejected, shown to its author') : t('Why this payload is rejected, shown to its author')}
               value={reason}
               onChange={(event) => {
                 setReason(event.target.value);

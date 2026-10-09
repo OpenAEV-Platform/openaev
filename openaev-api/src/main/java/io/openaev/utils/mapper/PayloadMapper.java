@@ -254,6 +254,7 @@ public class PayloadMapper {
                     .collectorType(payloadToSimple.getCollectorTypeValue())
                     .status(payloadToSimple.getStatus())
                     .approvalStatus(payloadToSimple.getApprovalStatus())
+                    .pendingVersion(payloadToSimple.isPendingVersion())
                     .build())
         .orElse(null);
   }

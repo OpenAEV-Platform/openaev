@@ -2,8 +2,6 @@ package io.openaev.service.payload_approval;
 
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ExerciseStatus;
-import io.openaev.database.model.Payload;
-import io.openaev.database.model.Payload.PAYLOAD_APPROVAL_STATUS;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawPayloadUsageItem;
@@ -19,16 +17,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /**
- * Where a payload is used, to warn before an approval change blocks launches: rejecting it, or an
- * edit that sends an approved payload back to pending.
+ * Where a payload is used, shown as information ("Used in …") on a threat arsenal action. Approval
+ * changes no longer block what uses an approved payload: a new version waits for approval while the
+ * approved one keeps running (see {@link PayloadVersionService}).
  */
 @Service
 @RequiredArgsConstructor
 public class PayloadUsageService {
 
   /**
-   * Simulations a non-approved payload still blocks: those that can still be started or will still
-   * run (scheduled, including "draft" ones without a start date, running or paused) and in which an
+   * Simulations still to use the payload: those that can still be started or will still run
+   * (scheduled, including "draft" ones without a start date, running or paused) and in which an
    * inject using the payload has not run yet. Finished and canceled simulations cannot run again,
    * and a running one whose injects using the payload already ran is not affected.
    */
@@ -36,8 +35,8 @@ public class PayloadUsageService {
       List.of(ExerciseStatus.SCHEDULED, ExerciseStatus.RUNNING, ExerciseStatus.PAUSED);
 
   /**
-   * Names listed per type: enough for the warning dialogs, capped so a payload used in hundreds of
-   * items stays fast (the counts are always exact).
+   * Names listed per type: enough for the drawer, capped so a payload used in hundreds of items
+   * stays fast (the counts are always exact).
    */
   static final int NAMES_LIMIT = 20;
 
@@ -67,35 +66,6 @@ public class PayloadUsageService {
             () ->
                 injectRepository.findSimulationsByPayloadIdAndStatusIn(
                     payloadId, SIMULATIONS_TO_RUN, firstNames)));
-  }
-
-  /**
-   * The usage an edit by {@code actor} could block, read before the edit is applied: present only
-   * when the payload is approved, the actor cannot approve (so a content change sends it back to
-   * pending) and the payload is used. Whether the content actually changes is checked after the
-   * edit, with {@link #refuseUnconfirmedSendBackToPending}.
-   */
-  public @Nullable PayloadUsage usageAtRiskOfEdit(
-      @NotNull final Payload payload, @Nullable final User actor) {
-    if (payload.getApprovalStatus() != PAYLOAD_APPROVAL_STATUS.APPROVED
-        || PayloadApprovalService.canApprove(actor)) {
-      return null;
-    }
-    PayloadUsage usage = usage(payload.getId(), actor);
-    return usage.isUsed() ? usage : null;
-  }
-
-  /**
-   * Refuses an unconfirmed edit that changes the executable content of an approved payload in use,
-   * so the caller can warn first. Throwing rolls the edit back: nothing is written.
-   */
-  public void refuseUnconfirmedSendBackToPending(
-      @Nullable final PayloadUsage usageAtRisk,
-      @NotNull final String fingerprintBefore,
-      @NotNull final Payload editedPayload) {
-    if (usageAtRisk != null && !fingerprintBefore.equals(PayloadFingerprint.of(editedPayload))) {
-      throw new PayloadApprovalImpactException(usageAtRisk);
-    }
   }
 
   private static @Nullable List<RawPayloadUsageItem> namesIfReadable(

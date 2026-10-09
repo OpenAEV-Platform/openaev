@@ -2,12 +2,14 @@ package io.openaev.utils.mapper;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.api.threat_arsenal.dto.PayloadApprovalOutput;
+import io.openaev.api.threat_arsenal.dto.PayloadVersionOutput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionFullOutput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalExpectationDetail;
 import io.openaev.database.model.*;
 import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.service.payload_approval.PayloadFingerprint;
+import io.openaev.service.payload_approval.PayloadVersionService;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
@@ -42,6 +44,7 @@ public class ThreatArsenalMapper {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final EntityManager entityManager;
   private final PayloadApprovalService payloadApprovalService;
+  private final PayloadVersionService payloadVersionService;
 
   /**
    * Resolves an author association that may be an uninitialized proxy detached from its session
@@ -148,6 +151,9 @@ public class ThreatArsenalMapper {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -245,6 +251,10 @@ public class ThreatArsenalMapper {
     // Mirrors InjectorContract#getProviding for the payload branch: the output types a payload
     // produces are the distinct contract output element types across its output parsers.
     User lastModifiedBy = resolveAuthor(User.class, payload.getLastModifiedBy());
+    Optional<PayloadVersion> pendingVersion =
+        payload.getId() != null && payload.isPendingVersion()
+            ? payloadVersionService.pending(payload.getId())
+            : Optional.empty();
 
     List<ContractOutputType> providing =
         payload.getOutputParsers().stream()
@@ -295,6 +305,9 @@ public class ThreatArsenalMapper {
                 .latest(payload.getId())
                 .map(PayloadApprovalOutput::from)
                 .orElse(null)
-            : null);
+            : null,
+        payload.getId() != null ? payloadVersionService.activeNumber(payload.getId()) : null,
+        pendingVersion.isPresent() ? PayloadExecutableContent.of(payload) : null,
+        pendingVersion.map(PayloadVersionOutput::from).orElse(null));
   }
 }

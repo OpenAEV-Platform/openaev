@@ -1,5 +1,6 @@
+import { Text } from '@filigran/design-system';
 import { ExpandMoreOutlined } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Alert } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -26,12 +27,11 @@ const COUNT_MESSAGES = {
 };
 
 /**
- * Where a payload is used, shown before an approval change blocks launches (rejecting it, or an
- * edit that sends it back to pending): a warning with the pluralized counts, then one collapsible
- * group per type in use, each a compact scrollable list of links (new tab) to the first items the
- * user can open. Renders nothing when the payload is not used.
+ * Where a payload is used, as information in the action drawer: the pluralized counts, then one
+ * collapsible group per type in use, each a compact scrollable list of links (new tab) to the first
+ * items the user can open. Renders nothing when the payload is not used.
  */
-const PayloadUsageWarning: FunctionComponent<Props> = ({ usage }) => {
+const PayloadUsage: FunctionComponent<Props> = ({ usage }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   if (!usage || !isPayloadUsed(usage)) {
@@ -73,7 +73,7 @@ const PayloadUsageWarning: FunctionComponent<Props> = ({ usage }) => {
       gap: theme.spacing(1),
     }}
     >
-      <Alert severity="warning">{t('Used in {items}.', { items: summary })}</Alert>
+      <Text variant="content-base">{t('Used in {items}.', { items: summary })}</Text>
       {groups.filter(group => group.items && group.items.length > 0).map(group => (
         <Accordion key={group.key} disableGutters variant="outlined">
           <AccordionSummary expandIcon={<ExpandMoreOutlined />}>
@@ -114,4 +114,4 @@ const PayloadUsageWarning: FunctionComponent<Props> = ({ usage }) => {
   );
 };
 
-export default PayloadUsageWarning;
+export default PayloadUsage;

@@ -84,6 +84,12 @@ public class PayloadApproval implements TenantBase {
   @Column(name = "payload_approval_fingerprint")
   private String fingerprint;
 
+  // The version this decision applied, when it approved a pending version (Task 5).
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_approval_version")
+  @JsonIgnore
+  private PayloadVersion version;
+
   @Column(name = "payload_approval_created_at", nullable = false, updatable = false)
   @NotNull
   private Instant createdAt = now();

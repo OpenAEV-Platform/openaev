@@ -78,26 +78,7 @@ public interface InjectRepository
 
   // -- SIMULATION --
 
-  /**
-   * Count of a simulation's injects still progressing through execution (status in the given
-   * in-flight set: QUEUING / PENDING / EXECUTING). Zero means nothing is in flight - no step whose
-   * result the orchestrator could still be legitimately awaiting. Used by the autonomous idle/stall
-   * watchdog to exempt a silent-but-legitimate {@code await_finding} park (a slow step is still
-   * running) from being settled. An inject with no status row yet (DRAFT / never launched) is
-   * deliberately not counted: the inner join on {@code status} drops it, and it is not in flight so
-   * it cannot justify the orchestrator's silence.
-   */
-  // -- LAUNCH READINESS (pause schedules when a payload is blocked) --
-
-  /** Recurring atomic testings using the payload whose schedule is not paused yet. */
-  @Query(
-      "SELECT i FROM Inject i WHERE i.injectorContract.payload.id = :payloadId "
-          + "AND i.scenario IS NULL AND i.exercise IS NULL "
-          + "AND i.recurrence IS NOT NULL AND i.recurrencePausedAt IS NULL")
-  List<Inject> findRecurringAtomicTestingsNotPausedByPayloadId(
-      @Param("payloadId") String payloadId);
-
-  // -- PAYLOAD USAGE (approval impact warnings) --
+  // -- PAYLOAD USAGE ("Used in" on a threat arsenal action) --
 
   @Query(
       "SELECT COUNT(i) FROM Inject i WHERE i.injectorContract.payload.id = :payloadId "
@@ -140,6 +121,15 @@ public interface InjectRepository
       @Param("statuses") Collection<ExerciseStatus> statuses,
       Pageable pageable);
 
+  /**
+   * Count of a simulation's injects still progressing through execution (status in the given
+   * in-flight set: QUEUING / PENDING / EXECUTING). Zero means nothing is in flight - no step whose
+   * result the orchestrator could still be legitimately awaiting. Used by the autonomous idle/stall
+   * watchdog to exempt a silent-but-legitimate {@code await_finding} park (a slow step is still
+   * running) from being settled. An inject with no status row yet (DRAFT / never launched) is
+   * deliberately not counted: the inner join on {@code status} drops it, and it is not in flight so
+   * it cannot justify the orchestrator's silence.
+   */
   @Query(
       "SELECT COUNT(i) FROM Inject i WHERE i.exercise.id = :exerciseId "
           + "AND i.status.name IN :statuses")

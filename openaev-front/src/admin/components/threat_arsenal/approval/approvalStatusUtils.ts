@@ -1,9 +1,10 @@
 import { type ChipSeverity } from '@filigran/design-system';
 
-import { type PayloadApprovalOutput, type ThreatArsenalActionUsageOutput } from '../../../../utils/api-types';
+import { type PayloadApprovalOutput, type PayloadVersionOutput, type ThreatArsenalActionUsageOutput } from '../../../../utils/api-types';
 
 export type ApprovalStatus = NonNullable<PayloadApprovalOutput['approval_status']>;
 export type ApprovalOrigin = NonNullable<PayloadApprovalOutput['approval_origin']>;
+export type VersionStatus = PayloadVersionOutput['version_status'];
 
 export const APPROVAL_STATUSES: ApprovalStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
 
@@ -38,6 +39,15 @@ export const approvalStatusSeverity = (status: ApprovalStatus): ChipSeverity => 
 export const approvalStatusLabel = (status: ApprovalStatus): string => STATUS_LABELS[status] ?? status;
 
 export const approvalOriginLabel = (origin: ApprovalOrigin): string => ORIGIN_LABELS[origin] ?? origin;
+
+const VERSION_STATUS_LABELS: Record<VersionStatus, string> = {
+  PENDING: 'Pending approval',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  SUPERSEDED: 'Superseded',
+};
+
+export const versionStatusLabel = (status: VersionStatus): string => VERSION_STATUS_LABELS[status] ?? status;
 
 export const APPROVAL_COMMENT_MAX_LENGTH = 2000;
 

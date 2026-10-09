@@ -5,12 +5,12 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.Payload.PAYLOAD_APPROVAL_STATUS;
 import io.openaev.database.model.PayloadApproval;
 import io.openaev.database.model.PayloadApproval.ORIGIN;
+import io.openaev.database.model.PayloadVersion;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.PayloadApprovalRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.PermissionService;
-import io.openaev.service.readiness.LaunchReadinessService;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -34,6 +34,9 @@ import org.springframework.stereotype.Service;
  *   <li>Only a PENDING payload can be approved or rejected, by a holder of "Approve content"; the
  *       approval is bound to the content fingerprint the approver saw, a rejection needs a reason.
  * </ul>
+ *
+ * <p>An executable edit of an APPROVED payload by anyone else does not reach this service: {@link
+ * PayloadVersionService} holds it back as a pending version, and the payload stays APPROVED.
  */
 @Service
 @RequiredArgsConstructor
@@ -45,7 +48,6 @@ public class PayloadApprovalService {
   static final String SYSTEM_COMMENT = "Built-in payload created by the platform";
 
   private final PayloadApprovalRepository payloadApprovalRepository;
-  private final LaunchReadinessService launchReadinessService;
 
   /** Whether the user may approve payload content ("Approve content", admin or tenant bypass). */
   public static boolean canApprove(@Nullable final User user) {
@@ -134,6 +136,25 @@ public class PayloadApprovalService {
         payload, PAYLOAD_APPROVAL_STATUS.REJECTED, ORIGIN.REJECT, false, decider, bounded(trimmed));
   }
 
+  /**
+   * Records the approval of a pending version whose content was just applied to the payload (see
+   * {@link PayloadVersionService#approve}).
+   */
+  PayloadApproval recordVersionApproval(
+      @NotNull final Payload payload,
+      @NotNull final User decider,
+      @Nullable final String comment,
+      @NotNull final PayloadVersion version) {
+    return apply(
+        payload,
+        PAYLOAD_APPROVAL_STATUS.APPROVED,
+        ORIGIN.APPROVE,
+        false,
+        decider,
+        comment,
+        version);
+  }
+
   /** The approval history of a payload, newest first. */
   public List<PayloadApproval> history(@NotNull final String payloadId) {
     return payloadApprovalRepository.findByPayloadIdOrderByCreatedAtDesc(payloadId);
@@ -151,6 +172,17 @@ public class PayloadApprovalService {
       boolean automatic,
       User actor,
       String comment) {
+    return apply(payload, status, origin, automatic, actor, comment, null);
+  }
+
+  private PayloadApproval apply(
+      Payload payload,
+      PAYLOAD_APPROVAL_STATUS status,
+      ORIGIN origin,
+      boolean automatic,
+      User actor,
+      String comment,
+      PayloadVersion version) {
     String fingerprint = PayloadFingerprint.of(payload);
     payload.setApprovalStatus(status);
     payload.setApprovedFingerprint(status == PAYLOAD_APPROVAL_STATUS.APPROVED ? fingerprint : null);
@@ -165,11 +197,8 @@ public class PayloadApprovalService {
     entry.setActorName(actor != null ? actor.getNameOrEmail() : null);
     entry.setComment(comment);
     entry.setFingerprint(fingerprint);
-    PayloadApproval saved = payloadApprovalRepository.save(entry);
-    if (status != PAYLOAD_APPROVAL_STATUS.APPROVED) {
-      launchReadinessService.onPayloadBlocked(payload);
-    }
-    return saved;
+    entry.setVersion(version);
+    return payloadApprovalRepository.save(entry);
   }
 
   private static void requirePending(Payload payload) {
@@ -181,11 +210,11 @@ public class PayloadApprovalService {
     }
   }
 
-  private static String blankToNull(String value) {
+  static String blankToNull(String value) {
     return value == null || value.isBlank() ? null : value.trim();
   }
 
-  private static String bounded(String value) {
+  static String bounded(String value) {
     if (value != null && value.length() > MAX_COMMENT_LENGTH) {
       throw new BadRequestException(
           "The comment is limited to " + MAX_COMMENT_LENGTH + " characters.");
