@@ -5,6 +5,8 @@ import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.rest.exception.ManagedPayloadReadOnlyException;
+import io.openaev.rest.exception.PayloadInUseException;
 import io.openaev.utils.SemanticVersion;
 import jakarta.persistence.EntityManager;
 import java.util.*;
@@ -70,6 +72,43 @@ public class PayloadVersionService {
               payloadRepository.save(l);
             });
     return latest;
+  }
+
+  // -- DELETE --
+
+  /** F26: managed versions are never deleted; a local copy is not deleted while injects run it. */
+  @Transactional(readOnly = true)
+  public void assertDeletable(Payload payload) {
+    checkDeletable(payload);
+  }
+
+  @Transactional(readOnly = true)
+  public void assertContractDeletable(String contractId, String tenantId) {
+    payloadRepository
+        .findByInjectorContractId(contractId, tenantId)
+        .ifPresent(this::checkDeletable);
+  }
+
+  private void checkDeletable(Payload payload) {
+    if (isManaged(payload)) {
+      throw new ManagedPayloadReadOnlyException(
+          "Managed payload versions cannot be deleted: payload " + payload.getId());
+    }
+    List<String> usages =
+        payloadRepository.findUsageNamesByPayloadId(payload.getId()).stream()
+            .map(name -> name != null ? name : "atomic testing")
+            .toList();
+    if (!usages.isEmpty()) {
+      throw new PayloadInUseException(usages);
+    }
+  }
+
+  /** Contracts among these whose payload {@link #assertDeletable} would refuse, in one query. */
+  @Transactional(readOnly = true)
+  public Set<String> findNotDeletableContractIds(Collection<String> contractIds) {
+    return contractIds.isEmpty()
+        ? Set.of()
+        : payloadRepository.findNotDeletableContractIds(contractIds);
   }
 
   private Set<String> revokedVersions(String externalId) {

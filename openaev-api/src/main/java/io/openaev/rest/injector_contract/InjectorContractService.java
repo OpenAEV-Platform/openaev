@@ -51,6 +51,7 @@ import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -113,6 +114,7 @@ public class InjectorContractService implements DependenciesManager {
   private final InjectIndexCleanupService injectIndexCleanupService;
   private final StepRepository stepRepository;
   private final ChainingStepCleanupService chainingStepCleanupService;
+  private final PayloadVersionService payloadVersionService;
 
   /**
    * Built-in contracts whose injectors start with the platform through an autostart instance, so
@@ -571,6 +573,9 @@ public class InjectorContractService implements DependenciesManager {
   // no_transactional_self_invocation). The entry point's transaction makes the contract delete
   // and the chaining step sweep commit or roll back together.
   public void deleteInjectorContract(InjectorContract injectorContract) {
+    if (injectorContract.getPayload() != null) {
+      payloadVersionService.assertDeletable(injectorContract.getPayload());
+    }
     // Same compensation as deleteInjectorContractById: the injects FK on injectors_contracts is ON
     // DELETE CASCADE, so the injects (and, one hop further, their expectations and findings) vanish
     // at the database level without a single JPA lifecycle event. The engine cascade is single-hop:
@@ -638,6 +643,7 @@ public class InjectorContractService implements DependenciesManager {
     // The injects FK on injectors_contracts is ON DELETE CASCADE: collect the doomed inject ids
     // before the delete and de-index them explicitly (no JPA lifecycle fires for DB cascades).
     String tenantId = TenantContext.getCurrentTenant();
+    payloadVersionService.assertContractDeletable(injectorContractId, tenantId);
     List<String> cascadeDeletedInjectIds =
         injectIndexCleanupService.injectIdsByContractIds(List.of(injectorContractId), tenantId);
     this.injectorContractRepository.deleteById(

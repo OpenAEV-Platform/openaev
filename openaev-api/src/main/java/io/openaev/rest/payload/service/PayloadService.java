@@ -52,6 +52,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.content.ContentHistoryService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -96,6 +97,7 @@ public class PayloadService {
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final ContentHistoryService contentHistoryService;
+  private final PayloadVersionService payloadVersionService;
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
@@ -649,6 +651,7 @@ public class PayloadService {
         payloadRepository
             .findById(payloadId)
             .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+    payloadVersionService.assertDeletable(payload);
     // Payload deletion cascades at the DB level to its injector contract and then to the injects
     // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
     // event fires for them. Chaining steps referencing that contract have no FK to cascade on
