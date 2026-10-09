@@ -104,7 +104,8 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
     }
   }
 
-  @Transactional(readOnly = true)
+  // Not @Transactional: every caller in this class is itself @Transactional, and a self-invocation
+  // bypasses the Spring proxy — an annotation here would never take effect.
   public Optional<User> getUserServiceAccountByTenant(String tenantId) {
     String email = SERVICE_EMAIL_PATTERN.formatted(tenantId);
 
