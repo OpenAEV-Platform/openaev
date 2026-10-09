@@ -1,0 +1,77 @@
+# Waived joins on a tenant-shared key (#7905). Read by SharedTenantKeyJoinArchTest.
+#
+# Format, one predicate per line:
+#   <Class>#<method> <column> <alias>=<alias>  # <classification> : <reason>
+#
+# The entry names the statement, not a line, so it survives reformatting and goes stale when the
+# query it excuses is fixed, renamed or deleted. A stale entry fails the build: the change that
+# repairs a query removes its waiver in the same commit, which is what keeps this file from becoming
+# a parking lot. "in-subquery" on the right of a key stands for the anonymous result of an
+# IN (SELECT ...) correlation.
+#
+# The reason must BEGIN with one of these four classifications, spelled out. A bare entry, or one
+# whose reason is only a tag, is rejected: an entry must say what makes the join safe, not that it is.
+#
+#   reaches-active-table:<table> : the join itself is unscoped, but the chain continues onto <table>,
+#                             which is on the production active-tables list, so the statement
+#                             inspector removes the foreign row before it can reach the result. Name
+#                             the table. This reason expires if that table ever leaves the list,
+#                             which is why the table is named rather than the effect asserted.
+#   dead-code               : the method has no caller. Say how that was established, because the
+#                             reason dies the moment somebody calls it.
+#   not-established         : the leak is neither proven nor disproven, and no active table
+#                             attenuates it. MUST carry an until-active:<table> tag naming the
+#                             activation that retires the question, so the entry has an expiry.
+#                             Say what measurement would settle it.
+#   fixed-pending:#<pr>      : the predicate is repaired on an open pull request that has not landed
+#                             yet. Name the pull request. Whichever of the two lands second deletes
+#                             these lines, and the stale check above makes forgetting impossible.
+#
+# Lines starting with # and blank lines are ignored.
+
+# ---------------------------------------------------------------------------------------------
+# Repaired on an open pull request. These are live defects on main, not safe joins.
+# ---------------------------------------------------------------------------------------------
+InjectExpectationRepository#findForIndexing injector_contract_id apa=b  # fixed-pending:#8225 : the expectation indexing sweep joins its attack-pattern aggregate on the contract id alone, which fans the document out once per tenant holding that contract instead of merging one tenant's rows.
+InjectExpectationRepository#findForIndexing injector_contract_id b=da  # fixed-pending:#8225 : same statement, the security-domain aggregate, same contract-id-only join and the same fan-out of the indexed document.
+InjectExpectationRepository#findForIndexing injector_contract_id ic_ap=in-subquery  # fixed-pending:#8225 : the attack-pattern aggregate collects link rows for every tenant that holds the contract id, because the correlation carries the id without the tenant; the repair makes it a row value.
+InjectExpectationRepository#findForIndexing injector_contract_id ic_d=in-subquery  # fixed-pending:#8225 : the security-domain aggregate of the same statement, same correlation on the id alone, same repair.
+InjectRepository#findForIndexing injector_contract_id ic=icap  # fixed-pending:#8225 : the inject indexing sweep collects the attack patterns and kill chain phases mapped to the contract id in any tenant, and writes them into the owning tenant's indexed document.
+InjectRepository#findForIndexing injector_contract_id ic_c=icap_c  # fixed-pending:#8225 : the same projection for a dependency child's contract, collecting another tenant's mapping for the child inject.
+InjectRepository#findInjectIdsWithDnsResolutionContractsByScenarioId injector_contract_id i=ic  # fixed-pending:#8225 : the inject is matched to a contract row of any tenant holding that id; the chain continues onto payloads, which is active, so the effect is attenuated today but the predicate is wrong.
+InjectRepository#deleteAllInjectsWithDnsResolutionContractsByScenarioId injector_contract_id i=ic  # fixed-pending:#8225 : the destructive half of the same prune, with the same contract-id-only match.
+InjectRepository#findInjectIdsWithFileDropContractsByScenarioId injector_contract_id i=ic  # fixed-pending:#8225 : the file-drop variant of the same selection, matching a contract row that may belong to another tenant.
+InjectRepository#deleteAllInjectsWithFileDropContractsByScenarioId injector_contract_id i=ic  # fixed-pending:#8225 : the destructive half of the file-drop prune, same shape.
+InjectRepository#findInjectIdsWithVulnerableContractsByScenarioId injector_contract_id i=ic  # fixed-pending:#8225 : selects this tenant's injects through a contract row that may be another tenant's, and nothing downstream filters it back out.
+InjectRepository#findInjectIdsWithVulnerableContractsByScenarioId injector_contract_id ic=icv  # fixed-pending:#8225 : the vulnerability mapping is matched on the contract id alone, so a mapping declared only in another tenant selects this tenant's inject for pruning.
+InjectRepository#deleteAllInjectsWithVulnerableContractsByScenarioId injector_contract_id i=ic  # fixed-pending:#8225 : the delete behind that selection, so another tenant's configuration decides whether this tenant's inject is removed.
+InjectRepository#deleteAllInjectsWithVulnerableContractsByScenarioId injector_contract_id ic=icv  # fixed-pending:#8225 : the mapping join of the same delete, matched on the contract id alone.
+InjectRepository#findInjectIdsWithAttackPatternContractsByScenarioId injector_contract_id i=ic  # fixed-pending:#8225 : the attack-pattern variant of the same prune selection, matching a foreign contract row.
+InjectRepository#findInjectIdsWithAttackPatternContractsByScenarioId injector_contract_id ic=icap  # fixed-pending:#8225 : the attack-pattern mapping is matched on the contract id alone, so another tenant's mapping selects this tenant's inject.
+InjectRepository#deleteAllInjectsWithAttackPatternContractsByScenarioId injector_contract_id i=ic  # fixed-pending:#8225 : the delete behind the attack-pattern selection, same shape.
+InjectRepository#deleteAllInjectsWithAttackPatternContractsByScenarioId injector_contract_id ic=icap  # fixed-pending:#8225 : the mapping join of that delete, matched on the contract id alone.
+InjectorContractRepository#getAllRawInjectorsContracts injector_contract_id injcon=injconatt  # fixed-pending:#8222 : the raw contract projection aggregates the attack-pattern external ids mapped to the contract id in any tenant.
+InjectorContractRepository#getAllRawInjectorsContractsGranted injector_contract_id injcon=injconatt  # fixed-pending:#8222 : the granted variant of that projection, with the same unscoped mapping join.
+
+# ---------------------------------------------------------------------------------------------
+# Unscoped, but an active table downstream removes the foreign row.
+# ---------------------------------------------------------------------------------------------
+ScenarioRepository#getScenarioByIdAndTenantId injector_contract_id ic=icap  # reaches-active-table:kill_chain_phases : the kill chain projection reads the mapping of any tenant holding the contract id, then resolves each row to a phase; a foreign mapping names that tenant's own phase ids, which the inspector removes on kill_chain_phases. Inefficient rather than leaking.
+DocumentRepository#findAllDistinctOnInjectsByScenarioId injector_contract_id i=ic  # reaches-active-table:documents : both ends are pinned to one scenario and the projection is documents, so a foreign contract row cannot contribute a document the inspector would return.
+InjectorContractRepository#findInjectorContractsByVulnerabilityIdIn injector_contract_id ic=icv  # reaches-active-table:vulnerabilities : the contract is pinned to the current tenant and the mapping resolves onto vulnerabilities, so a foreign link row resolves to a foreign vulnerability and is filtered out.
+
+# ---------------------------------------------------------------------------------------------
+# Dead code. Two sites disappear with the method.
+# ---------------------------------------------------------------------------------------------
+InjectRepository#findRawByIds injector_contract_id i=icap  # dead-code : findRawByIds has no caller in either production module; a search for the name returns only its own declaration. Deleting the method removes this site and the next one for free.
+InjectRepository#findRawByIds injector_contract_id i=injcon  # dead-code : the second unscoped join of the same uncalled method, reached only if somebody starts calling it.
+
+# ---------------------------------------------------------------------------------------------
+# Not established, and nothing downstream attenuates them.
+# ---------------------------------------------------------------------------------------------
+InjectorContractRepositoryHelper#searchInjectorContractsByAttackPatternAndEnvironment injector_contract_id ic=injectorAttack  # not-established until-active:injectors_contracts : the contract is pinned to the current tenant, the mapping join is not, and the chain continues onto attack_patterns, which is NOT active, matched by an external id that is byte-identical in every tenant. So a foreign mapping can select a contract this tenant no longer maps, although the rows returned are this tenant's own. Settled by seeding the mapping in a second tenant only and asserting the autonomous-run search returns nothing.
+ScenarioRepository#getScenarioByIdAndTenantId injector_contract_id i=ic  # not-established until-active:injectors_contracts : the scenario platform union projects the contract platforms of every tenant holding the id. Identical for a published contract, divergent only after an edit through the contract mapping endpoint. Settled by editing a contract's platforms in one tenant and reading the scenario from the other.
+InjectorContractRepository#findRelatedIdsByPayloadId injector_contract_id ic=icap  # not-established until-active:injectors_contracts : the contract is reached by a payload reference that is unique per tenant, so at most one contract row exists per tenant; whether a payload-backed contract id can also exist in a second tenant was never verified. Settled by seeding the same payload-backed contract id in two tenants.
+InjectorContractRepository#findRelatedIdsByPayloadId injector_contract_id ic=icd  # not-established until-active:injectors_contracts : the domain lateral of the same statement, resting on the same unverified premise about a payload-backed contract id.
+InjectorContractRepository#findRelatedIdsByPayloadId injector_contract_id ic=ict  # not-established until-active:injectors_contracts : the tag lateral of the same statement, resting on the same unverified premise.
+InjectorContractRepository#getAllRawInjectorsContractsGranted injector_contract_id gr=injcon  # not-established until-active:injectors_contracts : a grant row is matched to the contract by resource id, and grants carries no tenant_id column at all, so a grant minted against the same contract id elsewhere would authorise this tenant's contract. That is a question about the grant model rather than about this join, and it needs an answer before the table activates.
