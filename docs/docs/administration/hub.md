@@ -4,10 +4,10 @@ This page explains how to connect your OpenAEV platform to the XTM Hub, and how 
 
 ## Connect your platform
 
-1. Go to **Settings > Filigran Experience**. You need the right to manage platform settings.
-2. Click **Connect to XTM Hub**. A new tab opens on the XTM Hub.
+1. Go to **Settings > Filigran Experience**. You need the `Manage tenant settings` capability.
+2. Click **Connect to XTM Hub**, then **Continue**. A new tab opens on the XTM Hub.
 3. Log in to the XTM Hub and choose the organization to connect your platform to.
-4. Click **Authorize connection**. You are sent back to OpenAEV, and the XTM Hub administrators are informed that a platform is connected.
+4. Confirm the connection. You are sent back to OpenAEV, and the XTM Hub administrators are informed that a platform is connected.
 
 ## Disconnect your platform
 

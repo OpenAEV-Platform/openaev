@@ -134,9 +134,9 @@ Group membership is governed by the capabilities the group's own roles carry. If
 
     These restrictions follow your own capabilities, not your seniority. To manage a role or a group you are locked out of, ask an administrator to grant you the missing capabilities listed in the message.
 
-## Example: creating a crisis content creator role
+## Example: creating a scenario designer role
 
-> Role: Crisis content creator
+> Role: Scenario designer
 
 **Context:** This user is in charge of designing crisis management content. Their role is to create **Scenarios** that can later be reused by other Teams to run Simulations.
 For example, they might build an **"Earthquake Crisis Scenario"**.

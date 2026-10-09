@@ -71,7 +71,7 @@ customer, type and expiration date of the XTM license) or **OpenAEV license**.
 
 ### Generative AI
 
-Use AI to generate content such as emails and media pressure articles. This needs OpenAEV to be connected to [XTM One](../integrations/xtm-suite/xtm-one.md).
+Use AI to generate content such as emails and media pressure articles. This needs an AI provider (`ai.*` settings, see [Configuration](../reference/deployment/configuration.md)) or a connection to [XTM One](../integrations/xtm-suite/xtm-one.md).
 
 ### Executors
 
