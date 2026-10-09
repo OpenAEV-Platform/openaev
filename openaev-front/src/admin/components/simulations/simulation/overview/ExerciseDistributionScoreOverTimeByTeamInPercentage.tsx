@@ -26,21 +26,10 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
     teams: helper.getExerciseTeams(exerciseId),
     teamsMap: helper.getTeamsMap(),
   }));
-  const teamsTotalScores = R.pipe(
-    R.filter((n: InjectExpectationOutput) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team),
-    R.groupBy(R.prop('inject_expectation_team')),
-    R.toPairs,
-    R.map((n: [string, InjectExpectationOutput[]]) => ({
-      ...teamsMap[n[0]],
-      team_total_score: R.sum(
-        R.map((o: InjectExpectationOutput) => o.inject_expectation_score, n[1]),
-      ),
-    })),
-  )(injectExpectations);
   const teamsColors = computeTeamsColors(teams, theme);
   let cumulation = 0;
   const teamsPercentScoresData = R.pipe(
-    R.filter((n: InjectExpectationOutput) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team && n?.inject_expectation_user === null),
+    R.filter((n: InjectExpectationOutput) => n?.inject_expectation_score != null && n?.inject_expectation_team && n?.inject_expectation_user === null),
     R.groupBy(R.prop('inject_expectation_team')),
     R.toPairs,
     R.map((n: [string, InjectExpectationOutput[]]) => {
@@ -78,7 +67,7 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
 
   // Dashboard convention: charts without real data render a greyed-out sample
   // (with a "Sample" chip) instead of a bare empty message.
-  const isSample = teamsTotalScores.length === 0;
+  const isSample = teamsPercentScoresData.length === 0;
 
   return (
     <SamplePreview active={isSample}>

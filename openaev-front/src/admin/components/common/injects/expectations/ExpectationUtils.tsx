@@ -80,11 +80,5 @@ export const useIsManuallyUpdatable = (injectExpectation: InjectExpectationOutpu
   if (['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(expectationType)) {
     return !isAssetGroupExpectation(injectExpectation);
   }
-  // Human
-  if (isManualExpectation(expectationType)) {
-    if ((injectExpectation.inject_expectation_results?.length ?? 0) > 0) return false;
-
-    return true;
-  }
-  return false;
+  return isManualExpectation(expectationType);
 };

@@ -2,15 +2,12 @@ package io.openaev.utils;
 
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;
 
 import io.openaev.database.model.*;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.expectation.*;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.AssetToExecute;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -44,101 +41,6 @@ public class ExpectationUtils {
       List.of(MANUAL, CHALLENGE, ARTICLE);
 
   private ExpectationUtils() {}
-
-  /**
-   * Processes expectations based on validation type and updates parent expectations with aggregated
-   * scores.
-   *
-   * <p>Handles two validation modes:
-   *
-   * <ul>
-   *   <li><b>At least one target</b>: Parent succeeds if any child has a positive score
-   *   <li><b>All targets</b>: Parent score is the average of all children scores
-   * </ul>
-   *
-   * @param isaNewExpectationResult whether this is a new expectation result (adds result entry)
-   * @param childrenExpectations the child expectations to aggregate from
-   * @param parentExpectations the parent expectations to update with aggregated scores
-   * @param playerByTeam map of teams to their player expectations
-   * @return list of updated parent expectations
-   */
-  public static List<BaseInjectExpectation> processByValidationType(
-      boolean isaNewExpectationResult,
-      List<? extends TableTopInjectExpectation> childrenExpectations,
-      List<? extends TableTopInjectExpectation> parentExpectations,
-      Map<Team, ? extends List<? extends TableTopInjectExpectation>> playerByTeam) {
-    List<BaseInjectExpectation> updatedExpectations = new ArrayList<>();
-
-    childrenExpectations.stream()
-        .findAny()
-        .ifPresentOrElse(
-            process -> {
-              boolean isValidationAtLeastOneTarget =
-                  process.isExpectationGroup(); // Without Parent expectation
-
-              parentExpectations.forEach(
-                  parentExpectation -> {
-                    List<? extends TableTopInjectExpectation> toProcess =
-                        playerByTeam.get(parentExpectation.getTeam());
-                    int playersSize = toProcess.size();
-                    long zeroPlayerResponses =
-                        toProcess.stream()
-                            .filter(exp -> exp.getScore() != null)
-                            .filter(exp -> exp.getScore() == 0.0)
-                            .count();
-                    long nullPlayerResponses =
-                        toProcess.stream().filter(exp -> exp.getScore() == null).count();
-
-                    if (isValidationAtLeastOneTarget) { // Type atLeast
-                      OptionalDouble avgAtLeastOnePlayer =
-                          toProcess.stream()
-                              .filter(exp -> exp.getScore() != null)
-                              .filter(exp -> exp.getScore() > 0.0)
-                              .mapToDouble(BaseInjectExpectation::getScore)
-                              .average();
-                      if (avgAtLeastOnePlayer.isPresent()) { // Any response is positive
-                        parentExpectation.setScore(avgAtLeastOnePlayer.getAsDouble());
-                      } else {
-                        if (zeroPlayerResponses == playersSize) { // All players had failed
-                          parentExpectation.setScore(0.0);
-                        } else {
-                          parentExpectation.setScore(null);
-                        }
-                      }
-                    } else { // type all
-                      if (nullPlayerResponses == 0) {
-                        OptionalDouble avgAllPlayer =
-                            toProcess.stream()
-                                .mapToDouble(BaseInjectExpectation::getScore)
-                                .average();
-                        parentExpectation.setScore(avgAllPlayer.getAsDouble());
-                      } else {
-                        if (zeroPlayerResponses == 0) {
-                          parentExpectation.setScore(null);
-                        } else {
-                          double sumAllPlayer =
-                              toProcess.stream()
-                                  .filter(exp -> exp.getScore() != null)
-                                  .mapToDouble(BaseInjectExpectation::getScore)
-                                  .sum();
-                          parentExpectation.setScore(sumAllPlayer / playersSize);
-                        }
-                      }
-                    }
-
-                    if (isaNewExpectationResult) {
-                      InjectExpectationResult result = buildForMediaPressure(process);
-                      parentExpectation.getResults().add(result);
-                    }
-
-                    parentExpectation.setUpdatedAt(Instant.now());
-                    updatedExpectations.add(parentExpectation);
-                  });
-            },
-            ElementNotFoundException::new);
-
-    return updatedExpectations;
-  }
 
   private static <T> List<T> getExpectationForAsset(
       final AssetGroup assetGroup,

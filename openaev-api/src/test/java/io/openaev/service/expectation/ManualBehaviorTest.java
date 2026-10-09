@@ -122,6 +122,8 @@ class ManualBehaviorTest extends IntegrationTest {
               .findFirst()
               .orElseThrow();
       assertThat(playerExpectation.getResults()).hasSize(1);
+      // Unlike phishing, a manual expectation stays pending until someone validates it
+      assertThat(playerExpectation.getScore()).isNull();
 
       InjectExpectationResult result = playerExpectation.getResults().getFirst();
       assertThat(result.getSourceId()).isEqualTo(PLAYER_MANUAL_VALIDATION_SOURCE_ID);
@@ -139,6 +141,7 @@ class ManualBehaviorTest extends IntegrationTest {
               .findFirst()
               .orElseThrow();
       assertThat(teamExpectation.getResults()).isEmpty();
+      assertThat(teamExpectation.getScore()).isNull();
     }
   }
 }
