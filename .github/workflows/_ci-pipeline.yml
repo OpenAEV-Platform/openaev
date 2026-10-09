@@ -215,6 +215,109 @@ jobs:
           no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
+  # Tenant shadow verdict: one readable result for the shadow shards
+  # ════════════════════════════════════════════════════════════════════
+
+  tenant-shadow-report:
+    name: "Tenant shadow verdict"
+    needs: [api-tests]
+    # Runs only when the caller's matrix actually has shadow entries, so Core CI never sees it.
+    if: ${{ !cancelled() && contains(inputs.api-matrix, 'tenant_mode') }}
+    # Deliberately absent from pipeline-gate's needs, and continue-on-error so its own red cannot
+    # reach the run conclusion. The shadow runs are instruments: a red one must be visible at a
+    # glance, and must not page the on-call, who is alerted on a failed Nightly run.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download the per-shard verdicts
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          pattern: tenant-shadow-verdict-*
+          path: tenant-shadow-verdicts
+
+      - name: Report
+        shell: bash
+        env:
+          DOWNLOAD_OUTCOME: ${{ steps.download.outcome }}
+          API_MATRIX: ${{ inputs.api-matrix }}
+        run: |
+          set -uo pipefail
+          DIR=tenant-shadow-verdicts
+          S="$GITHUB_STEP_SUMMARY"
+          echo "# Tenant shadow verdict" >> "$S"
+          echo >> "$S"
+
+          # Every shadow entry the caller's matrix declares, as mode<TAB>shard. Counting only the
+          # rows that arrived would turn a shard that timed out, or whose upload failed, into
+          # silence: one PASS artifact out of thirty would read as "every shadow shard passed".
+          python3 - <<'PY' > /tmp/expected.tsv
+          import json, os
+          for entry in json.loads(os.environ["API_MATRIX"]):
+              mode = entry.get("tenant_mode")
+              if mode:
+                  print(f"{mode}\t{entry.get('shard_name')}")
+          PY
+
+          # || true: find exits 1 when the directory is missing, and the default shell is -e, so
+          # without it the step would die here instead of reporting the silence below.
+          FILES=$(find "$DIR" -name 'tenant-shadow-verdict.tsv' 2>/dev/null | sort || true)
+          if [ -z "$FILES" ]; then
+            echo "::warning title=Tenant shadow::No shard verdict was collected (download outcome: $DOWNLOAD_OUTCOME). The shadow runs produced nothing readable."
+            echo "No shard verdict was collected. The shadow runs produced nothing readable." >> "$S"
+            exit 1
+          fi
+
+          # One row per shard, then one total per mode. Sorted by mode so the two instruments read
+          # as two blocks.
+          # shellcheck disable=SC2086
+          cat $FILES | sort -t"$(printf '\t')" -k1,1 -k2,2 > /tmp/collected.tsv
+
+          # A declared shard with no verdict becomes an explicit NO RESULT row rather than a gap in
+          # the table, so the totals below count it and the exit status reflects it.
+          MISSING=0
+          cp /tmp/collected.tsv /tmp/verdicts.tsv
+          while IFS=$(printf '\t') read -r mode shard; do
+            [ -z "$mode" ] && continue
+            if ! awk -F'\t' -v m="$mode" -v s="$shard" '$1==m && $2==s {found=1} END {exit !found}' \
+                 /tmp/collected.tsv; then
+              printf '%s\t%s\tNO RESULT\t0\t0\t0\t0\t%s\n' "$mode" "$shard" \
+                "no verdict artifact was collected for this declared shard" >> /tmp/verdicts.tsv
+              MISSING=$((MISSING + 1))
+            fi
+          done < /tmp/expected.tsv
+          sort -t"$(printf '\t')" -k1,1 -k2,2 -o /tmp/verdicts.tsv /tmp/verdicts.tsv
+
+          {
+            echo "| Mode | Shard | Verdict | Tests | Failures | Errors | Skipped | Note |"
+            echo "|---|---|---|---|---|---|---|---|"
+            awk -F'\t' '{printf "| %s | %s | **%s** | %s | %s | %s | %s | %s |\n", $1,$2,$3,$4,$5,$6,$7,$8}' /tmp/verdicts.tsv
+            echo
+            echo "| Mode | Shards | Failed shards | Tests | Failures | Errors |"
+            echo "|---|---|---|---|---|---|"
+            awk -F'\t' '{n[$1]++; if ($3!="PASS") bad[$1]++; t[$1]+=$4; f[$1]+=$5; e[$1]+=$6}
+              END {for (m in n) printf "| %s | %d | %d | %d | %d | %d |\n", m, n[m], bad[m]+0, t[m], f[m], e[m]}' \
+              /tmp/verdicts.tsv | sort
+            echo
+          } >> "$S"
+
+          BAD=$(awk -F'\t' '$3!="PASS"' /tmp/verdicts.tsv | wc -l | tr -d ' ')
+          TOTALS=$(awk -F'\t' '{t+=$4; f+=$5; e+=$6} END {printf "%d tests, %d failures, %d errors", t, f, e}' /tmp/verdicts.tsv)
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::warning title=Tenant shadow::$MISSING declared shard(s) produced no verdict at all."
+            echo "**$MISSING declared shard(s) produced no verdict at all**, listed as NO RESULT above." >> "$S"
+          fi
+          if [ "$BAD" -gt 0 ]; then
+            echo "::warning title=Tenant shadow::$BAD shard(s) did not pass: $TOTALS. The workflow stays green on purpose; this job is the verdict."
+            echo "**$BAD shard(s) did not pass** ($TOTALS). This job is red and the workflow is green on purpose: the shadow runs report, they do not gate." >> "$S"
+            exit 1
+          fi
+          echo "::notice title=Tenant shadow::Every shadow shard passed ($TOTALS)."
+          echo "**Every shadow shard passed** ($TOTALS)." >> "$S"
+
+  # ════════════════════════════════════════════════════════════════════
   # E2E Tests — matrix passed from caller
   # ════════════════════════════════════════════════════════════════════
 
@@ -604,6 +707,8 @@ jobs:
       - fds-conformity
       - fds-mui-regression
       - api-tests
+      # tenant-shadow-report is deliberately absent: it is the shadow runs' verdict, and those
+      # report rather than gate. Adding it here would fail the Nightly run and page the on-call.
       - e2e-tests
       - api-types-check
       - backend-package
