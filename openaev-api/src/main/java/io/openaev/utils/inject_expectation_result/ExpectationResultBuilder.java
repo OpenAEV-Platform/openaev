@@ -330,10 +330,13 @@ public final class ExpectationResultBuilder {
         : null;
   }
 
-  public static InjectExpectationResult buildForMediaPressure(
-      @NotNull final BaseInjectExpectation baseInjectExpectation) {
-    return buildForMediaPressure(
-        Instant.now().toString(), baseInjectExpectation.getExpectedScore());
+  public static ExpectationUpdateInput buildMediaPressureUpdateInput(@NotNull final Double score) {
+    return ExpectationUpdateInput.builder()
+        .sourceId(MEDIA_PRESSURE_SOURCE_ID)
+        .sourceType(MEDIA_PRESSURE_SOURCE_TYPE)
+        .sourceName(MEDIA_PRESSURE_SOURCE_NAME)
+        .score(score)
+        .build();
   }
 
   public static InjectExpectationResult buildDefaultForMediaPressure() {

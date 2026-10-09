@@ -5,7 +5,7 @@ import { useParams } from 'react-router';
 import { fetchExerciseChallenges } from '../../../../../actions/challenge-action';
 import { type ArticlesHelper } from '../../../../../actions/channels/article-helper';
 import { fetchExerciseDocuments } from '../../../../../actions/documents/documents-actions';
-import { fetchExerciseTeams } from '../../../../../actions/Exercise';
+import { fetchExerciseInjectExpectations, fetchExerciseTeams } from '../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../../actions/helper';
 import { testInject } from '../../../../../actions/inject_test/simulation-inject-test-actions';
@@ -75,6 +75,13 @@ const ExerciseInjects: FunctionComponent = () => {
     dispatch(fetchVariablesForExercise(exerciseId));
     dispatch(fetchExerciseDocuments(exerciseId));
   });
+  // The score distribution charts read the simulation expectations from the store: load them only
+  // when they are displayed
+  useDataLoader(() => {
+    if (viewMode === 'distribution') {
+      dispatch(fetchExerciseInjectExpectations(exerciseId));
+    }
+  }, [viewMode]);
 
   const articleContext = articleContextForExercise(exerciseId);
   const teamContext = teamContextForExercise(exerciseId);

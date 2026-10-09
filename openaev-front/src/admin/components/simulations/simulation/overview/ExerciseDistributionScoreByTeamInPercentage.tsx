@@ -27,30 +27,23 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
     teamsMap: helper.getTeamsMap(),
   }));
 
-  const teamsTotalScores = R.pipe(
-    R.filter((n: InjectExpectationOutput) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team),
-    R.groupBy(R.prop('inject_expectation_team')),
+  const teamsByPercentScore = R.pipe(
+    R.filter((n: InjectExpectationOutput) => !!n.inject_expectation_team && n.inject_expectation_user === null),
+    R.groupBy((n: InjectExpectationOutput) => n.inject_expectation_team ?? ''),
     R.toPairs,
-    R.map((n: [string, InjectExpectationOutput[]]) => ({
-      ...teamsMap[n[0]],
-      team_total_score: R.sum(
-        R.map((o: InjectExpectationOutput) => o.inject_expectation_score, n[1]),
-      ),
-    })),
+    // A team shows up once at least one of its expectations has been evaluated
+    R.filter(([, expectations]: [string, InjectExpectationOutput[]]) => expectations.some(e => e.inject_expectation_score != null)),
+    R.map(([teamId, expectations]: [string, InjectExpectationOutput[]]) => {
+      const reachedScore = R.sum(expectations.map(e => e.inject_expectation_score ?? 0));
+      const expectedScore = R.sum(expectations.map(e => e.inject_expectation_expected_score));
+      return {
+        ...teamsMap[teamId],
+        team_total_percent_score: Math.round((reachedScore * 100) / (expectedScore || 1)),
+      };
+    }),
   )(injectExpectations);
 
   const teamsColors = computeTeamsColors(teams, theme);
-  const teamsByPercentScore = R.map(
-    (n: Team) => R.assoc(
-      'team_total_percent_score',
-      Math.round(
-        (n.team_injects_expectations_total_score_by_exercise ? n.team_injects_expectations_total_score_by_exercise[exerciseId] * 100 : 0)
-        / (n.team_injects_expectations_total_expected_score_by_exercise ? n.team_injects_expectations_total_expected_score_by_exercise[exerciseId] : 1),
-      ),
-      n,
-    ),
-    teamsTotalScores,
-  );
   const sortedTeamsByPercentScore = R.pipe(
     R.sortWith([R.descend(R.prop('team_total_percent_score'))]),
     R.take(10),
@@ -68,7 +61,7 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
 
   // Dashboard convention: charts without real data render a greyed-out sample
   // (with a "Sample" chip) instead of a bare empty message.
-  const isSample = teamsTotalScores.length === 0;
+  const isSample = teamsByPercentScore.length === 0;
   const sampleLabels = ['Blue team', 'SOC', 'CERT'];
 
   return (

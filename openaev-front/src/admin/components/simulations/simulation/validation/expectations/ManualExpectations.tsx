@@ -19,7 +19,6 @@ import { statusSeverity } from '../../../../../../utils/statusUtils';
 import { computeLabel, resolveUserName, truncate } from '../../../../../../utils/String';
 import { PermissionsContext } from '../../../../common/Context';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
-import { FAILED } from '../../../../common/injects/expectations/ExpectationUtils';
 import ManualExpectationsValidationForm from './ManualExpectationsValidationForm';
 
 const useStyles = makeStyles()(theme => ({
@@ -101,25 +100,19 @@ const ManualExpectations: FunctionComponent<Props> = ({
 
   const parentExpectation = expectations.filter(e => !e.inject_expectation_user)[0];
   const childrenExpectations = expectations.filter(e => e.inject_expectation_user);
-  const validatedCount = expectations.filter(v => !R.isEmpty(v.inject_expectation_results)).length;
-  const isAllValidated = validatedCount === expectations.length;
 
   let label;
   let severity: ChipSeverity = 'neutral';
-  if (!isAllValidated || !parentExpectation) {
+
+  if (!parentExpectation || parentExpectation.inject_expectation_score == null) {
     label = t('Pending validation');
     severity = 'medium';
+  } else if (parentExpectation.inject_expectation_score < parentExpectation.inject_expectation_expected_score) {
+    label = `${t('Failed')} (${parentExpectation.inject_expectation_score})`;
+    severity = 'critical';
   } else {
-    const results = parentExpectation.inject_expectation_results ?? [];
-    const hasFailed = results.some(result => result?.result === FAILED);
-
-    if (hasFailed) {
-      label = `${t('Failed')} (${parentExpectation.inject_expectation_score})`;
-      severity = 'critical';
-    } else {
-      label = `${t('Success')} (${parentExpectation.inject_expectation_score})`;
-      severity = 'low';
-    }
+    label = `${t('Success')} (${parentExpectation.inject_expectation_score})`;
+    severity = 'low';
   }
 
   const targetLabel = (expectationToProcess: InjectExpectationsStore) => {
