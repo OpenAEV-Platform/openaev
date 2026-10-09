@@ -22,6 +22,7 @@ public class InjectorFixture {
   @Autowired InjectorRepository injectorRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
 
   public static Injector createDefaultPayloadInjector() {
     Injector injector =
@@ -73,7 +74,7 @@ public class InjectorFixture {
   private Injector initializeBuiltInInjector(
       BuiltinIntegrationFactory factory, String injectorType) {
     try {
-      factory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      builtinConnectorRegistration.register(factory, TenantContext.getCurrentTenant());
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize injector: " + injectorType, e);
     }

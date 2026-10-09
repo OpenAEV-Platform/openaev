@@ -99,6 +99,7 @@ class InjectApiTest extends IntegrationTest {
   static Team TEAM;
   static Agent AGENT;
   @Resource protected ObjectMapper mapper;
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private EntityManager entityManager;
   @Autowired private ScenarioService scenarioService;
@@ -151,8 +152,10 @@ class InjectApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, Tenant.DEFAULT_TENANT_UUID);
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, Tenant.DEFAULT_TENANT_UUID);
     managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
     // The manager bootstrap above joins this test's transaction and pins its scope to the default
     // tenant (ManagerCreator.setScopeOnCurrentTransaction). Inject endpoints carrying a TxCtx then

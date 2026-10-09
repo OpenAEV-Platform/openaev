@@ -27,6 +27,7 @@ import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFacto
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.lessons.form.LessonsSendInput;
 import io.openaev.service.MailingService;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
@@ -52,6 +53,7 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
   static Team TEAM;
   static User USER;
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExerciseRepository exerciseRepository;
@@ -64,7 +66,8 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
   }
 

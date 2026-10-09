@@ -15,6 +15,7 @@ import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrat
 import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class InjectorContratApiTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
@@ -38,11 +40,14 @@ class InjectorContratApiTest extends IntegrationTest {
 
   @BeforeEach
   public void before() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(
-        TenantContext.getCurrentTenant());
-    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    manualInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        challengeInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        channelInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        manualInjectorIntegrationFactory, TenantContext.getCurrentTenant());
   }
 
   @Nested

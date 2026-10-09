@@ -44,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class ScenarioInjectTestApiTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private ManagerFactory managerFactory;
   @Autowired private MockMvc mvc;
@@ -66,7 +67,8 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
   @BeforeEach
   public void setup() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
     Mockito.reset(mailSender);
     // Fixtures here are created under the ambient default tenant, and SimulationInjectTestApi's
