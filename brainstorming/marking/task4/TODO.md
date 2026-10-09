@@ -85,7 +85,7 @@ Options:
 * Accept it and document it, since it's an aggregate.
 This needs a product decision before any code. It's the "stored aggregates" con of Option 1.
 
-- [ ] asset_agent_jobs — defence in depth only, low priority
+- [x] asset_agent_jobs — defence in depth only, low priority -> NO ACTION
 
 What it is. The queue of commands waiting for an agent. Only implants read it, through POST /api/endpoints/jobs and /jobs/{externalReference} (EndpointApi.java:122-139). Those require the JOB capability, which only agents get (AGENT_RUNTIME_ACCESS), and agents have full clearance.
 
