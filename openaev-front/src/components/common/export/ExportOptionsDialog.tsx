@@ -110,7 +110,11 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
                     <Typography component="div" variant="body2">
                       {t('Scope definition')}
                     </Typography>
-                    <Typography component="div" variant="caption" color="text.secondary">
+                    <Typography
+                      component="div"
+                      variant="caption"
+                      sx={{ color: 'text.secondary' }}
+                    >
                       {t('Includes workflow scope rules for teams/personas, IPs, subnets, domains, and other scope targets.')}
                     </Typography>
                   </TableCell>

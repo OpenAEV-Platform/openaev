@@ -38,13 +38,15 @@ const FiligranAiCguDialog: React.FC<FiligranAiCguDialogProps> = ({ open, onClose
     >
       <DialogTitle>{t('Validate the Filigran AI Terms')}</DialogTitle>
       <DialogContent>
-        <Stack gap={3}>
+        <Stack sx={{ gap: 3 }}>
           <Text variant="content-base">
             {t('Please take a moment to review our "Filigran AI Terms". Our chatbot is here to assist you, but it\'s important to understand how it works and what to expect. Please read the full terms to know how we protect your data and ensure service quality.')}
           </Text>
           <Stack
-            alignItems="center"
-            gap={2}
+            sx={{
+              alignItems: 'center',
+              gap: 2,
+            }}
           >
             <Button asChild priority="secondary">
               <a href="https://filigran.io/app/uploads/2025/09/filigran-ai-terms-september-2025.pdf" target="_blank" rel="noreferrer">

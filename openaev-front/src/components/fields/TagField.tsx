@@ -175,7 +175,7 @@ const TagField: FunctionComponent<Props> = ({
         <Dialog
           open={tagCreation}
           onClose={handleCloseTagCreation}
-          PaperProps={{ elevation: 1 }}
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Create a new tag')}</DialogTitle>
           <DialogContent>

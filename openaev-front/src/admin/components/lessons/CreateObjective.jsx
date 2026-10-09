@@ -43,11 +43,11 @@ class CreateObjectiveComponent extends Component {
         <ButtonCreate onClick={this.handleOpen.bind(this)} />
         <Dialog
           open={this.state.open}
-          TransitionComponent={Transition}
           onClose={this.handleClose.bind(this)}
           fullWidth
           maxWidth="md"
-          PaperProps={{ elevation: 1 }}
+          slots={{ transition: Transition }}
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Create a new objective')}</DialogTitle>
           <DialogContent>

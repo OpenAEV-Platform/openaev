@@ -40,7 +40,7 @@ const DrawerBreadcrumb = ({
           >
             {grandParentLabel}
           </Typography>
-          <Typography color="text.secondary">
+          <Typography sx={{ color: 'text.secondary' }}>
             /
           </Typography>
         </>
@@ -54,7 +54,7 @@ const DrawerBreadcrumb = ({
       >
         {parentLabel}
       </Typography>
-      <Typography color="text.secondary">
+      <Typography sx={{ color: 'text.secondary' }}>
         /
       </Typography>
       <Typography>

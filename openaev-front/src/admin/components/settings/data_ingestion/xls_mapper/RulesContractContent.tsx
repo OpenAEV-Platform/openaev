@@ -292,9 +292,11 @@ const RulesContractContent: FunctionComponent<Props> = ({
                   && (
                     <Dialog
                       open
-                      PaperProps={{ elevation: 1 }}
-                      BackdropProps={{ style: { backgroundColor: 'transparent' } }}
                       onClose={handleDefaultValueClose}
+                      slotProps={{
+                        backdrop: { style: { backgroundColor: 'transparent' } },
+                        paper: { elevation: 1 },
+                      }}
                     >
                       <DialogTitle>
                         {t('Attribute mapping configuration')}

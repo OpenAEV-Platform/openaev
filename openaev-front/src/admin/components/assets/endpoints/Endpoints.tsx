@@ -260,7 +260,13 @@ const Endpoints = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
                 which announced a group of choices that never existed. */}
             <Box sx={{

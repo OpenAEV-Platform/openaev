@@ -1,4 +1,4 @@
-import { AddCircleOutline } from '@mui/icons-material';
+import { AddCircleOutlineOutlined } from '@mui/icons-material';
 import { Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { memo } from 'react';
@@ -58,7 +58,7 @@ const TimelineGhostComponent = ({ visible, x, label }: Props) => {
         whiteSpace: 'nowrap',
       }}
       >
-        <AddCircleOutline sx={{
+        <AddCircleOutlineOutlined sx={{
           fontSize: 15,
           color: theme.palette.primary.main,
         }}

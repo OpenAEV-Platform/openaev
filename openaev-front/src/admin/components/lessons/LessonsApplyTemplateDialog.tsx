@@ -45,13 +45,13 @@ const LessonsApplyTemplateDialog = ({ open, onClose, onApply, lessonsTemplates, 
 
   return (
     <Dialog
-      TransitionComponent={Transition}
       keepMounted={false}
       open={open}
       onClose={onClose}
       fullWidth
       maxWidth="md"
-      PaperProps={{ elevation: 1 }}
+      slots={{ transition: Transition }}
+      slotProps={{ paper: { elevation: 1 } }}
     >
       <DialogTitle id={titleId}>{t('Apply a lessons learned template')}</DialogTitle>
       <DialogContent>

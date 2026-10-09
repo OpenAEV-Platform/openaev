@@ -37,7 +37,10 @@ const AssetCategoryPicker: FunctionComponent<Props> = ({ onSelect }) => {
               <AssetCategoryIcon category={category} color="primary" />
               <div>
                 <Typography variant="subtitle1">{t(def.label)}</Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t(def.description)}
                 </Typography>
               </div>

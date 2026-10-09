@@ -307,7 +307,6 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
 
   return (
     <Dialog
-      PaperProps={{ elevation: 1 }}
       open={isOpen}
       onClose={() => {
         setContent('');
@@ -315,6 +314,7 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
       }}
       fullWidth={true}
       maxWidth="lg"
+      slotProps={{ paper: { elevation: 1 } }}
     >
       <DialogTitle>{dialogTitle}</DialogTitle>
       <DialogContent>

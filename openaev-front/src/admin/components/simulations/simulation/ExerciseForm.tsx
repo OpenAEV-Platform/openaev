@@ -1,6 +1,6 @@
 import { Button, Combobox, ComboboxChips, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { GridLegacy, MenuItem, Typography } from '@mui/material';
+import { Grid, MenuItem, Typography } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -116,8 +116,8 @@ const ExerciseForm: FunctionComponent<Props> = ({
         askAi={true}
         maxLength={255}
       />
-      <GridLegacy container spacing={2}>
-        <GridLegacy item xs={6}>
+      <Grid container spacing={2}>
+        <Grid size={6}>
           <SelectField
             variant="standard"
             fullWidth={true}
@@ -134,8 +134,8 @@ const ExerciseForm: FunctionComponent<Props> = ({
               </MenuItem>
             ))}
           </SelectField>
-        </GridLegacy>
-        <GridLegacy item xs={6}>
+        </Grid>
+        <Grid size={6}>
           <SelectField
             variant="standard"
             fullWidth={true}
@@ -165,11 +165,11 @@ const ExerciseForm: FunctionComponent<Props> = ({
               {t('Strategic Reaction')}
             </MenuItem>
           </SelectField>
-        </GridLegacy>
-      </GridLegacy>
+        </Grid>
+      </Grid>
 
-      <GridLegacy container spacing={2}>
-        <GridLegacy item xs={6}>
+      <Grid container spacing={2}>
+        <Grid size={6}>
           <SelectField
             variant="standard"
             fullWidth={true}
@@ -193,16 +193,16 @@ const ExerciseForm: FunctionComponent<Props> = ({
               {t('Critical')}
             </MenuItem>
           </SelectField>
-        </GridLegacy>
-        <GridLegacy item xs={6}>
+        </Grid>
+        <Grid size={6}>
           <DefaultKillChainSelectField<ExerciseFormInput>
             name="exercise_default_kill_chain"
             control={control}
             defaultValue={initialValues.exercise_default_kill_chain ?? undefined}
             style={{ marginTop: 20 }}
           />
-        </GridLegacy>
-      </GridLegacy>
+        </Grid>
+      </Grid>
       <TextField
         multiline
         rows={2}

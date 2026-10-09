@@ -56,11 +56,11 @@ const CreateLessonsCategory = (props) => {
       )}
       <Dialog
         open={open}
-        TransitionComponent={Transition}
         onClose={handleClose}
         fullWidth
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Create a new lessons learned category')}</DialogTitle>
         <DialogContent>

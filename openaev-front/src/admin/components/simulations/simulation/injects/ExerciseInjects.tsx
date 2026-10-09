@@ -1,4 +1,4 @@
-import { Box, GridLegacy } from '@mui/material';
+import { Box, Grid } from '@mui/material';
 import { type FunctionComponent, useContext, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
@@ -130,7 +130,13 @@ const ExerciseInjects: FunctionComponent = () => {
               marginBottom: 1,
             }}
           >
-            <Box display="flex" gap={1} alignItems="center">
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1,
+                alignItems: 'center',
+              }}
+            >
               <InjectsListButtons
                 availableButtons={availableButtons}
                 setViewMode={handleViewMode}
@@ -140,82 +146,76 @@ const ExerciseInjects: FunctionComponent = () => {
               )}
             </Box>
           </Box>
-          <GridLegacy container spacing={3}>
-            <GridLegacy container item spacing={3}>
-              <GridLegacy
-                item
-                xs={6}
+          <Grid container spacing={3}>
+            <Grid container spacing={3} size={12}>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={6}
               >
                 <SectionBlock title={t('Distribution of injects by type')}>
                   <InjectDistributionByType exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-              <GridLegacy
-                item
-                xs={6}
+              </Grid>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={6}
               >
                 <SectionBlock title={t('Distribution of injects by team')}>
                   <InjectDistributionByTeam exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-              <GridLegacy
-                item
-                xs={3}
+              </Grid>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={3}
               >
                 <SectionBlock title={`${t('Distribution of expectations by inject type')} (%)`}>
                   <ExerciseDistributionScoreByTeamInPercentage exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-              <GridLegacy
-                item
-                xs={3}
+              </Grid>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={3}
               >
                 <SectionBlock title={t('Distribution of expected total score by inject type')}>
                   <ExerciseDistributionScoreOverTimeByInjectorContract exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-              <GridLegacy
-                item
-                xs={3}
+              </Grid>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={3}
               >
                 <SectionBlock title={t('Distribution of expectations by team')}>
                   <ExerciseDistributionScoreOverTimeByTeam exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-              <GridLegacy
-                item
-                xs={3}
+              </Grid>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={3}
               >
                 <SectionBlock title={t('Distribution of expected total score by team')}>
                   <ExerciseDistributionScoreOverTimeByTeamInPercentage exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-            </GridLegacy>
-          </GridLegacy>
+              </Grid>
+            </Grid>
+          </Grid>
         </div>
       )}
     </ViewModeContext.Provider>

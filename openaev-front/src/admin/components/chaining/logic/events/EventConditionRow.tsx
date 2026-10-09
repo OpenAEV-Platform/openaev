@@ -1,6 +1,6 @@
 import { IconButton, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
-import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
+import { DeleteOutlineOutlined, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
 // fds:keep-mui survives the AI/EE screens wave: the field carries slotProps to float its
 // helper text, so an error does not shift the condition row. The library field has no slot
 // for that, and no way to take the helper out of the flow (LIBRARY-FEEDBACK.md 65).
@@ -329,7 +329,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
         {/* Delete button (only visible when more than one condition) */}
         {canDelete && (
           <IconButton
-            icon={<DeleteOutline fontSize="small" />}
+            icon={<DeleteOutlineOutlined fontSize="small" />}
             onClick={onDelete}
             disabled={readOnly}
             aria-label={t('Delete condition')}

@@ -62,7 +62,12 @@ const ActionScopeChips = ({ isPayload, assets, teams = [], allTeams = false }: A
           )}
         </Box>
       ) : (
-        <Typography variant="body2" color="text.secondary">{emptyLabel}</Typography>
+        <Typography
+          variant="body2"
+          sx={{ color: 'text.secondary' }}
+        >
+          {emptyLabel}
+        </Typography>
       )}
     </InjectFormSection>
   );

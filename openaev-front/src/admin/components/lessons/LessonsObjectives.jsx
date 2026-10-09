@@ -72,13 +72,16 @@ const LessonsObjectives = ({
                   sx={{ width: '50%' }}
                   primary={objective.objective_title}
                   secondary={objective.objective_description}
-                  primaryTypographyProps={{
-                    sx: {
-                      fontSize: 13.5,
-                      fontWeight: 600,
+                  slotProps={{
+                    primary: {
+                      sx: {
+                        fontSize: 13.5,
+                        fontWeight: 600,
+                      },
                     },
+
+                    secondary: { noWrap: true },
                   }}
-                  secondaryTypographyProps={{ noWrap: true }}
                 />
                 <Box
                   sx={{

@@ -155,7 +155,7 @@ const MarkingField: FunctionComponent<Props> = ({
             <span>{markingLabel(option)}</span>
           </Box>
         )}
-        renderTags={(markingValue, getMarkingProps) => markingValue.map((option, index) => {
+        renderValue={(markingValue, getMarkingProps) => markingValue.map((option, index) => {
           const { key, ...markingProps } = getMarkingProps({ index });
           return (
             <MarkingChip

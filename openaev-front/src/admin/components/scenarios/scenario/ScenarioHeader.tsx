@@ -1011,9 +1011,9 @@ const ScenarioHeader = ({
       />
       <Dialog
         open={openInstantiateSimulationAndStart}
-        TransitionComponent={Transition}
         onClose={() => setOpenInstantiateSimulationAndStart(false)}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

@@ -1,4 +1,4 @@
-import { CloudOutlined, GroupsOutlined, HelpOutline, ImportantDevicesOutlined, LockOutlined, MailOutline, PublicOutlined, SmartToyOutlined, StorageOutlined, WebAssetOutlined } from '@mui/icons-material';
+import { CloudOutlined, GroupsOutlined, HelpOutlineOutlined, ImportantDevicesOutlined, LockOutlined, MailOutlineOutlined, PublicOutlined, SmartToyOutlined, StorageOutlined, WebAssetOutlined } from '@mui/icons-material';
 import { type SvgIconProps } from '@mui/material';
 import { type ComponentType, type CSSProperties, type ReactElement } from 'react';
 
@@ -25,7 +25,7 @@ const DOMAIN_CONFIG: Record<string, DomainConfig> = {
     order: 2,
   },
   'E-mail Infiltration': {
-    icon: MailOutline,
+    icon: MailOutlineOutlined,
     order: 3,
   },
   'Data Exfiltration': {
@@ -51,7 +51,7 @@ const DOMAIN_CONFIG: Record<string, DomainConfig> = {
 };
 
 const DEFAULT_CONFIG: DomainConfig = {
-  icon: HelpOutline,
+  icon: HelpOutlineOutlined,
   order: 9,
 };
 

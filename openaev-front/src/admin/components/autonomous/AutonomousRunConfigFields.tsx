@@ -11,7 +11,7 @@ import {
   Key,
   Lock,
   Loop,
-  MailOutline,
+  MailOutlineOutlined,
   MeetingRoom,
   Public,
   RestartAlt,
@@ -46,7 +46,7 @@ const OBJECTIVE_ICONS: Record<string, SvgIconComponent> = {
   'door-open': MeetingRoom,
   'arrow-up': ArrowUpward,
   'key': Key,
-  'mail': MailOutline,
+  'mail': MailOutlineOutlined,
   'network': Hub,
   'lock': Lock,
   'gem': Diamond,
@@ -187,7 +187,11 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
         ? ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'].map(skeletonKey => (
             <Card key={skeletonKey} variant="outlined">
               <Box sx={{ padding: theme.spacing(1.5) }}>
-                <Stack direction="row" spacing={1.5} alignItems="center">
+                <Stack
+                  direction="row"
+                  spacing={1.5}
+                  sx={{ alignItems: 'center' }}
+                >
                   <Skeleton variant="circular" width={20} height={20} sx={{ flexShrink: 0 }} />
                   <Box sx={{ flex: 1 }}>
                     <Skeleton variant="text" width="55%" height={18} />
@@ -218,7 +222,11 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
                     height: '100%',
                   }}
                 >
-                  <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{ alignItems: 'center' }}
+                  >
                     <ObjectiveIcon
                       fontSize="small"
                       sx={{
@@ -237,7 +245,10 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
                         {t(template.autonomous_objective_template_label)}
                       </Typography>
                       {template.autonomous_objective_template_description && (
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          sx={{ color: 'text.secondary' }}
+                        >
                           {t(template.autonomous_objective_template_description)}
                         </Typography>
                       )}
@@ -288,8 +299,8 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
                       <AccordionDetails>
                         <Typography
                           variant="caption"
-                          color="text.secondary"
                           sx={{
+                            color: 'text.secondary',
                             display: 'block',
                             marginBottom: theme.spacing(1.5),
                           }}
@@ -374,8 +385,8 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
           </Typography>
           <Typography
             variant="caption"
-            color="text.secondary"
             sx={{
+              color: 'text.secondary',
               display: 'block',
               marginBottom: theme.spacing(2),
             }}
@@ -393,8 +404,8 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
           </Typography>
           <Typography
             variant="caption"
-            color="text.secondary"
             sx={{
+              color: 'text.secondary',
               display: 'block',
               marginBottom: theme.spacing(2),
             }}
@@ -554,7 +565,11 @@ export const AutonomousRunConfigPanel = ({
                       height: '100%',
                     }}
                   >
-                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      sx={{ alignItems: 'flex-start' }}
+                    >
                       <OptionIcon
                         fontSize="small"
                         sx={{
@@ -573,7 +588,10 @@ export const AutonomousRunConfigPanel = ({
                         >
                           {option.label}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          sx={{ color: 'text.secondary' }}
+                        >
                           {option.description}
                         </Typography>
                       </Box>
