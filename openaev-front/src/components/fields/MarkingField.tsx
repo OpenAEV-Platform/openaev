@@ -7,8 +7,6 @@ import { type MarkingDefinitionOutput } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
 import useMarkingDefinitions from '../../utils/hooks/useMarkingDefinitions';
 import { collapseToHighestPerType, markingLabel } from '../../utils/markings';
-import { useAbility } from '../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import MarkingChip from '../common/MarkingChip';
 import { useFormatter } from '../i18n';
 
@@ -47,23 +45,12 @@ const MarkingField: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
 
-  // The backend's GET /api/marking_definitions/assignable requires ACCESS_MARKING_DEFINITION
-  // (Action.SEARCH/READ + ResourceType.MARKING_DEFINITION - see Capability.java); a caller without
-  // it would just get a 403. Checked here too, client-side, so the picker never fires that request
-  // in the first place - per the platform's own convention (see PERMISSION_REQUIRED's doc),
-  // reading rights hide the affordance entirely rather than showing it disabled.
-  const ability = useAbility();
-  const canAccessMarkingDefinitions = ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
-
   // Only the markings the current user is cleared to assign - offering one they don't hold would
   // just fail server-side at submit time (see MarkingEscalationValidator). Whatever is already
   // assigned is guaranteed to already be within their clearance too: a row is only visible at all
   // when its markings are a subset of the viewer's own, so there is no case here where the current
   // value would fall outside this same filtered set.
-  const definitions = useMarkingDefinitions({
-    assignableOnly: true,
-    skip: !canAccessMarkingDefinitions,
-  });
+  const definitions = useMarkingDefinitions({ assignableOnly: true });
 
   const options = useMemo(() => sortMarkings(Object.values(definitions)), [definitions]);
 
@@ -120,10 +107,6 @@ const MarkingField: FunctionComponent<Props> = ({
 
     fieldOnChange(next.map(marking => marking.marking_definition_id));
   };
-
-  if (!canAccessMarkingDefinitions) {
-    return null;
-  }
 
   return (
     <div style={{

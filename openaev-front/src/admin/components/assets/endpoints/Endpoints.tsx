@@ -70,7 +70,10 @@ const Endpoints = () => {
   const markingEnabled = isFeatureEnabled('MARKING');
   // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
   // the flag is off so the platform issues no marking-definitions request at all.
-  const markingDefinitions = useMarkingDefinitions({ skip: !markingEnabled });
+  const markingDefinitions = useMarkingDefinitions({
+    skip: !markingEnabled,
+    assignableOnly: true,
+  });
 
   // Load the executors once for the whole page; the per-row Executors column
   // reads them from the store (previously each row fetched them, firing
