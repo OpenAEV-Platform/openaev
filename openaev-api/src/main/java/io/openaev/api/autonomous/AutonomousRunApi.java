@@ -143,7 +143,7 @@ public class AutonomousRunApi extends RestBehavior {
       description = "Persists both the enabled agent ids and each agent's default discovery mode.")
   @PutMapping("/default-agents")
   @Transactional
-  @AccessControl(requireAdmin = true, isEnterpriseEdition = true)
+  @AccessControl(requireTenantAdmin = true, isEnterpriseEdition = true)
   public AutonomousDefaultAgentsOutput setDefaultAgents(
       TxCtx ctx, @RequestBody AutonomousDefaultAgentsInput input) {
     List<String> ids =

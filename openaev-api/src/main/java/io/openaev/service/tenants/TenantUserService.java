@@ -20,6 +20,8 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.UserSpecification;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.InputValidationException;
+import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.UserCreationScope;
 import io.openaev.service.UserService;
 import io.openaev.service.account.PrivilegeEscalationValidator;
@@ -29,6 +31,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -195,5 +198,18 @@ public class TenantUserService implements DependenciesManager {
       throw new IllegalStateException("TenantUserService requires a tenant context");
     }
     return tenantId;
+  }
+
+  public UserOutput updatePassword(String userId, @Valid ChangePasswordInput input)
+      throws InputValidationException {
+    if (!input.passwordsMatch()) {
+      throw new InputValidationException("password_validation", "Bad password validation");
+    }
+    Specification<User> spec = inTenant(tenantId()).and(UserSpecification.byId(userId));
+    User existing =
+        userRepository
+            .findOne(spec)
+            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
+    return toOutput(userService.updatePassword(existing, input.getPassword()));
   }
 }

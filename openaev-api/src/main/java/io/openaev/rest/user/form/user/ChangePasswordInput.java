@@ -3,6 +3,7 @@ package io.openaev.rest.user.form.user;
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.utils.StringUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
@@ -19,4 +20,10 @@ public class ChangePasswordInput {
   @JsonProperty("password_validation")
   @Schema(description = "The new password again to validate it's been typed well")
   private String passwordValidation;
+
+  public boolean passwordsMatch() {
+    return !StringUtils.isBlank(password)
+        && !StringUtils.isBlank(passwordValidation)
+        && password.equals(passwordValidation);
+  }
 }

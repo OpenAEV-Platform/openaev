@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.api.users.dto.UserMapper.toOutput;
 import static io.openaev.database.model.User.ROLE_ADMIN;
 import static io.openaev.database.model.User.ROLE_USER;
 import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
@@ -289,6 +290,38 @@ public class UserService {
     return savedUser;
   }
 
+  /**
+   * Update user account password
+   *
+   * @param userId ID of the affected user
+   * @param input the password to set and its confirmation
+   */
+  public UserOutput updatePassword(String userId, ChangePasswordInput input)
+      throws InputValidationException {
+    if (!input.passwordsMatch()) {
+      throw new InputValidationException("password_validation", "Bad password validation");
+    }
+    User existing = this.user(userId);
+
+    existing.setPassword(encodeUserPassword(input.getPassword()));
+    return toOutput(
+        userRepository.save(existing),
+        Optional.ofNullable(existing.getOrganization())
+            .map(org -> Map.of(org.getId(), org))
+            .orElse(Map.of()));
+  }
+
+  /**
+   * Update user account password
+   *
+   * @param user the affected user
+   * @param password the password to set
+   */
+  public User updatePassword(User user, String password) {
+    user.setPassword(encodeUserPassword(password));
+    return userRepository.save(user);
+  }
+
   public void applyProfile(User user, UserInput input) {
     user.setFirstname(input.firstname());
     user.setLastname(input.lastname());
@@ -498,13 +531,11 @@ public class UserService {
       throw new AccessDeniedException("Invalid credentials");
     }
 
-    String password = input.getPassword();
-    String passwordValidation = input.getPasswordValidation();
-    if (!passwordValidation.equals(password)) {
+    if (!input.passwordsMatch()) {
       throw new InputValidationException("password_validation", "Bad password validation");
     }
     User changeUser = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
-    changeUser.setPassword(encodeUserPassword(password));
+    changeUser.setPassword(encodeUserPassword(input.getPassword()));
     User savedUser = userRepository.save(changeUser);
     synchronized (resetTokenMap) {
       resetTokenMap.remove(userId);

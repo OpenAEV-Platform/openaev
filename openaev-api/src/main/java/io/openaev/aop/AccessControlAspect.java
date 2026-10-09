@@ -116,7 +116,7 @@ public class AccessControlAspect {
 
     // Perform your RBAC check with the extracted value
     boolean allowed =
-        accessControl.requireAdmin()
+        accessControl.requireTenantAdmin()
             ? permissionService.hasUserAdminPrivileges(principal)
             : permissionService.hasPermission(
                 principal,

@@ -39,10 +39,16 @@ public @interface AccessControl {
   boolean skipRBAC() default false;
 
   /**
-   * The guard requires that the caller has admin privileges, not withstanding the resource
+   * The guard requires that the caller has tenant admin privileges, not withstanding the resource
    * manipulated in the protected method
    */
-  boolean requireAdmin() default false;
+  boolean requireTenantAdmin() default false;
+
+  /**
+   * The guard requires that the caller has PLATFORM admin privileges, not withstanding the resource
+   * manipulated in the protected method
+   */
+  boolean requirePlatformAdmin() default false;
 
   /** Whether the feature is Enterprise Edition (EE) only. */
   boolean isEnterpriseEdition() default false;

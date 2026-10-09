@@ -12,7 +12,9 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.raw.RawUser;
+import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -111,6 +113,16 @@ public class TenantUserApi extends RestBehavior {
       TxCtx ctx, @PathVariable String userId, @Valid @RequestBody UserInput input) {
     return tenantUserService.update(userId, input);
   }
+//
+//  @Operation(summary = "Update the user's password")
+//  @AccessControl(requireTenantAdmin = true)
+//  @Transactional
+//  @PutMapping("/{userId}/password")
+//  public UserOutput updatePassword(
+//      TxCtx ctx, @PathVariable String userId, @Valid @RequestBody ChangePasswordInput input)
+//      throws InputValidationException {
+//    return tenantUserService.updatePassword(userId, input);
+//  }
 
   // -- DELETE --
 

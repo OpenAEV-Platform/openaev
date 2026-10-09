@@ -5,7 +5,9 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
+import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
@@ -175,5 +177,15 @@ public class UserApi extends RestBehavior {
   public boolean validatePasswordResetToken(
       @PathVariable @Schema(description = "Token generated during reset") String token) {
     return userService.getResetToken(token);
+  }
+
+  @Operation(summary = "Update the user's password")
+  @AccessControl(requirePlatformAdmin = true)
+  @Transactional
+  @PutMapping(USER_URI + "/{userId}/password")
+  public UserOutput updatePassword(
+      TxCtx ctx, @PathVariable String userId, @Valid @RequestBody ChangePasswordInput input)
+      throws InputValidationException {
+    return userService.updatePassword(userId, input);
   }
 }
