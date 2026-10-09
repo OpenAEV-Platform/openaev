@@ -6,8 +6,7 @@ hide:
 
 # OpenAEV Documentation Space
 
-Welcome to the OpenAEV Documentation space. Here you will be able to find all documents, meeting notes and presentations about the platform.
-
+Welcome to the OpenAEV documentation: how to deploy, use and administer the platform.
 
 !!! info "Release notes"
 
@@ -15,31 +14,42 @@ Welcome to the OpenAEV Documentation space. Here you will be able to find all do
 
 ## Introduction
 
-OpenAEV is an open source platform allowing organizations to plan, schedule and conduct cyber adversary simulation campaigns and tests.
+OpenAEV is an open source Adversarial Exposure Validation platform. It lets you test your defenses against real attack techniques and measure how they respond:
 
-!!! tip "Docker deployment of the full XTM suite (OpenCTI - OpenAEV - OpenGRC)"
+- run Simulations and Atomic Tests built from Threat Arsenal Actions mapped to MITRE ATT&CK, on your endpoints, cloud and AI targets;
+- chain Actions into attack paths, or let an AI orchestrator plan and run them with Autonomous Attack Chaining;
+- check what your security tools (EDR, SIEM) detected and prevented, through Collectors;
+- generate Scenarios from the threats tracked in OpenCTI.
 
-    If you're looking for information about the deployment of the full eXtended Threat Management (XTM) suite using Docker, please refer [to this repository and documentation](https://github.com/FiligranHQ/xtm-docker).
+!!! tip "Docker deployment"
+
+    To deploy OpenAEV alone with Docker, use the [OpenAEV Docker repository](https://github.com/OpenAEV-Platform/docker). To deploy the full eXtended Threat Management (XTM) suite (OpenCTI, OpenAEV and XTM One), use the [XTM Docker repository](https://github.com/FiligranHQ/xtm-docker).
 
 ## Getting started
 
 <div class="grid cards" markdown>
 
--   :material-rocket-launch-outline:{ .lg .middle } __Deployment & Setup__
+-   :material-rocket-launch-outline:{ .lg .middle } __Deploy__
 
     ---
 
-    Learn how to deploy and configure the platform as well as
-    launch connectors to get the first data in OpenAEV.
+    Install and configure the platform, the Integration Manager, and follow the breaking changes between versions.
 
     [:octicons-arrow-right-24:{ .middle } Deploy now](deployment/platform/overview.md)
 
--   :fontawesome-regular-compass:{ .lg .middle } __User Guide__
+-   :material-puzzle-outline:{ .lg .middle } __Integrations__
 
     ---
 
-    Understand how to use the platform, manage assets,
-    design scenarios with tailored Threat Arsenal Actions and integrate with other tools.
+    Install the OpenAEV agent, and deploy the Executors, Injectors and Collectors that connect OpenAEV to your tools.
+
+    [:octicons-arrow-right-24:{ .middle } Connect](integrations/agents/openaev-agent.md)
+
+-   :fontawesome-regular-compass:{ .lg .middle } __User guide__
+
+    ---
+
+    Build Scenarios, run Simulations and Atomic Tests, chain attacks, and read the results.
 
     [:octicons-arrow-right-24:{ .middle } Explore](usage/get-started/getting-started.md)
 
@@ -47,9 +57,25 @@ OpenAEV is an open source platform allowing organizations to plan, schedule and 
 
     ---
 
-    Know how to administrate OpenAEV, create users and groups using RBAC and custom taxonomies.
+    Manage users, groups and roles, Tenants, platform settings and taxonomies.
 
     [:octicons-arrow-right-24:{ .middle } Customize](administration/introduction.md)
+
+-   :material-book-open-variant:{ .lg .middle } __Reference__
+
+    ---
+
+    Look up configuration parameters, the REST API and its filters.
+
+    [:octicons-arrow-right-24:{ .middle } Look up](reference/deployment/configuration.md)
+
+-   :material-lifebuoy:{ .lg .middle } __Troubleshooting & FAQ__
+
+    ---
+
+    Find what to check when something does not work as expected.
+
+    [:octicons-arrow-right-24:{ .middle } Troubleshoot](troubleshooting/index.md)
 
 </div>
 
@@ -79,9 +105,6 @@ Below, you will find external resources which may be useful along your OpenAEV j
 
 <div class="grid" markdown>
 
-[**:material-package-variant-closed:{ .middle } OpenAEV Ecosystem**](https://filigran.notion.site/OpenAEV-Ecosystem-30d8eb73d7d04611843e758ddef8941b)<br />
-List of available injectors and collectors to expand platform usage.
-
 [**:material-school-outline:{ .middle } Training Courses**](https://academy.filigran.io)<br />
 Training courses for analysts and administrators in the Filigran Academy.
 
@@ -89,4 +112,3 @@ Training courses for analysts and administrators in the Filigran Academy.
 Set of video illustrating the implementation of use cases and platform capabilities.
 
 </div>
-<br /><br /><br />
