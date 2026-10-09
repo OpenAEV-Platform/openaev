@@ -97,7 +97,7 @@ On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV cr
 Microsoft Defender for Endpoint can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
-OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE Executor deployment guide](../deployment/ecosystem/executors.md#mde-agent) for the required Azure app permissions and Live Response setup.
+OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE Executor deployment guide](../integrations/executors/executors.md#mde-agent) for the required Azure app permissions and Live Response setup.
 
 ### Inject chaining workflows
 
@@ -109,12 +109,12 @@ Inject chaining orchestrates conditional, automated execution of injects within 
 
 ## Remediations in CVEs
 
-More detail: [CVEs](taxonomies.md) and [Findings view](../usage/evaluate/findings/findings.md).
+More detail: [CVEs](taxonomies.md) and [Findings view](../usage/run-and-evaluate/findings/findings.md).
 
 ## Detection remediation in Threat Arsenal Actions and Injects
 
 More detail: [Detection remediations in Threat Arsenal Actions](../usage/build/threat-arsenals/action-properties.md#detection-remediation-properties)
-and [Atomic testing remediations](../usage/evaluate/atomic-testing/atomic-testing.md).
+and [Atomic testing remediations](../usage/run-and-evaluate/atomic-testing/atomic-testing.md).
 
 ## More to come
 

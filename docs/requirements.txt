@@ -7,3 +7,4 @@ mkdocs-glightbox
 mkdocs-macros-plugin
 git+https://github.com/jimporter/mike
 lxml
+mkdocs-redirects

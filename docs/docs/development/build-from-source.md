@@ -66,7 +66,7 @@ Edit `application-dev.properties` so it matches the Compose services. At minimum
 - RabbitMQ
 - Engine (Elasticsearch or OpenSearch)
 
-All required settings are listed in the [Configuration documentation](../deployment/configuration.md#dependencies)
+All required settings are listed in the [Configuration documentation](../reference/deployment/configuration.md#dependencies)
 
 
 ### Building and running
