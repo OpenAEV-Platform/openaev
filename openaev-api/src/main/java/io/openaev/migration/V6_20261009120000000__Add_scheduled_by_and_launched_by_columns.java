@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  * never an error.
  */
 @Component
-public class V6_202601008120000000__Add_scheduled_by_and_launched_by_columns
+public class V6_20261009120000000__Add_scheduled_by_and_launched_by_columns
     extends BaseJavaMigration {
 
   @Override
