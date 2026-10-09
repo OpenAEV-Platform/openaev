@@ -1,4 +1,4 @@
-# OpenAEV Agent
+# OpenAEV agent overview
 
 ## Introduction
 
@@ -20,20 +20,11 @@ The OpenAEV Agent is compatible with multiple operating systems (Windows, Linux,
 ## Installation
 
 Depending on the operating system, several installation modes are available.
-You can access them from OpenAEV by clicking the blue icon in the top-right corner:
+You can access them from OpenAEV with the **Install simulation agents** icon in the top bar:
 
-![Agents](assets/agents.png)
+![Install simulation agents page](assets/agents.png)
 
-!!! note
-
-    Since release **1.14**, multiple OpenAEV Agents can be installed on the same machine in order to test different execution contexts and privilege levels.
-    
-    Examples:
-
-    - Install two agents using the **standard installation** with different privileges (standard user vs administrator).
-    - If an agent was previously installed using the **advanced system installation** (pre-1.14 behavior), a standard installation can be added to compare behaviors such as filesystem access, environment variables, and privileges.
-    
-    **See the OS-specific sections below for details.**
+To remove an agent, see [Uninstall an agent](#uninstall-an-agent).
 
 !!! warning
 
@@ -46,7 +37,16 @@ You can access them from OpenAEV by clicking the blue icon in the top-right corn
 
     Installing an agent from OpenAEV requires the **Install agent** capability, which can be granted in **Settings > Security > Roles** (see [Users and RBAC](../../administration/users-and-rbac.md#capabilities)).
     
-    Users who do not have it cannot get the install command from the **Agents** page.
+    Users who do not have it cannot get the install command from the **Install simulation agents** page.
+
+### Multiple agents on the same machine
+
+Since agent release 1.14, you can install several OpenAEV agents on the same machine, to test different execution contexts and privilege levels. For example:
+
+- install two agents with the standard installation, one as a standard user and one as an administrator;
+- add a standard installation next to an advanced system installation, to compare filesystem access, environment variables and privileges.
+
+The installation modes available on each OS are described below.
 
 ### Quick compatibility check
 
@@ -62,7 +62,7 @@ Before installing the OpenAEV Agent, ensure that **all** the following condition
 
 * Security requirements:
     * **TLS 1.2 or higher**
-    * Administrative privileges (Administrator / root / sudo)
+    * Administrative privileges (Administrator / root / sudo) for the advanced (service) installations
 
 * Network access:
     * Outbound connectivity to the OpenAEV instance
@@ -78,167 +78,24 @@ If any of these requirements are not met, installation **will fail or behave unp
 * additional configuration may be required,
 * environment-specific issues may not be prioritized.
 
-### Windows
+### Install on your OS
 
-#### Operating system & architecture
+The requirements and installation modes depend on the OS:
 
-| Architecture  | Support level     |
-|---------------|-------------------|
-| **x64**       | ✅ Supported       |
-| **ARM64**     | ✅ Supported       |
-| x86 (32-bit)  | ❌ Not supported   |
-| ARM32         | ❌ Not supported   |
-
-| Operating system              | Support level        | Notes               |
-|-------------------------------|----------------------|---------------------|
-| **Windows 10**                | ✅ Supported          |                     |
-| **Windows 11**                | ✅ Supported          |                     |
-| **Windows Server 2019**       | ✅ Supported          |                     |
-| **Windows Server 2022**       | ✅ Supported          |                     |
-| Windows 8 / 8.1               | ⚠️ Best effort       | No guaranteed fixes |
-| Windows Server 2016           | ⚠️ Best effort       | No guaranteed fixes |
-| Windows Server 2012 R2        | ⚠️ Best effort       | No guaranteed fixes |
-| Windows 7 and earlier         | ❌ Not supported      |                     |
-| Windows Server 2008 / 2008 R2 | ❌ Not supported      |                     |
-
-
-#### Runtime & tooling
-
-!!! note
-
-    If the installation fails, try using PowerShell 7 or higher.
-
-* TLS 1.2 or higher must be available
-* The system `Path` environment variable must include: `%SYSTEMROOT%\System32\` and `%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\`
-
-#### Privileges & security
-
-* Installation and execution require **local administrator privileges**
-* For **Advanced installation as User (service)**:
-
-    * The target user must have the **“Log on as a service”** policy enabled
-    * See:
-      [https://learn.microsoft.com/en-us/system-center/scsm/enable-service-log-on-sm](https://learn.microsoft.com/en-us/system-center/scsm/enable-service-log-on-sm)
-
-#### Antivirus
-
-* Antivirus exclusions are mandatory and must apply **only** to the `runtimes` directory
-
-#### Installation mode
-
-*[UserSanitized] in the table below means username without special character like "\", "/",...*
-
-| Installation mode                             | Installation                                                                                                                                                                                                                 | Installation type                                                                                                                   | Execution agent and Threat Arsenal Action                                                                                   | Verification/Start/Stop agent                                                                                                                                                                                                                                                | Folder path                                                                                                                    | AV exclusions                                                                                                                                    | Uninstallation                                                                                       |
-|:----------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------|
-| **Standard installation (session)**           | Asset with GUI and terminal with standard privileges or admin privileges for the logged-in user                                                                                                                              | User session (standard privileges): start up app `WriteRegStr`<br/>OR<br/>User session (admin privileges): start up task `schtasks` | Background, only when user is logged in, with the user privilege from the powershell elevation and environment | `Get-Process openaev-agent \| Where-Object { $_.Path -eq "[FOLDER_PATH]\openaev-agent.exe" }`<br/>`Get-Process openaev-agent \| Where-Object { $_.Path -eq "[FOLDER_PATH]\openaev-agent.exe" } \| Stop-Process -Force`<br/>`Start-Process "[FOLDER_PATH]\openaev-agent.exe"` | `$HOME\.openaev\OAEVAgent-Session-[UserSanitized]`<br/>OR<br/>`$HOME\.openaev\OAEVAgent-Session-Administrator-[UserSanitized]` | `$HOME\.openaev\OAEVAgent-Session-[UserSanitized]\runtimes`<br/>OR<br/>`$HOME\.openaev\OAEVAgent-Session-Administrator-[UserSanitized]\runtimes` | See [Uninstall an agent](#uninstall-an-agent) |
-| **Advanced installation as User (service)**   | Enable the "Service Logon" policy (see above)<br/>Terminal with admin privileges, replace params [USER] and [PASSWORD] in the<br/>bash snippet and in the following commands by the username with domain and password wanted | Service: `sc` (with user and password in service conf)                                                                              | Background, as soon as the machine powers on, with the user privilege and environment                          | `Get-Service -Name "OAEVAgent-Service-[UserSanitized]"`<br/>`Start-Service -Name "OAEVAgent-Service-[UserSanitized]"`<br/>`Stop-Service -Name "OAEVAgent-Service-[UserSanitized]"`                                                                                           | `$HOME\.openaev\OAEVAgent-Service-[UserSanitized]`                                                                             | `$HOME\.openaev\OAEVAgent-Service-[UserSanitized]\runtimes`                                                                                      | See [Uninstall an agent](#uninstall-an-agent) |
-| **Advanced installation as System (service)** | Terminal with admin privileges for the authority system user                                                                                                                                                                 | Service: `sc`                                                                                                                       | Background, as soon as the machine powers on, with the root privilege and environment                          | `Get-Service -Name "OAEVAgentService"`<br/>`Start-Service -Name "OAEVAgentService"`<br/>`Stop-Service -Name "OAEVAgentService"`                                                                                                                                              | `C:\Program Files (x86)\Filigran\OAEV Agent`                                                                                   | `C:\Program Files (x86)\Filigran\OAEV Agent\runtimes`                                                                                            | See [Uninstall an agent](#uninstall-an-agent) |
-
-### Linux
-
-#### Operating system & architecture
-
-| Architecture            | Support level      | Notes   |
-|-------------------------|--------------------|---------|
-| **x86_64**              | ✅ Supported        |         |
-| **ARM64**               | ✅ Supported        |         |
-| 32-bit architectures    | ❌ Not supported    |         |
-| Other CPU architectures | ❌ Not supported    |         |
-
-| Distribution type                                      | Support level     | Notes                       |
-|--------------------------------------------------------|-------------------|-----------------------------|
-| **systemd-based distributions** (Debian, Ubuntu, etc.) | ✅ Supported       | systemd required            |
-| Non-systemd distributions                              | ❌ Not supported   | Installer relies on systemd |
-
-#### Runtime & tooling
-
-* **systemd must be installed and running**
-* **curl** must be available
-* **openssl** must be available, the installer uses it to [verify the agent signature](#signed-agents)
-* TLS support must be enabled
-
-#### Privileges & security
-
-* Installation and execution require **root or sudo privileges**
-* User-based services require permission to manage `systemctl --user`
-
-| Installation mode                             | Installation                                                                                                                                            | Installation type                                          | Execution agent and Threat Arsenal Action                                                          | Verification/Start/Stop agent                                                                                                                        | Folder path                                 | AV exclusions                                        | Uninstallation                                                                                                                                                                                                             |
-|:----------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------|:--------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------|:-----------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Standard installation (session)**           | Asset with GUI and terminal with standard privileges for the logged-in user                                                                             | User service: `systemctl --user`                           | Background, only when user is logged in, with the user privilege and environment      | `systemctl --user enable openaev-agent-session`<br/>`systemctl --user start openaev-agent-session`<br/>`systemctl --user stop openaev-agent-session` | `$HOME/.local/openaev-agent-session`        | `$HOME/.local/openaev-agent-session/runtimes `       | See [Uninstall an agent](#uninstall-an-agent) |
-| **Advanced installation as User (service)**   | Terminal with sudo privileges, replace params [USER] and [GROUP] in the bash<br/>snippet and in the following commands by the username and group wanted | Service: `systemctl` (with user and group in service conf) | Background, as soon as the machine powers on, with the user privilege and environment | `systemctl enable [USER]-openaev-agent`<br/>`systemctl start [USER]-openaev-agent`<br/>`systemctl stop [USER]-openaev-agent`                         | `$HOME/.local/openaev-agent-service-[USER]` | `$HOME/.local/openaev-agent-service-[USER]/runtimes` | See [Uninstall an agent](#uninstall-an-agent) |
-| **Advanced installation as System (service)** | Terminal with sudo privileges                                                                                                                           | Service: `systemctl`                                       | Background, as soon as the machine powers on, with the root privilege and environment | `systemctl enable openaev-agent`<br/>`systemctl start openaev-agent`<br/>`systemctl stop openaev-agent`                                              | `/opt/openaev-agent`                        | `/opt/openaev-agent/runtimes`                        | See [Uninstall an agent](#uninstall-an-agent) |
-
-!!! note
-
-    To allow command Threat Arsenal Action execution without sudo password prompts, see:  
-    [this tutorial](https://gcore.com/learning/how-to-disable-password-for-sudo-command/)
-
-### macOS
-
-#### Operating system & architecture
-
-| Architecture              | Support level   | Notes           |
-|---------------------------|-----------------|-----------------|
-| **ARM64 (Apple Silicon)** | ✅ Supported     |                 |
-| **x86_64 (Intel)**        | ⚠️ Best effort  | Limited testing |
-| 32-bit architectures      | ❌ Not supported |                 |
-| Other CPU architectures   | ❌ Not supported |                 |
-
-| macOS version                                  | Support level    | Notes            |
-|------------------------------------------------|------------------|------------------|
-| **launchd-based macOS (10.4 Tiger and later)** | ✅ Supported      | launchd required |
-| macOS Sonoma (14)                              | ⚠️ Best effort   | Latest version   |
-
-#### Runtime & tooling
-
-* **launchd must be available and running**
-* **curl** must be available
-* **openssl** must be available, the installer uses it to [verify the agent signature](#signed-agents)
-* TLS support must be enabled
-* The system must allow:
-
-    * Execution of downloaded binaries
-    * Write and execute permissions in the installation directory
-
-#### Privileges & security
-
-* Installation and execution require **administrator privileges**
-
-!!! warning
-
-    Temporary limitation: on macOS, **Standard installation (session)** and **Advanced installation as User (service)** are currently unavailable.
-    Use **Advanced installation as System (service)**.
-
-| Installation mode                             | Installation                                                                                                                                            | Installation type                                                          | Execution agent and Threat Arsenal Action                                                          | Verification/Start/Stop agent                                                                                                                                                                                                               | Folder path                                 | AV exclusions                                          | Uninstallation                                                                                       |
-|:----------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------|:--------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------|:-------------------------------------------------------|:-----------------------------------------------------------------------------------------------------|
-| **Standard installation (session)**           | Asset with GUI and terminal with standard privileges for the logged-in user                                                                             | User service: `launchctl user`                                             | Background, only when user is logged in, with the user privilege and environment      | `launchctl enable gui/$(id -u)/openaev-agent-session`<br/>`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/openaev-agent-session.plist`<br/>`launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/openaev-agent-session.plist`     | `$HOME/.local/openaev-agent-session`        | `$HOME/.local/openaev-agent-session/runtimes`          | See [Uninstall an agent](#uninstall-an-agent) |
-| **Advanced installation as User (service)**   | Terminal with sudo privileges, replace params [USER] and [GROUP] in the<br/>bash snippet and in the following commands by the username and group wanted | Service: `launchctl user` (as agent, with user and group in service plist) | Background, as soon as the machine powers on, with the user privilege and environment | `launchctl enable gui/[USER-ID]/[USER]-openaev-agent`<br/>`launchctl bootstrap gui/[USER-ID] /Library/LaunchAgents/[USER]-openaev-agent.plist`<br/>`launchctl bootout gui/[USER-ID] ~/Library/LaunchAgents/[USER]-openaev-agent.plist`      | `$HOME/.local/openaev-agent-service-[USER]` | `$HOME/.local/openaev-agent-service-[USER]/runtimes`   | See [Uninstall an agent](#uninstall-an-agent) |
-| **Advanced installation as System (service)** | Terminal with sudo privileges                                                                                                                           | Service: `launchctl system`                                                | Background, as soon as the machine powers on, with the root privilege and environment | `launchctl enable system/io.filigran.openaev-agent`<br/>`launchctl bootstrap system /Library/LaunchDaemons/io.filigran.openaev-agent.plist`<br/>`launchctl bootout system /Library/LaunchDaemons/io.filigran.openaev-agent.plist`                                             | `/opt/openaev-agent`                        | `/opt/openaev-agent/runtimes`                          | See [Uninstall an agent](#uninstall-an-agent) |
-
-!!! note
-
-    To allow command Threat Arsenal Action execution without sudo password prompts, see:  
-    [this tutorial](https://gcore.com/learning/how-to-disable-password-for-sudo-command/)
+- [Windows](windows.md)
+- [Linux](linux.md)
+- [macOS](macos.md)
 
 ## Agent installation flow
 
-![img.png](assets/agent_installation_flow_diagram.png)
-
-## Network traffic
-
-The installation creates two firewall rules:
-
-**Inbound rule**
-![Inbound rule](assets/inbound-rule.png)
-
-**Outbound rule**
-![Outbound rule](assets/outbound-rule.png)
+![OpenAEV Agent installation flow](assets/agent_installation_flow_diagram.png)
 
 ## Proxy configuration
 
 To use a proxy with the OpenAEV Agent, define both `HTTP_PROXY` and `HTTPS_PROXY` **before running the installer**.
 
 You can configure them in either of the following ways:
+
 - **Machine-wide (persistent):** set them as system environment variables so they are available globally.
 - **Session-only (temporary):** set/export them in the same terminal session immediately before executing the installation script.
 
@@ -247,66 +104,9 @@ If the agent is installed as a service, make sure these variables are also avail
 The agent uses these variables only if the platform has `openaev.with-proxy` set to `true` (see
 [Configuration](../../reference/deployment/configuration.md)) when you copy the install command. Otherwise, the agent ignores the proxy.
 
-Verify that your proxy is correctly configured and communicate well with your OpenAEV Agent installed.
-
 ## Uninstall an agent
 
-The commands below use the default folders and service names. If you changed them at installation, use your values.
-
-### Windows
-
-1. For a **Standard installation (session)**, stop the agent:
-
-    ```powershell
-    Get-Process openaev-agent | Where-Object { $_.Path -eq "[FOLDER_PATH]\openaev-agent.exe" } | Stop-Process -Force
-    ```
-
-2. Run `uninstall.exe` from the installation folder (see the **Folder path** column above) and confirm.
-   It stops and removes the service or the startup task, then deletes the folder. For the service modes, run it as administrator.
-3. For an **Advanced installation as User (service)**, disable the **Log on as a service** policy for the user if it no
-   longer needs it.
-
-### Linux
-
-**Standard installation (session)**:
-
-```bash
-systemctl --user stop openaev-agent-session
-systemctl --user disable openaev-agent-session
-systemctl --user daemon-reload
-systemctl --user reset-failed
-rm -rf $HOME/.local/openaev-agent-session
-```
-
-**Advanced installation as User (service)**, replace `[USER]` with the username:
-
-```bash
-sudo systemctl stop [USER]-openaev-agent
-sudo systemctl disable [USER]-openaev-agent
-sudo systemctl daemon-reload
-sudo systemctl reset-failed
-sudo rm -rf $HOME/.local/openaev-agent-service-[USER]
-```
-
-**Advanced installation as System (service)**:
-
-```bash
-sudo systemctl stop openaev-agent
-sudo systemctl disable openaev-agent
-sudo systemctl daemon-reload
-sudo systemctl reset-failed
-sudo rm -rf /opt/openaev-agent
-```
-
-### macOS
-
-Only **Advanced installation as System (service)** is available on macOS:
-
-```bash
-sudo launchctl bootout system /Library/LaunchDaemons/io.filigran.openaev-agent.plist
-sudo rm -f /Library/LaunchDaemons/io.filigran.openaev-agent.plist
-sudo rm -rf /opt/openaev-agent
-```
+The uninstall commands depend on the OS and the installation mode: see [Windows](windows.md#uninstall-the-agent), [Linux](linux.md#uninstall-the-agent) or [macOS](macos.md#uninstall-the-agent).
 
 ### Remove the Endpoint from OpenAEV
 
@@ -326,9 +126,7 @@ The main features of the OpenAEV Agent include:
 * Automatic agent upgrade (on startup and registration)
 * Periodic job retrieval (every 30 seconds)
 * Implant lifecycle management
-* Execution cleanup and directory pruning (garbage collector running every **3 minutes**):
-    * Directories matching `runtimes/execution-*` and `payloads/execution-*` older than **10 minutes** are processed: associated processes are killed, then the directories are renamed from `execution-*` to `executed-*`.
-    * Directories matching `runtimes/executed-*` and `payloads/executed-*` older than **10 minutes** are permanently deleted.
+* Execution cleanup in `runtimes` and `payloads` (see [Cleanup configuration](#cleanup-configuration))
 * Health checks (heartbeat every 2 minutes)
 
 ### Cleanup configuration
@@ -356,7 +154,7 @@ cleanup_interval_seconds = 180
 
 OpenAEV enforces strict **segregation of duties** for agent token authentication.
 
-The agent token has a deliberately narrow scope: it is only permitted to **retrieve jobs to execute**, **retrieve documents**, and **send back results**. It cannot be used to perform any administrative action or access any resource outside of that execution flow.
+The agent token has a deliberately narrow scope: it is only permitted to **retrieve jobs to execute**, **retrieve documents**, **send back results**, and **download the agent installer**. It cannot be used to perform any administrative action or access any resource outside of that execution flow.
 
 This token belongs to the service account of the Tenant, which has the **Service integration** Role. With it, the agent
 and its Implants download a Document only by its exact ID, for example the file of a File Drop or Executable Action. They
@@ -377,14 +175,6 @@ How it works:
    install if the signature is missing or invalid.
 4. The version header lets the scripts refuse a downgrade to an older release.
 
-Verification tooling by operating system:
-
-| Operating system | Requirement                                                              |
-|------------------|--------------------------------------------------------------------------|
-| Windows          | None, the script uses the cryptography built into .NET                   |
-| Linux            | `openssl` must be installed and available in the `PATH`                  |
-| macOS            | `openssl` must be installed and available in the `PATH`                  |
-
 !!! warning
 
     On Linux and macOS, the installer stops with an explicit error if `openssl` is missing. Install it with your package
@@ -396,13 +186,9 @@ Verification tooling by operating system:
 
 ## Troubleshooting
 
-Logs are available at the following locations (see installation tables for paths):
+Logs are in `openaev-agent.log` in the installation folder.
 
-* Linux → `[FOLDER_PATH]/openaev-agent.log`
-* macOS → `[FOLDER_PATH]/openaev-agent.log`
-* Windows → `[FOLDER_PATH]\openaev-agent.log`
-
-When an implant is deployed, a new directory is created under `runtimes`, named after the inject ID.
+When an implant is deployed, a new directory `execution-<job ID>` is created under `runtimes`.
 This directory contains:
 
 * The implant executable
@@ -413,7 +199,7 @@ This directory contains:
 The agent registers when it starts, then every two minutes. If its Endpoint does not appear in **Assets > Endpoints**,
 check the following points:
 
-1. **The agent runs.** Use the commands of the **Verification/Start/Stop agent** column for your installation mode.
+1. **The agent runs.** Use the commands of the **Verification/Start/Stop agent** column for your installation mode, on the [Windows](windows.md), [Linux](linux.md) or [macOS](macos.md) page.
 2. **The log shows no registration error.** Open `openaev-agent.log` in the installation folder and look for
    `Fail registering the agent`, followed by the cause.
 3. **The URL is reachable.** The `url` value in `openaev-agent-config.toml` (installation folder) comes from
@@ -430,6 +216,7 @@ An Endpoint whose agents stop communicating for one hour shows as inactive (see 
 
 ## What's next?
 
+- [Windows](windows.md), [Linux](linux.md), [macOS](macos.md) -- Install the agent on your OS
 - [Executors](../executors/executors.md) -- Compare all available Executor types and their deployment options
 - [Injectors](../injectors/injectors.md) -- Understand which Injectors require an Agent
 - [Assets](../../usage/build/assets.md) -- Manage the Endpoints where Agents are installed

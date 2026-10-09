@@ -97,7 +97,7 @@ On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV cr
 Microsoft Defender for Endpoint can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
-OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE Executor deployment guide](../integrations/executors/executors.md#mde-agent) for the required Azure app permissions and Live Response setup.
+OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE Executor deployment guide](../integrations/executors/mde.md) for the required Azure app permissions and Live Response setup.
 
 ### Inject chaining workflows
 
