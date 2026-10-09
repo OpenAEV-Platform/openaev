@@ -9,7 +9,7 @@ services:
   # Development PostgreSQL database (persistent storage)
   openaev-dev-pgsql:
     container_name: openaev-dev-pgsql
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -97,7 +97,7 @@ services:
   # Test PostgreSQL database (ephemeral - no volume for clean test runs)
   openaev-test-pgsql:
     container_name: openaev-test-pgsql
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
