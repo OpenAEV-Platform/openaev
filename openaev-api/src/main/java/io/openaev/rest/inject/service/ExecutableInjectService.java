@@ -215,7 +215,7 @@ public class ExecutableInjectService {
     if (PrimitiveType.Document == type && !value.isEmpty()) {
       try {
         Document doc = documentService.document(value);
-        value = "#{location}/" + doc.getName();
+        value = "#{location}/" + DocumentService.safeFileName(doc.getName());
         missing = false;
       } catch (ElementNotFoundException e) {
         log.error("Payload argument target unexisting document", e);

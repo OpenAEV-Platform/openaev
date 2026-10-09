@@ -327,12 +327,13 @@ public class DocumentService {
     return sanitizedName;
   }
 
-  public static String encodeFileName(String name) {
+  public static String safeFileName(String name) {
     String fileName = FilenameUtils.getName(name);
-    if (fileName == null || fileName.isBlank()) {
-      fileName = DEFAULT_DOWNLOAD_FILE_NAME;
-    }
-    return URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+    return fileName == null || fileName.isBlank() ? DEFAULT_DOWNLOAD_FILE_NAME : fileName;
+  }
+
+  public static String encodeFileName(String name) {
+    return URLEncoder.encode(safeFileName(name), StandardCharsets.UTF_8).replace("+", "%20");
   }
 
   public List<Document> documentsForScenario(String scenarioId) {
