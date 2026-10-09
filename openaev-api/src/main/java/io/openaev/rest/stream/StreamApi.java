@@ -456,8 +456,11 @@ public class StreamApi extends RestBehavior {
   @GetMapping(
       path = {"/api/stream", TENANT_PREFIX + "/stream"},
       produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @AccessControl(
-      skipRBAC = true) // TODO RBAC check must be done manually for every event in this method
+  // The stream multiplexes every event of the tenant, so no single capability can gate the
+  // subscription: a subscriber legitimately needs it for any resource it is entitled to read.
+  // Authorisation happens per event instead, in listenDatabaseUpdate, which resolves the resource
+  // governing each event and checks it against the consumer before the event is sent.
+  @AccessControl(skipRBAC = true)
   @NoTenantScope
   // No TxCtx here on purpose: propagation = NEVER guarantees no transaction is ever active for
   // this method, so TenantScopeTransactionAspect's set_config(..., true) would have no
