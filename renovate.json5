@@ -120,6 +120,14 @@
             datasourceTemplate: 'maven',
             versioningTemplate: 'maven',
         },
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<postgresql\.version>(?<currentValue>.*?)</postgresql\.version>'],
+            depNameTemplate: 'org.postgresql:postgresql',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
     ],
     packageRules: [
         {
