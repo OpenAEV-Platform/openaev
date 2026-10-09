@@ -59,35 +59,6 @@ The rotated SQL file `openaev-debug-sql.log`, one line per statement, with maske
 ... the same SELECT 10 more times, one per team -- the N+1 the summary flagged
 ```
 
-What each field means:
-
-- The correlation id (`traceId`) is the same value on both sinks: the console prints it as the
-  `[traceId-spanId]` slot, the SQL file as `trace=...`. It is the full 32-hex id (shortened here).
-  Filter on it to reconstruct the whole request across application logs and SQL.
-- `tenant=...` (SQL file only) -- the tenant the request targets (the default tenant when the request
-  is not tenant-scoped). It is not rendered in the console slot.
-- `user=...` (SQL file only) -- the id of the user who triggered the request (`anonymous` when
-  unauthenticated), so it is clear who ran a given statement. The ORM summary line carries it too.
-- `time=1ms` -- the statement's JDBC (Java Database Connectivity) execution time, so slow statements stand out.
-- `statement=...` -- the real SQL sent to PostgreSQL (Hibernate-generated or native), with `?`
-  placeholders.
-- `params=[{column=value}]` -- the bound parameters by column. `user_email` and `user_password` are
-  `***MASKED***` (email by value pattern, password by sensitive column name); `user_id` and `team_id`
-  are not sensitive, so they are shown.
-- The `ORM ...` line is the one summary per request: total queries and time, plus `N+1 SUSPECTED` --
-  the same SELECT ran once per team (lazy loading), the classic N+1 to fix.
-
-### The console correlation slot
-
-The `[traceId-spanId]` slot is Spring Boot's, driven by Micrometer Tracing. It has three states:
-
-- **debug off** -- no slot at all. Tracing is excluded when the mode is off, so the logs are not
-  padded with an empty correlation field (no `[ ]` noise by default).
-- **debug on, outside a request** (startup, schedulers, background threads) -- the slot is present but
-  empty, because no span is active on that thread.
-- **debug on, during a request** -- the slot is filled, and that same `traceId` appears on the
-  matching SQL lines, so application logs and SQL correlate.
-
 ## Reading the SQL log in practice
 
 The example above is filtered to a single request for clarity. The real `openaev-debug-sql.log` is
@@ -99,7 +70,7 @@ Know this before you open it:
   instance the handful of lines for your request are a small fraction of the file.
 - **Lines are long.** Hibernate selects every column, so a single statement can run past a few hundred
   characters. Use a pager that does not wrap (`less -S`) or filter first.
-- **You filter by trace id.** Get the request's trace id from the application log or the response, then
+- **You filter by trace id.** Get the request's trace id from the application log, then
   pull just that request:
 
 ```bash
@@ -112,11 +83,6 @@ grep MASKED openaev-debug-sql.log | less -S
 # drop the context-less background noise, keep correlated statements only
 grep -E "trace=[0-9a-f]" openaev-debug-sql.log | less -S
 ```
-
-These limits are inherent to logging every statement globally. Scoping the SQL log to request context
-and emitting a per-request summary line as the entry point are tracked as a follow-up (see
-[#6384](https://github.com/OpenAEV-Platform/openaev/issues/6384)); until then, the grep-by-trace
-workflow above is the intended way to use the file.
 
 ## Enabling and disabling
 
@@ -218,18 +184,6 @@ environment variables). Every setting only takes effect when `openaev.debug.enab
 | `openaev.debug.masking.sensitive-keys` | see below | Field/column names whose value is always masked. |
 | `openaev.debug.masking.value-patterns` | see below | Regexes whose matches are masked anywhere. |
 
-The correlation ids follow the production barrier automatically. The Brave bridge is on the classpath
-for debug mode, and Spring Boot creates a tracer (and span-producing handlers) as soon as it is
-present -- `management.tracing.enabled` only governs export, not span creation. So
-`DebugTracingContextInitializer` **excludes the tracing auto-configuration** unless debug mode is
-active (enabled **and** allowed for the current profile). With the mode off, or when debug is
-requested but refused in production, no tracer is created and no span or `traceId` is produced on any
-request, message or job path.
-
-Tracing in OpenAEV is owned by debug mode: it is on only when debug mode is active. There is no way
-to turn tracing on independently of debug mode, by design (it has no other consumer, and this keeps
-the default install free of tracing overhead).
-
 ## Data masking
 
 Masking is mandatory and on by default. SQL parameters and log fields can contain secrets, tokens,
@@ -261,49 +215,6 @@ openaev.debug.masking.sensitive-keys=password,secret,token,my_custom_field
 openaev.debug.masking.value-patterns=eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+,\\b\\d{16}\\b
 ```
 
-## Output and rotation
-
-Everything debug mode writes goes under `openaev.debug.output-dir` (default `./logs/debug`):
-
-- the JFR recordings (`openaev-debug-*.jfr`). A single recording is bounded by `jfr.max-size` and
-  `jfr.max-age`; the periodic dumps are kept bounded by a retention pass that deletes the oldest past
-  `jfr.max-dump-files` (12) or `jfr.max-total-dump-size` (500 MB);
-- the SQL log (`openaev-debug-sql.log`), a rotated file. The rotation is configurable via
-  `openaev.debug.sql.max-file-size` (500 MB), `max-history` (7 days) and `total-size-cap` (2 GB total).
-  The sizes and the history must be positive and the total cap at least the file size; invalid values
-  are corrected to safe ones at startup, with a warning stating the effective settings. On a
-  high-traffic instance the log fills fast, so the total cap is the binding limit: raise it to
-  keep more history. The per-statement SQL flood is kept off the console / production log pipeline;
-  the ORM summary, the activation banner and the JFR status stay on the console by default;
-- the ORM summary file (`openaev-debug-orm.log`), only when `openaev.debug.orm.summary-to-file` is on.
-  Use it on instances that ship the console to centralised logging, to keep the per-request summaries
-  out of it. It uses the same rotation settings.
-
-The application's own logs (with `traceId`, `tenant` and `user` in the MDC) keep going to their usual
-sink.
-
-### Tuning for a high-traffic or centrally-logged instance
-
-On a busy instance the SQL file fills fast and only a short window of history survives. The right lever
-depends on the goal:
-
-- **Keep more history** without more disk: raise `openaev.debug.sql.slow-query-threshold` (for example
-  `50ms`) so only slow statements are written. This cuts the volume drastically, so the same
-  `total-size-cap` covers many more hours. The per-request ORM summary still counts every query, so
-  N+1 detection is unaffected. `max-file-size` does not change how long history is kept (only the file
-  count); the retention window is governed by `total-size-cap`.
-- **Keep every statement** (to inspect a specific fast query): raise `total-size-cap` instead, at the
-  cost of disk.
-- **Keep the debug logs out of centralised logging** (Loki/Grafana): set
-  `openaev.debug.orm.summary-to-file=true` so the per-request summaries go to a file rather than the
-  console. The per-statement SQL is already off the console. Or simply turn debug mode off when you
-  are not actively investigating.
-
-The default `./logs/debug` is relative to the working directory, so in a container it lives on the
-ephemeral layer and is wiped on every recycle. To keep the SQL logs and JFR dumps across restarts,
-point `openaev.debug.output-dir` at a persistent volume (see below). Capture the files you need before
-recycling the container if the directory is not persisted.
-
 ## Running in a container
 
 The debug output directory needs a writable, and ideally persistent, location. A hardened container
@@ -328,35 +239,8 @@ the SQL log falls back to the console instead of the file; the rest of the appli
 Look for log lines starting with `Debug mode: failed to start JFR recording` and `Debug mode: log
 directory is not writable`.
 
-## Cost and bounding
+## What's next?
 
-- **When off:** near-zero per-request cost. No datasource proxy, no parameter capture, no per-request
-  span/correlation work and no extra files. "Near-zero" applies to the **off** state only.
-- **When on:** bounded, but not free. The default JFR profile is `profile`, which carries a
-  non-trivial sampling overhead; switch to `default` for lighter profiling. The SQL log is a
-  size-capped, rotated file; JFR recordings and their dumps are bounded as described above.
-
-## Notes
-
-- The mode does not open any new port or endpoint. It adds no attack surface.
-- The `tenant` MDC tag works under both tenant mechanisms: it uses the request's tenant selector (the
-  `{tenantId}` path variable, else the `X-Tenant-Ids` header) and falls back to the v1 tenant context
-  (the default tenant when unset). Requests that are not tenant-scoped record the default tenant.
-- **Profilers, one at a time, by deployment.** Both JFR and Pyroscope ship; only one runs at a time
-  (when `pyroscope.agent.enabled=true`, the JFR recording does not start and a clear message is
-  logged). Use **JFR on-prem**: it needs no server and writes a local `.jfr` file the customer can
-  send back. Use **Pyroscope in the cloud**: it pushes to the existing Pyroscope server, which on-prem
-  installs do not have.
-
-## Using debug mode for a cloud incident
-
-The mode is intended for incidents and is acceptable to turn on briefly in the cloud, with these
-settings:
-
-- set `openaev.debug.auto-disable-after` (e.g. `2h`) so it switches itself off after the incident
-  window;
-- keep masking on, and consider `openaev.debug.masking.mask-all-parameters=true` for the strongest
-  guarantee;
-- be aware that on a **shared multi-tenant** instance the SQL log aggregates queries from all tenants
-  for the duration (tenant UUIDs are not masked); the `tenant` tag lets you filter, and access to the
-  output directory should be controlled.
+- [Configuration](../reference/deployment/configuration.md) -- Set platform properties and environment variables
+- [Installation](../deployment/platform/installation.md) -- Deploy OpenAEV with Docker
+- [Parameters](parameters.md) -- Check the platform version and connected services

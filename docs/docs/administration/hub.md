@@ -1,52 +1,23 @@
 # XTM Hub
 
-Welcome to the guide on registering your OpenAEV platform with the XTM Hub.
+This page explains how to connect your OpenAEV platform to the XTM Hub, and how to disconnect it. Once connected, you can deploy pre-built Threat Arsenal Actions and Scenarios from the XTM Hub in one click.
 
-## Introduction
+## Connect your platform
 
-This document will guide you through the steps required to register or unregister your OpenAEV platform with the XTM Hub.
+1. Go to **Settings > Filigran Experience**. You need the right to manage platform settings.
+2. Click **Connect to XTM Hub**. A new tab opens on the XTM Hub.
+3. Log in to the XTM Hub and choose the organization to connect your platform to.
+4. Click **Authorize connection**. You are sent back to OpenAEV, and the XTM Hub administrators are informed that a platform is connected.
 
-## Registering your platform
+## Disconnect your platform
 
-To register your OpenAEV platform into the XTM Hub, follow these steps:
-
-1. **Access the settings:**
-    - Ensure you have the necessary permissions.
-    - Navigate to the Filigran Experience page in settings section.
-
-2. **Initiate registration:**
-    - Click on the "Register in XTM Hub" button.
-    - A new tab will open with your XTM Hub account.
-
-3. **Log in:**
-    - Log in with your account credentials.
-    - Choose the organization where you want to register your OpenAEV platform.
-
-4. **Complete registration:**
-    - Once registration is complete, you will be redirected back to your OpenAEV platform.
-    - The XTM Hub administrators will be informed that an OpenAEV platform is registered.
-
-## Unregistering your platform
-
-To unregister your platform, follow these steps:
-
-1. **Eligibility:**
-    - If your platform is already registered, you will have the option to unregister it.
-
-2. **Unregistering process:**
-    - This action will remove the link between your OpenAEV platform and the XTM Hub, thus disabling access to the XTM Hub features.
-    - Go to the XTM Hub settings page and click on the "Unregister" button.
-
-3. **Re-registration:**
-    - Don't worry; it's possible to re-register your platform at any time.
-    - The platform will be automatically registered on the same organization.
+In **Settings > Filigran Experience**, click **Disconnect XTM Hub**. This removes the link between OpenAEV and the XTM Hub. You can connect again at any time: the platform is connected to the same organization.
 
 ## Connectivity check
 
-Your OpenAEV platform will regularly check if the connection with the XTM Hub is still active:
+OpenAEV regularly checks the connection to the XTM Hub. If the check fails, the status shows **Connectivity lost** and OpenAEV administrators are informed.
 
-- **Continuous monitoring:**
-    - Connectivity is automatically monitored to ensure it is functioning properly.
+## What's next?
 
-- **Notification:**
-    - The OpenAEV administrators will be informed if a connectivity check fails.
+- [Import from XTM Hub](../usage/build/scenario/scenario.md#import-from-xtm-hub) -- Import Scenarios from the XTM Hub
+- [Configuration](../reference/deployment/configuration.md) -- XTM Hub connection parameters

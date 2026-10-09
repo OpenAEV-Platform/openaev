@@ -1,3 +1,7 @@
+# Enterprise Edition
+
+OpenAEV Enterprise Edition (EE) adds features on top of the Community Edition. This page explains how to activate it and lists the features it unlocks.
+
 !!! tip "Filigran"
 
     [Filigran](https://filigran.io) is providing an [Enterprise Edition](https://filigran.io/offerings/openaev-enterprise-edition) of the platform, whether [on-premise](https://filigran.io/offerings/professional-support-packages) or in the [SaaS](https://filigran.io/offerings/software-as-a-service).
@@ -17,8 +21,7 @@ provided, this means that the file belongs to the Community Edition under the Ap
 
 ## EE activation
 
-Enterprise Edition is easy to activate. You need to go the platform settings and click on the "Manage your Enterprise
-Edition License" button.
+Go to **Settings > Filigran Experience** and click **Try OpenAEV Enterprise Edition**.
 
 ![OpenAEV activation](assets/enterprise-activate.png)
 
@@ -61,64 +64,42 @@ CI license, until the earliest of its three end dates. A `global` certificate co
 Point the XTM One URL at a host you trust, over HTTPS. This requires XTM One 1.261001.0 or later, which returns the license certificate;
 with an older XTM One, only the OpenAEV license applies and a warning is logged.
 
-The Enterprise Edition card of the platform settings shows the license source: **XTM One license** (with the
+The Enterprise Edition card in **Settings > Filigran Experience** shows the license source: **XTM One license** (with the
 customer, type and expiration date of the XTM license) or **OpenAEV license**.
 
 ## Available features
 
 ### Generative AI
 
-Be able to use AI for content generation including emails, media pressure articles etc.
+Use AI to generate content such as emails and media pressure articles. This needs OpenAEV to be connected to [XTM One](../integrations/xtm-suite/xtm-one.md).
 
-### CrowdStrike Falcon agent
+### Executors
 
-The CrowdStrike Falcon agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
-according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
+The following agents can execute implants as detached processes that then execute Threat Arsenal actions, according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture):
 
-### Tanium agent
+- Tanium
+- CrowdStrike Falcon
+- SentinelOne
+- Palo Alto Cortex
+- Microsoft Defender for Endpoint (MDE)
 
-The Tanium agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
-according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
-
-### SentinelOne agent
-
-The SentinelOne agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
-according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
-
-### Palo Alto Cortex agent
-
-The Palo Alto Cortex agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
-according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
-
-On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the process that will execute the Threat Arsenal Actions.
-
-### Microsoft Defender for Endpoint (MDE) agent
-
-Microsoft Defender for Endpoint can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
-according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
-
-OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE Executor deployment guide](../integrations/executors/mde.md) for the required Azure app permissions and Live Response setup.
+See [Executors](../integrations/executors/executors.md) to set them up.
 
 ### Inject chaining workflows
 
 Inject chaining orchestrates conditional, automated execution of injects within a scenario or simulation workflow. Creating or importing a chaining scenario or simulation requires an active Enterprise Edition license: without one, the platform rejects the operation with a license restriction error.
 
-!!! note
-
-    Inject chaining requires an active Enterprise Edition license.
-
-## Remediations in CVEs
+### Remediations in CVEs
 
 More detail: [CVEs](taxonomies.md) and [Findings view](../usage/run-and-evaluate/findings/findings.md).
 
-## Detection remediation in Threat Arsenal Actions and Injects
+### Detection remediation in Threat Arsenal actions and Injects
 
 More detail: [Detection remediations in Threat Arsenal Actions](../usage/build/threat-arsenals/action-properties.md#detection-remediation-properties)
 and [Atomic testing remediations](../usage/run-and-evaluate/atomic-testing/atomic-testing.md).
 
-## More to come
+## What's next?
 
-More features will be available in OpenAEV in the future. Features like:
-
-- Security posture automatic evaluation.
-- Premium mitigations and recommendation for configuration changes.
+- [Multi-tenancy](multi-tenancy.md) -- Host isolated Tenants on one platform (Enterprise Edition)
+- [Executors](../integrations/executors/executors.md) -- Set up the executors listed above
+- [Parameters](parameters.md) -- Remove Filigran logos and check the platform edition

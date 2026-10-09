@@ -4,7 +4,7 @@ You can manage users in **Settings > Security > Users**. If you are using Single
 
 ![User list](assets/user-list.png)
 
-To create a user, click on the `+` button:
+To create a user, click **Create**:
 
 ![Create user](assets/user-creation.png)
 ![Create user](assets/user-creation-input.png)
@@ -15,6 +15,7 @@ To create a user, click on the `+` button:
   password unchanged.
 
 The user can complete onboarding from the login reset screen in two ways:
+
 1. Request a new code with **Send reset code**.
 2. If they already received one, click **I already have a code** and enter it directly.
 
@@ -22,7 +23,7 @@ To update a user, click on the ellipsis menu:
 
 ![User manage](assets/user-update.png)
 
-Here, you can modify parameters such as the organization, phone number, and even your GPG public key:
+Here, you can modify parameters such as the organization, phone number, and PGP public key:
 
 ![User manage](assets/user-update-input.png)
 
@@ -30,14 +31,9 @@ To delete a user:
 
 ![User manage](assets/user-delete.png)
 
-The platform administrator account cannot be deleted, and neither can your own account. In both
-cases the delete action stays visible but disabled, and hovering it explains why. Administrator
-accounts are also flagged in the list so the restriction is visible without opening the menu.
+You cannot delete the platform administrator account or your own account.
 
-
-# User permissions
-
-## What is RBAC
+## User permissions
 
 Role-Based Access Control (RBAC) is the way OpenAEV manages who can do what inside the platform.
 Each user belongs to a group, and this group has one or more roles that define its **capabilities**.
@@ -70,99 +66,37 @@ To create a new role in OpenAEV:
 
 ### Capabilities
 
-Capabilities in OpenAEV are organized hierarchically. A parent capability (e.g. `Access assessment`) must be granted before its children (e.g. `Manage assessment`, `Delete assessment`) can be assigned. Indentation below reflects this hierarchy.
+Most capabilities come in three levels: **Access** (view), **Manage** (create and update) and **Delete**. Each level needs the one before it: selecting **Delete** also selects **Manage** and **Access**.
 
-Below is a full list of capabilities in OpenAEV:
+Platform settings, Tenants and the platform users, groups, roles and sessions capabilities belong to platform roles. The others belong to Tenant roles.
 
-| Capability | Description                                                                                                                               |
-|:-----------|:------------------------------------------------------------------------------------------------------------------------------------------|
-| `Bypass (user has all rights)` | Grants unconditional access to all platform features, bypassing every individual capability check and any data segregation enforcement.   |
-| **Assessments: Scenarios, Simulations and Atomic Tests** |                                                                                                                                           |
-| `Access assessment` | Read-only access to assessments, including Scenarios, Simulations and Atomic Tests.                                                       |
-| &nbsp;&nbsp;`Manage assessment` | Create and update assessments (Scenarios, Simulations, Atomic Tests). Requires *Access assessment*.                                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete assessment` | Permanently delete assessments. Requires *Manage assessment*.                                                                             |
-| &nbsp;&nbsp;`Launch assessment` | Execute / run an assessment against defined targets. Requires *Access assessment*.                                                        |
-| **Targets** |                                                                                                                                           |
-| `Access Teams & Players` | Read-only access to Teams and Player definitions used as assessment targets.                                                              |
-| &nbsp;&nbsp;`Manage Teams & Players` | Create and update Teams and Players. Requires *Access Teams & Players*.                                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete Teams & Players` | Permanently delete Teams and Players. Requires *Manage Teams & Players*.                                                                  |
-| `Access Assets` | Read-only access to Asset inventory (hosts, endpoints, and other infrastructure targets).                                                 |
-| &nbsp;&nbsp;`Manage Assets` | Create and update Assets in the inventory. Requires *Access Assets*.                                                                      |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete Assets` | Permanently delete Assets from the inventory. Requires *Manage Assets*.                                                                   |
-| `Access security platforms` | Read-only access to integrated security platform configurations (e.g. SIEM, EDR, firewall connectors).                                    |
-| &nbsp;&nbsp;`Manage security platforms` | Create and update security platform integrations. Requires *Access security platforms*.                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete security platforms` | Permanently delete security platform integrations. Requires *Manage security platforms*.                                                  |
-| **Threat arsenal actions** |                                                                                                                                           |
-| `Access threat arsenal actions` | Read-only access to the threat arsenal action library (attack scripts, tools, and techniques used in Simulations).                        |
-| &nbsp;&nbsp;`Manage threat arsenal actions` | Create and update threat arsenal actions in the library. Requires *Access threat arsenal actions*.                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete threat arsenal actions` | Permanently delete threat arsenal actions from the library. Requires *Manage threat arsenal actions*.                                     |
-|  **Reporting** |                                                                                                                                           |
-| `Access reporting` | Read-only access to tenant reporting and generated reports.                                                                               |
-| &nbsp;&nbsp;`Manage reporting` | Create, update, and configure reporting content. Requires *Access reporting*.                                                             |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete reporting` | Permanently delete reporting content. Requires *Manage reporting*.                                                                        |
-**Dashboards** |                                                                                                                                           |
-| `Access Dashboards` | Read-only access to platform Dashboards and their visualizations.                                                                         |
-| &nbsp;&nbsp;`Manage Dashboards` | Create, update, and configure Dashboards. Requires *Access Dashboards*.                                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete Dashboards` | Permanently delete Dashboards. Requires *Manage Dashboards*.                                                                              |
-| **Findings** |                                                                                                                                           |
-| `Access Findings` | Read-only access to assessment Findings and results generated from Simulations and Atomic Tests.                                          |
-| `Access observation snapshots` | Read-only access to the bulk snapshot export endpoints, which return the current verified state of every Endpoint as a machine-readable feed. |
-| **Content** |                                                                                                                                           |
-| `Access documents` | Read-only access to documents stored in the platform (reports, attachments, playbooks).                                                   |
-| &nbsp;&nbsp;`Manage documents` | Upload, create, and update documents. Requires *Access documents*.                                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete documents` | Permanently delete documents. Requires *Manage documents*.                                                                                |
-| `Access channels` | Read-only access to communication channels used to deliver exercise Injects to Players.                                                   |
-| &nbsp;&nbsp;`Manage channels` | Create and update channels. Requires *Access channels*.                                                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete channels` | Permanently delete channels. Requires *Manage channels*.                                                                                  |
-| `Access phishing` | Read-only access to phishing Landing Pages and Email Templates.                                                                           |
-| &nbsp;&nbsp;`Manage phishing` | Create, update, and duplicate phishing Landing Pages and Email Templates. Requires *Access phishing*.                                     |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete phishing` | Permanently delete phishing Landing Pages and Email Templates. Requires *Manage phishing*.                                                |
-| `Access challenges` | Read-only access to challenges (CTF-style tasks or objectives assigned to Players during exercises).                                      |
-| &nbsp;&nbsp;`Manage challenges` | Create and update challenges. Requires *Access challenges*.                                                                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete challenges` | Permanently delete challenges. Requires *Manage challenges*.                                                                              |
-| `Access lessons learned` | Read-only access to lessons learned records captured after assessments or exercises.                                                      |
-| &nbsp;&nbsp;`Manage lessons learned` | Create and update lessons learned entries. Requires *Access lessons learned*.                                                             |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete lessons learned` | Permanently delete lessons learned entries. Requires *Manage lessons learned*.                                                            |
- **Tenant Settings** |                                                                                                                                           |
-| `Access tenant settings` | Read-only access to tenant-level configuration and administration settings.                                                               |
-| &nbsp;&nbsp;`Manage tenant settings` | Create, update, and configure tenant-level settings. Requires *Access tenant settings*.                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant settings` | Permanently delete tenant-level settings. Requires *Manage tenant settings*.                                                              |
-| **Tags** |                                                                                                                                           |
-| `Access tags` | Read-only access to the tags page.                                                                                                        |
-| &nbsp;&nbsp;`Manage tags` | Create, update, and configure tags. Requires *Access tags*.                                                                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tags` | Permanently delete tags. Requires *Manage tags*.                                                                                          |
-| **Platform settings** |                                                                                                                                           |
-| `Access platform settings` | Read-only access to platform-wide configuration and administration settings.                                                              |
-| &nbsp;&nbsp;`Manage platform settings` | Modify platform-wide settings including security configuration, integrations, and system parameters. Requires *Access platform settings*. |
-| **Tenant settings** |                                                                                                                                           |
-| `Access tenant settings` | Read-only access to the tenant administration surface: tags, tag rules, attack patterns, organizations, collectors, injectors, notifiers. |
-| &nbsp;&nbsp;`Manage tenant settings` | Create and update them. Requires *Access tenant settings*.                                                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant settings` | Permanently delete them. Requires *Manage tenant settings*.                                                                               |
-| **Security** |                                                                                                                                           |
-| `Access tenant users, groups and roles` | Read-only access to the tenant's users, groups and roles.                                                                                 |
-| &nbsp;&nbsp;`Manage tenant users, groups and roles` | Create and update the tenant's users, groups and roles. Requires *Access tenant users, groups and roles*.                                 |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant users, groups and roles` | Permanently delete them. Requires *Manage tenant users, groups and roles*.                                                                |
-| `Install agent` | Get the agent install command and installer token, and download the agent binaries. Has no parent or child capability.                   |
-
-
-
-
-!!! note "Hierarchical permissions"
-
-    Permissions are organized hierarchically by indentation: selecting a permission further to the right (e.g., Delete) will automatically enable the less-indented ones that precede it (e.g., Manage and Access).
-
-
-!!! tip "Bypass"
-
-    If you want a user to automatically have all capabilities without restriction, you can enable the **Bypass** capability in their role.
-
-
-!!! tip "Assessments"
-
-    This capability combines Scenarios, Simulations and Atomic Tests.
+| Capability | Levels | Covers |
+|:-----------|:-------|:-------|
+| `Bypass (user has all rights)` | -- | All features, bypassing every capability check and data segregation |
+| `Access dashboards` | Access, Manage, Delete | Dashboards |
+| `Access reportings` | Access, Manage, Delete | Reports |
+| `Access findings` | Access | Findings from Simulations and Atomic Tests |
+| `Access assessment` | Access, Manage, Delete, Launch | Scenarios, Simulations and Atomic Tests; `Launch assessment` needs only Access |
+| `Access threat arsenal` | Access, Manage, Delete | Threat Arsenal actions |
+| `Access teams & persons` | Access, Manage, Delete | Teams and Players |
+| `Access assets` | Access, Manage, Delete | Assets and asset groups |
+| `Access security platforms` | Access, Manage, Delete | Security platform integrations |
+| `Access documents` | Access, Manage, Delete | Documents |
+| `Access channels` | Access, Manage, Delete | Channels |
+| `Access phishing` | Access, Manage, Delete | Phishing landing pages and email templates |
+| `Access challenges` | Access, Manage, Delete | Challenges |
+| `Access lessons learned` | Access, Manage, Delete | Lessons learned |
+| `Access platform settings` | Access, Manage | Platform-wide settings |
+| `Access tenant settings` | Access, Manage, Delete | Tenant settings: tag rules, attack patterns, organizations, collectors, injectors, notifiers |
+| `Access tenant users, groups and roles` | Access, Manage, Delete | The Tenant's users, groups and roles |
+| `Manage tenant sessions` | -- | The Tenant's user sessions |
+| `Access platform users, groups and roles` | Access, Manage, Delete | Platform users, groups and roles |
+| `Manage platform sessions` | -- | Platform user sessions |
+| `Install agent` | -- | Agent install command, installer token and agent binaries |
+| `Access tags` | Access, Manage, Delete | Tags |
+| `Access tenants` | Access, Manage, Delete | Tenants |
 
 Once the role is created, it can be assigned to a **group**. All users in that group will automatically inherit the role's permissions.
-
 
 ## Delegating capabilities
 
@@ -200,8 +134,6 @@ Group membership is governed by the capabilities the group's own roles carry. If
 
     These restrictions follow your own capabilities, not your seniority. To manage a role or a group you are locked out of, ask an administrator to grant you the missing capabilities listed in the message.
 
-
-
 ## Example: creating a crisis content creator role
 
 > Role: Crisis content creator
@@ -211,8 +143,8 @@ For example, they might build an **"Earthquake Crisis Scenario"**.
 
 **Capabilities:**
 
-- **Platform settings**: Manage groups to assign them grants
-- **Assessments**: Create Scenario
+- **Security**: `Manage tenant users, groups and roles` to assign grants to groups
+- **Assessments**: `Manage assessment` and `Launch assessment`
 
 With this role, the user can design new Scenarios, and configure everything needed to prepare Simulations.
 For instance, they may create a **"Earthquake Crisis Template"**, which becomes the foundation for future Simulations.
@@ -220,7 +152,7 @@ For instance, they may create a **"Earthquake Crisis Template"**, which becomes 
 ![Create role](assets/create-role.png)
 ![Assign capabilities](assets/assign-capabilities.png)
 
-Then, the user will be able to create a Scenario, launch it and grant their Team on this Simulation.
+Then, the user will be able to create a Scenario, launch it and grant their group on this Simulation.
 
 ## Grants
 
@@ -233,11 +165,10 @@ Beyond global **capabilities** defined in roles, OpenAEV also allows assigning m
 1. Go to **Settings > Security > Groups**.
 2. Click on **Manage grants** in the group options.
 3. A drawer will open with the available resources:
-    - Simulations
     - Scenarios
-    - Organizations
-    - Atomic Tests
-    - Threat arsenal actions
+    - Simulations
+    - Atomic testings
+    - Threat Arsenal
 4. Select the specific items you want the group to access and assign the appropriate grant level.
 
    ![Manage grants](assets/manage-grants.png)
@@ -254,9 +185,7 @@ There are three levels of granularity:
 
 ### Example: local coordinator
 
-
 > Role: Local coordinator
-
 
 **Context:** This user is not a global content creator. Instead, they are trained locally to run a specific Simulation designed by the content creator.
 They do not need all capabilities -- only access to the resources explicitly granted to them.
@@ -265,23 +194,17 @@ They do not need all capabilities -- only access to the resources explicitly gra
 
 - **Simulation** -- *Launch* on the Simulation based on the "Earthquake Crisis"
 
-**Concrete workflow:**
-
-- The **Content Creator** travels to the **French Embassy** and trains a local coordinator.
-- This coordinator is granted launch to the Simulation created from the *Earthquake Crisis Scenario*.
-- The coordinator can now run and manage this Simulation, but cannot see or modify other Simulations or Scenarios.
-- Later, the same process is repeated at the **UK Embassy**, where another coordinator is granted launch only to the local Simulation derived from the same Scenario.
+The content creator trains a local coordinator, who gets *Launch* on the Simulation built from the *Earthquake Crisis Scenario* and cannot see or modify other Simulations or Scenarios.
 
 ### Special cases
 
 !!! tip "Simulations, Scenarios, and Atomic Tests"
 
-    A user can access these either through specific **grants**, or globally if the group has the **ASSESSMENT** capability (which overrides individual grants).
+    A user can access these either through specific **grants**, or globally if the group has the `Access assessment` capability (which overrides individual grants).
 
 !!! tip "Threat arsenal actions"
 
-    Access is given either through specific **grants**, or globally if the group has the **PAYLOAD** capability.
-
+    Access is given either through specific **grants**, or globally if the group has the `Access threat arsenal` capability.
 
 ## Capability dependencies
 
@@ -297,3 +220,9 @@ If a required capability is missing, the action will be blocked and a warning me
   ![Missing capability](assets/warning-missing-capabilities.png)
 
 This mechanism ensures consistency across the platform: actions that depend on other features cannot be performed without the proper access.
+
+## What's next?
+
+- [Multi-tenancy](multi-tenancy.md) -- Manage Tenants and platform-level users, groups and roles
+- [Policies](policies.md) -- Configure login messages and consent banners
+- [Authentication](../deployment/platform/authentication.md) -- Set up SSO providers
