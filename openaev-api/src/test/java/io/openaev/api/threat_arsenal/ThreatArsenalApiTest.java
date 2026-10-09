@@ -73,6 +73,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
@@ -2003,6 +2005,59 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().is2xxSuccessful());
+    }
+
+    private InjectorContractComposer.Composer payloadContract(String version) {
+      Payload payload = PayloadFixture.createDefaultCommand();
+      payload.setVersion(version);
+      return injectorContractComposer
+          .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+          .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+          .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+          .withPayload(payloadComposer.forPayload(payload))
+          .persist();
+    }
+
+    @Test
+    @DisplayName("Deleting a managed payload version is refused (F26)")
+    void given_managedPayloadVersion_should_refuseDeletion() throws Exception {
+      // Arrange
+      InjectorContract contract = payloadContract("1.0.0").get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert
+      mvc.perform(
+              delete(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + contract.getId()))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Deleting a payload still run by injects is refused and names where (F26)")
+    void given_payloadRunByScenarioInject_should_refuseDeletion() throws Exception {
+      // Arrange
+      InjectorContractComposer.Composer contract = payloadContract(null);
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withInjectorContract(contract))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert
+      mvc.perform(
+              delete(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + contract.get().getId()))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest())
+          .andExpect(content().string(containsString(scenario.getName())));
     }
   }
 

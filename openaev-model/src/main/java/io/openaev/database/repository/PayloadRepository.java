@@ -4,6 +4,7 @@ import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.FileDrop;
 import io.openaev.database.model.Payload;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -32,6 +33,26 @@ public interface PayloadRepository
   List<Payload> findAllByExternalId(@NotNull String externalId);
 
   Optional<Payload> findByExternalIdAndLatestTrue(@NotNull String externalId);
+
+  @Query(
+      "SELECT c.payload FROM InjectorContract c"
+          + " WHERE c.compositeId.id = :contractId AND c.compositeId.tenantId = :tenantId")
+  Optional<Payload> findByInjectorContractId(
+      @Param("contractId") String contractId, @Param("tenantId") String tenantId);
+
+  /** Scenario or simulation name per inject running this payload; null for an atomic test. */
+  @Query(
+      "SELECT DISTINCT COALESCE(s.name, e.name) FROM Inject i"
+          + " LEFT JOIN i.scenario s LEFT JOIN i.exercise e"
+          + " WHERE i.injectorContract.payload.id = :payloadId")
+  List<String> findUsageNamesByPayloadId(@Param("payloadId") String payloadId);
+
+  @Query(
+      "SELECT c.compositeId.id FROM InjectorContract c JOIN c.payload p"
+          + " WHERE c.compositeId.id IN :contractIds"
+          + " AND (p.version IS NOT NULL"
+          + " OR EXISTS (SELECT 1 FROM Inject i WHERE i.injectorContract = c))")
+  Set<String> findNotDeletableContractIds(@Param("contractIds") Collection<String> contractIds);
 
   /**
    * Icon metadata for a batch of payloads in one read: {@code [id, payloadType,

@@ -36,13 +36,17 @@ import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.ListUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -76,6 +80,7 @@ public class ThreatArsenalService {
   public void setPermissionService(@Lazy PermissionService permissionService) {
     this.permissionService = permissionService;
   }
+  private final PayloadVersionService payloadVersionService;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -544,6 +549,15 @@ public class ThreatArsenalService {
    * ticked on screen.
    */
   private List<String> resolveEligibleIds(InjectorContractSearchPaginationInput input) {
+    List<String> candidates = resolveCandidateIds(input);
+    // F26: skip managed versions and payloads still run by injects, checked in batches.
+    Set<String> blocked = new HashSet<>();
+    ListUtils.partition(candidates, 1000)
+        .forEach(batch -> blocked.addAll(payloadVersionService.findNotDeletableContractIds(batch)));
+    return candidates.stream().filter(id -> !blocked.contains(id)).toList();
+  }
+
+  private List<String> resolveCandidateIds(InjectorContractSearchPaginationInput input) {
     List<String> idsToProcess = input.getInjectorContractIdsToProcess();
     if (idsToProcess != null && !idsToProcess.isEmpty()) {
       return idsToProcess.stream().filter(this::isEligibleForDeletion).toList();

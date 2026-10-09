@@ -14,7 +14,7 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.ManagedPayloadNotEditableException;
+import io.openaev.rest.exception.ManagedPayloadReadOnlyException;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.service.payload.PayloadVersionService;
@@ -53,7 +53,7 @@ public class PayloadUpdateService {
     Payload payload =
         this.payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
     if (PayloadVersionService.isManaged(payload)) {
-      throw new ManagedPayloadNotEditableException(
+      throw new ManagedPayloadReadOnlyException(
           "Payload " + payloadId + " is a managed version and is read-only: duplicate it to edit.");
     }
     // Same guard as PayloadCreationService: callers converting action inputs (threat arsenal

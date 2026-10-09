@@ -1,6 +1,8 @@
 package io.openaev.service.payload;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 
@@ -10,7 +12,10 @@ import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.rest.exception.ManagedPayloadReadOnlyException;
+import io.openaev.rest.exception.PayloadInUseException;
 import jakarta.persistence.EntityManager;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -125,6 +130,48 @@ class PayloadVersionServiceTest {
       // Act & Assert
       assertThat(payloadVersionService.refreshLatest(EXTERNAL_ID)).contains(legacy);
       assertThat(legacy.isLatest()).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("Deletion rules (F26)")
+  class Deletion {
+
+    @Test
+    void given_managedVersion_should_refuseDeletion() {
+      // Arrange
+      Payload managed = payload("1.0.0", Payload.PAYLOAD_STATUS.VERIFIED, true);
+
+      // Act & Assert
+      assertThrows(
+          ManagedPayloadReadOnlyException.class,
+          () -> payloadVersionService.assertDeletable(managed));
+    }
+
+    @Test
+    void given_localCopyRunByInjects_should_refuseAndListWhere() {
+      // Arrange
+      Payload copy = payload(null, Payload.PAYLOAD_STATUS.UNVERIFIED, true);
+      when(payloadRepository.findUsageNamesByPayloadId(copy.getId()))
+          .thenReturn(Arrays.asList("Ransomware scenario", null));
+
+      // Act
+      PayloadInUseException error =
+          assertThrows(
+              PayloadInUseException.class, () -> payloadVersionService.assertDeletable(copy));
+
+      // Assert
+      assertThat(error.getMessage()).contains("Ransomware scenario", "atomic testing");
+    }
+
+    @Test
+    void given_unusedLocalCopy_should_allowDeletion() {
+      // Arrange
+      Payload copy = payload(null, Payload.PAYLOAD_STATUS.UNVERIFIED, true);
+      when(payloadRepository.findUsageNamesByPayloadId(copy.getId())).thenReturn(List.of());
+
+      // Act & Assert
+      assertDoesNotThrow(() -> payloadVersionService.assertDeletable(copy));
     }
   }
 }
