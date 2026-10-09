@@ -91,10 +91,6 @@ class AutonomousRunServiceTest {
   @Mock private OpenAEVConfig openAEVConfig;
   @Mock private TenantWriteScopeResolver writeScopeResolver;
   @Mock private TenantScopedTransaction tenantTx;
-  // Lenient by default (void asserts are no-ops): these unit tests exercise lifecycle logic, not
-  // authorization. The deny paths are covered by AutonomousRunAccessControlTest.
-  @Mock private AutonomousRunAccessControl accessControl;
-
   @InjectMocks private AutonomousRunService service;
 
   private static final TxCtx TX = TxCtx.forTenant("tenant-1");

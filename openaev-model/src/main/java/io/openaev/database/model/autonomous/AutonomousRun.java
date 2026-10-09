@@ -3,20 +3,17 @@ package io.openaev.database.model.autonomous;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.ControlledUuidGeneration;
-import io.openaev.database.model.Tenant;
-import io.openaev.database.model.TenantBase;
+import io.openaev.database.model.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
@@ -34,7 +31,8 @@ import org.hibernate.type.SqlTypes;
 @Setter
 @Entity
 @Table(name = "autonomous_runs")
-public class AutonomousRun implements TenantBase {
+@Grantable(Grant.GRANT_RESOURCE_TYPE.AUTONOMOUS_RUN)
+public class AutonomousRun implements GrantableBase, TenantBase {
 
   @Id
   @ControlledUuidGeneration
@@ -213,6 +211,18 @@ public class AutonomousRun implements TenantBase {
               + " timeoutSeconds when the run becomes live. Null when no timeout applies.")
   private Instant deadlineAt;
 
+  @Getter
+  @OneToMany
+  @JoinColumn(
+      name = "grant_resource",
+      referencedColumnName = "autonomous_run_id",
+      insertable = false,
+      updatable = false)
+  @SQLRestriction(
+      "grant_resource_type = 'AUTONOMOUS_RUN'") // Must be present in Grant.GRANT_RESOURCE_TYPE
+  @JsonIgnore
+  private List<Grant> grants = new ArrayList<>();
+
   // Internal bookkeeping: which winddown steering signal the timeout watchdog has already queued
   // for
   // this run, so it emits each nudge at most once. Null -> none, "WINDDOWN_5M" -> 5-minute signal
@@ -221,4 +231,18 @@ public class AutonomousRun implements TenantBase {
   @JsonIgnore
   @Column(name = "autonomous_run_winddown_phase")
   private String winddownPhase;
+
+  // -- RBAC parent resource attribution --
+  @JsonIgnore
+  public String getParentResourceId() {
+    return Optional.ofNullable(this.getSimulationId())
+        .orElse(Optional.ofNullable(this.getScenarioId()).orElse(this.getId()));
+  }
+
+  @JsonIgnore
+  public ResourceType getParentResourceType() {
+    return this.getSimulationId() != null
+        ? ResourceType.SIMULATION
+        : this.getScenarioId() != null ? ResourceType.SCENARIO : ResourceType.AUTONOMOUS_RUN;
+  }
 }

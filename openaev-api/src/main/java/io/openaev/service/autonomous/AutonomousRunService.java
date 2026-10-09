@@ -26,27 +26,7 @@ import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.ConditionType;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.ExecutionStatus;
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.ExerciseStatus;
-import io.openaev.database.model.Finding;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.MappingType;
-import io.openaev.database.model.PrimitiveType;
-import io.openaev.database.model.Scenario;
-import io.openaev.database.model.ScopeRuleSelectedMode;
-import io.openaev.database.model.ScopeRuleSource;
-import io.openaev.database.model.Setting;
-import io.openaev.database.model.Team;
-import io.openaev.database.model.Tenant;
-import io.openaev.database.model.TenantSettingKeys;
-import io.openaev.database.model.User;
-import io.openaev.database.model.Workflow;
-import io.openaev.database.model.WorkflowScopeRule;
+import io.openaev.database.model.*;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousDirectiveStatus;
 import io.openaev.database.model.autonomous.AutonomousDiscoveryMode;
@@ -233,12 +213,6 @@ public class AutonomousRunService {
   // GUC scope is already gone and a bare repository call would be denied by the inspector).
   private final TenantScopedTransaction tenantTx;
 
-  // Resource-level RBAC for the operator control surface. The controller keeps skipRBAC (the run's
-  // authority derives from its bound simulation/scenario, which the declarative aspect cannot
-  // name),
-  // so every operator-facing read/mutation gates in-service through this component.
-  private final AutonomousRunAccessControl accessControl;
-
   // Field-injected (not constructor) so it stays out of @RequiredArgsConstructor and null in the
   // Mockito @InjectMocks unit tests, where detachForResponse() below no-ops. Used only to evict a
   // returned run from the persistence context on the READ paths, so the open-in-view session's
@@ -360,13 +334,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun create(TxCtx ctx, AutonomousRunCreateInput input) {
-    // A caller-provided scenario must be one the operator can launch; a bare (auto-provisioned) run
-    // only needs the launch-assessment capability floor.
-    if (input != null && hasText(input.getScenarioId())) {
-      accessControl.assertCanManageScenario(input.getScenarioId());
-    } else {
-      accessControl.assertCanCreate();
-    }
     return doCreate(ctx, input);
   }
 
@@ -567,9 +534,6 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
-    // Authorize BEFORE inspecting the scenario's workflow: an unauthorized caller must get the
-    // same 403 whether or not the scenario is chained, never a 400 that leaks its shape.
-    accessControl.assertCanManageScenario(scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
@@ -627,9 +591,6 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
-    // Authorize BEFORE inspecting the scenario's workflow: an unauthorized caller must get the
-    // same 403 whether or not the scenario is chained, never a 400 that leaks its shape.
-    accessControl.assertCanManageScenario(scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
@@ -871,7 +832,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun start(String runId) {
-    accessControl.assertCanManage(require(runId));
     return doStart(runId);
   }
 
@@ -1101,7 +1061,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun pause(String runId) {
     AutonomousRun run = requireForUpdate(runId);
-    accessControl.assertCanManage(run);
     assertRunNotTerminal(run, "paused");
     transitionSimulation(run, ExerciseStatus.PAUSED);
     run.setStatus(AutonomousRunStatus.PAUSED);
@@ -1124,7 +1083,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun resume(String runId) {
     AutonomousRun run = requireForUpdate(runId);
-    accessControl.assertCanManage(run);
     assertRunNotTerminal(run, "resumed");
     transitionSimulation(run, ExerciseStatus.RUNNING);
     // Mirror start() / addDirective(): a plan-mode run returns to PLANNING (it is still authoring
@@ -1161,7 +1119,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun cancel(String runId) {
     AutonomousRun run = require(runId);
-    accessControl.assertCanManage(run);
     if (run.getStatus() == AutonomousRunStatus.CANCELED) {
       return run;
     }
@@ -1507,7 +1464,6 @@ public class AutonomousRunService {
     // row -> advisory acquisition order as the settle paths (conditional row-locking UPDATE, then
     // terminal append). It also serialises the whole hard reset with a concurrent pause / settle.
     AutonomousRun run = requireForUpdate(runId);
-    accessControl.assertCanManage(run);
     // Stop the previous XTM One orchestration before tearing its simulation down, so a lingering
     // decision cycle can't dispatch injects against the simulation we are about to delete. The
     // subsequent start() re-engages the run cleanly (upstream start resets the same execution).
@@ -1595,7 +1551,6 @@ public class AutonomousRunService {
     // first (row -> advisory, the settle paths' order). The plan-settled gate below also becomes
     // a locked check-then-act instead of racing a concurrent status write.
     AutonomousRun run = requireForUpdate(runId);
-    accessControl.assertCanManage(run);
     if (!run.isPlanMode()) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Only built (non-executed) logic can be launched as a live run");
@@ -1687,7 +1642,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public Scenario convertToManual(String runId, ConvertToManualMode mode) {
     AutonomousRun run = require(runId);
-    accessControl.assertCanManage(run);
     String scenarioId = run.getScenarioId();
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(
@@ -2128,7 +2082,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousDirective addDirective(String runId, String content) {
     AutonomousRun run = requireForUpdate(runId);
-    accessControl.assertCanManage(run);
     assertRunNotTerminal(run, "steered");
     AutonomousDirective directive = new AutonomousDirective();
     directive.setTenant(run.getTenant());
@@ -2212,7 +2165,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public List<Workflow> applyLiveConfiguration(String runId, WorkflowConfigurationInput input) {
     AutonomousRun run = require(runId);
-    accessControl.assertCanManage(run);
     List<Workflow> updated =
         workflowService.updateRunWorkflowConfiguration(run.getSimulationId(), input);
     eventService.append(
@@ -3889,7 +3841,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun get(String runId) {
     AutonomousRun run = require(runId);
-    accessControl.assertCanRead(run);
     return detachForResponse(reconcileWithSimulation(run));
   }
 
@@ -3899,8 +3850,8 @@ public class AutonomousRunService {
     // and status leaked to any Enterprise-Edition user regardless of their simulation/scenario
     // access. Bound the DB read at MAX_RUNS_LISTED (newest first) so the table is never loaded
     // whole just to filter it down in memory.
-    List<AutonomousRun> runs =
-        accessControl.retainReadable(runRepository.findRecent(PageRequest.of(0, MAX_RUNS_LISTED)));
+    // FIXME: suboptimal: reduces the fetched set based on post-query filtering
+    List<AutonomousRun> runs = runRepository.findRecent(PageRequest.of(0, MAX_RUNS_LISTED));
     // Detach every listed run for the same open-in-view reason as detachForResponse: a listed run
     // left managed is flushed at the Spring Session save and can 500 the whole list.
     runs.forEach(this::detachForResponse);
@@ -3922,7 +3873,6 @@ public class AutonomousRunService {
                 () ->
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "No autonomous run drives this simulation"));
-    accessControl.assertCanRead(run);
     return detachForResponse(reconcileWithSimulation(run));
   }
 
@@ -3942,7 +3892,6 @@ public class AutonomousRunService {
                 () ->
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "No autonomous run drives this scenario"));
-    accessControl.assertCanRead(run);
     return detachForResponse(reconcileWithSimulation(run));
   }
 
@@ -3956,7 +3905,6 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
-    accessControl.assertCanReadScenario(scenarioId);
     Scenario scenario = scenarioService.scenario(scenarioId);
     Map<String, Object> stored = scenario.getAutonomousConfig();
     if (stored == null || stored.isEmpty()) {
@@ -3977,7 +3925,6 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
-    accessControl.assertCanManageScenario(scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
@@ -4000,16 +3947,14 @@ public class AutonomousRunService {
 
   @Transactional(readOnly = true)
   public List<AutonomousEvent> timeline(String runId, long sinceSequence) {
-    accessControl.assertCanRead(require(runId));
     return sinceSequence > 0
-        ? eventService.timelineSince(runId, sinceSequence)
-        : eventService.timeline(runId);
+        ? eventService.timelineSince(require(runId).getId(), sinceSequence)
+        : eventService.timeline(require(runId).getId());
   }
 
   @Transactional(readOnly = true)
   public List<AutonomousDirective> directives(String runId) {
-    accessControl.assertCanRead(require(runId));
-    return directiveRepository.findByRunIdOrderByCreatedAtAsc(runId);
+    return directiveRepository.findByRunIdOrderByCreatedAtAsc(require(runId).getId());
   }
 
   @Transactional(readOnly = true)
@@ -4036,7 +3981,6 @@ public class AutonomousRunService {
   /** Persists the tenant's default additional agents (ids). */
   @Transactional(rollbackFor = Exception.class)
   public List<String> updateDefaultAdditionalAgentIds(List<String> agentIds) {
-    accessControl.assertAdmin();
     List<String> cleaned = new ArrayList<>();
     if (agentIds != null) {
       for (String id : agentIds) {
@@ -4109,7 +4053,6 @@ public class AutonomousRunService {
   /** Persists the tenant's default per-agent discovery modes (canonicalized to valid modes). */
   @Transactional(rollbackFor = Exception.class)
   public Map<String, String> updateDefaultAdditionalAgentModes(Map<String, String> agentModes) {
-    accessControl.assertAdmin();
     Map<String, String> cleaned = normalizeAgentModes(agentModes, null);
     String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key();
     Setting setting =

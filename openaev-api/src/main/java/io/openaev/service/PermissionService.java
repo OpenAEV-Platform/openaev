@@ -2,11 +2,12 @@ package io.openaev.service;
 
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.model.*;
+import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
@@ -50,6 +51,7 @@ public class PermissionService {
       EnumSet.of(
           ResourceType.SCENARIO,
           ResourceType.SIMULATION,
+          ResourceType.AUTONOMOUS_RUN,
           ResourceType.SIMULATION_OR_SCENARIO,
           ResourceType.THREAT_ARSENAL,
           ResourceType.ATOMIC_TESTING);
@@ -62,11 +64,12 @@ public class PermissionService {
           ResourceType.EVALUATION,
           ResourceType.WORKFLOW,
           ResourceType.STEP,
-          ResourceType.CONDITION);
+          ResourceType.CONDITION,
+          ResourceType.AUTONOMOUS_RUN);
 
   private final GrantService grantService;
   private final InjectService injectService;
-  private final InjectorContractService injectorContractService;
+  private final AutonomousRunService autonomousRunService;
   private final ObjectiveRepository objectiveRepository;
   private final EvaluationRepository evaluationRepository;
   private final WorkflowService workflowService;
@@ -229,59 +232,84 @@ public class PermissionService {
     return false;
   }
 
+  public boolean hasUserAdminPrivileges(User user) {
+    return user.isAdminOrBypass();
+  }
+
   private Target resolveTarget(
       @NotNull final String resourceId,
       @NotNull final ResourceType resourceType,
       @NotNull final Action action) {
-    if (resourceType == ResourceType.INJECT) {
-      Inject inject = injectService.inject(resourceId);
-      // Parent action rule: READ stays READ, LAUNCH stays LAUNCH, the rest becomes WRITE.
-      Action parentAction =
-          switch (action) {
-            case READ -> Action.READ;
-            case LAUNCH -> Action.LAUNCH;
-            default -> Action.WRITE;
-          };
-      return new Target(inject.getParentResourceId(), inject.getParentResourceType(), parentAction);
-    } else if (resourceType == ResourceType.INJECTOR_CONTRACT) {
-      return new Target(resourceId, ResourceType.THREAT_ARSENAL, action);
-    } else if (resourceType == ResourceType.OBJECTIVE) {
-      Objective objective =
-          objectiveRepository
-              .findById(resourceId)
-              .orElseThrow(
-                  () -> new ElementNotFoundException("Objective not found with id: " + resourceId));
-      // parent action rule: anything non-READ becomes WRITE on the parent
-      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
-      return new Target(
-          objective.getParentResourceId(), objective.getParentResourceType(), parentAction);
-    } else if (resourceType == ResourceType.EVALUATION) {
-      Evaluation evaluation =
-          evaluationRepository
-              .findById(resourceId)
-              .orElseThrow(
-                  () ->
-                      new ElementNotFoundException("Evaluation not found with id: " + resourceId));
-      // parent action rule: anything non-READ becomes WRITE on the parent
-      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
-      return new Target(
-          evaluation.getParentResourceId(), evaluation.getParentResourceType(), parentAction);
-    } else if (resourceType == ResourceType.WORKFLOW) {
-      Workflow workflow = workflowService.findById(resourceId);
-      // delete/write on a workflow is treated as a write on its parent (simulation/scenario)
-      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
-      return resolveWorkflowTarget(workflow, parentAction);
-    } else if (resourceType == ResourceType.STEP) {
-      Step step = stepService.findById(resourceId);
-      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
-      return resolveWorkflowTarget(step.getWorkflow(), parentAction);
-    } else if (resourceType == ResourceType.CONDITION) {
-      Condition condition = conditionService.findConditionRootById(resourceId);
-      Workflow workflow = workflowService.findById(condition.getWorkflowId());
-      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
-      return resolveWorkflowTarget(workflow, parentAction);
-    }
-    return new Target(resourceId, resourceType, action);
+
+    return switch (resourceType) {
+      case AUTONOMOUS_RUN -> {
+        AutonomousRun run = autonomousRunService.get(resourceId);
+        // Parent action rule: READ stays READ, LAUNCH stays LAUNCH, the rest becomes WRITE.
+        Action parentAction =
+            switch (action) {
+              case READ -> Action.READ;
+              case LAUNCH -> Action.LAUNCH;
+              default -> Action.WRITE;
+            };
+        yield new Target(run.getParentResourceId(), run.getParentResourceType(), parentAction);
+      }
+      case INJECT -> {
+        Inject inject = injectService.inject(resourceId);
+        // Parent action rule: READ stays READ, LAUNCH stays LAUNCH, the rest becomes WRITE.
+        Action parentAction =
+            switch (action) {
+              case READ -> Action.READ;
+              case LAUNCH -> Action.LAUNCH;
+              default -> Action.WRITE;
+            };
+        yield new Target(
+            inject.getParentResourceId(), inject.getParentResourceType(), parentAction);
+      }
+      case INJECTOR_CONTRACT -> new Target(resourceId, ResourceType.THREAT_ARSENAL, action);
+      case OBJECTIVE -> {
+        Objective objective =
+            objectiveRepository
+                .findById(resourceId)
+                .orElseThrow(
+                    () ->
+                        new ElementNotFoundException("Objective not found with id: " + resourceId));
+        // parent action rule: anything non-READ becomes WRITE on the parent
+        Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+        yield new Target(
+            objective.getParentResourceId(), objective.getParentResourceType(), parentAction);
+      }
+      case EVALUATION -> {
+        Evaluation evaluation =
+            evaluationRepository
+                .findById(resourceId)
+                .orElseThrow(
+                    () ->
+                        new ElementNotFoundException(
+                            "Evaluation not found with id: " + resourceId));
+        // parent action rule: anything non-READ becomes WRITE on the parent
+        Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+        yield new Target(
+            evaluation.getParentResourceId(), evaluation.getParentResourceType(), parentAction);
+      }
+      case WORKFLOW -> {
+        Workflow workflow = workflowService.findById(resourceId);
+        // delete/write on a workflow is treated as a write on its parent (simulation/scenario)
+        Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+        yield resolveWorkflowTarget(workflow, parentAction);
+      }
+      case STEP -> {
+        Step step = stepService.findById(resourceId);
+        Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+        yield resolveWorkflowTarget(step.getWorkflow(), parentAction);
+      }
+      case CONDITION -> {
+        Condition condition = conditionService.findConditionRootById(resourceId);
+        Workflow workflow = workflowService.findById(condition.getWorkflowId());
+        Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+        yield resolveWorkflowTarget(workflow, parentAction);
+      }
+      default -> new Target(resourceId, resourceType, action);
+    };
   }
 
   private Target resolveWorkflowTarget(Workflow workflow, Action parentAction) {
