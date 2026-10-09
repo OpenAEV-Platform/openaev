@@ -24,7 +24,7 @@ Integration managers are responsible for:
 
 ## Scheduled jobs
 
-The platform runs several recurring background jobs:
+The platform runs several recurring background jobs. They stop in [safe mode](run-modes.md).
 
 | Job | Description |
 |---|---|

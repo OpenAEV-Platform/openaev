@@ -1,51 +1,32 @@
 # Overview
 
-Before starting the installation, let's discover how OpenAEV is working, which dependencies are needed and what are the
-minimal requirements to deploy it in production.
+This page describes the OpenAEV architecture, its dependencies and the minimum resources to run it in production.
 
-!!! tip "Docker deployment of the full XTM suite (OpenCTI - OpenAEV - OpenGRC)"
+!!! tip "Docker deployment"
 
-    If you're looking for information about the deployment of the full eXtended Threat Management (XTM) suite using Docker, please refer [to this repository and documentation](https://github.com/FiligranHQ/xtm-docker).
+    To deploy OpenAEV alone with Docker, use the [OpenAEV Docker repository](https://github.com/OpenAEV-Platform/docker). To deploy the full eXtended Threat Management (XTM) suite (OpenCTI, OpenAEV and XTM One), use the [XTM Docker repository](https://github.com/FiligranHQ/xtm-docker).
 
 ## Architecture
 
-The OpenAEV platform relies on several external databases and services in order to work.
+The OpenAEV platform relies on several external databases and services.
 
 ![Architecture](assets/architecture.png)
 
 ### Platform
 
-Platform is the central component, allowing users to configure scenarios, simulations, atomic testings and all other
-components used in the context of security validations.
+The platform is the central component. Users configure Scenarios, Simulations, Atomic Tests and all the other components used to validate their security.
 
-### Neutral agents / executors
+### Agents and Executors
 
-Executors are responsible to launch simulated attacks on endpoints.
-
-We developed our own XTM agent and also support third-party agents, with more being added over time.
-
-!!! tip "Tips"
-
-      If you want to learn more about how to deploy executors, you can have more info [here](../../integrations/executors/executors.md).
+Executors launch simulated attacks on endpoints. OpenAEV ships its own agent and also supports third-party agents. See [Executors](../../integrations/executors/executors.md).
 
 ### Injectors
 
-Injectors are used to interact with third-party applications or services (including execution on the endpoints through
-executors) in the context of a simulation or an atomic testing. A few injectors are built-in but most of them are
-standalone Python processes.
-
-!!! tip "Tips"
-
-      If you want to learn more about how to deploy injectors, you can have more info [here](../../integrations/injectors/deploy-injectors.md).
+Injectors interact with third-party applications or services (including execution on endpoints through Executors) during a Simulation or an Atomic Test. A few Injectors are built in, most are standalone Python processes. See [Deploy Injectors](../../integrations/injectors/deploy-injectors.md).
 
 ### Collectors
 
-Collectors are used to connect to all security systems such as SIEMs (Security Information and Event Management), XDRs (Extended Detection and Response), EDRs (Endpoint Detection and Response), firewalls, mail gateways etc. to check
-if an inject (execution, emails, etc.) has been detected or prevented and fill the security posture.
-
-!!! tip "Tips"
-
-      If you want to learn more about how to deploy collectors, you can have more info [here](../../integrations/collectors/deploy-collectors.md).
+Collectors connect to security systems such as SIEM (Security Information and Event Management), EDR (Endpoint Detection and Response), XDR (Extended Detection and Response), firewalls or mail gateways. They check whether an Inject was detected or prevented. See [Deploy Collectors](../../integrations/collectors/deploy-collectors.md).
 
 ## Infrastructure requirements
 
@@ -54,20 +35,22 @@ if an inject (execution, emails, etc.) has been detected or prevented and fill t
 | Component     | Recommended version             | CPU     | RAM     | Disk type | Disk space |
 |:--------------|:--------------------------------|:--------|:--------|:----------|:-----------|
 | PostgreSQL    | ≥ 17.0                          | 2 cores | ≥ 8GB   | SSD       | ≥ 16GB     |
-| ElasticSearch | ≥ 9.0                           | 2 cores | ≥ 8GB   | SSD       | ≥ 16GB     |
+| ElasticSearch | ≥ 8.19                          | 2 cores | ≥ 8GB   | SSD       | ≥ 16GB     |
 | RabbitMQ      | >= 4.3                          | 1 core  | ≥ 512MB | Standard  | ≥ 2GB      |
 | S3 / Silo     | latest (Silo is a MinIO fork)   | 1 core  | ≥ 128MB | SSD       | ≥ 16GB     |
 
 Please note that while the versions of these dependencies are the recommended ones, OpenAEV may still function with
 earlier versions. However, we will not provide support for versions prior to the recommended ones.
 
-Elasticsearch is the exception: the platform's client rejects 8.x servers outright, so 9.0 is a hard
-minimum. See [this migration guide](../breaking-changes/MigrationVersion-elasticsearch-9.md).
-
 ### Platform
 
 | Component     | CPU     | RAM     | Disk type        | Disk space |
 |:--------------|:--------|:--------|:-----------------|:-----------|
-| OpenAEV  Core | 2 cores | ≥ 8GB   | None (stateless) | -          |
+| OpenAEV Core  | 2 cores | ≥ 8GB   | None (stateless) | -          |
 | Injector(s)   | 1 core  | ≥ 128MB | None (stateless) | -          |
 | Collector(s)  | 1 core  | ≥ 128MB | None (stateless) | -          |
+
+## What's next?
+
+- [Installation](installation.md) -- Deploy OpenAEV with Docker or manually
+- [Configuration](../../reference/deployment/configuration.md) -- Platform configuration parameters

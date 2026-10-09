@@ -1,14 +1,12 @@
 # Authentication
 
-## Introduction
-
-This documentation provides details on setting up and utilizing the authentication system, which supports multiple authentication methods to cater to different user needs and security requirements.
+This page explains how to configure user authentication: local users, OpenID Connect and SAML2. You can enable several methods at the same time.
 
 ## Supported authentication methods
 
 !!! tip "Production deployment"
 
-    Please use the LDAP (Lightweight Directory Access Protocol)/Auth0/OpenID/SAML (Security Assertion Markup Language) strategy for production deployment.
+    Use OpenID Connect or SAML2 (Security Assertion Markup Language) in production.
 
 ### Local users
 
@@ -16,7 +14,7 @@ OpenAEV uses this strategy as the default, but it's not the one we recommend for
 
 | Parameter                 | Environment variable      | Default value         | Description                                                   |
 |:--------------------------|:--------------------------|:----------------------|:--------------------------------------------------------------|
-| openaev.auth-local-enable | OPENAEV_AUTH-LOCAL-ENABLE | true               | Set this to `true` to enable username/password authentication. |
+| openaev.auth-local-enable | OPENAEV_AUTH-LOCAL-ENABLE | true                  | Set this to `true` to enable username/password authentication. |
 
 ### OpenID
 
@@ -45,9 +43,7 @@ SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_CLIENT_ID=
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_CLIENT_SECRET=
 ```
 
-!!! tip "Tips"
-
-      *{registrationId} is an arbitrary identifier you choose.*
+`{registrationId}` is an identifier you choose.
 
 ### SAML2
 
@@ -57,7 +53,8 @@ This strategy can be used to authenticate your user with your company SAML.
 |:-------------------------------|:-------------------------------|:----------------------|:--------------------------------------------------------------|
 | openaev.auth-saml2-enable                 | OPENAEV_AUTH-SAML2-ENABLE                 | false               | Set this to `true` to enable SAML2 authentication. |
  
-Example for Microsoft :
+Example for Microsoft:
+
 ```properties
 SPRING_SECURITY_SAML2_RELYINGPARTY_REGISTRATION_{registrationId}_ENTITY-ID=
 SPRING_SECURITY_SAML2_RELYINGPARTY_REGISTRATION_{registrationId}_ASSERTINGPARTY_METADATA-URI=
@@ -65,30 +62,24 @@ OPENAEV_PROVIDER_{registrationId}_FIRSTNAME_ATTRIBUTE_KEY=
 OPENAEV_PROVIDER_{registrationId}_LASTNAME_ATTRIBUTE_KEY=
 ```
 
-!!! tip "Tips"
-     
-      *{registrationId} is an arbitrary identifier you choose.*
-      metadata-uri is the uri of the xml file given by your identity provider
+`{registrationId}` is an identifier you choose. `METADATA-URI` is the URL of the metadata XML file given by your identity provider.
 
-### Single sign-on URL
+In your identity provider, set the single sign-on URL to:
 
-#### SAML2
-
-Url for the config of your sso provider
-```
+```text
 ${openaev.base-url}/login/saml2/sso/{registrationId}
 ```
 
 ### Map administrators to specific roles (OpenID and SAML2)
 
-To grant administrative roles, you can utilize OAuth and SAML2 integration. If you opt for this approach, you'll need to include the following variables:
+To grant the administrator role from your identity provider, set these variables:
 
 ```properties
 OPENAEV_PROVIDER_{registrationId}_ROLES_PATH=http://schemas.microsoft.com/ws/2008/06/identity/claims/role
 OPENAEV_PROVIDER_{registrationId}_ROLES_ADMIN=
 ```
 
-However, if you intend to manage administrative roles within the OpenAEV platform itself, there's no need to provide these variables.
+If you manage administrators in OpenAEV itself, leave them unset.
 
 ### Map users to groups automatically (OpenID and SAML2)
 
@@ -174,7 +165,7 @@ To set up a breakglass account alongside SSO, keep local authentication enabled 
 
 Make sure the [local authentication](#local-users) flag remains `true` (this is the default):
 
-```yaml
+```properties
 OPENAEV_AUTH-LOCAL-ENABLE=true
 ```
 
@@ -182,7 +173,7 @@ OPENAEV_AUTH-LOCAL-ENABLE=true
 
 Set a strong, unique password for the built-in admin account. This is the account defined at platform initialization:
 
-```yaml
+```properties
 OPENAEV_ADMIN_EMAIL=admin@mycompany.com
 OPENAEV_ADMIN_PASSWORD=<a-very-strong-and-unique-password>
 OPENAEV_ADMIN_TOKEN=<a-valid-uuidv4-token>
@@ -207,3 +198,8 @@ When both local authentication and an SSO provider are enabled, the login page d
 2. **SSO button(s)** — one button per configured OpenID or SAML2 provider below the form
 
 Regular users authenticate via the SSO button. The breakglass admin uses the local form only when the SSO provider is unavailable.
+
+## What's next?
+
+- [Users and RBAC](../../administration/users-and-rbac.md) -- Manage access once users can log in
+- [Configuration](../../reference/deployment/configuration.md) -- Platform configuration parameters

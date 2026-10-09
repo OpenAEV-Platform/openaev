@@ -6,10 +6,10 @@ This page explains how OpenAEV secures player email links with short-lived URL a
 
 OpenAEV uses URL access tokens to protect links sent in player-facing emails.
 
-Instead of exposing persistent identifiers in query parameters, OpenAEV now generates an opaque token and sends links in this format:
+Instead of exposing persistent identifiers in query parameters, OpenAEV generates an opaque token and sends links in this format:
 
 ```text
-/api/url/access?token=<raw-token>
+/url/access?token=<raw-token>
 ```
 
 When a player opens the link, OpenAEV validates the token, sets a secure cookie, and redirects to the target page.
@@ -56,3 +56,8 @@ https://<openaev-base-url>/url/access?token=<opaque-token>
 ```
 
 OpenAEV validates the token and redirects the player to the initial exercise resource.
+
+## What's next?
+
+- [Configuration](../../reference/deployment/configuration.md) -- Platform configuration parameters
+- [URL access token enforcement](../breaking-changes/2.260622.0-url-access-token-enforcement.md) -- Migration guide for this change
