@@ -19,6 +19,9 @@
 | 2026-10-08 | Final draft PR #8366 (`feature/approval-prototype → main`, not to be merged) opened with "Closes #8350, #8354, #8356"; conflicts with `main` (2 i18n files + Spring Boot 4 upgrade pending). Staging deployed: https://feat-8366-approval-p.oaev.staging.filigran.io (14:36 UTC, `f34533971`). |
 | 2026-10-08 | Task 3 (#8376) merged as #8377 (`49c5a2316`). Task 4 (#8378, US4.1–US4.4; US4.5 dropped): commit `79ef4f0b0` signed and pushed, draft PR #8379 into `feature/approval-prototype`; #8366 now also closes #8376 and #8378. |
 | 2026-10-09 | Task 4 merged as #8379 (`e6e301579`). |
+| 2026-10-09 | Design and delivery notes published with #8393 (`8b9c6ff4e`). |
+| 2026-10-09 | Fix #8410 merged as #8412 (`baaa2fa02`): approval rights refreshed after *Approve content* is removed (the server already refused); content of payload-backed actions locked. General capabilities issue against `main`: #8413. |
+| 2026-10-09 | Issues created for Task 5 (#8414, payload versioning) and Task 6 (#8415, notifications), and the parent issue #8416 with all task and fix issues as sub-issues. #8366 closes #8414, #8415 and #8416 too. |
 
 ## Overview
 

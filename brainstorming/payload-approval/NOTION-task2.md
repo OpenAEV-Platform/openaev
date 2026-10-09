@@ -31,13 +31,13 @@
 
 ## Scope change announced (staff feedback, 2026-10-09)
 
-**Payload versioning (Task 5)** keeps an approved payload's approved version in use while an edit is pending as a new version, applied only when approved. As a result, Task 2's behaviours will only apply to payloads that **never had an approved version**:
+**Payload versioning (Task 5, #8414)** keeps an approved payload's approved version in use while an edit is pending as a new version, applied only when approved. As a result, Task 2's behaviours will only apply to payloads that **never had an approved version**:
 - launch blocking;
 - *Pending* / *Rejected* chips and *Draft* display;
 - paused schedules and back to Draft;
 - the edit warning (US2.4).
 
-The change is delivered by a new Task 5 PR, not by editing Task 2. **Task 6** adds notifications to approvers when a payload or a new version goes Pending.
+The change is delivered by a new Task 5 PR, not by editing Task 2. **Task 6** (#8415) adds notifications to approvers when a payload or a new version goes Pending. Both are sub-issues of the parent #8416.
 
 ## Mapping to the Notion user stories
 

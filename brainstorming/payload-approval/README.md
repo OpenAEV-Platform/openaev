@@ -2,6 +2,10 @@
 
 These are the design and delivery notes of the payload approval proof of concept: EPIC "Approval Workflow for Exercise Launch", option 2, payload approval in the Threat Arsenal, for a customer maker-checker requirement. They record the decisions, rules, user stories, diagrams, test results and test steps of each task.
 
+**Parent issue**: [#8416](https://github.com/OpenAEV-Platform/openaev/issues/8416) "Payload approval for the Threat Arsenal (POC)".
+- Its sub-issues are the task and fix issues below.
+- Related, not sub-issues: [#2307](https://github.com/OpenAEV-Platform/openaev/issues/2307), the broader request for approving scenarios and payloads, and [#8413](https://github.com/OpenAEV-Platform/openaev/issues/8413), the general capabilities fix against `main`.
+
 | Task | Issue | PR |
 |---|---|---|
 | Task 0: *Approve content* capability + "last modified by" | [#8350](https://github.com/OpenAEV-Platform/openaev/issues/8350) | [#8353](https://github.com/OpenAEV-Platform/openaev/pull/8353) |
@@ -9,6 +13,9 @@ These are the design and delivery notes of the payload approval proof of concept
 | Task 2: only approved payloads selectable and launchable, executor check, warnings, paused schedules | [#8356](https://github.com/OpenAEV-Platform/openaev/issues/8356) | [#8357](https://github.com/OpenAEV-Platform/openaev/pull/8357) |
 | Task 3: existing threat arsenal managers receive *Approve content* at upgrade | [#8376](https://github.com/OpenAEV-Platform/openaev/issues/8376) | [#8377](https://github.com/OpenAEV-Platform/openaev/pull/8377) |
 | Task 4: system-generated payloads approved; automatic selection only picks approved payloads | [#8378](https://github.com/OpenAEV-Platform/openaev/issues/8378) | [#8379](https://github.com/OpenAEV-Platform/openaev/pull/8379) |
+| Fix: approval rights refreshed; content of payload-backed actions locked | [#8410](https://github.com/OpenAEV-Platform/openaev/issues/8410) | [#8412](https://github.com/OpenAEV-Platform/openaev/pull/8412) |
+| Task 5: payload versioning | [#8414](https://github.com/OpenAEV-Platform/openaev/issues/8414) | to come |
+| Task 6: notify approvers when a payload or a new version goes Pending | [#8415](https://github.com/OpenAEV-Platform/openaev/issues/8415) | to come |
 
 ## Status (2026-10-09)
 
@@ -16,12 +23,15 @@ These are the design and delivery notes of the payload approval proof of concept
 |---|---|
 | **Task 0** (PMF-774) | Merged (squash) into `feature/approval-prototype` as `8f284c15d` |
 | **Task 1** (PMF-788) | Merged (squash) into `feature/approval-prototype` as `f34533971`; this commit also carries Task 2 |
-| **Task 2** (PMF-776) | Merged (squash) into the Task 1 branch as `ee7b4ae1f`, then into `feature/approval-prototype` with #8355 |
+| **Task 2** (PMF-776) | Merged (squash) into the Task 1 branch as `ee7b4ae1f`, then into `feature/approval-prototype` with #8355. Its scope changes with Task 5 |
 | **Task 3** (PMF-795, US3.1) | Merged (squash) into `feature/approval-prototype` as `49c5a2316` |
 | **Task 4** (US4.1–US4.4) | Merged (squash) into `feature/approval-prototype` as `e6e301579` |
+| **Fix** (#8410) | Merged (squash) into `feature/approval-prototype` as `baaa2fa02` |
+| **Task 5** (#8414) | Issue created; not started |
+| **Task 6** (#8415) | Issue created; not started |
 
-- **`feature/approval-prototype` = `e6e301579`**: `main` (`f1a2d2d3c`) + Tasks 0 to 4.
-- **Final PR**: [#8366](https://github.com/OpenAEV-Platform/openaev/pull/8366) `feature/approval-prototype → main`, **draft, not to be merged now**. It closes #8350, #8354, #8356, #8376 and #8378.
+- **`feature/approval-prototype` = `baaa2fa02`**: `main` (`f1a2d2d3c`) + Tasks 0 to 4 + these notes (#8393) + the fix (#8412).
+- **Final PR**: [#8366](https://github.com/OpenAEV-Platform/openaev/pull/8366) `feature/approval-prototype → main`, **draft, not to be merged now**. It closes #8350, #8354, #8356, #8376, #8378, #8414, #8415 and the parent #8416.
 - **Staging**: https://feat-8366-approval-p.oaev.staging.filigran.io, redeployed on every commit to `feature/approval-prototype` while the deploy box of #8366 is ticked.
 - **Conflicts with `main`**: #8366 shows conflicts. Two i18n files conflict (`fr.json`, `i18n-loanwords.json`, from #8334), and `main` brings the Spring Boot 4 / Jackson 3 upgrade (#7749), which will need porting work. The staging deploy is not affected: it builds the branch as is.
 - **Delivery change (2026-10-08)**: the system-generated payload (T1-1) and automatic selection (T2-2) decisions were delivered in Task 4, not as follow-ups on #8354 / #8356. US4.5 (spreadsheet import) was dropped: spreadsheet and JSON imports are unchanged.
@@ -29,11 +39,39 @@ These are the design and delivery notes of the payload approval proof of concept
 - **Exercise composition review**: out of scope of this proof of concept.
 - **Merge note**: #8355 first showed a conflict after #8353 was squash-merged. The squash had the same content as the original Task 0 commit still on the Task 1 branch. It was fixed with a merge commit on the Task 1 branch that left the content unchanged (no force push).
 
-### Next steps (staff feedback, 2026-10-09)
+### Fix #8410 (merged in #8412)
 
-- **Task 5, payload versioning**: an approved payload edited by a non-approver keeps its approved version in use; the edit becomes a pending version, applied only when approved. This changes Task 2: blocking, chips, paused schedules / back to Draft and the edit warning will only apply to payloads that never had an approved version. It is delivered by a new Task 5 PR, not by editing Task 2.
-- **Task 6, notifications**: approvers are notified (in-app, optional email) when a payload or a new version goes Pending; authors are told the outcome.
-- **Open bug, investigating**: after *Approve content* is removed from a user's role, the *Approve* button is still shown. First finding: the server refuses the approval (403) and the payload stays Pending; the UI loads capabilities once at app start and keeps showing the button until reload.
+- **Approval rights after *Approve content* is removed**: the server already refused (403, the payload stays *Pending*); a regression test now covers it. The UI loaded user capabilities once at app start, so the *Approve* button stayed visible. The approval section now refreshes the capabilities when it shows a pending payload and after a 403, with a clear message.
+- **Content of payload-backed actions locked**: found during the investigation. The injector contract API could change the content of an action backed by a payload (argument fields and default values used at execution) outside approval. Such changes are now refused.
+- **General problem** (all capabilities are loaded once at login): tracked against `main` in #8413.
+
+### Task 5 and Task 6 (staff feedback, 2026-10-09)
+
+**Task 5, payload versioning (#8414)**
+
+The approved version keeps running while a new version is pending.
+- **Pending version**: an executable edit of an approved payload by a non-approver, or a collector update of one, becomes a pending version. It is applied only when approved. A rejected version leaves the approved one in use.
+- **Storage**: a new `payload_versions` table: number, status, snapshot of the edit, fingerprint, author, decider. At most one pending version per payload; no backfill (the current content is version 1).
+- **Cosmetic changes** apply directly. In a mixed edit, the cosmetic part applies now and the executable part goes to the pending version.
+- **Approvers' edits** apply directly as a new approved version.
+- **Changes to Task 2 (#8356)**: its blocking, chips, paused schedules / back to Draft and edit warning will only apply to payloads that never had an approved version. The 409 "approval impact" flow and the warnings are removed; "Used in …" stays as information. A payload edit no longer pauses schedules (the pause on a sensitive inject change stays).
+- **UI**: the drawer shows the active and pending versions, a comparison of the executable content and the version history; the list shows "New version pending" and offers a filter.
+- **Open questions (PO to confirm, with recommendations, in #8414)**:
+  - anyone with *Manage* can edit a pending version, the author recorded per version;
+  - no revoke of an approved version;
+  - existing injects keep the argument values they store.
+- **US5.6** (content of payload-backed actions locked) was delivered in #8412.
+
+**Task 6, notifications (#8415)**
+
+When a payload or a new version goes Pending, approvers are notified; authors are told the outcome (approved, rejected with reason, superseded). Decisions (PO, 2026-10-09):
+- in-app **on** and email **off** by default, for approvers and authors;
+- recipients: users whose roles **explicitly** hold *Approve content* in the tenant, author excluded (not Bypass, not platform admins);
+- events batched over **60 s**: one notification and at most one email per user;
+- preferences are **global** per user;
+- the existing "users with a capability" query is fixed separately against `main`.
+
+Notifications about new versions depend on Task 5.
 
 ### Issue ↔ PR links
 
@@ -44,6 +82,10 @@ These are the design and delivery notes of the payload approval proof of concept
 | #8356 | #8357 + final #8366 | #8366; #8357 as cross-reference |
 | #8376 | #8377 + final #8366 | #8366; #8377 as cross-reference |
 | #8378 | #8379 + final #8366 | #8366; #8379 as cross-reference |
+| #8410 | #8412 | #8412 as cross-reference |
+| #8414 | Task 5 PR (to come) + final #8366 | #8366 |
+| #8415 | Task 6 PR (to come) + final #8366 | #8366 |
+| #8416 (parent) | final #8366 | #8366 |
 
 GitHub fills the sidebar from a closing keyword only when the PR targets the default branch (`main`). That is why #8366 shows in the sidebar and the task PRs do not.
 
