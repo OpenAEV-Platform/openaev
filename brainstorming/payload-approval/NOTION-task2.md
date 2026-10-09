@@ -29,6 +29,16 @@
 - [x] Issue #8356, signed commit, push, draft PR #8357
 - [x] 2026-10-08 rounds (edit dialog fix, polish, follow-up, decisions 1 and 2 + atomic list fix): built, tested, committed and pushed; PR body updated to the final state
 
+## Scope change announced (staff feedback, 2026-10-09)
+
+**Payload versioning (Task 5, #8414)** keeps an approved payload's approved version in use while an edit is pending as a new version, applied only when approved. As a result, Task 2's behaviours will only apply to payloads that **never had an approved version**:
+- launch blocking;
+- *Pending* / *Rejected* chips and *Draft* display;
+- paused schedules and back to Draft;
+- the edit warning (US2.4).
+
+The change is delivered by a new Task 5 PR, not by editing Task 2. **Task 6** (#8415) adds notifications to approvers when a payload or a new version goes Pending. Both are sub-issues of the parent #8416.
+
 ## Mapping to the Notion user stories
 
 The US2.2 / US2.3 titles are not written in the sources; this mapping follows BRIEF.md iteration 3 and PR-PLAN PR 3. **To confirm against Notion.**
