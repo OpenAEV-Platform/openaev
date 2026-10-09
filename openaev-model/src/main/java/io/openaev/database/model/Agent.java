@@ -168,6 +168,19 @@ public class Agent implements TenantBase, AuditStateCapturable {
   @Transient
   private final ResourceType resourceType = ResourceType.AGENT;
 
+  // Agents are read with their asset (endpoint pages), so ACCESS_ASSETS governs them.
+  @JsonIgnore
+  @Override
+  public String getPermissionResourceId() {
+    return getAsset() != null ? getAsset().getId() : getId();
+  }
+
+  @JsonIgnore
+  @Override
+  public ResourceType getPermissionResourceType() {
+    return getAsset() != null ? ResourceType.ASSET : getResourceType();
+  }
+
   // Ignore json and not null
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
