@@ -52,6 +52,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.content.ContentHistoryService;
+import io.openaev.service.payload.PayloadContentHashService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -98,9 +99,14 @@ public class PayloadService {
   private final TenantWriteScopeResolver writeScopeResolver;
   private final ContentHistoryService contentHistoryService;
   private final PayloadVersionService payloadVersionService;
+  private final PayloadContentHashService payloadContentHashService;
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
+    // Every payload write passes here; a managed version keeps the hash of its signed manifest.
+    if (!PayloadVersionService.isManaged(payload)) {
+      payload.setContentHash(payloadContentHashService.hash(payload, attackPatterns));
+    }
     // A contract lives in its payload's tenant. findAllByPayloads is scoped only by the ambient
     // TxCtx, which for a global (non-selector) request authorizes every tenant the caller can see -
     // built-in payload injectors repeat across tenants, so the raw result can mix several tenants'
