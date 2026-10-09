@@ -207,9 +207,9 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       {dangerousButton()}
       <Dialog
         open={Boolean(openChangeStatus)}
-        TransitionComponent={Transition}
         onClose={() => setOpenChangeStatus(null)}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

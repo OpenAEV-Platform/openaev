@@ -118,7 +118,13 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
   const hasTags = techniques.length > 0 || cves.length > 0;
 
   return (
-    <Dialog open onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ elevation: 1 }}>
+    <Dialog
+      open
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      slotProps={{ paper: { elevation: 1 } }}
+    >
       <DialogTitle sx={{
         display: 'flex',
         alignItems: 'flex-start',

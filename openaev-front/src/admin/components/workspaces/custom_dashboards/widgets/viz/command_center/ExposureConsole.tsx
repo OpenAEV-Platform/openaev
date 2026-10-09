@@ -474,7 +474,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
         onClose={() => setExplainOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: 1 } } }}
       >
         <DialogTitle sx={{
           display: 'flex',
@@ -535,8 +535,10 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
           <Typography variant="h4" gutterBottom>{t('What it measures')}</Typography>
           <Typography
             variant="body2"
-            paragraph
-            sx={{ color: 'text.secondary' }}
+            sx={{
+              color: 'text.secondary',
+              marginBottom: '16px',
+            }}
           >
             {t('The adversarial exposure score is the share of security validations your controls failed to stop. It runs from 0 to 100 and, unlike a resilience score, a HIGHER number is WORSE - it means you are more exposed.')}
           </Typography>
@@ -570,8 +572,10 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
           </Box>
           <Typography
             variant="body2"
-            paragraph
-            sx={{ color: 'text.secondary' }}
+            sx={{
+              color: 'text.secondary',
+              marginBottom: '16px',
+            }}
           >
             {t('Every validation counts equally - there is no per-pillar weighting. Pillars that run more validations therefore weigh more on the overall score. It is the exact inverse of the resilience gauges below: exposure = 100 - overall resilience ({resilience}%).', { resilience })}
           </Typography>

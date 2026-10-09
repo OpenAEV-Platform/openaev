@@ -358,12 +358,12 @@ const ChannelNewspaper = ({ channelReader }) => {
         })}
       </GridLegacy>
       <Dialog
-        TransitionComponent={Transition}
         open={currentArticle !== null}
         onClose={() => setCurrentArticle(null)}
         fullWidth={true}
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{currentArticle?.article_name}</DialogTitle>
         <DialogContent>

@@ -250,9 +250,9 @@ const LessonsPlayer = (props) => {
                 )}
                 <Dialog
                   open={openValidate}
-                  TransitionComponent={Transition}
                   onClose={() => setOpenValidate(false)}
-                  PaperProps={{ elevation: 1 }}
+                  slots={{ transition: Transition }}
+                  slotProps={{ paper: { elevation: 1 } }}
                 >
                   <DialogContent>
                     <DialogContentText>

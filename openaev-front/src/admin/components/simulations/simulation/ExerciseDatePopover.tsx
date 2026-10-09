@@ -69,12 +69,12 @@ const ExerciseDatePopover: FunctionComponent<Props> = ({ exercise, open, onOpenC
         </Tooltip>
       )}
       <Dialog
-        TransitionComponent={Transition}
         open={openEdit}
         onClose={() => setOpenEdit(false)}
-        PaperProps={{ elevation: 1 }}
         maxWidth="xs"
         fullWidth
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Update simulation start date and time')}</DialogTitle>
         <DialogContent>

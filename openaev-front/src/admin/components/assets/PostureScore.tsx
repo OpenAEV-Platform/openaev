@@ -263,7 +263,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
         onClose={() => setExplainOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: 1 } } }}
       >
         <DialogTitle sx={{
           display: 'flex',
@@ -319,8 +319,10 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
           <Typography variant="h4" gutterBottom>{t('What it measures')}</Typography>
           <Typography
             variant="body2"
-            paragraph
-            sx={{ color: 'text.secondary' }}
+            sx={{
+              color: 'text.secondary',
+              marginBottom: '16px',
+            }}
           >
             {strings.measures}
           </Typography>
@@ -354,8 +356,10 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
           </Box>
           <Typography
             variant="body2"
-            paragraph
-            sx={{ color: 'text.secondary' }}
+            sx={{
+              color: 'text.secondary',
+              marginBottom: '16px',
+            }}
           >
             {t('Every validated expectation counts equally - there is no per-pillar weighting. Pending or unscored expectations are excluded until they resolve.')}
           </Typography>

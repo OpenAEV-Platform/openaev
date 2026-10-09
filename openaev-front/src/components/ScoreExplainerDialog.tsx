@@ -88,7 +88,7 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { borderRadius: 1 } }}
+      slotProps={{ paper: { sx: { borderRadius: 1 } } }}
     >
       <DialogTitle sx={{
         display: 'flex',
@@ -143,8 +143,10 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
         <Typography variant="h4" gutterBottom>{t('What it measures')}</Typography>
         <Typography
           variant="body2"
-          paragraph
-          sx={{ color: 'text.secondary' }}
+          sx={{
+            color: 'text.secondary',
+            marginBottom: '16px',
+          }}
         >
           {measures}
         </Typography>
@@ -165,8 +167,10 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
         {footnote && (
           <Typography
             variant="body2"
-            paragraph
-            sx={{ color: 'text.secondary' }}
+            sx={{
+              color: 'text.secondary',
+              marginBottom: '16px',
+            }}
           >
             {footnote}
           </Typography>

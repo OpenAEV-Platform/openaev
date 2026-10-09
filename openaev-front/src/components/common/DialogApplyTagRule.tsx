@@ -25,7 +25,7 @@ const DialogApplyTagRule: FunctionComponent<DialogDeleteProps> = ({
     <DialogMUI
       open={open}
       onClose={handleClose}
-      PaperProps={{ elevation: 1 }}
+      slotProps={{ paper: { elevation: 1 } }}
     >
       <DialogContent>
         <DialogTitle sx={{ paddingLeft: 0 }}>

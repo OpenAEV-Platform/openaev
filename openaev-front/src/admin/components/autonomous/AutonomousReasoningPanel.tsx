@@ -1243,7 +1243,6 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               minRows={hasChoices ? 2 : 3}
               maxRows={8}
               variant="standard"
-              InputProps={{ disableUnderline: true }}
               sx={{
                 '& .MuiInputBase-root': {
                   alignItems: 'flex-start',
@@ -1251,6 +1250,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                   fontSize: '0.875rem',
                 },
               }}
+              slotProps={{ input: { disableUnderline: true } }}
             />
             <Stack sx={{
               flexDirection: 'row',

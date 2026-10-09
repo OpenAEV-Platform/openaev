@@ -41,8 +41,8 @@ const SecurityCoverage: FunctionComponent<Props> = ({ widgetId, widgetConfig, wi
         open={fullscreen}
         onClose={handleClose}
         fullScreen
-        PaperProps={{ elevation: 1 }}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle className={classes.headerFull}>
           <IconButton
