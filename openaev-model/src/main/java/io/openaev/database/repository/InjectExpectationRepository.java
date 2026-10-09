@@ -439,6 +439,9 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findAllForGlobalScoreByInjects(
       @Param("injectIds") Set<String> injectIds);
 
+  @Query("select i from InjectExpectation i where i.inject.id in :injectIds")
+  List<BaseInjectExpectation> findAllByInjectIds(@Param("injectIds") Set<String> injectIds);
+
   // -- INDEXING --
 
   @Query(
