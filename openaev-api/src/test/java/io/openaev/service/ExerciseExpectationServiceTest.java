@@ -10,6 +10,7 @@ import io.openaev.database.repository.*;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.utils.fixtures.InjectExpectationFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -82,7 +83,7 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   }
 
   private Team getTeam() {
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setName("test");
     return this.teamRepository.save(team);
   }

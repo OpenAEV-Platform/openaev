@@ -54,6 +54,14 @@ public class CommandArgumentBinder {
   private static final Pattern NUL_AND_CONTROL_CHARS =
       Pattern.compile("[\\u0000-\\u0008\\u000A-\\u001F\\u007F\\u0085\\u2028\\u2029]");
 
+  /**
+   * Characters PowerShell reads as a single-quote delimiter: the ASCII apostrophe and the
+   * typographic U+2018, U+2019, U+201A and U+201B (PowerShell language specification, section
+   * 2.3.5.2). Any of them opens or closes a single-quoted string, whichever one opened it.
+   */
+  private static final Pattern POWERSHELL_SINGLE_QUOTES =
+      Pattern.compile("['\\u2018\\u2019\\u201A\\u201B]");
+
   private final ExecutorShell shell;
 
   /**
@@ -254,14 +262,23 @@ public class CommandArgumentBinder {
 
   // -- ESCAPING --
 
-  /** Single quotes make the value fully literal in POSIX shells; {@code '} is the only escape. */
+  /**
+   * Single quotes make the value fully literal in POSIX shells; {@code '} is the only escape. These
+   * shells delimit strings with the ASCII apostrophe alone, so typographic quotes are plain data.
+   */
   private static String quoteSh(String value) {
     return "'" + value.replace("'", "'\\''") + "'";
   }
 
-  /** Single-quoted PowerShell strings do not interpolate; {@code '} is doubled to escape it. */
+  /**
+   * Single-quoted PowerShell strings do not interpolate. Any of the {@link
+   * #POWERSHELL_SINGLE_QUOTES} ends one, and two of them in a row read as one literal quote: the
+   * second of the pair. Each is therefore doubled with itself, as PowerShell's own escaping does
+   * ({@code CodeGeneration.EscapeSingleQuotedStringContent}), so the string carries the value
+   * unchanged rather than normalized to the ASCII apostrophe.
+   */
   private static String quotePowerShell(String value) {
-    return "'" + value.replace("'", "''") + "'";
+    return "'" + POWERSHELL_SINGLE_QUOTES.matcher(value).replaceAll("$0$0") + "'";
   }
 
   /**
@@ -269,7 +286,8 @@ public class CommandArgumentBinder {
    * already literal; only percent expansion and delayed expansion need neutralising. A value that
    * cannot be carried by this form at all is refused earlier, see {@link
    * ExecutorShell#canRepresent(String)}. Line separators are already gone by then, removed for
-   * every engine by {@link #sanitize(String)}.
+   * every engine by {@link #sanitize(String)}. cmd delimits with the ASCII double quote alone, so
+   * typographic quotes are plain data.
    */
   private static String escapeCmd(String value) {
     return value.replace("%", "%%").replace("!", "^^!");

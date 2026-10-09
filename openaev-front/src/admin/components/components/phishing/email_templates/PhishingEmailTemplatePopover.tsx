@@ -1,19 +1,21 @@
-import { type FunctionComponent, useContext, useEffect, useState } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import {
   deletePhishingEmailTemplate,
   duplicatePhishingEmailTemplate,
 } from '../../../../../actions/phishing/phishing-action';
-import ButtonPopover from '../../../../../components/common/ButtonPopover';
+import ButtonPopover, { type VariantButtonPopover } from '../../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { type PhishingEmailTemplate } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 
 interface Props {
+  /** `toggle` in a detail header — the 36px kebab that lines up with the header controls. */
+  variant?: VariantButtonPopover;
   emailTemplate: PhishingEmailTemplate;
   inList?: boolean;
   openEditOnInit?: boolean;
@@ -21,6 +23,7 @@ interface Props {
 }
 
 const PhishingEmailTemplatePopover: FunctionComponent<Props> = ({
+  variant = 'icon',
   emailTemplate,
   inList = false,
   openEditOnInit = false,
@@ -29,7 +32,7 @@ const PhishingEmailTemplatePopover: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [openDelete, setOpenDelete] = useState(false);
 
@@ -78,7 +81,7 @@ const PhishingEmailTemplatePopover: FunctionComponent<Props> = ({
 
   return (
     <>
-      <ButtonPopover entries={entries} variant="icon" />
+      <ButtonPopover entries={entries} variant={variant} />
       <DialogDelete
         open={openDelete}
         handleClose={() => setOpenDelete(false)}

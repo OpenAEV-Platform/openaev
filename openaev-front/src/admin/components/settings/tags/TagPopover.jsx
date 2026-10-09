@@ -1,5 +1,6 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
@@ -9,13 +10,11 @@ import { deleteTag, updateTag } from '../../../../actions/tags/tag-action';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { withAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TagForm from './TagForm';
 
 class TagPopoverComponent extends Component {
-  static contextType = AbilityContext;
-
   constructor(props) {
     super(props);
     this.state = {
@@ -74,8 +73,7 @@ class TagPopoverComponent extends Component {
   }
 
   render() {
-    const { t } = this.props;
-    const ability = this.context;
+    const { t, ability } = this.props;
     const canManageTags = ability?.can(ACTIONS.MANAGE, SUBJECTS.TAGS);
     const canDeleteTags = ability?.can(ACTIONS.DELETE, SUBJECTS.TAGS);
     const initialValues = R.pipe(R.pick(['tag_name', 'tag_color']))(
@@ -85,14 +83,13 @@ class TagPopoverComponent extends Component {
       <>
         {(canManageTags || canDeleteTags) && (
           <IconButton
-            color="primary"
+            icon={<MoreVert fontSize="small" />}
+            aria-label={t('More actions')}
             onClick={this.handlePopoverOpen.bind(this)}
             aria-haspopup="true"
-            size="small"
-            sx={{ borderRadius: 1 }}
-          >
-            <MoreVert fontSize="small" />
-          </IconButton>
+            priority="tertiary"
+            size="sm"
+          />
         )}
         <Menu
           anchorEl={this.state.anchorEl}
@@ -122,10 +119,10 @@ class TagPopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={this.handleCloseDelete.bind(this)}>
+            <Button type="button" priority="secondary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button variant="contained" color="error" onClick={this.submitDelete.bind(this)}>
+            <Button type="button" variant="destructive" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>
@@ -148,6 +145,7 @@ class TagPopoverComponent extends Component {
 }
 
 TagPopoverComponent.propTypes = {
+  ability: PropTypes.object,
   t: PropTypes.func,
   tag: PropTypes.object,
   updateTag: PropTypes.func,
@@ -162,6 +160,7 @@ const TagPopover = R.compose(
     deleteTag,
   }),
   inject18n,
+  withAbility,
 )(TagPopoverComponent);
 
 export default TagPopover;

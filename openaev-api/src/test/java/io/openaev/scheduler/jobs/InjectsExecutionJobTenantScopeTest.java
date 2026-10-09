@@ -3,9 +3,11 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
@@ -140,7 +143,7 @@ class InjectsExecutionJobTenantScopeTest {
               return null;
             })
         .when(injectStatusService)
-        .failInjectStatus(anyString(), anyString());
+        .persistErrorStatusInTransaction(anyString(), anyString());
   }
 
   @AfterEach
@@ -232,7 +235,47 @@ class InjectsExecutionJobTenantScopeTest {
 
     job.execute(null);
 
-    verify(injectStatusService).failInjectStatus(anyString(), anyString());
+    verify(injectStatusService).persistErrorStatusInTransaction(anyString(), anyString());
+    assertThat(tenantDuringFailStatus.get()).isEqualTo(INJECT_TENANT);
+  }
+
+  @Test
+  @DisplayName(
+      "an execution failure is persisted in the execution transaction, not in a second one")
+  void failedStatusIsPersistedInTheExecutionTransaction() throws Exception {
+    when(executor.execute(any(ExecutableInject.class))).thenThrow(new RuntimeException("boom"));
+
+    job.execute(null);
+
+    // A single transaction: the traces written before the failure commit with the ERROR status.
+    verify(tenantTx, times(1)).execute(any(TxCtx.class), any(Runnable.class));
+    verify(injectStatusService, times(1)).persistErrorStatusInTransaction(anyString(), eq("boom"));
+  }
+
+  @Test
+  @DisplayName(
+      "when the execution transaction cannot commit, the ERROR status is persisted in a fresh one")
+  void failedCommitFallsBackToAFreshTransaction() throws Exception {
+    // First transaction (the execution) fails at commit; the second one (the fallback) runs.
+    AtomicInteger transactions = new AtomicInteger();
+    doAnswer(
+            invocation -> {
+              primitiveScope.set(invocation.getArgument(0));
+              invocation.getArgument(1, Runnable.class).run();
+              if (transactions.incrementAndGet() == 1) {
+                throw new IllegalStateException(
+                    "commit failed", new RuntimeException("rollback-only"));
+              }
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
+
+    job.execute(null);
+
+    assertThat(transactions.get()).isEqualTo(2);
+    verify(injectStatusService, times(1))
+        .persistErrorStatusInTransaction(anyString(), eq("rollback-only"));
     assertThat(tenantDuringFailStatus.get()).isEqualTo(INJECT_TENANT);
   }
 

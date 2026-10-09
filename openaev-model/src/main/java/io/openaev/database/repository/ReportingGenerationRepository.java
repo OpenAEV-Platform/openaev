@@ -40,13 +40,10 @@ public interface ReportingGenerationRepository
    * documents management surface to mark them read-only (their lifecycle belongs to the Reporting
    * module).
    *
-   * <p>Native, so the ambient {@code tenantFilter} this entity still carries does not apply. Being
-   * the output of a generation is a property of the document, whose id is globally unique, not of
-   * the caller's scope: {@code documents} follows the request scope while {@code
-   * reporting_generations} follows the ambient tenant, which is the default one on the non-prefixed
-   * route, so an ambient-scoped answer marks another tenant's report output as freely updatable and
-   * deletable. Once {@code reporting_generations} activates, the statement inspector scopes this
-   * query to the request, which is the same answer again.
+   * <p>Native, kept as a plain SQL query for its {@code IN} shape. {@code reporting_generations} is
+   * tenant-active, so the statement inspector scopes this query to the same {@code TxCtx} as the
+   * enclosing {@code documents} transaction (both entrypoints carry the request's write/read
+   * scope), the same tenant a generation and its produced document always share.
    *
    * <p>Confined to the documents being displayed rather than listing every generation output of the
    * platform, so the cost does not grow with the number of tenants.

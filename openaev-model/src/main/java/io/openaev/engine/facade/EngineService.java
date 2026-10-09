@@ -1,6 +1,7 @@
 package io.openaev.engine.facade;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.raw.RawUserAuth;
@@ -13,6 +14,7 @@ import io.openaev.engine.query.EsCountInterval;
 import io.openaev.engine.query.EsEntities;
 import io.openaev.engine.query.EsSeries;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -21,11 +23,20 @@ public interface EngineService {
 
   List<String> BASE_FIELDS = List.of("base_id", "base_entity", "base_representative");
 
+  /** Analyzed-text field the free-text {@link #search} matches its terms (and last prefix) on. */
+  String SEARCH_TEXT_FIELD = "base_representative";
+
+  /** Exact-value field the free-text {@link #search} matches a whole id on. */
+  String SEARCH_ID_FIELD = "base_id.keyword";
+
   /**
    * Upper bound on ids per engine call inside {@link #bulkDelete(List)}: keeps the terms clauses
    * and the side-cleanup script parameters bounded however large the deletion cascade is.
    */
   int BULK_DELETE_BATCH_SIZE = 1000;
+
+  /** Upper bound on the page size of {@link #searchCursorPaged}. */
+  int CURSOR_PAGE_MAX_SIZE = 1000;
 
   /**
    * Process models in bulk
@@ -77,25 +88,28 @@ public interface EngineService {
   /**
    * Count using parameters
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param runtime the count runtime to use
    * @return a count object, including the current and previous interval count and the difference
    *     between the two
    */
-  EsCountInterval count(RawUserAuth user, CountRuntime runtime);
+  EsCountInterval count(TxCtx ctx, RawUserAuth user, CountRuntime runtime);
 
   /**
    * Calculates average using parameters
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param averageRuntime the average runtime to use
    * @return an object label-average
    */
-  EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime);
+  EsAvgs average(TxCtx ctx, RawUserAuth user, AverageRuntime averageRuntime);
 
   /**
    * Get the series in a Histogram model
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param widgetConfig the config of the widget
    * @param config the config of the histogram series
@@ -104,6 +118,7 @@ public interface EngineService {
    * @return the resulting series
    */
   EsSeries termHistogram(
+      TxCtx ctx,
       RawUserAuth user,
       StructuralHistogramWidget widgetConfig,
       WidgetConfigurationWithSeries.Series config,
@@ -113,15 +128,18 @@ public interface EngineService {
   /**
    * Get a list of series in a Histogram model
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param runtime the structural histogram runtime to use
    * @return a list of series
    */
-  List<EsSeries> multiTermHistogram(RawUserAuth user, StructuralHistogramRuntime runtime);
+  List<EsSeries> multiTermHistogram(
+      TxCtx ctx, RawUserAuth user, StructuralHistogramRuntime runtime);
 
   /**
    * Get the series in a date histogram model
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param widgetConfig the config of the widget
    * @param config the config of the histogram series
@@ -130,6 +148,7 @@ public interface EngineService {
    * @return the resulting series
    */
   EsSeries dateHistogram(
+      TxCtx ctx,
       RawUserAuth user,
       DateHistogramWidget widgetConfig,
       WidgetConfigurationWithSeries.Series config,
@@ -139,20 +158,50 @@ public interface EngineService {
   /**
    * Get a list of series in a date histogram model
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param runtime the structural histogram runtime to use
    * @return a list of series
    */
-  List<EsSeries> multiDateHistogram(RawUserAuth user, DateHistogramRuntime runtime);
+  List<EsSeries> multiDateHistogram(TxCtx ctx, RawUserAuth user, DateHistogramRuntime runtime);
 
   /**
    * Get a list of entities
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param runtime the list runtime to use
    * @return entities result containing data and total count
    */
-  EsEntities entities(RawUserAuth user, ListRuntime runtime);
+  EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime);
+
+  /**
+   * Reads one page of a single model index in {@code (base_updated_at, base_id)} order, resuming
+   * from an arbitrary point in that order, without an offset.
+   *
+   * <p>The order is {@code (base_updated_at, base_id)} ascending on the engine-normalized values:
+   * {@code base_updated_at} is a {@code date} field, compared at millisecond resolution, and {@code
+   * base_id} is compared on its normalized {@code .keyword} subfield. Every {@link Instant} bound
+   * carried by {@code query} is truncated to milliseconds by the implementation before the engine
+   * query is built, so callers do not need to truncate themselves.
+   *
+   * <p>Results are restricted to {@code query.tenantId()} and, when {@code user} is not null, to
+   * the grants of {@code user}; an admin {@code user} bypasses the grant filter entirely. Passing
+   * null skips the grant filter: the caller has already established that the user sees every
+   * grantable resource (admin, BYPASS, or the capability covering the resource type).
+   *
+   * <p>There is no total: the page is exactly {@code query.size()} documents when more remain, so
+   * {@code has_more} is for the caller to derive.
+   *
+   * @param user the user whose grants filter the page, or null for no grant filter
+   * @param model the model class to search; its handler bean must be registered
+   * @param query the page bounds
+   * @return the page of documents, in {@code (base_updated_at, base_id)} ascending order
+   * @throws IllegalArgumentException if {@code query.size()} is out of {@code [1,
+   *     CURSOR_PAGE_MAX_SIZE]}, or if {@code model} has no registered handler
+   */
+  <T extends EsBase> List<T> searchCursorPaged(
+      RawUserAuth user, Class<T> model, CursorPageQuery query);
 
   /**
    * Create the list configuration using entities and filters
@@ -167,12 +216,13 @@ public interface EngineService {
   /**
    * Global search on ES
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param search the search string
    * @param filter a list of filters
    * @return the list of results
    */
-  List<EsSearch> search(RawUserAuth user, String search, Filters.FilterGroup filter);
+  List<EsSearch> search(TxCtx ctx, RawUserAuth user, String search, Filters.FilterGroup filter);
 
   /**
    * Indexes a single document into the specified search engine index.

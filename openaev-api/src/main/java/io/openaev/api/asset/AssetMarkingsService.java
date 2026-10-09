@@ -4,16 +4,21 @@ import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAss
 
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.MarkingDefinition;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -27,7 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The counterpart to {@code TenantGroupService.updateGroupMarkings}: that one grants a
  * <i>clearance</i> to a group, this one puts a <i>label</i> on a row. Both go through the same
- * {@link io.openaev.service.marking.MarkingEscalationValidator}, and for the same reason — a
+ * {@link io.openaev.service.marking.MarkingEscalationValidator} and the same diff-based {@code
+ * ASSIGN_MARKING}/{@code DELETE_MARKING_ASSIGNMENT} capability check, for the same reason — a
  * boundary you can widen for yourself is not a boundary.
  */
 @Slf4j
@@ -39,9 +45,28 @@ public class AssetMarkingsService {
   private final MarkingDefinitionRepository markingDefinitionRepository;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final UserService userService;
+  private final PermissionService permissionService;
 
   /**
    * Replaces an asset's marking set.
+   *
+   * <p>Three guards, in this order:
+   *
+   * <ol>
+   *   <li><b>Existence and tenant.</b> {@code marking_definitions} is a tenant-active table, so the
+   *       statement inspector already restricts this read to the request scope: a marking from
+   *       another tenant simply does not come back, and the size check turns that into a 404 rather
+   *       than a silent partial assignment.
+   *   <li><b>Escalation.</b> {@link io.openaev.service.marking.MarkingEscalationValidator} — you
+   *       may not assign what you do not hold. Without it, "may write assets" would quietly mean
+   *       "may read every marked row".
+   *   <li><b>Capability, per direction actually used.</b> Computed from the diff between the
+   *       payload and the asset's current markings (read before the array is overwritten): removing
+   *       a currently-carried marking requires {@code DELETE_MARKING_ASSIGNMENT}, adding one not
+   *       currently carried requires {@code ASSIGN_MARKING} - either, both, or neither, depending
+   *       on what this particular payload changes. This is additive to the asset's own {@code
+   *       WRITE} control checked at the API layer, not a replacement for it.
+   * </ol>
    *
    * <p>🔴 <b>No cache eviction here, deliberately.</b> The rewritten predicate is {@code
    * is_marking_set_allowed(marking_ids)} — the row's array is a function <i>argument</i>, re-read
@@ -85,8 +110,26 @@ public class AssetMarkingsService {
             currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
         markings);
 
+    // Read before the marking_ids array is overwritten below - this is the "before" side of the
+    // diff.
     Set<String> previous =
         asset.getMarkingIds() == null ? Set.of() : Set.copyOf(Arrays.asList(asset.getMarkingIds()));
+    Set<String> removedIds = new HashSet<>(previous);
+    removedIds.removeAll(uniqueMarkingIds);
+    Set<String> addedIds = new HashSet<>(uniqueMarkingIds);
+    addedIds.removeAll(previous);
+
+    if (!removedIds.isEmpty()
+        && !permissionService.hasCapabilityPermission(
+            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.DELETE)) {
+      throw new ForbiddenException("Missing the DELETE_MARKING_ASSIGNMENT capability");
+    }
+    if (!addedIds.isEmpty()
+        && !permissionService.hasCapabilityPermission(
+            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
+      throw new ForbiddenException("Missing the ASSIGN_MARKING capability");
+    }
+
     logDeclassification(asset, currentUser, previous, uniqueMarkingIds);
 
     asset.setMarkingIds(uniqueMarkingIds.toArray(String[]::new));

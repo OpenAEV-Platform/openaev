@@ -1,5 +1,6 @@
+import { Checkbox, Chip } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, lazy, Suspense, type SyntheticEvent, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -60,15 +61,15 @@ const useStyles = makeStyles()(theme => ({
     marginRight: theme.spacing(1),
     borderRadius: theme.shape.borderRadius,
     width: 180,
-    backgroundColor: 'rgba(0, 177, 255, 0.08)',
-    color: '#00b1ff',
-    border: '1px solid #00b1ff',
+    backgroundColor: 'var(--color-filigran-brand-primary-transparency-10)',
+    color: 'var(--color-filigran-brand-primary)',
+    border: '1px solid var(--color-filigran-brand-primary)',
   },
   itemHead: { textTransform: 'uppercase' },
   item: { height: theme.spacing(6.25) },
   bodyItems: { display: 'flex' },
   bodyItem: {
-    height: theme.spacing(2.5),
+    minHeight: theme.spacing(2.5),
     fontSize: 13,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -183,7 +184,6 @@ const Injects: FunctionComponent<Props> = ({
         );
         return (
           <Chip
-            classes={{ root: classes.duration }}
             label={`${duration.days}
                           ${t('d')}, ${duration.hours}
                           ${t('h')}, ${duration.minutes}
@@ -317,29 +317,22 @@ const Injects: FunctionComponent<Props> = ({
     }
   };
 
+  // The updates are sent one after the other, never in parallel: these injects are linked
+  // (parent / children) and usually share the same scenario and assets, so concurrent updates
+  // contend on the same rows server-side and can deadlock, failing one of the requests.
   const massUpdateInject = async (data: Inject[]) => {
-    const promises: Promise<InjectStore | undefined>[] = [];
-    data.forEach((inject) => {
-      promises.push(injectContext.onUpdateInject(inject.inject_id, inject).then((result: {
-        result: string;
-        entities: { injects: Record<string, InjectStore> };
-      }) => {
-        if (result.entities) {
-          return result.entities.injects[result.result];
-        }
-        return undefined;
-      }));
-    });
+    const values: (InjectStore | undefined)[] = [];
+    for (const inject of data) {
+      // eslint-disable-next-line no-await-in-loop
+      const result = await injectContext.onUpdateInject(inject.inject_id, inject);
+      values.push(result.entities ? result.entities.injects[result.result] : undefined);
+    }
 
-    Promise.all(promises).then((values) => {
-      if (values !== undefined) {
-        const updatedInjects = injects
-          .map(inject => (values.find(value => value !== undefined && value.inject_id === inject.inject_id)
-            ? (values.find(value => value !== undefined && value?.inject_id === inject.inject_id) as InjectOutputType)
-            : inject as InjectOutputType));
-        setInjects(updatedInjects);
-      }
-    });
+    const updatedInjects = injects
+      .map(inject => (values.find(value => value !== undefined && value.inject_id === inject.inject_id)
+        ? (values.find(value => value !== undefined && value?.inject_id === inject.inject_id) as InjectOutputType)
+        : inject as InjectOutputType));
+    setInjects(updatedInjects);
   };
 
   // Creation now happens on a dedicated full page (contract picker + config).
@@ -578,10 +571,9 @@ const Injects: FunctionComponent<Props> = ({
           >
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
                 disabled={typeof handleToggleSelectAll !== 'function'}
               />
             </ListItemIcon>
@@ -657,13 +649,12 @@ const Injects: FunctionComponent<Props> = ({
                             : onToggleEntity(inject, event))}
                         >
                           <Checkbox
-                            edge="start"
+                            aria-label={inject.inject_title}
                             checked={
                               (selectAll && !(inject.inject_id
                                 in (deSelectedElements || {})))
                                 || inject.inject_id in (selectedElements || {})
                             }
-                            disableRipple
                           />
                         </ListItemIcon>
                         <ListItemIcon style={{ paddingTop: 5 }}>

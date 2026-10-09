@@ -27,9 +27,10 @@ public class CollectorTypeComposer extends ComposerBase<CollectorType> {
       if (this.collectorType.getTenant() == null) {
         this.collectorType.setTenant(new Tenant(TenantContext.getCurrentTenant()));
       }
+      String tenantId = this.collectorType.getTenant().getId();
       this.collectorType =
           collectorTypeRepository
-              .findByName(this.collectorType.getName())
+              .findByNameAndTenantId(this.collectorType.getName(), tenantId)
               .orElseGet(() -> collectorTypeRepository.save(this.collectorType));
       return this;
     }

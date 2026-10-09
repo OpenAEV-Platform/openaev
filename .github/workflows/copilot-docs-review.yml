@@ -126,7 +126,7 @@ jobs:
                   severity: 'CRITICAL', emoji: '🔴',
                   title: 'New REST API controller',
                   file: fn,
-                  doc: '`docs/docs/usage/rest-api.md`, `docs/docs/development/api-usage.md`',
+                  doc: '`docs/docs/reference/apis/rest-api.md`, `docs/docs/development/api-usage.md`',
                   reason: 'New API endpoints must be documented.',
                 });
               }
@@ -137,7 +137,7 @@ jobs:
                   severity: 'CRITICAL', emoji: '🔴',
                   title: 'New integration type',
                   file: fn,
-                  doc: '`docs/docs/deployment/ecosystem/`',
+                  doc: '`docs/docs/integrations/`',
                   reason: 'New integrations must be documented for deployment and usage.',
                 });
               }
@@ -149,7 +149,7 @@ jobs:
                     severity: 'CRITICAL', emoji: '🔴',
                     title: 'New UI page or route',
                     file: fn,
-                    doc: '`docs/docs/usage/` (matching section)',
+                    doc: '`docs/docs/usage/build/` or `docs/docs/usage/run-and-evaluate/` (matching section)',
                     reason: 'New user-facing pages must be documented.',
                   });
                 }
@@ -163,7 +163,7 @@ jobs:
                     severity: 'HIGH', emoji: '🟠',
                     title: `${newMappings.length} new endpoint(s) in existing controller`,
                     file: fn,
-                    doc: '`docs/docs/usage/rest-api.md`',
+                    doc: '`docs/docs/reference/apis/rest-api.md`',
                     reason: 'New endpoints expand the API surface.',
                   });
                 }
@@ -175,7 +175,7 @@ jobs:
                   severity: 'MEDIUM', emoji: '🟡',
                   title: 'New configuration property',
                   file: fn,
-                  doc: '`docs/docs/deployment/configuration.md`',
+                  doc: '`docs/docs/reference/deployment/configuration.md`',
                   reason: 'Configuration options should be documented for administrators.',
                 });
               }
@@ -186,7 +186,7 @@ jobs:
                   severity: 'MEDIUM', emoji: '🟡',
                   title: 'New preview feature flag',
                   file: fn,
-                  doc: '`docs/docs/deployment/configuration.md`',
+                  doc: '`docs/docs/reference/deployment/configuration.md`',
                   reason: 'Administrators need to know about available feature flags.',
                 });
               }

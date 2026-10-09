@@ -13,7 +13,8 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
-import io.openaev.context.TenantContext;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawTeamIndexing;
@@ -21,7 +22,6 @@ import io.openaev.database.repository.*;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.BadRequestException;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ResourceInUseException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.TeamHelper;
@@ -49,6 +49,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -86,6 +87,7 @@ public class TeamApi extends RestBehavior {
   private final TeamService teamService;
   private final UserService userService;
   private final InjectSearchService injectSearchService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @LogExecutionTime
   @GetMapping({TEAM_URI, TENANT_TEAM_URI})
@@ -94,9 +96,12 @@ public class TeamApi extends RestBehavior {
   @Operation(summary = "List teams", description = "Return the teams")
   @Transactional
   public Iterable<TeamSimple> getTeams(TxCtx ctx) {
-    List<RawTeamIndexing> teams;
+    Set<String> tenantIds = teamService.readScope(ctx);
+    if (tenantIds.isEmpty()) {
+      return List.of();
+    }
     // We get all the teams as raw
-    teams = fromIterable(teamRepository.rawTeams());
+    List<RawTeamIndexing> teams = fromIterable(teamRepository.rawTeams(tenantIds));
 
     return TeamHelper.rawAllTeamToSimplerAllTeam(teams);
   }
@@ -166,9 +171,7 @@ public class TeamApi extends RestBehavior {
   @Transactional
   public Team getTeam(
       TxCtx ctx, @PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamRepository
-        .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-        .orElseThrow(ElementNotFoundException::new);
+    return teamService.teamInScope(ctx, teamId);
   }
 
   @GetMapping({"/api/teams/{teamId}/players", TENANT_TEAM_URI + "/{teamId}/players"})
@@ -182,10 +185,7 @@ public class TeamApi extends RestBehavior {
   @Transactional
   public Iterable<User> getTeamPlayers(
       TxCtx ctx, @PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamRepository
-        .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-        .orElseThrow(ElementNotFoundException::new)
-        .getUsers();
+    return teamService.teamInScope(ctx, teamId).getUsers();
   }
 
   @PostMapping({TEAM_URI, TENANT_TEAM_URI})
@@ -193,15 +193,18 @@ public class TeamApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The created team")})
   @Operation(description = "Create a new team", summary = "Create team")
-  public Team createTeam(TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
-    isTeamAlreadyExists(input);
+  public Team createTeam(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
+    isTeamAlreadyExists(writeTenant, input);
     Team team = new Team();
+    team.setTenant(new Tenant(writeTenant));
     team.setUpdateAttributes(input);
     team.setOrganization(
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
     team.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    team.setExercises(fromIterable(exerciseRepository.findAllById(input.getExerciseIds())));
-    team.setScenarios(fromIterable(scenarioRepository.findAllById(input.getScenarioIds())));
+    team.setExercises(iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
+    team.setScenarios(iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
     return teamRepository.save(team);
   }
 
@@ -211,12 +214,15 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The created/updated team")})
   @Operation(description = "Create a new team or update an existing team", summary = "Upsert team")
-  public Team upsertTeam(TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
+  public Team upsertTeam(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     if (input.getContextual() && input.getExerciseIds().toArray().length > 1) {
       throw new UnsupportedOperationException(
           "Contextual team can only be associated to one exercise");
     }
-    Optional<Team> team = teamRepository.findByName(input.getName());
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
+    Optional<Team> team =
+        teamRepository.findByNameAndTenantIdIn(input.getName(), Set.of(writeTenant));
     if (team.isPresent()) {
       Team existingTeam = team.get();
       existingTeam.setUpdateAttributes(input);
@@ -228,13 +234,14 @@ public class TeamApi extends RestBehavior {
       return teamRepository.save(existingTeam);
     } else {
       Team newTeam = new Team();
+      newTeam.setTenant(new Tenant(writeTenant));
       newTeam.setUpdateAttributes(input);
       newTeam.setOrganization(
           updateRelation(
               input.getOrganizationId(), newTeam.getOrganization(), organizationRepository));
       newTeam.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-      newTeam.setExercises(fromIterable(exerciseRepository.findAllById(input.getExerciseIds())));
-      newTeam.setScenarios(fromIterable(scenarioRepository.findAllById(input.getScenarioIds())));
+      newTeam.setExercises(iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
+      newTeam.setScenarios(iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
       return teamRepository.save(newTeam);
     }
   }
@@ -250,10 +257,7 @@ public class TeamApi extends RestBehavior {
   public void deleteTeam(
       TxCtx ctx, @PathVariable @Schema(description = "ID of the team") String teamId)
       throws ResourceInUseException {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     try {
       teamService.deleteAllDetachingInjects(List.of(team));
     } catch (InvalidDataAccessApiUsageException | TransientObjectException ex) {
@@ -290,10 +294,7 @@ public class TeamApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody TeamUpdateInput input) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     team.setUpdateAttributes(input);
     team.setUpdatedAt(now());
     team.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -316,10 +317,7 @@ public class TeamApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody UpdateUsersTeamInput input) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     List<String> nextUserIds =
         input.getUserIds() == null ? Collections.emptyList() : input.getUserIds();
     Iterable<User> teamUsers = userRepository.findAllById(nextUserIds);
@@ -338,12 +336,7 @@ public class TeamApi extends RestBehavior {
     // The deletes above clear the persistence context, so the team loaded before them is stale:
     // saving it would merge its obsolete exerciseTeamUsers collection (cascade = ALL) and
     // re-insert the audience rows just deleted. Reload it so the entity matches the database.
-    Team refreshedTeam =
-        removedUserIds.isEmpty()
-            ? team
-            : teamRepository
-                .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-                .orElseThrow(ElementNotFoundException::new);
+    Team refreshedTeam = removedUserIds.isEmpty() ? team : teamService.teamInScope(ctx, teamId);
     refreshedTeam.setUsers(nextTeamUsers);
     return teamRepository.save(refreshedTeam);
   }
@@ -358,6 +351,10 @@ public class TeamApi extends RestBehavior {
       @RequestParam(required = false) final String sourceId,
       @RequestParam(required = false) final String inputFilterOption) {
     List<FilterUtilsJpa.Option> options = List.of();
+    Set<String> tenantIds = teamService.readScope(ctx);
+    if (tenantIds.isEmpty()) {
+      return options;
+    }
     InputFilterOptions injectFilterOptionEnum;
     try {
       injectFilterOptionEnum = InputFilterOptions.valueOf(inputFilterOption);
@@ -378,7 +375,9 @@ public class TeamApi extends RestBehavior {
       case ALL_INJECTS:
         {
           options =
-              teamRepository.findAllTeamsForAtomicTestingsSimulationsAndScenarios().stream()
+              teamRepository
+                  .findAllTeamsForAtomicTestingsSimulationsAndScenarios(tenantIds)
+                  .stream()
                   .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
                   .toList();
           break;
@@ -395,7 +394,9 @@ public class TeamApi extends RestBehavior {
           options =
               teamRepository
                   .findAllBySimulationOrScenarioIdAndName(
-                      StringUtils.trimToNull(sourceId), StringUtils.trimToNull(searchText))
+                      StringUtils.trimToNull(sourceId),
+                      StringUtils.trimToNull(searchText),
+                      tenantIds)
                   .stream()
                   .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
                   .toList();
@@ -416,8 +417,16 @@ public class TeamApi extends RestBehavior {
 
   // -- PRIVATE --
 
-  private void isTeamAlreadyExists(@NotNull final TeamCreateInput input) {
-    List<Team> teams = this.teamRepository.findAllByNameIgnoreCase(input.getName());
+  /**
+   * Uniqueness is per tenant, so the pre-check runs in the tenant the row is about to be written
+   * to, never in the caller's whole read scope: a name taken in another of the caller's tenants
+   * must not refuse a create here.
+   */
+  private void isTeamAlreadyExists(
+      @NotNull final String writeTenant, @NotNull final TeamCreateInput input) {
+    List<Team> teams =
+        this.teamRepository.findAllByNameIgnoreCaseAndTenantIdIn(
+            input.getName(), Set.of(writeTenant));
     if (teams.isEmpty()) {
       return;
     }

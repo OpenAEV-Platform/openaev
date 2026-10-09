@@ -57,9 +57,8 @@ const SimulationInjectCreation: FunctionComponent = () => {
     }
   };
 
-  const { exercise, articles, variables } = useHelper(
+  const { articles, variables } = useHelper(
     (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper) => ({
-      exercise: helper.getExercise(exerciseId),
       articles: helper.getExerciseArticles(exerciseId),
       variables: helper.getExerciseVariables(exerciseId),
     }),
@@ -71,7 +70,7 @@ const SimulationInjectCreation: FunctionComponent = () => {
   });
 
   const articleContext = articleContextForExercise(exerciseId);
-  const teamContext = teamContextForExercise(exerciseId, exercise.exercise_teams_users, exercise.exercise_all_users_number, exercise.exercise_users_number);
+  const teamContext = teamContextForExercise(exerciseId);
   const endpointContext = endpointContextForExercise(exerciseId);
   const challengeContext = useMemo(() => ({ fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) }), [dispatch, exerciseId]);
 

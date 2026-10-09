@@ -67,7 +67,7 @@ public class ScenarioImportApi extends RestBehavior {
                             "The import mapper %s was not found", input.getImportMapperId())));
 
     return injectImportService.importInjectIntoScenarioFromXLS(
-        scenario, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
+        ctx, scenario, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
   }
 
   @PostMapping({
@@ -104,7 +104,13 @@ public class ScenarioImportApi extends RestBehavior {
 
     ImportTestSummary importTestSummary =
         injectImportService.importInjectIntoScenarioFromXLS(
-            scenario, importMapper, importId, input.getName(), input.getTimezoneOffset(), true);
+            ctx,
+            scenario,
+            importMapper,
+            importId,
+            input.getName(),
+            input.getTimezoneOffset(),
+            true);
     scenarioService.updateScenario(scenario);
     return importTestSummary;
   }

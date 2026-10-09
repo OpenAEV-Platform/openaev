@@ -771,7 +771,8 @@ class BackgroundEntrypointDetectionTest {
 
   @Test
   @DisplayName(
-      "a background job that writes tenant-bearing tables is not waived touches-no-tenant-table")
+      "a background entry point that touches tenant-bearing tables is not waived"
+          + " touches-no-tenant-table")
   void writesToTenantTableAreNotWaivedAsTouchingNothing() {
     // OpenCTIConnectorRegisterPingJob's flow writes Group/Role (DualScopeBase) and the strict
     // users_tenants join (TenantUserService.attachToTenant); AiMetricCollector reads the
@@ -782,6 +783,15 @@ class BackgroundEntrypointDetectionTest {
         baseline, "io.openaev.scheduler.jobs.OpenCTIConnectorRegisterPingJob", "platform-global");
     assertClassification(
         baseline, "io.openaev.telemetry.metric_collectors.AiMetricCollector", "platform-global");
+    // OpenCTIConnectorService is the same flow seen from the service it is waived on: its
+    // registerOrPingAllConnectors reads marking_definitions (TenantBase, active) through the
+    // well-known group's eager markings association, so it was waived touches-no-tenant-table on a
+    // statement that was not true. The scope is set by the method named here, and the grammar check
+    // cannot tell a true reason from a false one, so this assertion is what holds the correction.
+    assertClassification(
+        baseline,
+        "io.openaev.opencti.connectors.service.OpenCTIConnectorService",
+        "delegates-to-PrivilegeService#ensurePrivilegedUserExistsForConnector");
 
     // Near miss: a class that genuinely touches nothing keeps touches-no-tenant-table, so this
     // test is not merely asserting platform-global everywhere.
@@ -841,22 +851,24 @@ class BackgroundEntrypointDetectionTest {
     // they reach outside the primitive would turn their reads/writes into wrong-tenant accesses.
     // Each must carry an until-active tag for every such table so the day it activates the guard
     // fails and forces conversion. A revert to an incomplete reason fails here.
-    // documents is no longer listed for the two reporting paths: the render thread's Document write
-    // and the schedule's document JOIN FETCH now go through the primitive (TxCtx.forTenant via
-    // TenantScopedJobRunner), so documents is reached under the v2 scope, not outside it.
+    // PlaywrightReportingRenderer and ReportingScheduleJob are no longer listed at all: every
+    // documents/reporting_schedules/reportings/reporting_generations read or write on both paths
+    // now goes through the primitive (TxCtx.forTenant / TxCtx.allTenants() via
+    // TenantScopedJobRunner
+    // and TenantScopedTransaction), so neither reaches any table outside it any more.
+    // EsAttackPathService is no longer tagged either: its one JPA read of attack_patterns runs on
+    // the request thread, after both detached futures are joined, and all four entry points into
+    // it are REST endpoints carrying @Transactional with a TxCtx, so the read is inside the
+    // request's v2 scope rather than outside the primitive. Both halves of that are held by a
+    // machine: EndpointTransactionalRule refuses a mapped handler without @Transactional at
+    // compile time, and TenantScopedEntrypointsTxCtxArchTest pins the TxCtx parameter on
+    // DashboardApi#attackPaths, TenantSettingsApi#homeDashboardAttackPaths and the two
+    // dashboardAttackPaths handlers. A tag here would also contradict
+    // no_baseline_waiver_outlives_its_table now that the table is active. What the tag protected is
+    // asserted behaviourally instead, through the real endpoint, by
+    // DashboardAttackPathIsolationTest.
     Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
-    assertUntilActive(baseline, "io.openaev.service.EsAttackPathService", "attack_patterns");
     assertUntilActive(baseline, "io.openaev.rest.stream.StreamApi", "injects");
-    assertUntilActive(
-        baseline,
-        "io.openaev.rest.reporting.service.PlaywrightReportingRenderer",
-        "reporting_generations");
-    assertUntilActive(
-        baseline,
-        "io.openaev.scheduler.jobs.reporting.ReportingScheduleJob",
-        "reporting_schedules",
-        "reportings",
-        "reporting_generations");
   }
 
   private static void assertUntilActive(

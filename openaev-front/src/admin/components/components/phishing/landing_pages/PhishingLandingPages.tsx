@@ -1,6 +1,7 @@
+import { Checkbox } from '@filigran/design-system';
 import { PublicOutlined } from '@mui/icons-material';
-import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -17,7 +18,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { type PhishingLandingPage, type SearchPaginationInput } from '../../../../../utils/api-types';
 import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import ToolBar from '../../../common/ToolBar';
 import PhishingLandingPagePopover from './PhishingLandingPagePopover';
@@ -38,7 +39,7 @@ const PhishingLandingPages = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Query param
   const [searchParams] = useSearchParams();
@@ -148,10 +149,9 @@ const PhishingLandingPages = () => {
           {canDelete && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -210,12 +210,11 @@ const PhishingLandingPages = () => {
                       onClick={event => onToggleEntity(landingPage, event)}
                     >
                       <Checkbox
-                        edge="start"
+                        aria-label={landingPage.phishing_landing_page_name}
                         checked={
                           (selectAll && !(landingPage.phishing_landing_page_id in (deSelectedElements || {})))
                           || landingPage.phishing_landing_page_id in (selectedElements || {})
                         }
-                        disableRipple
                       />
                     </ListItemIcon>
                   )}

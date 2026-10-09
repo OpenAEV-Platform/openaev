@@ -1,3 +1,4 @@
+import { Button, Icon, Text } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AutoAwesomeOutlined,
@@ -7,10 +8,10 @@ import {
   SupportAgentOutlined,
   VpnKeyOutlined,
 } from '@mui/icons-material';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Switch, Typography } from '@mui/material';
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
-import { type ChangeEvent, useContext, useState } from 'react';
+import { type ChangeEvent, useState } from 'react';
 
 import { updateChatbotAiCguStatus, updatePlatformEnterpriseEditionParameters } from '../../../../actions/Application';
 import type { LoggedHelper } from '../../../../actions/helper';
@@ -20,7 +21,7 @@ import { useHelper } from '../../../../store';
 import type { PlatformSettings, SettingsEnterpriseEditionUpdateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import FiligranAiCguDialog from '../../ariane/FiligranAiCguDialog';
 import EnterpriseEditionButton from '../../common/entreprise_edition/EnterpriseEditionButton';
@@ -32,7 +33,7 @@ const EnterpriseEditionSettings: React.FC = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t, fldt } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const [openEEChanges, setOpenEEChanges] = useState(false);
   const [openValidateTermsOfUse, setOpenValidateTermsOfUse] = useState(false);
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
@@ -41,6 +42,9 @@ const EnterpriseEditionSettings: React.FC = () => {
   const isEnterpriseEditionActivated = settings.platform_license?.license_is_enterprise;
   const isEnterpriseEditionByConfig = settings.platform_license?.license_is_by_configuration;
   const isLicenseExpired = settings.platform_license?.license_is_expired;
+  // Enterprise Edition granted by the verified XTM license of the connected XTM One: there is no
+  // OpenAEV license to disable, only one to install (which then takes precedence).
+  const isXtmOneLicense = settings.platform_license?.license_source === 'xtm_one';
   const canManageSettings = ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
   const updateEnterpriseEdition = (data: SettingsEnterpriseEditionUpdateInput) => dispatch(updatePlatformEnterpriseEditionParameters(data));
 
@@ -64,14 +68,11 @@ const EnterpriseEditionSettings: React.FC = () => {
   const activatedFooter = !isEnterpriseEditionByConfig
     ? (
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <Button
-            size="small"
-            variant="outlined"
-            color="primary"
-            onClick={() => setOpenEEChanges(true)}
-          >
-            {t('Disable Enterprise Edition')}
-          </Button>
+          {!isXtmOneLicense && (
+            <Button type="button" variant="destructive" priority="secondary" onClick={() => setOpenEEChanges(true)}>
+              {t('Disable Enterprise Edition')}
+            </Button>
+          )}
           <EnterpriseEditionButton />
         </Can>
       )
@@ -79,27 +80,19 @@ const EnterpriseEditionSettings: React.FC = () => {
 
   const canManageTenantSettings = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
 
+  // The highlight button paints its LABEL with the focus gradient; the library's own
+  // icon takes the same gradient, so the mark matches the words beside it.
   const unregisteredFooter = canManageTenantSettings
     ? (
-        <Button
-          variant="outlined"
-          color="ee"
-          startIcon={<RocketLaunchOutlined />}
-          onClick={() => openDialog()}
-        >
+        <Button type="button" variant="highlight" priority="secondary" startIcon={<Icon name="rocket" size={16} gradient="focus" aria-hidden />} onClick={() => openDialog()}>
           {t('Try OpenAEV Enterprise Edition')}
         </Button>
       )
     : (
-        <Button
-          variant="outlined"
-          color="ee"
-          component="a"
-          href="https://filigran.io/services/openaev-enterprise-edition/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {t('Try OpenAEV Enterprise Edition')}
+        <Button asChild variant="highlight" priority="secondary">
+          <a href="https://filigran.io/services/openaev-enterprise-edition/" target="_blank" rel="noopener noreferrer">
+            <span className="text-gradient-focus">{t('Try OpenAEV Enterprise Edition')}</span>
+          </a>
         </Button>
       );
 
@@ -116,6 +109,17 @@ const EnterpriseEditionSettings: React.FC = () => {
       {isEnterpriseEditionActivated
         ? (
             <div>
+              {isXtmOneLicense && (
+                <Alert severity="info" variant="outlined" sx={{ marginY: 1 }}>
+                  {t('Enterprise Edition is granted by the XTM license of the connected XTM One, verified against the Filigran certificate authority.')}
+                </Alert>
+              )}
+              <ExperienceDetailRow label={t('License source')}>
+                <InfoChip
+                  label={isXtmOneLicense ? t('XTM One license') : t('OpenAEV license')}
+                  tone="accent"
+                />
+              </ExperienceDetailRow>
               <ExperienceDetailRow label={t('Organisation')}>
                 <InfoChip
                   label={settings.platform_license?.license_customer ?? t('Not applicable')}
@@ -160,13 +164,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                 <ExperienceDetailRow label={t('XTM One (Agentic IA)')} divider={false}>
                   {isCguPending
                     ? (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="secondary"
-                          onClick={() => setOpenValidateTermsOfUse(true)}
-                          style={{ lineHeight: '12px' }}
-                        >
+                        <Button type="button" priority="secondary" size="sm" onClick={() => setOpenValidateTermsOfUse(true)}>
                           {t('Validate the Filigran AI Terms')}
                         </Button>
                       )
@@ -193,9 +191,9 @@ const EnterpriseEditionSettings: React.FC = () => {
               <ExperienceHeadline>
                 {t('Unlock powerful capabilities with OpenAEV Enterprise Edition')}
               </ExperienceHeadline>
-              <Typography variant="body2" color="text.secondary">
+              <Text variant="content-base" className="text-default-secondary">
                 {t('Get enterprise-grade automation, remediation, and deployment flexibility - trusted by governments, financial institutions, and global enterprises. Deployment flexibility with SaaS, on-premise, and Bring-Your-Own-Cloud to match your needs.')}
-              </Typography>
+              </Text>
               <div
                 style={{
                   display: 'grid',
@@ -237,8 +235,8 @@ const EnterpriseEditionSettings: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button
-            variant="outlined"
-            color="primary"
+            type="button"
+            priority="secondary"
             onClick={() => {
               setOpenEEChanges(false);
             }}
@@ -246,8 +244,7 @@ const EnterpriseEditionSettings: React.FC = () => {
             {t('Cancel')}
           </Button>
           <Button
-            variant="contained"
-            color="primary"
+            type="button"
             onClick={() => {
               setOpenEEChanges(false);
               updateEnterpriseEdition({ platform_enterprise_license: '' });

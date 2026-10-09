@@ -38,6 +38,22 @@ By doing this, you are actively helping us to improve the quality of the entire 
 <!-- _NOTE: these things are not required to open a PR and can be done afterwards / while the PR draft is open._ -->
 <!-- For completed items, change [ ] to [x]. -->
 
+### Deployment
+
+<!--
+Tick the box to build this branch and deploy it to a staging environment; the
+link appears under the box once the first deploy succeeds. While ticked, every
+new commit is redeployed; untick it to stop. The deployment panel shows the
+state of the latest commit: while it is being deployed, the previous one stays
+live. Only users with write access can deploy: a box
+ticked by anyone else, or a commit pushed by anyone else, unticks it again.
+Fork PRs cannot be deployed: a maintainer pushes the branch to this repository
+and deploys from a PR on it. Keep the trailing marker comment on the checkbox
+line.
+-->
+
+- [ ] 🚀 Deploy this branch to a staging environment <!-- feature-deploy -->
+
 ### Further comments
 
 If this is a relatively large or complex change, kick off the discussion by explaining why you chose the solution you did and what alternatives you considered, etc...

@@ -54,7 +54,9 @@ public class ChallengeService {
 
   public Challenge enrichChallengeWithExercisesOrScenarios(@NotNull Challenge challenge) {
     List<Inject> injects =
-        fromIterable(this.injectRepository.findAllForChallengeId("%" + challenge.getId() + "%"));
+        fromIterable(
+            this.injectRepository.findAllById(
+                this.injectRepository.findAllIdsForChallengeId("%" + challenge.getId() + "%")));
     List<String> exerciseIds =
         injects.stream()
             .filter(i -> i.getExercise() != null)

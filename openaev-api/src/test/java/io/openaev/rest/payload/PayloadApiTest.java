@@ -50,11 +50,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
+@TestPropertySource(properties = "openaev.tenant.active-tables=payloads")
 class PayloadApiTest extends IntegrationTest {
 
   private static final String PAYLOAD_URI = "/api/payloads";
@@ -74,6 +76,7 @@ class PayloadApiTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private jakarta.persistence.EntityManager entityManager;
   @Autowired private ManagerFactory managerFactory;
+  @Autowired private io.openaev.context.TenantScopedTransaction tenantScopedTransaction;
 
   @Resource private ObjectMapper objectMapper;
 
@@ -83,6 +86,18 @@ class PayloadApiTest extends IntegrationTest {
   void beforeEach() throws Exception {
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
+  }
+
+  /**
+   * Reads an {@link InjectorContract} by its payload id outside the request scope that created it
+   * (the assertion side of these tests, not an HTTP call), so it needs its own explicit tenant
+   * scope now that {@code payloads} is read-filtered: an unscoped read on an active table is
+   * fail-closed and would otherwise come back {@code null} regardless of the row's real tenant.
+   */
+  private InjectorContract findInjectorContractByPayloadId(String payloadId) {
+    return tenantScopedTransaction.execute(
+        io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> injectorContractRepository.findOne(byPayloadId(payloadId)).orElse(null));
   }
 
   private List<String> securityPlatformIds;
@@ -130,7 +145,7 @@ class PayloadApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Create Payload")
   class CreatePayload {
 
@@ -332,9 +347,7 @@ class PayloadApiTest extends IntegrationTest {
       assertEquals("1", JsonPath.read(response, "$.payload_arguments.length()").toString());
       assertEquals("targeted-asset", JsonPath.read(response, "$.payload_arguments[0].type"));
       InjectorContract injectorContract =
-          injectorContractRepository
-              .findOne(byPayloadId(JsonPath.read(response, "$.payload_id")))
-              .orElse(null);
+          findInjectorContractByPayloadId(JsonPath.read(response, "$.payload_id"));
 
       assertNotNull(injectorContract);
 
@@ -367,7 +380,7 @@ class PayloadApiTest extends IntegrationTest {
   // ---- Payload Arguments ----
 
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Payload Arguments")
   class PayloadArguments {
 
@@ -425,9 +438,7 @@ class PayloadApiTest extends IntegrationTest {
 
       // Assert — every argument key produces a "text" field in the injector contract
       InjectorContract injectorContract =
-          injectorContractRepository
-              .findOne(byPayloadId(JsonPath.read(response, "$.payload_id")))
-              .orElse(null);
+          findInjectorContractByPayloadId(JsonPath.read(response, "$.payload_id"));
       assertNotNull(injectorContract);
 
       Set<String> argumentKeys =
@@ -496,9 +507,7 @@ class PayloadApiTest extends IntegrationTest {
               .getContentAsString();
 
       InjectorContract injectorContract =
-          injectorContractRepository
-              .findOne(byPayloadId(JsonPath.read(response, "$.payload_id")))
-              .orElse(null);
+          findInjectorContractByPayloadId(JsonPath.read(response, "$.payload_id"));
       assertNotNull(injectorContract);
 
       Map<String, String> expectedArgumentTypes =
@@ -588,9 +597,7 @@ class PayloadApiTest extends IntegrationTest {
 
       // Assert — contract field type is still "text"; default value is preserved
       InjectorContract injectorContract =
-          injectorContractRepository
-              .findOne(byPayloadId(JsonPath.read(response, "$.payload_id")))
-              .orElse(null);
+          findInjectorContractByPayloadId(JsonPath.read(response, "$.payload_id"));
       assertNotNull(injectorContract);
 
       JsonNode scanField = null;
@@ -609,7 +616,7 @@ class PayloadApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Update Executable Payload")
   void updateExecutablePayload() throws Exception {
 
@@ -655,7 +662,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Updating an Executed Payload with null as arch should fail")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateExecutablePayloadWithoutArch() throws Exception {
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
     PayloadCreateInput createInput =
@@ -695,7 +702,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Updating a Payload no Executable without arch should set ALL_ARCHITECTURES")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updatePayloadNoExecutableWithoutArch() throws Exception {
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
 
@@ -734,7 +741,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Update Payload with output parser")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void
       given_payload_update_input_with_output_parsers_should_return_updated_payloadd_with_output_parsers()
           throws Exception {
@@ -785,7 +792,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Update Payload with detection remediations")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void
       given_payload_update_input_with_detection_remediations_should_return_updated_payload_with_detection_remediations()
           throws Exception {
@@ -825,10 +832,14 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Upsert architecture of a Payload")
-  @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_PAYLOADS},
+      autoJoinDefaultTenant = true)
   void upsertCommandPayloadToValidateArchitecture() throws Exception {
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
-    Payload payload = payloadRepository.save(PayloadFixture.createDefaultCommand());
+    Payload defaultCommand = PayloadFixture.createDefaultCommand();
+    defaultCommand.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    Payload payload = payloadRepository.save(defaultCommand);
     payload.setExternalId("external-id");
 
     // -- Without property architecture
@@ -862,7 +873,9 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Upsert Payload with output parser")
-  @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_PAYLOADS},
+      autoJoinDefaultTenant = true)
   void
       given_payload_upsert_input_with_output_parsers_should_return_updated_payload_with_output_parsers()
           throws Exception {
@@ -915,7 +928,9 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Upsert Payload with detection remediations")
-  @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_PAYLOADS},
+      autoJoinDefaultTenant = true)
   void
       given_payload_upsert_input_with_detection_remediation_should_return_updated_payload_with_detection_remediations()
           throws Exception {
@@ -951,7 +966,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Creating Command Line payload with both set executor and content should succeed")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createCommandLinePayloadWithBothSetExecutorAndContent() throws Exception {
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -972,7 +987,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Creating Command Line payload with both null cleanup executor and command should succeed")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createCommandLinePayloadWithBothNullCleanupExecutorAndCommand() throws Exception {
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -993,7 +1008,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Creating Command Line payload with both set cleanup executor and command should succeed")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createCommandLinePayloadWithBothSetCleanupExecutorAndCommand() throws Exception {
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -1014,7 +1029,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Creating Command Line payload with only set cleanup executor and null command should fail")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createCommandLinePayloadWithOnlySetCleanupExecutorAndNullCommand() throws Exception {
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -1035,7 +1050,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Creating Command Line payload with only set cleanup command and null executor should fail")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createCommandLinePayloadWithOnlySetCommandAndNullExecutor() throws Exception {
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -1056,7 +1071,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Updating Command Line payload with only set cleanup command and null executor should fail")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateCommandLinePayloadWithOnlySetCommandAndNullExecutor() throws Exception {
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -1099,7 +1114,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Duplicating a Community and Verified Payload should result in a Manual and Unverified Payload")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void duplicateExecutablePayload() throws Exception {
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();

@@ -23,18 +23,18 @@ const openChainedScenario = async (page: Page, request: APIRequestContext, name:
   })).toBeVisible();
 };
 
-// These selects are built from a bare InputLabel with no labelId, so the label
-// is not programmatically tied to the combobox and getByLabel cannot find it.
-const muiSelect = (page: Page, label: string) => page
-  .locator('.MuiFormControl-root')
-  .filter({ hasText: label })
-  .getByRole('combobox')
-  .first();
+// The library's Select ties its label to the combobox, so the field resolves by
+// its accessible name; the MUI form-control wrapper it used to sit in is gone.
+const conditionSelect = (page: Page, label: string) => page
+  .getByRole('combobox', {
+    name: label,
+    exact: true,
+  });
 
-// The menu unmounts on a Grow transition, and until it finishes the modal backdrop
-// still covers the form, so a click aimed at the next select is swallowed.
-const selectMuiOption = async (page: Page, label: string, option: string): Promise<void> => {
-  await muiSelect(page, label).click();
+// Waiting for the option to go tells the next click the list has closed over
+// the field it is aimed at.
+const selectOption = async (page: Page, label: string, option: string): Promise<void> => {
+  await conditionSelect(page, label).click();
   const item = page.getByRole('option', {
     name: option,
     exact: true,
@@ -112,8 +112,8 @@ const addTextTrigger = async (page: Page, name: string, value: string): Promise<
   await page.getByRole('button', { name: /^Event\s/ }).click();
   // The field is required, so its accessible name carries a trailing asterisk.
   await page.locator('[name="event_name"]').fill(name);
-  await selectMuiOption(page, 'Field to Check', 'Text');
-  await selectMuiOption(page, 'Operator', 'Equals');
+  await selectOption(page, 'Field to Check', 'Text');
+  await selectOption(page, 'Operator', 'Equals');
   await page.getByLabel('Expected Value', { exact: true }).fill(value);
   await page.getByRole('button', {
     name: 'Add trigger',

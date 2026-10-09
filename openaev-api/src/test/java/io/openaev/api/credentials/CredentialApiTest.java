@@ -49,7 +49,6 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -1717,7 +1716,7 @@ class CredentialApiTest extends IntegrationTest {
    * Builds the multipart create request: the credential payload always travels as an {@code input}
    * JSON part, and file-backed fields (only the GCP key so far) as their own part.
    */
-  private MockHttpServletRequestBuilder multipartCreate(
+  private MockMultipartHttpServletRequestBuilder multipartCreate(
       String uri, CredentialInput input, byte[] gcpPrivateKeyJson) {
     MockMultipartHttpServletRequestBuilder builder = multipart(uri);
     builder.file(inputPart(input));
@@ -1732,12 +1731,13 @@ class CredentialApiTest extends IntegrationTest {
     return builder.with(csrf());
   }
 
-  private MockHttpServletRequestBuilder multipartCreate(String uri, CredentialInput input) {
+  private MockMultipartHttpServletRequestBuilder multipartCreate(
+      String uri, CredentialInput input) {
     return multipartCreate(uri, input, null);
   }
 
   /** Same as {@link #multipartCreate}, forced to PUT: MockMvc's multipart defaults to POST. */
-  private MockHttpServletRequestBuilder multipartUpdate(
+  private MockMultipartHttpServletRequestBuilder multipartUpdate(
       String uri, CredentialInput input, byte[] gcpPrivateKeyJson) {
     return multipartCreate(uri, input, gcpPrivateKeyJson)
         .with(
@@ -1747,7 +1747,8 @@ class CredentialApiTest extends IntegrationTest {
             });
   }
 
-  private MockHttpServletRequestBuilder multipartUpdate(String uri, CredentialInput input) {
+  private MockMultipartHttpServletRequestBuilder multipartUpdate(
+      String uri, CredentialInput input) {
     return multipartUpdate(uri, input, null);
   }
 

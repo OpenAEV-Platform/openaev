@@ -19,7 +19,7 @@ was updated at all when it should have been.
 
 1. **Read `AGENTS.md`** for architecture overview, module structure, and routing
 2. **Read `.github/copilot-instructions.md`** for build, conventions, and project structure
-3. Then: **Follow `.github/skills/review-docs/SKILL.md`** step-by-step — run every command
+3. Then: **Follow `.claude/skills/review-docs/SKILL.md`** step-by-step — run every command
 
 ## Model Policy
 
@@ -42,13 +42,13 @@ Heuristic — use judgment for edge cases. The doc tree mirrors the product stru
 
 | Code area | Doc area |
 |---|---|
-| `**/api/**`, `**/rest/**` (controllers, DTOs) | `docs/docs/usage/rest-api.md`, `docs/docs/development/api-usage.md` |
-| `**/injector*/**`, `**/collector*/**`, `**/executor*/**` | `docs/docs/deployment/ecosystem/` + `docs/docs/usage/` (matching section) |
-| `**/scenario/**`, `**/exercise/**`, `**/inject/**` | `docs/docs/usage/` (scenarios, simulations, injects) |
-| `**/config/**`, `application.properties` | `docs/docs/deployment/configuration.md` |
-| `**/auth/**`, `**/security/**`, `**/tenant/**` | `docs/docs/deployment/authentication.md`, `docs/docs/administration/` |
+| `**/api/**`, `**/rest/**` (controllers, DTOs) | `docs/docs/reference/apis/rest-api.md`, `docs/docs/development/api-usage.md` |
+| `**/injector*/**`, `**/collector*/**`, `**/executor*/**` | `docs/docs/integrations/` (matching section) |
+| `**/scenario/**`, `**/exercise/**`, `**/inject/**` | `docs/docs/usage/build/`, `docs/docs/usage/run-and-evaluate/` (scenarios, simulations, injects) |
+| `**/config/**`, `application.properties` | `docs/docs/reference/deployment/configuration.md` |
+| `**/auth/**`, `**/security/**`, `**/tenant/**` | `docs/docs/deployment/platform/authentication.md`, `docs/docs/administration/` |
 | `**/migration/**` | `docs/docs/development/database-migrations.md`, `docs/docs/deployment/breaking-changes.md` |
-| `openaev-front/src/**` (new pages/routes) | `docs/docs/usage/` (section matching the feature) |
+| `openaev-front/src/**` (new pages/routes) | `docs/docs/usage/build/`, `docs/docs/usage/run-and-evaluate/` (section matching the feature) |
 
 For anything not in this table, browse `docs/` to find the matching page by domain name.
 

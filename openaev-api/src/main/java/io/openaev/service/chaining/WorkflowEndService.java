@@ -106,9 +106,7 @@ public class WorkflowEndService {
             ExecutionTraceUtils.addSimulationNoMoreProgressTrace(status);
           }
         }
-        status.setName(ExecutionStatus.ERROR);
-        status.setTrackingEndDate(Instant.now());
-        injectStatusService.save(status);
+        injectStatusService.finalizeAsError(status);
         stoppedCount++;
       }
     }

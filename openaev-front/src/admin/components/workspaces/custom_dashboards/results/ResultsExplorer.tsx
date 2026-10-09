@@ -1,6 +1,7 @@
+import { Button } from '@filigran/design-system';
 import { HelpOutlineOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import { Box, Button, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type ComponentType, type FunctionComponent, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { type ComponentType, type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -28,7 +29,7 @@ import {
   type ListConfiguration,
   type PropertySchemaDTO,
 } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { capitalize } from '../../../../../utils/String';
 import { MITRE_FILTER_KEY } from '../../../common/filters/MitreFilter';
@@ -66,7 +67,7 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
   const { t } = useFormatter();
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const { attackPatterns }: { attackPatterns: AttackPattern[] } = useHelper(
     (helper: AttackPatternHelper) => ({ attackPatterns: helper.getAttackPatterns() }),
@@ -284,15 +285,10 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
               hint={t('Adjust or clear the filters to widen the scope.')}
             />
             {canCreateAtomicTesting && scopedAttackPatternIds.length > 0 && (
-              <Button
-                variant="contained"
-                color="primary"
-                component={Link}
-                to={`/admin/atomic_testings/create?attack_patterns=${scopedAttackPatternIds.join(',')}`}
-                // Pull the CTA into the empty state's bottom padding.
-                sx={{ marginTop: -3 }}
-              >
-                {t('Create an atomic testing')}
+              <Button asChild style={{ marginTop: -3 }}>
+                <Link to={`/admin/atomic_testings/create?attack_patterns=${scopedAttackPatternIds.join(',')}`}>
+                  {t('Create an atomic testing')}
+                </Link>
               </Button>
             )}
           </Box>

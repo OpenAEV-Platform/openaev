@@ -67,7 +67,7 @@ public class ExerciseImportApi extends RestBehavior {
                             "The import mapper %s was not found", input.getImportMapperId())));
 
     return this.injectImportService.importInjectIntoExerciseFromXLS(
-        exercise, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
+        ctx, exercise, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
   }
 
   @PostMapping({
@@ -104,7 +104,13 @@ public class ExerciseImportApi extends RestBehavior {
 
     ImportTestSummary importTestSummary =
         injectImportService.importInjectIntoExerciseFromXLS(
-            exercise, importMapper, importId, input.getName(), input.getTimezoneOffset(), true);
+            ctx,
+            exercise,
+            importMapper,
+            importId,
+            input.getName(),
+            input.getTimezoneOffset(),
+            true);
     this.exerciseService.updateExercise(exercise);
     return importTestSummary;
   }

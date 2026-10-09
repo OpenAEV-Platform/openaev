@@ -2,6 +2,7 @@ export type Error = {
   status: number;
   message: string;
   errors?: { children?: { message?: { errors: string[] } } };
+  forbiddenAction?: boolean;
 };
 
 let notifyError: ((error: Error) => void) | null = null;

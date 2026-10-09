@@ -30,11 +30,20 @@ public class StepDelayQueueIntegrationTest {
   @Autowired private ExerciseComposer simulationComposer;
 
   private StepDelayQueue buildEntry(Instant goal) {
+    return buildEntry(goal, WorkflowStatus.RUN);
+  }
+
+  private StepDelayQueue buildEntry(Instant goal, WorkflowStatus workflowRunStatus) {
     Step stepTemplate = StepFixture.getDefaultStepTemplate();
     Workflow workflow =
         workflowComposer
-            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowExecution(workflowRunStatus))
             .withStep(stepComposer.forStep(stepTemplate))
+            .withWorkflowTemplate(
+                workflowComposer
+                    .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+                    .withSimulation(
+                        simulationComposer.forExercise(ExerciseFixture.createDefaultExercise())))
             .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
             .persist()
             .get();
@@ -128,5 +137,16 @@ public class StepDelayQueueIntegrationTest {
     List<StepDelayQueue> results = stepDelayQueueRepository.popNextPerWorkflowRun();
 
     Assertions.assertTrue(results.isEmpty());
+  }
+
+  @Test
+  void popNextPerWorkflowRun_shouldKeepOverdueEntryOfStoppedWorkflowRun() {
+    StepDelayQueue overdue = buildEntry(Instant.now().minusSeconds(60), WorkflowStatus.STOP);
+    stepDelayQueueRepository.save(overdue);
+
+    List<StepDelayQueue> results = stepDelayQueueRepository.popNextPerWorkflowRun();
+
+    Assertions.assertTrue(results.isEmpty());
+    Assertions.assertEquals(1, stepDelayQueueRepository.findAll().size());
   }
 }

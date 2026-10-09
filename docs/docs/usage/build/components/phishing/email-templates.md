@@ -77,7 +77,7 @@ The HTML body field offers a **Generate with AI** button, with one-click presets
 
 !!! tip "Enterprise Edition"
 
-    AI generation requires the Enterprise Edition with XTM One configured. See [XTM Suite connector](../../../evaluate/xtm-suite-connector.md).
+    AI generation requires the Enterprise Edition with XTM One configured. See [XTM Suite connector](../../../../integrations/xtm-suite/xtm-suite-connector.md).
 
 ## What's next?
 

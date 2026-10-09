@@ -16,7 +16,7 @@ when you return to the same view. This way, you can continue working from where 
 Additionally, the filters applied in a view are saved as URL parameters, enabling you to save and share links to these
 filtered views.
 
-![Filtering scenarios](./assets/filters-scenarios.png)
+![Filtering scenarios](assets/filters-scenarios.png)
 
 ## Create a filter
 
@@ -30,12 +30,12 @@ A grey box appears and allows to select:
 
 You can add as many filters as you need.
 
-![Filtering scenarios focus filter](./assets/filters-scenarios-focus-filter.png)
+![Filtering scenarios focus filter](assets/filters-scenarios-focus-filter.png)
 
 The boolean modes (and/or) are **global** (between every attribute filters) and can be switched with a single
 click, changing the logic of your filtering.
 
-![Filtering scenarios focus mode](./assets/filters-scenarios-focus-mode.png)
+![Filtering scenarios focus mode](assets/filters-scenarios-focus-mode.png)
 
 ## Filters format
 

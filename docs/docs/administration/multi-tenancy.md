@@ -48,6 +48,10 @@ Manage Tenants from **Settings > Security > Platform > Tenants**. You need the `
 
 From this page you can create, edit, and delete Tenants. When you create a Tenant, it is immediately active and all built-in integrations (Injectors, Collectors) are automatically registered for it.
 
+### Default roles and groups
+
+Each Tenant comes with three default roles, each with a group of the same name: **Admin**, **Manager**, and **Observer**. When you create a Tenant, you are added to its **Admin** group.
+
 ### Soft-delete and reactivation
 
 Tenant deletion is a **soft-delete** operation. The Tenant and all its data are retained for **30 days** before permanent purge. During this period, you can reactivate the Tenant from the same page.
@@ -67,6 +71,12 @@ Tenant deletion is a **soft-delete** operation. The Tenant and all its data are 
 You assign a user to a Tenant directly from the Tenant's user management. Once assigned, the user's permissions within that Tenant are determined by the groups and roles they belong to in that Tenant context.
 
 A user can belong to **multiple Tenants** simultaneously. Permissions are evaluated independently in each Tenant context.
+
+### Opening a Tenant
+
+When the URL holds no Tenant, OpenAEV opens the last Tenant you used in this browser, or the first Tenant you belong to if there is none.
+
+If the URL points to a Tenant you do not belong to, OpenAEV shows a **Tenant access denied** screen. Ask your administrator to add you to that Tenant, or log out from this screen.
 
 ## SSO and Tenant mapping
 
@@ -92,5 +102,5 @@ OPENAEV_PROVIDER_AZURE_TENANT_ID=<your-tenant-uuid>
 
 - [Users and RBAC](users-and-rbac.md) -- Configure roles and capabilities within a Tenant
 - [Enterprise Edition](enterprise.md) -- Activate your EE license
-- [Authentication](../deployment/authentication.md) -- Set up SSO providers for Tenant mapping
+- [Authentication](../deployment/platform/authentication.md) -- Set up SSO providers for Tenant mapping
 - [Hub](hub.md) -- Manage platform-wide resources shared across Tenants

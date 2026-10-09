@@ -45,30 +45,35 @@ const MarkDownFieldController: FunctionComponent<Props> = ({
       <InputLabel shrink={true} variant="standard">
         {label}
       </InputLabel>
-      <Box flexGrow={1}>
+      <Box flexGrow={1} position="relative">
         <MarkDownField
           initialValue={value}
           disabled={disabled}
           onChange={onChange}
         />
+        {askAi && (
+          <TextFieldAskAI
+            currentValue={value ?? ''}
+            setFieldValue={(val) => {
+              onChange(val);
+            }}
+            format="markdown"
+            variant="markdown"
+            disabled={disabled}
+            inInject={inInject}
+            inArticle={inArticle}
+            style={{
+              position: 'absolute',
+              top: 4,
+              right: 4,
+            }}
+          />
+        )}
       </Box>
       {invalid && (
         <FormHelperText error={true}>
           {error?.message}
         </FormHelperText>
-      )}
-      {askAi && (
-        <TextFieldAskAI
-          currentValue={value ?? ''}
-          setFieldValue={(val) => {
-            onChange(val);
-          }}
-          format="markdown"
-          variant="markdown"
-          disabled={disabled}
-          inInject={inInject}
-          inArticle={inArticle}
-        />
       )}
     </div>
   );

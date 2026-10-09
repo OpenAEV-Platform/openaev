@@ -1,11 +1,8 @@
-import { Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
-import { useParams } from 'react-router';
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Box } from '@mui/material';
+import { type FunctionComponent, useState } from 'react';
 
-import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import { type Exercise } from '../../../../utils/api-types';
 import SimulationConfigurationTab from '../SimulationConfigurationTab';
 import ExerciseArticles from './articles/ExerciseArticles';
 import SimulationTeams from './teams/SimulationTeams';
@@ -18,25 +15,23 @@ import SimulationVariables from './variables/SimulationVariables';
 // the hero exposes a "Preview challenges page" action instead.
 const SimulationConfiguration: FunctionComponent<{ initialTab?: SimulationConfigurationTab }> = ({ initialTab = SimulationConfigurationTab.TEAMS }) => {
   const { t } = useFormatter();
-  const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
-  const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   const [tab, setTab] = useState<SimulationConfigurationTab>(initialTab);
 
   return (
     <Box sx={{ paddingTop: 1 }}>
-      <Box sx={{
-        borderBottom: 1,
-        borderColor: 'divider',
-        marginBottom: 2,
-      }}
+      <Tabs
+        value={String(tab)}
+        onValueChange={value => setTab(Number(value) as SimulationConfigurationTab)}
+        panels="external"
+        style={{ marginBottom: 16 }}
       >
-        <Tabs value={tab} onChange={(_: SyntheticEvent, value: number) => setTab(value)} variant="scrollable" scrollButtons="auto">
-          <Tab label={t('Teams')} />
-          <Tab label={t('Variables')} />
-          <Tab label={t('Media pressure')} />
-        </Tabs>
-      </Box>
-      {tab === SimulationConfigurationTab.TEAMS && <SimulationTeams exerciseTeamsUsers={exercise.exercise_teams_users ?? []} />}
+        <TabsList>
+          <TabsTrigger value={String(SimulationConfigurationTab.TEAMS)}>{t('Teams')}</TabsTrigger>
+          <TabsTrigger value={String(SimulationConfigurationTab.VARIABLES)}>{t('Variables')}</TabsTrigger>
+          <TabsTrigger value={String(SimulationConfigurationTab.MEDIA_PRESSURE)}>{t('Media pressure')}</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {tab === SimulationConfigurationTab.TEAMS && <SimulationTeams />}
       {tab === SimulationConfigurationTab.VARIABLES && <SimulationVariables />}
       {tab === SimulationConfigurationTab.MEDIA_PRESSURE && <ExerciseArticles />}
     </Box>

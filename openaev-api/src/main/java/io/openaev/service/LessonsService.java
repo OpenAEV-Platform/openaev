@@ -47,8 +47,9 @@ public class LessonsService {
                                             lessonsQuestion.getId()))
                                     .stream()))
             .toList();
-    if (!lessonsAnswers.isEmpty())
+    if (!lessonsAnswers.isEmpty()) {
       lessonsAnswerRepository.deleteAllLessonsAnswersQuestionsCategoriesByExerciseId(simulationId);
+    }
   }
 
   /**

@@ -54,7 +54,6 @@ class InjectCallbackContractTest {
   @Mock private InjectService injectService;
   @Mock private AgentExecutionProcessingHandler agentExecutionProcessingHandler;
   @Mock private InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
-  @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
   @Mock private TenantScopedTransaction tenantTx;
 
@@ -93,11 +92,7 @@ class InjectCallbackContractTest {
     // Can't use @InjectMocks: batchingService needs the spy, not a plain mock
     batchingService =
         new BatchingInjectStatusService(
-            injectRepository,
-            agentRepository,
-            structuredOutputUtils,
-            injectExecutionService,
-            tenantTx);
+            injectRepository, agentRepository, injectExecutionService, tenantTx);
     batchingService.setInjectTraceQueueService(injectTraceQueueService);
 
     // The batch path now scopes each callback under its inject's tenant. Resolve every inject to a

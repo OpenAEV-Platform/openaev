@@ -33,6 +33,39 @@ io.openaev.engine.model.assetgroup.AssetGroupHandler.fetch
 # because the test that triggers it does.
 io.openaev.service.AssetGroupService.assetGroup
 
+# SCOPED-OK - challenges activation. The anonymous player challenges page on the legacy,
+# non-prefixed route resolves TxCtx.missing() (deny-all), so this read is empty by design instead
+# of crashing; pinned by SimulationChallengeApiPlayerLegacyRouteTest. Authenticated callers reach
+# the same method through the tenant-prefixed route with a scope.
+io.openaev.service.ChallengeService.playerChallenges
+
+# SCOPED-OK - kill_chain_phases activation. Production callers (AttackPatternApi) carry a TxCtx
+# scope; the waived read is KillChainPhaseQueryCorrelationTest.unscopedReadReturnsNothing calling
+# the service directly under an empty scope on purpose, asserting the fail-closed result. Same
+# shape as AssetGroupService.assetGroup above.
+io.openaev.rest.kill_chain_phase.service.KillChainPhaseService.phaseIdsByAttackPatternId
+
 # TEST-ARTIFACT / latent - tags is not active in production; this JSON serializer would fail closed
 # only if tags is ever activated (serialization runs after the request transaction closes).
 io.openaev.helper.MultiIdSetSerializer.serialize
+
+# SCOPED-OK - documents activation (#7904). DocumentByIdEmptyScopeTest asserts the by-id read and the
+# tags update are refused (404, row unchanged) under an empty request scope on purpose; same shape as
+# AssetGroupService.assetGroup and KillChainPhaseService.phaseIdsByAttackPatternId above. Newly
+# visible now that TenantIsolationTestHelper is a test frame, which no longer masks the real caller
+# underneath it.
+io.openaev.rest.document.DocumentApi.document
+io.openaev.rest.document.DocumentApi.documentTags
+
+# SCOPED-OK - the read half of the already-documented lazy per-tenant manager creation (see the
+# matching write-side group in writeattr-baseline.txt: ManagerCreator.createManager registers every
+# builtin component for a newly onboarded tenant). InjectorContractService.createDependencyForTenant
+# and InjectorService.createNewBuiltinInjector look up (or upsert) the shared builtin injector
+# catalog during that onboarding, reached by every test that creates a tenant through
+# TenantIsolationTestHelper regardless of what the test itself is about (DomainApiTest,
+# ChallengeDocumentsBulkLoadTest, ...); both were already known signatures behind this
+# gate. Newly visible for the same reason as the pair above: the helper no longer hides the
+# real caller. Retired with the activation of collector_types (#7933) and the phishing tables
+# (#7901), which decide the attribution of that catalog.
+io.openaev.rest.injector_contract.InjectorContractService.createDependencyForTenant
+io.openaev.service.InjectorService.createNewBuiltinInjector

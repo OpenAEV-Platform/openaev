@@ -1,6 +1,7 @@
+import { Checkbox } from '@filigran/design-system';
 import { DomainOutlined, HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -26,7 +27,7 @@ import { type Organization, type SearchPaginationInput } from '../../../utils/ap
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ToolBar from '../common/ToolBar';
 import CreateOrganization from './organizations/CreateOrganization';
@@ -118,7 +119,7 @@ const OrganizationsList = () => {
   };
 
   // Bulk selection
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   const {
     selectedElements,
@@ -188,10 +189,9 @@ const OrganizationsList = () => {
           {canManage && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -247,12 +247,11 @@ const OrganizationsList = () => {
                       onClick={event => onToggleEntity(organization, event)}
                     >
                       <Checkbox
-                        edge="start"
+                        aria-label={organization.organization_name}
                         checked={
                           (selectAll && !(organization.organization_id in (deSelectedElements || {})))
                           || organization.organization_id in (selectedElements || {})
                         }
-                        disableRipple
                       />
                     </ListItemIcon>
                   )}

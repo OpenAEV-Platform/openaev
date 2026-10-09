@@ -547,23 +547,6 @@ public class MeApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("GET /api/logout")
-  @WithMockUser(isAdmin = true)
-  class Logout {
-
-    @Test
-    @DisplayName("Should return 200 OK")
-    void given_authenticatedUser_should_logoutSuccessfully() throws Exception {
-      // -------- Arrange --------
-      // No specific setup needed — uses the mock user from @WithMockUser
-
-      // -------- Act & Assert --------
-      mvc.perform(get("/api/logout").accept(MediaType.APPLICATION_JSON).with(csrf()))
-          .andExpect(status().isOk());
-    }
-  }
-
-  @Nested
   @DisplayName("user_groups scoping — data leak prevention")
   @WithMockUser
   class UserGroupsScoping {

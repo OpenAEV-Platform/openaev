@@ -39,7 +39,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import org.hibernate.Session;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -104,14 +103,14 @@ class TenantServiceTest extends IntegrationTest {
     boolean pathExists = results.iterator().hasNext();
     assertThat(pathExists).isTrue();
 
-    // domains and vulnerabilities are on v2 isolation: assert by explicit tenant attribution.
+    // domains, vulnerabilities and cwes are on v2 isolation (no v1 @Filter anymore): assert by
+    // explicit tenant attribution.
     assertThat(domainRepository.findAll())
         .filteredOn(domain -> created.getId().equals(domain.getTenant().getId()))
         .hasSize(10);
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
-    assertThat(vulnerabilityRepository.findAll()).hasSize(7);
-    // cwes is on v2 isolation (no v1 @Filter anymore): assert by explicit tenant attribution.
+    assertThat(vulnerabilityRepository.findAll())
+        .filteredOn(vulnerability -> created.getId().equals(vulnerability.getTenant().getId()))
+        .hasSize(7);
     assertThat(cweRepository.findAll())
         .filteredOn(cwe -> created.getId().equals(cwe.getTenant().getId()))
         .hasSize(7);
@@ -387,14 +386,15 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(tenantRepository.findById(tenantExpired.getId())).isEmpty();
     assertThat(tenantRepository.findById(tenantRecent.getId())).isPresent();
 
-    // domains and vulnerabilities are on v2 isolation: assert by explicit tenant attribution.
+    // domains, vulnerabilities and cwes are on v2 isolation (no v1 @Filter anymore): assert by
+    // explicit tenant attribution.
     assertThat(domainRepository.findAll())
         .filteredOn(domain -> tenantExpired.getId().equals(domain.getTenant().getId()))
         .isEmpty();
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
-    assertThat(vulnerabilityRepository.findAll()).isEmpty();
-    // cwes is on v2 isolation (no v1 @Filter anymore): assert by explicit tenant attribution.
+    assertThat(vulnerabilityRepository.findAll())
+        .filteredOn(
+            vulnerability -> tenantExpired.getId().equals(vulnerability.getTenant().getId()))
+        .isEmpty();
     assertThat(cweRepository.findAll())
         .filteredOn(cwe -> tenantExpired.getId().equals(cwe.getTenant().getId()))
         .isEmpty();

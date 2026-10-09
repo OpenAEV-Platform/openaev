@@ -1,8 +1,10 @@
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDownward } from '@mui/icons-material';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useRef } from 'react';
 
+import { useFormatter } from '../../i18n';
 import { FONT_FAMILY_CODE } from '../../Theme';
 
 export type TerminalLineLevel = 'default' | 'error' | 'warning' | 'info';
@@ -21,6 +23,7 @@ interface TerminalProps {
 
 const Terminal = ({ lines, maxHeight = 400 }: TerminalProps) => {
   const theme = useTheme();
+  const { t } = useFormatter();
   const isDark = theme.palette.mode === 'dark';
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -98,18 +101,22 @@ const Terminal = ({ lines, maxHeight = 400 }: TerminalProps) => {
           </Box>
         ))}
       </div>
-      <Tooltip title="Scroll to bottom">
-        <IconButton
-          size="small"
-          onClick={scrollToBottom}
-          sx={{
-            position: 'absolute',
-            top: theme.spacing(),
-            right: theme.spacing(2),
-          }}
-        >
-          <ArrowDownward fontSize="small" />
-        </IconButton>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton
+            icon={<ArrowDownward fontSize="small" />}
+            aria-label={t('Scroll to bottom')}
+            onClick={scrollToBottom}
+            style={{
+              position: 'absolute',
+              top: theme.spacing(),
+              right: theme.spacing(2),
+            }}
+            priority="tertiary"
+            size="sm"
+          />
+        </TooltipTrigger>
+        <TooltipContent>{t('Scroll to bottom')}</TooltipContent>
       </Tooltip>
     </Box>
   );

@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 import { useNavigate } from 'react-router';
@@ -14,7 +15,7 @@ import {
   type InjectExpectationResult,
   type PayloadSimple,
 } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
@@ -132,7 +133,7 @@ const InjectExpectationResultList = ({
 
   const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult, onOpenAlertsDialog } = useContext(InjectExpectationContext);
 
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canPivotToSecurityPlatform = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
   // Platform-first icon and pivot resolution: results written by a since-deleted
   // collector still resolve to their (surviving) security platform.
@@ -293,21 +294,20 @@ const InjectExpectationResultList = ({
                     {sourceName}
                   </Typography>
                   {agentBreakdown && agentBreakdown.length > 0 && (
-                    <Tooltip
-                      title={renderBreakdownTooltip(agentBreakdown)}
-                      arrow
-                      slotProps={{ tooltip: { sx: { maxWidth: 480 } } }}
-                    >
-                      <InfoOutlined
-                        sx={{
-                          'fontSize': 15,
-                          'flexShrink': 0,
-                          'color': 'text.secondary',
-                          'cursor': 'help',
-                          '&:hover': { color: 'text.primary' },
-                        }}
-                        onClick={e => e.stopPropagation()}
-                      />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoOutlined
+                          sx={{
+                            'fontSize': 15,
+                            'flexShrink': 0,
+                            'color': 'text.secondary',
+                            'cursor': 'help',
+                            '&:hover': { color: 'text.primary' },
+                          }}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </TooltipTrigger>
+                      {renderBreakdownTooltip(agentBreakdown) && <TooltipContent>{renderBreakdownTooltip(agentBreakdown)}</TooltipContent>}
                     </Tooltip>
                   )}
                 </div>

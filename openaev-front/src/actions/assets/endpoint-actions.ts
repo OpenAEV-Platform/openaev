@@ -1,7 +1,7 @@
 import { type Dispatch } from 'redux';
 
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall } from '../../utils/Action';
-import { type AssetBulkProcessingInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AssetBulkProcessingInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
 
 const ENDPOINT_URI = '/api/endpoints';
@@ -45,6 +45,24 @@ export const searchAssets = (searchPaginationInput: SearchPaginationInput) => {
 // other category) by id. Security platforms are rejected server-side (managed in their own area).
 export const deleteAsset = (assetId: string) => {
   return simpleDelCall(`/api/assets/${assetId}`);
+};
+
+// Replaces the whole set of markings carried by an asset - endpoint or any other category, since
+// marking_ids lives on the base assets table. Deliberately on /api/assets rather than
+// /api/endpoints, mirroring the backend's AssetMarkingsApi. Normalized through the `endpoint`
+// schema (idAttribute asset_id) so the response - which only carries asset_id/name/markings -
+// deep-merges into the existing store entity instead of replacing it, keeping every other
+// endpoint field intact.
+export const updateAssetMarkings = (
+  assetId: string,
+  data: AssetUpdateMarkingsInput,
+  // Defaults to notifying, like every other putReferential call - but AssetForm saves the rest of
+  // the endpoint through its own PUT in the same click, so it passes false here to avoid a second
+  // "successfully updated" toast for what the user experiences as one save.
+  defaultSuccessBehavior: boolean = true,
+) => (dispatch: Dispatch) => {
+  const uri = `/api/assets/${assetId}/markings`;
+  return putReferential(endpoint, uri, data, defaultSuccessBehavior)(dispatch);
 };
 
 // Bulk delete for the unified inventory: explicit id list or search input (select-all with
