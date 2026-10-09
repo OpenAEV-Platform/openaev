@@ -24,7 +24,7 @@ Load conditionally based on the diff:
 - **New table or schema change** → read `.github/instructions/database.instructions.md`
 
 Then:
-- **Follow `.github/skills/review-migration/SKILL.md`** step-by-step — the SKILL contains all bash commands to run
+- **Follow `.claude/skills/review-migration/SKILL.md`** step-by-step — the SKILL contains all bash commands to run
 
 ## Model Policy
 
@@ -54,7 +54,7 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 
 ## Review Procedure
 
-Follow `.github/skills/review-migration/SKILL.md` step-by-step for all bash commands.
+Follow `.claude/skills/review-migration/SKILL.md` step-by-step for all bash commands.
 
 The SKILL covers:
 1. **Naming format & uniqueness** — `V{major}_{yyyyMMddHHmmssSSS}__{description}.java`, timestamp block present, unique filename, no existing migration modified

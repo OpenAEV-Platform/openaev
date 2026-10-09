@@ -1,30 +1,14 @@
+import { Button, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UpdateOutlined } from '@mui/icons-material';
-import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  FormControlLabel,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  Switch,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material';
-import { DateTimePicker } from '@mui/x-date-pickers';
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Switch, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import Transition from '../../../../components/common/Transition';
+import DateField from '../../../../components/fields/DateField';
+import TimeField from '../../../../components/fields/TimeField';
 import { useFormatter } from '../../../../components/i18n';
 import {
   Cron,
@@ -35,9 +19,8 @@ import {
   generateWeeklyCronExpression,
 } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
-import { minutesInFuture } from '../../../../utils/Time';
+import { minutesInFuture, toUtcMidnightIso } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
-import TimeStepperField, { StepperColumn } from './TimeStepperField';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -312,140 +295,132 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                   </ToggleButtonGroup>
                 )}
               />
-              {/* Time of day (or interval + minute for hourly). */}
               <Box sx={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 4,
-                flexWrap: 'wrap',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                // The weekday switch has no label above it.
+                alignItems: 'end',
+                gap: 2,
               }}
               >
+                {frequency === 'monthly' && (
+                  <Controller
+                    control={control}
+                    name="weekOfMonth"
+                    render={({ field }) => (
+                      // The lib renders the label and the trigger as siblings,
+                      // so the pair needs a wrapper to hold one grid cell.
+                      <div>
+                        <Select
+                          value={String(field.value ?? '')}
+                          onValueChange={next => (field.onChange)(Number(next))}
+                        >
+                          <SelectLabel>{t('Week of month')}</SelectLabel>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={t('Week of month')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">{t('First')}</SelectItem>
+                            <SelectItem value="2">{t('Second')}</SelectItem>
+                            <SelectItem value="3">{t('Third')}</SelectItem>
+                            <SelectItem value="4">{t('Fourth')}</SelectItem>
+                            <SelectItem value="5">{t('recurrence_Last')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  />
+                )}
+                {['weekly', 'monthly'].includes(frequency) && (
+                  <Controller
+                    control={control}
+                    name="dayOfWeek"
+                    render={({ field }) => (
+                      <div>
+                        <Select
+                          value={String(field.value ?? '')}
+                          onValueChange={next => (field.onChange)(Number(next))}
+                        >
+                          <SelectLabel>{t('Day of week')}</SelectLabel>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={t('Day of week')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">{t('Monday')}</SelectItem>
+                            <SelectItem value="2">{t('Tuesday')}</SelectItem>
+                            <SelectItem value="3">{t('Wednesday')}</SelectItem>
+                            <SelectItem value="4">{t('Thursday')}</SelectItem>
+                            <SelectItem value="5">{t('Friday')}</SelectItem>
+                            <SelectItem value="6">{t('Saturday')}</SelectItem>
+                            <SelectItem value="7">{t('Sunday')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  />
+                )}
                 {frequency === 'hourly'
                   ? (
                       <>
-                        <Box>
-                          <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
-                            {t('Interval (hours)')}
-                          </Typography>
-                          <Box sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            border: theme => `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
-                            paddingInline: 1.5,
-                            paddingBlock: 0.25,
-                            marginTop: 0.5,
-                          }}
+                        <div>
+                          <Select
+                            value={String(values.interval)}
+                            onValueChange={next => setValue('interval', Number(next), { shouldValidate: true })}
                           >
-                            <StepperColumn
-                              value={values.interval}
-                              onChange={next => setValue('interval', Math.max(1, next), { shouldValidate: true })}
-                              min={1}
-                              max={23}
-                              ariaLabel={t('Interval (hours)')}
-                            />
-                          </Box>
-                        </Box>
-                        <Box>
-                          <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
-                            {t('At minute')}
-                          </Typography>
-                          <Box sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            border: theme => `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
-                            paddingInline: 1.5,
-                            paddingBlock: 0.25,
-                            marginTop: 0.5,
-                          }}
+                            <SelectLabel>{t('Interval (hours)')}</SelectLabel>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={t('Interval (hours)')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 23 }, (_, i) => i + 1).map(i => (
+                                <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Select
+                            value={String(values.minute)}
+                            onValueChange={next => setValue('minute', Number(next), { shouldValidate: true })}
                           >
-                            <StepperColumn
-                              value={values.minute}
-                              onChange={next => setValue('minute', next, { shouldValidate: true })}
-                              max={59}
-                              step={5}
-                              ariaLabel={t('At minute')}
-                            />
-                          </Box>
-                        </Box>
+                            <SelectLabel>{t('At minute')}</SelectLabel>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={t('At minute')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 60 }, (_, i) => i).map(i => (
+                                <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </>
                     )
                   : (
-                      <TimeStepperField
+                      <TimeField
                         label={t('Scheduling_time')}
-                        hour={values.hour}
-                        minute={values.minute}
-                        onChangeHour={next => setValue('hour', next, { shouldValidate: true })}
-                        onChangeMinute={next => setValue('minute', next, { shouldValidate: true })}
+                        format="HH:mm"
                         error={timeError}
-                        hourLabel={t('Hours')}
-                        minuteLabel={t('Minutes')}
+                        // The form keeps the clock as two numbers, not a date.
+                        value={new Date(1970, 0, 1, values.hour, values.minute)}
+                        onChange={(next) => {
+                          if (!next) return;
+                          setValue('hour', next.getHours(), { shouldValidate: true });
+                          setValue('minute', next.getMinutes(), { shouldValidate: true });
+                        }}
                       />
                     )}
-                {['weekly', 'monthly'].includes(frequency) && (
-                  <Stack
-                    spacing={2}
-                    sx={{
-                      flex: 1,
-                      minWidth: 200,
-                    }}
-                  >
-                    {frequency === 'monthly' && (
-                      <Controller
-                        control={control}
-                        name="weekOfMonth"
-                        render={({ field }) => (
-                          <FormControl fullWidth>
-                            <InputLabel variant="standard">{t('Week of month')}</InputLabel>
-                            <Select
-                              value={field.value}
-                              label={t('Week of month')}
-                              variant="standard"
-                              onChange={field.onChange}
-                            >
-                              <MenuItem value={1}>{t('First')}</MenuItem>
-                              <MenuItem value={2}>{t('Second')}</MenuItem>
-                              <MenuItem value={3}>{t('Third')}</MenuItem>
-                              <MenuItem value={4}>{t('Fourth')}</MenuItem>
-                              <MenuItem value={5}>{t('recurrence_Last')}</MenuItem>
-                            </Select>
-                          </FormControl>
-                        )}
-                      />
-                    )}
-                    <Controller
-                      control={control}
-                      name="dayOfWeek"
-                      render={({ field }) => (
-                        <FormControl fullWidth>
-                          <InputLabel variant="standard">{t('Day of week')}</InputLabel>
-                          <Select
-                            value={field.value}
-                            label={t('Day of week')}
-                            variant="standard"
-                            onChange={field.onChange}
-                          >
-                            <MenuItem value={1}>{t('Monday')}</MenuItem>
-                            <MenuItem value={2}>{t('Tuesday')}</MenuItem>
-                            <MenuItem value={3}>{t('Wednesday')}</MenuItem>
-                            <MenuItem value={4}>{t('Thursday')}</MenuItem>
-                            <MenuItem value={5}>{t('Friday')}</MenuItem>
-                            <MenuItem value={6}>{t('Saturday')}</MenuItem>
-                            <MenuItem value={7}>{t('Sunday')}</MenuItem>
-                          </Select>
-                        </FormControl>
-                      )}
-                    />
-                  </Stack>
-                )}
                 {['hourly', 'daily'].includes(frequency) && (
                   <Controller
                     control={control}
                     name="onlyWeekday"
                     render={({ field }) => (
                       <FormControlLabel
-                        sx={{ marginTop: 2 }}
+                        sx={{
+                          // The default label margins would shrink its column.
+                          marginInline: 0,
+                          height: 36,
+                        }}
                         control={(
                           <Switch
                             checked={field.value}
@@ -458,55 +433,27 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                   />
                 )}
               </Box>
-              {/* Start / end window. */}
               <Box sx={{
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
                 gap: 2,
               }}
               >
-                <Controller
+                <DateField
                   control={control}
                   name="startDate"
-                  render={({ field, fieldState }) => (
-                    <DateTimePicker
-                      views={['year', 'month', 'day']}
-                      value={field.value ? new Date(field.value) : null}
-                      minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
-                      onChange={startDate => field.onChange(startDate?.toISOString())}
-                      onAccept={() => clearErrors(['hour', 'minute'])}
-                      slotProps={{
-                        textField: {
-                          fullWidth: true,
-                          error: !!fieldState.error,
-                          helperText: fieldState.error?.message,
-                          variant: 'standard',
-                        },
-                      }}
-                      label={t('Start date')}
-                    />
-                  )}
+                  label={t('Start date')}
+                  minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
+                  toStorage={toUtcMidnightIso}
+                  onAccept={() => clearErrors(['hour', 'minute'])}
                 />
                 {frequency !== 'noRepeat' && (
-                  <Controller
+                  <DateField
                     control={control}
                     name="endDate"
-                    render={({ field, fieldState }) => (
-                      <DateTimePicker
-                        views={['year', 'month', 'day']}
-                        value={field.value ? new Date(field.value) : null}
-                        minDate={new Date(new Date().setUTCHours(24, 0, 0, 0))}
-                        onChange={endDate => field.onChange(endDate ? new Date(new Date(endDate).setUTCHours(0, 0, 0, 0)).toISOString() : null)}
-                        slotProps={{
-                          textField: {
-                            fullWidth: true,
-                            error: !!fieldState.error,
-                            helperText: fieldState.error?.message,
-                            variant: 'standard',
-                          },
-                        }}
-                        label={t('End date (optional)')}
-                      />
-                    )}
+                    label={t('End date (optional)')}
+                    minDate={new Date(new Date().setUTCHours(24, 0, 0, 0))}
+                    toStorage={toUtcMidnightIso}
                   />
                 )}
               </Box>
@@ -530,10 +477,10 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={handleClose}>
+            <Button type="button" priority="secondary" onClick={handleClose}>
               {t('Cancel')}
             </Button>
-            <Button variant="contained" color="primary" type="submit">
+            <Button type="submit">
               {t('Save')}
             </Button>
           </DialogActions>

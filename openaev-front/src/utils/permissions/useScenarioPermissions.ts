@@ -1,14 +1,14 @@
 import * as R from 'ramda';
-import { useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { type LoggedHelper, type UserHelper } from '../../actions/helper';
 import { type ScenariosHelper } from '../../actions/scenarios/scenario-helper';
 import { useHelper } from '../../store';
-import { AbilityContext } from './permissionsContext';
+import { useAbility } from './permissionsContext';
 import { ACTIONS, SUBJECTS } from './types';
 
 const useScenarioPermissions = (scenarioId: string) => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const { logged } = useHelper((helper: ScenariosHelper & UserHelper & LoggedHelper) => {
     return { logged: helper.logged() };

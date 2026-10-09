@@ -12,9 +12,10 @@ interface Props {
   required?: boolean;
   error?: boolean;
   searchOptionsConfig?: SearchOptionsConfig;
+  placeholder?: string;
 }
 
-const SimulationField: FunctionComponent<Props> = ({ label, value, onChange, className = '', required = false, error = false, searchOptionsConfig }) => {
+const SimulationField: FunctionComponent<Props> = ({ label, value, onChange, className = '', required = false, error = false, searchOptionsConfig, placeholder }) => {
   const { options, searchOptions } = useSearchOptions();
   const finalSearchOptionsConfig = {
     filterKey: searchOptionsConfig?.filterKey ?? SIMULATIONS,
@@ -34,6 +35,7 @@ const SimulationField: FunctionComponent<Props> = ({ label, value, onChange, cla
       required={required}
       error={error}
       options={options}
+      placeholder={placeholder}
       onInputChange={(search: string) => searchOptions(finalSearchOptionsConfig, search)}
     />
   );

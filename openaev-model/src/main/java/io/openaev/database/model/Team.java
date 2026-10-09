@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -24,7 +23,6 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -32,8 +30,12 @@ import org.hibernate.annotations.UuidGenerator;
 @Getter
 @Entity
 @Table(name = "teams")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+// teams is fully on v2 (statement inspector + can_access_tenant). The v1 @Filter and
+// TenantBaseListener are gone and must not come back: the filter's thread-local predicate ANDs
+// with the inspector's and returns nothing off the tenant-prefixed route, and the listener would
+// silently re-attribute an unattributed write to the default tenant instead of failing. Reads are
+// scoped by the request scope, writes are attributed by TenantWriteScopeResolver.
+@EntityListeners(ModelBaseListener.class)
 @NamedEntityGraphs({
   @NamedEntityGraph(name = "Team.tags", attributeNodes = @NamedAttributeNode("tags"))
 })
@@ -121,9 +123,9 @@ public class Team implements TenantBase {
       name = "exercises_teams",
       joinColumns = @JoinColumn(name = "team_id"),
       inverseJoinColumns = @JoinColumn(name = "exercise_id"))
-  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("team_exercises")
-  private List<Exercise> exercises = new ArrayList<>();
+  private Set<Exercise> exercises = new HashSet<>();
 
   @ArraySchema(
       schema =
@@ -135,9 +137,9 @@ public class Team implements TenantBase {
       name = "scenarios_teams",
       joinColumns = @JoinColumn(name = "team_id"),
       inverseJoinColumns = @JoinColumn(name = "scenario_id"))
-  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("team_scenarios")
-  private List<Scenario> scenarios = new ArrayList<>();
+  private Set<Scenario> scenarios = new HashSet<>();
 
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
@@ -148,7 +150,7 @@ public class Team implements TenantBase {
   @JsonProperty("team_injects")
   @JsonIgnore
   @Queryable(filterable = true, dynamicValues = true, path = "injects.id")
-  private List<Inject> injects = new ArrayList<>();
+  private Set<Inject> injects = new HashSet<>();
 
   @Column(name = "team_contextual")
   @JsonProperty("team_contextual")

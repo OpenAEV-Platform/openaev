@@ -25,7 +25,7 @@ Load conditionally based on the diff:
 - **Migration files** → read `.github/instructions/migration.instructions.md`
 
 Then:
-- **Follow `.github/skills/review-code/SKILL.md`** step-by-step — run every command
+- **Follow `.claude/skills/review-code/SKILL.md`** step-by-step — run every command
 
 ## Review Phases
 
@@ -71,7 +71,7 @@ Then:
 | `@OneToMany`, `@ManyToMany`, `FetchType`, `findAll`, new endpoint returning `List<T>` | → **Performance Reviewer** |
 | `nativeQuery = true`, `@Modifying` delete/write, controller returns a JPA `@Entity`, `@IdClass` / composite key | → **ORM Reviewer** |
 | `extends TenantBase`, `tenant_id`, `TenantContext`, `TxCtx`, `active-tables`, `TenantScopedTransaction`, `RequireTenantSelector`, `can_access_tenant`, migration with tenant column | → **Multi-Tenancy Reviewer** |
-| Frontend files (`.tsx`, `.ts`, forms, components) | → **Frontend Reviewer** |
+| Frontend files (`.tsx`, `.ts`, forms, components), `@mui/*` or `@filigran/design-system` imports, theme / token files | → **Frontend Reviewer** |
 | No tests, or coverage likely below threshold | → **Test Specialist** |
 
 If delegation is needed, state it explicitly in your review.

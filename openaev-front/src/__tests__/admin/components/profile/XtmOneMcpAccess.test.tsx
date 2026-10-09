@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
@@ -34,9 +35,11 @@ const renderCard = (settingsOverrides: Partial<PlatformSettings> = {}) => {
 
   const wrapper = ({ children }: { children: ReactNode }) => (
     <ThemeProvider theme={theme}>
-      <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
-        <UserContext.Provider value={userContext}>{children}</UserContext.Provider>
-      </IntlProvider>
+      <TooltipProvider>
+        <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
+          <UserContext.Provider value={userContext}>{children}</UserContext.Provider>
+        </IntlProvider>
+      </TooltipProvider>
     </ThemeProvider>
   );
 

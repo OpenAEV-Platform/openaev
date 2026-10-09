@@ -5,6 +5,11 @@ class ThreatArsenalListPage {
   readonly addButton: Locator;
   readonly listContainer: Locator;
   readonly searchContainer: Locator;
+  readonly gridViewButton: Locator;
+  readonly listViewButton: Locator;
+  readonly paginationRow: Locator;
+  readonly filterField: Locator;
+  readonly clearFiltersButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -13,6 +18,42 @@ class ThreatArsenalListPage {
     // The redesigned list uses the shared pagination search (SearchFilter),
     // whose default placeholder is "Search these results...".
     this.searchContainer = page.getByPlaceholder('Search these results...');
+    this.gridViewButton = page.getByRole('radio', { name: 'Grid view' });
+    this.listViewButton = page.getByRole('radio', { name: 'List view' });
+    this.paginationRow = page.locator('.MuiTablePagination-root');
+    this.filterField = page.getByPlaceholder('Add filter');
+    // Anchored rather than named: the accessible name follows the UI language.
+    this.clearFiltersButton = page.getByTestId('clear-filters');
+  }
+
+  async addFirstAvailableFilter() {
+    // The filter field does not open its list on focus, only on its trigger —
+    // clicking the input alone leaves the list closed.
+    const shell = this.page
+      .locator('[class*="min-h-9"]')
+      .filter({ has: this.filterField });
+    await shell.getByRole('button').last().click();
+    await this.page.getByRole('option').first().click();
+    // Picking a filter opens its configuration popover on top of the toolbar,
+    // which leaves the controls underneath unclickable until it is dismissed.
+    await this.page.keyboard.press('Escape');
+  }
+
+  async clearFilters() {
+    await this.clearFiltersButton.click();
+  }
+
+  async switchToGridView() {
+    await this.gridViewButton.click();
+  }
+
+  /** Keeps the branch out of the tests, which read better without one. */
+  async switchToView(view: 'grid' | 'list') {
+    await (view === 'grid' ? this.gridViewButton : this.listViewButton).click();
+  }
+
+  async switchToListView() {
+    await this.listViewButton.click();
   }
 
   getItem(lineNumber: number): Locator {

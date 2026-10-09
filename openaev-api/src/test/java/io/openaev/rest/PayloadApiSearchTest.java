@@ -8,6 +8,7 @@ import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PayloadFixture.*;
 import static java.lang.String.valueOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -16,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.AiAttack;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tenant;
@@ -29,6 +31,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -45,15 +48,17 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() {
-    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
-    // class-wide fixture names the default tenant explicitly rather than relying on it.
-    TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, and the
+    // listener no longer stamps an unattributed write, so this class-wide fixture stamps the
+    // default tenant explicitly on each payload before saving it.
     try {
       Payload command = createDefaultCommand();
+      command.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       Payload commandSaved = this.payloadRepository.save(command);
       PAYLOAD_COMMAND_IDS.add(commandSaved.getId());
 
       Payload dnsResolution = createDefaultDnsResolution();
+      dnsResolution.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       Payload dnsResolutionSaved = this.payloadRepository.save(dnsResolution);
       PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
 
@@ -61,6 +66,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
       Document documentSaved = this.documentRepository.save(document);
 
       Payload executable = createDefaultExecutable(documentSaved);
+      executable.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       Payload executableSaved = this.payloadRepository.save(executable);
       PAYLOAD_COMMAND_IDS.add(executableSaved.getId());
     } finally {
@@ -111,6 +117,43 @@ public class PayloadApiSearchTest extends IntegrationTest {
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(0));
+      }
+
+      @Test
+      @DisplayName("Textsearch on a subtype-only field keeps the other payload types")
+      void given_textsearch_matching_subtype_field_should_still_return_other_payload_types()
+          throws Exception {
+        // Arrange: textsearch ORs payload_name with AiAttack.category, which is reached through a
+        // treat(AiAttack); a Command matching by name must not be filtered out by that cast.
+        String token = "search-" + UUID.randomUUID();
+        Payload command = createCommand("PowerShell", "cd ..", null, null);
+        command.setName("command " + token);
+        command.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+        AiAttack aiAttack = createAiAttack("say hello");
+        aiAttack.setCategory("category " + token);
+        aiAttack.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+        List<String> ids =
+            List.of(
+                payloadRepository.save(command).getId(), payloadRepository.save(aiAttack).getId());
+        try {
+          SearchPaginationInput searchPaginationInput =
+              PaginationFixture.getDefault().textSearch(token).build();
+
+          // Act
+          mvc.perform(
+                  post(PAYLOAD_URI + "/search")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(searchPaginationInput))
+                      .with(csrf()))
+              // Assert
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.numberOfElements").value(2))
+              .andExpect(
+                  jsonPath("$.content[*].payload_id")
+                      .value(containsInAnyOrder(command.getId(), aiAttack.getId())));
+        } finally {
+          payloadRepository.deleteAllById(ids);
+        }
       }
     }
 

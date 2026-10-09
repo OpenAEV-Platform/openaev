@@ -6,6 +6,7 @@ import static io.openaev.database.specification.CustomDashboardSpecification.byN
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
@@ -309,6 +310,7 @@ public class CustomDashboardService {
   }
 
   public EsCountInterval dashboardCountOnResourceId(
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
@@ -316,10 +318,11 @@ public class CustomDashboardService {
     if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return this.dashboardService.count(widgetId, parameters);
+    return this.dashboardService.count(ctx, widgetId, parameters);
   }
 
   public EsAvgs dashboardAverageOnResourceId(
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
@@ -327,10 +330,11 @@ public class CustomDashboardService {
     if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return this.dashboardService.average(widgetId, parameters);
+    return this.dashboardService.average(ctx, widgetId, parameters);
   }
 
   public List<EsSeries> dashboardSeriesOnResourceId(
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
@@ -338,10 +342,11 @@ public class CustomDashboardService {
     if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return this.dashboardService.series(widgetId, parameters);
+    return this.dashboardService.series(ctx, widgetId, parameters);
   }
 
   public EsEntities dashboardEntitiesOnResourceId(
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       @Nullable final EntitiesPaginationInput input) {
@@ -350,12 +355,14 @@ public class CustomDashboardService {
       throw new AccessDeniedException("Access denied");
     }
     return this.dashboardService.entities(
+        ctx,
         widgetId,
         input == null ? new HashMap<>() : input.getParameters(),
         input == null ? null : input.getPagination());
   }
 
   public WidgetToEntitiesOutput widgetToEntitiesRuntimeOnResourceId(
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       @NotBlank WidgetToEntitiesInput input) {
@@ -363,10 +370,11 @@ public class CustomDashboardService {
     if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
+    return this.dashboardService.widgetToEntitiesRuntime(ctx, widgetId, input);
   }
 
   public List<EsAttackPath> dashboardAttackPathsOnResourceId(
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters)
@@ -375,7 +383,7 @@ public class CustomDashboardService {
     if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return this.dashboardService.attackPaths(widgetId, parameters);
+    return this.dashboardService.attackPaths(ctx, widgetId, parameters);
   }
 
   private CustomDashboard withWidgetsInitialized(@NotNull CustomDashboard customDashboard) {

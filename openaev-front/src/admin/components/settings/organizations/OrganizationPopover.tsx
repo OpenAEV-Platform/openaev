@@ -1,18 +1,21 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import { deleteOrganization, updateOrganization } from '../../../../actions/Organization';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type VariantButtonPopover } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type Organization, type Tag } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option, tagOptions } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import OrganizationForm, { type OrganizationInputForm } from './OrganizationForm';
 
 interface Props {
+  /** Placement, forwarded to the kebab: `icon` in a list row, `toggle` in a
+      detail header, where the controls are 36px. */
+  variant?: VariantButtonPopover;
   organization: Organization;
   tagsMap: Record<string, Tag>;
   openEditOnInit?: boolean;
@@ -23,6 +26,7 @@ interface Props {
 // Settings > Security > Organizations actions. Separated from the
 // business-side OrganizationPopover (teams/organizations) on purpose.
 const OrganizationPopover: FunctionComponent<Props> = ({
+  variant = 'icon',
   organization,
   tagsMap,
   openEditOnInit = false,
@@ -31,7 +35,7 @@ const OrganizationPopover: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [openEdit, setOpenEdit] = useState(openEditOnInit);
   const [openDelete, setOpenDelete] = useState(false);
@@ -83,7 +87,7 @@ const OrganizationPopover: FunctionComponent<Props> = ({
 
   return (
     <>
-      <ButtonPopover entries={entries} variant="icon" />
+      <ButtonPopover entries={entries} variant={variant} />
       <DialogDelete
         open={openDelete}
         handleClose={() => setOpenDelete(false)}

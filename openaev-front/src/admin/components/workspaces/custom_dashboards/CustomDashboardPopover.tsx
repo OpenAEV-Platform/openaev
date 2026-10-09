@@ -1,4 +1,4 @@
-import { type FunctionComponent, useCallback, useContext, useState } from 'react';
+import { type FunctionComponent, useCallback, useState } from 'react';
 
 import { deleteCustomDashboard, exportCustomDashboard, updateCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import type { LoggedHelper } from '../../../../actions/helper';
@@ -8,7 +8,7 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type CustomDashboard, type TenantSettingsOutput } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { download } from '../../../../utils/utils';
 import CustomDashboardForm, { type CustomDashboardFormType } from './CustomDashboardForm';
@@ -23,7 +23,7 @@ interface Props {
 const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onUpdate, onDelete, inList = false }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const { settings }: { settings: TenantSettingsOutput } = useHelper((helper: LoggedHelper) => ({ settings: helper.getTenantSettings() }));
 

@@ -1,5 +1,3 @@
-import { LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import moment from 'moment';
 import { type FunctionComponent, type ReactElement, useEffect, useState } from 'react';
 import { IntlProvider } from 'react-intl';
@@ -7,7 +5,7 @@ import { IntlProvider } from 'react-intl';
 import { type LoggedHelper } from '../actions/helper';
 import { DEFAULT_LANG } from '../constants/Lang';
 import { useHelper } from '../store';
-import { dateFnsLocaleMap, type LanguageCode, loadLocaleMessages, momentMap, oaevLocaleMap } from '../utils/locales';
+import { type LanguageCode, loadLocaleMessages, momentMap, oaevLocaleMap } from '../utils/locales';
 
 // Export LANG to be used in non-React code
 // eslint-disable-next-line import/no-mutable-exports
@@ -71,12 +69,7 @@ const AppIntlProvider: FunctionComponent<{ children: ReactElement }> = ({ childr
         throw err;
       }}
     >
-      <LocalizationProvider
-        dateAdapter={AdapterDateFns}
-        adapterLocale={dateFnsLocaleMap[userLang]}
-      >
-        {children}
-      </LocalizationProvider>
+      {children}
     </IntlProvider>
   );
 };

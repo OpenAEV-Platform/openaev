@@ -6,7 +6,7 @@ Navigate to **Settings > Parameters** to view and modify these settings. You nee
 
 !!! note
 
-    Parameters are runtime settings managed through the UI. For deployment-level configuration (environment variables, properties files), see [Configuration](../deployment/configuration.md).
+    Parameters are runtime settings managed through the UI. For deployment-level configuration (environment variables, properties files), see [Configuration](../reference/deployment/configuration.md).
 
 ## Configuration
 
@@ -59,19 +59,21 @@ The login page background can also be customized per theme. These settings are p
 
 1. Open **Settings > Parameters**.
 2. Scroll to the **Dark theme** or **Light theme** panel.
-3. Update color values using the color pickers or paste hex codes.
+3. Update color values using the color pickers or paste hex codes. Colors must use the 6-digit `#RRGGBB` format (for example `#4CAF50`). Leave a color empty to use the default.
 4. Paste logo URLs for the sidebar, collapsed sidebar, and login page.
 5. Click **Save**. The updated theme is applied immediately.
 
 ## Platform information
 
-The Parameters page includes a read-only panel showing technical information about the running instance. Use this panel to verify the platform version, edition, and AI configuration.
+The Parameters page includes a read-only panel showing technical information about the running instance. Use this panel to verify the platform version, build commit, edition, and AI configuration.
+
+The build commit comes from the `OPENAEV_COMMIT` environment variable, set when the Docker image is built. It is not shown when the variable is empty.
 
 | Field | Description |
 |---|---|
 | Tenant identifier | UUID of the current Tenant context |
 | Platform identifier | Unique identifier of the OpenAEV instance |
-| Version | Current platform version |
+| Version | Current platform version. When the build commit is known, hover the version to see the commit hash, and click it to copy `<version>#<commit>` |
 | Edition | Community or Enterprise Edition |
 | AI Powered | Whether AI capabilities are enabled and which provider is configured |
 
@@ -135,4 +137,4 @@ To revert to the platform default, clear the Tenant-level value.
 - [Policies](policies.md) -- Configure login messages and consent banners
 - [Enterprise Edition](enterprise.md) -- Activate and manage your EE license
 - [Multi-tenancy](multi-tenancy.md) -- Manage isolated workspaces and Tenant settings
-- [Configuration](../deployment/configuration.md) -- Deployment-level configuration (environment variables, properties)
+- [Configuration](../reference/deployment/configuration.md) -- Deployment-level configuration (environment variables, properties)

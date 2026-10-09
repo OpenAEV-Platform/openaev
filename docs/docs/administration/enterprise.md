@@ -34,6 +34,36 @@ As a reminder:
 - OpenAEV Enterprise Edition licenses are automatically provided to all Filigran SaaS customers.
 - **For all other usages including on-premise deployments, OpenAEV Enterprise Edition is reserved to organizations that have signed a Filigran Enterprise agreement.**
 
+### EE through an XTM license
+
+OpenAEV is also in Enterprise Edition when it is registered with an XTM One instance whose XTM license
+sub-licenses this platform (the license lists this platform's id, or `global`, for OpenAEV). Every Enterprise
+Edition feature is then available, exactly as with an OpenAEV license. When both are valid, the OpenAEV license
+takes precedence.
+
+OpenAEV does not take XTM One's word for it: at every registration heartbeat (every 5 minutes), it verifies the
+Filigran-signed XTM license certificate returned by XTM One against the Filigran certificate authority built into
+OpenAEV, then applies the license validity dates (90 days of grace for standard, LTS and NFR licenses, none for trial
+and CI licenses). A CI license ends at the earliest of three dates: 45 minutes after this OpenAEV instance was
+created, 365 days after the start date of its certificate, and the expiration date of its certificate. The
+instance creation date is recorded at the first start, in UTC, and is never reset afterwards, even when the
+configured instance id changes; a CI license is refused while that date is
+missing, unreadable or in the future. If the certificate is missing, does not verify or has expired, the platform is
+back in Community Edition, unless it has its own OpenAEV license. While XTM One cannot be reached, the last verified certificate keeps
+applying, within its validity dates.
+
+The certificate is verified offline: it is not bound to the XTM One instance that returns it nor to a registration,
+and OpenAEV cannot ask Filigran whether a sub-license is still in force. A sub-license revoked on XTM One therefore
+ends when XTM One answers without the certificate, not while it cannot be reached. Likewise, a copy of a valid
+certificate served from the XTM One URL configured on this platform keeps granting Enterprise Edition for as long
+as its license is valid as described above: until its expiration date plus the grace period of its type, or, for a
+CI license, until the earliest of its three end dates. A `global` certificate covers any OpenAEV platform.
+Point the XTM One URL at a host you trust, over HTTPS. This requires XTM One 1.261001.0 or later, which returns the license certificate;
+with an older XTM One, only the OpenAEV license applies and a warning is logged.
+
+The Enterprise Edition card of the platform settings shows the license source: **XTM One license** (with the
+customer, type and expiration date of the XTM license) or **OpenAEV license**.
+
 ## Available features
 
 ### Generative AI
@@ -67,7 +97,7 @@ On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV cr
 Microsoft Defender for Endpoint can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
-OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE Executor deployment guide](../deployment/ecosystem/executors.md#mde-agent) for the required Azure app permissions and Live Response setup.
+OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE Executor deployment guide](../integrations/executors/executors.md#mde-agent) for the required Azure app permissions and Live Response setup.
 
 ### Inject chaining workflows
 
@@ -79,12 +109,12 @@ Inject chaining orchestrates conditional, automated execution of injects within 
 
 ## Remediations in CVEs
 
-More detail: [CVEs](taxonomies.md) and [Findings view](../usage/evaluate/findings/findings.md).
+More detail: [CVEs](taxonomies.md) and [Findings view](../usage/run-and-evaluate/findings/findings.md).
 
 ## Detection remediation in Threat Arsenal Actions and Injects
 
 More detail: [Detection remediations in Threat Arsenal Actions](../usage/build/threat-arsenals/action-properties.md#detection-remediation-properties)
-and [Atomic testing remediations](../usage/evaluate/atomic-testing/atomic-testing.md).
+and [Atomic testing remediations](../usage/run-and-evaluate/atomic-testing/atomic-testing.md).
 
 ## More to come
 

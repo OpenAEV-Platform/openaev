@@ -1,6 +1,7 @@
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { Fragment, useContext, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
@@ -10,7 +11,7 @@ import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { ATOMIC_BASE_URL, SIMULATION_BASE_URL } from '../../../constants/BaseUrls';
 import type { FindingOutput, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { buildOccurrencesFilter, occurrenceTargets } from './FindingOccurrencesUtils';
 
@@ -36,7 +37,7 @@ interface Props {
 const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
   const theme = useTheme();
   const { t, fndt } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [loading, setLoading] = useState<boolean>(true);
   const [occurrences, setOccurrences] = useState<RelatedFindingOutput[]>([]);
@@ -173,9 +174,15 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
       />
     );
     return (
-      <Tooltip
-        key={occurrence.finding_id}
-        title={(
+      <Tooltip key={occurrence.finding_id}>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">
+            {link
+              ? <Link to={link} style={{ display: 'flex' }}>{marker}</Link>
+              : marker}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
           <Fragment>
             {occurrence.finding_inject?.inject_title ?? '-'}
             <br />
@@ -198,11 +205,7 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
               </span>
             )}
           </Fragment>
-        )}
-      >
-        {link
-          ? <Link to={link} style={{ display: 'flex' }}>{marker}</Link>
-          : marker}
+        </TooltipContent>
       </Tooltip>
     );
   };
@@ -249,15 +252,18 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
               }}
             >
               {overflow > 0 && (
-                <Tooltip title={t('{count} more occurrences in this time bucket', { count: overflow })}>
-                  <Typography sx={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: 'text.secondary',
-                  }}
-                  >
-                    {`+${overflow}`}
-                  </Typography>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Typography sx={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: 'text.secondary',
+                    }}
+                    >
+                      {`+${overflow}`}
+                    </Typography>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('{count} more occurrences in this time bucket', { count: overflow })}</TooltipContent>
                 </Tooltip>
               )}
               {visible.map(occurrence => dot(occurrence))}

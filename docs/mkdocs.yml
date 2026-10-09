@@ -61,6 +61,54 @@ plugins:
       alias_type: symlink
       canonical_version: latest
   - search
+  - redirects:
+      redirect_maps:
+        'deployment/authentication.md': 'deployment/platform/authentication.md'
+        'deployment/certificate-validation.md': 'deployment/platform/certificate-validation.md'
+        'deployment/configuration.md': 'reference/deployment/configuration.md'
+        'deployment/ecosystem/collectors.md': 'integrations/collectors/deploy-collectors.md'
+        'deployment/ecosystem/executors.md': 'integrations/executors/executors.md'
+        'deployment/ecosystem/injectors.md': 'integrations/injectors/deploy-injectors.md'
+        'deployment/ecosystem/integration-manager/configuration.md': 'deployment/integration-manager/configuration.md'
+        'deployment/ecosystem/integration-manager/installation.md': 'deployment/integration-manager/installation.md'
+        'deployment/ecosystem/integration-manager/overview.md': 'deployment/integration-manager/overview.md'
+        'deployment/ecosystem/integration-manager/proxy-configuration.md': 'deployment/integration-manager/proxy-configuration.md'
+        'deployment/ecosystem/integration-manager/quick-start.md': 'deployment/integration-manager/quick-start.md'
+        'deployment/ecosystem/integration-manager/registry-authentication.md': 'deployment/integration-manager/registry-authentication.md'
+        'deployment/ecosystem/integration-manager/troubleshooting.md': 'deployment/integration-manager/troubleshooting.md'
+        'deployment/ecosystem/mcp-server.md': 'integrations/mcp-server/mcp-server.md'
+        'deployment/installation.md': 'deployment/platform/installation.md'
+        'deployment/managers.md': 'deployment/platform/managers.md'
+        'deployment/upgrade.md': 'deployment/platform/upgrade.md'
+        'deployment/url-access-token.md': 'deployment/platform/url-access-token.md'
+        'usage/autonomous-attack-chaining/configuration.md': 'usage/attack-chaining/autonomous/configuration.md'
+        'usage/autonomous-attack-chaining/overview.md': 'usage/attack-chaining/autonomous/overview.md'
+        'usage/autonomous-attack-chaining/scenario-creation.md': 'usage/attack-chaining/autonomous/scenario-creation.md'
+        'usage/environment/collectors.md': 'integrations/collectors/collectors.md'
+        'usage/environment/injectors.md': 'integrations/injectors/injectors.md'
+        'usage/environment/injects-builtin.md': 'integrations/injectors/injects-builtin.md'
+        'usage/environment/openaev-agent.md': 'integrations/agents/openaev-agent.md'
+        'usage/evaluate/atomic-testing/atomic-testing.md': 'usage/run-and-evaluate/atomic-testing/atomic-testing.md'
+        'usage/evaluate/dashboards/custom-dashboards.md': 'usage/run-and-evaluate/dashboards/custom-dashboards.md'
+        'usage/evaluate/dashboards/widgets.md': 'usage/run-and-evaluate/dashboards/widgets.md'
+        'usage/evaluate/expectations/expectations.md': 'usage/run-and-evaluate/expectations/expectations.md'
+        'usage/evaluate/findings/findings.md': 'usage/run-and-evaluate/findings/findings.md'
+        'usage/evaluate/injects/inject-overview.md': 'usage/run-and-evaluate/injects/inject-overview.md'
+        'usage/evaluate/injects/inject-result.md': 'usage/run-and-evaluate/injects/inject-result.md'
+        'usage/evaluate/injects/inject-status.md': 'usage/run-and-evaluate/injects/inject-status.md'
+        'usage/evaluate/injects/inject-tests.md': 'usage/run-and-evaluate/injects/inject-tests.md'
+        'usage/evaluate/overview.md': 'usage/run-and-evaluate/overview.md'
+        'usage/evaluate/reporting/reporting.md': 'usage/run-and-evaluate/reporting/reporting.md'
+        'usage/evaluate/simulation/simulation.md': 'usage/run-and-evaluate/simulation/simulation.md'
+        'usage/evaluate/xtm-suite-connector.md': 'integrations/xtm-suite/xtm-suite-connector.md'
+        'usage/foundations/injects-and-expectations.md': 'usage/get-started/foundations/injects-and-expectations.md'
+        'usage/foundations/scenarios-and-simulations.md': 'usage/get-started/foundations/scenarios-and-simulations.md'
+        'usage/getting-started.md': 'usage/get-started/getting-started.md'
+        'usage/inject-chaining.md': 'usage/attack-chaining/inject-chaining.md'
+        'usage/notifications/notification-center.md': 'usage/run-and-evaluate/notifications/notification-center.md'
+        'usage/notifications/overview.md': 'usage/run-and-evaluate/notifications/overview.md'
+        'usage/notifications/triggers.md': 'usage/run-and-evaluate/notifications/triggers.md'
+        'usage/rest-api.md': 'reference/apis/rest-api.md'
   - macros
   - git-committers:
       repository: OpenAEV-Platform/openaev
@@ -113,82 +161,59 @@ markdown_extensions:
 # Page tree
 nav:
   - Home: 'index.md'
-  - Deployment & Setup:
+  - Deploy:
     - Platform:
       - Overview: deployment/platform/overview.md
       - Run modes: deployment/platform/run-modes.md
-      - Installation: deployment/installation.md
-      - Configuration: deployment/configuration.md
-      - Certificate validation: deployment/certificate-validation.md
-      - Authentication: deployment/authentication.md
-      - URL access token: deployment/url-access-token.md
-      - Upgrade: deployment/upgrade.md
-    - Ecosystem:
-      - Executors: deployment/ecosystem/executors.md
-      - Injectors: deployment/ecosystem/injectors.md
-      - Collectors: deployment/ecosystem/collectors.md
-      - MCP server (via XTM One): deployment/ecosystem/mcp-server.md
-      - Integration Manager:
-          - Overview: deployment/ecosystem/integration-manager/overview.md
-          - Quick start: deployment/ecosystem/integration-manager/quick-start.md
-          - Installation guide: deployment/ecosystem/integration-manager/installation.md
-          - Configuration:
-              - Configuration reference: deployment/ecosystem/integration-manager/configuration.md
-              - Proxy: deployment/ecosystem/integration-manager/proxy-configuration.md
-              - Private registry: deployment/ecosystem/integration-manager/registry-authentication.md
-          - Troubleshooting: deployment/ecosystem/integration-manager/troubleshooting.md
-    - Advanced:
-      - Platform managers: deployment/managers.md
+      - Installation: deployment/platform/installation.md
+      - Authentication: deployment/platform/authentication.md
+      - Certificate validation: deployment/platform/certificate-validation.md
+      - URL access token: deployment/platform/url-access-token.md
+      - Upgrade: deployment/platform/upgrade.md
+      - Platform managers: deployment/platform/managers.md
     - Breaking changes:
       - Index: deployment/breaking-changes.md
       - Migration guides:
         - OpenAEV renaming: deployment/breaking-changes/2.0.0-openaev-renaming.md
         - OpenAEV encryption: deployment/breaking-changes/2.1.0-encrypting-password.md
-        - Scenario Generation from OpenCTI Security Coverage: deployment/breaking-changes/2.2.0-opencti-security-coverage.md
+        - Scenario generation from OpenCTI security coverage: deployment/breaking-changes/2.2.0-opencti-security-coverage.md
         - CSRF token enforcement for frontend API calls: deployment/breaking-changes/2.3.4-csrf-token-enforcement.md
         - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
         - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
         - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
         - Elasticsearch 9: deployment/breaking-changes/MigrationVersion-elasticsearch-9.md
-  - User Guide:
-    - Getting started: usage/getting-started.md
-    - Foundations:
-      - Scenario and Simulations: usage/foundations/scenarios-and-simulations.md
-      - Injects and Expectations: usage/foundations/injects-and-expectations.md
-      - Inject chaining and transfer: usage/inject-chaining.md
-    - Evaluate your Security posture:
-      - Overview: usage/evaluate/overview.md
-      - Simulation: usage/evaluate/simulation/simulation.md
-      - Atomic testing: usage/evaluate/atomic-testing/atomic-testing.md
-      - Injects:
-        - Overview: usage/evaluate/injects/inject-overview.md
-        - Inject tests: usage/evaluate/injects/inject-tests.md
-        - Inject status: usage/evaluate/injects/inject-status.md
-        - Inject result: usage/evaluate/injects/inject-result.md
-      - Expectations: usage/evaluate/expectations/expectations.md
-      - Findings: usage/evaluate/findings/findings.md
-      - Dashboards:
-        - Custom Dashboards: usage/evaluate/dashboards/custom-dashboards.md
-        - Widgets: usage/evaluate/dashboards/widgets.md
-      - Reporting: usage/evaluate/reporting/reporting.md
-      - Security Coverage enrichment (XTM Suite): usage/evaluate/xtm-suite-connector.md
-      - Notifications & Triggers:
-        - Overview: usage/notifications/overview.md
-        - Triggers: usage/notifications/triggers.md
-        - Notification Center: usage/notifications/notification-center.md
-    - Attack Chaining:
-      - Overview: usage/attack-chaining/overview.md
-      - Scope Definition: usage/attack-chaining/scope-definition.md
-      - Action Selection: usage/attack-chaining/action-selection.md
-      - Logic Creation: usage/attack-chaining/logic-creation.md
-      - Attack Path Map: usage/attack-chaining/attack-path-map.md
-    - Autonomous Attack Chaining (AI Penetration Testing):
-      - Overview: usage/autonomous-attack-chaining/overview.md
-      - Scenario Creation: usage/autonomous-attack-chaining/scenario-creation.md
-      - Configuration: usage/autonomous-attack-chaining/configuration.md
-    - Build your own Threat Scenario:
+    - Integration Manager:
+      - Overview: deployment/integration-manager/overview.md
+      - Quick start: deployment/integration-manager/quick-start.md
+      - Installation guide: deployment/integration-manager/installation.md
+      - Configuration:
+        - Configuration reference: deployment/integration-manager/configuration.md
+        - Proxy: deployment/integration-manager/proxy-configuration.md
+        - Private registry: deployment/integration-manager/registry-authentication.md
+      - Troubleshooting: deployment/integration-manager/troubleshooting.md
+  - Integrations:
+    - Agents: integrations/agents/openaev-agent.md
+    - Executors: integrations/executors/executors.md
+    - Injectors:
+      - Overview: integrations/injectors/injectors.md
+      - Built-in Injector: integrations/injectors/injects-builtin.md
+      - Deploy injectors: integrations/injectors/deploy-injectors.md
+      - Injector development: development/injectors.md
+    - Collectors:
+      - Overview: integrations/collectors/collectors.md
+      - Deploy collectors: integrations/collectors/deploy-collectors.md
+      - Collector development: development/collectors.md
+    - MCP server (via XTM One): integrations/mcp-server/mcp-server.md
+    - XTM Suite / OpenCTI: integrations/xtm-suite/xtm-suite-connector.md
+  - User guide:
+    - Get started:
+      - Getting started: usage/get-started/getting-started.md
+      - Foundations:
+        - Scenarios and Simulations: usage/get-started/foundations/scenarios-and-simulations.md
+        - Injects and Expectations: usage/get-started/foundations/injects-and-expectations.md
+    - Build:
       - Scenario: usage/build/scenario/scenario.md
-      - Scenario Generation from OpenCTI Security Coverage: usage/build/scenario/security-coverage.md
+      - Scenario generation from OpenCTI security coverage: usage/build/scenario/security-coverage.md
       - Importing injects into a Scenario: usage/build/scenario/scenario-import.md
       - Assets: usage/build/assets.md
       - People: usage/build/people.md
@@ -211,17 +236,41 @@ nav:
         - Action properties: usage/build/threat-arsenals/action-properties.md
         - Output parsers: usage/build/threat-arsenals/output-parsers.md
         - Domains: usage/build/threat-arsenals/domains.md
-    - Interact with your environment:
-      - Injectors:
-        - Overview: usage/environment/injectors.md
-        - Built-In Injector: usage/environment/injects-builtin.md
-      - Collectors: usage/environment/collectors.md
-      - Agents: usage/environment/openaev-agent.md
-    - Rest API: usage/rest-api.md
+    - Run & evaluate:
+      - Overview: usage/run-and-evaluate/overview.md
+      - Simulation: usage/run-and-evaluate/simulation/simulation.md
+      - Atomic testing: usage/run-and-evaluate/atomic-testing/atomic-testing.md
+      - Injects:
+        - Overview: usage/run-and-evaluate/injects/inject-overview.md
+        - Inject tests: usage/run-and-evaluate/injects/inject-tests.md
+        - Inject status: usage/run-and-evaluate/injects/inject-status.md
+        - Inject result: usage/run-and-evaluate/injects/inject-result.md
+      - Expectations: usage/run-and-evaluate/expectations/expectations.md
+      - Findings: usage/run-and-evaluate/findings/findings.md
+      - Dashboards:
+        - Custom Dashboards: usage/run-and-evaluate/dashboards/custom-dashboards.md
+        - Widgets: usage/run-and-evaluate/dashboards/widgets.md
+      - Reporting: usage/run-and-evaluate/reporting/reporting.md
+      - Notifications and triggers:
+        - Overview: usage/run-and-evaluate/notifications/overview.md
+        - Triggers: usage/run-and-evaluate/notifications/triggers.md
+        - Notification center: usage/run-and-evaluate/notifications/notification-center.md
+    - Attack chaining:
+      - Inject chaining and transfer: usage/attack-chaining/inject-chaining.md
+      - Attack Chaining:
+        - Overview: usage/attack-chaining/overview.md
+        - Scope definition: usage/attack-chaining/scope-definition.md
+        - Action selection: usage/attack-chaining/action-selection.md
+        - Logic creation: usage/attack-chaining/logic-creation.md
+        - Attack path map: usage/attack-chaining/attack-path-map.md
+      - Autonomous Attack Chaining (AI penetration testing):
+        - Overview: usage/attack-chaining/autonomous/overview.md
+        - Scenario creation: usage/attack-chaining/autonomous/scenario-creation.md
+        - Configuration: usage/attack-chaining/autonomous/configuration.md
   - Administration:
     - Introduction: administration/introduction.md
     - User profile: administration/profile.md
-    - Enterprise edition: administration/enterprise.md
+    - Enterprise Edition: administration/enterprise.md
     - Multi-tenancy: administration/multi-tenancy.md
     - Debug mode: administration/debug-mode.md
     - Platform settings:
@@ -230,23 +279,26 @@ nav:
         - Policies: administration/policies.md
         - Users and RBAC: administration/users-and-rbac.md
       - Taxonomies: administration/taxonomies.md
-      - Default Asset Rules: administration/default-asset-rules.md
+      - Default Asset rules: administration/default-asset-rules.md
       - XTM Hub: administration/hub.md # Warning: page is linked in XTM Hub documentation
   - Reference:
-      - APIs:
-          - Filters: reference/apis/filters.md
-      - Deployment and stack:
-          - Telemetry: reference/deployment/telemetry.md
+    - Configuration: reference/deployment/configuration.md
+    - REST API: reference/apis/rest-api.md
+    - Filters: reference/apis/filters.md
+    - Bulk snapshot export: reference/apis/bulk-snapshot.md
+    - Telemetry: reference/deployment/telemetry.md
+  - Troubleshooting & FAQ: troubleshooting/index.md
   - Development:
     - Prerequisites:
       - Ubuntu: development/environment-ubuntu.md
+      - macOS: development/environment-macos.md
       - Windows: development/environment-windows.md
     - Building and running from source: development/build-from-source.md
     - Database migrations: development/database-migrations.md
     - Platform: development/platform.md
     - Tenant isolation: development/tenant-isolation.md
-    - Collectors: development/collectors.md
-    - Injectors: development/injectors.md
+    - Collector development: development/collectors.md
+    - Injector development: development/injectors.md
     - Attack path: development/attack-path.md
     - REST API: development/api-usage.md
-    - Best Practices: development/translations.md
+    - Translations: development/translations.md

@@ -1,6 +1,5 @@
+import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckCircleOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Button, Chip, Tooltip } from '@mui/material';
-import { alpha } from '@mui/material/styles';
 import { type CSSProperties, type SyntheticEvent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -11,9 +10,12 @@ interface Props {
   onDeployBtnClick: (e: SyntheticEvent) => void;
   style?: CSSProperties;
   deploymentCount: number;
+  /** 'sm' in the card grid, where the footer shares its row with the use-case chips. */
+  size?: 'sm' | 'md';
+  buttonStyle?: CSSProperties;
 }
 
-const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) => {
+const DeployButton = ({ onDeployBtnClick, style = {}, buttonStyle, deploymentCount, size = 'md' }: Props) => {
   const { t } = useFormatter();
   const {
     isValidated: isEnterpriseEdition,
@@ -43,40 +45,20 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
     }}
     >
       {deploymentCount > 0 && (
-        <Tooltip title={t('This connector has {count} deployed instance(s). Manage them from the Deployed tab.', { count: deploymentCount })}>
-          <Chip
-            icon={<CheckCircleOutlined sx={{ fontSize: 14 }} />}
-            label={deploymentCount > 1 ? t('{count} deployed', { count: deploymentCount }) : t('Deployed')}
-            size="small"
-            variant="outlined"
-            sx={theme => ({
-              'height': 24,
-              'fontSize': 11,
-              'fontWeight': 600,
-              'borderRadius': 1,
-              'color': theme.palette.success.main,
-              'borderColor': alpha(theme.palette.success.main, 0.4),
-              'backgroundColor': alpha(theme.palette.success.main, 0.08),
-              '& .MuiChip-icon': { color: theme.palette.success.main },
-            })}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip
+              startIcon={<CheckCircleOutlined sx={{ fontSize: 14 }} />}
+              label={deploymentCount > 1 ? String(t('{count} deployed', { count: deploymentCount })) : t('Deployed')}
+              severity="low"
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('This connector has {count} deployed instance(s). Manage them from the Deployed tab.', { count: deploymentCount })}</TooltipContent>
         </Tooltip>
       )}
-      <Button
-        // Same anatomy as the OpenCTI marketplace CTA: compact 26px button,
-        // sentence-case label, contained when EE is active, outlined with the
-        // rocket icon + EE chip otherwise - never greyed-out.
-        variant={isEnterpriseEdition ? 'contained' : 'outlined'}
-        sx={{
-          height: 26,
-          textTransform: 'none',
-        }}
-        size="small"
-        onClick={onDeployClickAction}
-        startIcon={isEnterpriseEdition ? null : <RocketLaunchOutlined />}
-        endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
-      >
+      <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size={size} style={buttonStyle} startIcon={isEnterpriseEdition ? null : <RocketLaunchOutlined fontSize="small" />} onClick={onDeployClickAction}>
         {t('Deploy')}
+        {!isEnterpriseEdition && <EEChip />}
       </Button>
     </div>
   );

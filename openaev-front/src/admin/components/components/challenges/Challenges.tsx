@@ -1,6 +1,7 @@
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { RowingOutlined } from '@mui/icons-material';
-import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
-import { type CSSProperties, useContext } from 'react';
+import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { type CSSProperties } from 'react';
 import { Link, useLocation } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -10,6 +11,7 @@ import { fetchExercises } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import chipLinkClassName from '../../../../components/common/chips/chipLink';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
@@ -18,7 +20,7 @@ import { useHelper } from '../../../../store';
 import { type Challenge } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import TagsFilter from '../../common/filters/TagsFilter';
@@ -66,26 +68,31 @@ const headerStyles: Record<string, CSSProperties> = {
   challenge_name: {
     width: '25%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   challenge_category: {
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   challenge_score: {
     width: '10%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   challenge_exercises: {
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   challenge_tags: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -106,7 +113,7 @@ const Challenges = () => {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const initialKeyword = params.get('search') || '';
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Filter and sort hook
   const searchColumns = ['name', 'content', 'category'];
@@ -259,22 +266,25 @@ const Challenges = () => {
                         }
 
                         return (
-                          <Tooltip
-                            key={exercise.exercise_id}
-                            title={exercise.exercise_name}
-                          >
-                            <Chip
-                              icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                              classes={{ root: classes.exercise }}
-                              variant="outlined"
-                              label={exercise.exercise_name}
-                              component={Link}
-                              clickable
-                              to={`/admin/simulations/${exercise.exercise_id}`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                              }}
-                            />
+                          <Tooltip key={exercise.exercise_id}>
+                            <TooltipTrigger asChild>
+                              <Link
+                                to={`/admin/simulations/${exercise.exercise_id}`}
+                                className={chipLinkClassName}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                }}
+                              >
+                                <span className="inline-flex">
+                                  <Chip
+                                    startIcon={<RowingOutlined style={{ fontSize: 12 }} />}
+                                    label={exercise.exercise_name ?? ''}
+                                    severity="info"
+                                  />
+                                </span>
+                              </Link>
+                            </TooltipTrigger>
+                            {exercise.exercise_name && <TooltipContent>{exercise.exercise_name}</TooltipContent>}
                           </Tooltip>
                         );
                       })

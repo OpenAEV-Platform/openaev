@@ -1,7 +1,7 @@
-import { Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { normalize } from 'normalizr';
-import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
 import { arrayOfEndpoints } from '../../../../actions/assets/asset-schema';
 import { findEndpoints, searchEndpoints } from '../../../../actions/assets/endpoint-actions';
@@ -21,7 +21,7 @@ import { type Endpoint, type EndpointOutput, type FilterGroup } from '../../../.
 import { getActiveMsgTooltip, getExecutorsCount } from '../../../../utils/endpoints/utils';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import AssetCategoryIcon from '../AssetCategoryIcon';
@@ -53,7 +53,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [endpointValues, setEndpointValues] = useState<(Endpoint | EndpointOutput)[]>([]);
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
@@ -116,10 +116,13 @@ const EndpointsPicker: FunctionComponent<Props> = ({
         value: (endpoint: EndpointOutput) => {
           const status = getActiveMsgTooltip(endpoint.asset_agents.map(a => a.agent_active ?? false), t('Active'), t('Inactive'), t('Agentless'));
           return (
-            <Tooltip title={status.activeMsgTooltip}>
-              <span>
-                <AssetStatus variant="list" status={status.status} />
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <AssetStatus variant="list" status={status.status} />
+                </span>
+              </TooltipTrigger>
+              {status.activeMsgTooltip && <TooltipContent>{status.activeMsgTooltip}</TooltipContent>}
             </Tooltip>
           );
         },
@@ -163,27 +166,26 @@ const EndpointsPicker: FunctionComponent<Props> = ({
 
                     if (count > 0) {
                       return (
-                        <Tooltip
-                          key={executorType}
-                          title={`${base.executor_name} : ${count}`}
-                          arrow
-                        >
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                          }}
-                          >
-                            <img
-                              src={buildTenantApiPath(`/api/images/executors/icons/${executorType}`)}
-                              alt={executorType}
-                              style={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: 4,
-                                marginRight: 10,
-                              }}
-                            />
-                          </div>
+                        <Tooltip key={executorType}>
+                          <TooltipTrigger asChild>
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                            }}
+                            >
+                              <img
+                                src={buildTenantApiPath(`/api/images/executors/icons/${executorType}`)}
+                                alt={executorType}
+                                style={{
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: 4,
+                                  marginRight: 10,
+                                }}
+                              />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>{`${base.executor_name} : ${count}`}</TooltipContent>
                         </Tooltip>
                       );
                     } else {

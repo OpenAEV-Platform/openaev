@@ -9,8 +9,8 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.debug.DebugLogCorrelationListener;
 import io.openaev.debug.DebugTracingContextInitializer;
 import io.openaev.tools.FlywayMigrationValidator;
+import io.openaev.utils.InstanceCreationDate;
 import jakarta.annotation.PostConstruct;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -51,10 +51,8 @@ public class App {
     // Get the platform instance id
     Optional<Setting> instanceId =
         this.settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
-    Setting instanceCreationDate =
-        this.settingRepository
-            .findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key())
-            .orElse(new Setting(PLATFORM_INSTANCE_CREATION.key(), ""));
+    Optional<Setting> instanceCreationDate =
+        this.settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
 
     String platformId;
 
@@ -76,13 +74,54 @@ public class App {
         instanceIdSetting.setValue(UUID.fromString(openAEVConfig.getInstanceId()).toString());
       }
 
-      // Then we save the id in database and update/set the creation date
       settingRepository.save(instanceIdSetting);
-      instanceCreationDate.setValue(Timestamp.from(Instant.now()).toString());
-      settingRepository.save(instanceCreationDate);
     } else {
       platformId = instanceId.get().getValue();
     }
+    keepInstanceCreationDate(instanceCreationDate, instanceId.isEmpty());
     log.info("Startup of the platform - Platform Instance ID: {}", platformId);
+  }
+
+  /**
+   * Keeps the earliest known creation date of this instance. It bounds a {@code ci} XTM license, so
+   * it is written once, with the first instance id, and never moved afterwards: not when the
+   * configured instance id changes, not when the value is missing, unreadable or in the future
+   * (each of which refuses a {@code ci} license until the value is corrected). A readable value
+   * that is not canonical (the legacy {@link java.sql.Timestamp} form, another offset than {@code
+   * Z}) is rewritten as the same instant in ISO-8601 UTC.
+   */
+  private void keepInstanceCreationDate(Optional<Setting> stored, boolean newInstance) {
+    String value = stored.map(Setting::getValue).orElse(null);
+    if (value == null || value.isBlank()) {
+      if (newInstance) {
+        Setting setting = stored.orElseGet(() -> new Setting(PLATFORM_INSTANCE_CREATION.key(), ""));
+        setting.setValue(InstanceCreationDate.format(Instant.now()));
+        settingRepository.save(setting);
+      } else {
+        log.error(
+            "The creation date of this instance is missing and is not set again: a ci XTM license is"
+                + " refused.");
+      }
+      return;
+    }
+    Optional<Instant> creationDate = InstanceCreationDate.parse(value);
+    if (creationDate.isEmpty()) {
+      log.error(
+          "The creation date of this instance cannot be read (expected {}): a ci XTM license is"
+              + " refused until it is corrected.",
+          InstanceCreationDate.READABLE_FORMS);
+      return;
+    }
+    if (creationDate.get().isAfter(Instant.now())) {
+      log.error(
+          "The creation date of this instance ({}) is in the future: a ci XTM license is refused"
+              + " until it is corrected.",
+          creationDate.get());
+    }
+    if (!InstanceCreationDate.isCanonical(value)) {
+      Setting setting = stored.get();
+      setting.setValue(InstanceCreationDate.format(creationDate.get()));
+      settingRepository.save(setting);
+    }
   }
 }

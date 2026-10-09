@@ -24,6 +24,7 @@ import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.FileService;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.ZipUtils;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -66,6 +67,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ChallengeService challengeService;
   @Autowired private ArticleService articleService;
+  @Autowired private OrganizationService organizationService;
   @Resource protected ObjectMapper mapper;
   @Autowired private FileService fileService;
   @Autowired private EntityManager manager;
@@ -200,7 +202,8 @@ class ExerciseApiExportTest extends IntegrationTest {
     ObjectMapper exportMapper = mapper.copy();
     String expectedJson =
         exportMapper.writeValueAsString(
-            ExerciseFileExport.fromExercise(ex, exportMapper, challengeService, articleService)
+            ExerciseFileExport.fromExercise(
+                    ex, exportMapper, challengeService, articleService, organizationService)
                 .withOptions(0));
     JsonNode exportedExercise = mapper.readTree(actualJson);
     assertTrue(
@@ -276,7 +279,8 @@ class ExerciseApiExportTest extends IntegrationTest {
     ObjectMapper exportMapper = mapper.copy();
     String expectedJson =
         exportMapper.writeValueAsString(
-            ExerciseFileExport.fromExercise(ex, exportMapper, challengeService, articleService)
+            ExerciseFileExport.fromExercise(
+                    ex, exportMapper, challengeService, articleService, organizationService)
                 .withOptions(7));
 
     assertThatJson(expectedJson)

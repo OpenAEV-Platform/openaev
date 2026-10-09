@@ -55,7 +55,7 @@ The Phishing feature itself is available in the Community Edition. Only the **Ge
 
 !!! tip "Enterprise Edition"
 
-    See [XTM Suite connector](../../../evaluate/xtm-suite-connector.md) to configure XTM One and enable AI generation.
+    See [XTM Suite connector](../../../../integrations/xtm-suite/xtm-suite-connector.md) to configure XTM One and enable AI generation.
 
 ## What's next?
 

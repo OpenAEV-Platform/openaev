@@ -18,7 +18,7 @@ You can define primary and secondary colors, choose logos and define how the hea
 
 On the right, a mock up of the overview is displayed to give you the look and feel of it.
 
-![Channel creation](./assets/channel-update.png)
+![Channel creation](assets/channel-update.png)
 
 ## Use a Channel
 
@@ -26,10 +26,10 @@ A Channel will then be used in Scenario and in Simulation definition. When you c
 
 See [Media pressure](media-pressure.md) page to know how to create and add Articles to your Scenarios.
 
-![Channel selection during Article creation](../../assets/channel_selection_during_creation.png)
+![Channel selection during Article creation](assets/channel_selection_during_creation.png)
 
 ## What's next?
 
 - [Media pressure](media-pressure.md) -- Create Articles and publish them through Channels
 - [Scenarios](../scenario/scenario.md) -- Use Channels in your Scenarios
-- [Built-in Injects](../../environment/injects-builtin.md) -- Overview of all built-in Injectors including the Channel Injector
+- [Built-in Injects](../../../integrations/injectors/injects-builtin.md) -- Overview of all built-in Injectors including the Channel Injector

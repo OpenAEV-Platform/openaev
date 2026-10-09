@@ -1,19 +1,22 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import { deleteSecurityPlatform, updateSecurityPlatform } from '../../../../actions/assets/securityPlatform-actions';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type VariantButtonPopover } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type SecurityPlatform, type SecurityPlatformInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import SecurityPlatformForm from './SecurityPlatformForm';
 
 type SecurityPlatformStoreWithType = SecurityPlatform & { type: string };
 
 interface Props {
+  /** Placement, forwarded to the kebab: `icon` in a list row, `toggle` in a
+      detail header, where the controls are 36px. */
+  variant?: VariantButtonPopover;
   securityPlatform: SecurityPlatformStoreWithType;
   assetGroupId?: string;
   assetGroupSecurityPlatformIds?: string[];
@@ -26,6 +29,7 @@ interface Props {
 }
 
 const SecurityPlatformPopover: FunctionComponent<Props> = ({
+  variant = 'icon',
   securityPlatform,
   openEditOnInit = false,
   onUpdate,
@@ -35,7 +39,7 @@ const SecurityPlatformPopover: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const initialValues = (({
     asset_name,
@@ -109,7 +113,7 @@ const SecurityPlatformPopover: FunctionComponent<Props> = ({
 
   return (
     <>
-      <ButtonPopover entries={entries} disabled={disabled} variant="icon" />
+      <ButtonPopover entries={entries} disabled={disabled} variant={variant} />
 
       <Drawer
         open={edition}

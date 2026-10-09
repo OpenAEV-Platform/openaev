@@ -15,6 +15,17 @@ public class CustomDashboardQueryUtils {
 
   private CustomDashboardQueryUtils() {}
 
+  /**
+   * Escape the wildcard-query metacharacters ({@code \}, {@code *}, {@code ?}) of a user-supplied
+   * value, so a {@code contains} filter matches it literally instead of as a pattern.
+   *
+   * @param value the raw filter value
+   * @return the value, safe to embed in a wildcard pattern
+   */
+  public static String escapeWildcard(String value) {
+    return value.replace("\\", "\\\\").replace("*", "\\*").replace("?", "\\?");
+  }
+
   public static boolean isAllTime(
       WidgetConfiguration widgetConfig,
       Map<String, String> parameters,

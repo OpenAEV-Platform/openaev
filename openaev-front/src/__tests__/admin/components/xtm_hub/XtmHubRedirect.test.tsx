@@ -9,7 +9,8 @@ import XtmHubRedirect, {
   XTM_HUB_AUTO_REGISTER_QUERY_PARAM,
   XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY,
 } from '../../../../admin/components/xtm_hub/XtmHubRedirect';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { defineAbility } from '../../../../utils/permissions/ability';
+import { AbilityProvider } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 const theme = createTheme();
@@ -28,22 +29,20 @@ const renderWithRouter = ({
   canManageTenantSettings: boolean;
   children: ReactNode;
 }) => {
-  const ability = {
-    can: (action: string, subject: string) => (
-      canManageTenantSettings
-      && action === ACTIONS.MANAGE
-      && subject === SUBJECTS.TENANT_SETTINGS
-    ),
-  };
+  const ability = defineAbility(
+    canManageTenantSettings ? [`${ACTIONS.MANAGE}_${SUBJECTS.TENANT_SETTINGS}`] : [],
+    {},
+    false,
+  );
 
   return render(
     <ThemeProvider theme={theme}>
       <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
-        <AbilityContext.Provider value={ability as never}>
+        <AbilityProvider value={ability}>
           <MemoryRouter initialEntries={[route]}>
             {children}
           </MemoryRouter>
-        </AbilityContext.Provider>
+        </AbilityProvider>
       </IntlProvider>
     </ThemeProvider>,
   );

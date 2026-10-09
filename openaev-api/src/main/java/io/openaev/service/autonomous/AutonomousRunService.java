@@ -418,7 +418,7 @@ public class AutonomousRunService {
       if (planMode) {
         workflowService.provisionSimulationTemplateWorkflow(scenarioId, simulation);
       } else {
-        workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
+        workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation, true);
       }
     } catch (ChainingException e) {
       throw new ResponseStatusException(
@@ -1539,7 +1539,8 @@ public class AutonomousRunService {
       if (run.isPlanMode()) {
         workflowService.provisionSimulationTemplateWorkflow(run.getScenarioId(), simulation);
       } else {
-        workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation);
+        workflowService.startWorkflowByScenarioIdAndSimulation(
+            run.getScenarioId(), simulation, true);
       }
     } catch (ChainingException e) {
       throw new ResponseStatusException(
@@ -1623,7 +1624,7 @@ public class AutonomousRunService {
         scenarioToExerciseService.toExercise(
             scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
     try {
-      workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation);
+      workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation, true);
     } catch (ChainingException e) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to start the live run: " + e.getMessage(), e);
@@ -3668,10 +3669,13 @@ public class AutonomousRunService {
       team = teamRepository.save(existing);
     } else {
       Team created = new Team();
+      // The run's own tenant, already validated against the caller's scope when the run was
+      // created: the wrapper team belongs where the simulation it wraps belongs.
+      created.setTenant(new Tenant(runTenantId(run)));
       created.setName(hasText(name) ? name : defaultTargetTeamName(players));
       created.setContextual(true);
       created.setUsers(new ArrayList<>(players));
-      created.setExercises(new ArrayList<>(List.of(simulation)));
+      created.setExercises(new HashSet<>(List.of(simulation)));
       team = teamRepository.save(created);
     }
 

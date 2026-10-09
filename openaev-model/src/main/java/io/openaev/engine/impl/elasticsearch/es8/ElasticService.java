@@ -15,7 +15,7 @@ import es8.co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import es8.co.elastic.clients.elasticsearch.core.search.Hit;
 import es8.co.elastic.clients.json.JsonData;
 import io.openaev.config.EngineConfig;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.IndexingStatus;
@@ -35,6 +35,7 @@ import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.schema.PropertySchema;
 import io.openaev.service.CommonSearchService;
 import io.openaev.service.EsIndexingUtils;
+import io.openaev.service.IndexingCursor;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -42,6 +43,7 @@ import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -170,7 +172,7 @@ public class ElasticService implements EngineService {
                         return WildcardQuery.of(
                                 w ->
                                     w.field(toElasticField(field))
-                                        .value("*" + val.stringValue() + "*"))
+                                        .value("*" + escapeWildcard(val.stringValue()) + "*"))
                             ._toQuery();
                       } else {
                         // Champ text : match
@@ -194,7 +196,9 @@ public class ElasticService implements EngineService {
                       FieldValue val = toVal(field, v, parameters);
                       if (propertyField != null && propertyField.isKeyword()) {
                         return WildcardQuery.of(
-                                w -> w.field(elasticField).value("*" + val.stringValue() + "*"))
+                                w ->
+                                    w.field(elasticField)
+                                        .value("*" + escapeWildcard(val.stringValue()) + "*"))
                             ._toQuery();
                       } else {
                         return MatchQuery.of(m -> m.field(elasticField).query(val))._toQuery();
@@ -257,13 +261,22 @@ public class ElasticService implements EngineService {
     BoolQuery.Builder emptyRestrictBuilder = new BoolQuery.Builder();
     Query existField = ExistsQuery.of(b -> b.field("base_restrictions.keyword"))._toQuery();
     Query emptyRestrictQuery = emptyRestrictBuilder.mustNot(existField).build()._toQuery();
-    return authQuery.should(compliantField, emptyRestrictQuery).build()._toQuery();
+    // Explicit: this bool is nested in a filter clause, where an implicit minimum_should_match
+    // would silently make the ACL match everything.
+    return authQuery
+        .should(compliantField, emptyRestrictQuery)
+        .minimumShouldMatch("1")
+        .build()
+        ._toQuery();
   }
 
   private Query queryFromSearch(String search) {
-    QueryStringQuery.Builder queryStringQuery = new QueryStringQuery.Builder();
-    queryStringQuery.query(search).analyzeWildcard(true).fields(BASE_FIELDS);
-    return queryStringQuery.build()._toQuery();
+    String text = search.trim();
+    Query byText =
+        MatchBoolPrefixQuery.of(m -> m.field(SEARCH_TEXT_FIELD).query(text).operator(Operator.And))
+            ._toQuery();
+    Query byId = TermQuery.of(t -> t.field(SEARCH_ID_FIELD).value(FieldValue.of(text)))._toQuery();
+    return BoolQuery.of(b -> b.should(byText, byId).minimumShouldMatch("1"))._toQuery();
   }
 
   private Query queryFromFilter(
@@ -286,6 +299,7 @@ public class ElasticService implements EngineService {
   }
 
   private Query buildQuery(
+      TxCtx ctx,
       RawUserAuth user,
       String search,
       Filters.FilterGroup groupFilter,
@@ -317,24 +331,54 @@ public class ElasticService implements EngineService {
         dataQueryBuilder.should(shouldList).minimumShouldMatch("1").build()._toQuery();
     mainMust.add(dataQuery);
 
-    // Filter by current tenant: match tenant-scoped documents belonging to this tenant,
-    // or platform-level documents that have no tenant field at all.
-    Query matchesTenant =
-        TermQuery.of(
-                t -> t.field("base_tenant_side.keyword").value(TenantContext.getCurrentTenant()))
-            ._toQuery();
+    Query tenantFilter = tenantFilter(ctx);
+    if (tenantFilter != null) {
+      mainQuery.filter(tenantFilter);
+    }
+    return mainQuery.must(mainMust).build()._toQuery();
+  }
+
+  /**
+   * The read side of the v2 tenant scope: applied from the {@link TxCtx} the request already
+   * carries, the same one the transaction aspect writes to {@code app.current_tenants} for the SQL
+   * side. There is no separate code path a caller could use to build its own query and reach the
+   * engine with a wider scope: every public entry point funnels through {@link #buildQuery}, which
+   * always calls this method.
+   *
+   * <p>{@link TxCtx.Missing} denies every tenant-scoped document, keeping only documents with no
+   * {@code base_tenant_side} at all (a genuinely platform-level entity, none exist among the
+   * currently indexed models). {@link TxCtx.Restricted} matches its explicit tenant ids, or a
+   * tenant-less document. {@link TxCtx.AllTenants} returns {@code null}: no filter is added, so
+   * every document matches regardless of its tenant.
+   *
+   * @return the filter query, or {@code null} when the scope is {@link TxCtx.AllTenants} and no
+   *     filter should be applied
+   */
+  private Query tenantFilter(TxCtx ctx) {
+    if (ctx instanceof TxCtx.AllTenants) {
+      return null;
+    }
     Query noTenantField =
         BoolQuery.of(
                 b -> b.mustNot(ExistsQuery.of(e -> e.field("base_tenant_side.keyword"))._toQuery()))
             ._toQuery();
-    Query tenantFilter =
-        BoolQuery.of(b -> b.should(matchesTenant, noTenantField).minimumShouldMatch("1"))
+    if (ctx instanceof TxCtx.Missing) {
+      return noTenantField;
+    }
+    List<FieldValue> tenantValues =
+        ((TxCtx.Restricted) ctx).tenantIds().stream().map(FieldValue::of).toList();
+    Query matchesTenant =
+        TermsQuery.of(
+                t ->
+                    t.field("base_tenant_side.keyword")
+                        .terms(TermsQueryField.of(tq -> tq.value(tenantValues))))
             ._toQuery();
-    mainQuery.filter(tenantFilter);
-    return mainQuery.must(mainMust).build()._toQuery();
+    return BoolQuery.of(b -> b.should(matchesTenant, noTenantField).minimumShouldMatch("1"))
+        ._toQuery();
   }
 
-  private Map<String, String> resolveIdsRepresentative(RawUserAuth user, List<String> ids) {
+  private Map<String, String> resolveIdsRepresentative(
+      TxCtx ctx, RawUserAuth user, List<String> ids) {
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     Filters.Filter filter = new Filters.Filter();
     filter.setKey("base_id");
@@ -342,7 +386,7 @@ public class ElasticService implements EngineService {
     filter.setValues(ids);
     filter.setMode(Filters.FilterMode.or);
     filterGroup.setFilters(List.of(filter));
-    Query query = buildQuery(user, null, filterGroup, new HashMap<>(), new HashMap<>());
+    Query query = buildQuery(ctx, user, null, filterGroup, new HashMap<>(), new HashMap<>());
     try {
       SearchResponse<EsBase> response =
           elasticClient.search(
@@ -373,9 +417,10 @@ public class ElasticService implements EngineService {
                   String index = model.getIndex(engineConfig);
                   Instant fetchInstant =
                       indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
+                  String fetchId = indexingStatus.map(IndexingStatus::getLastId).orElse(null);
                   long fetchStart = System.currentTimeMillis();
                   List<? extends EsBase> results =
-                      handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
+                      handler.fetch(fetchInstant, fetchId, engineConfig.getIndexingBatchSize());
                   long fetchMs = System.currentTimeMillis() - fetchStart;
                   if (fetchMs > 1000) {
                     log.warn(
@@ -393,6 +438,13 @@ public class ElasticService implements EngineService {
                               op.index(
                                   idx ->
                                       idx.index(index).id(result.getBase_id()).document(result)));
+                    }
+                    // The snapshot export reads its window off the cursor persisted below, so these
+                    // documents must be searchable before it moves: one still waiting for a
+                    // refresh, on another shard say, would sit behind a later one already served
+                    // and the client's cursor would pass it for good.
+                    if (handler.isKeysetPaged()) {
+                      br.refresh(Refresh.WaitFor);
                     }
                     // Execute the bulk
                     try {
@@ -436,17 +488,32 @@ public class ElasticService implements EngineService {
                             fetchInstant);
                       }
                       // Update the status for the next round
-                      Instant newCursor =
-                          EsIndexingUtils.computeNewCursor(
-                              results, engineConfig.getIndexingBatchSize(), model.getName(), log);
+                      IndexingCursor newCursor;
+                      if (handler.isKeysetPaged()) {
+                        newCursor = EsIndexingUtils.computeKeysetCursor(results);
+                      } else {
+                        Instant timestamp =
+                            EsIndexingUtils.computeNewCursor(
+                                results, engineConfig.getIndexingBatchSize(), model.getName(), log);
+                        newCursor = timestamp == null ? null : new IndexingCursor(timestamp, null);
+                      }
                       if (newCursor == null) {
                         log.error(
-                            "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={})",
+                            "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={}, last_row_id={})",
                             model.getName(),
-                            fetchInstant);
+                            fetchInstant,
+                            results.getLast().getBase_id());
                         return null;
                       }
-                      if (fetchInstant != null && !newCursor.isAfter(fetchInstant)) {
+                      boolean cursorAdvanced =
+                          fetchInstant == null
+                              || newCursor.timestamp().isAfter(fetchInstant)
+                              || (handler.isKeysetPaged()
+                                  && newCursor.timestamp().equals(fetchInstant)
+                                  && newCursor.lastId() != null
+                                  && (fetchId == null
+                                      || newCursor.lastId().compareTo(fetchId) > 0));
+                      if (fetchInstant != null && !cursorAdvanced) {
                         log.error(
                             "Stuck cursor detected for model {} — cursor did not advance (from={}, last_row={}). "
                                 + "This indicates a query bug: ranked rows have sort_ts <= cursor.",
@@ -459,14 +526,16 @@ public class ElasticService implements EngineService {
                       // forever (the fetch is strictly greater-than). Keep the cursor at least the
                       // grace window behind wall-clock; recent rows are re-fetched and re-upserted
                       // (idempotent) on every round until they age past the window.
-                      Instant persistedCursor =
-                          EsIndexingUtils.capCursorToGraceWindow(
+                      IndexingCursor persistedCursor =
+                          EsIndexingUtils.capToGraceWindow(
                               newCursor,
                               Instant.now(),
                               engineConfig.getIndexingGraceWindowSeconds());
-                      if (persistedCursor.equals(fetchInstant)) {
+                      if (persistedCursor.timestamp().equals(fetchInstant)
+                          && Objects.equals(persistedCursor.lastId(), fetchId)) {
                         // The cap lands exactly on the current cursor: persisting would be a
-                        // no-op, keep it and re-process those rows next round.
+                        // no-op, keep it and re-process those rows next round. The id is part of
+                        // the comparison because a keyset batch can advance on the id alone.
                         return null;
                       }
                       // persistedCursor may be BEHIND fetchInstant when the stored cursor is
@@ -477,7 +546,9 @@ public class ElasticService implements EngineService {
                       // entity: the write below is a compare-and-set on that value, and mutating
                       // the entity loaded at the start of the round would flush a plain UPDATE.
                       return new EsIndexingUtils.CursorAdvance(
-                          model.getName(), fetchInstant, persistedCursor);
+                          model.getName(),
+                          fetchInstant == null ? null : new IndexingCursor(fetchInstant, fetchId),
+                          persistedCursor);
                     } catch (IOException e) {
                       log.error(
                           String.format("bulkParallelProcessing exception: %s", e.getMessage()), e);
@@ -665,12 +736,13 @@ public class ElasticService implements EngineService {
   // endregion
 
   // region query
-  public EsCountInterval count(RawUserAuth user, CountRuntime runtime) {
+  public EsCountInterval count(TxCtx ctx, RawUserAuth user, CountRuntime runtime) {
     FlatConfiguration widgetConfig = runtime.getConfig();
 
     try {
       Query countQuery =
           buildQuery(
+              ctx,
               user,
               null,
               runtime
@@ -730,12 +802,13 @@ public class ElasticService implements EngineService {
     return new EsCountInterval(0L, 0L, 0L);
   }
 
-  public EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime) {
+  public EsAvgs average(TxCtx ctx, RawUserAuth user, AverageRuntime averageRuntime) {
     AverageConfiguration widgetConfig = averageRuntime.getConfig();
 
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     Query filterQuery =
         buildQuery(
+            ctx,
             user,
             null,
             averageRuntime.getConfig().getSeries().getFirst().getFilter(),
@@ -798,7 +871,7 @@ public class ElasticService implements EngineService {
       Buckets<StringTermsBucket> domainBuckets =
           response.aggregations().get(domainAggregationKey).sterms().buckets();
 
-      return averageSTerms(domainBuckets, user, typeAggregationKey, statusAggregationKey);
+      return averageSTerms(ctx, domainBuckets, user, typeAggregationKey, statusAggregationKey);
 
     } catch (Exception e) {
       log.error(String.format("Elastic client failed to aggregate data: %s", e.getMessage()), e);
@@ -807,6 +880,7 @@ public class ElasticService implements EngineService {
   }
 
   private EsAvgs averageSTerms(
+      @NotNull final TxCtx ctx,
       @NotNull Buckets<StringTermsBucket> domainBuckets,
       @NotNull final RawUserAuth user,
       String typeAggregationKey,
@@ -817,7 +891,7 @@ public class ElasticService implements EngineService {
             .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
             .distinct()
             .toList();
-    resolutions.putAll(resolveIdsRepresentative(user, ids));
+    resolutions.putAll(resolveIdsRepresentative(ctx, user, ids));
 
     List<EsDomainsAvgData> data =
         domainBuckets.array().stream()
@@ -855,6 +929,7 @@ public class ElasticService implements EngineService {
   }
 
   public EsSeries termHistogram(
+      TxCtx ctx,
       RawUserAuth user,
       StructuralHistogramWidget widgetConfig,
       Series config,
@@ -863,7 +938,7 @@ public class ElasticService implements EngineService {
 
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     Query filterQuery =
-        buildQuery(user, null, config.getFilter(), parameters, definitionParameters);
+        buildQuery(ctx, user, null, config.getFilter(), parameters, definitionParameters);
     Query query;
     if (isAllTime(widgetConfig, parameters, definitionParameters)) {
       query = queryBuilder.must(filterQuery).build()._toQuery();
@@ -911,7 +986,7 @@ public class ElasticService implements EngineService {
           || propertyField.getType() == Boolean.class) {
         return termHistogramLTerms(config, aggregate);
       } else {
-        return termHistogramSTerms(user, config, aggregate, field);
+        return termHistogramSTerms(ctx, user, config, aggregate, field);
       }
     } catch (Exception e) {
       log.error(String.format("termHistogram exception: %s", e.getMessage()), e);
@@ -920,6 +995,7 @@ public class ElasticService implements EngineService {
   }
 
   private EsSeries termHistogramSTerms(
+      @NotNull final TxCtx ctx,
       @NotNull final RawUserAuth user,
       @NotNull final Series config,
       @NotNull final Aggregate aggregate,
@@ -933,7 +1009,7 @@ public class ElasticService implements EngineService {
               .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
               .distinct()
               .toList();
-      resolutions.putAll(resolveIdsRepresentative(user, ids));
+      resolutions.putAll(resolveIdsRepresentative(ctx, user, ids));
     }
     List<EsSeriesData> data =
         buckets.array().stream()
@@ -976,15 +1052,18 @@ public class ElasticService implements EngineService {
     return new EsSeries(config.getName(), data);
   }
 
-  public List<EsSeries> multiTermHistogram(RawUserAuth user, StructuralHistogramRuntime runtime) {
+  public List<EsSeries> multiTermHistogram(
+      TxCtx ctx, RawUserAuth user, StructuralHistogramRuntime runtime) {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
-        .map(c -> termHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
+        .map(
+            c -> termHistogram(ctx, user, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
 
   public EsSeries dateHistogram(
+      TxCtx ctx,
       RawUserAuth user,
       DateHistogramWidget widgetConfig,
       Series config,
@@ -993,7 +1072,7 @@ public class ElasticService implements EngineService {
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
 
     Query filterQuery =
-        buildQuery(user, null, config.getFilter(), parameters, definitionParameters);
+        buildQuery(ctx, user, null, config.getFilter(), parameters, definitionParameters);
 
     Instant finalStart = calcStartDate(widgetConfig, parameters, definitionParameters);
     Instant finalEnd = calcEndDate(widgetConfig, parameters, definitionParameters);
@@ -1051,15 +1130,17 @@ public class ElasticService implements EngineService {
     return new EsSeries(config.getName());
   }
 
-  public List<EsSeries> multiDateHistogram(RawUserAuth user, DateHistogramRuntime runtime) {
+  public List<EsSeries> multiDateHistogram(
+      TxCtx ctx, RawUserAuth user, DateHistogramRuntime runtime) {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
-        .map(c -> dateHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
+        .map(
+            c -> dateHistogram(ctx, user, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
 
-  public EsEntities entities(RawUserAuth user, ListRuntime runtime) {
+  public EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime) {
     Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
     String entityName =
         searchFilters.getFilters().stream()
@@ -1097,7 +1178,12 @@ public class ElasticService implements EngineService {
     ListConfiguration widgetConfig = runtime.getWidget();
     Query listQuery =
         buildQuery(
-            user, "", searchFilters, runtime.getParameters(), runtime.getDefinitionParameters());
+            ctx,
+            user,
+            "",
+            searchFilters,
+            runtime.getParameters(),
+            runtime.getDefinitionParameters());
     try {
       Query query;
       if (isAllTime(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters())) {
@@ -1149,6 +1235,94 @@ public class ElasticService implements EngineService {
     return model.get().getModel();
   }
 
+  @Override
+  @SuppressWarnings("unchecked")
+  public <T extends EsBase> List<T> searchCursorPaged(
+      RawUserAuth user, Class<T> model, CursorPageQuery query) {
+    if (query.size() <= 0 || query.size() > CURSOR_PAGE_MAX_SIZE) {
+      throw new IllegalArgumentException(
+          "size must be in [1, " + CURSOR_PAGE_MAX_SIZE + "], was " + query.size());
+    }
+    EsModel<T> esModel =
+        searchEngine.getModels().stream()
+            .filter(candidate -> model.equals(candidate.getModel()))
+            .findAny()
+            .map(candidate -> (EsModel<T>) candidate)
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException("Model not registered: " + model.getSimpleName()));
+    String index = esModel.getIndex(engineConfig);
+
+    // Every Instant bound is truncated here, once, so the query cannot disagree with the
+    // millisecond resolution of the engine's `date` field (base_updated_at is not date_nanos).
+    Instant windowEnd = query.windowEnd().truncatedTo(ChronoUnit.MILLIS);
+    Instant since = query.since() != null ? query.since().truncatedTo(ChronoUnit.MILLIS) : null;
+    CursorPageQuery.Keyset after = query.after();
+
+    List<Query> filters = new ArrayList<>();
+    // Strict tenant match: snapshot streams always extend EsTenantBase, so unlike buildQuery there
+    // is no "no tenant field" escape branch here.
+    filters.add(
+        TermQuery.of(t -> t.field("base_tenant_side.keyword").value(query.tenantId()))._toQuery());
+    filters.add(
+        DateRangeQuery.of(d -> d.field("base_updated_at").lte(String.valueOf(windowEnd)))
+            ._toRangeQuery()
+            ._toQuery());
+    if (since != null) {
+      filters.add(
+          DateRangeQuery.of(d -> d.field("base_updated_at").gte(String.valueOf(since)))
+              ._toRangeQuery()
+              ._toQuery());
+    }
+    if (after != null) {
+      Instant afterTs = after.ts().truncatedTo(ChronoUnit.MILLIS);
+      filters.add(
+          buildKeysetPredicate("base_updated_at", toElasticField("base_id"), afterTs, after.id()));
+    }
+    // issue/3768: buildQueryRestrictions is otherwise dead code (its call site in buildQuery is
+    // commented out); it is re-enabled here only, because an unfiltered export would leak across
+    // grants. A null user (the caller resolved a grant bypass) and an admin user both skip it.
+    Query restrictionQuery = user == null ? null : buildQueryRestrictions(user);
+    if (restrictionQuery != null) {
+      filters.add(restrictionQuery);
+    }
+    Query finalQuery = BoolQuery.of(b -> b.filter(filters))._toQuery();
+
+    // base_id is `text` with a normalized (lowercase/asciifolding, ignore_above:512) `.keyword`
+    // subfield: sorting on the raw text field fails at query time. The sort order therefore
+    // matches the client's cursor only because every snapshot base_id is md5 hex, already
+    // lowercase ASCII and 32 chars long.
+    List<SortOptions> sorts =
+        List.of(
+            SortOptions.of(
+                so ->
+                    so.field(FieldSort.of(fs -> fs.field("base_updated_at").order(SortOrder.Asc)))),
+            SortOptions.of(
+                so ->
+                    so.field(
+                        FieldSort.of(
+                            fs -> fs.field(toElasticField("base_id")).order(SortOrder.Asc)))));
+
+    try {
+      SearchResponse<T> response =
+          elasticClient.search(
+              b ->
+                  b.index(index)
+                      // The index exists from startup, but cleanUpIndex drops it and its template
+                      // until the next write: a momentarily absent stream pages as empty.
+                      .ignoreUnavailable(true)
+                      .allowNoIndices(true)
+                      .size(query.size())
+                      .query(finalQuery)
+                      .sort(sorts),
+              model);
+      return response.hits().hits().stream().map(Hit::source).filter(Objects::nonNull).toList();
+    } catch (IOException e) {
+      log.error("searchCursorPaged exception: {}", e.getMessage(), e);
+      throw new AnalyticsEngineException("searchCursorPaged failed", e);
+    }
+  }
+
   /**
    * Create a list configuration for the given entity name and filter value map.
    *
@@ -1184,8 +1358,9 @@ public class ElasticService implements EngineService {
     return listConfiguration;
   }
 
-  public List<EsSearch> search(RawUserAuth user, String search, Filters.FilterGroup filter) {
-    Query query = buildQuery(user, search, filter, new HashMap<>(), new HashMap<>());
+  public List<EsSearch> search(
+      TxCtx ctx, RawUserAuth user, String search, Filters.FilterGroup filter) {
+    Query query = buildQuery(ctx, user, search, filter, new HashMap<>(), new HashMap<>());
     try {
       SearchResponse<EsSearch> response =
           elasticClient.search(

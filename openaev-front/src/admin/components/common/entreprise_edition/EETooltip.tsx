@@ -1,10 +1,12 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
-import { type ReactElement, useContext, useState } from 'react';
+// fds:keep-mui the Enterprise Edition upsell tooltip stays out of this wave by ruling
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
+import { type ReactElement, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import useAI from '../../../../utils/hooks/useAI';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 const EETooltip = ({
@@ -17,7 +19,7 @@ const EETooltip = ({
   forAi?: boolean;
 }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const { openDialog: openEnterpriseEditionDialog } = useEnterpriseEdition();
   const [openEnableAI, setOpenEnableAI] = useState(false);
@@ -61,7 +63,7 @@ const EETooltip = ({
             {t('To use AI, please enable it in the configuration of your platform.')}
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={() => setOpenEnableAI(false)}>{t('Close')}</Button>
+            <Button type="button" priority="secondary" onClick={() => setOpenEnableAI(false)}>{t('Close')}</Button>
           </DialogActions>
         </Dialog>
       </>
@@ -94,7 +96,7 @@ const EETooltip = ({
             {t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.')}
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={() => setOpenConfigAI(false)}>{t('Close')}</Button>
+            <Button type="button" priority="secondary" onClick={() => setOpenConfigAI(false)}>{t('Close')}</Button>
           </DialogActions>
         </Dialog>
       </>

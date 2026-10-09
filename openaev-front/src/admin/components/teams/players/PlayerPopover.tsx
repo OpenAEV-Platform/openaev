@@ -1,10 +1,11 @@
-import { Button, Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { deletePlayer, updatePlayer } from '../../../../actions/users/User';
-import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type PopoverEntry, type VariantButtonPopover } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
@@ -13,13 +14,16 @@ import { useHelper } from '../../../../store';
 import { type PlayerInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { countryOption, type Option, organizationOption, tagOptions } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { TeamContext } from '../../common/Context';
 import { type PlayerInputForm, type UserStore } from './Player';
 import PlayerForm from './PlayerForm';
 
 interface PlayerPopoverProps {
+  /** Placement, forwarded to the kebab: `icon` in a list row, `toggle` in a
+      detail header, where the controls are 36px. */
+  variant?: VariantButtonPopover;
   user: UserStore;
   teamId?: string;
   openEditOnInit?: boolean;
@@ -28,6 +32,7 @@ interface PlayerPopoverProps {
 }
 
 const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
+  variant = 'icon',
   user,
   teamId,
   openEditOnInit = false,
@@ -36,7 +41,7 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
 }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const { organizationsMap, tagsMap, currentUser } = useHelper(
     (
@@ -157,7 +162,7 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
 
   return (
     <div>
-      <ButtonPopover entries={entries} variant="icon" />
+      <ButtonPopover entries={entries} variant={variant} />
       <DialogDelete
         open={openDelete}
         handleClose={handleCloseDelete}
@@ -188,8 +193,8 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitRemove}>
+          <Button type="button" priority="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button type="button" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

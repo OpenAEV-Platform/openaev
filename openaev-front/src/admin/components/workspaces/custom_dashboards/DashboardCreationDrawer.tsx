@@ -1,4 +1,6 @@
-import { Box, Button, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Button } from '@filigran/design-system';
+// fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
+import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import Drawer from '../../../../components/common/Drawer';
@@ -98,13 +100,8 @@ const DashboardCreationDrawer: FunctionComponent<Props> = ({
                   mt: 2,
                 }}
                 >
-                  <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    disabled={!existingDashboardId}
-                    onClick={() => onSelectExisting(existingDashboardId)}
-                  >
+                  <Button type="button" priority="secondary" onClick={handleClose}>{t('Cancel')}</Button>
+                  <Button type="button" disabled={!existingDashboardId} onClick={() => onSelectExisting(existingDashboardId)}>
                     {t('Continue')}
                   </Button>
                 </Box>

@@ -585,6 +585,9 @@ public class Exercise implements GrantableBase, TenantBase {
       return false;
     }
     Base base = (Base) o;
+    if (base.getId() == null || this.getId() == null) {
+      return false;
+    }
     return id.equals(base.getId());
   }
 

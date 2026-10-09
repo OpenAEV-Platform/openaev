@@ -15,7 +15,11 @@ import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -173,7 +177,9 @@ public class TenantIsolationTestHelper {
    * {@code @Transactional} test (the dominant two-tenant {@code @BeforeEach} idiom) leaves the
    * scope pinned to whichever tenant was created LAST. Onboarding also sets {@link TenantContext},
    * so restore both scopes here; otherwise a later request can target the tenant created only for
-   * test data instead of the caller's original tenant.
+   * test data instead of the caller's original tenant. The database scope is restored with the new
+   * tenant added, so the test can seed data in it (each MockMvc request starts from a cleared scope
+   * anyway, see {@code RequestTenantScopeTestConfiguration}).
    *
    * @param name the tenant name
    * @return the persisted {@link Tenant}
@@ -181,13 +187,14 @@ public class TenantIsolationTestHelper {
   public Tenant createTenant(String name) throws DependenciesManagerException {
     boolean hadTenant = TenantContext.hasCurrentTenant();
     String previousTenantId = hadTenant ? TenantContext.getCurrentTenant() : null;
+    String previousScope = ambientScope();
     Tenant tenant =
         TenantFixture.getTenant(name + "-" + UUID.randomUUID().toString().substring(0, 8));
     try {
       return tenantService.create(tenant);
     } finally {
       try {
-        resetLeftoverOnboardingScope();
+        restoreScopeWith(previousScope, tenant.getId());
       } finally {
         if (hadTenant) {
           TenantContext.setCurrentTenant(previousTenantId);
@@ -199,14 +206,48 @@ public class TenantIsolationTestHelper {
   }
 
   /**
-   * Resets the {@code app.current_tenants} transaction-local setting left behind by tenant
-   * onboarding (see {@link #createTenant}'s javadoc). A no-op outside an active transaction or when
-   * nothing was ever set.
+   * The current tenant scope when it is still the test's ambient one (see {@link
+   * DefaultTenantScopeTestListener}), empty otherwise: an unscoped test, or one that set its own
+   * scope.
    */
-  private void resetLeftoverOnboardingScope() {
-    entityManager
-        .createNativeQuery("SELECT set_config('app.current_tenants', '', true)")
-        .getSingleResult();
+  private String ambientScope() {
+    return (String)
+        entityManager
+            .createNativeQuery(
+                "SELECT CASE WHEN current_setting('app.current_tenants', true)"
+                    + " = current_setting('"
+                    + DefaultTenantScopeTestListener.AMBIENT_SCOPE_SETTING
+                    + "', true) THEN coalesce(current_setting('app.current_tenants', true), '')"
+                    + " ELSE '' END")
+            .setFlushMode(FlushModeType.COMMIT)
+            .getSingleResult();
+  }
+
+  /**
+   * Replaces the {@code app.current_tenants} transaction-local setting left behind by tenant
+   * onboarding (see {@link #createTenant}'s javadoc): the test's ambient scope plus the created
+   * tenant when the test ran in it, empty otherwise. A no-op outside an active transaction.
+   */
+  private void restoreScopeWith(String previousScope, String createdTenantId) {
+    Set<String> tenants = new LinkedHashSet<>();
+    // Only the ambient scope is extended with the new tenant; anything else is reset, as it always
+    // was (an unscoped test stays unscoped, a test that set its own scope sets it again).
+    if (!previousScope.isEmpty()) {
+      tenants.addAll(Arrays.asList(previousScope.split(",")));
+      if (createdTenantId != null) {
+        tenants.add(createdTenantId);
+      }
+    }
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, String.join(",", tenants));
+  }
+
+  /**
+   * Clears the tenant scope of the current transaction, for a test whose premise is an unscoped
+   * read (the test transaction otherwise runs in the default tenant's scope, see {@link
+   * DefaultTenantScopeTestListener}).
+   */
+  public void clearScope() {
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, "");
   }
 
   /**
@@ -235,12 +276,15 @@ public class TenantIsolationTestHelper {
   /**
    * Removes tenants that were COMMITTED by a non-transactional test class (tests around the
    * background transaction primitive cannot run inside a test transaction, so nothing rolls back).
-   * Deletes the one tenant child without ON DELETE CASCADE ({@code collector_types}) first; every
-   * other tenant-scoped row cascades with the tenant. Null ids are skipped so a partially failed
-   * setup still cleans what it managed to create. Table-specific rows the caller created (and any
-   * join table without a cascading FK) must be removed by the caller BEFORE this call. External
-   * residue (per-tenant broker queues) cannot be removed here; that is the suite-wide pre-existing
-   * pattern for service-created tenants.
+   * Deletes the tenant children without ON DELETE CASCADE first, in FK order: {@code collectors}
+   * references {@code collector_types} via {@code fk_collector_type_ref} with no cascade (migration
+   * V4_92), so a tenant onboarded through the normal flow (which seeds a default collector
+   * referencing its own collector type) fails the {@code collector_types} delete unless its {@code
+   * collectors} row is gone first. Every other tenant-scoped row cascades with the tenant. Null ids
+   * are skipped so a partially failed setup still cleans what it managed to create. Table-specific
+   * rows the caller created (and any join table without a cascading FK) must be removed by the
+   * caller BEFORE this call. External residue (per-tenant broker queues) cannot be removed here;
+   * that is the suite-wide pre-existing pattern for service-created tenants.
    */
   @Transactional
   public void deleteCommittedTenants(String... tenantIds) {
@@ -248,6 +292,10 @@ public class TenantIsolationTestHelper {
       if (tenantId == null) {
         continue;
       }
+      entityManager
+          .createNativeQuery("DELETE FROM collectors WHERE tenant_id = :id")
+          .setParameter("id", tenantId)
+          .executeUpdate();
       entityManager
           .createNativeQuery("DELETE FROM collector_types WHERE tenant_id = :id")
           .setParameter("id", tenantId)

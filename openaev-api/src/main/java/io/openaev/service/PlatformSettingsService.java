@@ -31,6 +31,7 @@ import io.openaev.rest.settings.response.OAuthProvider;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.rest.settings.response.PublicPlatformSettings;
 import io.openaev.rest.stream.ai.AiConfig;
+import io.openaev.utils.InstanceCreationDate;
 import io.openaev.xtmhub.XtmHubConnectivityService;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import io.openaev.xtmone.XtmOneConfig;
@@ -38,6 +39,7 @@ import io.openaev.xtmone.XtmOneIdentity;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -45,8 +47,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientProperties;
-import org.springframework.boot.autoconfigure.security.saml2.Saml2RelyingPartyProperties;
+import org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientProperties;
+import org.springframework.boot.security.saml2.autoconfigure.Saml2RelyingPartyProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -313,6 +315,8 @@ public class PlatformSettingsService {
     platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
     platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
     platformSettings.setPlatformVersion(openAEVConfig.getVersion());
+    platformSettings.setPlatformCommit(
+        StringUtils.hasText(openAEVConfig.getCommit()) ? openAEVConfig.getCommit() : null);
     platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
     // Where the browser opens XTM One: its published identity, not an internal address.
     platformSettings.setXtmOneUrl(xtmOneIdentity.browserUrl());
@@ -386,6 +390,20 @@ public class PlatformSettingsService {
     return openAEVConfig.getVersion();
   }
 
+  /**
+   * Get this instance's creation date, written once at first startup (see {@link
+   * InstanceCreationDate}). It bounds the validity of a {@code ci} XTM license, which must not
+   * outlive the pipeline that created the instance.
+   *
+   * @return the creation date, or empty when it is missing or unreadable
+   */
+  public Optional<Instant> findInstanceCreationDate() {
+    return this.settingRepository
+        .findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key())
+        .map(Setting::getValue)
+        .flatMap(InstanceCreationDate::parse);
+  }
+
   public Map<String, Setting> findSettingsByKeys(List<String> keys) {
     return mapOfSettings(this.settingRepository.findAllByKeyInAndTenantIsNull(keys));
   }
@@ -410,6 +428,8 @@ public class PlatformSettingsService {
     themeInput.setAccentColor(
         getValueFromMapOfSettings(
             dbSettings, themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key()));
+    themeInput.setTextColor(
+        getValueFromMapOfSettings(dbSettings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key()));
     themeInput.setLogoUrl(
         getValueFromMapOfSettings(dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key()));
     themeInput.setLogoLoginUrl(
@@ -542,6 +562,9 @@ public class PlatformSettingsService {
             dbSettings,
             themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key(),
             input.getAccentColor()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key(), input.getTextColor()));
     settingsToSave.add(
         resolveFromMap(
             dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key(), input.getLogoUrl()));

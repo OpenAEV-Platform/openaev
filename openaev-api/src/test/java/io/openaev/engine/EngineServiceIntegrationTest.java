@@ -3,13 +3,20 @@ package io.openaev.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Filters;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
 import io.openaev.engine.facade.EngineService;
+import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.EsEntities;
 import io.openaev.utils.CustomDashboardTimeRange;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -25,6 +32,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
@@ -43,6 +52,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
   @Autowired private EngineService engineService;
   @Autowired private EngineContext engineContext;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   /** An admin RawUserAuth used to call engineService.entities() directly. */
   private static final RawUserAuth ADMIN_USER =
@@ -75,12 +85,18 @@ class EngineServiceIntegrationTest extends IntegrationTest {
   // Helpers
   // -----------------------------------------------------------------------
 
-  private EsEntities queryEndpoints() {
+  private EsEntities queryEndpoints(TxCtx ctx) {
     ListConfiguration config = engineService.createListConfiguration("asset", Map.of());
     // ALL_TIME avoids the DEFAULT branch that requires a dashboard timeRange parameter
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
     ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 100));
-    return engineService.entities(ADMIN_USER, runtime);
+    return engineService.entities(ctx, ADMIN_USER, runtime);
+  }
+
+  private String persistEndpointForTenant(String tenantId, String name) {
+    Endpoint endpoint = EndpointFixture.createEndpoint(name);
+    endpoint.setTenant(new Tenant(tenantId));
+    return endpointComposer.forEndpoint(endpoint).persist().get().getId();
   }
 
   private void indexAndWait() throws InterruptedException {
@@ -115,7 +131,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
 
       indexAndWait();
 
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as("endpoint should be present in engine before deletion")
           .isEqualTo(1);
 
@@ -123,7 +139,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
       deleteAndWait(List.of(endpointId));
 
       // Assert
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as("endpoint should have been removed from the engine index after bulkDelete")
           .isZero();
     }
@@ -149,7 +165,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
 
       indexAndWait();
 
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as("both endpoints should be present in engine before deletion")
           .isEqualTo(2);
 
@@ -157,7 +173,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
       deleteAndWait(List.of(endpointAId, endpointBId));
 
       // Assert
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as(
               "all endpoints should have been removed from the engine index after"
                   + " bulkDelete with multiple IDs")
@@ -178,7 +194,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
 
       indexAndWait();
 
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as("both endpoints should be present before partial deletion")
           .isEqualTo(2);
 
@@ -186,9 +202,255 @@ class EngineServiceIntegrationTest extends IntegrationTest {
       deleteAndWait(List.of(endpointToDeleteId));
 
       // Assert
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as("only the targeted endpoint should have been deleted; the other must remain")
           .isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant scope (#6462)")
+  class TenantScope {
+
+    @Test
+    @DisplayName(
+        "given two tenants with an indexed asset each, a restricted scope should see only its own"
+            + " tenant's asset")
+    void given_twoTenants_restrictedScope_should_seeOnlyOwnTenantAsset() throws Exception {
+      // Arrange
+      String tenantA = tenantHelper.createTenantWithCurrentUser("engine-scope-tenant-a").getId();
+      String tenantB = tenantHelper.createTenantWithCurrentUser("engine-scope-tenant-b").getId();
+      String endpointAId = persistEndpointForTenant(tenantA, "ep-tenant-a");
+      String endpointBId = persistEndpointForTenant(tenantB, "ep-tenant-b");
+
+      indexAndWait();
+
+      // Act
+      EsEntities tenantARead = queryEndpoints(TxCtx.forTenant(tenantA));
+      EsEntities tenantBRead = queryEndpoints(TxCtx.forTenant(tenantB));
+
+      // Assert: non-empty positive results first, distinguishing "filtered" from "empty"
+      assertThat(tenantARead.getTotal()).as("tenant A scope must see its own asset").isEqualTo(1);
+      assertThat(tenantARead.getEsDatas().getFirst().getBase_id()).isEqualTo(endpointAId);
+      assertThat(tenantBRead.getTotal()).as("tenant B scope must see its own asset").isEqualTo(1);
+      assertThat(tenantBRead.getEsDatas().getFirst().getBase_id()).isEqualTo(endpointBId);
+    }
+
+    @Test
+    @DisplayName("given a missing scope should see no tenant-scoped asset (fail-closed)")
+    void given_missingScope_should_seeNoAsset() throws Exception {
+      // Arrange
+      String tenantA = tenantHelper.createTenantWithCurrentUser("engine-scope-missing-a").getId();
+      persistEndpointForTenant(tenantA, "ep-missing-scope");
+
+      indexAndWait();
+
+      // Sanity: the asset is genuinely indexed and reachable with the right scope, so an empty
+      // result below is a filter, not an empty index.
+      assertThat(queryEndpoints(TxCtx.forTenant(tenantA)).getTotal())
+          .as("sanity: the asset is indexed and visible under its own tenant scope")
+          .isEqualTo(1);
+
+      // Act
+      EsEntities missingRead = queryEndpoints(TxCtx.missing());
+
+      // Assert
+      assertThat(missingRead.getTotal())
+          .as("a missing scope must deny every tenant-scoped document")
+          .isZero();
+    }
+
+    @Test
+    @DisplayName("given an allTenants scope should see every tenant's asset")
+    void given_allTenantsScope_should_seeEveryTenantAsset() throws Exception {
+      // Arrange
+      String tenantA = tenantHelper.createTenantWithCurrentUser("engine-scope-all-a").getId();
+      String tenantB = tenantHelper.createTenantWithCurrentUser("engine-scope-all-b").getId();
+      String endpointAId = persistEndpointForTenant(tenantA, "ep-all-a");
+      String endpointBId = persistEndpointForTenant(tenantB, "ep-all-b");
+
+      indexAndWait();
+
+      // Act
+      EsEntities allTenantsRead = queryEndpoints(TxCtx.allTenants());
+
+      // Assert
+      assertThat(allTenantsRead.getTotal())
+          .as("a platform read must see every tenant's asset")
+          .isEqualTo(2);
+      assertThat(allTenantsRead.getEsDatas())
+          .extracting(EsBase::getBase_id)
+          .containsExactlyInAnyOrder(endpointAId, endpointBId);
+    }
+  }
+
+  @Nested
+  @DisplayName("Free-text search treats its input as a value, never as a query (F408690-40)")
+  class FreeTextSearch {
+
+    // Distinctive tokens: tenant onboarding indexes its own documents (security platforms, ...),
+    // so common words such as "splunk" would not isolate the seeded endpoints.
+    private String tenantA;
+    private String tenantB;
+    private String zorblaxId;
+    private String tenantBZorblaxId;
+
+    @BeforeEach
+    void seedTwoTenants() throws Exception {
+      tenantA = tenantHelper.createTenantWithCurrentUser("engine-search-a").getId();
+      tenantB = tenantHelper.createTenantWithCurrentUser("engine-search-b").getId();
+      zorblaxId = persistEndpointForTenant(tenantA, "zorblax-server");
+      persistEndpointForTenant(tenantA, "quintor-gateway");
+      tenantBZorblaxId = persistEndpointForTenant(tenantB, "zorblax-tenant-b");
+
+      indexAndWait();
+    }
+
+    private List<String> searchIds(String tenantId, String term) {
+      return engineService.search(TxCtx.forTenant(tenantId), ADMIN_USER, term, null).stream()
+          .map(EsSearch::getId)
+          .toList();
+    }
+
+    @Test
+    @DisplayName("a plain term matches the representative of its own tenant's document only")
+    void given_plainTerm_should_matchOwnTenantDocumentOnly() {
+      assertThat(searchIds(tenantA, "zorblax")).containsExactly(zorblaxId);
+      assertThat(searchIds(tenantB, "zorblax")).containsExactly(tenantBZorblaxId);
+    }
+
+    @Test
+    @DisplayName("the last term still matches as a prefix (search-as-you-type)")
+    void given_prefix_should_matchDocument() {
+      assertThat(searchIds(tenantA, "zorb")).containsExactly(zorblaxId);
+    }
+
+    @Test
+    @DisplayName("a whole id matches its document exactly")
+    void given_wholeId_should_matchDocument() {
+      assertThat(searchIds(tenantA, zorblaxId)).containsExactly(zorblaxId);
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @ValueSource(
+        strings = {
+          "*",
+          "?*",
+          "*blax",
+          "zorbl?x",
+          "/.*/",
+          "NOT zorblax",
+          "zorblax OR quintor",
+          "zorblax) OR (*",
+          "base_entity:asset",
+          "base_representative:zorblax",
+          "base_*:*",
+          "_exists_:base_id",
+          "+-=&&||><!(){}[]^\"~*?:\\/"
+        })
+    @DisplayName("Lucene syntax is not evaluated: wildcards, operators and selectors match nothing")
+    void given_luceneSyntax_should_notBeEvaluated(String term) {
+      // With query_string each of these widened the search (match-all, negation, field selector,
+      // leading wildcard); as plain text none of them names a seeded document.
+      assertThat(searchIds(tenantA, term)).isEmpty();
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @ValueSource(
+        strings = {
+          "(((zorblax",
+          "zorblax)))",
+          "\"zorblax",
+          "zorblax~",
+          "-zorblax",
+          "+zorblax",
+          "!zorblax",
+          "zorblax:",
+          "{zorblax]",
+          "zorblax\\"
+        })
+    @DisplayName("reserved characters around a term neither fail nor change what it matches")
+    void given_reservedCharactersAroundTerm_should_matchTermAsText(String term) {
+      // query_string rejected unbalanced grouping/quotes and read "-x" as a negation; as plain text
+      // the decoration is dropped by the analyzer and the term matches as typed.
+      assertThat(searchIds(tenantA, term)).containsExactly(zorblaxId);
+    }
+  }
+
+  @Nested
+  @DisplayName("contains filter matches wildcard characters literally")
+  class ContainsFilter {
+
+    private String zorblaxId;
+    private String metacharId;
+
+    @BeforeEach
+    void seedEndpoints() throws InterruptedException {
+      zorblaxId =
+          endpointComposer
+              .forEndpoint(EndpointFixture.createEndpoint("zorblax-server"))
+              .persist()
+              .get()
+              .getId();
+      metacharId =
+          endpointComposer
+              .forEndpoint(EndpointFixture.createEndpoint("quin*tor?gate\\way"))
+              .persist()
+              .get()
+              .getId();
+
+      indexAndWait();
+    }
+
+    private List<String> filterIds(Filters.FilterOperator operator, String value) {
+      ListConfiguration config = engineService.createListConfiguration("asset", Map.of());
+      config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("asset_name");
+      filter.setMode(Filters.FilterMode.or);
+      filter.setOperator(operator);
+      filter.setValues(List.of(value));
+      config.getPerspective().getFilter().getFilters().add(filter);
+      ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 100));
+      return engineService.entities(TxCtx.allTenants(), ADMIN_USER, runtime).getEsDatas().stream()
+          .map(EsBase::getBase_id)
+          .toList();
+    }
+
+    @Test
+    @DisplayName("a plain value still matches as a substring")
+    void given_plainValue_should_matchSubstring() {
+      assertThat(filterIds(Filters.FilterOperator.contains, "orbla")).containsExactly(zorblaxId);
+    }
+
+    @Test
+    @DisplayName("'*' matches only a name containing a literal '*'")
+    void given_star_should_matchLiteralStarOnly() {
+      assertThat(filterIds(Filters.FilterOperator.contains, "*")).containsExactly(metacharId);
+    }
+
+    @Test
+    @DisplayName("'?' matches only a name containing a literal '?'")
+    void given_questionMark_should_matchLiteralQuestionMarkOnly() {
+      assertThat(filterIds(Filters.FilterOperator.contains, "?")).containsExactly(metacharId);
+    }
+
+    @Test
+    @DisplayName("'?' inside a value is not a single-character wildcard")
+    void given_questionMarkInsideValue_should_notActAsWildcard() {
+      assertThat(filterIds(Filters.FilterOperator.contains, "z?rblax")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a backslash matches literally instead of escaping the next character")
+    void given_backslash_should_matchLiteralBackslash() {
+      assertThat(filterIds(Filters.FilterOperator.contains, "e\\w")).containsExactly(metacharId);
+    }
+
+    @Test
+    @DisplayName("not_contains '*' excludes only the name containing a literal '*'")
+    void given_notContainsStar_should_excludeLiteralStarOnly() {
+      assertThat(filterIds(Filters.FilterOperator.not_contains, "*")).containsExactly(zorblaxId);
     }
   }
 }

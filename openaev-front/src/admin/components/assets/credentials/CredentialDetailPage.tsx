@@ -85,6 +85,7 @@ const CredentialDetailPage = () => {
         title={credential.credential_name}
         action={(
           <CredentialPopover
+            variant="toggle"
             credentialId={credential.credential_id}
             credentialName={credential.credential_name}
             resolveInitialValues={resolveCredentialInitialValues}

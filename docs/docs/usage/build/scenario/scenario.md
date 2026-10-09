@@ -1,6 +1,6 @@
 # Scenario
 
-A Scenario translates a threat context into a reusable sequence of [Injects](../../evaluate/injects/inject-overview.md) that can be simulated repeatedly to track your security posture over time. Scenarios act as templates: define the attack once, then run multiple [Simulations](../../evaluate/simulation/simulation.md) from it.
+A Scenario translates a threat context into a reusable sequence of [Injects](../../run-and-evaluate/injects/inject-overview.md) that can be simulated repeatedly to track your security posture over time. Scenarios act as templates: define the attack once, then run multiple [Simulations](../../run-and-evaluate/simulation/simulation.md) from it.
 
 ## Why use Scenarios?
 
@@ -12,7 +12,7 @@ A Scenario translates a threat context into a reusable sequence of [Injects](../
 
 Navigate to **Scenarios** in the left menu to see all Scenarios. Filter by category, main focus, severity, or tags using the quick filters at the top. Use the search bar to find Scenarios by name.
 
-![Scenario list](./assets/scenario-list.png)
+![Scenario list](assets/scenario-list.png)
 
 ## Create a Scenario
 
@@ -20,7 +20,7 @@ Navigate to **Scenarios** in the left menu to see all Scenarios. Filter by categ
 2. Define the general metadata: name, category, main focus, severity, tags.
 3. Click **Create**.
 
-![Create a Scenario](./assets/scenario-create.png)
+![Create a Scenario](assets/scenario-create.png)
 
 ## Import from XTM Hub
 
@@ -31,7 +31,7 @@ Import pre-built Scenarios from the XTM Hub with a single click:
 3. Browse the XTM Hub, select a Scenario, and click **Deploy in OpenAEV**.
 4. The Scenario appears in your list.
 
-![Import from Hub button](./assets/scenario-import-hub.png)
+![Import from Hub button](assets/scenario-import-hub.png)
 
 ## Define a Scenario
 
@@ -50,7 +50,7 @@ In the **Definition** tab, add the elements that make up the Scenario:
     For chained Scenarios, the Lessons target team list comes from the run scope. For time-based
     Scenarios, it comes from the Scenario teams you configured.
 
-In the **Injects** tab, create the chain of events by adding Injects. See [Inject overview](../../evaluate/injects/inject-overview.md) for the creation workflow.
+In the **Injects** tab, create the chain of events by adding Injects. See [Inject overview](../../run-and-evaluate/injects/inject-overview.md) for the creation workflow.
 
 ## Scenario assistant
 
@@ -68,7 +68,7 @@ The Scenario assistant automates Inject creation based on your selected targets 
 4. Specify how many Injects to create per TTP.
 5. Click **Create injects**.
 
-![Scenario assistant](./assets/scenario-assistant.png)
+![Scenario assistant](assets/scenario-assistant.png)
 
 The assistant generates Injects compatible with your targets' platform architectures. When targets have different architectures (e.g., Linux and Windows), the assistant finds universal Actions or falls back to platform-specific ones. If no matching Action exists, a placeholder Inject is created.
 
@@ -87,8 +87,8 @@ A visual indicator next to the Scenario title shows whether a Simulation is curr
 
 ## What's next?
 
-- [Simulation](../../evaluate/simulation/simulation.md) -- Run and monitor Simulations
-- [Inject overview](../../evaluate/injects/inject-overview.md) -- Create and configure Injects
+- [Simulation](../../run-and-evaluate/simulation/simulation.md) -- Run and monitor Simulations
+- [Inject overview](../../run-and-evaluate/injects/inject-overview.md) -- Create and configure Injects
 - [Scenario generation from OpenCTI](security-coverage.md) -- Auto-generate Scenarios from threat intelligence
 - [Scenario import](scenario-import.md) -- Import Injects from XLS files
 - [Threat Arsenal](../threat-arsenals/threat-arsenals.md) -- Browse and create Actions

@@ -1,9 +1,8 @@
+import { Button } from '@filigran/design-system';
 import { ChevronRight } from '@mui/icons-material';
-import { type Theme } from '@mui/material';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SxProps } from '@mui/system';
 import type React from 'react';
+import { type ComponentProps } from 'react';
 
 import type { LoggedHelper } from '../../../actions/helper';
 import { useHelper } from '../../../store';
@@ -35,15 +34,20 @@ const TOPBANNER_COLORS = {
 
 export type TopBannerColor = keyof typeof TOPBANNER_COLORS;
 
+// The library declares the token union for `Button`'s colour override but does
+// not export it (LIBRARY-FEEDBACK #61), so it is read off the prop itself.
+export type BannerButtonColor = NonNullable<ComponentProps<typeof Button>['color']>;
+
 interface TopBannerProps {
   bannerText: React.ReactNode;
   bannerColor?: TopBannerColor;
   buttonText?: React.ReactNode;
-  buttonStyle?: SxProps<Theme>;
+  /** Primitive token the action button is filled with, matching the band it sits on. */
+  buttonColor?: BannerButtonColor;
   onButtonClick?: () => void;
 }
 
-const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonStyle, onButtonClick }: TopBannerProps) => {
+const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonColor, onButtonClick }: TopBannerProps) => {
   const theme = useTheme();
   const { settings } = useHelper((helper: LoggedHelper) => {
     return { settings: helper.getPlatformSettings() };
@@ -58,7 +62,7 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
     <div style={{
       position: 'fixed',
       zIndex: 1202,
-      color: '#000000',
+      color: 'var(--text-negative-primary)',
       width: '100%',
       padding: theme.spacing(0.5),
       borderRadius: 0,
@@ -74,20 +78,11 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
       </span>
       { buttonText && (
         <Button
-          variant="contained"
+          size="sm"
+          color={buttonColor}
           onClick={onButtonClick}
-          sx={{
-            'marginLeft': theme.spacing(1),
-            'padding': theme.spacing('1px', '6px'),
-            'fontSize': '0.8rem',
-            'textTransform': 'none',
-            'lineHeight': 1.2,
-            'backgroundColor': theme.palette.common.white,
-            'color': theme.palette.common.black,
-            '& .MuiButton-endIcon': { marginLeft: theme.spacing('2px') },
-            ...buttonStyle,
-          }}
-          endIcon={<ChevronRight />}
+          endIcon={<ChevronRight fontSize="small" />}
+          style={{ marginLeft: theme.spacing(1) }}
         >
           {buttonText}
         </Button>
