@@ -10,7 +10,7 @@
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>3.261005.0</version>
+    <version>3.261009.0</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -52,6 +52,7 @@
         <micrometer.version>1.17.1</micrometer.version>
         <micrometer-tracing.version>1.7.1</micrometer-tracing.version>
         <freemarker.version>2.3.35</freemarker.version>
+        <postgresql.version>42.7.14</postgresql.version>
     </properties>
 
     <distributionManagement>
