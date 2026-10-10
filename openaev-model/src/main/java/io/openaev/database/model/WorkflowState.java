@@ -1,15 +1,18 @@
 package io.openaev.database.model;
 
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
+/**
+ * Global (no step template) or local (per step template) execution state of a workflow run. The
+ * state content lives in {@code workflow_state_entries} rows (ADR-011); the legacy {@code
+ * workflow_state_entries} JSONB column is no longer mapped and is dropped in the next release.
+ */
 @Entity
 @Table(
     name = "workflow_states",
@@ -31,11 +34,6 @@ public class WorkflowState implements Base {
   @EqualsAndHashCode.Include
   @Schema(description = "ID of the workflow")
   private String id;
-
-  @Type(JsonType.class)
-  @Column(name = "workflow_state_entries", columnDefinition = "jsonb")
-  // @Convert(converter = WorkflowStateEntriesConverter.class)
-  private String entries; // This maps to StateEntries object
 
   @Column(name = "workflow_state_created_at", updatable = false)
   @CreationTimestamp

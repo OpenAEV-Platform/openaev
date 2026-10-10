@@ -1,26 +1,21 @@
 package io.openaev.database.model;
 
-import com.google.common.hash.Hashing;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
+/**
+ * In-memory view of a workflow state (global or local), built from the {@code
+ * workflow_state_entries} rows (ADR-011). It is never persisted as such: writes go row by row
+ * through {@code WorkflowStateStore}, and a view may hold only the subset of entries a caller asked
+ * for (see {@code WorkflowStateStore#load}).
+ */
 @AllArgsConstructor
 @Getter
 @Setter
 public class WorkflowStateEntries {
-
-  /*Correlated path are separate by "+" */
-  private final String regexPathCorrelated = "^.+\\+.+$";
-
-  /** Every outputs start by output.NUMBERS */
-  private final String regexOutputs = "^(outputs\\.\\d+)";
 
   List<Input> inputs;
   List<Correlated> correlated;
@@ -48,16 +43,9 @@ public class WorkflowStateEntries {
     public String type;
   }
 
-  public boolean isPathCorrelated(String path) {
-    return path.matches(regexPathCorrelated);
-  }
-
-  public List<String> pathCorrelated(String path) {
-    if (!path.contains("+")) return new ArrayList<>();
-
-    String[] parts = path.split("\\+");
-
-    return new ArrayList<>(Arrays.asList(parts));
+  /** Creates an empty view. */
+  public static WorkflowStateEntries empty() {
+    return new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
   }
 
   public Input getInputByKey(String key) {
@@ -79,17 +67,6 @@ public class WorkflowStateEntries {
     Input input = Input.builder().key(key).values(new HashSet<>()).build();
     this.inputs.add(input);
     return input;
-  }
-
-  public Map<Set<Pair>, Correlated> getIndexCorrelatedInput() {
-    Map<Set<Pair>, Correlated> index = new HashMap<>();
-
-    for (Correlated c : correlated) {
-      Set<Pair> keySet =
-          c.values.stream().map(v -> new Pair(v.key, v.value)).collect(Collectors.toSet());
-      index.put(keySet, c);
-    }
-    return index;
   }
 
   /**
@@ -131,14 +108,6 @@ public class WorkflowStateEntries {
       }
     }
     return resultLists;
-  }
-
-  public String hashCombo(Map<String, String> combo) {
-    // Canonicalize key order so hash is stable regardless of map implementation.
-    StringBuilder sb = new StringBuilder();
-    new TreeMap<>(combo).forEach((k, v) -> sb.append(k).append("=").append(v).append("|"));
-
-    return Hashing.murmur3_128().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
   }
 
   /**

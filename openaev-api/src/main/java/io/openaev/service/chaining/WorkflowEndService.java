@@ -4,7 +4,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.WorkflowRepository;
-import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
@@ -32,7 +31,7 @@ public class WorkflowEndService {
   private final WorkflowRepository workflowRepository;
   private final ScopeSnapshotService scopeSnapshotService;
   private final AssetAgentJobRepository assetAgentJobRepository;
-  private final WorkflowStateRepository workflowStateRepository;
+  private final WorkflowStateStore workflowStateStore;
   private final AttackPathExecutionIngestionService attackPathExecutionIngestionService;
 
   private static final Set<ExecutionStatus> ACTIVE_INJECT_STATUSES =
@@ -296,13 +295,14 @@ public class WorkflowEndService {
   }
 
   /**
-   * Deletes all workflow states associated with workflows of the given simulation.
+   * Deletes all workflow states (global and local) associated with workflows of the given
+   * simulation, in a single statement; their entries are removed by the database cascade.
    *
    * @param simulationId the ID of the simulation whose workflow states should be cleared
    * @param cause the reason the workflow is ending, used for logging
    */
   public void deleteWorkflowStatesBySimulationId(String simulationId, WORKFLOW_END_CAUSE cause) {
-    int count = workflowStateRepository.deleteAllByWorkflowExecution_Simulation_Id(simulationId);
+    int count = workflowStateStore.deleteAllBySimulationId(simulationId);
     log.info(
         "[Chaining] {} workflow states of simulation {} have been deleted due to {}",
         count,

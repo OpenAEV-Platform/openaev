@@ -8,7 +8,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.WorkflowRepository;
-import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
@@ -37,7 +36,7 @@ class WorkflowEndServiceTest {
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private ScopeSnapshotService scopeSnapshotService;
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
-  @Mock private WorkflowStateRepository workflowStateRepository;
+  @Mock private WorkflowStateStore workflowStateStore;
 
   @InjectMocks private WorkflowEndService workflowEndService;
 
