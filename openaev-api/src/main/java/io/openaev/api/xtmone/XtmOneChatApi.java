@@ -14,7 +14,9 @@ import io.openaev.xtmone.XtmOneConfig;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -62,6 +64,14 @@ public class XtmOneChatApi extends RestBehavior {
   private static final String WORKSPACE_ID_FIELD = "workspace_id";
   private static final List<String> WORKSPACE_FIELDS = List.of("name", "description");
 
+  private static final String REFERENCED_CONVERSATION_IDS_FIELD = "referenced_conversation_ids";
+  // XTM One reads at most 5 referenced conversations per message.
+  private static final int MAX_REFERENCED_CONVERSATIONS = 5;
+  // XTM One's bounds on the @ menu search (in characters, i.e. code points).
+  private static final int MAX_REFERENCE_QUERY_LENGTH = 200;
+  private static final int MIN_REFERENCE_LIMIT = 1;
+  private static final int MAX_REFERENCE_LIMIT = 20;
+
   private static final String REJECT_VERDICT = "reject";
   private static final Set<String> ALLOWED_VERDICTS =
       Set.of("approve", "approve_always", REJECT_VERDICT);
@@ -85,7 +95,9 @@ public class XtmOneChatApi extends RestBehavior {
   /**
    * Creates (or restores) a chat conversation. The body is forwarded as the chat panel sent it
    * ({@code agent_slug}, {@code conversation_id}, {@code workspace_id}, ...), so a field XTM One
-   * accepts is never dropped by the proxy, and XTM One's answer is relayed as it came.
+   * accepts is never dropped by the proxy. XTM One's answer is relayed as it came, so the messages
+   * of a restored conversation keep every field, such as the {@code conversation_refs} of a user
+   * message that referenced other conversations.
    */
   @PostMapping(XTM_ONE_URI + "/chat/sessions")
   @Transactional(propagation = Propagation.NEVER)
@@ -203,6 +215,87 @@ public class XtmOneChatApi extends RestBehavior {
       return ResponseEntity.badRequest().build();
     }
     return relay(client.deleteChatWorkspace(workspaceId));
+  }
+
+  /**
+   * The conversations the chat panel's {@code @} menu offers to reference in a message: those the
+   * user can open in XTM One, searched by {@code q} ({@code limit} of them, not {@code exclude}).
+   * Only valid parameters are forwarded: a malformed one is left out rather than refused, so the
+   * menu still opens. XTM One's answer is relayed as the workspace list is.
+   */
+  @GetMapping(XTM_ONE_URI + "/chat/conversation-references")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Object> searchConversationReferences(
+      TxCtx ctx,
+      @RequestParam(name = "q", required = false) String query,
+      @RequestParam(name = "limit", required = false) String limit,
+      @RequestParam(name = "exclude", required = false) String exclude) {
+    requireConfigured(config);
+    return relay(
+        client.searchChatConversationReferences(
+            referenceQuery(query), referenceLimit(limit), excludedConversation(exclude)));
+  }
+
+  /**
+   * The {@code @} menu search text, trimmed and cut to XTM One's 200 characters (a longer one would
+   * be refused there); {@code null} when blank.
+   */
+  private static String referenceQuery(String query) {
+    if (query == null || query.isBlank()) {
+      return null;
+    }
+    String trimmed = query.strip();
+    if (trimmed.codePointCount(0, trimmed.length()) <= MAX_REFERENCE_QUERY_LENGTH) {
+      return trimmed;
+    }
+    return trimmed.substring(0, trimmed.offsetByCodePoints(0, MAX_REFERENCE_QUERY_LENGTH)).strip();
+  }
+
+  /**
+   * How many conversations the {@code @} menu asks for, when it is a whole number from 1 to 20;
+   * {@code null} (XTM One's default) otherwise.
+   */
+  private static Integer referenceLimit(String limit) {
+    if (limit == null) {
+      return null;
+    }
+    try {
+      int value = Integer.parseInt(limit.strip());
+      return value >= MIN_REFERENCE_LIMIT && value <= MAX_REFERENCE_LIMIT ? value : null;
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  /**
+   * The conversation the {@code @} menu must not offer, when it is a UUID; {@code null} otherwise.
+   */
+  private static String excludedConversation(String exclude) {
+    return exclude != null && CONVERSATION_ID_PATTERN.matcher(exclude).matches() ? exclude : null;
+  }
+
+  /**
+   * The conversations a message references with {@code @}: the UUID strings of a JSON array, in
+   * their order, each once (compared and forwarded in lower case), at most 5. Anything else is
+   * dropped rather than refused, so a stray entry never costs the user their message; XTM One then
+   * reads only the conversations they can open.
+   */
+  private static List<String> referencedConversationIds(Object raw) {
+    if (!(raw instanceof List<?> entries)) {
+      return List.of();
+    }
+    Set<String> ids = new LinkedHashSet<>();
+    for (Object entry : entries) {
+      if (ids.size() == MAX_REFERENCED_CONVERSATIONS) {
+        break;
+      }
+      if (entry instanceof String id && CONVERSATION_ID_PATTERN.matcher(id).matches()) {
+        ids.add(id.toLowerCase(Locale.ROOT));
+      }
+    }
+    return List.copyOf(ids);
   }
 
   /**
@@ -439,6 +532,9 @@ public class XtmOneChatApi extends RestBehavior {
     Map<String, Object> context =
         body.get("context") instanceof Map ? (Map<String, Object>) body.get("context") : null;
     boolean supportsToolApproval = Boolean.TRUE.equals(body.get("supports_tool_approval"));
+    // Conversations picked from the panel's @ menu.
+    List<String> referencedConversationIds =
+        referencedConversationIds(body.get(REFERENCED_CONVERSATION_IDS_FIELD));
 
     StreamingResponseBody responseBody =
         outputStream -> {
@@ -449,6 +545,7 @@ public class XtmOneChatApi extends RestBehavior {
                 agentSlug,
                 context,
                 supportsToolApproval,
+                referencedConversationIds,
                 sseStream -> {
                   byte[] buf = new byte[4096];
                   int n;

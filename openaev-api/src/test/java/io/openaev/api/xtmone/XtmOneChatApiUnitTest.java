@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
@@ -29,10 +30,12 @@ import java.io.ByteArrayOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -220,7 +223,8 @@ class XtmOneChatApiUnitTest {
 
     // -- ASSERT --
     verify(client)
-        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), eq(context), eq(false), any());
+        .streamChatMessage(
+            eq("hello"), isNull(), eq("agent-1"), eq(context), eq(false), eq(List.of()), any());
   }
 
   @Test
@@ -238,7 +242,8 @@ class XtmOneChatApiUnitTest {
 
     // -- ASSERT --
     verify(client)
-        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), isNull(), eq(false), any());
+        .streamChatMessage(
+            eq("hello"), isNull(), eq("agent-1"), isNull(), eq(false), eq(List.of()), any());
   }
 
   @Test
@@ -257,7 +262,8 @@ class XtmOneChatApiUnitTest {
 
     // -- ASSERT --
     verify(client)
-        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), isNull(), eq(true), any());
+        .streamChatMessage(
+            eq("hello"), isNull(), eq("agent-1"), isNull(), eq(true), eq(List.of()), any());
   }
 
   @Test
@@ -274,7 +280,9 @@ class XtmOneChatApiUnitTest {
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
-    verify(client).streamChatMessage(eq("hello"), isNull(), isNull(), isNull(), eq(false), any());
+    verify(client)
+        .streamChatMessage(
+            eq("hello"), isNull(), isNull(), isNull(), eq(false), eq(List.of()), any());
   }
 
   @Test
@@ -291,7 +299,180 @@ class XtmOneChatApiUnitTest {
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
-    verify(client).streamChatMessage(eq("hello"), isNull(), isNull(), isNull(), eq(false), any());
+    verify(client)
+        .streamChatMessage(
+            eq("hello"), isNull(), isNull(), isNull(), eq(false), eq(List.of()), any());
+  }
+
+  @Nested
+  @DisplayName("Conversation references")
+  class ConversationReferences {
+
+    private static final String FIRST_ID = "44444444-4444-4444-4444-444444444444";
+    private static final String SECOND_ID = "55555555-5555-5555-5555-555555555555";
+    private static final String EXCLUDED_ID = "11111111-1111-1111-1111-111111111111";
+
+    private static Stream<Arguments> referencedConversationIds() {
+      List<Object> withNull = new ArrayList<>();
+      withNull.add(null);
+      withNull.add(FIRST_ID);
+      return Stream.of(
+          Arguments.of(
+              "drops what is not a UUID string",
+              List.of(
+                  SECOND_ID, 42, "not-a-uuid", "../" + FIRST_ID, Map.of("id", FIRST_ID), FIRST_ID),
+              List.of(SECOND_ID, FIRST_ID)),
+          Arguments.of(
+              "drops a repeated conversation, whatever its case",
+              List.of(FIRST_ID, SECOND_ID, FIRST_ID, SECOND_ID.toUpperCase(Locale.ROOT)),
+              List.of(FIRST_ID, SECOND_ID)),
+          Arguments.of(
+              "forwards an upper-case UUID in lower case",
+              List.of(FIRST_ID.replace('4', 'A')),
+              List.of(FIRST_ID.replace('4', 'a'))),
+          Arguments.of("drops a null entry", withNull, List.of(FIRST_ID)),
+          Arguments.of("drops a field that is not an array", FIRST_ID, List.of()),
+          Arguments.of("forwards none for an empty array", List.of(), List.of()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("referencedConversationIds")
+    @DisplayName("Given referenced conversations should forward only distinct UUIDs in order")
+    void given_referencedConversations_should_forwardDistinctUuidsInOrder(
+        String description, Object referenced, List<String> expected) throws Exception {
+      // -- ARRANGE --
+      when(config.isConfigured()).thenReturn(true);
+      Map<String, Object> body = new HashMap<>();
+      body.put("content", "hello");
+      body.put("referenced_conversation_ids", referenced);
+
+      // -- ACT --
+      ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
+      response.getBody().writeTo(new ByteArrayOutputStream());
+
+      // -- ASSERT --
+      verify(client)
+          .streamChatMessage(
+              eq("hello"), isNull(), isNull(), isNull(), eq(false), eq(expected), any());
+    }
+
+    @Test
+    @DisplayName("Given more than five referenced conversations should forward the first five")
+    void given_tooManyReferencedConversations_should_forwardFirstFive() throws Exception {
+      // -- ARRANGE --
+      when(config.isConfigured()).thenReturn(true);
+      List<String> ids =
+          Stream.of("1", "2", "3", "4", "5", "6", "7")
+              .map(digit -> digit.repeat(8) + "-1111-1111-1111-111111111111")
+              .toList();
+      List<Object> referenced = new ArrayList<>(List.of("not-a-uuid", ids.get(0)));
+      referenced.addAll(ids);
+      Map<String, Object> body = new HashMap<>();
+      body.put("content", "hello");
+      body.put("referenced_conversation_ids", referenced);
+
+      // -- ACT --
+      ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
+      response.getBody().writeTo(new ByteArrayOutputStream());
+
+      // -- ASSERT --
+      verify(client)
+          .streamChatMessage(
+              eq("hello"), isNull(), isNull(), isNull(), eq(false), eq(ids.subList(0, 5)), any());
+    }
+
+    /** Stubs any search with an empty answer, so a test can check what was forwarded. */
+    private void stubAnySearch() {
+      when(client.searchChatConversationReferences(any(), any(), any()))
+          .thenReturn(new XtmOneClient.RelayedResponse(200, JsonNodeFactory.instance.objectNode()));
+    }
+
+    @Test
+    @DisplayName("Given valid search parameters should forward them, the text trimmed")
+    void given_validParameters_should_forwardThem() {
+      when(config.isConfigured()).thenReturn(true);
+
+      stubAnySearch();
+
+      api.searchConversationReferences(TxCtx.missing(), "  red team \t", " 20 ", EXCLUDED_ID);
+
+      verify(client).searchChatConversationReferences("red team", 20, EXCLUDED_ID);
+    }
+
+    private static Stream<Arguments> invalidSearchParameters() {
+      return Stream.of(
+          Arguments.of(null, null, null),
+          Arguments.of("   ", "0", "not-a-uuid"),
+          Arguments.of("", "21", "../" + EXCLUDED_ID),
+          Arguments.of("\t", "five", EXCLUDED_ID + "0"),
+          Arguments.of(" ", "5.5", ""),
+          Arguments.of(" ", "-1", " " + EXCLUDED_ID),
+          Arguments.of(" ", "99999999999", EXCLUDED_ID.replace('-', '_')));
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidSearchParameters")
+    @DisplayName("Given a blank text, an out-of-range limit or a non-UUID exclude should omit it")
+    void given_invalidParameters_should_omitThem(String query, String limit, String exclude) {
+      when(config.isConfigured()).thenReturn(true);
+
+      stubAnySearch();
+
+      api.searchConversationReferences(TxCtx.missing(), query, limit, exclude);
+
+      verify(client).searchChatConversationReferences(null, null, null);
+    }
+
+    @Test
+    @DisplayName("Given a search text over 200 characters should forward its first 200")
+    void given_overlongQuery_should_forwardFirst200Characters() {
+      // XTM One counts characters (code points): 201 emoji are 402 Java chars.
+      when(config.isConfigured()).thenReturn(true);
+      String emoji = "😀";
+
+      stubAnySearch();
+
+      api.searchConversationReferences(TxCtx.missing(), " " + emoji.repeat(201), null, null);
+
+      verify(client).searchChatConversationReferences(emoji.repeat(200), null, null);
+    }
+
+    @Test
+    @DisplayName("Given XTM One answers should relay its status and body")
+    void given_upstreamAnswer_should_relayStatusAndBody() {
+      when(config.isConfigured()).thenReturn(true);
+      JsonNode refusal = JsonNodeFactory.instance.objectNode().put("detail", "[XTM One] HTTP 401");
+      when(client.searchChatConversationReferences("red", null, null))
+          .thenReturn(new XtmOneClient.RelayedResponse(422, refusal));
+
+      ResponseEntity<Object> response =
+          api.searchConversationReferences(TxCtx.missing(), "red", null, null);
+
+      assertEquals(422, response.getStatusCode().value());
+      assertEquals(refusal, response.getBody());
+    }
+
+    @Test
+    @DisplayName("Given XTM One lists conversations should relay them unchanged")
+    void given_conversations_should_relayThem() {
+      when(config.isConfigured()).thenReturn(true);
+      ObjectNode conversations = JsonNodeFactory.instance.objectNode();
+      conversations
+          .putArray("conversations")
+          .addObject()
+          .put("id", FIRST_ID)
+          .put("title", "Red team plan")
+          .put("key", "red-team-plan")
+          .put("is_own", false);
+      when(client.searchChatConversationReferences(null, null, null))
+          .thenReturn(new XtmOneClient.RelayedResponse(200, conversations));
+
+      ResponseEntity<Object> response =
+          api.searchConversationReferences(TxCtx.missing(), null, null, null);
+
+      assertEquals(200, response.getStatusCode().value());
+      assertEquals(conversations, response.getBody());
+    }
   }
 
   @Nested
@@ -589,7 +770,9 @@ class XtmOneChatApiUnitTest {
           "listWorkspaces",
           "createWorkspace",
           "updateWorkspace",
-          "deleteWorkspace"
+          "deleteWorkspace",
+          "searchConversationReferences",
+          "sendMessage"
         })
     @DisplayName("Given a conversation or workspace route should require Enterprise Edition")
     void given_conversationOrWorkspaceRoute_should_requireEnterpriseEdition(String name) {
