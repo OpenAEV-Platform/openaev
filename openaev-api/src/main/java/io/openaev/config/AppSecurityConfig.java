@@ -22,9 +22,11 @@ import io.openaev.service.UserMappingService;
 import io.openaev.service.user_events.UserEventService;
 import io.openaev.utils.RequestUtils;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -372,27 +374,63 @@ public class AppSecurityConfig {
   }
 
   /**
-   * Persists the security context in the HTTP session for browser / cookie auth.
+   * Whether the request carries any credential {@link TokenAuthenticationFilter} authenticates
+   * with: an {@code Authorization} header (bearer-prefixed or raw) or the token auth cookie.
    *
-   * <p>Authorization-header (bearer) requests stay stateless - no session is read or created.
+   * <p>All three forms are token authentications, never a browser login - so none of them may be
+   * allowed to persist a reusable HTTP session. Before this, only the bearer-prefixed header was
+   * treated as stateless; the cookie and raw-header forms fell through to the session repository,
+   * so a holder of a disclosed token (e.g. the installer token behind {@code INSTALL_AGENT}, see
+   * #271) could use either form once to mint a session cookie, then keep replaying that session -
+   * including after the token itself was rotated, since the session never re-checks it.
+   *
+   * <p>A header is only a raw-token candidate when it carries no other scheme: {@link
+   * TokenAuthenticationFilter} passes a non-bearer header to its plain-token extractor whole, and
+   * every issued token is a bare UUID with no whitespace, so a "{@code <Scheme> <value>}" header
+   * for a different scheme (e.g. a reverse proxy injecting {@code Authorization: Basic ...} in
+   * front of SSO) can never match. Treating it as a token credential anyway forced every such
+   * request stateless, so the browser session was never read or saved and SSO/local-login users
+   * behind such a proxy were logged out right after logging in.
+   */
+  private static boolean hasTokenCredential(HttpServletRequest request, String tokenCookieName) {
+    String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+    if (!isBlank(header)
+        && (startsWithIgnoreCase(header, BEARER_PREFIX) || !header.contains(" "))) {
+      return true;
+    }
+    Cookie[] cookies = request.getCookies();
+    return cookies != null
+        && Arrays.stream(cookies).anyMatch(cookie -> tokenCookieName.equals(cookie.getName()));
+  }
+
+  /**
+   * Persists the security context in the HTTP session for browser / SSO auth.
+   *
+   * <p>Any token-authenticated request (see {@link #hasTokenCredential}) stays stateless - no
+   * session is read or created.
    *
    * <p>So a pure API client never receives a JSESSIONID to replay (#6343); SSO sessions are intact.
    */
   private SecurityContextRepository bearerAwareSecurityContextRepository() {
-    return new BearerAwareSecurityContextRepository();
+    return new BearerAwareSecurityContextRepository(openAEVConfig.getCookieName());
   }
 
   /** See {@link #bearerAwareSecurityContextRepository()}. */
   private static final class BearerAwareSecurityContextRepository
       implements SecurityContextRepository {
 
+    private final String tokenCookieName;
     private final HttpSessionSecurityContextRepository sessionRepository =
         new HttpSessionSecurityContextRepository();
     private final RequestAttributeSecurityContextRepository statelessRepository =
         new RequestAttributeSecurityContextRepository();
 
+    private BearerAwareSecurityContextRepository(String tokenCookieName) {
+      this.tokenCookieName = tokenCookieName;
+    }
+
     private SecurityContextRepository delegate(HttpServletRequest request) {
-      return hasBearerToken(request) ? statelessRepository : sessionRepository;
+      return hasTokenCredential(request, tokenCookieName) ? statelessRepository : sessionRepository;
     }
 
     @Override

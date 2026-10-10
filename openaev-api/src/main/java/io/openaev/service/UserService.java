@@ -610,6 +610,14 @@ public class UserService {
         userRepository
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    // Reserved/service accounts (service-*@openaev.invalid, connector-*@openaev.invalid) never log
+    // in as themselves: anyone who authenticates as one only got there by replaying a disclosed
+    // bearer token. Self-renewal would let that holder keep indefinite control of the credential
+    // (and lock out whoever rotates it), defeating the admin-only rotation path.
+    if (ReservedKeyValidator.isReservedUserEmail(user.getEmail())) {
+      throw new AccessDeniedException(
+          "Service accounts cannot self-renew their token; an administrator must rotate it");
+    }
     Token token = tokenRepository.findById(tokenId).orElseThrow(ElementNotFoundException::new);
     if (!user.equals(token.getUser())) {
       throw new AccessDeniedException("You are not allowed to renew this token");
