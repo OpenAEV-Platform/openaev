@@ -28,7 +28,8 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, checked, anySelected
   const theme = useTheme();
   const severity = scenario.scenario_severity;
   const accent = severityAccent(theme, severity);
-  const workflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id;
+  // Search rows carry these computed fields, absent from the Scenario type.
+  const { scenario_workflow_id: workflowId, scenario_author_name: authorName } = scenario as unknown as Record<string, string | undefined>;
   const category = scenario.scenario_category;
 
   return (
@@ -37,6 +38,7 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, checked, anySelected
       testId="scenario-card"
       icon={<RouteOutlined color="primary" />}
       title={scenario.scenario_name}
+      subtitle={authorName ? `${t('by')} ${authorName}` : undefined}
       linkTo={`/admin/scenarios/${scenario.scenario_id}`}
       topLeft={canManage && (
         <span

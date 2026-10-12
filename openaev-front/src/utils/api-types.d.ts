@@ -10674,6 +10674,9 @@ export interface RawPaginationImportMapper {
 }
 
 export interface RawPaginationScenario {
+  scenario_author?: string;
+  scenario_author_name?: string;
+  scenario_author_type?: string;
   scenario_category?: string;
   scenario_description?: string;
   scenario_id?: string;
@@ -11219,6 +11222,11 @@ export interface Scenario {
   /** @format int64 */
   scenario_all_users_number?: number;
   scenario_articles?: string[];
+  scenario_author?: string;
+  /** Organization author of the scenario */
+  scenario_author_organization?: string;
+  /** User author of the scenario */
+  scenario_author_user?: string;
   scenario_autonomous?: boolean;
   scenario_category?: string;
   /** @format int64 */
@@ -11295,6 +11303,20 @@ export interface ScenarioAndInjectorContractsInputs {
   scenario_input: ScenarioInput;
 }
 
+export interface ScenarioAuthorCountOutput {
+  /** Author id (user or organization) */
+  author?: string;
+  /** Author display name */
+  author_name?: string;
+  /** Author type: user or organization */
+  author_type?: string;
+  /**
+   * Scenarios by this author under the filters
+   * @format int64
+   */
+  count?: number;
+}
+
 export interface ScenarioBulkProcessingInput {
   scenario_ids_to_ignore?: string[];
   scenario_ids_to_process?: string[];
@@ -11349,6 +11371,12 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_all_users_number?: number;
+  /** Id of the scenario author (user or organization) */
+  scenario_author?: string;
+  /** Name of the scenario author: the user who made it or the publishing organization */
+  scenario_author_name?: string;
+  /** Type of the scenario author: user or organization */
+  scenario_author_type?: string;
   /** Whether the scenario is an autonomous (AI-driven) attack-path scenario */
   scenario_autonomous?: boolean;
   /** Category of the scenario */

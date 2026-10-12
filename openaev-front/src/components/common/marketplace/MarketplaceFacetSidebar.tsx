@@ -21,10 +21,12 @@ interface Props {
   facetCounts: Record<string, Record<string, number>> | null;
   searchPaginationInput: SearchPaginationInput;
   filterHelpers: FilterHelpers;
+  /** Sections built by the caller (e.g. an author facet), appended after the others. */
+  extraSections?: FacetSection[];
 }
 
 // Facet sidebar over "eq" filters of the search input, one section per facet.
-const MarketplaceFacetSidebar: FunctionComponent<Props> = ({ facets, facetCounts, searchPaginationInput, filterHelpers }) => {
+const MarketplaceFacetSidebar: FunctionComponent<Props> = ({ facets, facetCounts, searchPaginationInput, filterHelpers, extraSections = [] }) => {
   const { t } = useFormatter();
   const { valuesOf, toggleValue } = useFacetFilterValues(searchPaginationInput, filterHelpers);
 
@@ -45,7 +47,7 @@ const MarketplaceFacetSidebar: FunctionComponent<Props> = ({ facets, facetCounts
     };
   }).filter(section => section.rows.length > 0), [facets, facetCounts, valuesOf, toggleValue, t]);
 
-  return <FacetSidebar sections={sections} />;
+  return <FacetSidebar sections={[...sections, ...extraSections.filter(section => section.rows.length > 0)]} />;
 };
 
 export default MarketplaceFacetSidebar;

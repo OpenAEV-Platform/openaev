@@ -31,11 +31,10 @@ const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ item, installed, c
       testId="threat-arsenal-catalog-card"
       icon={<InjectIcon type={item.catalog_item_type} isPayload variant="list" />}
       title={item.catalog_item_name}
+      subtitle={`${t('by')} ${item.catalog_item_author}`}
       chips={(
         <>
           <Chip label={t(item.catalog_item_domain)} color={accent} />
-          <Chip label={`v${item.catalog_item_version}`} />
-          <Chip label={`${t('by')} ${item.catalog_item_author}`} />
         </>
       )}
       platforms={item.catalog_item_platforms}
@@ -46,7 +45,7 @@ const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ item, installed, c
               {t('Install')}
             </Button>
           )}
-      caption={`${t('Published')} ${nsd(item.catalog_item_published_at)}`}
+      caption={`v${item.catalog_item_version} · ${t('Published')} ${nsd(item.catalog_item_published_at)}`}
     />
   );
 };

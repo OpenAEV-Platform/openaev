@@ -55,6 +55,20 @@ public class ScenarioOutput {
   @Schema(description = "Type affinity of the scenario")
   private String typeAffinity;
 
+  @Schema(description = "Id of the scenario author (user or organization)")
+  @JsonProperty("scenario_author")
+  private String author;
+
+  @Schema(
+      description =
+          "Name of the scenario author: the user who made it or the publishing organization")
+  @JsonProperty("scenario_author_name")
+  private String authorName;
+
+  @Schema(description = "Type of the scenario author: user or organization")
+  @JsonProperty("scenario_author_type")
+  private String authorType;
+
   @JsonProperty("scenario_external_url")
   @Schema(description = "External URL of the scenario")
   private String externalUrl;
