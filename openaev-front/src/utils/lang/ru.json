@@ -3478,6 +3478,7 @@
   "Scenario input cannot be null": "Входные данные сценария не могут быть пустыми",
   "Scenario is currently unavailable or you do not have sufficient permissions to access it.": "Сценарий в настоящее время недоступен или у вас нет достаточных прав для доступа к нему.",
   "Scenario planner": "Планировщик сценария",
+  "scenario_author": "Автор",
   "scenario_category": "Категория",
   "scenario_dependencies": "Зависимости",
   "scenario_kill_chain_phases": "Фаза цепочки убийств",

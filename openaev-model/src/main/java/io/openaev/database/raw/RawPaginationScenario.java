@@ -20,6 +20,9 @@ public class RawPaginationScenario {
   private Set<String> scenario_tags;
   private Set<String> scenario_platforms;
   private String scenario_workflow_id;
+  private String scenario_author;
+  private String scenario_author_name;
+  private String scenario_author_type;
 
   public RawPaginationScenario(
       String id,
@@ -31,7 +34,10 @@ public class RawPaginationScenario {
       Instant updatedAt,
       String[] tags,
       String[] platforms,
-      String workflowId) {
+      String workflowId,
+      String authorId,
+      String authorName,
+      String authorType) {
     this.scenario_id = id;
     this.scenario_name = name;
     this.scenario_description = description;
@@ -43,5 +49,8 @@ public class RawPaginationScenario {
     this.scenario_platforms =
         platforms != null ? new HashSet<>(Arrays.asList(platforms)) : new HashSet<>();
     this.scenario_workflow_id = workflowId;
+    this.scenario_author = authorId;
+    this.scenario_author_name = authorName;
+    this.scenario_author_type = authorType;
   }
 }

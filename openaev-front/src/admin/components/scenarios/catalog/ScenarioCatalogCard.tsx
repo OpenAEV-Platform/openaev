@@ -28,13 +28,12 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, installed, canIns
       testId="scenario-catalog-card"
       icon={<RouteOutlined color="primary" />}
       title={item.catalog_item_name}
+      subtitle={`${t('by')} ${item.catalog_item_author}`}
       chips={(
         <>
           <ItemSeverity label={t(severityLabelKey(item.catalog_item_severity))} severity={item.catalog_item_severity} />
           <Chip label={t(scenarioCategories.get(item.catalog_item_category) ?? item.catalog_item_category)} />
           <Chip label={t(item.catalog_item_type)} />
-          <Chip label={`v${item.catalog_item_version}`} />
-          <Chip label={`${t('by')} ${item.catalog_item_author}`} />
         </>
       )}
       platforms={item.catalog_item_platforms}
@@ -45,7 +44,7 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, installed, canIns
               {t('Install')}
             </Button>
           )}
-      caption={`${item.catalog_item_injects_count} ${t('injects')} · ${t('Published')} ${nsd(item.catalog_item_published_at)}`}
+      caption={`v${item.catalog_item_version} · ${item.catalog_item_injects_count} ${t('injects')} · ${t('Published')} ${nsd(item.catalog_item_published_at)}`}
     />
   );
 };

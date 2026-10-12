@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Box, Card, CardActionArea, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
@@ -10,6 +10,8 @@ interface Props {
   accent: string;
   icon: ReactNode;
   title: string;
+  /** One line under the title, e.g. the author. */
+  subtitle?: string;
   chips: ReactNode;
   platforms: string[];
   caption: ReactNode;
@@ -30,6 +32,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
   accent,
   icon,
   title,
+  subtitle,
   chips,
   platforms,
   caption,
@@ -67,6 +70,20 @@ const MarketplaceCard: FunctionComponent<Props> = ({
         </TooltipTrigger>
         {title && <TooltipContent>{title}</TooltipContent>}
       </Tooltip>
+      {subtitle && (
+        <Text
+          variant="content-compact"
+          className="text-default-secondary"
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            marginTop: -4,
+          }}
+        >
+          {subtitle}
+        </Text>
+      )}
 
       <Box sx={{
         display: 'flex',

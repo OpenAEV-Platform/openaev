@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
-import { bulkDeleteScenarios, searchScenarios } from '../../../actions/scenarios/scenario-actions';
+import { bulkDeleteScenarios, fetchScenarioAuthorCounts, searchScenarios } from '../../../actions/scenarios/scenario-actions';
+import { useAuthorFacetOptions } from '../../../components/common/facets/ContractFacets';
 import { initSorting } from '../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -17,6 +18,7 @@ export const ACTIVE_SCENARIO_FILTER_NAMES = [
   'scenario_tags',
   'scenario_type',
   'scenario_updated_at',
+  'scenario_author',
 ];
 
 const useActiveScenarios = () => {
@@ -36,6 +38,7 @@ const useActiveScenarios = () => {
   };
 
   const totalElements = queryableHelpers.paginationHelpers.getTotalElements();
+  const authorOptions = useAuthorFacetOptions(fetchScenarioAuthorCounts, searchPaginationInput);
   const {
     selectedElements,
     deSelectedElements,
@@ -82,6 +85,7 @@ const useActiveScenarios = () => {
     queryableHelpers,
     searchPaginationInput,
     totalElements,
+    authorOptions,
     removeScenario,
     selection: {
       selectAll,

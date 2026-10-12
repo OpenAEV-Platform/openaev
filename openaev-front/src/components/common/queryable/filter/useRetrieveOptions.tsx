@@ -246,6 +246,7 @@ const useRetrieveOptions = () => {
       // Author filter: an id may belong to a person, a team or an organization -
       // resolve across all three and merge (each id only matches its own type).
       case 'action_author':
+      case 'scenario_author':
         Promise.all([
           searchPlayerByIdAsOption(ids),
           searchTeamByIdAsOption(ids),
