@@ -9,7 +9,7 @@
 
 The platform matches payloads by `payload_external_id` and overwrites them on every collector run. A scenario tested against one payload content silently runs another, a broken or dangerous payload cannot be revoked (`DEPRECATED` blocks no execution), and scenarios that embed the same payload each import their own copy, so customers end up with duplicates.
 
-Payloads and scenarios are now distributed from signed, immutable releases (RFC 0004) and installed from a marketplace (PRD). The platform needs a data model where a published version never changes, can be shared, and can be withdrawn.
+Payloads and scenarios are now distributed from immutable releases with content hashes (RFC 0004) and installed from a marketplace (PRD). The platform needs a data model where a published version never changes, can be shared, and can be withdrawn.
 
 ## 2. Decision drivers
 
