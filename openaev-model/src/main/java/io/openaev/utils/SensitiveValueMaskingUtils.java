@@ -35,11 +35,27 @@ import java.util.stream.Collectors;
  *
  * <p>The database always keeps the cleartext value: deduplication, correlation and attack path
  * computation rely on it. Only the representation handed out is masked.
+ *
+ * <p><b>The masked form is stored in the search index.</b> Unlike every other caller, indexing
+ * persists its output: {@code FindingHandler} writes the masked value into the {@code finding}
+ * documents, so dashboards, widgets, reports and their filters only ever see - and only ever match
+ * - the displayed form. A document therefore keeps the masking it was indexed with until it is
+ * re-indexed. Any change to {@link #TYPE_TO_MASK}, {@link #VALUE_COMPOSITIONS}, {@link
+ * #NEVER_SENSITIVE} or to the way a part is masked ({@link #MASK}, the visible fragment) MUST bump
+ * {@link #MASKING_VERSION}, so that the documents masked under the previous rule are detected and
+ * masked again.
  */
 public final class SensitiveValueMaskingUtils {
 
   /** Mask substituted to the secret part of a sensitive value. */
   public static final String MASK = "******";
+
+  /**
+   * Version of the masking rule, written on every indexed finding document. Bump it whenever the
+   * outcome of masking changes for any value: documents carrying an older version, or none at all
+   * (written by an instance that did not mask yet), are re-indexed and masked again.
+   */
+  public static final long MASKING_VERSION = 1L;
 
   private static final char PART_SEPARATOR = ':';
   private static final int MASKING_VISIBLE_FRAGMENT_LENGTH = 2;
