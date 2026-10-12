@@ -13,8 +13,9 @@ import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
- * A revocation received from the signed revocation list. Platform-level on purpose: a revoked
- * version is revoked for every tenant. Single source of truth for the execution check.
+ * A revocation received from the revocation list published with the releases. Platform-level on
+ * purpose: a revoked version is revoked for every tenant. Single source of truth for the execution
+ * check.
  */
 @Getter
 @Setter

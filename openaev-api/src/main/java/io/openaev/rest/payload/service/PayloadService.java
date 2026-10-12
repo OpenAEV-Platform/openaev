@@ -103,7 +103,7 @@ public class PayloadService {
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
-    // Every payload write passes here; a managed version keeps the hash of its signed manifest.
+    // Every payload write passes here; a managed version keeps the hash of its release manifest.
     if (!PayloadVersionService.isManaged(payload)) {
       payload.setContentHash(payloadContentHashService.hash(payload, attackPatterns));
     }
