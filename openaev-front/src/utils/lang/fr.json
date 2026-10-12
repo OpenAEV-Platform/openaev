@@ -3478,6 +3478,7 @@
   "Scenario input cannot be null": "L'entrée du scénario ne peut pas être nulle",
   "Scenario is currently unavailable or you do not have sufficient permissions to access it.": "Le scénario est actuellement indisponible ou vous n'avez pas les autorisations nécessaires pour y accéder.",
   "Scenario planner": "Planificateur de scénario",
+  "scenario_author": "Auteur",
   "scenario_category": "Catégorie",
   "scenario_dependencies": "Dépendances",
   "scenario_kill_chain_phases": "Phase de kill chain",

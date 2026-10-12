@@ -26,13 +26,14 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  scenario_name: { width: '22%' },
+  scenario_name: { width: '18%' },
   scenario_severity: { width: '8%' },
-  scenario_category: { width: '12%' },
-  scenario_type: { width: '12%' },
+  scenario_category: { width: '11%' },
+  scenario_type: { width: '11%' },
   scenario_recurrence: { width: '10%' },
-  scenario_platforms: { width: '10%' },
-  scenario_tags: { width: '16%' },
+  scenario_platforms: { width: '8%' },
+  scenario_author: { width: '12%' },
+  scenario_tags: { width: '12%' },
   scenario_updated_at: { width: '10%' },
 };
 
@@ -125,6 +126,12 @@ const ScenariosActiveList: FunctionComponent<Props> = ({
       value: (scenario: Scenario) => (
         <PlatformIconGroup platforms={scenario.scenario_platforms} />
       ),
+    },
+    {
+      field: 'scenario_author',
+      label: 'Author',
+      isSortable: false,
+      value: (scenario: Scenario) => (scenario as unknown as Record<string, string | undefined>).scenario_author_name ?? '-',
     },
     {
       field: 'scenario_tags',

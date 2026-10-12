@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.SessionHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -1412,6 +1413,64 @@ public class ScenarioApiTest extends IntegrationTest {
 
       // -------- Assert — team from another tenant should not be found --------
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+  }
+
+  @Nested
+  @DisplayName("Scenario author (F33)")
+  class ScenarioAuthor {
+
+    private String create(String name) throws Exception {
+      ScenarioInput input = new ScenarioInput();
+      input.setName(name);
+      String response =
+          mvc.perform(
+                  post(SCENARIO_URI)
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.scenario_id");
+    }
+
+    @Test
+    @DisplayName("A scenario created in the UI is authored by the current user")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_manualCreation_should_setCurrentUserAsAuthor() throws Exception {
+      // Arrange
+      String userId = SessionHelper.currentUser().getId();
+
+      ScenarioInput input = new ScenarioInput();
+      input.setName("Authored scenario");
+
+      // Act & Assert
+      mvc.perform(
+              post(SCENARIO_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.scenario_author_user").value(userId));
+    }
+
+    @Test
+    @DisplayName("A duplicated scenario is authored by the user who duplicates it")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_duplication_should_setDuplicatingUserAsAuthor() throws Exception {
+      // Arrange
+      String userId = SessionHelper.currentUser().getId();
+      String scenarioId = create("Scenario to duplicate");
+
+      // Act & Assert
+      mvc.perform(
+              post(SCENARIO_URI + "/" + scenarioId).accept(MediaType.APPLICATION_JSON).with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.scenario_author_user").value(userId));
     }
   }
 }

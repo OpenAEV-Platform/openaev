@@ -2,6 +2,7 @@ import MarketplaceBrowser from '../../../components/common/marketplace/Marketpla
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../components/common/marketplace/MarketplaceFacetSidebar';
 import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceSortSelect from '../../../components/common/marketplace/MarketplaceSortSelect';
+import useAuthorFacetSection from '../../../components/common/marketplace/useAuthorFacetSection';
 import useMarketplaceView from '../../../components/common/marketplace/useMarketplaceView';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../components/i18n';
@@ -33,6 +34,7 @@ const ScenariosActive = () => {
   const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios:view-mode');
   const active = useActiveScenarios();
   const { selection } = active;
+  const authorSection = useAuthorFacetSection('scenario_author', active.authorOptions, active.searchPaginationInput, active.queryableHelpers.filterHelpers);
 
   const facets: MarketplaceFacet[] = [
     {
@@ -98,6 +100,7 @@ const ScenariosActive = () => {
           facetCounts={null}
           searchPaginationInput={active.searchPaginationInput}
           filterHelpers={active.queryableHelpers.filterHelpers}
+          extraSections={[authorSection]}
         />
       )}
       toolbar={(

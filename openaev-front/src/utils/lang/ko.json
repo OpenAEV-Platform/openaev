@@ -3478,6 +3478,7 @@
   "Scenario input cannot be null": "시나리오 입력값은 null일 수 없습니다.",
   "Scenario is currently unavailable or you do not have sufficient permissions to access it.": "현재 시나리오를 사용할 수 없거나 시나리오에 액세스할 수 있는 충분한 권한이 없습니다.",
   "Scenario planner": "시나리오 플래너",
+  "scenario_author": "창조자",
   "scenario_category": "카테고리",
   "scenario_dependencies": "종속성",
   "scenario_kill_chain_phases": "킬 체인 단계",

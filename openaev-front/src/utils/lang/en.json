@@ -3478,6 +3478,7 @@
   "Scenario input cannot be null": "Scenario input cannot be null",
   "Scenario is currently unavailable or you do not have sufficient permissions to access it.": "Scenario is currently unavailable or you do not have sufficient permissions to access it.",
   "Scenario planner": "Scenario planner",
+  "scenario_author": "Author",
   "scenario_category": "Category",
   "scenario_dependencies": "Dependencies",
   "scenario_kill_chain_phases": "Kill chain phase",

@@ -249,6 +249,37 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_external_url")
   private String externalUrl;
 
+  // -- AUTHOR (the user who made it or the organization that published it; never exported) --
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "scenario_author_user")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("scenario_author_user")
+  @Queryable(dynamicValues = true, filterable = true, path = "authorUser.id")
+  @Schema(description = "User author of the scenario", type = "string")
+  private User authorUser;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "scenario_author_organization")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("scenario_author_organization")
+  @Queryable(dynamicValues = true, filterable = true, path = "authorOrganization.id")
+  @Schema(description = "Organization author of the scenario", type = "string")
+  private Organization authorOrganization;
+
+  // Single author filter over both author FKs (the facet and the filter bar use it).
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {"authorUser.id", "authorOrganization.id"})
+  @JsonProperty("scenario_author")
+  public String getAuthor() {
+    if (authorUser != null) {
+      return authorUser.getId();
+    }
+    return authorOrganization != null ? authorOrganization.getId() : null;
+  }
+
   // -- OCTI GENERATION SCENARIO FROM STIX --
 
   // mappedBy @OneToOne: SecurityCoverage owns the FK, so Hibernate cannot proxy this side and

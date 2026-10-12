@@ -11,6 +11,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
+import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
@@ -26,6 +27,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.scenario.ScenarioAuthorCountOutput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
@@ -181,6 +183,97 @@ public class ScenarioService {
     return computeAndCreateScenario(scenario);
   }
 
+  /** Creation from the UI: unlike imports and system flows, the scenario gets an author (F33). */
+  @Transactional
+  public Scenario createManualScenario(@NotNull final Scenario scenario) {
+    attributeAuthor(scenario, null);
+    return computeAndCreateScenario(scenario);
+  }
+
+  /** Scenario authors with their scenario count under the given filters (author facet). */
+  @Transactional(readOnly = true)
+  public List<ScenarioAuthorCountOutput> getAuthorCounts(final SearchPaginationInput input) {
+    UnaryOperator<Specification<Scenario>> customFilters = handleCustomFilter(input);
+    Specification<Scenario> filterSpecification = computeFilterGroupJpa(input.getFilterGroup());
+    Specification<Scenario> searchSpecification = computeSearchJpa(input.getTextSearch());
+    Specification<Scenario> specification =
+        customFilters.apply(filterSpecification.and(searchSpecification));
+    User currentUser = userService.currentUser();
+    if (!currentUser.isAdminOrBypass()
+        && !currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
+      specification = findGrantedFor(currentUser.getId()).and(specification);
+    }
+
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<ScenarioAuthorCountOutput> query =
+        cb.createQuery(ScenarioAuthorCountOutput.class);
+    Root<Scenario> root = query.from(Scenario.class);
+    Join<Scenario, User> userJoin = root.join("authorUser", JoinType.LEFT);
+    Join<Scenario, Organization> organizationJoin = root.join("authorOrganization", JoinType.LEFT);
+    Expression<String> authorId =
+        cb.<String>coalesce().value(userJoin.get("id")).value(organizationJoin.get("id"));
+    Expression<String> authorName =
+        cb.<String>coalesce()
+            .value(userDisplayName(cb, userJoin))
+            .value(organizationJoin.get("name"));
+    Expression<String> authorType =
+        cb.<String>selectCase()
+            .when(cb.isNotNull(userJoin.get("id")), cb.literal(ScenarioAuthor.USER))
+            .otherwise(cb.literal(ScenarioAuthor.ORGANIZATION));
+
+    Predicate filters = specification.toPredicate(root, query, cb);
+    Predicate hasAuthor = cb.isNotNull(authorId);
+    query.where(filters != null ? cb.and(filters, hasAuthor) : hasAuthor);
+    query.multiselect(authorId, authorName, authorType, cb.countDistinct(root));
+    query.groupBy(authorId, authorName, authorType);
+    return entityManager.createQuery(query).getResultList();
+  }
+
+  // Full name when both parts are set, else the email, like the payload author.
+  private static Expression<String> userDisplayName(CriteriaBuilder cb, From<?, ?> userJoin) {
+    Expression<String> firstname = userJoin.get("firstname");
+    Expression<String> lastname = userJoin.get("lastname");
+    return cb.<String>selectCase()
+        .when(
+            cb.and(
+                cb.isNotNull(firstname),
+                cb.notEqual(cb.trim(firstname), ""),
+                cb.isNotNull(lastname),
+                cb.notEqual(cb.trim(lastname), "")),
+            cb.concat(cb.concat(firstname, " "), lastname))
+        .otherwise(userJoin.<String>get("email"));
+  }
+
+  private ScenarioAuthor author(RawScenario rawScenario) {
+    if (rawScenario.getScenario_author_user() != null) {
+      User user = userService.user(rawScenario.getScenario_author_user());
+      String name =
+          hasText(user.getFirstname()) && hasText(user.getLastname())
+              ? user.getFirstname() + " " + user.getLastname()
+              : user.getEmail();
+      return new ScenarioAuthor(user.getId(), name, ScenarioAuthor.USER);
+    }
+    if (rawScenario.getScenario_author_organization() != null) {
+      Organization organization =
+          organizationService.findById(rawScenario.getScenario_author_organization());
+      return new ScenarioAuthor(
+          organization.getId(), organization.getName(), ScenarioAuthor.ORGANIZATION);
+    }
+    return null;
+  }
+
+  // The acting user becomes the author; without one (system flow) a copy keeps its origin's.
+  private void attributeAuthor(@NotNull final Scenario scenario, final Scenario origin) {
+    User user = userService.currentUserOrNull();
+    if (user != null) {
+      scenario.setAuthorUser(user);
+      scenario.setAuthorOrganization(null);
+    } else if (origin != null) {
+      scenario.setAuthorUser(origin.getAuthorUser());
+      scenario.setAuthorOrganization(origin.getAuthorOrganization());
+    }
+  }
+
   @Transactional
   public Scenario createScenarioChaining(@NotNull final Scenario scenario)
       throws ChainingException {
@@ -201,6 +294,7 @@ public class ScenarioService {
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
     Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
+    attributeAuthor(preparedScenario, null);
     Scenario scenario = computeAndCreateScenario(preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
         null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
@@ -364,6 +458,26 @@ public class ScenarioService {
             .when(cb.isNotNull(workflowSubquery), workflowPlatformsSubquery)
             .otherwise(timeBasedPlatformExpression);
 
+    // Author: the user's full name, else their email, else the publishing organization
+    Join<Base, Base> authorUserJoin = scenarioRoot.join("authorUser", JoinType.LEFT);
+    Join<Base, Base> authorOrganizationJoin =
+        scenarioRoot.join("authorOrganization", JoinType.LEFT);
+    Expression<String> authorId =
+        cb.<String>coalesce()
+            .value(authorUserJoin.get("id"))
+            .value(authorOrganizationJoin.get("id"));
+    Expression<String> authorName =
+        cb.<String>coalesce()
+            .value(userDisplayName(cb, authorUserJoin))
+            .value(authorOrganizationJoin.get("name"));
+    Expression<String> authorType =
+        cb.<String>selectCase()
+            .when(cb.isNotNull(authorUserJoin.get("id")), cb.literal(ScenarioAuthor.USER))
+            .when(
+                cb.isNotNull(authorOrganizationJoin.get("id")),
+                cb.literal(ScenarioAuthor.ORGANIZATION))
+            .otherwise(cb.nullLiteral(String.class));
+
     // SELECT
     cq.multiselect(
             scenarioRoot.get("id").alias("scenario_id"),
@@ -375,10 +489,20 @@ public class ScenarioService {
             scenarioRoot.get("updatedAt").alias("scenario_updated_at"),
             tagIdsExpression.alias("scenario_tags"),
             platformExpression.alias("scenario_platforms"),
-            workflowSubquery.alias("scenario_workflow_id"))
+            workflowSubquery.alias("scenario_workflow_id"),
+            authorId.alias("scenario_author"),
+            authorName.alias("scenario_author_name"),
+            authorType.alias("scenario_author_type"))
         .distinct(true);
-    // Group By
-    cq.groupBy(scenarioRoot.get("id"));
+    // Group By (and the author columns selected: organizations has a composite key)
+    cq.groupBy(
+        scenarioRoot.get("id"),
+        authorUserJoin.get("id"),
+        authorUserJoin.get("firstname"),
+        authorUserJoin.get("lastname"),
+        authorUserJoin.get("email"),
+        authorOrganizationJoin.get("id"),
+        authorOrganizationJoin.get("name"));
 
     // -- Text Search and Filters --
     if (specification != null) {
@@ -414,7 +538,10 @@ public class ScenarioService {
                         tuple.get("scenario_updated_at", Instant.class),
                         tuple.get("scenario_tags", String[].class),
                         tuple.get("scenario_platforms", String[].class),
-                        tuple.get("scenario_workflow_id", String.class)))
+                        tuple.get("scenario_workflow_id", String.class),
+                        tuple.get("scenario_author", String.class),
+                        tuple.get("scenario_author_name", String.class),
+                        tuple.get("scenario_author_type", String.class)))
             .toList();
 
     // -- Count Query --
@@ -533,7 +660,8 @@ public class ScenarioService {
         log.error("Error reading scenarioTeamUsers from scenario id {}", scenarioId, e);
       }
     }
-    return scenarioMapper.toScenarioOutput(rawScenario, killChainPhases, scenarioTeamUsers);
+    return scenarioMapper.toScenarioOutput(
+        rawScenario, killChainPhases, scenarioTeamUsers, author(rawScenario));
   }
 
   /**
@@ -1283,6 +1411,7 @@ public class ScenarioService {
     scenarioDuplicate.setDocuments(new ArrayList<>(scenario.getDocuments()));
     scenarioDuplicate.setGrants(new ArrayList<>(scenario.getGrants()));
     scenarioDuplicate.setDependencies(cleanScenarioDependencies(scenario.getDependencies()));
+    attributeAuthor(scenarioDuplicate, scenario);
     return scenarioDuplicate;
   }
 

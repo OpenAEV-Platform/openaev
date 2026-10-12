@@ -86,6 +86,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         />
       )}
       title={name}
+      subtitle={action.action_author_name ? `${t('by')} ${action.action_author_name}` : undefined}
       selected={selected}
       onClick={onSelect}
       badge={statusLabel && (

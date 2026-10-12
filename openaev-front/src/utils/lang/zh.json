@@ -3478,6 +3478,7 @@
   "Scenario input cannot be null": "场景输入不能为空",
   "Scenario is currently unavailable or you do not have sufficient permissions to access it.": "方案當前不可用，抑或你冇足夠嘅權限嚟訪問它。",
   "Scenario planner": "场景规划器",
+  "scenario_author": "作者",
   "scenario_category": "类别",
   "scenario_dependencies": "依赖项",
   "scenario_kill_chain_phases": "杀伤链阶段",
