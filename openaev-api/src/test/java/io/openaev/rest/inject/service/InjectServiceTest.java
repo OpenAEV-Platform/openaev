@@ -32,6 +32,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
+import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
@@ -78,7 +79,7 @@ class InjectServiceTest {
   @Mock private InjectAgentResolverService injectAgentResolverService;
   @Mock private TeamRepository teamRepository;
   @Mock private AgentRepository agentRepository;
-  @Mock private SecretReferenceRepository secretReferenceRepository;
+  @Mock private SecretReferenceService secretReferenceService;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
@@ -1395,7 +1396,7 @@ class InjectServiceTest {
       input.setTitle("inject");
       input.setDependsDuration(0L);
       input.setSecretReferences(List.of("credential-1"));
-      when(secretReferenceRepository.findAllById(List.of("credential-1")))
+      when(secretReferenceService.secretReferences(List.of("credential-1")))
           .thenReturn(List.of(credential));
 
       // Act
@@ -1425,7 +1426,7 @@ class InjectServiceTest {
 
       // Assert
       assertThat(result.getSecretReferences()).isEmpty();
-      verify(secretReferenceRepository).findAllById(List.of());
+      verify(secretReferenceService).secretReferences(List.of());
     }
   }
 }

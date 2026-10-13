@@ -58,6 +58,7 @@ import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
+import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
@@ -101,7 +102,7 @@ public class InjectService {
   private static final String CREDENTIAL_INACTIVE = "CREDENTIAL_INACTIVE";
 
   private final TeamRepository teamRepository;
-  private final SecretReferenceRepository secretReferenceRepository;
+  private final SecretReferenceService secretReferenceService;
   private final ExecutionTraceRepository executionTraceRepository;
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
@@ -186,7 +187,7 @@ public class InjectService {
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
     inject.setSecretReferences(
-        fromIterable(secretReferenceRepository.findAllById(input.getSecretReferences())));
+        secretReferenceService.secretReferences(input.getSecretReferences()));
     inject.setTags(tagService.tagSet(input.getTagIds()));
     List<InjectDocument> injectDocuments =
         input.getDocuments().stream()
@@ -854,7 +855,7 @@ public class InjectService {
     }
     inject.setAssetGroups(fromIterable(this.assetGroupService.assetGroups(input.getAssetGroups())));
     inject.setSecretReferences(
-        fromIterable(secretReferenceRepository.findAllById(input.getSecretReferences())));
+        secretReferenceService.secretReferences(input.getSecretReferences()));
     inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
 
     // Set documents
