@@ -5,9 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,24 +15,22 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.openaev.api.snapshot.form.SnapshotSearchInput;
 import io.openaev.api.snapshot.form.SnapshotSearchOutput;
 import io.openaev.config.EngineConfig;
-import io.openaev.database.model.Capability;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.IndexingStatus;
-import io.openaev.database.model.User;
-import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.AttackObservationRepository;
 import io.openaev.database.repository.IndexingStatusRepository;
-import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.VulnerabilityObservationRepository;
 import io.openaev.engine.api.CursorPageQuery;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.snapshotobservation.EsAttackObservation;
+import io.openaev.engine.security.EngineReadScope;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.EsIndexingUtils;
-import io.openaev.service.UserService;
-import io.openaev.utils.mapper.RawUserAuthMapper;
+import io.openaev.service.engine.EngineReadScopeResolver;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,10 +57,7 @@ class SnapshotObservationServiceTest {
   @Mock private IndexingStatusRepository indexingStatusRepository;
   @Mock private AttackObservationRepository attackObservationRepository;
   @Mock private VulnerabilityObservationRepository vulnerabilityObservationRepository;
-  @Mock private UserRepository userRepository;
-  @Mock private UserService userService;
-  @Mock private User currentUser;
-  @Mock private RawUserAuthMapper rawUserAuthMapper;
+  @Mock private EngineReadScopeResolver scopeResolver;
 
   private SnapshotObservationService service;
   private SnapshotCursorCodec cursorCodec;
@@ -80,14 +73,11 @@ class SnapshotObservationServiceTest {
             indexingStatusRepository,
             attackObservationRepository,
             vulnerabilityObservationRepository,
-            userRepository,
-            userService,
-            rawUserAuthMapper,
+            scopeResolver,
             cursorCodec,
             new SnapshotObservationMapper());
     // Lenient: the validation test throws before this is ever reached.
-    lenient().when(rawUserAuthMapper.toRawUserAuth(any())).thenReturn(mock(RawUserAuth.class));
-    lenient().when(userService.currentUser()).thenReturn(currentUser);
+    lenient().when(scopeResolver.resolve(any())).thenReturn(EngineReadScope.unrestricted(null));
   }
 
   private SnapshotSearchInput input(
@@ -425,41 +415,24 @@ class SnapshotObservationServiceTest {
   }
 
   @Nested
-  @DisplayName("Grant filter")
-  class GrantFilter {
+  @DisplayName("Reader scope")
+  class ReaderScope {
 
     @Test
-    @DisplayName("an admin or BYPASS user sees every observation: no grant filter")
-    void given_adminOrBypass_should_notFilterOnGrants() {
-      when(currentUser.isAdminOrBypass()).thenReturn(true);
+    @DisplayName("the page is read with the scope resolved for the request's tenant")
+    void given_search_should_readWithTheScopeOfTheRequestTenant() {
+      // -- ARRANGE --
+      EngineReadScope scope =
+          new EngineReadScope(
+              false, Set.of("snapshot-attack-observation"), Map.of(), Set.of(), null);
+      when(scopeResolver.resolve(TxCtx.forTenant(TENANT_ID))).thenReturn(scope);
       givenDocuments(List.of());
 
+      // -- ACT --
       search(input(null, null, null, null));
 
-      verify(engineService).searchCursorPaged(eq(null), eq(EsAttackObservation.class), any());
-    }
-
-    @Test
-    @DisplayName("ACCESS_ASSESSMENT sees every scenario and simulation: no grant filter")
-    void given_accessAssessment_should_notFilterOnGrants() {
-      when(currentUser.getCapabilities()).thenReturn(Set.of(Capability.ACCESS_ASSESSMENT));
-      givenDocuments(List.of());
-
-      search(input(null, null, null, null));
-
-      verify(engineService).searchCursorPaged(eq(null), eq(EsAttackObservation.class), any());
-    }
-
-    @Test
-    @DisplayName("any other user is filtered on its own grants")
-    void given_userWithoutAssessmentCapability_should_filterOnItsGrants() {
-      when(currentUser.getCapabilities())
-          .thenReturn(Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION));
-      givenDocuments(List.of());
-
-      search(input(null, null, null, null));
-
-      verify(engineService).searchCursorPaged(notNull(), eq(EsAttackObservation.class), any());
+      // -- ASSERT --
+      verify(engineService).searchCursorPaged(eq(scope), eq(EsAttackObservation.class), any());
     }
   }
 

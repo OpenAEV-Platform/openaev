@@ -3,7 +3,6 @@ package io.openaev.service;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CustomDashboardParameters;
-import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
@@ -14,6 +13,7 @@ import io.openaev.engine.model.inject.EsInject;
 import io.openaev.engine.query.EsAttackPath;
 import io.openaev.engine.query.EsSeries;
 import io.openaev.engine.query.EsSeriesData;
+import io.openaev.engine.security.EngineReadScope;
 import io.openaev.utils.CustomDashboardTimeRange;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -36,7 +36,7 @@ public class EsAttackPathService {
   /**
    * Fetches attack paths for a given simulation.
    *
-   * @param user the user requesting the data
+   * @param scope what the reader may see (capabilities, grants, markings)
    * @param runtime the structural histogram runtime containing the simulation filter and the series
    * @return a list of attack paths associated with the simulation
    * @throws ExecutionException
@@ -44,7 +44,7 @@ public class EsAttackPathService {
    */
   public List<EsAttackPath> attackPaths(
       TxCtx ctx,
-      RawUserAuth user,
+      EngineReadScope scope,
       StructuralHistogramRuntime runtime,
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters)
@@ -56,9 +56,9 @@ public class EsAttackPathService {
         CompletableFuture.supplyAsync(
             () ->
                 fetchSimulationInjectsFromES(
-                    ctx, user, simulationId, parameters, definitionParameters));
+                    ctx, scope, simulationId, parameters, definitionParameters));
     CompletableFuture<List<EsSeries>> simulationSeriesFuture =
-        CompletableFuture.supplyAsync(() -> esService.multiTermHistogram(ctx, user, runtime));
+        CompletableFuture.supplyAsync(() -> esService.multiTermHistogram(ctx, scope, runtime));
 
     List<EsInject> simulationEsInjects = simulationEsInjectsFuture.get();
     List<EsSeries> simulationSeries = simulationSeriesFuture.get();
@@ -93,13 +93,13 @@ public class EsAttackPathService {
   /**
    * Fetches the injects associated with a given simulation ID from Elasticsearch.
    *
-   * @param user the user requesting the data
+   * @param scope what the reader may see (capabilities, grants, markings)
    * @param simulationId the ID of the simulation for which injects are to be fetched
    * @return a list of EsInject objects associated with the simulation
    */
   private List<EsInject> fetchSimulationInjectsFromES(
       TxCtx ctx,
-      RawUserAuth user,
+      EngineReadScope scope,
       String simulationId,
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters) {
@@ -109,7 +109,7 @@ public class EsAttackPathService {
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
 
     return esService
-        .entities(ctx, user, new ListRuntime(config, parameters, definitionParameters, null))
+        .entities(ctx, scope, new ListRuntime(config, parameters, definitionParameters, null))
         .getEsDatas()
         .stream()
         .filter(EsInject.class::isInstance)

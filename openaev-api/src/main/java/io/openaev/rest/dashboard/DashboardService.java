@@ -1,22 +1,18 @@
 package io.openaev.rest.dashboard;
 
-import static io.openaev.config.SessionHelper.currentUser;
-
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawUserAuth;
-import io.openaev.database.raw.RawUserAuthFlat;
-import io.openaev.database.repository.UserRepository;
 import io.openaev.engine.api.*;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
+import io.openaev.engine.security.EngineReadScope;
 import io.openaev.rest.custom_dashboard.WidgetService;
 import io.openaev.service.EsAttackPathService;
 import io.openaev.service.EsSecurityDomainService;
+import io.openaev.service.engine.EngineReadScopeResolver;
 import io.openaev.utils.es.WidgetToEntitiesInput;
 import io.openaev.utils.es.WidgetToEntitiesOutput;
-import io.openaev.utils.mapper.RawUserAuthMapper;
 import io.openaev.utils.pagination.Pagination;
 import jakarta.annotation.Nullable;
 import java.util.HashMap;
@@ -40,11 +36,9 @@ public class DashboardService {
 
   private final EsAttackPathService esAttackPathService;
   private final EngineService engineService;
-  private final UserRepository userRepository;
   private final WidgetService widgetService;
   private final EsSecurityDomainService esSecurityDomainService;
-
-  private final RawUserAuthMapper rawUserAuthMapper;
+  private final EngineReadScopeResolver scopeResolver;
 
   /**
    * Retrieves count data from Elasticsearch for a specific widget based on its configuration.
@@ -55,15 +49,15 @@ public class DashboardService {
    *     the difference between the two
    */
   public EsCountInterval count(TxCtx ctx, String widgetId, Map<String, String> parameters) {
-    WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
+    WidgetContext widgetContext = getWidgetContext(ctx, widgetId, parameters);
     FlatConfiguration config = (FlatConfiguration) widgetContext.widget().getWidgetConfiguration();
     CountRuntime runtime =
         new CountRuntime(config, widgetContext.parameters(), widgetContext.definitionParameters());
-    return engineService.count(ctx, widgetContext.user(), runtime);
+    return engineService.count(ctx, widgetContext.scope(), runtime);
   }
 
   public EsAvgs average(TxCtx ctx, String widgetId, Map<String, String> parameters) {
-    WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
+    WidgetContext widgetContext = getWidgetContext(ctx, widgetId, parameters);
     AverageConfiguration config =
         (AverageConfiguration) widgetContext.widget().getWidgetConfiguration();
     AverageRuntime runtime =
@@ -71,7 +65,7 @@ public class DashboardService {
             esSecurityDomainService.setFieldsForQuery(config),
             widgetContext.parameters(),
             widgetContext.definitionParameters());
-    return engineService.average(ctx, widgetContext.user(), runtime);
+    return engineService.average(ctx, widgetContext.scope(), runtime);
   }
 
   /**
@@ -84,7 +78,7 @@ public class DashboardService {
    * @throws RuntimeException if the widget type is unsupported
    */
   public List<EsSeries> series(TxCtx ctx, String widgetId, Map<String, String> parameters) {
-    WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
+    WidgetContext widgetContext = getWidgetContext(ctx, widgetId, parameters);
     if (WidgetConfigurationType.TEMPORAL_HISTOGRAM.equals(
         widgetContext.widget().getWidgetConfiguration().getConfigurationType())) {
       DateHistogramWidget config =
@@ -92,7 +86,7 @@ public class DashboardService {
       DateHistogramRuntime runtime =
           new DateHistogramRuntime(
               config, widgetContext.parameters(), widgetContext.definitionParameters());
-      return engineService.multiDateHistogram(ctx, widgetContext.user(), runtime);
+      return engineService.multiDateHistogram(ctx, widgetContext.scope(), runtime);
     } else if (WidgetConfigurationType.STRUCTURAL_HISTOGRAM.equals(
         widgetContext.widget().getWidgetConfiguration().getConfigurationType())) {
       StructuralHistogramWidget config =
@@ -105,7 +99,7 @@ public class DashboardService {
       StructuralHistogramRuntime runtime =
           new StructuralHistogramRuntime(
               config, widgetContext.parameters(), widgetContext.definitionParameters());
-      return engineService.multiTermHistogram(ctx, widgetContext.user(), runtime);
+      return engineService.multiTermHistogram(ctx, widgetContext.scope(), runtime);
     }
     throw new UnsupportedOperationException("Unsupported widget: " + widgetContext.widget());
   }
@@ -126,7 +120,7 @@ public class DashboardService {
     ListRuntime runtime =
         new ListRuntime(
             config, widgetContext.parameters(), widgetContext.definitionParameters(), pagination);
-    return engineService.entities(ctx, widgetContext.user(), runtime);
+    return engineService.entities(ctx, widgetContext.scope(), runtime);
   }
 
   /**
@@ -139,7 +133,7 @@ public class DashboardService {
    */
   public EsEntities entities(
       TxCtx ctx, String widgetId, Map<String, String> parameters, @Nullable Pagination pagination) {
-    WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
+    WidgetContext widgetContext = getWidgetContext(ctx, widgetId, parameters);
     ListConfiguration config = (ListConfiguration) widgetContext.widget().getWidgetConfiguration();
     return executeListQuery(ctx, widgetContext, config, pagination);
   }
@@ -164,7 +158,7 @@ public class DashboardService {
    */
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
       TxCtx ctx, String widgetId, WidgetToEntitiesInput input) {
-    WidgetContext widgetContext = getWidgetContext(widgetId, input.getParameters());
+    WidgetContext widgetContext = getWidgetContext(ctx, widgetId, input.getParameters());
     ListConfiguration listConfig;
     EsEntities datas;
 
@@ -193,7 +187,7 @@ public class DashboardService {
    */
   public List<EsAttackPath> attackPaths(TxCtx ctx, String widgetId, Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
+    WidgetContext widgetContext = getWidgetContext(ctx, widgetId, parameters);
     StructuralHistogramWidget config =
         (StructuralHistogramWidget) widgetContext.widget().getWidgetConfiguration();
     StructuralHistogramRuntime runtime =
@@ -201,7 +195,7 @@ public class DashboardService {
             config, widgetContext.parameters(), widgetContext.definitionParameters());
     return esAttackPathService.attackPaths(
         ctx,
-        widgetContext.user(),
+        widgetContext.scope(),
         runtime,
         widgetContext.parameters(),
         widgetContext.definitionParameters());
@@ -220,15 +214,15 @@ public class DashboardService {
    */
   public List<EsSeries> adHocSeries(
       TxCtx ctx, WidgetConfiguration configuration, Map<String, String> parameters) {
-    RawUserAuth user = currentUserAuth();
+    EngineReadScope scope = scopeResolver.resolve(ctx);
     Map<String, String> params = parameters == null ? Map.of() : parameters;
     Map<String, CustomDashboardParameters> defParams = adHocDefinitionParameters();
     if (configuration instanceof DateHistogramWidget config) {
       return engineService.multiDateHistogram(
-          ctx, user, new DateHistogramRuntime(config, params, defParams));
+          ctx, scope, new DateHistogramRuntime(config, params, defParams));
     } else if (configuration instanceof StructuralHistogramWidget config) {
       return engineService.multiTermHistogram(
-          ctx, user, new StructuralHistogramRuntime(config, params, defParams));
+          ctx, scope, new StructuralHistogramRuntime(config, params, defParams));
     }
     throw new UnsupportedOperationException(
         "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
@@ -247,11 +241,11 @@ public class DashboardService {
       throw new UnsupportedOperationException(
           "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
     }
-    RawUserAuth user = currentUserAuth();
+    EngineReadScope scope = scopeResolver.resolve(ctx);
     Map<String, String> params = parameters == null ? Map.of() : parameters;
     return engineService.average(
         ctx,
-        user,
+        scope,
         new AverageRuntime(
             esSecurityDomainService.setFieldsForQuery(config),
             params,
@@ -271,10 +265,10 @@ public class DashboardService {
       throw new UnsupportedOperationException(
           "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
     }
-    RawUserAuth user = currentUserAuth();
+    EngineReadScope scope = scopeResolver.resolve(ctx);
     Map<String, String> params = parameters == null ? Map.of() : parameters;
     return engineService.count(
-        ctx, user, new CountRuntime(config, params, adHocDefinitionParameters()));
+        ctx, scope, new CountRuntime(config, params, adHocDefinitionParameters()));
   }
 
   /**
@@ -294,10 +288,10 @@ public class DashboardService {
       throw new UnsupportedOperationException(
           "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
     }
-    RawUserAuth user = currentUserAuth();
+    EngineReadScope scope = scopeResolver.resolve(ctx);
     Map<String, String> params = parameters == null ? Map.of() : parameters;
     return engineService.entities(
-        ctx, user, new ListRuntime(config, params, adHocDefinitionParameters(), pagination));
+        ctx, scope, new ListRuntime(config, params, adHocDefinitionParameters(), pagination));
   }
 
   /**
@@ -335,15 +329,10 @@ public class DashboardService {
     EsEntities datas =
         engineService.entities(
             ctx,
-            currentUserAuth(),
+            scopeResolver.resolve(ctx),
             new ListRuntime(
                 listConfig, params, adHocDefinitionParameters(), input.getPagination()));
     return WidgetToEntitiesOutput.builder().listConfiguration(listConfig).esEntities(datas).build();
-  }
-
-  private RawUserAuth currentUserAuth() {
-    List<RawUserAuthFlat> usersWithAuthFlat = userRepository.getUserWithAuth(currentUser().getId());
-    return rawUserAuthMapper.toRawUserAuth(usersWithAuthFlat);
   }
 
   /**
@@ -391,26 +380,23 @@ public class DashboardService {
    * @return list of {@link EsSearch} search results
    */
   public List<EsSearch> search(TxCtx ctx, final String search) {
-    List<RawUserAuthFlat> usersWithAuthFlat = userRepository.getUserWithAuth(currentUser().getId());
-    RawUserAuth userWithAuth = rawUserAuthMapper.toRawUserAuth(usersWithAuthFlat);
-    return engineService.search(ctx, userWithAuth, search, null);
+    return engineService.search(ctx, scopeResolver.resolve(ctx), search, null);
   }
 
-  private WidgetContext getWidgetContext(String widgetId, Map<String, String> parameters) {
+  private WidgetContext getWidgetContext(
+      TxCtx ctx, String widgetId, Map<String, String> parameters) {
     if (parameters == null) {
       parameters = Map.of();
     }
     Widget widget = widgetService.widget(widgetId);
     CustomDashboard dashboard = widget.getCustomDashboard();
     Map<String, CustomDashboardParameters> defParams = dashboard.toParametersMap();
-    List<RawUserAuthFlat> usersWithAuthFlat = userRepository.getUserWithAuth(currentUser().getId());
-    RawUserAuth userWithAuth = rawUserAuthMapper.toRawUserAuth(usersWithAuthFlat);
-    return new WidgetContext(widget, parameters, defParams, userWithAuth);
+    return new WidgetContext(widget, parameters, defParams, scopeResolver.resolve(ctx));
   }
 
   private record WidgetContext(
       Widget widget,
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters,
-      RawUserAuth user) {}
+      EngineReadScope scope) {}
 }
