@@ -69,6 +69,7 @@ interface Props<T> {
   /** Drawer width when not `inline`. */
   variant?: 'half' | 'full';
   containerTestId?: string;
+  /** Show the "{count} selected" chip in the header (hidden for single-selection pickers). */
   showSelectedCount?: boolean;
 }
 
@@ -114,25 +115,25 @@ const SelectListPicker = <T extends object>({
 
   // Header slot: selected count + secondary actions (e.g. "Select all") + the
   // creation button, rendered top-right next to the title in both modes.
-  const headerRightSlot = showSelectedCount
-    ? (
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            flexShrink: 0,
-          }}
-        >
-          <Chip
-            severity={selectedCount > 0 ? 'info' : 'neutral'}
-            label={String(t('{count} selected', { count: selectedCount }))}
-          />
-          {headerActions}
-          {buttonComponent}
-        </Box>
-      )
-    : null;
+  const headerRightSlot = (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        flexShrink: 0,
+      }}
+    >
+      {showSelectedCount && (
+        <Chip
+          severity={selectedCount > 0 ? 'info' : 'neutral'}
+          label={String(t('{count} selected', { count: selectedCount }))}
+        />
+      )}
+      {headerActions}
+      {buttonComponent}
+    </Box>
+  );
 
   // Client-side sorting fallback for pickers without queryable pagination:
   // sortable columns sort locally on the raw field value.

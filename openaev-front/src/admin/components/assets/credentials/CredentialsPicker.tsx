@@ -21,15 +21,14 @@ interface Props {
   initialState: string[];
   open: boolean;
   onClose: () => void;
-  onSubmit: (endpointIds: string[]) => void;
+  onSubmit: (credentialIds: string[]) => void;
   title: string;
   multiple?: boolean;
   credentialType?: CredentialOutput['credential_type'];
 }
 
-// Always rendered as an inline dialog: every context that picks endpoints
-// (inject form, asset group management, payload drawers) is itself an overlay,
-// and the design system never stacks a drawer over a drawer.
+// Always rendered as an inline dialog: the inject form that picks credentials
+// is itself an overlay, and the design system never stacks a drawer over a drawer.
 const CredentialsPicker: FunctionComponent<Props> = ({
   initialState = [],
   open,
@@ -40,7 +39,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
   credentialType,
 }) => {
   // Standard hooks
-  const { t, fldt } = useFormatter();
+  const { fldt } = useFormatter();
   const dispatch = useAppDispatch();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [credentialValues, setCredentialValues] = useState<CredentialOutput[]>([]);
@@ -53,7 +52,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
 
   const selectedIds = useMemo(() => credentialValues.map(v => v.credential_id!), [credentialValues]);
 
-  const toggleEndpoint = (credentialId: string, credential: CredentialOutput) => {
+  const toggleCredential = (credentialId: string, credential: CredentialOutput) => {
     if (selectedIds.includes(credentialId)) {
       setCredentialValues(credentialValues.filter(v => v.credential_id !== credentialId));
     } else if (multiple) {
@@ -100,27 +99,27 @@ const CredentialsPicker: FunctionComponent<Props> = ({
       // Labels are i18n keys: SortHeadersComponentV2 translates them.
       {
         field: 'credential_name',
-        label: t('Name'),
+        label: 'Name',
         isSortable: true,
         value: (credential: CredentialOutput) => credential.credential_name ?? '',
         width: 16,
       },
       {
         field: 'credential_type',
-        label: t('Type'),
+        label: 'Type',
         isSortable: true,
         value: (credential: CredentialOutput) => (credential.credential_type ? humanizeEnum(credential.credential_type) : '-'),
         width: 9,
       },
       {
         field: 'credential_auth_method',
-        label: t('Auth Method'),
+        label: 'Auth Method',
         value: (credential: CredentialOutput) => (credential.credential_auth_method ? humanizeEnum(credential.credential_auth_method) : '-'),
         width: 14,
       },
       {
         field: 'credential_status',
-        label: t('Status'),
+        label: 'Status',
         value: (credential: CredentialOutput) => (
           <CredentialStatusChip status={credential.credential_status} variant="list" />
         ),
@@ -128,26 +127,26 @@ const CredentialsPicker: FunctionComponent<Props> = ({
       },
       {
         field: 'credential_last_verified_at',
-        label: t('Last verified'),
+        label: 'Last verified',
         value: (credential: CredentialOutput) => (credential.credential_last_verified_at ? fldt(credential.credential_last_verified_at) : '-'),
         width: 13,
       },
       {
         field: 'credential_tags_ids',
-        label: t('Tags'),
+        label: 'Tags',
         // Single chip + "+N" counter so the fixed-height cell never wraps.
         value: (credential: CredentialOutput) => <ItemTags variant="list" limit={1} tags={credential.credential_tags_ids ?? []} />,
         width: 12,
       },
       {
         field: 'credential_created_at',
-        label: t('Created'),
+        label: 'Created',
         value: (credential: CredentialOutput) => (credential.credential_created_at ? fldt(credential.credential_created_at) : '-'),
         width: 13,
       },
       {
         field: 'credential_created_by',
-        label: t('Created by'),
+        label: 'Created by',
         value: (credential: CredentialOutput) => credential.credential_created_by?.user_name || '-',
         width: 11,
       },
@@ -158,7 +157,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
   const [credentials, setCredentials] = useState<CredentialOutput[]>([]);
 
   const availableFilterNames = [
-    'asset_tags',
+    'secret_reference_tags',
     'secret_reference_credential_type',
   ];
   // The filter key is the entity property (secret_reference_credential_type), not the
@@ -198,7 +197,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
       elements={elements}
       sortHelpers={queryableHelpers.sortHelpers}
       selectedIds={selectedIds}
-      onToggle={toggleEndpoint}
+      onToggle={toggleCredential}
       getId={element => element.credential_id!}
       isLoading={isLoading}
       showSelectedCount={multiple}

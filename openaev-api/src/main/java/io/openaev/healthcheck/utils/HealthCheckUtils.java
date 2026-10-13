@@ -323,7 +323,7 @@ public class HealthCheckUtils {
             .map(assetGroups -> assetGroups.stream().map(AssetGroup::getId).toList())
             .orElse(new ArrayList<>()),
         ofNullable(inject.getSecretReferences())
-            .map(assetGroups -> assetGroups.stream().map(SecretReference::getId).toList())
+            .map(secretReferences -> secretReferences.stream().map(SecretReference::getId).toList())
             .orElse(new ArrayList<>()));
   }
 
