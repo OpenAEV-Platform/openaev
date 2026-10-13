@@ -42,7 +42,11 @@ const ThreatArsenalInstalled = () => {
     onSelect: setOpenedAction,
     onToggle: selection.onToggleEntity,
     onUpdate: installed.replaceAction,
-    onDuplicate: result => installed.prependActions([result]),
+    onDuplicate: (result) => {
+      installed.prependActions([result]);
+      // F22: "Duplicate to edit" opens the copy right away.
+      setOpenedAction(result);
+    },
     onDelete: installed.removeAction,
   };
   const partiallySelected = (!selection.selectAll && selectionCount > 0)

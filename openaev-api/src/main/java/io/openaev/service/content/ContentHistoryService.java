@@ -43,6 +43,11 @@ public class ContentHistoryService {
     return contentHistoryRepository.save(history);
   }
 
+  /** Injects moved to this payload version (F30). */
+  public ContentHistory payloadVersionChanged(Payload target) {
+    return save(target, ContentHistory.ACTION.VERSION_CHANGE);
+  }
+
   public ContentHistory payloadRevoked(Payload payload) {
     return save(payload, ContentHistory.ACTION.REVOKE);
   }

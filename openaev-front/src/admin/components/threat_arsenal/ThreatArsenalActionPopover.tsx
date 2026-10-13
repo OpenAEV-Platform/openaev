@@ -26,6 +26,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import ChangeVersionDialog from './ChangeVersionDialog';
 import PayloadRevocationDialog from './PayloadRevocationDialog';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
@@ -119,6 +120,7 @@ const ThreatArsenalActionPopover = ({
   const [openDuplicate, setOpenDuplicate] = useState(false);
   const [deletion, setDeletion] = useState(false);
   const [revocation, setRevocation] = useState(false);
+  const [changeVersion, setChangeVersion] = useState(false);
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const { t, tPick } = useFormatter();
@@ -278,6 +280,15 @@ const ThreatArsenalActionPopover = ({
         {hasUpdateCapability && (
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
         )}
+        {hasDuplicateCapability && !!payloadId && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            setChangeVersion(true);
+          }}
+          >
+            {t('Change version')}
+          </MenuItem>
+        )}
         {hasDeleteCapability && !!payloadId && (
           <MenuItem onClick={revoked ? submitLiftRevocation : handleOpenRevocation}>
             {t(revoked ? 'Lift revocation' : 'Revoke')}
@@ -287,6 +298,13 @@ const ThreatArsenalActionPopover = ({
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
       </Menu>
+
+      <ChangeVersionDialog
+        open={changeVersion}
+        actionId={actionId}
+        name={name}
+        onClose={() => setChangeVersion(false)}
+      />
 
       <PayloadRevocationDialog
         open={revocation}

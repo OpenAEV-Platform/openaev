@@ -156,6 +156,14 @@ public class InjectorContractService implements DependenciesManager {
    * @return the injector contract
    * @throws ElementNotFoundException if not found
    */
+  /** The contract of a payload; every payload has exactly one. */
+  public InjectorContract findByPayload(@NotNull final Payload payload) {
+    return injectorContractRepository
+        .findInjectorContractByPayload(payload)
+        .orElseThrow(
+            () -> new ElementNotFoundException("No contract for payload " + payload.getId()));
+  }
+
   public InjectorContract injectorContract(@NotBlank final String id) {
     return injectorContractRepository
         .findByIdOrExternalId(id, id)
