@@ -10020,6 +10020,43 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageOutput {
+  /** @minLength 1 */
+  usage_id: string;
+  usage_name?: string;
+  usage_scenario_id?: string;
+  usage_scenario_name?: string;
+  /**
+   * inject: scenario inject; atomic_testing; step: chained scenario step
+   * @minLength 1
+   */
+  usage_type: string;
+}
+
+export interface PayloadVersionChangeInput {
+  inject_ids?: string[];
+  step_ids?: string[];
+  /** @minLength 1 */
+  target_payload_id: string;
+}
+
+export interface PayloadVersionChangeOutput {
+  moved_ids?: string[];
+  refused?: Refusal[];
+}
+
+export interface PayloadVersionOutput {
+  /** @format date-time */
+  payload_created_at?: string;
+  payload_current?: boolean;
+  /** @minLength 1 */
+  payload_id: string;
+  payload_is_latest?: boolean;
+  payload_revoked?: boolean;
+  payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
+  payload_version?: string;
+}
+
 export interface PayloadsDeprecateInput {
   collector_id: string;
   payload_external_ids: string[];
@@ -10689,6 +10726,13 @@ export interface RawUser {
   user_phone?: string;
   user_tags?: string[];
   user_teams?: string[];
+}
+
+export interface Refusal {
+  /** @minLength 1 */
+  reason: string;
+  /** @minLength 1 */
+  usage_id: string;
 }
 
 export interface RegexGroup {

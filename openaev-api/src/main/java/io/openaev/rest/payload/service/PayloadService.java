@@ -42,6 +42,7 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -53,6 +54,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.payload.PayloadContentHashService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -100,6 +102,7 @@ public class PayloadService {
   private final ContentHistoryService contentHistoryService;
   private final PayloadVersionService payloadVersionService;
   private final PayloadContentHashService payloadContentHashService;
+  private final PayloadRevocationService payloadRevocationService;
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
@@ -374,6 +377,9 @@ public class PayloadService {
         this.payloadRepository
             .findById(payloadId)
             .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+    if (payloadRevocationService.isRevoked(origin)) {
+      throw new BadRequestException("A revoked payload cannot be duplicated");
+    }
     // Telemetry: one payload duplicated (community payload customization signal),
     // counted only once the origin payload is known to exist.
     resultsMetricCollector.recordPayloadDuplicated();

@@ -2039,13 +2039,13 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     void given_payloadRunByScenarioInject_should_refuseDeletion() throws Exception {
       // Arrange
       InjectorContractComposer.Composer contract = payloadContract(null);
+      // The contract is already persisted: link it to the inject, not its composer.
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setInjectorContract(contract.get());
       Scenario scenario =
           scenarioComposer
               .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
-              .withInject(
-                  injectComposer
-                      .forInject(InjectFixture.getDefaultInject())
-                      .withInjectorContract(contract))
+              .withInject(injectComposer.forInject(inject))
               .persist()
               .get();
       entityManager.flush();

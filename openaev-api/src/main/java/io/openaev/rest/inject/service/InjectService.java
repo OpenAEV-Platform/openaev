@@ -289,6 +289,16 @@ public class InjectService {
    * @param injectId inject ID to search
    * @return the inject found or null if none matched the ID
    */
+  /** Scenario and atomic testing injects running this payload (F30). */
+  @Transactional(readOnly = true)
+  public List<Inject> findTemplateInjectsByPayloadId(@NotBlank final String payloadId) {
+    return injectRepository.findTemplateInjectsByPayloadId(payloadId);
+  }
+
+  public Inject save(@NotNull final Inject inject) {
+    return injectRepository.save(inject);
+  }
+
   public Inject findInjectOrNull(@NotBlank final String injectId) {
     if (injectId == null) {
       return null;
