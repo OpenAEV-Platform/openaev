@@ -293,9 +293,10 @@ public class HealthCheckUtils {
    * has no way to fill, and block the inject at execution time.
    *
    * @param jsonField the contract field to check
-   * @return {@code false} when the field must be ignored by the content checks
+   * @return {@code false} only for a credential reference field while the preview feature is
+   *     disabled; any other field is always checked
    */
-  private boolean isContractFieldEnabled(JsonNode jsonField) {
+  private boolean isContractCredentialFieldEnabled(JsonNode jsonField) {
     return !CONTRACT_ELEMENT_CONTENT_CREDENTIAL_REFERENCE.equals(
             jsonField.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText())
         || previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET);
@@ -381,7 +382,7 @@ public class HealthCheckUtils {
     }
     List<JsonNode> contractFields =
         stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false)
-            .filter(this::isContractFieldEnabled)
+            .filter(this::isContractCredentialFieldEnabled)
             .toList();
 
     for (JsonNode jsonField : contractFields) {
