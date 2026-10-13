@@ -21,6 +21,7 @@ const SEVERITY_BY_STATUS: Record<string, Severity> = {
   INVALID_USAGE: 'error',
   TIMEOUT: 'error',
   INTERRUPTED: 'error',
+  PAYLOAD_REVOKED: 'error',
   AGENT_OVERLOADED: 'error',
   INFO: 'info',
   PENDING: 'muted',

@@ -31,6 +31,7 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.execution.ExecutionExecutorException;
+import io.openaev.execution.PayloadRevokedException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -972,6 +973,31 @@ public class InjectExecutionStepTest extends IntegrationTest {
                     ExecutionTraceStatus.ERROR.equals(trace.getStatus())
                         && "No asset executed".equals(trace.getMessage())),
         "the failure reason must be kept as an error trace");
+  }
+
+  @Test
+  void given_revokedPayload_should_failInjectWithPayloadRevokedTrace() throws Exception {
+    // Arrange
+    doThrow(new PayloadRevokedException("Payload revoked: crashes DCs"))
+        .when(executor)
+        .directExecute(any());
+    Step stepReady = createReadyStepForRun();
+
+    // Act
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+
+    // Assert
+    assertTrue(stepRunOpt.isEmpty(), "the step must be ended as a failure");
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    InjectStatus injectStatus =
+        injectRepository.findById(injectId).orElseThrow().getStatus().orElseThrow();
+    assertEquals(ExecutionStatus.ERROR, injectStatus.getName());
+    assertTrue(
+        injectStatus.getTraces().stream()
+            .anyMatch(
+                trace ->
+                    ExecutionTraceStatus.PAYLOAD_REVOKED.equals(trace.getStatus())
+                        && "Payload revoked: crashes DCs".equals(trace.getMessage())));
   }
 
   @Test

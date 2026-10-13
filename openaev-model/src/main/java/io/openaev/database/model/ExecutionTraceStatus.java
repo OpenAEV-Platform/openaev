@@ -18,6 +18,8 @@ public enum ExecutionTraceStatus {
   INVALID_USAGE,
   TIMEOUT,
   INTERRUPTED,
+  // The payload was revoked: the inject was refused before execution.
+  PAYLOAD_REVOKED,
 
   // -- Not counted (ignored in status computation) --
   ASSET_AGENTLESS,
@@ -45,6 +47,7 @@ public enum ExecutionTraceStatus {
           INVALID_USAGE,
           TIMEOUT,
           INTERRUPTED,
+          PAYLOAD_REVOKED,
           // @deprecated — rerouted to error
           PARTIAL,
           MAYBE_PREVENTED,

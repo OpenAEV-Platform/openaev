@@ -262,7 +262,8 @@ public class InjectExecutionStep implements ActionStep {
         throw new ChainingException(
             "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
       }
-      injectStatusService.failInjectStatus(inject, e.getMessage());
+      injectStatusService.failInjectStatus(
+          inject, e.getMessage(), InjectStatusService.traceStatusOf(e));
       return Optional.empty();
     } catch (Exception e) {
       throw new ChainingException(
