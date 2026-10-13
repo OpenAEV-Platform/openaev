@@ -16,7 +16,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
-/** One install, update, rollback, copy, version change or uninstall of catalogue content. */
+/** One install, update, rollback, copy, version change, uninstall or revocation of content. */
 @Getter
 @Setter
 @Entity
@@ -30,7 +30,9 @@ public class ContentHistory implements TenantBase, Auditable {
     ROLLBACK,
     DUPLICATE,
     VERSION_CHANGE,
-    UNINSTALL
+    UNINSTALL,
+    REVOKE,
+    LIFT_REVOCATION
   }
 
   @Id

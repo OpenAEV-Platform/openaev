@@ -63,7 +63,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const primaryDomain = domains[0];
   const secondaryDomainsLabel = domains.slice(1).map(d => t(d.domain_name)).join(', ');
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
-  const status = action.action_payload?.payload_status;
+  const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status;
   const statusColor = getStatusColor(theme, status);
   const statusLabel = getStatusLabel(status);
   const name = tPick(action.action_labels);
@@ -153,6 +153,15 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           disableDuplicate={disableDuplicate}
           disableJsonExport={disableJsonExport}
           disableDelete={disableDelete}
+          revoked={action.action_payload?.payload_revoked}
+          onRevocationChange={(revoked, status) => action.action_payload && onUpdate({
+            ...action,
+            action_payload: {
+              ...action.action_payload,
+              payload_revoked: revoked,
+              payload_status: status ?? action.action_payload.payload_status,
+            },
+          })}
         />
       )}
       chips={(

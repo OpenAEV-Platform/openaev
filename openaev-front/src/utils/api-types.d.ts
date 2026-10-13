@@ -9855,9 +9855,29 @@ export interface PayloadPrerequisite {
   get_command: string;
 }
 
+export interface PayloadRevocationInput {
+  /** @minLength 1 */
+  content_revocation_reason: string;
+}
+
+export interface PayloadRevocationOutput {
+  /** @minLength 1 */
+  content_revocation_id: string;
+  content_revocation_reason?: string;
+  /** @format date-time */
+  content_revocation_revoked_at?: string;
+  content_revocation_revoked_by?: string;
+  /**
+   * tenant: revoked in this tenant; repository: from the revocation list
+   * @minLength 1
+   */
+  content_revocation_source: string;
+}
+
 export interface PayloadSimple {
   payload_collector_type?: string;
   payload_id?: string;
+  payload_revoked?: boolean;
   payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
 }
