@@ -1,5 +1,5 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { CancelOutlined, PendingOutlined, VerifiedOutlined } from '@mui/icons-material';
+import { BlockOutlined, CancelOutlined, PendingOutlined, VerifiedOutlined } from '@mui/icons-material';
 import { type JSX } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -28,6 +28,8 @@ const PayloadStatusComponent = ({ status }: Props) => {
       return withTooltip(<PendingOutlined color="warning" />, t('Unverified: Not yet tested'));
     case 'DEPRECATED':
       return withTooltip(<CancelOutlined color="disabled" />, t('Deprecated: Functionality not guaranteed'));
+    case 'REVOKED':
+      return withTooltip(<BlockOutlined color="error" />, t('Revoked'));
     default:
       return <span>-</span>;
   }

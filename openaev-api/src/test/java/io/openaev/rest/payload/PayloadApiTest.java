@@ -1437,6 +1437,121 @@ class PayloadApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.payload_status").value("UNVERIFIED"));
     }
+
+    @Nested
+    @DisplayName("Tenant revocation (F34)")
+    class TenantRevocation {
+
+      private static final String REASON = "Crashes our domain controllers";
+
+      private String revocationUri(String payloadId) {
+        return PAYLOAD_URI + "/" + payloadId + "/revocation";
+      }
+
+      private void revoke(String payloadId) throws Exception {
+        mvc.perform(
+                post(revocationUri(payloadId))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(Map.of("content_revocation_reason", REASON)))
+                    .with(csrf()))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.content_revocation_reason").value(REASON))
+            .andExpect(jsonPath("$.content_revocation_source").value("tenant"));
+      }
+
+      private void setVersion(String payloadId, String externalId, String version, boolean latest) {
+        tenantScopedTransaction.execute(
+            io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> {
+              Payload payload = payloadRepository.findById(payloadId).orElseThrow();
+              payload.setExternalId(externalId);
+              payload.setVersion(version);
+              payload.setLatest(latest);
+              return payloadRepository.save(payload);
+            });
+      }
+
+      private boolean isLatest(String payloadId) {
+        return tenantScopedTransaction.execute(
+            io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> payloadRepository.findById(payloadId).orElseThrow().isLatest());
+      }
+
+      private Payload.PAYLOAD_STATUS payloadStatus(String payloadId) {
+        return tenantScopedTransaction.execute(
+            io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> payloadRepository.findById(payloadId).orElseThrow().getStatus());
+      }
+
+      @Test
+      @DisplayName("A local payload can be revoked, then lifted")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      void given_localPayload_should_revokeThenLift() throws Exception {
+        // Arrange
+        String payloadId = createCommandPayload();
+        Payload.PAYLOAD_STATUS initialStatus = payloadStatus(payloadId);
+
+        // Act
+        revoke(payloadId);
+
+        // Assert
+        mvc.perform(get(revocationUri(payloadId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content_revocation_reason").value(REASON));
+        assertEquals(Payload.PAYLOAD_STATUS.REVOKED, payloadStatus(payloadId));
+        mvc.perform(delete(revocationUri(payloadId)).with(csrf()))
+            .andExpect(status().isNoContent());
+        mvc.perform(get(revocationUri(payloadId))).andExpect(status().isNotFound());
+        assertEquals(initialStatus, payloadStatus(payloadId));
+      }
+
+      @Test
+      @DisplayName("Revoking a revoked payload is refused")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      void given_revokedPayload_should_refuseSecondRevocation() throws Exception {
+        // Arrange
+        String payloadId = createCommandPayload();
+        revoke(payloadId);
+
+        // Act & Assert
+        mvc.perform(
+                post(revocationUri(payloadId))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(Map.of("content_revocation_reason", REASON)))
+                    .with(csrf()))
+            .andExpect(status().isBadRequest());
+      }
+
+      @Test
+      @DisplayName("Revoking the latest managed version makes the previous one latest")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      void given_latestVersionRevoked_should_flagPreviousVersion() throws Exception {
+        // Arrange
+        String externalId = UUID.randomUUID().toString();
+        String v1 = createCommandPayload();
+        String v2 = createCommandPayload();
+        setVersion(v1, externalId, "1.0.0", false);
+        setVersion(v2, externalId, "2.0.0", true);
+
+        // Act
+        revoke(v2);
+
+        // Assert
+        assertTrue(isLatest(v1));
+        assertFalse(isLatest(v2));
+      }
+
+      @Test
+      @DisplayName("Lifting without a tenant revocation is refused")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      void given_notRevokedPayload_should_refuseLift() throws Exception {
+        // Arrange
+        String payloadId = createCommandPayload();
+
+        // Act & Assert
+        mvc.perform(delete(revocationUri(payloadId)).with(csrf())).andExpect(status().isNotFound());
+      }
+    }
   }
 
   @Nested

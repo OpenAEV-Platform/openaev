@@ -333,6 +333,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.payload.PayloadApi#createPayload",
           "io.openaev.rest.payload.PayloadApi#updatePayload",
           "io.openaev.rest.payload.PayloadApi#duplicatePayload",
+          // payload revocation (F34): reads the payload and refreshes its latest flag
+          "io.openaev.api.payload.PayloadRevocationApi#revocation",
+          "io.openaev.api.payload.PayloadRevocationApi#revoke",
+          "io.openaev.api.payload.PayloadRevocationApi#lift",
           // tenant_xtmhub_registrations (v2): singleton registration endpoints and the explicit
           // default-tenant contact-us lookup
           "io.openaev.api.xtmhub.XtmHubApi#getRegistration",

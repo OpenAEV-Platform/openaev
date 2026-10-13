@@ -1,6 +1,6 @@
 import { type Theme } from '@mui/material/styles';
 
-export type PayloadStatus = 'VERIFIED' | 'UNVERIFIED' | 'DEPRECATED';
+export type PayloadStatus = 'VERIFIED' | 'UNVERIFIED' | 'DEPRECATED' | 'REVOKED';
 
 // Theme-aware so cards / overview / quick filters render the same color in
 // both dark and light modes. `theme.palette.warning.main` differs across
@@ -14,6 +14,8 @@ export const getStatusColor = (theme: Theme, status: PayloadStatus | string | un
       return theme.palette.warning.main;
     case 'DEPRECATED':
       return theme.palette.text.disabled;
+    case 'REVOKED':
+      return theme.palette.error.main;
     default:
       return theme.palette.text.disabled;
   }
@@ -23,6 +25,7 @@ export const STATUS_LABEL_MAP: Record<PayloadStatus, string> = {
   VERIFIED: 'Verified',
   UNVERIFIED: 'Unverified',
   DEPRECATED: 'Deprecated',
+  REVOKED: 'Revoked',
 };
 
 export const getStatusLabel = (status: PayloadStatus | string | undefined | null): string | null => {
