@@ -165,6 +165,8 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
+    Expression<String[]> secretReferenceIdsExpression =
+        createJoinArrayAggOnId(cb, injectRoot, "secretReferences");
     Expression<String[]> domainsContractIdExpression =
         createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
@@ -183,6 +185,7 @@ public class InjectSearchService {
         teamIdsExpression.alias("inject_teams"),
         assetIdsExpression.alias("inject_assets"),
         assetGroupIdsExpression.alias("inject_asset_groups"),
+        secretReferenceIdsExpression.alias("inject_secret_references"),
         injectorJoin.get("type").alias("inject_type"),
         domainsContractIdExpression.alias("injector_contract_domains"),
         injectDependency.alias("inject_depends_on"));
@@ -279,6 +282,22 @@ public class InjectSearchService {
                                         AssetGroup assetGroup = new AssetGroup();
                                         assetGroup.setId(id);
                                         return assetGroup;
+                                      })
+                                  .collect(Collectors.toList()))
+                      .orElse(new ArrayList<>()));
+              // The timeline sends this light inject back on drag / reconnect: omitting the
+              // secret references would wipe them from the inject on the next update.
+              inject.setSecretReferences(
+                  ofNullable(tuple.get("inject_secret_references", String[].class))
+                      .map(
+                          ids ->
+                              Arrays.stream(ids)
+                                  .distinct()
+                                  .map(
+                                      id -> {
+                                        SecretReference secretReference = new SecretReference();
+                                        secretReference.setId(id);
+                                        return secretReference;
                                       })
                                   .collect(Collectors.toList()))
                       .orElse(new ArrayList<>()));

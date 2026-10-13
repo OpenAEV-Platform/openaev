@@ -9,11 +9,13 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecretReference;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CredentialFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
@@ -44,6 +46,7 @@ class InjectSecretReferenceSinkTest extends IntegrationTest {
 
   private JdbcTemplate jdbc;
   private String tenantId;
+  private String scenarioId;
   private String injectId;
   private String secretReferenceId;
 
@@ -51,6 +54,7 @@ class InjectSecretReferenceSinkTest extends IntegrationTest {
   void sweep() {
     // injects_secret_references cascades from both injects and secret_references.
     jdbc.update("DELETE FROM injects WHERE tenant_id = ?", tenantId);
+    jdbc.update("DELETE FROM scenarios WHERE tenant_id = ?", tenantId);
     jdbc.update("DELETE FROM secret_references WHERE tenant_id = ?", tenantId);
     tenantHelper.deleteCommittedTenants(tenantId);
     TenantContext.clearCurrentTenant();
@@ -79,8 +83,14 @@ class InjectSecretReferenceSinkTest extends IntegrationTest {
               entityManager.persist(credential);
               secretReferenceId = credential.getId();
 
+              Scenario scenario = ScenarioFixture.getScenario();
+              scenario.setTenant(tenant);
+              entityManager.persist(scenario);
+              scenarioId = scenario.getId();
+
               Inject inject = InjectFixture.getDefaultInject();
               inject.setTenant(tenant);
+              inject.setScenario(scenario);
               inject.setSecretReferences(new ArrayList<>(List.<SecretReference>of(credential)));
               entityManager.persist(inject);
               injectId = inject.getId();
@@ -107,6 +117,29 @@ class InjectSecretReferenceSinkTest extends IntegrationTest {
         "inject_secret_references must still hold the linked credential; an empty array here is"
             + " the #7026 regression (lazy association resolved after the tenant scope closed),"
             + " not a data problem: "
+            + body);
+  }
+
+  @Test
+  @DisplayName("GET the simple injects of a scenario: inject_secret_references is returned")
+  void given_injectWithCredential_should_serializeItsSecretReferencesInSimpleInjects()
+      throws Exception {
+    // Act
+    String body =
+        mvc.perform(
+                get("/api/tenants/{tenantId}/scenarios/{id}/injects/simple", tenantId, scenarioId))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Assert
+    List<String> secretReferenceIds = JsonPath.read(body, "$[0].inject_secret_references");
+    assertEquals(
+        List.of(secretReferenceId),
+        secretReferenceIds,
+        "the timeline sends this light inject back on drag / reconnect: without its secret"
+            + " references, the next update would wipe the credentials of the inject: "
             + body);
   }
 }

@@ -94,6 +94,13 @@ public class InjectOutput {
       schema = @Schema(description = "Asset groups of the inject", implementation = String.class))
   private List<AssetGroup> assetGroups;
 
+  @JsonProperty("inject_secret_references")
+  @JsonSerialize(using = MultiIdListSerializer.class)
+  @ArraySchema(
+      schema =
+          @Schema(description = "Secret references of the inject", implementation = String.class))
+  private List<SecretReference> secretReferences = new ArrayList<>();
+
   @JsonProperty("inject_content")
   @Schema(description = "Content of the inject")
   private ObjectNode content;

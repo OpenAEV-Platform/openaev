@@ -7036,6 +7036,7 @@ export interface InjectOutput {
   inject_ready?: boolean;
   /** Scenario ID of the inject */
   inject_scenario?: string;
+  inject_secret_references?: string[];
   /**
    * Sent date of the inject
    * @format date-time

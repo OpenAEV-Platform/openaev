@@ -307,6 +307,7 @@ public class InjectMapper {
             type,
             inject.getDependsOn(),
             healthchecks);
+    output.setSecretReferences(inject.getSecretReferences());
     output.setExpectations(toOutputs(inject.getExpectations()));
     return output;
   }
