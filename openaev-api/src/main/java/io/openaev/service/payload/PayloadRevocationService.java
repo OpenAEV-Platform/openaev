@@ -4,6 +4,7 @@ import static java.time.Instant.now;
 
 import io.openaev.database.model.ContentRevocation;
 import io.openaev.database.model.ContentType;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.rest.exception.AlreadyExistingException;
@@ -35,6 +36,20 @@ public class PayloadRevocationService {
   @Transactional(readOnly = true)
   public boolean isRevoked(Payload payload) {
     return !revokedIds(List.of(payload)).isEmpty();
+  }
+
+  /** Why the inject cannot run when its payload is revoked; empty when it may run. */
+  @Transactional(readOnly = true)
+  public Optional<String> revocationMessage(Inject inject) {
+    return inject
+        .getPayload()
+        .filter(this::isRevoked)
+        .map(
+            payload ->
+                "Payload revoked: "
+                    + findActive(payload.getId())
+                        .map(ContentRevocation::getReason)
+                        .orElse("no reason given"));
   }
 
   @Transactional(readOnly = true)

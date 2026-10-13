@@ -65,6 +65,7 @@ import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.FilterUtilsJpa;
@@ -151,6 +152,7 @@ public class InjectService {
   private final ApplicationEventPublisher eventPublisher;
   private final BulkOperationMonitor bulkOperationMonitor;
   private final InjectStatusService injectStatusService;
+  private final PayloadRevocationService payloadRevocationService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -644,9 +646,20 @@ public class InjectService {
     }
   }
 
+  /** A revoked payload is never launched, whatever the license (F9, F18). */
+  public void throwIfPayloadRevoked(Inject inject) {
+    payloadRevocationService
+        .revocationMessage(inject)
+        .ifPresent(
+            message -> {
+              throw new BadRequestException(message);
+            });
+  }
+
   @Transactional
   public InjectResultOverviewOutput launch(String id) {
     Inject inject = injectRepository.findById(id).orElseThrow(ElementNotFoundException::new);
+    this.throwIfPayloadRevoked(inject);
     this.throwIfInjectNotLaunchable(inject);
     inject.clean();
     inject.setUpdatedAt(Instant.now());
@@ -675,6 +688,7 @@ public class InjectService {
   // each other directly.
   private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     Inject duplicatedInject = findAndDuplicateInject(id);
+    this.throwIfPayloadRevoked(duplicatedInject);
     if (checkLaunchable) {
       this.throwIfInjectNotLaunchable(duplicatedInject);
     }

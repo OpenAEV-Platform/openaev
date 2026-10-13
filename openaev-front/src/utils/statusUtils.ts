@@ -80,6 +80,7 @@ const STATUS_COLOR_STYLE: Record<string, keyof typeof colorStyles> = {
   'INVALID_USAGE': 'red',
   'TIMEOUT': 'red',
   'INTERRUPTED': 'red',
+  'PAYLOAD_REVOKED': 'red',
   'MAYBE_PREVENTED': 'red',
   'MAYBE_PARTIAL_PREVENTED': 'red',
   'ASSET_AGENTLESS': 'blueGrey',
@@ -138,6 +139,7 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'INVALID_USAGE': colorStyles.red,
     'TIMEOUT': colorStyles.red,
     'INTERRUPTED': colorStyles.red,
+    'PAYLOAD_REVOKED': colorStyles.red,
     // @deprecated — rerouted to error in backend
     'MAYBE_PREVENTED': colorStyles.red,
     'MAYBE_PARTIAL_PREVENTED': colorStyles.red,
