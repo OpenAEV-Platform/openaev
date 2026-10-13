@@ -3,6 +3,7 @@ import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import { type MouseEvent, useState } from 'react';
 
+import { liftPayloadRevocation, revokePayload } from '../../../actions/payloads/payload-revocation-actions';
 import {
   deleteThreatArsenalAction,
   duplicateThreatArsenalAction,
@@ -25,6 +26,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import PayloadRevocationDialog from './PayloadRevocationDialog';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 
@@ -39,6 +41,8 @@ interface PayloadPopoverNewProps {
   disableDuplicate?: boolean;
   disableJsonExport?: boolean;
   disableDelete?: boolean;
+  revoked?: boolean;
+  onRevocationChange?: (revoked: boolean, status?: ThreatArsenalActionFullOutput['action_status']) => void;
 }
 
 const buildInitialValues
@@ -107,11 +111,14 @@ const ThreatArsenalActionPopover = ({
   disableDuplicate,
   disableJsonExport,
   disableDelete,
+  revoked,
+  onRevocationChange,
 }: PayloadPopoverNewProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDuplicate, setOpenDuplicate] = useState(false);
   const [deletion, setDeletion] = useState(false);
+  const [revocation, setRevocation] = useState(false);
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const { t, tPick } = useFormatter();
@@ -206,6 +213,30 @@ const ThreatArsenalActionPopover = ({
     handleCloseDuplicate();
   };
 
+  // -- Revocation --
+  const handleOpenRevocation = () => {
+    handlePopoverClose();
+    setRevocation(true);
+  };
+
+  const submitRevocation = async (reason: string) => {
+    if (payloadId) {
+      await revokePayload(payloadId, { content_revocation_reason: reason });
+      onRevocationChange?.(true, 'REVOKED');
+    }
+    setRevocation(false);
+  };
+
+  const submitLiftRevocation = async () => {
+    handlePopoverClose();
+    if (payloadId) {
+      await liftPayloadRevocation(payloadId);
+      // Lifting restores the status the payload had before; read it back.
+      const response = await fetchThreatArsenalAction(actionId);
+      onRevocationChange?.(false, (response.data as ThreatArsenalActionFullOutput | undefined)?.action_status);
+    }
+  };
+
   const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
   const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
@@ -247,10 +278,22 @@ const ThreatArsenalActionPopover = ({
         {hasUpdateCapability && (
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
         )}
+        {hasDeleteCapability && !!payloadId && (
+          <MenuItem onClick={revoked ? submitLiftRevocation : handleOpenRevocation}>
+            {t(revoked ? 'Lift revocation' : 'Revoke')}
+          </MenuItem>
+        )}
         {hasDeleteCapability && (
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
       </Menu>
+
+      <PayloadRevocationDialog
+        open={revocation}
+        name={name}
+        onClose={() => setRevocation(false)}
+        onSubmit={submitRevocation}
+      />
 
       <DialogDelete
         open={deletion}

@@ -36,6 +36,7 @@ import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
@@ -44,6 +45,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.ListUtils;
@@ -62,6 +64,7 @@ public class ThreatArsenalService {
   private final PayloadCreationService payloadCreationService;
   private final PayloadUpdateService payloadUpdateService;
   private final PayloadService payloadService;
+  private final PayloadRevocationService payloadRevocationService;
   private final InjectorContractService injectorContractService;
   private final ThreatArsenalMapper threatArsenalMapper;
   private final DetectionRemediationService detectionRemediationService;
@@ -382,17 +385,19 @@ public class ThreatArsenalService {
         providingFilterSpecificationBuilder.extractProvidingFilter(searchInput);
     Specification<InjectorContract> searchSpecification =
         computeSearchJpa(searchInput.getTextSearch());
-    return buildPaginationCriteriaBuilder(
-        (spec, specCount, pageable) ->
-            this.injectorContractService.getSinglePage(
-                combineWithProvidingSpec(spec, providingFilterContext, searchSpecification),
-                combineWithProvidingSpec(specCount, providingFilterContext, searchSpecification),
-                pageable,
-                mode,
-                input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
-        providingFilterContext.searchInput(),
-        InjectorContract.class);
+    return markRevoked(
+        buildPaginationCriteriaBuilder(
+            (spec, specCount, pageable) ->
+                this.injectorContractService.getSinglePage(
+                    combineWithProvidingSpec(spec, providingFilterContext, searchSpecification),
+                    combineWithProvidingSpec(
+                        specCount, providingFilterContext, searchSpecification),
+                    pageable,
+                    mode,
+                    input.getInjectorContractIdsToIgnore(),
+                    input.getInjectorContractIdsToProcess()),
+            providingFilterContext.searchInput(),
+            InjectorContract.class));
   }
 
   /**
@@ -418,19 +423,37 @@ public class ThreatArsenalService {
           return cb.not(injectorJoin.get("type").in(TABLETOP_INJECTOR_TYPES));
         };
 
-    return buildPaginationCriteriaBuilder(
-        (spec, specCount, pageable) ->
-            this.injectorContractService.getSinglePage(
-                combineWithProvidingSpec(
-                    spec.and(excludeTabletop), providingFilterContext, searchSpecification),
-                combineWithProvidingSpec(
-                    specCount.and(excludeTabletop), providingFilterContext, searchSpecification),
-                pageable,
-                mode,
-                input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
-        providingFilterContext.searchInput(),
-        InjectorContract.class);
+    return markRevoked(
+        buildPaginationCriteriaBuilder(
+            (spec, specCount, pageable) ->
+                this.injectorContractService.getSinglePage(
+                    combineWithProvidingSpec(
+                        spec.and(excludeTabletop), providingFilterContext, searchSpecification),
+                    combineWithProvidingSpec(
+                        specCount.and(excludeTabletop),
+                        providingFilterContext,
+                        searchSpecification),
+                    pageable,
+                    mode,
+                    input.getInjectorContractIdsToIgnore(),
+                    input.getInjectorContractIdsToProcess()),
+            providingFilterContext.searchInput(),
+            InjectorContract.class));
+  }
+
+  private Page<? extends InjectorContractBaseOutput> markRevoked(
+      Page<? extends InjectorContractBaseOutput> page) {
+    List<PayloadSimple> payloads =
+        page.getContent().stream()
+            .filter(ThreatArsenalAction.class::isInstance)
+            .map(action -> ((ThreatArsenalAction) action).getPayload())
+            .filter(Objects::nonNull)
+            .toList();
+    Set<String> revoked =
+        payloadRevocationService.revokedIdsAmong(
+            payloads.stream().map(PayloadSimple::getId).toList());
+    payloads.forEach(payload -> payload.setRevoked(revoked.contains(payload.getId())));
+    return page;
   }
 
   private Specification<InjectorContract> combineWithProvidingSpec(

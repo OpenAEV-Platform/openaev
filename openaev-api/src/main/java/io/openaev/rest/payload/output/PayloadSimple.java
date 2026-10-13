@@ -8,7 +8,6 @@ import lombok.Setter;
 
 @Setter
 @Getter
-@Builder
 public class PayloadSimple {
 
   @JsonProperty("payload_id")
@@ -23,6 +22,10 @@ public class PayloadSimple {
   @JsonProperty("payload_status")
   private Payload.PAYLOAD_STATUS status;
 
+  @JsonProperty("payload_revoked")
+  private boolean revoked;
+
+  @Builder
   public PayloadSimple(
       String id, String type, String collectorType, Payload.PAYLOAD_STATUS status) {
     this.id = id;

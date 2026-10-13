@@ -3,6 +3,8 @@ package io.openaev.service.payload;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 
@@ -10,6 +12,7 @@ import io.openaev.database.model.Command;
 import io.openaev.database.model.ContentRevocation;
 import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.rest.exception.ManagedPayloadReadOnlyException;
@@ -31,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PayloadVersionServiceTest {
 
   private static final String EXTERNAL_ID = "payload-external-id";
+  private static final String TENANT_ID = "tenant-id";
 
   @Mock private PayloadRepository payloadRepository;
   @Mock private ContentRevocationRepository contentRevocationRepository;
@@ -44,6 +48,9 @@ class PayloadVersionServiceTest {
     payload.setVersion(version);
     payload.setStatus(status);
     payload.setLatest(latest);
+    Tenant tenant = new Tenant();
+    tenant.setId(TENANT_ID);
+    payload.setTenant(tenant);
     return payload;
   }
 
@@ -57,7 +64,7 @@ class PayloadVersionServiceTest {
 
   private void givenRows(List<Payload> payloads, List<ContentRevocation> revocations) {
     when(payloadRepository.findAllByExternalId(EXTERNAL_ID)).thenReturn(payloads);
-    when(contentRevocationRepository.findAllByTypeAndExternalIdAndLiftedAtIsNull(
+    when(contentRevocationRepository.findAllByTypeAndExternalIdAndTenantIsNullAndLiftedAtIsNull(
             ContentType.PAYLOAD, EXTERNAL_ID))
         .thenReturn(revocations);
   }
@@ -104,6 +111,20 @@ class PayloadVersionServiceTest {
       Payload v1 = payload("1.0.0", Payload.PAYLOAD_STATUS.VERIFIED, false);
       Payload v2 = payload("2.0.0", Payload.PAYLOAD_STATUS.VERIFIED, true);
       givenRows(List.of(v1, v2), List.of(revocation("2.0.0")));
+
+      // Act & Assert
+      assertThat(payloadVersionService.refreshLatest(EXTERNAL_ID)).contains(v1);
+      assertThat(v2.isLatest()).isFalse();
+    }
+
+    @Test
+    void given_latestRevokedByTenant_should_flagPreviousVersion() {
+      // Arrange
+      Payload v1 = payload("1.0.0", Payload.PAYLOAD_STATUS.VERIFIED, false);
+      Payload v2 = payload("2.0.0", Payload.PAYLOAD_STATUS.VERIFIED, true);
+      givenRows(List.of(v1, v2), List.of());
+      when(contentRevocationRepository.findActivePayloadIds(anyCollection(), eq(TENANT_ID)))
+          .thenReturn(List.of(v2.getId()));
 
       // Act & Assert
       assertThat(payloadVersionService.refreshLatest(EXTERNAL_ID)).contains(v1);

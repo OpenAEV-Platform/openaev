@@ -42,4 +42,24 @@ public class ContentHistoryService {
     history.setTenant(copy.getTenant());
     return contentHistoryRepository.save(history);
   }
+
+  public ContentHistory payloadRevoked(Payload payload) {
+    return save(payload, ContentHistory.ACTION.REVOKE);
+  }
+
+  public ContentHistory payloadRevocationLifted(Payload payload) {
+    return save(payload, ContentHistory.ACTION.LIFT_REVOCATION);
+  }
+
+  private ContentHistory save(Payload payload, ContentHistory.ACTION action) {
+    ContentHistory history = new ContentHistory();
+    history.setType(ContentType.PAYLOAD);
+    history.setExternalId(payload.getExternalId());
+    history.setVersion(payload.getVersion());
+    history.setAction(action);
+    history.setEntityId(payload.getId());
+    history.setUser(userService.currentUserOrNull());
+    history.setTenant(payload.getTenant());
+    return contentHistoryRepository.save(history);
+  }
 }

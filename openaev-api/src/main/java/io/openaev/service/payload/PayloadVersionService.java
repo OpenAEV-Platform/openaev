@@ -5,6 +5,7 @@ import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ManagedPayloadReadOnlyException;
 import io.openaev.rest.exception.PayloadInUseException;
 import io.openaev.utils.SemanticVersion;
@@ -35,6 +36,18 @@ public class PayloadVersionService {
   // -- LIST --
 
   @Transactional(readOnly = true)
+  public Payload findById(String id) {
+    return payloadRepository.findById(id).orElseThrow(ElementNotFoundException::new);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Payload> findAllById(Collection<String> ids) {
+    List<Payload> payloads = new ArrayList<>();
+    payloadRepository.findAllById(ids).forEach(payloads::add);
+    return payloads;
+  }
+
+  @Transactional(readOnly = true)
   public List<Payload> findAllByExternalId(String externalId) {
     return payloadRepository.findAllByExternalId(externalId);
   }
@@ -60,6 +73,36 @@ public class PayloadVersionService {
     return candidates;
   }
 
+  /**
+   * Ids of the revoked payloads among these: their version is in the revocation list, or their
+   * tenant revoked them (F34).
+   */
+  @Transactional(readOnly = true)
+  public Set<String> revokedIds(Collection<Payload> payloads) {
+    if (payloads.isEmpty()) {
+      return Set.of();
+    }
+    Set<String> revoked = new HashSet<>(tenantRevokedIds(payloads));
+    Set<String> externalIds =
+        payloads.stream()
+            .filter(PayloadVersionService::isManaged)
+            .map(Payload::getExternalId)
+            .collect(Collectors.toSet());
+    if (!externalIds.isEmpty()) {
+      Set<String> listed =
+          contentRevocationRepository
+              .findAllByTypeAndExternalIdInAndTenantIsNullAndLiftedAtIsNull(
+                  ContentType.PAYLOAD, externalIds)
+              .stream()
+              .map(r -> r.getExternalId() + "@" + r.getVersion())
+              .collect(Collectors.toSet());
+      payloads.stream()
+          .filter(p -> isManaged(p) && listed.contains(p.getExternalId() + "@" + p.getVersion()))
+          .forEach(p -> revoked.add(p.getId()));
+    }
+    return revoked;
+  }
+
   // -- UPDATE --
 
   /**
@@ -68,7 +111,8 @@ public class PayloadVersionService {
    */
   public Optional<Payload> refreshLatest(String externalId) {
     List<Payload> payloads = payloadRepository.findAllByExternalId(externalId);
-    Optional<Payload> latest = latestNonRevoked(payloads, revokedVersions(externalId));
+    Optional<Payload> latest =
+        latestNonRevoked(payloads, revokedVersions(externalId), tenantRevokedIds(payloads));
     // Clear before set: the partial unique index allows one latest row per external ID.
     List<Payload> cleared = new ArrayList<>();
     for (Payload payload : payloads) {
@@ -88,6 +132,25 @@ public class PayloadVersionService {
               payloadRepository.save(l);
             });
     return latest;
+  }
+
+  /** Status shown and filtered on; the execution check reads the revocations, not this status. */
+  public Payload setStatus(Payload payload, Payload.PAYLOAD_STATUS status) {
+    payload.setStatus(status);
+    return payloadRepository.save(payload);
+  }
+
+  /** Same, for one payload; a payload without external ID is latest unless revoked. */
+  public void refreshLatest(Payload payload) {
+    if (payload.getExternalId() != null) {
+      refreshLatest(payload.getExternalId());
+      return;
+    }
+    boolean latest = revokedIds(List.of(payload)).isEmpty();
+    if (payload.isLatest() != latest) {
+      payload.setLatest(latest);
+      payloadRepository.save(payload);
+    }
   }
 
   // -- DELETE --
@@ -127,19 +190,34 @@ public class PayloadVersionService {
         : payloadRepository.findNotDeletableContractIds(contractIds);
   }
 
+  private Set<String> tenantRevokedIds(Collection<Payload> payloads) {
+    Map<String, List<String>> idsByTenant =
+        payloads.stream()
+            .collect(
+                Collectors.groupingBy(
+                    p -> p.getTenant().getId(),
+                    Collectors.mapping(Payload::getId, Collectors.toList())));
+    Set<String> revoked = new HashSet<>();
+    idsByTenant.forEach(
+        (tenantId, ids) ->
+            revoked.addAll(contentRevocationRepository.findActivePayloadIds(ids, tenantId)));
+    return revoked;
+  }
+
   private Set<String> revokedVersions(String externalId) {
     return contentRevocationRepository
-        .findAllByTypeAndExternalIdAndLiftedAtIsNull(ContentType.PAYLOAD, externalId)
+        .findAllByTypeAndExternalIdAndTenantIsNullAndLiftedAtIsNull(ContentType.PAYLOAD, externalId)
         .stream()
         .map(ContentRevocation::getVersion)
         .collect(Collectors.toSet());
   }
 
   private static Optional<Payload> latestNonRevoked(
-      Collection<Payload> payloads, Set<String> revokedVersions) {
+      Collection<Payload> payloads, Set<String> revokedVersions, Set<String> tenantRevokedIds) {
     List<Payload> candidates =
         payloads.stream()
             .filter(p -> p.getStatus() != Payload.PAYLOAD_STATUS.REVOKED)
+            .filter(p -> !tenantRevokedIds.contains(p.getId()))
             .filter(p -> !isManaged(p) || !revokedVersions.contains(p.getVersion()))
             .toList();
     Optional<Payload> latestManaged =
