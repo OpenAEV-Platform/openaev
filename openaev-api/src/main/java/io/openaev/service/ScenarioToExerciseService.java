@@ -276,6 +276,9 @@ public class ScenarioToExerciseService {
               CopyObjectListUtils.copy(scenarioInject.getAssets(), Asset.class));
           exerciseInject.setAssetGroups(
               CopyObjectListUtils.copy(scenarioInject.getAssetGroups(), AssetGroup.class));
+
+          // Credentials
+          exerciseInject.setSecretReferences(new ArrayList<>(scenarioInject.getSecretReferences()));
           Inject injectSaved = this.injectRepository.save(exerciseInject);
 
           mapExerciseInjectsByScenarioInject.put(scenarioInject.getId(), injectSaved);
