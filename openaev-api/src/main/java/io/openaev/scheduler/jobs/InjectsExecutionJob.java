@@ -452,7 +452,9 @@ public class InjectsExecutionJob implements Job {
                                           : e;
                                   log.warn(cause.getMessage(), cause);
                                   injectStatusService.persistErrorStatusInTransaction(
-                                      inject.getId(), cause.getMessage());
+                                      inject.getId(),
+                                      cause.getMessage(),
+                                      InjectStatusService.traceStatusOf(cause));
                                 }
                               });
                         } catch (RuntimeException e) {
@@ -464,7 +466,9 @@ public class InjectsExecutionJob implements Job {
                               tenantId,
                               () ->
                                   injectStatusService.persistErrorStatusInTransaction(
-                                      inject.getId(), cause.getMessage()));
+                                      inject.getId(),
+                                      cause.getMessage(),
+                                      InjectStatusService.traceStatusOf(cause)));
                         }
                       });
 

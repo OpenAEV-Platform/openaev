@@ -18,6 +18,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.execution.PayloadRevokedException;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
 import io.openaev.rest.document.DocumentService;
@@ -436,7 +437,7 @@ public class InjectApi extends RestBehavior {
       summary = "Get the payload ready to be executed",
       description =
           "This endpoint is invoked by implants to retrieve a payload command that's pre-configured and ready for execution.")
-  @Transactional
+  @Transactional(noRollbackFor = PayloadRevokedException.class)
   public Payload getExecutablePayloadInject(
       TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
