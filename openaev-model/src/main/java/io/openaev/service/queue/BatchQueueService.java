@@ -60,6 +60,10 @@ public class BatchQueueService<T extends Queueable> {
 
   private final QueueConfig queueConfig;
   private final ScheduledExecutorService reconnectionExecutor;
+  // Several signals report the same failure (deleting a queue cancels each of its consumers): only
+  // the first schedules a reconnection, otherwise each extra attempt closes the healthy connection
+  // rebuilt by the previous one, losing its in-flight acks
+  private final AtomicBoolean reconnectionScheduled = new AtomicBoolean(false);
   private final ScheduledExecutorService scheduledExecutor;
   private final ShutdownListener shutdownListener;
 
@@ -279,9 +283,11 @@ public class BatchQueueService<T extends Queueable> {
     scheduleReconnection();
   }
 
-  /** Schedule a reconnection, unless the service is stopping */
+  /** Schedule a reconnection, unless one is already pending or the service is stopping */
   private void scheduleReconnection() {
-    if (reconnectionExecutor == null || reconnectionExecutor.isShutdown()) {
+    if (reconnectionExecutor == null
+        || reconnectionExecutor.isShutdown()
+        || !reconnectionScheduled.compareAndSet(false, true)) {
       return;
     }
     reconnectionExecutor.schedule(this::attemptReconnection, 10, TimeUnit.SECONDS);
@@ -290,6 +296,11 @@ public class BatchQueueService<T extends Queueable> {
   /** Reconnection attempt */
   private void attemptReconnection() {
     log.info("Attempting RabbitMQ reconnection");
+
+    // Released before the new connection exists, so a failure of the new connection still gets
+    // its own reconnection. Closing the old resources below cannot re-schedule one: those signals
+    // are initiated by the application and ignored
+    reconnectionScheduled.set(false);
 
     try {
       // Close the resources
@@ -308,8 +319,8 @@ public class BatchQueueService<T extends Queueable> {
     } catch (Exception e) {
       log.error(String.format("Reconnection attempt failed: %s", e.getMessage()), e);
 
-      // We failed. We schedule a new try ...
-      reconnectionExecutor.schedule(this::attemptReconnection, 10, TimeUnit.SECONDS);
+      // We failed. We schedule a new try, unless a signal of the new connection already did
+      scheduleReconnection();
     }
   }
 
