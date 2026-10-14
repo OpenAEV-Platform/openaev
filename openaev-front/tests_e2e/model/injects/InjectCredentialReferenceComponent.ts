@@ -48,9 +48,7 @@ class InjectCredentialReferenceComponent {
 
   async removeCredential(credentialName: string) {
     await MuiListHelpers.clickSecondaryActionOnListItem(this.page, this.form, credentialName, 'Remove from the inject');
-    const confirmDialog = this.page.getByRole('dialog').filter({ hasText: 'Do you want to remove this credential from the inject?' });
-    await confirmDialog.getByRole('button', { name: 'Remove' }).click();
-    await expect(confirmDialog).toBeHidden();
+    await expect(this.getSelectedCredential(credentialName)).toBeHidden();
   }
 
   /** Saves the inject and checks that the update succeeded. */
