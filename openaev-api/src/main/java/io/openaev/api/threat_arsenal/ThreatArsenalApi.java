@@ -48,6 +48,18 @@ public class ThreatArsenalApi {
 
   // -- READ --
 
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/name-available",
+    TENANT_THREAT_ARSENAL_URL + "/name-available"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(summary = "Whether no other payload of the tenant uses this name")
+  public boolean nameAvailable(
+      TxCtx ctx, @RequestParam String name, @RequestParam(required = false) String actionId) {
+    return threatArsenalService.isNameAvailable(name, actionId);
+  }
+
   @GetMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})
   @Transactional
   @AccessControl(

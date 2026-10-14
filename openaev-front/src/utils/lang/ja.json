@@ -10,6 +10,7 @@
   "-": "なし",
   ",": ",",
   ".": ".",
+  "A payload with this name already exists": "この名前のペイロードは既に存在します",
   "All versions": "すべてのバージョン",
   "Chained step": "連鎖ステップ",
   "Change version": "バージョンを変更",

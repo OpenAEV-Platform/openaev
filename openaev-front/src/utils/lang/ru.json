@@ -10,6 +10,7 @@
   "-": "Нет",
   ",": ",",
   ".": ".",
+  "A payload with this name already exists": "Полезная нагрузка с таким именем уже существует",
   "All versions": "Все версии",
   "Chained step": "Связанный шаг",
   "Change version": "Сменить версию",
