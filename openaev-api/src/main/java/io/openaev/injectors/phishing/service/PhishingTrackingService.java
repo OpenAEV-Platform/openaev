@@ -23,6 +23,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.service.InjectExpectationUtils;
+import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.chaining.StepService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -248,6 +249,7 @@ public class PhishingTrackingService {
   private final StepRepository stepRepository;
   private final FindingService findingService;
   private final PhishingTrackingPublicLookupService publicLookupService;
+  private final AttackPathFindingIngestionService attackPathFindingIngestion;
 
   /** Generates a URL-safe, unguessable per-recipient tracking token. */
   public static String generateToken() {
@@ -708,6 +710,18 @@ public class PhishingTrackingService {
       result.setFinding(finding);
     } catch (Exception e) {
       log.error("Failed to create phishing credentials finding: {}", e.getMessage(), e);
+      return;
+    }
+    // A chained run copies its findings onto the attack path on each step execution event, but a
+    // submission raises none: copy this one once it is committed, or the attack path never shows
+    // it. Only a chained execution carries a step (see createResult).
+    if (result.getStep() != null) {
+      try {
+        attackPathFindingIngestion.copyFindingsAfterCommit(inject, result.getStep());
+      } catch (Exception e) {
+        log.warn(
+            "Attack-path findings copy skipped for inject {} (non-fatal)", inject.getId(), e);
+      }
     }
   }
 

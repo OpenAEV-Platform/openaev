@@ -6,6 +6,8 @@ import io.openaev.database.model.Asset;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Step;
+import io.openaev.database.model.Team;
+import io.openaev.database.model.User;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
@@ -19,7 +21,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Copies an inject's findings into the attack-path snapshot ({@code attackpath_finding} + {@code
@@ -32,9 +37,13 @@ import org.springframework.stereotype.Service;
  * inject. The caller recovers around this boundary and gates it on the attack-path feature; a
  * failure here is non-fatal to the run.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AttackPathFindingIngestionService {
+
+  private static final String TARGET_KIND_PERSON = "PERSON";
+  private static final String TARGET_KIND_TEAM = "TEAM";
 
   private final TenantScopedTransaction tenantTx;
   private final AttackPathExecutionRepository executionRepository;
@@ -51,6 +60,50 @@ public class AttackPathFindingIngestionService {
     tenantTx.executeNew(
         TxCtx.forTenant(tenantId),
         () -> copy(inject.getId(), step.getId(), simulationId, tenantId));
+  }
+
+  /**
+   * Same copy as {@link #copyFindings}, deferred until the caller's transaction commits, for a
+   * finding created outside the step's execution events: credentials a phishing recipient submits
+   * long after the step ran raise no workflow update, so no later {@code
+   * InjectExecutionStep#update} would copy them, and a copy run inline would not see the
+   * still-uncommitted finding from its own REQUIRES_NEW transaction. The ids are read now, while
+   * the caller's session is open. Non-fatal: a failure is logged and never reaches the caller.
+   */
+  public void copyFindingsAfterCommit(Inject inject, Step step) {
+    if (inject.getExercise() == null) {
+      return; // simulation-scoped: no simulation, nothing to copy
+    }
+    String injectId = inject.getId();
+    String stepId = step.getId();
+    String simulationId = inject.getExercise().getId();
+    String tenantId = inject.getTenant().getId();
+    Runnable deferredCopy =
+        () -> {
+          try {
+            // Still flagged active in afterCommit: the copy nests as REQUIRES_NEW, as above.
+            if (TransactionSynchronizationManager.isActualTransactionActive()) {
+              tenantTx.executeNew(
+                  TxCtx.forTenant(tenantId), () -> copy(injectId, stepId, simulationId, tenantId));
+            } else {
+              tenantTx.execute(
+                  TxCtx.forTenant(tenantId), () -> copy(injectId, stepId, simulationId, tenantId));
+            }
+          } catch (Exception e) {
+            log.warn("Attack-path findings copy skipped for inject {} (non-fatal)", injectId, e);
+          }
+        };
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              deferredCopy.run();
+            }
+          });
+    } else {
+      deferredCopy.run();
+    }
   }
 
   /**
@@ -145,11 +198,18 @@ public class AttackPathFindingIngestionService {
       return;
     }
 
-    // Index the run's endpoints by target asset; keep every row for the no-match fallback.
+    // Index the run's endpoints by target asset, and a human-in-the-loop step's recipients and
+    // teams by their target key (user / team id); keep every row for the no-match fallback.
     Map<String, List<AttackPathExecution>> rowsByAsset = new HashMap<>();
+    Map<String, List<AttackPathExecution>> rowsByPerson = new HashMap<>();
+    Map<String, List<AttackPathExecution>> rowsByTeam = new HashMap<>();
     for (AttackPathExecution row : rows) {
       if (row.getTargetAssetId() != null) {
         rowsByAsset.computeIfAbsent(row.getTargetAssetId(), key -> new ArrayList<>()).add(row);
+      } else if (TARGET_KIND_PERSON.equals(row.getTargetKind())) {
+        rowsByPerson.computeIfAbsent(row.getTargetKey(), key -> new ArrayList<>()).add(row);
+      } else if (TARGET_KIND_TEAM.equals(row.getTargetKind())) {
+        rowsByTeam.computeIfAbsent(row.getTargetKey(), key -> new ArrayList<>()).add(row);
       }
     }
 
@@ -163,7 +223,19 @@ public class AttackPathFindingIngestionService {
       String field = finding.getField();
       String value = finding.getValue();
 
-      for (AttackPathExecution row : resolveTargets(finding, rowsByAsset, rows)) {
+      List<AttackPathExecution> targets =
+          new ArrayList<>(resolveTargets(finding, rowsByAsset, rowsByPerson, rowsByTeam, rows));
+      // A recipient's finding is its team's too: the PERSON row hangs off its team's row (source =
+      // the team), the injector -> team row is the action's own execution, and every per-node read
+      // keys on the finding's endpoint. So the team gets its own row, linked to its own execution,
+      // or the team node, its panel and the action panel would all read empty.
+      for (AttackPathExecution row : List.copyOf(targets)) {
+        if (TARGET_KIND_PERSON.equals(row.getTargetKind())) {
+          targets.addAll(rowsByTeam.getOrDefault(row.getSourceAssetId(), List.of()));
+        }
+      }
+
+      for (AttackPathExecution row : targets) {
         String endpointKey = row.getTargetKey();
         String endpointId = row.getTargetAssetId();
         String endpointRaw = endpointId != null ? null : endpointKey;
@@ -206,16 +278,27 @@ public class AttackPathFindingIngestionService {
 
   /**
    * The endpoints to attribute a finding to: the finding's own assets that are real targets of this
-   * run. When none match (a finding with no asset, or an asset that is not a run target, e.g. a
-   * discovered raw target), fall back to the run's endpoint only if the step has a single one
-   * (source == target, or several agents on one endpoint) - never source-agent, and never sprayed
-   * across several endpoints, where there is no per-finding signal to pick the right one. A finding
-   * that cannot be tied to a single endpoint is skipped rather than shown on endpoints it was not
-   * found on (multi-target per-finding attribution is out of the MVP scope).
+   * run. When none match, a human-in-the-loop finding (e.g. credentials a phishing recipient
+   * submitted) carries no asset but names its users and teams instead: attribute it to the PERSON
+   * rows of its users, or failing that to the TEAM rows of its teams - those rows are the run's
+   * targets for a team-targeted inject, and a team step always spans several of them (the team and
+   * its recipients), so the single-endpoint fallback below would drop the finding. Otherwise (a
+   * finding with no asset, or an asset that is not a run target, e.g. a discovered raw target),
+   * fall back to the run's endpoint only if the step has a single one (source == target, or several
+   * agents on one endpoint) - never source-agent, and never sprayed across several endpoints, where
+   * there is no per-finding signal to pick the right one. A finding that cannot be tied to a single
+   * endpoint is skipped rather than shown on endpoints it was not found on (multi-target
+   * per-finding attribution is out of the MVP scope).
+   *
+   * <p>{@code getUsers()} / {@code getTeams()} are lazy and read only when no asset matched; the
+   * copy runs inside its own transaction, and the platform batch fetch size groups those loads
+   * across the inject's findings (two bags cannot be fetch-joined alongside {@code assets}).
    */
   private List<AttackPathExecution> resolveTargets(
       Finding finding,
       Map<String, List<AttackPathExecution>> rowsByAsset,
+      Map<String, List<AttackPathExecution>> rowsByPerson,
+      Map<String, List<AttackPathExecution>> rowsByTeam,
       List<AttackPathExecution> allRows) {
     List<AttackPathExecution> matched = new ArrayList<>();
     for (Asset asset : finding.getAssets()) {
@@ -226,6 +309,28 @@ public class AttackPathFindingIngestionService {
     }
     if (!matched.isEmpty()) {
       return matched;
+    }
+    if (!rowsByPerson.isEmpty()) {
+      for (User user : finding.getUsers()) {
+        List<AttackPathExecution> byPerson = rowsByPerson.get(user.getId());
+        if (byPerson != null) {
+          matched.addAll(byPerson);
+        }
+      }
+      if (!matched.isEmpty()) {
+        return matched;
+      }
+    }
+    if (!rowsByTeam.isEmpty()) {
+      for (Team team : finding.getTeams()) {
+        List<AttackPathExecution> byTeam = rowsByTeam.get(team.getId());
+        if (byTeam != null) {
+          matched.addAll(byTeam);
+        }
+      }
+      if (!matched.isEmpty()) {
+        return matched;
+      }
     }
     long distinctEndpoints =
         allRows.stream().map(AttackPathExecution::getTargetKey).distinct().count();
