@@ -20,7 +20,7 @@ import type {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../../utils/utils';
 import { type ConnectorItem, type ConnectorItemType } from '../catalog_connectors/catalog-facets';
 import ConnectorMarketplace from '../catalog_connectors/ConnectorMarketplace';
 import builtinConnectorDescription from '../common/builtinConnectorDescriptions';
@@ -61,7 +61,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t, nsdt, locale } = useFormatter();
-  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const isCredentialAssetEnabled = useIsFeatureEnabled('CREDENTIAL_ASSET');
 
   useDataLoader(() => {
     dispatch(injectorConfig.apiRequest.fetchAll());

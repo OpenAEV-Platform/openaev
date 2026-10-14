@@ -8,7 +8,7 @@ import { type ReactNode } from 'react';
 import { DetailHero } from '../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorItemType, prettifyUseCase } from '../catalog_connectors/catalog-facets';
-import useCaseIcon from '../catalog_connectors/use-case-icons';
+import getUseCaseIcon from '../catalog_connectors/use-case-icons';
 
 interface Props {
   title: string;
@@ -86,7 +86,7 @@ const ConnectorDetailHero = ({
             <Chip label={typeLabels[type]} severity="info" />
           )}
           {useCases.map((useCase) => {
-            const UseCaseIcon = useCaseIcon(useCase);
+            const UseCaseIcon = getUseCaseIcon(useCase);
             return (
               <Chip
                 key={useCase}

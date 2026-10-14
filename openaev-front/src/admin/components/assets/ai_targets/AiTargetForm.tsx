@@ -10,7 +10,7 @@ import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type AiTargetInput } from '../../../../utils/api-types';
 import markingIdSetsEqual from '../../../../utils/markings';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../../utils/utils';
 import { zodImplement } from '../../../../utils/Zod';
 import { CRITICALITY_OPTIONS, humanizeEnum } from '../asset-categories';
 
@@ -108,7 +108,8 @@ const AiTargetForm: FunctionComponent<Props> = ({
   // Assigning markings requires an asset id, so the picker only makes sense once the AI target
   // exists - gated on `editing` the same way the field itself is only reported through
   // `onMarkingsChange`, and on the flag the rest of the marking UI is gated on.
-  const showMarkings = editing && isFeatureEnabled('MARKING');
+  const isMarkingEnabled = useIsFeatureEnabled('MARKING');
+  const showMarkings = editing && isMarkingEnabled;
 
   const {
     register,

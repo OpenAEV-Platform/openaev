@@ -30,7 +30,7 @@ import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../../utils/utils';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import ToolBar from '../../common/ToolBar';
@@ -68,7 +68,7 @@ const Endpoints = () => {
   // Gates the Markings column/filter (and the data fetch below) so a flag-off or unauthorized
   // platform looks exactly as it did before this feature — mirrors the settings.config.tsx pattern
   // used for the Marking Definitions menu.
-  const markingEnabled = isFeatureEnabled('MARKING');
+  const markingEnabled = useIsFeatureEnabled('MARKING');
   const ability = useAbility();
   const canAccessMarkings = markingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when

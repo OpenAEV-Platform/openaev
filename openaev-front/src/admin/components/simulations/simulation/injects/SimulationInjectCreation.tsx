@@ -19,15 +19,15 @@ import {
   type InjectorContractFullOutput,
 } from '../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
-import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
+import useEndpointContextForExercise from '../../../../../utils/context/endpoint/useEndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { ArticleContext, ChallengeContext, InjectContext, TeamContext } from '../../../common/Context';
 import InjectContractPicker from '../../../common/injects/create/InjectContractPicker';
 import InjectCreationConfig from '../../../common/injects/create/InjectCreationConfig';
 import { buildSimulationVariablesConfigurationUrl } from '../../SimulationConfigurationTab';
-import articleContextForExercise from '../articles/articleContextForExercise';
-import teamContextForExercise from '../teams/teamContextForExercise';
+import useArticleContextForExercise from '../articles/useArticleContextForExercise';
+import useTeamContextForExercise from '../teams/useTeamContextForExercise';
 
 // Full-page inject creation for simulations: the Threat-Arsenal-style contract
 // picker stays on screen; selecting a contract opens the configuration form in
@@ -69,9 +69,9 @@ const SimulationInjectCreation: FunctionComponent = () => {
     dispatch(fetchExerciseDocuments(exerciseId));
   });
 
-  const articleContext = articleContextForExercise(exerciseId);
-  const teamContext = teamContextForExercise(exerciseId);
-  const endpointContext = endpointContextForExercise(exerciseId);
+  const articleContext = useArticleContextForExercise(exerciseId);
+  const teamContext = useTeamContextForExercise(exerciseId);
+  const endpointContext = useEndpointContextForExercise(exerciseId);
   const challengeContext = useMemo(() => ({ fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) }), [dispatch, exerciseId]);
 
   const onCreateInject = async (data: InjectInput) => {

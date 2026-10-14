@@ -10,7 +10,7 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import Articles from '../../../common/articles/Articles';
 import { ArticleContext } from '../../../common/Context';
-import articleContextForScenario from './articleContextForScenario';
+import useArticleContextForScenario from './useArticleContextForScenario';
 
 const ScenarioArticles = () => {
   // Standard hooks
@@ -23,7 +23,7 @@ const ScenarioArticles = () => {
     dispatch(fetchScenarioDocuments(scenarioId));
     dispatch(fetchScenarioChannels(scenarioId));
   });
-  const context = articleContextForScenario(scenarioId);
+  const context = useArticleContextForScenario(scenarioId);
   return (
     <ArticleContext.Provider value={context}>
       <Articles articles={articles} />

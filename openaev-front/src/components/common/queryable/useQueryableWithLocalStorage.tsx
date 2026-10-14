@@ -12,7 +12,7 @@ import useSortState from './sort/useSortState';
 import useTextSearchState from './textSearch/useTextSearchState';
 import useUriState, { retrieveFromUri } from './uri/useUriState';
 
-const buildUseQueryable = (
+const useQueryableHelpers = (
   localStorageKey: string | null,
   initSearchPaginationInput: Partial<SearchPaginationInput>,
   searchPaginationInput: SearchPaginationInput,
@@ -123,7 +123,7 @@ export const useQueryable = (initSearchPaginationInput: Partial<SearchPagination
 
   const [searchPaginationInput, setSearchPaginationInput] = useState<SearchPaginationInput>(finalSearchPaginationInput);
 
-  return buildUseQueryable(null, initSearchPaginationInput, searchPaginationInput, setSearchPaginationInput);
+  return useQueryableHelpers(null, initSearchPaginationInput, searchPaginationInput, setSearchPaginationInput);
 };
 
 // The page index is never persisted: storage keys are shared across entities
@@ -202,7 +202,7 @@ export const useQueryableWithLocalStorage = (localStorageKey: string, initSearch
     }
   }, [searchPaginationInputFromLocalStorage]);
 
-  return buildUseQueryable(
+  return useQueryableHelpers(
     localStorageKey,
     initSearchPaginationInput,
     searchPaginationInput,

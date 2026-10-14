@@ -10,7 +10,7 @@ import { fetchScenarioDocuments } from '../../../../../actions/documents/documen
 import { type Article, type ArticleCreateInput, type ArticleUpdateInput, type Scenario } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 
-const articleContextForScenario = (scenarioId: Scenario['scenario_id']) => {
+const useArticleContextForScenario = (scenarioId: Scenario['scenario_id']) => {
   const dispatch = useAppDispatch();
   return {
     previewArticleUrl: (article: FullArticleStore) => `/channels/${scenarioId}/${article.article_fullchannel?.channel_id}?preview=true`,
@@ -27,4 +27,4 @@ const articleContextForScenario = (scenarioId: Scenario['scenario_id']) => {
   };
 };
 
-export default articleContextForScenario;
+export default useArticleContextForScenario;

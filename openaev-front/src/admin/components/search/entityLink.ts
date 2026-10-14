@@ -13,7 +13,7 @@ import {
 // entity now has a dedicated overview, so results must never land on a list
 // page with an edit drawer. Returns null for unsupported classes so callers
 // can render a non-navigable row instead of a dead link.
-const useEntityLink = (entity: string, id: string): string | null => {
+const getEntityLink = (entity: string, id: string): string | null => {
   switch (entity) {
     case 'Asset':
       return `${ASSET_BASE_URL}/${id}`;
@@ -36,4 +36,4 @@ const useEntityLink = (entity: string, id: string): string | null => {
   }
 };
 
-export default useEntityLink;
+export default getEntityLink;
