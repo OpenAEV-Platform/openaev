@@ -30,6 +30,10 @@ public class InjectorContractSearchPaginationInput extends SearchPaginationInput
   @JsonProperty("latest_versions_only")
   private boolean latestVersionsOnly = false;
 
+  @Schema(description = "Leave out contracts whose payload is revoked (pickers, F9)")
+  @JsonProperty("exclude_revoked_payloads")
+  private boolean excludeRevokedPayloads = false;
+
   @Schema(description = "List of all the ids to include on the search")
   @JsonProperty("injector_contract_ids_to_process")
   private List<String> injectorContractIdsToProcess;

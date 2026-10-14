@@ -61,6 +61,10 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
   @JsonProperty("injector_contract_injectors")
   private List<String> injectorIds;
 
+  @Schema(description = "Version of the contract's payload; empty for a local copy or no payload")
+  @JsonProperty("injector_contract_payload_version")
+  private String payloadVersion;
+
   public InjectorContractFullOutput(
       String id,
       String externalId,

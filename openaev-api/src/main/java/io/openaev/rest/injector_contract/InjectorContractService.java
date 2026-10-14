@@ -839,31 +839,37 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
         ctx.payloadJoin().get("executionArch").alias("payload_execution_arch"),
         ctx.injectorIdsExpression().alias("injector_contract_injector_ids"),
-        ctx.injectorNamesExpression().alias("injector_contract_injector_names"));
+        ctx.injectorNamesExpression().alias("injector_contract_injector_names"),
+        ctx.payloadJoin().get("version").alias("payload_version"));
 
     // GROUP BY
-    cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
+    List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
+    groupBy.add(ctx.payloadJoin().get("version"));
+    cq.groupBy(groupBy);
   }
 
   private InjectorContractFullOutput mapFull(Tuple tuple) {
     String[] injectorIdsArray = tuple.get("injector_contract_injector_ids", String[].class);
     String[] injectorNamesArray = tuple.get("injector_contract_injector_names", String[].class);
     Map<String, String> injectorNames = buildInjectorNamesMap(injectorIdsArray, injectorNamesArray);
-    return new InjectorContractFullOutput(
-        tuple.get("injector_contract_id", String.class),
-        tuple.get("injector_contract_external_id", String.class),
-        tuple.get("injector_contract_labels", Map.class),
-        tuple.get("injector_contract_content", String.class),
-        tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
-        tuple.get("payload_type", String.class),
-        tuple.get("collector_type", String.class),
-        tuple.get("injector_contract_injector_type", String.class),
-        dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
-        dedupePreservingOrder(tuple.get("injector_contract_tags", String[].class)),
-        dedupePreservingOrder(tuple.get("injector_contract_domains", String[].class)),
-        tuple.get("injector_contract_updated_at", Instant.class),
-        tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class),
-        injectorNames);
+    InjectorContractFullOutput output =
+        new InjectorContractFullOutput(
+            tuple.get("injector_contract_id", String.class),
+            tuple.get("injector_contract_external_id", String.class),
+            tuple.get("injector_contract_labels", Map.class),
+            tuple.get("injector_contract_content", String.class),
+            tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
+            tuple.get("payload_type", String.class),
+            tuple.get("collector_type", String.class),
+            tuple.get("injector_contract_injector_type", String.class),
+            dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
+            dedupePreservingOrder(tuple.get("injector_contract_tags", String[].class)),
+            dedupePreservingOrder(tuple.get("injector_contract_domains", String[].class)),
+            tuple.get("injector_contract_updated_at", Instant.class),
+            tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class),
+            injectorNames);
+    output.setPayloadVersion(tuple.get("payload_version", String.class));
+    return output;
   }
 
   /**

@@ -31,6 +31,16 @@ public class InjectorContractSpecification {
     };
   }
 
+  /** Contracts without payload, or whose payload is not revoked. */
+  public static Specification<InjectorContract> withoutRevokedPayload() {
+    return (root, query, cb) -> {
+      Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
+      return cb.or(
+          cb.isNull(payload.get("id")),
+          cb.notEqual(payload.get("status"), Payload.PAYLOAD_STATUS.REVOKED));
+    };
+  }
+
   /**
    * Specification to filter InjectorContracts based on user grants. Only injector contracts on
    * which the user has at least an OBSERVER grant (grant_resource = injector_contract_id,
