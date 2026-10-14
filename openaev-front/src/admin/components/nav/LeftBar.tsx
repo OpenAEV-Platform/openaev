@@ -44,6 +44,7 @@ const LeftBar = () => {
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const isMarkingEnabled = isFeatureEnabled('MARKING');
 
   const entries: NavMenuEntries[] = [
     {
@@ -206,7 +207,7 @@ const LeftBar = () => {
       ],
     },
   ];
-  const settingsItems = settingsEntries(ability);
+  const settingsItems = settingsEntries(ability, isMarkingEnabled);
   entries.push(
     // Always visible: "Settings" hides itself when the user lacks the right.
     {

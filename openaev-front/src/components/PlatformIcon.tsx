@@ -10,7 +10,7 @@ import {
   ViewInArOutlined,
 } from '@mui/icons-material';
 import { type PaletteMode } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { type Theme, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import linuxDark from '../static/images/platforms/linux-dark.png';
@@ -67,8 +67,7 @@ const glyphIcons: Record<string, SvgIconComponent> = {
 export const hasPlatformIcon = (platform?: string): boolean =>
   !!platform && (platform in brandIcons || platform in glyphIcons);
 
-const renderIcon = (platform: string, width: number | undefined = 40, borderRadius: number | undefined = 0, marginRight: string | undefined = '') => {
-  const theme = useTheme();
+const renderIcon = (theme: Theme, platform: string, width: number | undefined = 40, borderRadius: number | undefined = 0, marginRight: string | undefined = '') => {
   const { mode } = theme.palette;
   const brand = brandIcons[platform]?.[mode];
   if (brand) {
@@ -103,7 +102,8 @@ const renderIcon = (platform: string, width: number | undefined = 40, borderRadi
 };
 
 const PlatformIcon: FunctionComponent<PlatformIconProps> = ({ platform, width, borderRadius, marginRight, tooltip = false }) => {
-  const rendered = renderIcon(platform, width, borderRadius, marginRight);
+  const theme = useTheme();
+  const rendered = renderIcon(theme, platform, width, borderRadius, marginRight);
   if (!rendered) {
     return null;
   }

@@ -108,7 +108,8 @@ const AiTargetForm: FunctionComponent<Props> = ({
   // Assigning markings requires an asset id, so the picker only makes sense once the AI target
   // exists - gated on `editing` the same way the field itself is only reported through
   // `onMarkingsChange`, and on the flag the rest of the marking UI is gated on.
-  const showMarkings = editing && isFeatureEnabled('MARKING');
+  const isMarkingEnabled = isFeatureEnabled('MARKING');
+  const showMarkings = editing && isMarkingEnabled;
 
   const {
     register,

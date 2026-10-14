@@ -26,9 +26,10 @@ const SimulationTeams: FunctionComponent = () => {
   useDataLoader(() => {
     dispatch(fetchExerciseTeams(exerciseId));
   });
+  const teamContext = teamContextForExercise(exerciseId);
 
   return (
-    <TeamContext.Provider value={teamContextForExercise(exerciseId)}>
+    <TeamContext.Provider value={teamContext}>
       <ConfigurationSection
         title={t('Teams')}
         count={teamsStore.length}

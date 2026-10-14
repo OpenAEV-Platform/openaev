@@ -28,9 +28,10 @@ const ScenarioTeams: FunctionComponent<Props> = ({ scenarioTeamsUsers }) => {
   useDataLoader(() => {
     dispatch(fetchScenarioTeams(scenarioId));
   });
+  const teamContext = teamContextForScenario(scenarioId, scenarioTeamsUsers);
 
   return (
-    <TeamContext.Provider value={teamContextForScenario(scenarioId, scenarioTeamsUsers)}>
+    <TeamContext.Provider value={teamContext}>
       <ConfigurationSection
         title={t('Teams')}
         count={teamsStore.length}
