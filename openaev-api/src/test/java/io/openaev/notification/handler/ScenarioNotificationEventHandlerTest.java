@@ -21,12 +21,10 @@ import io.openaev.notification.engine.NotificationResourceCatalog;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exercise.service.ExerciseService;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
-import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -55,8 +53,6 @@ class ScenarioNotificationEventHandlerTest {
   private static final Instant LAST_END = Instant.parse("2026-01-01T12:00:00Z");
   private static final Instant PREVIOUS_END = Instant.parse("2025-12-31T12:00:00Z");
 
-  @Mock private EntityManager entityManager;
-  @Mock private Session session;
   @Mock private ExerciseService exerciseService;
   @Mock private NotificationEngineService notificationEngineService;
   @Mock private TenantScopedTransaction tenantTx;
@@ -68,10 +64,8 @@ class ScenarioNotificationEventHandlerTest {
   @SuppressWarnings("unchecked")
   @BeforeEach
   void setUp() {
-    when(entityManager.unwrap(Session.class)).thenReturn(session);
     handler =
-        new ScenarioNotificationEventHandler(
-            entityManager, exerciseService, notificationEngineService, tenantTx);
+        new ScenarioNotificationEventHandler(exerciseService, notificationEngineService, tenantTx);
     // Run the detection phase inline so its outcome can be asserted.
     when(tenantTx.execute(any(TxCtx.class), any(Supplier.class)))
         .thenAnswer(invocation -> invocation.getArgument(1, Supplier.class).get());

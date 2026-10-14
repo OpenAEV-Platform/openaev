@@ -95,7 +95,14 @@ customer simulation's expectations against them (`InjectsExecutionJob#executeInT
 
 Two details that are easy to miss: Hibernate `@Filter` does **not** apply to `find()` by primary
 key, so a green `findById` proves nothing about scoping; and a deliberately cross-tenant sweep
-(`session.disableFilter("tenantFilter")`) must set the tenant explicitly on anything it writes.
+must set the tenant explicitly on anything it writes.
+
+`session.disableFilter("tenantFilter")` does not make a read cross-tenant. Off a transaction it
+lands on a throwaway session, at the top of a primitive transaction there is no filter to disable,
+and the next method-level `@Transactional` re-arms it on the ambient tenant, the default one when
+none is set (`TenantFilterToggleReachTest`). A cross-tenant read goes through
+`TenantScopedTransaction` with an explicit scope. New calls fail `TenantFilterDisableArchTest`,
+whose baseline only shrinks.
 
 **v2 activation does not retire `TenantContext.setCurrentTenant()` on its own.** Converting a job's
 reads to `TenantScopedTransaction` only changes read isolation; `TenantBaseListener.@PrePersist`

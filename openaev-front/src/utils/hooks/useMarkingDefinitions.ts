@@ -21,20 +21,26 @@ import { type MarkingDefinitionOutput } from '../api-types';
  * instead of every definition in the tenant. Needs no capability, so use it for pickers and for
  * displaying markings on rows (a row's markings are always within the viewer's clearance).
  */
-const useMarkingDefinitions = (options?: {
+export const useMarkingDefinitionsWithLoading = (options?: {
   skip?: boolean;
   assignableOnly?: boolean;
-}): Record<string, MarkingDefinitionOutput> => {
+}): {
+  definitions: Record<string, MarkingDefinitionOutput>;
+  loading: boolean;
+} => {
   const skip = options?.skip ?? false;
   const assignableOnly = options?.assignableOnly ?? false;
   const [definitions, setDefinitions] = useState<Record<string, MarkingDefinitionOutput>>({});
+  const [loading, setLoading] = useState(!skip);
 
   useEffect(() => {
     if (skip) {
       setDefinitions({});
+      setLoading(false);
       return undefined;
     }
     let cancelled = false;
+    setLoading(true);
     const request = assignableOnly
       ? fetchAssignableMarkingDefinitions().then((result: { data?: MarkingDefinitionOutput[] }) => result?.data ?? [])
       : searchMarkingDefinitions({
@@ -54,13 +60,26 @@ const useMarkingDefinitions = (options?: {
         if (!cancelled) {
           setDefinitions({});
         }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [skip, assignableOnly]);
 
-  return definitions;
+  return {
+    definitions,
+    loading,
+  };
 };
+
+const useMarkingDefinitions = (options?: {
+  skip?: boolean;
+  assignableOnly?: boolean;
+}): Record<string, MarkingDefinitionOutput> => useMarkingDefinitionsWithLoading(options).definitions;
 
 export default useMarkingDefinitions;

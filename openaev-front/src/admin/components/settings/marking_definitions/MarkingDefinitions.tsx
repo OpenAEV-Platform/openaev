@@ -18,6 +18,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { type Header } from '../../../../components/common/SortHeadersList';
 import DangerZone from '../../../../components/common/tag/DangerZone';
 import { useFormatter } from '../../../../components/i18n';
+import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import {
   type MarkingDefinitionInput,
   type MarkingDefinitionOutput,
@@ -51,6 +52,7 @@ const MarkingDefinitions = () => {
   const dispatch = useAppDispatch();
 
   const [markingDefinitions, setMarkingDefinitions] = useState<MarkingDefinitionOutput[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [openCreate, setOpenCreate] = useState(false);
 
   const availableFilterNames = [
@@ -172,6 +174,7 @@ const MarkingDefinitions = () => {
           fetch={searchMarkingDefinitions}
           searchPaginationInput={searchPaginationInput}
           setContent={setMarkingDefinitions}
+          setLoading={setLoading}
           availableFilterNames={availableFilterNames}
           queryableHelpers={queryableHelpers}
           entityPrefix="marking_definition"
@@ -199,7 +202,8 @@ const MarkingDefinitions = () => {
               )}
             />
           </ListItem>
-          {markingDefinitions.map((item: MarkingDefinitionOutput) => (
+          {loading && <PaginatedListLoader Icon={CenterFocusStrongOutlined} headers={headers} headerStyles={inlineStyles} />}
+          {!loading && markingDefinitions.map((item: MarkingDefinitionOutput) => (
             <ListItem
               key={item.marking_definition_id}
               secondaryAction={(

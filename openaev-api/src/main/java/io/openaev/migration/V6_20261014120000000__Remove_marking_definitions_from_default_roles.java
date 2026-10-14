@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261009120000000__Remove_marking_definitions_from_default_roles
+public class V6_20261014120000000__Remove_marking_definitions_from_default_roles
     extends BaseJavaMigration {
 
   @Override

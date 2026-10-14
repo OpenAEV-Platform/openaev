@@ -15,7 +15,6 @@ import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.NotificationEventService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +22,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,7 +41,6 @@ class InjectsFinalizationJobUnitTest {
   @Mock private WorkflowService workflowService;
   @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private NotificationEventService notificationEventService;
-  @Mock private EntityManager entityManager;
   @Mock private TenantScopedJobRunner tenantScopedJobRunner;
 
   @InjectMocks private InjectsFinalizationJob finalizationJob;
@@ -348,8 +345,6 @@ class InjectsFinalizationJobUnitTest {
 
     @BeforeEach
     void setUpCollectStatus() {
-      Session session = mock(Session.class, withSettings().strictness(LENIENT));
-      when(entityManager.unwrap(Session.class)).thenReturn(session);
       inject = new Inject();
       when(injectService.getExecutedAndNotFinished()).thenReturn(List.of(inject));
     }

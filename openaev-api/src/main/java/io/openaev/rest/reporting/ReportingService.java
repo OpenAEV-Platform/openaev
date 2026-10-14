@@ -100,11 +100,14 @@ public class ReportingService {
     // must stay invisible to users without access to that scenario).
     Specification<Reporting> accessSpecification =
         subjectAccessSpecification(this.userService.currentUser());
-    return buildPaginationJPA(
-        (specification, pageable) ->
-            this.reportingRepository.findAll(accessSpecification.and(specification), pageable),
-        searchPaginationInput,
-        Reporting.class);
+    Page<Reporting> reportings =
+        buildPaginationJPA(
+            (specification, pageable) ->
+                this.reportingRepository.findAll(accessSpecification.and(specification), pageable),
+            searchPaginationInput,
+            Reporting.class);
+    withHistoryLoaded(reportings.getContent());
+    return reportings;
   }
 
   /**
@@ -119,11 +122,13 @@ public class ReportingService {
       @NotNull final ReportingContextType contextType, final String contextId) {
     checkSubjectAccess(contextType, contextId);
     if (contextId == null || contextId.isBlank()) {
-      return this.reportingRepository.findAllByContextTypeAndContextIdIsNullOrderByUpdatedAtDesc(
-          contextType);
+      return withHistoryLoaded(
+          this.reportingRepository.findAllByContextTypeAndContextIdIsNullOrderByUpdatedAtDesc(
+              contextType));
     }
-    return this.reportingRepository.findAllByContextTypeAndContextIdOrderByUpdatedAtDesc(
-        contextType, contextId);
+    return withHistoryLoaded(
+        this.reportingRepository.findAllByContextTypeAndContextIdOrderByUpdatedAtDesc(
+            contextType, contextId));
   }
 
   // -- CREATE --
@@ -157,6 +162,7 @@ public class ReportingService {
   public Reporting reporting(@NotBlank final String id) {
     Reporting reporting = resolveReporting(id);
     checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
+    withHistoryLoaded(List.of(reporting));
     return reporting;
   }
 
@@ -501,6 +507,20 @@ public class ReportingService {
   }
 
   // -- INTERNAL --
+
+  /**
+   * Loads the generations and schedules of the reportings inside the scoped transaction. The
+   * reporting endpoints return the raw entity, serialized open-in-view after the commit, when a
+   * lazy load of either collection fails closed to an empty array.
+   */
+  private List<Reporting> withHistoryLoaded(final List<Reporting> reportings) {
+    if (!reportings.isEmpty()) {
+      List<String> ids = reportings.stream().map(Reporting::getId).toList();
+      this.reportingRepository.findAllByIdInFetchingGenerations(ids);
+      this.reportingRepository.findAllByIdInFetchingSchedules(ids);
+    }
+    return reportings;
+  }
 
   private Reporting resolveReporting(final String id) {
     // Plain findById: reportings is tenant-active, so the statement inspector already scopes

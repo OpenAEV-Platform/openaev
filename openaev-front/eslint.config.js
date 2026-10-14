@@ -25,7 +25,8 @@ export default [
     settings: {
       react: {
         // temporary workaround for https://github.com/jsx-eslint/eslint-plugin-react/issues/3977
-        // ('detect' crashes on ESLint 10); must follow the installed React version
+        // ('detect' crashes on ESLint 10); must follow the installed React version, which
+        // Renovate keeps in step (customManagers in renovate.json5)
         version: '19.3',
       },
     },

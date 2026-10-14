@@ -118,7 +118,8 @@ public class CustomDashboardService {
 
   /**
    * Retrieves a paginated list of {@link CustomDashboard} entities according to the provided {@link
-   * SearchPaginationInput}.
+   * SearchPaginationInput}, with their widgets loaded inside the scoped transaction (see {@link
+   * CustomDashboardRepository#findAllByIdInFetchingWidgets}).
    *
    * @param searchPaginationInput the pagination and filtering input
    * @return a {@link Page} of {@link CustomDashboard} entities
@@ -126,8 +127,14 @@ public class CustomDashboardService {
   @Transactional(readOnly = true)
   public Page<CustomDashboard> customDashboards(
       @NotNull final SearchPaginationInput searchPaginationInput) {
-    return buildPaginationJPA(
-        this.customDashboardRepository::findAll, searchPaginationInput, CustomDashboard.class);
+    Page<CustomDashboard> customDashboards =
+        buildPaginationJPA(
+            this.customDashboardRepository::findAll, searchPaginationInput, CustomDashboard.class);
+    if (customDashboards.hasContent()) {
+      this.customDashboardRepository.findAllByIdInFetchingWidgets(
+          customDashboards.getContent().stream().map(CustomDashboard::getId).toList());
+    }
+    return customDashboards;
   }
 
   /**
