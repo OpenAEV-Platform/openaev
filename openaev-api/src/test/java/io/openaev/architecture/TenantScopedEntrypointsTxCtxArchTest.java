@@ -199,6 +199,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.marking_definition.MarkingDefinitionApi#create",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#update",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#delete",
+          // marking_definitions (v2): options endpoints for a filter's dynamic value picker,
+          // same table as the CRUD entries above.
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#optionsByName",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#optionsById",
           "io.openaev.api.attackpath.AttackPathApi#relations",
           "io.openaev.api.attackpath.AttackPathApi#findings",
           "io.openaev.api.attackpath.AttackPathApi#executionDetail",

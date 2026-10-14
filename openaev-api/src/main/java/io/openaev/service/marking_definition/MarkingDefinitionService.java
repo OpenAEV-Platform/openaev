@@ -325,8 +325,10 @@ public class MarkingDefinitionService {
   }
 
   private static FilterUtilsJpa.Option toOption(MarkingDefinition definition) {
-    return new FilterUtilsJpa.Option(
-        definition.getId(), definition.getType() + ":" + definition.getDefinition());
+    String type = definition.getType();
+    String value = definition.getDefinition();
+    String label = value.startsWith(type + ":") ? value : type + ":" + value;
+    return new FilterUtilsJpa.Option(definition.getId(), label);
   }
 
   /**
