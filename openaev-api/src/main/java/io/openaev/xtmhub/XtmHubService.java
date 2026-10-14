@@ -144,7 +144,10 @@ public class XtmHubService {
 
     Map<String, XtmHubConnectivityStatus> statuses =
         xtmHubClient.refreshRegistrationStatusAllTenants(
-            settings.getPlatformId(), settings.getPlatformVersion(), tenants);
+            settings.getPlatformId(),
+            settings.getPlatformVersion(),
+            LicenseUtils.computeXtmHubEdition(settings.getPlatformLicense()),
+            tenants);
 
     List<ConnectivityCheckResult> allCheckResults = new ArrayList<>();
 
@@ -199,6 +202,7 @@ public class XtmHubService {
         xtmHubClient.refreshRegistrationStatusSingleTenant(
             settings.getPlatformId(),
             settings.getPlatformVersion(),
+            LicenseUtils.computeXtmHubEdition(settings.getPlatformLicense()),
             registration.getToken(),
             url,
             tenantId,

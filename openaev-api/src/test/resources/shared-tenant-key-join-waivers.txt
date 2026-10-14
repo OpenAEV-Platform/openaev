@@ -1,0 +1,54 @@
+# Waived joins on a tenant-shared key (#7905). Read by SharedTenantKeyJoinArchTest.
+#
+# Format, one predicate per line:
+#   <Class>#<method> <column> <alias>=<alias>  # <classification> : <reason>
+#
+# The entry names the statement, not a line, so it survives reformatting and goes stale when the
+# query it excuses is fixed, renamed or deleted. A stale entry fails the build: the change that
+# repairs a query removes its waiver in the same commit, which is what keeps this file from becoming
+# a parking lot. "in-subquery" on the right of a key stands for the anonymous result of an
+# IN (SELECT ...) correlation.
+#
+# The reason must BEGIN with one of these four classifications, spelled out. A bare entry, or one
+# whose reason is only a tag, is rejected: an entry must say what makes the join safe, not that it is.
+#
+#   reaches-active-table:<table> : the join itself is unscoped, but the chain continues onto <table>,
+#                             which is on the production active-tables list, so the statement
+#                             inspector removes the foreign row before it can reach the result. Name
+#                             the table. This reason expires if that table ever leaves the list,
+#                             which is why the table is named rather than the effect asserted.
+#   dead-code               : the method has no caller. Say how that was established, because the
+#                             reason dies the moment somebody calls it.
+#   not-established         : the leak is neither proven nor disproven, and no active table
+#                             attenuates it. MUST carry an until-active:<table> tag naming the
+#                             activation that retires the question, so the entry has an expiry.
+#                             Say what measurement would settle it.
+#   fixed-pending:#<pr>      : the predicate is repaired on an open pull request that has not landed
+#                             yet. Name the pull request. Whichever of the two lands second deletes
+#                             these lines, and the stale check above makes forgetting impossible.
+#
+# Lines starting with # and blank lines are ignored.
+
+# ---------------------------------------------------------------------------------------------
+# Repaired on an open pull request. These are live defects on main, not safe joins.
+# ---------------------------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------------------------
+# Unscoped, but an active table downstream removes the foreign row.
+# ---------------------------------------------------------------------------------------------
+ScenarioRepository#getScenarioByIdAndTenantId injector_contract_id ic=icap  # reaches-active-table:kill_chain_phases : the kill chain projection reads the mapping of any tenant holding the contract id, then resolves each row to a phase; a foreign mapping names that tenant's own phase ids, which the inspector removes on kill_chain_phases. Inefficient rather than leaking.
+DocumentRepository#findAllDistinctOnInjectsByScenarioId injector_contract_id i=ic  # reaches-active-table:documents : both ends are pinned to one scenario and the projection is documents, so a foreign contract row cannot contribute a document the inspector would return.
+InjectorContractRepository#findInjectorContractsByVulnerabilityIdIn injector_contract_id ic=icv  # reaches-active-table:vulnerabilities : the contract is pinned to the current tenant and the mapping resolves onto vulnerabilities, so a foreign link row resolves to a foreign vulnerability and is filtered out.
+
+# ---------------------------------------------------------------------------------------------
+# Dead code. Two sites disappear with the method.
+# ---------------------------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------------------------
+# Not established, and nothing downstream attenuates them.
+# ---------------------------------------------------------------------------------------------
+InjectorContractRepositoryHelper#searchInjectorContractsByAttackPatternAndEnvironment injector_contract_id ic=injectorAttack  # not-established until-active:injectors_contracts : the contract is pinned to the current tenant, the mapping join is not, and the chain continues onto attack_patterns, which is NOT active, matched by an external id that is byte-identical in every tenant. So a foreign mapping can select a contract this tenant no longer maps, although the rows returned are this tenant's own. Settled by seeding the mapping in a second tenant only and asserting the autonomous-run search returns nothing.
+ScenarioRepository#getScenarioByIdAndTenantId injector_contract_id i=ic  # not-established until-active:injectors_contracts : the scenario platform union projects the contract platforms of every tenant holding the id. Identical for a published contract, divergent only after an edit through the contract mapping endpoint. Settled by editing a contract's platforms in one tenant and reading the scenario from the other.
+InjectorContractRepository#getAllRawInjectorsContractsGranted injector_contract_id gr=injcon  # not-established until-active:injectors_contracts : a grant row is matched to the contract by resource id, and grants carries no tenant_id column at all, so a grant minted against the same contract id elsewhere would authorise this tenant's contract. That is a question about the grant model rather than about this join, and it needs an answer before the table activates.
+AttackObservationRepository#findForIndexing attack_pattern_external_id ap2=t  # reaches-active-table:attack_patterns : the external id is a secondary predicate, not the join key. ap2 is already pinned by attack_pattern_id coming from icap2, whose own join carries icap2.tenant_id = i.tenant_id, so the pattern row belongs to the inject's tenant before the external id is compared. attack_patterns is tenant-active on top of that, so a foreign pattern is removed by the inspector.
+AttackObservationRepository#findForIndexing attack_pattern_external_id ap3=l  # reaches-active-table:attack_patterns : same statement, the latest-replay branch. ap3 is pinned by attack_pattern_id from icap3, which carries icap3.tenant_id = i.tenant_id, and attack_patterns is tenant-active.

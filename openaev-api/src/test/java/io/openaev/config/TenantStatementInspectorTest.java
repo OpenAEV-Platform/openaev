@@ -1297,4 +1297,121 @@ class TenantStatementInspectorTest {
       assertTrue(out.contains("can_access_tenant(chl_light.tenant_id)"), out);
     }
   }
+
+  // --- agents activation (#7938): the vulnerable-endpoint indexing query ----
+  //
+  // findForIndexing reaches `agents` through three correlated scalar sub-queries in its select
+  // list, one per denormalized array the vulnerable-endpoint document carries (ids, statuses,
+  // privileges). Nothing exercised that SQL with the table active: the indexing tests run on the
+  // default test profile, which activates no table, so the inspector was inert and a refusal or a
+  // rewrite that lost the correlation would have shipped and left the index unbuildable.
+  //
+  // What is pinned here is the rewrite's structure, not its text: every sub-query that reads
+  // `agents` carries the tenant predicate, every one of them keeps its correlation to the outer
+  // asset, and the result is still SQL the engine parses. Both counts are derived from the query
+  // itself, so a fourth sub-query added later is held to the same bar instead of silently sitting
+  // outside the assertion. Deliberately NOT pinned: the whitespace, the predicate's position in
+  // the WHERE tree, whether `agents` ends up narrowed or wrapped (both are valid here, the
+  // sub-queries have no GROUP BY to lose a functional dependency from), and the other tables'
+  // rewrites, which their own sections above cover.
+  @Nested
+  @DisplayName("the vulnerable-endpoint indexing query survives agents being active")
+  class VulnerableEndpointIndexingQuery {
+
+    /** The real repository SQL, read reflectively so an edit to it is caught, not a copy of it. */
+    private String indexingSql() throws Exception {
+      return io.openaev.database.repository.VulnerableEndpointRepository.class
+          .getMethod("findForIndexing", java.time.Instant.class, int.class)
+          .getAnnotation(org.springframework.data.jpa.repository.Query.class)
+          .value()
+          // The SpEL selector for the asset type is resolved by Spring Data long before the
+          // statement reaches the inspector; a bind marker stands in for it here.
+          .replaceAll(":#\\{[^}]*}", "?");
+    }
+
+    private long countOf(String haystack, String needle) {
+      return haystack.split(java.util.regex.Pattern.quote(needle), -1).length - 1;
+    }
+
+    @Test
+    @DisplayName("every sub-query reading agents carries the tenant predicate")
+    void everyAgentsSubQueryCarriesTheTenantPredicate() throws Exception {
+      String sql = indexingSql();
+      long agentsReads = countOf(sql.toLowerCase(), "from agents");
+      assertTrue(agentsReads > 0, "the query must still read agents, otherwise this nest is dead");
+
+      TenantStatementInspector agentsActive =
+          new TenantStatementInspector(new TenantTables(Set.of("agents"), Set.of()));
+      String out = agentsActive.inspect(sql).replaceAll("\\s+", " ").trim();
+
+      assertEquals(
+          agentsReads,
+          countOf(out, "can_access_tenant(ag.tenant_id)"),
+          "each of the "
+              + agentsReads
+              + " sub-queries reading agents must come back with its own tenant predicate; one"
+              + " without it denormalizes another tenant's agents into the document: "
+              + out);
+    }
+
+    @Test
+    @DisplayName("every sub-query reading agents keeps its correlation to the outer asset")
+    void everyAgentsSubQueryKeepsItsCorrelation() throws Exception {
+      String sql = indexingSql();
+      long correlations = countOf(sql, "ag.agent_asset = a.asset_id");
+      assertEquals(
+          countOf(sql.toLowerCase(), "from agents"),
+          correlations,
+          "every agents sub-query is correlated to the outer asset; if that stops being true the"
+              + " assertion below no longer covers all of them");
+
+      TenantStatementInspector agentsActive =
+          new TenantStatementInspector(new TenantTables(Set.of("agents"), Set.of()));
+      String out = agentsActive.inspect(sql).replaceAll("\\s+", " ").trim();
+
+      assertEquals(
+          correlations,
+          countOf(out, "ag.agent_asset = a.asset_id"),
+          "the rewrite must keep each sub-query correlated to the asset the document is built"
+              + " from; a lost correlation turns the array into every agent of the tenant: "
+              + out);
+    }
+
+    @Test
+    @DisplayName("the rewritten query is valid, re-parsable SQL with the go-live active set")
+    void theRewrittenQueryIsValidSqlWithTheGoLiveActiveSet() throws Exception {
+      // agents does not arrive alone in production: assets and findings are already active and
+      // both are joined by this query, so the statement the engine receives is the one rewritten
+      // with all three. The sub-queries read agents while the outer query groups on the asset
+      // columns, which is where a derived-table rewrite breaks a GROUP BY, so re-parsing the
+      // output is the cheap half of "PostgreSQL still accepts this".
+      TenantStatementInspector goLive =
+          new TenantStatementInspector(
+              new TenantTables(Set.of("agents", "assets", "findings"), Set.of()));
+      String out = goLive.inspect(indexingSql());
+
+      assertEquals(
+          3,
+          countOf(out.replaceAll("\\s+", " "), "can_access_tenant(ag.tenant_id)"),
+          "the agents predicates must survive the other tables being active too: " + out);
+      assertNotNull(CCJSqlParserUtil.parse(out), out);
+    }
+
+    @Test
+    @DisplayName("non-vacuity: with agents inactive no agents predicate is added")
+    void noAgentsPredicateWhenAgentsIsInactive() throws Exception {
+      // The deliberate break the assertions above are measured against: an inspector that knows
+      // the joined tables but not agents must leave the sub-queries alone. If the predicate
+      // appeared here too, every count above would be satisfied by something else.
+      TenantStatementInspector agentsInactive =
+          new TenantStatementInspector(new TenantTables(Set.of("assets", "findings"), Set.of()));
+      String out = agentsInactive.inspect(indexingSql()).replaceAll("\\s+", " ").trim();
+
+      assertFalse(
+          out.contains("can_access_tenant(ag.tenant_id)"),
+          "agents must not be filtered when it is not active: " + out);
+      // The still-filtered joins are proof the inspector ran and simply left agents alone.
+      assertTrue(out.contains("can_access_tenant(a.tenant_id)"), out);
+    }
+  }
 }

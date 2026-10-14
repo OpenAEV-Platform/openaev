@@ -241,4 +241,24 @@ public class BaseInjectExpectation implements Base, Cloneable {
   public int hashCode() {
     return Objects.hash(id);
   }
+
+  // Expectations are read through their simulation, or through their inject for an atomic
+  // testing. getId() on a lazy proxy loads nothing.
+  @JsonIgnore
+  @Override
+  public String getPermissionResourceId() {
+    if (getExercise() != null) {
+      return getExercise().getId();
+    }
+    return getInject() != null ? getInject().getId() : getId();
+  }
+
+  @JsonIgnore
+  @Override
+  public ResourceType getPermissionResourceType() {
+    if (getExercise() != null) {
+      return ResourceType.SIMULATION;
+    }
+    return getInject() != null ? ResourceType.ATOMIC_TESTING : getResourceType();
+  }
 }

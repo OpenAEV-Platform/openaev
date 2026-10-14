@@ -2,7 +2,7 @@
 
 Parameters control the appearance, behavior, and preferences of the OpenAEV platform at runtime. Use them to apply your organization's branding, set default Dashboards, and review the health of connected services. Changes take effect immediately without restarting the application.
 
-Navigate to **Settings > Parameters** to view and modify these settings. You need the `Manage platform settings` capability.
+Navigate to **Settings > Parameters**. You need `Access tenant settings` to view and `Manage tenant settings` to edit; **Remove Filigran logos** needs `Manage platform settings`.
 
 !!! note
 
@@ -15,7 +15,7 @@ The Configuration panel contains the core platform preferences.
 | Setting | Description | Default |
 |---|---|---|
 | Platform name | Display name shown in the browser title and navigation bar | OpenAEV - Open Adversarial Exposure Validation Platform |
-| Default theme | Theme applied to new users and the login page (`dark`, `light`, or `auto`) | dark |
+| Default theme | Theme applied to new users and the login page: Default, Dark or Light | Dark |
 | Default language | Language applied to new users (`auto` uses the browser locale) | auto |
 | Home dashboard | Custom Dashboard displayed on the home page | None |
 | Default scenario dashboard | Custom Dashboard used for Scenario overview pages | None |
@@ -26,7 +26,7 @@ The Configuration panel contains the core platform preferences.
 1. Open **Settings > Parameters**.
 2. Locate the setting in the Configuration panel.
 3. Update the value (select from a dropdown or type a new value).
-4. Click **Save**. The change applies immediately for all users.
+4. Click **Update**. The change applies immediately for all users.
 
 ## Theme customization
 
@@ -42,6 +42,7 @@ OpenAEV supports independent customization of the **dark** and **light** themes.
 | Primary color | Primary action color (buttons, links, active states) |
 | Secondary color | Secondary action color |
 | Accent color | Highlight color for emphasis and notifications |
+| Text color | Main text color |
 
 ### Logos and branding
 
@@ -49,23 +50,28 @@ OpenAEV supports independent customization of the **dark** and **light** themes.
 |---|---|
 | Logo URL | Main logo displayed in the expanded sidebar |
 | Logo URL (collapsed) | Compact logo displayed when the sidebar is collapsed |
-| Login page logo URL | Logo displayed on the login page |
+| Logo URL (login) | Logo displayed on the login page |
 
 ### Login page
 
-The login page background can also be customized per theme. These settings are part of the theme customization panels and control the visual appearance of the authentication screen.
+| Setting | Description |
+|---|---|
+| Login aside color | Background color of the login page side panel |
+| Login aside gradient start color | Start color of the side panel gradient |
+| Login aside gradient end color | End color of the side panel gradient |
+| Login aside image URL | Image displayed in the side panel |
 
 ### How to customize a theme
 
 1. Open **Settings > Parameters**.
 2. Scroll to the **Dark theme** or **Light theme** panel.
 3. Update color values using the color pickers or paste hex codes. Colors must use the 6-digit `#RRGGBB` format (for example `#4CAF50`). Leave a color empty to use the default.
-4. Paste logo URLs for the sidebar, collapsed sidebar, and login page.
-5. Click **Save**. The updated theme is applied immediately.
+4. Paste logo URLs for the sidebar, collapsed sidebar, and login page, and set the login page side panel.
+5. Click **Update**. The updated theme is applied immediately.
 
-## Platform information
+## OpenAEV platform
 
-The Parameters page includes a read-only panel showing technical information about the running instance. Use this panel to verify the platform version, build commit, edition, and AI configuration.
+The **OpenAEV platform** panel shows technical information about the running instance. Use this panel to verify the platform version, build commit, edition, and AI configuration.
 
 The build commit comes from the `OPENAEV_COMMIT` environment variable, set when the Docker image is built. It is not shown when the variable is empty.
 
@@ -76,6 +82,7 @@ The build commit comes from the `OPENAEV_COMMIT` environment variable, set when 
 | Version | Current platform version. When the build commit is known, hover the version to see the commit hash, and click it to copy `<version>#<commit>` |
 | Edition | Community or Enterprise Edition |
 | AI Powered | Whether AI capabilities are enabled and which provider is configured |
+| Remove Filigran logos | Hides Filigran branding throughout the interface (Enterprise Edition) |
 
 ## Tools
 
@@ -91,46 +98,9 @@ The Tools panel displays the versions and availability status of the backend ser
 | SMTP (Simple Mail Transfer Protocol) | Whether the outgoing email service is available |
 | IMAP (Internet Message Access Protocol) | Whether the incoming email service is available |
 
-## Enterprise Edition settings
-
-!!! tip "Enterprise Edition"
-
-    The following settings require a valid Enterprise Edition license.
-
-| Setting | Description |
-|---|---|
-| Remove Filigran logos | Enables white-labeling by hiding Filigran branding throughout the interface |
-| AI chatbot terms of service | Acceptance status of the Filigran AI chatbot terms of use |
-
 ## Tenant-specific parameters
 
-When multi-tenancy is enabled, each Tenant can override a subset of platform parameters. Tenant-level settings take precedence over platform defaults for users operating within that Tenant context.
-
-**Overridable settings (with platform fallback):**
-
-| Setting | Fallback behavior |
-|---|---|
-| Platform name | Falls back to the platform-level name if not set |
-| Default theme | Falls back to the platform-level theme if not set |
-| Default language | Falls back to the platform-level language if not set |
-
-**Tenant-only settings (no platform fallback):**
-
-| Setting | Description |
-|---|---|
-| Home dashboard | Custom home Dashboard for this Tenant |
-| Scenario dashboard | Custom Scenario Dashboard for this Tenant |
-| Simulation dashboard | Custom Simulation Dashboard for this Tenant |
-
-Each Tenant also has its own theme customization panels (colors and logos) for both dark and light themes, independent of the platform-level themes.
-
-### How to override a setting for a Tenant
-
-1. Navigate to **Settings > Parameters** within the Tenant context.
-2. Update the desired setting (platform name, theme, language, or Dashboards).
-3. Click **Save**. The Tenant-level value takes precedence over the platform default.
-
-To revert to the platform default, clear the Tenant-level value.
+Settings apply to the current Tenant; name, theme and language fall back to the platform default when empty.
 
 ## What's next?
 

@@ -16,7 +16,9 @@ import lombok.*;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 
-@EqualsAndHashCode(callSuper = true)
+// Identity comes from Asset (id only). Hashing the fields would initialize the lazy injects Set
+// (PersistentSet.hashCode reads it) and load every inject of the endpoint.
+@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @Data
 @Entity
 @DiscriminatorValue(AssetType.Values.ENDPOINT_TYPE)

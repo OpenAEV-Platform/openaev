@@ -90,10 +90,14 @@ public class AssetGroupService {
     return computeDynamicAssets(assetGroups);
   }
 
+  /**
+   * Asset groups targeted by the injects of a simulation, with their assets and tags loaded: see
+   * {@link #withLinksInitialized(List)}.
+   */
   public List<AssetGroup> assetGroupsForSimulation(@NotBlank final String simulationId) {
     List<AssetGroup> assetGroups =
         fromIterable(this.assetGroupRepository.findDistinctByInjectsSimulationId(simulationId));
-    return computeDynamicAssets(assetGroups);
+    return withLinksInitialized(computeDynamicAssets(assetGroups));
   }
 
   public List<AssetGroupOutput> assetGroupsByIdsForSimulation(
@@ -107,10 +111,31 @@ public class AssetGroupService {
         .toList();
   }
 
+  /**
+   * Asset groups targeted by the injects of a scenario, with their assets and tags loaded: see
+   * {@link #withLinksInitialized(List)}.
+   */
   public List<AssetGroup> assetGroupsForScenario(@NotBlank final String scenarioId) {
     List<AssetGroup> assetGroups =
         fromIterable(this.assetGroupRepository.findDistinctByInjectsScenarioId(scenarioId));
-    return computeDynamicAssets(assetGroups);
+    return withLinksInitialized(computeDynamicAssets(assetGroups));
+  }
+
+  /**
+   * Loads the assets and tags of the asset groups inside the scoped transaction. The simulation and
+   * scenario asset group endpoints return the raw entity, serialized open-in-view after the commit,
+   * when a lazy load on the v2-active {@code assets} and {@code tags} tables fails closed to an
+   * empty array: the inject form reuses these asset groups for its update and "Manage assets"
+   * actions, so saving erased their tags or assets. Same fix as {@code
+   * AssetGroupApi.withAssetsInitialized}.
+   */
+  private static List<AssetGroup> withLinksInitialized(List<AssetGroup> assetGroups) {
+    assetGroups.forEach(
+        assetGroup -> {
+          Hibernate.initialize(assetGroup.getAssets());
+          Hibernate.initialize(assetGroup.getTags());
+        });
+    return assetGroups;
   }
 
   public List<AssetGroupOutput> assetGroupsByIdsForScenario(

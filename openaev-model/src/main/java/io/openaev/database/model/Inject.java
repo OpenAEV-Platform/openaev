@@ -686,4 +686,16 @@ public class Inject implements GrantableBase, Injection, TenantBase {
         ? ResourceType.SCENARIO
         : this.getExercise() != null ? ResourceType.SIMULATION : ResourceType.ATOMIC_TESTING;
   }
+
+  @JsonIgnore
+  @Override
+  public String getPermissionResourceId() {
+    return getParentResourceId();
+  }
+
+  @JsonIgnore
+  @Override
+  public ResourceType getPermissionResourceType() {
+    return getParentResourceType();
+  }
 }

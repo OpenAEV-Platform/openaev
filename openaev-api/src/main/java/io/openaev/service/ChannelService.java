@@ -2,7 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildMediaPressureUpdateInput;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.hasNoResults;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -11,13 +11,11 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.channel.model.VirtualArticle;
 import io.openaev.rest.channel.response.ChannelReader;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.utils.ExpectationUtils;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -31,7 +29,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ChannelService {
 
-  private final InjectExpectationRepository injectExpectationExecutionRepository;
+  private final InjectExpectationService injectExpectationService;
   private final ExerciseRepository exerciseRepository;
   private final ScenarioService scenarioService;
   private final ArticleRepository articleRepository;
@@ -119,31 +117,19 @@ public class ChannelService {
               .sorted(Comparator.comparing(Article::getVirtualPublication).reversed())
               .toList();
       channelReader.setChannelArticles(publishedArticles);
-      // Fulfill article expectations
-      List<Inject> finalInjects = injects;
-      List<ArticleInjectExpectation> expectationExecutions =
-          publishedArticles.stream()
-              .flatMap(
-                  article ->
-                      finalInjects.stream()
-                          .flatMap(
-                              inject ->
-                                  inject.getUserExpectationsForArticle(user, article).stream()))
-              .filter(exec -> hasNoResults(exec.getResults()))
-              .toList();
-
-      // Update all expectations linked to player
-      expectationExecutions.forEach(
-          injectExpectationExecution -> {
-            injectExpectationExecution.setResults(
-                List.of(buildForMediaPressure(injectExpectationExecution)));
-            injectExpectationExecution.setScore(injectExpectationExecution.getExpectedScore());
-            injectExpectationExecution.setUpdatedAt(Instant.now());
-            injectExpectationExecutionRepository.save(injectExpectationExecution);
-          });
-
-      // -- VALIDATION TYPE --
-      processByValidationType(user, injects, publishedArticles, !expectationExecutions.isEmpty());
+      // Fulfill the player's article expectations not read yet; the behavior recomputes the teams
+      publishedArticles.stream()
+          .flatMap(
+              article ->
+                  injects.stream()
+                      .flatMap(
+                          inject -> inject.getUserExpectationsForArticle(user, article).stream()))
+          .filter(expectation -> hasNoResults(expectation.getResults()))
+          .forEach(
+              expectation ->
+                  injectExpectationService.updateInjectExpectation(
+                      expectation.getId(),
+                      buildMediaPressureUpdateInput(expectation.getExpectedScore())));
     }
     return withDocumentLinksInitialized(channelReader);
   }
@@ -168,34 +154,6 @@ public class ChannelService {
         .getChannelArticles()
         .forEach(article -> Hibernate.initialize(article.getDocuments()));
     return channelReader;
-  }
-
-  private void processByValidationType(
-      User user,
-      List<Inject> injects,
-      List<Article> publishedArticles,
-      boolean isaNewExpectationResult) {
-    // Process expectation linked to teams where user if part of
-    List<String> injectIds = injects.stream().map(Inject::getId).toList();
-    List<String> teamIds = user.getTeams().stream().map(Team::getId).toList();
-    List<String> articleIds =
-        publishedArticles.stream().map(Article::getId).toList(); // Articles with the same channel
-    // Find all expectations linked to teams' user, channel and exercise
-    List<ArticleInjectExpectation> channelExpectations =
-        injectExpectationExecutionRepository.findChannelExpectations(
-            injectIds, teamIds, articleIds);
-    List<ArticleInjectExpectation> parentExpectations =
-        channelExpectations.stream().filter(exp -> exp.getUser() == null).toList();
-    Map<Team, List<ArticleInjectExpectation>> playerByTeam =
-        channelExpectations.stream()
-            .filter(exp -> exp.getUser() != null)
-            .collect(Collectors.groupingBy(ArticleInjectExpectation::getTeam));
-
-    // Depending on type of validation, we process the parent expectations:
-    List<BaseInjectExpectation> toUpdate =
-        ExpectationUtils.processByValidationType(
-            isaNewExpectationResult, channelExpectations, parentExpectations, playerByTeam);
-    injectExpectationExecutionRepository.saveAll(toUpdate);
   }
 
   public List<Channel> channelsForSimulation(@NotBlank final String simulationId) {

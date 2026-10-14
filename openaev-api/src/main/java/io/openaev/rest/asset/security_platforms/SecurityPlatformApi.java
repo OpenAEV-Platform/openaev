@@ -38,7 +38,7 @@ import org.springframework.web.bind.annotation.*;
 public class SecurityPlatformApi {
 
   public static final String SECURITY_PLATFORM_URI = "/api/security_platforms";
-  private static final String TENANT_SECURITY_PLATFORM_URI = TENANT_PREFIX + "/security_platforms";
+  static final String TENANT_SECURITY_PLATFORM_URI = TENANT_PREFIX + "/security_platforms";
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -65,6 +65,10 @@ public class SecurityPlatformApi {
    * v2 tenant-active yet, but the association is lazy and rendered open-in-view, so it must load
    * inside the scoped transaction to stay correct when that table is activated.
    *
+   * <p>{@code asset_tags} is initialized here too: {@code tags} is v2 tenant-active, and the edit
+   * form is filled from these responses, so a tag list serialized empty open-in-view was saved back
+   * and erased the platform's tags.
+   *
    * <p>Create and upsert are exempt: create returns a brand-new entity whose empty in-memory
    * associations serialize without a database load, and upsert is the connector-facing registration
    * endpoint whose response the UI never consumes.
@@ -72,6 +76,7 @@ public class SecurityPlatformApi {
   private static SecurityPlatform withManagerLinksInitialized(SecurityPlatform securityPlatform) {
     Hibernate.initialize(securityPlatform.getCollectors());
     Hibernate.initialize(securityPlatform.getInjectors());
+    Hibernate.initialize(securityPlatform.getTags());
     return securityPlatform;
   }
 

@@ -18,7 +18,7 @@ instructions: |
   - Steps are blueprints (TEMPLATE) cloned into runtime instances (READY → RUN → END).
   - Workflows transition: TEMPLATE → RUN → END (or STOP).
   - Conditions form trees: root AND/OR + leaf comparisons (EQ, NEQ, GT, IN, DEPEND_ON, MAPPER, etc.).
-  - Global state (`WorkflowState`) holds all outputs; local state is propagated to dependent steps.
+  - Global state (`WorkflowState`) holds all outputs; local state is propagated to dependent steps. State content is stored as normalized `workflow_state_entries` rows, accessed only through `WorkflowStateStore` (ADR-011).
   - Two RabbitMQ queues: `workflows-ready` (step execution) and `workflows-update` (external updates from inject lifecycle).
   - `@WorkflowUpdateEvent` AOP annotation bridges inject status changes into the chaining engine via `WorkflowUpdateEventAspect`.
   - Time-based delays use `StepDelayQueueService` (DB-persisted) polled by `QueueChainingJob` (Quartz).
@@ -33,7 +33,7 @@ instructions: |
   - AOP: `io.openaev.aop` (WorkflowUpdateEvent, WorkflowUpdateEventAspect)
   - Scheduler: `io.openaev.scheduler.jobs` (QueueChainingJob, WorkflowTimeoutJob)
   - Utilities: `io.openaev.utils.ConditionUtils`
-  - Model: `io.openaev.database.model` (Step, Workflow, Condition, ConditionStep, WorkflowState, StepDelayQueue, WorkflowScopeRule, ScopeVariable)
+  - Model: `io.openaev.database.model` (Step, Workflow, Condition, ConditionStep, WorkflowState, WorkflowStateEntry, StepDelayQueue, WorkflowScopeRule, ScopeVariable)
   - Repositories: `io.openaev.database.repository` (StepRepository, WorkflowRepository, ConditionRepository, WorkflowStateRepository, StepDelayQueueRepository, WorkflowScopeRuleRepository, ScopeVariableRepository)
   - Frontend: `openaev-front/src/actions/chaining/`, `openaev-front/src/admin/components/chaining/`
 

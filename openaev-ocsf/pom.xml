@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.261009.0</version>
+        <version>3.261013.1</version>
     </parent>
 
     <artifactId>openaev-ocsf</artifactId>
@@ -26,7 +26,7 @@
         <dependency>
             <groupId>net.javacrumbs.json-unit</groupId>
             <artifactId>json-unit-assertj</artifactId>
-            <version>6.2.0</version>
+            <version>6.3.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

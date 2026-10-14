@@ -7,6 +7,8 @@ import static io.openaev.database.model.User.ADMIN_LASTNAME;
 import static io.openaev.database.model.User.ADMIN_UUID;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
@@ -42,21 +44,28 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   private final TokenRepository tokenRepository;
   private final TenantUserService tenantUserService;
   private final AdminPrivilegeService adminPrivilegeService;
+  private final TenantScopedTransaction tenantScopedTransaction;
 
   public InitAdminCommandLineRunner(
       @NotNull final UserRepository userRepository,
       @NotNull final TokenRepository tokenRepository,
       @NotNull final TenantUserService tenantUserService,
-      @NotNull final AdminPrivilegeService adminPrivilegeService) {
+      @NotNull final AdminPrivilegeService adminPrivilegeService,
+      @NotNull final TenantScopedTransaction tenantScopedTransaction) {
     this.userRepository = userRepository;
     this.tokenRepository = tokenRepository;
     this.tenantUserService = tenantUserService;
     this.adminPrivilegeService = adminPrivilegeService;
+    this.tenantScopedTransaction = tenantScopedTransaction;
   }
 
   @Override
   @Transactional
   public void run(String... args) {
+    // The eager Group.markings read below is fail-closed without a scope, and this runner
+    // provisions the default tenant only.
+    this.tenantScopedTransaction.setScopeOnCurrentTransaction(TxCtx.forTenant(DEFAULT_TENANT_UUID));
+
     // Handle admin user
     Optional<User> adminUserOptional = this.userRepository.findById(ADMIN_UUID);
     User adminUser = adminUserOptional.map(this::updateUser).orElseGet(this::createUser);
@@ -66,13 +75,9 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
         this.tokenRepository.findFirstByUserIdOrderByCreatedAsc(adminUser.getId());
     adminToken.ifPresentOrElse(this::updateToken, () -> this.createToken(adminUser));
 
-    // Ensure the admin user holds full administrative privileges through well-known groups: a
-    // platform-scoped "Administrators" group (granting platform BYPASS) and the default-tenant
-    // "Administrators" group (granting tenant BYPASS). The default tenant is created by a Flyway
-    // migration and never runs the tenant-provisioning chain that seeds default groups for
-    // API-created tenants, so both must be bootstrapped explicitly here, once the admin user is
-    // guaranteed to exist. The platform group is ensured first because the tenant path clears the
-    // persistence context last (see AdminPrivilegeService#ensureAdminGroup).
+    // The default tenant comes from a Flyway migration and never runs the provisioning chain that
+    // seeds these groups, so both are bootstrapped here. Platform first: the tenant path clears
+    // the persistence context last.
     this.adminPrivilegeService.ensurePlatformAdminGroup(adminUser);
     this.adminPrivilegeService.ensureAdminGroup(DEFAULT_TENANT_UUID, adminUser);
   }

@@ -3,12 +3,10 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
-import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.utils.ConditionUtils;
 import java.util.*;
 import org.junit.jupiter.api.DisplayName;
@@ -23,25 +21,38 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayName("saveCorrelatedObject — primitive decomposition into inputs")
 class SaveCorrelatedObjectDecompositionTest {
 
-  @Mock private WorkflowStateRepository workflowStateRepository;
+  @Mock private WorkflowStateStore workflowStateStore;
   @Mock private ConditionRepository conditionRepository;
   @Mock private ConditionUtils conditionUtils;
   @Mock private PrimitiveValidationContextBuilder primitiveValidationContextBuilder;
 
   @InjectMocks private WorkflowStateService workflowStateService;
 
-  private final Gson gson = new Gson();
-
-  private WorkflowState setupGlobalState(String workflowId, Workflow workflow) {
-    WorkflowStateEntries initialEntries =
-        new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-    WorkflowState globalState =
-        WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
-
-    when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-        .thenReturn(globalState);
-    when(workflowStateRepository.save(any(WorkflowState.class)))
-        .thenAnswer(inv -> inv.getArgument(0));
+  /**
+   * Stubs the store so that every delta appended to the global state of {@code workflow} is
+   * accumulated into the returned view, which then reflects what the sync persisted.
+   */
+  private WorkflowStateEntries setupGlobalState(String workflowId, Workflow workflow) {
+    WorkflowStateEntries persisted = WorkflowStateEntries.empty();
+    String globalStateId = "global-" + workflowId;
+    lenient().when(workflowStateStore.getOrCreateGlobalStateId(workflow)).thenReturn(globalStateId);
+    lenient()
+        .doAnswer(
+            inv -> {
+              WorkflowStateEntries delta = inv.getArgument(1);
+              delta
+                  .getInputs()
+                  .forEach(
+                      input ->
+                          persisted
+                              .getInputByKey(input.getKey())
+                              .getValues()
+                              .addAll(input.getValues()));
+              persisted.getCorrelated().addAll(delta.getCorrelated());
+              return null;
+            })
+        .when(workflowStateStore)
+        .append(eq(globalStateId), any(WorkflowStateEntries.class));
 
     PrimitiveValidationContext validationContext =
         new PrimitiveValidationContext(
@@ -50,7 +61,7 @@ class SaveCorrelatedObjectDecompositionTest {
     when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
         .thenReturn(validationContext);
 
-    return globalState;
+    return persisted;
   }
 
   @Nested
@@ -62,7 +73,7 @@ class SaveCorrelatedObjectDecompositionTest {
     void givenPortsScanObject_shouldCreateCorrelatedAndDecomposeIntoInputs() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
-      WorkflowState globalState = setupGlobalState(workflowId, workflow);
+      WorkflowStateEntries globalState = setupGlobalState(workflowId, workflow);
 
       JsonObject dataToSync =
           JsonParser.parseString(
@@ -84,8 +95,7 @@ class SaveCorrelatedObjectDecompositionTest {
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 
-      WorkflowStateEntries persisted =
-          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      WorkflowStateEntries persisted = globalState;
 
       // Exactly 1 Correlated with the business type and expected pair set
       assertEquals(1, persisted.getCorrelated().size());
@@ -109,7 +119,7 @@ class SaveCorrelatedObjectDecompositionTest {
     void givenObjectWithHostAndAssetId_allFieldsInBoth() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
-      WorkflowState globalState = setupGlobalState(workflowId, workflow);
+      WorkflowStateEntries globalState = setupGlobalState(workflowId, workflow);
 
       JsonObject dataToSync =
           JsonParser.parseString(
@@ -131,8 +141,7 @@ class SaveCorrelatedObjectDecompositionTest {
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 
-      WorkflowStateEntries persisted =
-          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      WorkflowStateEntries persisted = globalState;
 
       // All known fields in correlated pairSet — no exclusion
       Set<String> correlatedKeys =
@@ -161,7 +170,7 @@ class SaveCorrelatedObjectDecompositionTest {
     void givenMonoFieldObject_shouldNotPersistAnyData() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
-      WorkflowState globalState = setupGlobalState(workflowId, workflow);
+      WorkflowStateEntries globalState = setupGlobalState(workflowId, workflow);
 
       // A complex type with truly only one known PrimitiveType field
       JsonObject dataToSync =
@@ -182,8 +191,7 @@ class SaveCorrelatedObjectDecompositionTest {
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 
-      WorkflowStateEntries persisted =
-          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      WorkflowStateEntries persisted = globalState;
 
       // No Correlated (pairSet size == 1, under the guard)
       assertEquals(0, persisted.getCorrelated().size());
@@ -203,7 +211,7 @@ class SaveCorrelatedObjectDecompositionTest {
     void givenScalarOutput_shouldOnlyPopulateInputsNoCorrelated() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
-      WorkflowState globalState = setupGlobalState(workflowId, workflow);
+      WorkflowStateEntries globalState = setupGlobalState(workflowId, workflow);
 
       JsonObject dataToSync =
           JsonParser.parseString(
@@ -219,8 +227,7 @@ class SaveCorrelatedObjectDecompositionTest {
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 
-      WorkflowStateEntries persisted =
-          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      WorkflowStateEntries persisted = globalState;
 
       // Scalars go to inputs only
       assertEquals(Set.of("192.168.1.1", "10.0.0.2"), persisted.getInputByKey("IPv4").getValues());
@@ -242,7 +249,7 @@ class SaveCorrelatedObjectDecompositionTest {
       String templateId = UUID.randomUUID().toString();
       Workflow template = Workflow.builder().id(templateId).build();
       Workflow workflow = Workflow.builder().id(workflowId).workflowTemplate(template).build();
-      WorkflowState globalState = setupGlobalState(workflowId, workflow);
+      WorkflowStateEntries globalState = setupGlobalState(workflowId, workflow);
 
       JsonObject dataToSync =
           JsonParser.parseString(

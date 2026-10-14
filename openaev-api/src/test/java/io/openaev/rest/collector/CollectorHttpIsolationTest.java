@@ -162,6 +162,11 @@ class CollectorHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("under tenant A's path: updating B's collector is not found")
   void updateUnderTenantAOfBCollectorIsBlocked() throws Exception {
+    // The 404 comes from the composite primary key: the update resolves the row with
+    // findById(ConnectorCompositeId.of(collectorId, tenantId)), so (B's id, A) matches nothing
+    // whether or not collectors is active. Green with the table disarmed, unlike the two by-id read
+    // tests above, which are this class's activation proof. Kept because the write reach is worth
+    // asserting on its own.
     CollectorUpdateInput input = new CollectorUpdateInput();
     input.setLastExecution(Instant.now());
 

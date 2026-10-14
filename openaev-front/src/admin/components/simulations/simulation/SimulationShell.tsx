@@ -3,12 +3,10 @@ import { type FunctionComponent, type ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
-import { searchInjectTests } from '../../../../actions/inject_test/simulation-inject-test-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type SimulationDetails } from '../../../../utils/api-types';
-import useHasInjectTests from '../../injects/useHasInjectTests';
 import ExerciseHeader from './ExerciseHeader';
 import buildSimulationTabs from './simulationTabs';
 
@@ -35,9 +33,6 @@ const SimulationShell: FunctionComponent<{
   const hasWorkflow = !!exercise.exercise_workflow_id;
   const isAutonomous = !!autonomousRun;
   const base = `/admin/simulations/${exercise.exercise_id}`;
-  // The Tests tab only exists for email/SMS injects that have actually been
-  // tested; hide it entirely otherwise.
-  const hasInjectTests = useHasInjectTests(searchInjectTests, exercise.exercise_id);
 
   let tabValue = location.pathname;
   if (location.pathname.includes(`${base}/injects`)) {
@@ -58,7 +53,6 @@ const SimulationShell: FunctionComponent<{
     lessonsEnabled: exercise.exercise_lessons_enabled,
     isAutonomous,
     hasWorkflow,
-    hasInjectTests,
     t,
   });
 

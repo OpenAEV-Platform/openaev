@@ -37,14 +37,6 @@ OpenAEV is an open source Adversarial Exposure Validation platform. It lets you 
 
     [:octicons-arrow-right-24:{ .middle } Deploy now](deployment/platform/overview.md)
 
--   :material-puzzle-outline:{ .lg .middle } __Integrations__
-
-    ---
-
-    Install the OpenAEV agent, and deploy the Executors, Injectors and Collectors that connect OpenAEV to your tools.
-
-    [:octicons-arrow-right-24:{ .middle } Connect](integrations/agents/openaev-agent.md)
-
 -   :fontawesome-regular-compass:{ .lg .middle } __User guide__
 
     ---
@@ -52,6 +44,14 @@ OpenAEV is an open source Adversarial Exposure Validation platform. It lets you 
     Build Scenarios, run Simulations and Atomic Tests, chain attacks, and read the results.
 
     [:octicons-arrow-right-24:{ .middle } Explore](usage/get-started/getting-started.md)
+
+-   :material-puzzle-outline:{ .lg .middle } __Integrations__
+
+    ---
+
+    Install the OpenAEV agent, and deploy the Executors, Injectors and Collectors that connect OpenAEV to your tools.
+
+    [:octicons-arrow-right-24:{ .middle } Connect](integrations/agents/openaev-agent.md)
 
 -   :material-tune-vertical:{ .lg .middle } __Administration__
 

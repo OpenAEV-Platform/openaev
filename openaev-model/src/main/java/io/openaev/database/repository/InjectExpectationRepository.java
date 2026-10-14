@@ -1,6 +1,5 @@
 package io.openaev.database.repository;
 
-import io.openaev.database.model.ArticleInjectExpectation;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.ChallengeInjectExpectation;
 import io.openaev.database.model.TechnicalInjectExpectation;
@@ -267,15 +266,6 @@ public interface InjectExpectationRepository
       @Param("userId") String userId,
       @Param("exerciseId") String exerciseId,
       @Param("challengeId") String challengeId);
-
-  @Query(
-      value =
-          "select i from InjectExpectation i where i.inject.id in (:injectIds) "
-              + "and i.article.id in (:articlesIds) and i.team.id in (:teamIds) and i.type = 'ARTICLE'")
-  List<ArticleInjectExpectation> findChannelExpectations(
-      @Param("injectIds") List<String> injectIds,
-      @Param("teamIds") List<String> teamIds,
-      @Param("articlesIds") List<String> articlesIds);
 
   // -- BY TARGET TYPE
 

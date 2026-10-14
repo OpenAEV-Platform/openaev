@@ -1,15 +1,10 @@
 # Security Coverage enrichment (XTM Suite)
 
-OpenAEV enables other products from the XTM Suite to benefit from a comprehensive Security Coverage enrichment for a given Adversarial Exposure scenario.
-This means that OpenAEV can be triggered via an XTM Suite product to execute a scenario based on a desired threat profile, and results from the scenario execution — such as Detection rate, Prevention rate — are returned to the triggering product for ingestion.
+This page explains how to connect OpenAEV to OpenCTI, so that OpenCTI can trigger Scenarios in OpenAEV and receive their results, such as detection and prevention rates.
 
 ## What is this?
 
-The XTM Suite connector allows OpenAEV to communicate bidirectionally with other Filigran products. When enabled, OpenAEV exposes its validation results (detection rate, prevention rate, etc.) to the connected product, providing automated security posture assessments.
-
-This feature is currently available for the following product:
-
-* **OpenCTI** — Threat intelligence platform
+The XTM Suite connector lets OpenAEV exchange data with other Filigran products. OpenAEV sends its validation results (detection rate, prevention rate) back to the connected product. Today, this works with OpenCTI.
 
 ## Why use it?
 
@@ -35,9 +30,9 @@ Once the OpenCTI instance is up and running, gather the following information:
 
 ### How to enable the connector
 
-#### Step 1: Configure OpenAEV to connect to OpenCTI
+#### Step 1: configure OpenAEV to connect to OpenCTI
 
-Each OpenCTI connection is scoped to an OpenAEV **tenant**, identified by its UUID (`{id}`). This allows each tenant in a [multi-tenant deployment](../../administration/multi-tenancy.md) to have its own OpenCTI integration.
+Each OpenCTI connection belongs to an OpenAEV Tenant, identified by its UUID (`{id}`). Each Tenant in a [multi-tenant deployment](../../administration/multi-tenancy.md) can have its own OpenCTI connection.
 
 Set the following parameters in your OpenAEV deployment:
 
@@ -57,23 +52,23 @@ OPENAEV_XTM_OPENCTI_{id}_TOKEN=<your-opencti-api-token>
 
 !!! tip "What is `{id}`?"
 
-    The `{id}` is the **OpenAEV tenant UUID** (e.g., `2cffad3a-0001-4078-b0e2-ef74274022c3`). You can find it in the platform administration under tenant settings.
+    The `{id}` is the Tenant UUID (for example `2cffad3a-0001-4078-b0e2-ef74274022c3`), shown as **Tenant identifier** in **Settings > Parameters**.
 
 !!! tip "API URL override"
 
-    You only need to set `api_url` if your GraphQL endpoint differs from the default `<url>/graphql` (e.g., behind a reverse proxy with a custom path).
+    Set `openaev.xtm.opencti.{id}.api-url` only if your GraphQL endpoint is not `<url>/graphql`, for example behind a reverse proxy with a custom path.
 
-#### Step 2: Restart OpenAEV
+#### Step 2: restart OpenAEV
 
 After updating the configuration, restart the OpenAEV platform for the changes to take effect.
 
-#### Step 3: How to check the OpenAEV - OpenCTI connection
+#### Step 3: check the connection
 
-To confirm the connector is running correctly you should see **OpenAEV Coverage** in OpenCTI > Data > Ingestion > Monitoring view.
+In OpenCTI, open **Data > Ingestion > Monitoring**: the **OpenAEV Coverage** connector is listed.
 
 ![Active OpenAEV Coverage connector in OpenCTI](assets/active_openaev_connector_in_opencti.png)
 
-### Trigger security coverage enrichments from OpenCTI
+### Trigger enrichments from OpenCTI
 
 Once the connector appears in OpenCTI, you can trigger it to run security coverage enrichments. Refer to the [OpenCTI Security Coverage documentation](https://docs.opencti.io/latest/usage/security-coverage/) for how to trigger the enabled connector to get automated enriched security posture assessments with OpenAEV.
 
@@ -87,6 +82,7 @@ Once the connector appears in OpenCTI, you can trigger it to run security covera
 
 ## What's next?
 
-- [Scenario Generation from OpenCTI Security Coverage](../../usage/build/scenario/security-coverage.md) — Automatically create OpenAEV scenarios from OpenCTI Security Coverage objects.
-- [Configuration reference](../../reference/deployment/configuration.md#xtm-suite-opencti) — Full list of configuration parameters.
-- [Scenarios and Simulations](../../usage/get-started/foundations/scenarios-and-simulations.md) — Understand how scenarios and simulations work in OpenAEV.
+- [XTM One](xtm-one.md) -- Connect OpenAEV to XTM One for its AI features
+- [Scenario generation from OpenCTI security coverage](../../usage/build/scenario/security-coverage.md) -- Create Scenarios from OpenCTI Security Coverage objects
+- [Configuration reference](../../reference/deployment/configuration.md#xtm-suite-opencti) -- All configuration parameters
+- [Scenarios and Simulations](../../usage/get-started/foundations/scenarios-and-simulations.md) -- How Scenarios and Simulations work

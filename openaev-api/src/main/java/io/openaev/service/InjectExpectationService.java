@@ -31,7 +31,6 @@ import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationSignature;
-import io.openaev.expectation.ExpectationType;
 import io.openaev.injectors.common.model.BaseInjectContent;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.output_processor.CVEOutputProcessor;
@@ -218,36 +217,14 @@ public class InjectExpectationService {
   @WorkflowUpdateEvent(expectationIds = "#expectationId")
   public BaseInjectExpectation updateInjectExpectation(
       @NotBlank final String expectationId, @NotNull final ExpectationUpdateInput input) {
-    BaseInjectExpectation baseInjectExpectation = this.findInjectExpectation(expectationId);
+    BaseInjectExpectation updated = updateInjectExpectationUsingBehaviors(expectationId, input);
 
-    if (baseInjectExpectation instanceof TableTopInjectExpectation tableTopInjectExpectation) {
-      String result =
-          ExpectationType.label(
-              tableTopInjectExpectation.getType(),
-              tableTopInjectExpectation.getExpectedScore(),
-              input.getScore());
-      computeInjectExpectationForHumanResponse(tableTopInjectExpectation, input, result);
-      TableTopInjectExpectation updated =
-          this.injectExpectationRepository.save(tableTopInjectExpectation);
-      propagateHumanResponseExpectation(updated, result);
-      return updated;
-
-    } else if (baseInjectExpectation instanceof TechnicalInjectExpectation technicalExpectation
-        && List.of(
-                DETECTION,
-                PREVENTION,
-                // NB: the explicit ExpectationType.VULNERABILITY static import shadows the
-                // EXPECTATION_TYPE.* wildcard one, hence the qualified reference.
-                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)
-            .contains(baseInjectExpectation.getType())) {
-
-      BaseInjectExpectation updated = updateInjectExpectationUsingBehaviors(expectationId, input);
-      List<Exercise> exercises = new ArrayList<>();
-      exercises.add(updated.getInject().getExercise());
-      securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
-      return updated;
+    Exercise exercise = updated.getInject().getExercise();
+    if (exercise != null) {
+      securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+          List.of(exercise));
     }
-    return baseInjectExpectation;
+    return updated;
   }
 
   // -- DELETE RESULT FROM UI --
@@ -314,24 +291,6 @@ public class InjectExpectationService {
   }
 
   //  -- HUMAN RESPONSE --
-
-  /**
-   * Computes an inject expectation for a human response
-   *
-   * @param baseInjectExpectation the expectation to compute
-   * @param input the update input containing the score
-   * @param result the result label
-   */
-  private void computeInjectExpectationForHumanResponse(
-      @NotNull BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExpectationUpdateInput input,
-      @NotBlank final String result) {
-    // Keep only one result
-    baseInjectExpectation.getResults().clear();
-    addResult(baseInjectExpectation, input, result);
-    final Double score = computeScore(baseInjectExpectation.getResults(), baseInjectExpectation);
-    baseInjectExpectation.setScore(score);
-  }
 
   /**
    * Computes an inject expectation for a human response from a collector.

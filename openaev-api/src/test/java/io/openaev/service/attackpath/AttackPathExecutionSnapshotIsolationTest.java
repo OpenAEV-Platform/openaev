@@ -191,6 +191,73 @@ class AttackPathExecutionSnapshotIsolationTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "scoped to tenant A: tenant B's collector row stays hidden even when B's own tenant id is"
+          + " passed as the argument")
+  void given_tenantAScope_should_notReadCollectorRowOfTenantBAskedForWithTenantBId() {
+    // Arrange - the positive case first, so an empty table cannot pass for a filtered one.
+    assertThat(
+            scopedRead(
+                tenantA.getId(),
+                () ->
+                    collectorRepository.findByExecutionIdAndTenantId(
+                        executionIdA, tenantA.getId())))
+        .as("tenant A must see its own collector snapshot row under its own scope")
+        .hasSize(1);
+
+    // Act - the query's tenant argument names tenant B, so the explicit predicate matches B's row
+    // and only the v2 scope can hide it. The sibling tests above pass tenant A's id for B's
+    // execution, which the predicate alone rejects, so they hold with the table de-activated.
+    List<AttackPathExecutionCollector> crossTenantRows =
+        scopedRead(
+            tenantA.getId(),
+            () -> collectorRepository.findByExecutionIdAndTenantId(executionIdB, tenantB.getId()));
+
+    // Assert
+    assertThat(crossTenantRows)
+        .as(
+            "under tenant A's scope, tenant B's collector snapshot row must not be returned even"
+                + " when the caller supplies tenant B's id in the query itself")
+        .isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "scoped to tenant A: deleting tenant B's collector row with B's own tenant id removes"
+          + " nothing")
+  void given_tenantAScope_should_notDeleteCollectorRowOfTenantBAskedForWithTenantBId() {
+    // Arrange
+    assertThat(rawCollectorCount(executionIdB))
+        .as("tenant B's collector snapshot row exists before the scoped delete")
+        .isEqualTo(1L);
+
+    // Act - same shape as the read above: the statement's own predicate names tenant B, so the
+    // scope is the only thing that can keep the row.
+    tenantTx.execute(
+        TxCtx.forTenant(tenantA.getId()),
+        () ->
+            collectorRepository.deleteAllByExecutionIdInAndTenantId(
+                List.of(executionIdB), tenantB.getId()));
+
+    // Assert
+    assertThat(rawCollectorCount(executionIdB))
+        .as(
+            "a delete issued under tenant A's scope must not remove tenant B's collector snapshot"
+                + " row, even when it names tenant B explicitly")
+        .isEqualTo(1L);
+  }
+
+  @Test
+  @DisplayName("with no scope at all: the collector snapshot read fails closed")
+  void given_noScopeSet_should_failClosedOnTheCollectorSnapshotRead() {
+    // Act & Assert - the control for the two tests above, on a different line than the
+    // active-tables property: those reads return rows BECAUSE a scope is set.
+    assertThat(collectorRepository.findByExecutionIdAndTenantId(executionIdA, tenantA.getId()))
+        .as("an active-table read with no tenant scope must return nothing")
+        .isEmpty();
+  }
+
+  @Test
   @DisplayName("scoped to tenant A: the remediation snapshot query returns A's row and not B's")
   void remediationReadIsScopedToTenantA() {
     assertThat(scopedRead(tenantA.getId(), () -> remediationRepository.findByStepId(stepIdA)))

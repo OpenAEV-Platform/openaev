@@ -214,6 +214,14 @@ grep -n -A2 'name = "tenant_id"' openaev-model/src/main/java/io/openaev/database
 grep -rn -i "unique" openaev-api/src/main/java/io/openaev/migration/ | grep -i "{table}"
 # the grep misses multi-line definitions; on a live DB, `\d {table}` in psql
 # lists every index and constraint and is authoritative
+
+# 0.3b If the fix is a COMPOSITE unique index (business key + tenant_id), that
+# business key becomes a tenant-shared key: its value repeats across tenants by
+# design. Add it to openaev-api/src/test/resources/shared-tenant-keys.txt in the
+# same change. SharedTenantKeySchemaCrossCheckTest compares that list against the
+# live schema and fails if they drift, so a missing line is caught, but it is
+# caught late and reads as an unrelated failure.
+grep -n "{table}" openaev-api/src/test/resources/shared-tenant-keys.txt
 ```
 
 0.4 Hot-path check. The inspector wraps every active table in a filtered
@@ -847,6 +855,18 @@ Do not move to writes until all reads are green.
 
 ### Phase 3b — Every direct or indirect link to the table, everywhere
 
+Run `SharedTenantKeyJoinArchTest` and list every waiver in
+`openaev-api/src/test/resources/shared-tenant-key-join-waivers.txt` whose key or reason mentions
+`{table}`. Two classifications are about to change meaning under you:
+
+- `reaches-active-table:{table}` becomes **true** once you activate: a waiver that claimed it before
+  the activation was claiming something that did not hold.
+- `not-established until-active:{table}` **expires** on your activation: the guard fails the build
+  until each one is settled or reclassified.
+
+The guard checks both against the production list, so this is not a reminder, it is a gate you will
+hit in Phase 6 whether or not you looked here.
+
 Phase 1 finds code that reads `{table}` through `{EntityRepository}` or a
 literal string match. It does NOT reliably find another aggregate's
 association pointing at `{Entity}` (`@OneToMany`, `@ManyToMany`,
@@ -1457,6 +1477,17 @@ Model (from PR #6255): commit "feat(multi-tenancy): activate import_mappers on v
    from another aggregate (the cwes model: `Vulnerability#getCwes`). The guard's
    completeness check fails the build if the table is activated without this
    step — that is deliberate.
+6. Settle every shared-key waiver your activation retires, in this same commit.
+   `SharedTenantKeyJoinArchTest` reads the production list, so the moment
+   `{table}` joins it: each `not-established until-active:{table}` entry must be
+   measured and fixed, or reclassified with what now makes it safe; and each
+   `reaches-active-table:{table}` entry becomes legitimate rather than a claim
+   about a table nobody had activated. Leaving them is not an option the build
+   offers: it fails until the file agrees with the list.
+7. Remove `{table}` from
+   `openaev-api/src/test/resources/tenant-tables-not-yet-activated.txt`.
+   That list only ever shrinks, and the coverage guard fails on a table that is
+   active and deferred at once.
 
 If anything in this phase needs "just one more fix" in production code, stop
 and go back to the phase that owns that fix. The go-live diff stays minimal.

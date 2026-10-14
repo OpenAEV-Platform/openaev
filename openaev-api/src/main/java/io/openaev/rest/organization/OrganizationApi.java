@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.*;
 public class OrganizationApi extends RestBehavior {
 
   public static final String ORGANIZATION_URI = "/api/organizations";
-  private static final String TENANT_ORGANIZATION_URI = TENANT_PREFIX + "/organizations";
+  static final String TENANT_ORGANIZATION_URI = TENANT_PREFIX + "/organizations";
 
   private final OrganizationService organizationService;
   private final InjectSearchService injectSearchService;
@@ -66,7 +66,7 @@ public class OrganizationApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ORGANIZATION)
   public Organization organization(TxCtx ctx, @PathVariable String organizationId) {
-    return organizationService.findById(organizationId);
+    return organizationService.findByIdWithTags(organizationId);
   }
 
   /**

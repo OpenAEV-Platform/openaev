@@ -63,6 +63,12 @@ under-scopes an unrelated read.
 5. Never return `tenant_id` in API responses → `@JsonIgnore` on tenant relation
 6. Unique constraints on tenant-scoped entities → composite `(field, tenant_id)`
 7. Off the request thread, **both** tenant scopes must be set — see below
+8. A join keyed on an id that **repeats across tenants** (a composite unique index whose other
+   column is `tenant_id`) must constrain both sides to the same tenant. The id alone is not a
+   tenant boundary. `SharedTenantKeyJoinArchTest` fails the build; the shared keys live in
+   `shared-tenant-keys.txt` and the reasoned exceptions in `shared-tenant-key-join-waivers.txt`,
+   whose `reaches-active-table:` and `until-active:` reasons are checked against the production
+   activation list, so they expire with it
 
 ## Background Threads Carry Both Scopes
 

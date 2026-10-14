@@ -1,67 +1,58 @@
 # REST API
 
-OpenAEV provides a REST API that lets you perform any platform action programmatically. You can automate workflows, integrate with external tools, and customize behavior. Any action available through the graphical interface can also be executed via the API.
-
-## Why use the REST API?
-
-The REST API is useful when you need to:
-
-- **Automate repetitive tasks** such as creating Scenarios, launching Simulations, or importing Assets in bulk.
-- **Integrate OpenAEV with external tools** like SIEMs (Security Information and Event Management systems), ticketing systems, or CI/CD (Continuous Integration/Continuous Deployment) pipelines.
-- **Build custom Dashboards or reports** by querying platform data programmatically.
+OpenAEV provides a REST API that lets you perform any platform action programmatically. Any action available in the graphical interface can also be run through the API.
 
 ## Authentication
 
-Accessing the OpenAEV API requires authentication. Two methods are supported.
+Every `/api/` endpoint requires authentication, except a few public ones such as `/api/login`.
 
 ### API key
 
-An API key provides stateless, token-based access. The key inherits the permissions of the user who created it, so any action the user can perform through the interface can also be performed with the key.
+Each user has one API key. It carries all the permissions of that user.
 
-1. Generate an API key from your user profile, or have an administrator create one on your behalf.
-2. Include the key in the `Authorization` header of every request:
+1. Open the profile menu in the top right corner and select **Profile**.
+2. In the **API access** section, copy the **Token key**.
+3. Send the key in the `Authorization` header of every request:
 
 ```http
 Content-Type: application/json
 Authorization: Bearer <API_KEY>
 ```
 
+API key requests are stateless: the server creates no session for them.
+
+!!! warning
+
+    Keep your API key secret. If it leaks, click **RENEW** in **Profile > API access**: the old key stops working at once.
+
+    Do not send cookies along with a bearer request. Requests that carry both are checked for a CSRF (Cross-Site Request Forgery) token, like browser requests.
+
 ### Session cookie
 
-Session-based authentication is useful for scripts that simulate browser interactions.
-
-1. Send a `POST` request to `/api/login` with your credentials in the request body.
-2. Extract the `openaev_session` cookie from the response.
-3. Include the cookie in subsequent requests. The session remains valid as long as the cookie is active.
+The API also accepts the browser session cookie, with CSRF protection on `POST`, `PUT` and `DELETE`. For scripts, use an API key.
 
 ## API documentation (Swagger UI)
 
-The API is documented using an OpenAPI 3.1 specification and served through Swagger UI. Swagger UI provides an interactive interface for exploring endpoints, inspecting request/response schemas, and testing calls directly from the browser.
+The API is described by an OpenAPI 3.1 specification and served through Swagger UI, where you can browse endpoints, inspect request and response schemas, and test calls from the browser after authenticating.
 
-- **Swagger UI**: `https://<your-openaev-url>/swagger-ui/index.html`
+- **Swagger UI**: `https://<your-openaev-url>/swagger-ui/index.html`, also linked from **API specifications** in **Profile > API access**
 - **OpenAPI schema (JSON)**: `https://<your-openaev-url>/api-docs`
-
-Endpoints are grouped by controller (e.g., Scenarios, Simulations, Assets, Teams). Each endpoint shows the expected request body, query parameters, and response model. You can authenticate directly in Swagger UI to execute requests against your instance.
 
 ## Common patterns
 
 ### Base URL
 
-All API endpoints are prefixed with `/api/`. In a multi-tenant setup, Tenant-scoped endpoints use the prefix `/api/tenants/{tenantId}/` instead (see [Multi-tenant context](#multi-tenant-context) below).
+All API endpoints are prefixed with `/api/`. Tenant-scoped endpoints use the prefix `/api/tenants/{tenantId}/` instead (see [Multi-tenant context](#multi-tenant-context)).
 
-### Request and response format
-
-The API uses JSON for both request and response bodies. Always include the `Content-Type: application/json` header in requests that carry a body.
+The API uses JSON for request and response bodies. Include the `Content-Type: application/json` header in requests that carry a body.
 
 ### Pagination
 
-Search endpoints use `POST` requests with a structured pagination input in the request body. The general pattern is:
+Search endpoints take a `POST` request with the pagination input in the body:
 
 ```http
-POST /api/{resource}/search
+POST /api/scenarios/search
 ```
-
-Request body example -- search Scenarios sorted by name:
 
 ```json
 {
@@ -83,8 +74,8 @@ Request body example -- search Scenarios sorted by name:
 | `page` | integer | Page number, zero-indexed. Default: `0` |
 | `size` | integer | Number of elements per page. Default: `20`, maximum: `1000` |
 | `textSearch` | string | Optional free-text search across searchable attributes |
-| `sorts` | array | List of sort specifications, each with `property` (field name) and `direction` (`asc` or `desc`) |
-| `filterGroup` | object | Structured filter (see Filtering below) |
+| `sorts` | array | Sort fields, each with a `property` and an optional `direction` (`asc` by default, or `desc`) |
+| `filterGroup` | object | Structured filter, see [Filtering](#filtering) |
 
 The response wraps results in a page object:
 
@@ -100,72 +91,9 @@ The response wraps results in a page object:
 
 ### Filtering
 
-Filters allow fine-grained queries on search endpoints. A `filterGroup` combines individual filters with a boolean operator (`and` or `or`).
-
-Example -- filter Scenarios by tag and severity:
-
-```json
-{
-  "filterGroup": {
-    "mode": "and",
-    "filters": [
-      {
-        "key": "scenario_tags",
-        "mode": "or",
-        "operator": "eq",
-        "values": ["ransomware", "phishing"]
-      },
-      {
-        "key": "scenario_severity",
-        "operator": "eq",
-        "values": ["critical"]
-      }
-    ]
-  }
-}
-```
-
-Available operators: `eq`, `not_eq`, `contains`, `not_contains`, `starts_with`, `not_starts_with`, `empty`, `not_empty`, `gt`, `gte`, `lt`, `lte`.
-
-For the complete filter format reference, see [Filters](filters.md).
-
-### Bulk operations on Injects
-
-Bulk update and bulk delete of Injects are scoped to their parent resource. The parent identifier is part of the URL, so authorization is evaluated against the Scenario or Simulation you are working on -- users with the relevant capabilities on the parent can operate on its Injects without platform-wide privileges.
-
-| Operation | Endpoint |
-|---|---|
-| Bulk update Injects of a Scenario | `PUT /api/scenarios/{scenarioId}/injects` |
-| Bulk delete Injects of a Scenario | `DELETE /api/scenarios/{scenarioId}/injects` |
-| Bulk update Injects of a Simulation | `PUT /api/exercises/{exerciseId}/injects` |
-| Bulk delete Injects of a Simulation | `DELETE /api/exercises/{exerciseId}/injects` |
-
-Each endpoint accepts a JSON body that selects the target Injects either by explicit identifiers (`inject_ids_to_process`) or by a search query (`search_pagination_input`), but not both at the same time. Injects selected by a search can be excluded individually with `inject_ids_to_ignore`.
-
-Example -- delete two Injects of a Scenario:
-
-```http
-DELETE /api/scenarios/{scenarioId}/injects
-```
-
-```json
-{
-  "inject_ids_to_process": [
-    "5f8317eb-e19f-4234-9d34-7b65a52ea82f",
-    "9a4f9138-9163-40c2-bd21-b579d4a26428"
-  ]
-}
-```
-
-Calling one of these endpoints on a parent you are not authorized to modify returns a `403` response.
-
-!!! note
-
-    Earlier versions exposed generic `PUT /api/injects` and `DELETE /api/injects` endpoints taking a `simulation_or_scenario_id` in the body. They are replaced by the scoped endpoints above.
+The `filterGroup` field combines filters with `and` or `or`. For the format and the list of operators, see [Filters](filters.md).
 
 ### Error responses
-
-The API uses standard HTTP status codes:
 
 | Code | Meaning |
 |---|---|
@@ -174,46 +102,35 @@ The API uses standard HTTP status codes:
 | `403` | Forbidden -- authenticated but insufficient permissions |
 | `404` | Not found -- resource does not exist or is not accessible |
 | `409` | Conflict -- database constraint violation or resource lock |
+| `429` | Too many requests -- rate limit reached, when [rate limiting](#rate-limiting) is enabled |
 | `500` | Internal server error |
 
-Validation errors (400) return a structured body with per-field error messages. Other errors return a JSON body with a `message` field describing the issue.
-
-## Grant-scoped endpoints
-
-Global inventory endpoints such as `/api/endpoints`, `/api/asset_groups` or `/api/injector_contracts` require the corresponding platform capability (Assets, Threat Arsenal). A user who only holds a grant on a specific Simulation or Scenario can instead use resource-scoped counterparts that expose only the elements referenced by that resource. The chaining Workflow API follows this pattern:
-
-| Endpoint | Description |
-|---|---|
-| `GET /api/workflows/{workflowId}/scope/endpoints` | Endpoints referenced by the workflow scope rules (allowlist and denylist) |
-| `POST /api/workflows/{workflowId}/scope/endpoints/find` | Same as above, restricted to the requested IDs |
-| `GET /api/workflows/{workflowId}/scope/asset-groups` | Asset groups referenced by the workflow scope rules |
-| `POST /api/workflows/{workflowId}/scope/asset-groups/find` | Same as above, restricted to the requested IDs |
-| `GET /api/workflows/{workflowId}/injector_contracts/{injectorContractId}` | An injector contract, returned only if one of the workflow steps references it |
-
-These endpoints check the caller's grant on the workflow's parent Simulation or Scenario instead of the global capabilities, so the chaining scope and logic screens work for grant-only users. IDs that are not referenced by the workflow are silently ignored, which prevents using these endpoints to read arbitrary platform data.
+Validation errors (`400`) return per-field error messages. Other errors return a JSON body with a `message` field.
 
 ## Multi-tenant context
 
-When multi-tenancy is enabled, the API exposes two sets of endpoints:
+The API exposes two sets of endpoints:
 
-- **Platform endpoints** remain under `/api/...` and handle platform-wide operations (e.g., Tenant management, platform settings).
-- **Tenant-scoped endpoints** are prefixed with `/api/tenants/{tenantId}/...` where `{tenantId}` is the UUID of the target Tenant.
+- **Platform endpoints** stay under `/api/...` and handle platform-wide operations (e.g., Tenant management, platform settings).
+- **Tenant-scoped endpoints** use the prefix `/api/tenants/{tenantId}/...`, where `{tenantId}` is the UUID of the target Tenant.
 
-Most resource endpoints (Scenarios, Simulations, Assets, Teams) support both patterns. The Tenant ID determines which workspace the request operates on. Accessing a Tenant you are not authorized for returns a `403` response.
+Most resource endpoints (Scenarios, Simulations, Assets, Teams) support both patterns. Accessing a Tenant you are not authorized for returns `403`. See [Multi-tenancy](../../administration/multi-tenancy.md).
 
 ## Rate limiting
-The API is globally rate limited by default. There are different allowances whether the request is authenticated or not.
 
-- Not authenticated requests (anonymous): limited to 10 requests per seconds by default (configurable, per originating IP address).
-- Authenticated requests: limited to 300 requests per second by default (configurable, per user account).
+Rate limiting is a preview feature, off by default. It runs only when `RATE_LIMITING` is listed in `openaev.enabled-dev-features`. When enabled, the default limits are:
 
-Some endpoints may individually have a different maximum authenticated requests per seconds cap, overriding the default global described
-above. However, the unauthenticated cap remains the same always. If the unauthenticated cap is set higher than an individual endpoint
-cap, then the lower bound wins.
+| Requests | Default limit | Counted per |
+|---|---|---|
+| Not authenticated | 10 requests per second | Originating IP address, all endpoints together |
+| Authenticated | 300 requests per second | User account and endpoint |
 
-Note: the rate limiting function can be disabled by server configuration.
+The unauthenticated limit also covers `/login`, `/oauth2`, `/saml2`, `/actuator` and `/xtm`.
+
+Tune the limits in the [server configuration](../deployment/configuration.md#rate-limiting).
 
 ## What's next?
 
-- [Filters reference](filters.md) -- Complete filter format documentation
-- [Getting started](../../usage/get-started/getting-started.md) -- Platform usage overview
+- [Filters](filters.md) -- Filter format and operators
+- [API usage](../../development/api-usage.md) -- Examples of common API calls
+- [Profile](../../administration/profile.md) -- Where to manage your account

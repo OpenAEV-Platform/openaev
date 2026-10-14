@@ -87,7 +87,7 @@ import org.springframework.web.bind.annotation.*;
 public class InjectApi extends RestBehavior {
 
   public static final String INJECT_URI = "/api/injects";
-  private static final String TENANT_INJECT_URI = TENANT_PREFIX + "/injects";
+  static final String TENANT_INJECT_URI = TENANT_PREFIX + "/injects";
 
   private static final int MAX_NEXT_INJECTS = 6;
 
@@ -145,6 +145,7 @@ public class InjectApi extends RestBehavior {
     Inject inject =
         this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
+    InjectLinksInitializer.initialize(List.of(inject));
     return inject;
   }
 

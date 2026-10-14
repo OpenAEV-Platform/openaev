@@ -1,7 +1,5 @@
 package io.openaev.service.chaining;
 
-import static io.openaev.utils.JsonUtils.gson;
-
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TeamRepository;
@@ -371,25 +369,8 @@ public class ScopeService {
    *     state is missing or holds no IP entries
    */
   private Set<String> getIpsFromGlobalState(String workflowId) {
-    WorkflowState globalState = workflowStateService.getGlobalStateByWorkflowId(workflowId);
-    if (globalState == null || globalState.getEntries() == null) {
-      return Set.of();
-    }
-    WorkflowStateEntries entries =
-        gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
-    if (entries == null || entries.getInputs() == null) {
-      return Set.of();
-    }
-
-    Set<String> ips = new LinkedHashSet<>();
-    for (WorkflowStateEntries.Input input : entries.getInputs()) {
-      if ((PrimitiveType.IPv4.name().equals(input.getKey())
-              || PrimitiveType.IPv6.name().equals(input.getKey()))
-          && input.getValues() != null) {
-        ips.addAll(input.getValues());
-      }
-    }
-    return ips;
+    return workflowStateService.getGlobalInputValues(
+        workflowId, List.of(PrimitiveType.IPv4.name(), PrimitiveType.IPv6.name()));
   }
 
   private Set<String> collectRuleValues(

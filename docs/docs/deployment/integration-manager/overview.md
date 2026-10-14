@@ -37,9 +37,9 @@ To learn more about the XTM Composer architecture, refer to the [dedicated docum
 
 ## Browsing the catalog
 
-- Navigate to **Integrations > Catalog**
+- Open **Integrations** and the **Available** tab, which lists the catalog
 - Use the search bar to find collectors, injectors and executors by name or description. You can also apply filters (e.g., by collector, executor or injector type).
-- If a collector, injector or executor has already been deployed, it will no longer appear in the Catalog. Instead, you'll find it in its associated page (Collectors, Injectors, or Executors).
+- Deployed Collectors, Injectors and Executors are listed in the **Deployed** tab.
 
 ## Deploying a collector, injector or executor
 

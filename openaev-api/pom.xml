@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.261009.0</version>
+        <version>3.261013.1</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -18,7 +18,7 @@
         <!-- springdoc 3.x targets Spring Boot 4; 2.x (Boot 3) throws
              TypeNotPresentException/ClassNotFoundException for org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties,
              a class Boot 4 relocated. -->
-        <springdoc.version>3.0.3</springdoc.version>
+        <springdoc.version>3.1.1</springdoc.version>
         <springdoc-plugin.version>1.5</springdoc-plugin.version>
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
@@ -30,13 +30,13 @@
         <!-- Server-side report rendering (headless Chromium). Apache-2.0. -->
         <playwright.version>1.63.0</playwright.version>
         <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
-        <azure-identity.version>1.18.6</azure-identity.version>
+        <azure-identity.version>1.18.7</azure-identity.version>
         <!-- GCP credential status validation: signs the service account RS256 JWT and exchanges
              the OAuth2 refresh token. Same trade-off as Azure — SDK for the token, plain
              HttpClient for the resource probe. BSD-3-Clause. -->
         <google-auth-library.version>1.54.0</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
-        <aws-sts.version>2.55.10</aws-sts.version>
+        <aws-sts.version>2.55.13</aws-sts.version>
     </properties>
 
     <profiles>
@@ -82,7 +82,7 @@
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>3.261009.0</version>
+            <version>3.261013.1</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
@@ -378,7 +378,7 @@
         <dependency>
             <groupId>net.javacrumbs.json-unit</groupId>
             <artifactId>json-unit-assertj</artifactId>
-            <version>6.2.0</version>
+            <version>6.3.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

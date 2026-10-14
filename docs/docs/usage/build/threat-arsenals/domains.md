@@ -17,7 +17,7 @@ Domains are predefined by the platform and assigned automatically based on the T
 | Endpoint | Endpoint security controls: EDR (Endpoint Detection and Response), SIEM (Security Information and Event Management) |
 | Data exfiltration | Data exfiltration detection and blocking: DLP (Data Loss Prevention), SIEM |
 | URL filtering | Web access control and URL categorization: proxy, ZTNA (Zero Trust Network Access) |
-| Table-top | Process-oriented exercises involving manual decision-making or coordinated response |
+| Tabletop | Process-oriented exercises involving manual decision-making or coordinated response |
 | Cloud | Cloud-native security controls: IAM (Identity and Access Management), SIEM |
 | Network | Network security: segmentation, IDS/IPS (Intrusion Detection/Prevention System), firewalls, SIEM |
 | Email infiltration | Email flow protection: phishing detection, malicious attachment filtering, antispam, antispoofing |
@@ -38,9 +38,11 @@ Injectors and Collectors are updated weekly. During updates:
 - Missing Domains are re-added to match the latest Injector or Collector definition
 - Domains you manually added are preserved
 
+When an import, an Injector or a Collector declares a Domain whose name differs from an existing one only by case, spaces or punctuation (for example "Table-Top" for "Tabletop"), OpenAEV links the existing Domain instead of creating a new one.
+
 ## Security coverage visualization
 
-The Security Coverage Dashboard widget uses Domains to display a high-level view of your security posture. Each Domain appears as an icon with sub-domains (Prevention, Detection, Vulnerability, Table-Top) colored by the success rate of their associated Expectations.
+The Security Coverage Dashboard widget uses Domains to display a high-level view of your security posture. Each Domain appears as an icon with sub-domains (Prevention, Detection, Vulnerability, Tabletop) colored by the success rate of their associated Expectations.
 
 The main Domain icon reflects the aggregated state using a worst-case rule: if any sub-domain shows weak coverage, the overall Domain status reflects this.
 

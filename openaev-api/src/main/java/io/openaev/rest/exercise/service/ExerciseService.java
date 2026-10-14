@@ -774,6 +774,11 @@ public class ExerciseService {
       injectService.resetInjectByExercise(exercise.getId());
       // Reset lessons learned answers
       this.lessonsService.resetLessonsAnswer(exercise.getId());
+      // Revoke URL access tokens BEFORE the reload: the bulk update clears the persistence context
+      // (clearAutomatically), which would detach the reloaded exercise, and the final save would
+      // then merge a stale injects collection holding the chained injects deleted below
+      // (ObjectNotFoundException).
+      urlAccessTokenService.revokeAllForExercise(exercise.getId());
 
       entityManager.flush();
       entityManager.clear();
@@ -807,7 +812,6 @@ public class ExerciseService {
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
       }
-      urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
     // In case of manual start
     if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())

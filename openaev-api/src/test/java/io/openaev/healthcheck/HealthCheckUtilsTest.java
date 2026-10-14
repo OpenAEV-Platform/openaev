@@ -1,16 +1,19 @@
 package io.openaev.healthcheck;
 
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ARTICLES;
 import static io.openaev.helper.ObjectMapperHelper.openAEVJsonMapper;
 import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.utils.fixtures.InjectorContractFixture.*;
 import static io.openaev.utils.fixtures.InjectorContractFixture.addField;
 import static io.openaev.utils.fixtures.InjectorFixture.createDefaultPayloadInjector;
 import static io.openaev.utils.fixtures.PayloadFixture.createCommand;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
@@ -21,6 +24,7 @@ import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +40,7 @@ public class HealthCheckUtilsTest {
 
   @Autowired private HealthCheckUtils healthCheckUtils;
   @Autowired private DomainComposer domainComposer;
+  @Autowired private ChannelContract channelContract;
 
   private InjectorContract prepareInjectorContract() throws JsonProcessingException {
     Injector injector = createDefaultPayloadInjector();
@@ -144,6 +149,98 @@ public class HealthCheckUtilsTest {
               .runContentChecks(
                   injectorContract,
                   injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
+
+      // -- ASSERT --
+      assertTrue(isReady);
+    }
+  }
+
+  @Nested
+  class MediaPressureMandatoryTeamsTests {
+
+    private InjectorContract prepareChannelInjectorContract() throws JsonProcessingException {
+      InjectorContract injectorContract = new InjectorContract();
+      String content = mapper.writeValueAsString(channelContract.contracts().getFirst());
+      injectorContract.setContent(content);
+      injectorContract.setConvertedContent(mapper.readValue(content, ObjectNode.class));
+      return injectorContract;
+    }
+
+    private ObjectNode prepareContentWithArticle() {
+      ObjectNode content = mapper.createObjectNode();
+      content.set(CONTRACT_ELEMENT_CONTENT_KEY_ARTICLES, mapper.createArrayNode().add("articleId"));
+      content.put("emailing", false);
+      return content;
+    }
+
+    @Test
+    void given_media_pressure_with_article_and_no_team_should_not_be_ready()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      InjectorContract injectorContract = prepareChannelInjectorContract();
+      boolean allTeams = false;
+      List<String> teams = new ArrayList<>();
+      List<String> assets = new ArrayList<>();
+      List<String> assetGroups = new ArrayList<>();
+
+      // -- EXECUTE --
+      List<HealthCheck> healthChecks =
+          healthCheckUtils.runContentChecks(
+              injectorContract, prepareContentWithArticle(), allTeams, teams, assets, assetGroups);
+
+      // -- ASSERT --
+      assertEquals(1, healthChecks.size());
+      assertEquals(HealthCheck.Type.TEAMS, healthChecks.getFirst().getType());
+      assertEquals(HealthCheck.Detail.MANDATORY_CONTENT, healthChecks.getFirst().getDetail());
+    }
+
+    @Test
+    void given_media_pressure_with_article_and_all_teams_should_be_ready()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      InjectorContract injectorContract = prepareChannelInjectorContract();
+      boolean allTeams = true;
+      List<String> teams = new ArrayList<>();
+      List<String> assets = new ArrayList<>();
+      List<String> assetGroups = new ArrayList<>();
+
+      // -- EXECUTE --
+      boolean isReady =
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  prepareContentWithArticle(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
+
+      // -- ASSERT --
+      assertTrue(isReady);
+    }
+
+    @Test
+    void given_media_pressure_with_article_and_a_team_should_be_ready()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      InjectorContract injectorContract = prepareChannelInjectorContract();
+      boolean allTeams = false;
+      List<String> teams = List.of("teamId");
+      List<String> assets = new ArrayList<>();
+      List<String> assetGroups = new ArrayList<>();
+
+      // -- EXECUTE --
+      boolean isReady =
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  prepareContentWithArticle(),
                   allTeams,
                   teams,
                   assets,

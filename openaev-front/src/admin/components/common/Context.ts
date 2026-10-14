@@ -90,7 +90,7 @@ export type InjectTestContextType = {
   fetchInjectTestStatus?: (testId: string) => Promise<{ data: InjectTestStatusOutput }>;
   testInject?: (contextId: string, injectId: string) => Promise<{ data: InjectTestStatusOutput }>;
   bulkTestInjects?: (contextId: string, data: InjectBulkProcessingInput) => Promise<{ data: InjectTestStatusOutput[] }>;
-  deleteInjectTest?: (contextId: string, testId: string) => void;
+  deleteInjectTest?: (contextId: string, testId: string) => Promise<unknown>;
 };
 
 export type DocumentContextType = {

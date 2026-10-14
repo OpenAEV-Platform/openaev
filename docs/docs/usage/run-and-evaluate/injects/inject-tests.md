@@ -25,7 +25,8 @@ the Inject to the current user so you can verify content, formatting, and delive
 
 ![Single Inject test](assets/inject-test-single.png)
 
-The result appears in the **Tests** tab:
+The result appears in the **Tests** tab of the Simulation or Scenario. The tab is always available, and stays empty
+until you test a first Inject. Click a test to see its execution traces, such as the delivery status of the email or SMS:
 
 ![Inject test result](assets/inject-test-result.png)
 

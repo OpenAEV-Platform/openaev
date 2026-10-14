@@ -191,20 +191,6 @@ nav:
         - Proxy: deployment/integration-manager/proxy-configuration.md
         - Private registry: deployment/integration-manager/registry-authentication.md
       - Troubleshooting: deployment/integration-manager/troubleshooting.md
-  - Integrations:
-    - Agents: integrations/agents/openaev-agent.md
-    - Executors: integrations/executors/executors.md
-    - Injectors:
-      - Overview: integrations/injectors/injectors.md
-      - Built-in Injector: integrations/injectors/injects-builtin.md
-      - Deploy injectors: integrations/injectors/deploy-injectors.md
-      - Injector development: development/injectors.md
-    - Collectors:
-      - Overview: integrations/collectors/collectors.md
-      - Deploy collectors: integrations/collectors/deploy-collectors.md
-      - Collector development: development/collectors.md
-    - MCP server (via XTM One): integrations/mcp-server/mcp-server.md
-    - XTM Suite / OpenCTI: integrations/xtm-suite/xtm-suite-connector.md
   - User guide:
     - Get started:
       - Getting started: usage/get-started/getting-started.md
@@ -267,6 +253,31 @@ nav:
         - Overview: usage/attack-chaining/autonomous/overview.md
         - Scenario creation: usage/attack-chaining/autonomous/scenario-creation.md
         - Configuration: usage/attack-chaining/autonomous/configuration.md
+  - Integrations:
+    - OpenAEV agent:
+      - Overview: integrations/agents/openaev-agent.md
+      - Windows: integrations/agents/windows.md
+      - Linux: integrations/agents/linux.md
+      - macOS: integrations/agents/macos.md
+    - Executors:
+      - Overview: integrations/executors/executors.md
+      - Tanium: integrations/executors/tanium.md
+      - CrowdStrike Falcon: integrations/executors/crowdstrike.md
+      - Palo Alto Cortex: integrations/executors/palo-alto-cortex.md
+      - SentinelOne: integrations/executors/sentinelone.md
+      - Microsoft Defender for Endpoint: integrations/executors/mde.md
+      - Caldera: integrations/executors/caldera.md
+    - Injectors:
+      - Overview: integrations/injectors/injectors.md
+      - Built-in Injectors: integrations/injectors/injects-builtin.md
+      - Deploy injectors: integrations/injectors/deploy-injectors.md
+    - Collectors:
+      - Overview: integrations/collectors/collectors.md
+      - Deploy collectors: integrations/collectors/deploy-collectors.md
+    - XTM Suite:
+      - OpenCTI: integrations/xtm-suite/xtm-suite-connector.md
+      - XTM One: integrations/xtm-suite/xtm-one.md
+      - MCP server (via XTM One): integrations/mcp-server/mcp-server.md
   - Administration:
     - Introduction: administration/introduction.md
     - User profile: administration/profile.md

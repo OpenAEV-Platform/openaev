@@ -36,6 +36,12 @@ import org.springframework.test.web.servlet.MockMvc;
  * reasoning as {@code ExecutorApiUnauthenticatedAccessTest}: a mock-user annotation resolves an
  * identity a real caller never has.
  *
+ * <p>The assertions here are write attribution and lazy-initialization regressions, not tenant
+ * isolation: a tracking token is globally unique and the route resolves the token's owning tenant
+ * before any scoped work, so every one of them holds with {@code phishing_results} de-activated.
+ * The isolation half, a scope that names a different tenant than the token's, is in {@code
+ * PhishingResultTenantScopeTest}.
+ *
  * <p>Deliberately NOT {@code @Transactional}: once {@code phishing_results} is tenant-active, the
  * tracking calls run their own {@code REQUIRES_NEW} transaction (see {@code
  * PhishingTrackingService#markOpened(TxCtx, String, String, String)}), on its own connection, which
@@ -152,8 +158,13 @@ class HostedPublicApiIsolationTest extends IntegrationTest {
   class Open {
 
     @Test
-    @DisplayName("given a valid token for tenant B, should mark only B's row as opened")
-    void given_validTokenForTenantB_should_markOnlyThatTenantsRow() throws Exception {
+    @DisplayName(
+        "given a valid token for tenant B, should attribute the open to that token's tenant")
+    void given_validTokenForTenantB_should_attributeTheOpenToThatTokensTenant() throws Exception {
+      // This is a write-attribution assertion, not an isolation one: the token is globally unique
+      // and the route recovers its owning tenant from the token before any scoped work, so it holds
+      // whether phishing_results is tenant-active or not. The isolation case, a scope naming a
+      // different tenant than the token's, is in PhishingResultTenantScopeTest.
       mvc.perform(get(HOSTED_URI + "/o/{token}", tokenB)).andExpect(status().isOk());
 
       assertThat(openedAt(tokenB))

@@ -109,6 +109,10 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @Autowired private PauseRepository pauseRepository;
 
+  @Autowired private WorkflowRepository workflowRepository;
+
+  @Autowired private UrlAccessTokenRepository urlAccessTokenRepository;
+
   @Autowired private InjectHelper injectHelper;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Resource protected ObjectMapper mapper;
@@ -199,6 +203,77 @@ public class ExerciseApiStatusTest extends IntegrationTest {
               assertNull(reloadedInject.getTriggerNowDate());
               assertEquals(
                   CollectExecutionStatus.COLLECTING, reloadedInject.getCollectExecutionStatus());
+            });
+      } finally {
+        inTransaction(
+            () -> {
+              if (ids[0] != null) {
+                exerciseRepository.deleteById(ids[0]);
+              }
+            });
+      }
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given closed chained exercise reset should delete injects and revoke url access tokens")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void given_closedChainedExerciseReset_should_deleteInjectsAndRevokeUrlAccessTokens()
+        throws Exception {
+      // Regression: the URL access token revocation clears the persistence context; run after the
+      // chained injects deletion, it detached the exercise and the final save merged a collection
+      // still holding the deleted injects (ObjectNotFoundException).
+      String[] ids = new String[3]; // exerciseId, injectId, tokenId
+      try {
+        // Arrange
+        inTransaction(
+            () -> {
+              Exercise exercise = ExerciseFixture.createCanceledAttackExercise(REFERENCE_TIME);
+              exercise.setName("reset-chained-" + UUID.randomUUID());
+              Exercise savedExercise = exerciseRepository.save(exercise);
+
+              Workflow template = WorkflowFixture.getDefaultWorkflowTemplate();
+              template.setSimulation(savedExercise);
+              workflowRepository.save(template);
+
+              Inject inject =
+                  getInjectForEmailContract(
+                      injectorContractFixture.getWellKnownSingleEmailContract());
+              inject.setExercise(savedExercise);
+              inject.setTeams(new ArrayList<>(List.of(TEAM)));
+              Inject savedInject = injectRepository.save(inject);
+
+              UrlAccessToken token =
+                  urlAccessTokenRepository.save(
+                      UrlAccessTokenFixture.createValidToken(
+                          savedExercise, USER, UrlAccessTokenFixture.DEFAULT_TARGET_URL));
+
+              ids[0] = savedExercise.getId();
+              ids[1] = savedInject.getId();
+              ids[2] = token.getId();
+            });
+
+        ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+        input.setStatus(ExerciseStatus.SCHEDULED);
+
+        // Act
+        mvc.perform(
+                put(EXERCISE_URI + "/" + ids[0] + "/status")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // Assert
+        inTransaction(
+            () -> {
+              Exercise reloadedExercise = exerciseRepository.findById(ids[0]).orElseThrow();
+              assertEquals(ExerciseStatus.SCHEDULED, reloadedExercise.getStatus());
+              assertTrue(reloadedExercise.getStart().isEmpty());
+              assertTrue(injectRepository.findById(ids[1]).isEmpty());
+              assertNotNull(urlAccessTokenRepository.findById(ids[2]).orElseThrow().getRevokedAt());
             });
       } finally {
         inTransaction(

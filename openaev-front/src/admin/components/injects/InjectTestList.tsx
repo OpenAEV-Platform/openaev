@@ -1,4 +1,4 @@
-import { HelpOutlineOutlined } from '@mui/icons-material';
+import { ForwardToInbox, HelpOutlineOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, useTheme } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -97,21 +97,38 @@ const InjectTestList: FunctionComponent<Props> = ({ statusId }) => {
       label: 'Test status',
       isSortable: true,
       value: (test: InjectTestStatusOutput) => {
-        return (<ItemStatus isInject status={test.status_name} label={t(test.status_name || '-')} variant="inList" />);
+        return (
+          <ItemStatus
+            isInject
+            status={test.status_name}
+            label={t(test.status_name || '-')}
+            variant="inList"
+          />
+        );
       },
     },
   ];
 
   // Filter and sort hook
-  const [tests, setTests] = useState<InjectTestStatusOutput[] | null>([]);
+  // null until the first page is loaded, so the empty state does not flash before it
+  const [tests, setTests] = useState<InjectTestStatusOutput[] | null>(null);
   const [searchPaginationInput, setSearchPaginationInput] = useState<SearchPaginationInput>(buildSearchPagination({}));
+  // Whether the context holds any test at all, whatever the text search: null until known.
+  // Without tests, the search bar, pagination and column headers give way to the empty state.
+  const [hasTests, setHasTests] = useState<boolean | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
   const searchInjectTestsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
     try {
       if (searchInjectTests) {
-        return searchInjectTests(contextId, input);
+        return searchInjectTests(contextId, input).then((result) => {
+          // A search without match keeps the search bar, so it can still be cleared
+          if (!input.textSearch) {
+            setHasTests(result.data.totalElements > 0);
+          }
+          return result;
+        });
       } else {
         return new Promise<{ data: Page<InjectTestStatusOutput> }>(() => {
         });
@@ -123,37 +140,42 @@ const InjectTestList: FunctionComponent<Props> = ({ statusId }) => {
 
   return (
     <>
-      <PaginationComponent
-        fetch={searchInjectTestsToLoad}
-        searchPaginationInput={searchPaginationInput}
-        setContent={setTests}
-      >
-        <InjectTestReplayAll
+      {/* Kept mounted while hidden: it is the one fetching the tests */}
+      <div hidden={!hasTests}>
+        <PaginationComponent
+          fetch={searchInjectTestsToLoad}
           searchPaginationInput={searchPaginationInput}
-          injectIds={tests?.map((test: InjectTestStatusOutput) => test.inject_id!)}
-          onTest={result => setTests(result)}
-        />
-      </PaginationComponent>
-      <List style={{ marginTop: theme.spacing(2) }} disablePadding>
-        <ListItem
-          classes={{ root: classes.itemHead }}
-          divider={false}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<>&nbsp;</>}
+          setContent={setTests}
         >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponent
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                searchPaginationInput={searchPaginationInput}
-                setSearchPaginationInput={setSearchPaginationInput}
-                defaultSortAsc
-              />
-            )}
+          <InjectTestReplayAll
+            searchPaginationInput={searchPaginationInput}
+            injectIds={tests?.map((test: InjectTestStatusOutput) => test.inject_id!) ?? []}
+            onTest={result => setTests(result)}
           />
-        </ListItem>
+        </PaginationComponent>
+      </div>
+      <List style={{ marginTop: theme.spacing(2) }} disablePadding>
+        {hasTests && (
+          <ListItem
+            classes={{ root: classes.itemHead }}
+            divider={false}
+            style={{ paddingTop: 0 }}
+            secondaryAction={<>&nbsp;</>}
+          >
+            <ListItemIcon />
+            <ListItemText
+              primary={(
+                <SortHeadersComponent
+                  headers={headers}
+                  inlineStylesHeaders={inlineStyles}
+                  searchPaginationInput={searchPaginationInput}
+                  setSearchPaginationInput={setSearchPaginationInput}
+                  defaultSortAsc
+                />
+              )}
+            />
+          </ListItem>
+        )}
         {loading
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
           : tests?.map((test) => {
@@ -167,7 +189,11 @@ const InjectTestList: FunctionComponent<Props> = ({ statusId }) => {
                         injectTest={test}
                         onTest={result =>
                           setTests(tests?.map(existing => existing.status_id !== result.status_id ? existing : result))}
-                        onDelete={injectStatusId => setTests(tests.filter(existing => (existing.status_id !== injectStatusId)))}
+                        onDelete={(injectStatusId) => {
+                          setTests(tests.filter(existing => (existing.status_id !== injectStatusId)));
+                          // Refetch so the counter and the empty state follow, e.g. once the last test is gone
+                          setSearchPaginationInput(prev => ({ ...prev }));
+                        }}
                       />
                     )
 
@@ -204,11 +230,24 @@ const InjectTestList: FunctionComponent<Props> = ({ statusId }) => {
                 </ListItem>
               );
             })}
-        {!tests ? (<Empty message={t('No data available')} />) : null}
+        {hasTests === false && (
+          <Empty
+            message={t('No test yet')}
+            hint={t('Test inject from the Injects tab to see its result here.')}
+            icon={ForwardToInbox}
+          />
+        )}
+        {hasTests && tests?.length === 0 && (<Empty message={t('No data available')} />)}
       </List>
       {
         selectedInjectTestStatus !== null
-        && <InjectTestDetail open handleClose={() => setSelectedInjectTestStatus(null)} injectTestStatus={selectedInjectTestStatus} />
+        && (
+          <InjectTestDetail
+            open
+            handleClose={() => setSelectedInjectTestStatus(null)}
+            injectTestStatus={selectedInjectTestStatus}
+          />
+        )
       }
     </>
   );

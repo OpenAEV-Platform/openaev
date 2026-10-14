@@ -470,7 +470,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
-      image: maven:3.9.16-eclipse-temurin-21-alpine
+      image: maven:3.10.0-eclipse-temurin-21-alpine
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-package-musl

@@ -4,7 +4,6 @@ import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, use
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
-import { searchInjectTests } from '../../../../actions/inject_test/scenario-inject-test-actions';
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
@@ -26,7 +25,6 @@ import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
 import { useAutonomousRunForScenario } from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
-import useHasInjectTests from '../../injects/useHasInjectTests';
 import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
 import buildScenarioTabs from './scenarioTabs';
@@ -97,9 +95,6 @@ const IndexScenarioComponent: FunctionComponent<{
   const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
   const contentPaddingRight = hasCockpit ? `${panelWidth}px` : undefined;
   const permissions = useScenarioPermissions(scenario.scenario_id);
-  // The Tests tab only exists for email/SMS injects that have actually been
-  // tested; hide it entirely otherwise.
-  const hasInjectTests = useHasInjectTests(searchInjectTests, scenario.scenario_id);
   // Stable context identities: these providers wrap the whole scenario subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
   const permissionsContext: PermissionsContextType = useMemo(() => ({
@@ -136,7 +131,6 @@ const IndexScenarioComponent: FunctionComponent<{
         <TabsList>
           {buildScenarioTabs({
             isChained,
-            hasInjectTests,
             lessonsEnabled: scenario.scenario_lessons_enabled,
             t,
           }).map(([suffix, label]) => {

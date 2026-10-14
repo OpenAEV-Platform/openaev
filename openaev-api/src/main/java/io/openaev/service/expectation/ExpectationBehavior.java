@@ -80,10 +80,23 @@ public interface ExpectationBehavior<T extends BaseInjectExpectation> {
     throwIfCannotUpdateThisExpectation(expectation);
     List<? extends BaseInjectExpectation> leaves = getLeaves(expectation);
     for (BaseInjectExpectation leaf : leaves) {
-      addResult(leaf, input, resolveResultLabel(leaf, input.getScore()));
+      addResultToLeaf(leaf, input, resolveResultLabel(leaf, input.getScore()));
       leaf.setScore(computeResultsScore(leaf.getResults(), leaf));
     }
     return leaves;
+  }
+
+  /**
+   * Adds the input result to a leaf expectation. Defaults to an upsert on the input source, keeping
+   * the results of the other sources (e.g. one result per security platform).
+   *
+   * @param leaf the leaf expectation receiving the result
+   * @param input the update input carrying the source and the score
+   * @param resultLabel the success/failure label of the result
+   */
+  default void addResultToLeaf(
+      BaseInjectExpectation leaf, ExpectationUpdateInput input, String resultLabel) {
+    addResult(leaf, input, resultLabel);
   }
 
   /**

@@ -46,6 +46,12 @@ public class DomainService implements DependenciesManager {
   /** Default color for new domains. */
   private static final String DEFAULT_DOMAIN_COLOR = "#FFFFFF";
 
+  /**
+   * High 32 bits of the domain creation advisory-lock key, so it never collides with another
+   * advisory lock of the platform ("DO" = domain).
+   */
+  private static final long CREATION_LOCK_NAMESPACE = 0x444F_0001L;
+
   public List<Domain> searchDomains() {
     return fromIterable(domainRepository.findAll());
   }
@@ -75,18 +81,20 @@ public class DomainService implements DependenciesManager {
     return domainRepository.findAllById(domainIds);
   }
 
+  @Transactional
   public Domain upsert(final DomainBaseInput input, final String tenantId) {
-    return this.upsert(input.getName(), input.getColor(), new Tenant(tenantId));
+    return doUpsert(input.getName(), input.getColor(), new Tenant(tenantId));
   }
 
   @Transactional
   public Domain upsert(final DomainBaseInput input) {
-    return this.upsert(input, TenantContext.getCurrentTenant());
+    return doUpsert(
+        input.getName(), input.getColor(), new Tenant(TenantContext.getCurrentTenant()));
   }
 
   @Transactional
   public Domain upsert(final Domain domainToUpsert) {
-    return this.upsert(
+    return doUpsert(
         domainToUpsert.getName(), domainToUpsert.getColor(), domainToUpsert.getTenant());
   }
 
@@ -111,8 +119,9 @@ public class DomainService implements DependenciesManager {
 
   /**
    * Saves a collection of contract DTOs in the database. If an entity already exists (searched by
-   * name) in the database, it is retrieved instead of saved (no modification). If the entity is not
-   * found, it is created.
+   * name, then by {@link PresetDomain#toMatchingKey matching key}) in the database, it is retrieved
+   * instead of saved (no modification). If the entity is not found, it is created, under the {@link
+   * #creationLockKey creation lock} of its matching key.
    *
    * @param domains set of domain DTOs to save or retrieve.
    * @return set of saved or retrieved domains
@@ -123,28 +132,136 @@ public class DomainService implements DependenciesManager {
       return new HashSet<>();
     }
 
-    Map<String, Domain> existing =
-        domainRepository
-            .findByNameInAndTenantId(
-                domains.stream().map(InjectorContractDomainDTO::getName).collect(toSet()), tenantId)
-            .stream()
-            .collect(toMap(Domain::getName, Function.identity()));
+    Set<String> names = domains.stream().map(InjectorContractDomainDTO::getName).collect(toSet());
+    Map<String, Domain> resolved = findExisting(names, tenantId);
+    Set<String> missing = new HashSet<>(names);
+    missing.removeAll(resolved.keySet());
+    if (!missing.isEmpty()) {
+      // Sorted so that two batches locking overlapping keys always take them in the same order.
+      missing.stream()
+          .map(name -> creationLockKey(tenantId, name))
+          .distinct()
+          .sorted()
+          .forEach(domainRepository::lockDomainCreation);
+      resolved.putAll(findExisting(missing, tenantId));
+    }
 
+    List<Domain> created = new ArrayList<>();
     return domains.stream()
         .map(
             d ->
-                existing.computeIfAbsent(
+                resolved.computeIfAbsent(
                     d.getName(),
                     name ->
-                        domainRepository.save(
-                            buildSanityDomain(name, d.getColor(), new Tenant(tenantId)))))
+                        findByMatchingKey(name, created)
+                            .orElseGet(
+                                () -> {
+                                  Domain domain =
+                                      domainRepository.save(
+                                          buildSanityDomain(
+                                              name, d.getColor(), new Tenant(tenantId)));
+                                  created.add(domain);
+                                  return domain;
+                                })))
         .collect(toSet());
   }
 
+  /**
+   * Returns the tenant's domain with this name, or with the same {@link PresetDomain#toMatchingKey
+   * matching key} when no name matches exactly, and creates it only when neither exists. A starter
+   * pack or an injector carrying a legacy spelling such as "Table-Top" thereby reuses the
+   * "Tabletop" preset instead of creating a duplicate. The creation runs under the {@link
+   * #creationLockKey creation lock} of the matching key and looks the domain up again once the lock
+   * is held, so concurrent upserts of two spellings of a new name create it only once.
+   *
+   * @param name the domain name
+   * @param color the color of the domain when it has to be created (random when null)
+   * @param tenant the tenant owning the domain
+   * @return the existing or newly created domain
+   */
+  @Transactional
   public Domain upsert(final String name, final String color, final Tenant tenant) {
-    Optional<Domain> existingDomain = domainRepository.findByNameAndTenantId(name, tenant.getId());
-    return existingDomain.orElseGet(
-        () -> domainRepository.save(buildSanityDomain(name, color, tenant)));
+    return doUpsert(name, color, tenant);
+  }
+
+  /**
+   * Body of the {@code upsert} overloads, kept un-annotated so they share it without an intra-class
+   * call to a {@code @Transactional} method, which would bypass the Spring proxy. Must run inside a
+   * transaction: the creation lock is transaction-scoped.
+   */
+  private Domain doUpsert(final String name, final String color, final Tenant tenant) {
+    return findExisting(name, tenant.getId())
+        .orElseGet(
+            () -> {
+              domainRepository.lockDomainCreation(creationLockKey(tenant.getId(), name));
+              return findExisting(name, tenant.getId())
+                  .orElseGet(() -> domainRepository.save(buildSanityDomain(name, color, tenant)));
+            });
+  }
+
+  private Optional<Domain> findExisting(final String name, final String tenantId) {
+    return domainRepository
+        .findByNameAndTenantId(name, tenantId)
+        .or(() -> findByMatchingKey(name, domainRepository.findByTenantId(tenantId)));
+  }
+
+  /**
+   * Resolves names to existing domains of the tenant, by exact name, then by {@link
+   * PresetDomain#toMatchingKey matching key}. The tenant's domains are only loaded when a name has
+   * no exact match.
+   *
+   * @return the resolved domains by requested name, without the names nothing matches
+   */
+  private Map<String, Domain> findExisting(final Set<String> names, final String tenantId) {
+    Map<String, Domain> resolved =
+        domainRepository.findByNameInAndTenantId(names, tenantId).stream()
+            .collect(
+                toMap(
+                    Domain::getName, Function.identity(), (first, second) -> first, HashMap::new));
+    if (!resolved.keySet().containsAll(names)) {
+      List<Domain> tenantDomains = domainRepository.findByTenantId(tenantId);
+      names.stream()
+          .filter(name -> !resolved.containsKey(name))
+          .forEach(
+              name ->
+                  findByMatchingKey(name, tenantDomains)
+                      .ifPresent(domain -> resolved.put(name, domain)));
+    }
+    return resolved;
+  }
+
+  /**
+   * Key of the transaction-scoped advisory lock serialising the creation of a domain: the fixed
+   * {@link #CREATION_LOCK_NAMESPACE} in the high 32 bits and the hash of the tenant and {@link
+   * PresetDomain#toMatchingKey matching key} in the low 32 bits. Two spellings of a name share the
+   * key; a hash collision only serialises two unrelated creations.
+   */
+  static long creationLockKey(final String tenantId, final String name) {
+    String scope = tenantId + ":" + PresetDomain.toMatchingKey(name);
+    return (CREATION_LOCK_NAMESPACE << 32) | (scope.hashCode() & 0xFFFF_FFFFL);
+  }
+
+  /**
+   * Picks among candidate domains the one whose name has the same {@link PresetDomain#toMatchingKey
+   * matching key} as the given name. A preset wins over a custom domain sharing its key, then names
+   * are compared alphabetically, so the choice is deterministic.
+   *
+   * @param name the domain name to resolve
+   * @param candidates the domains of the tenant
+   * @return the matching domain, empty when none matches or the name has an empty key
+   */
+  static Optional<Domain> findByMatchingKey(
+      final String name, final Collection<Domain> candidates) {
+    String key = PresetDomain.toMatchingKey(name);
+    if (key.isEmpty()) {
+      return Optional.empty();
+    }
+    return candidates.stream()
+        .filter(candidate -> key.equals(PresetDomain.toMatchingKey(candidate.getName())))
+        .min(
+            Comparator.comparing(
+                    (Domain candidate) -> !PresetDomain.isPresetName(candidate.getName()))
+                .thenComparing(Domain::getName));
   }
 
   @Transactional

@@ -86,16 +86,26 @@ class AssetHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("under tenant A's path: B's endpoint is not found")
+  @DisplayName("under tenant A's path: B's endpoint is not found, on both by-id routes")
   void readOtherTenantEndpointIsNotFound() throws Exception {
+    // Two routes reach the same row and only one of them needs the activation. The endpoint route
+    // resolves with findByIdAndTenantId(id, TenantContext.getCurrentTenant()), so its 404 is
+    // produced by an explicit predicate and holds with assets inactive. The generic asset route
+    // loads the row by primary key alone (AssetService.asset), so there the scope is the only
+    // thing hiding B's endpoint: that assertion is the one that goes red with assets disarmed.
     mvc.perform(get(ENDPOINT_BY_ID, tenantA, endpointB)).andExpect(status().isNotFound());
+    mvc.perform(get(ASSET_BY_ID, tenantA, endpointB)).andExpect(status().isNotFound());
   }
 
   @Test
-  @DisplayName("under tenant B's path: the isolation is symmetric")
+  @DisplayName("under tenant B's path: the isolation is symmetric, on both by-id routes")
   void readIsSymmetricUnderTenantB() throws Exception {
     mvc.perform(get(ENDPOINT_BY_ID, tenantB, endpointB)).andExpect(status().isOk());
     mvc.perform(get(ENDPOINT_BY_ID, tenantB, endpointA)).andExpect(status().isNotFound());
+    // Same pair on the unscoped-by-construction route. The positive half first: without it an
+    // endpoint the scope hides from B as well would make the negative half meaningless.
+    mvc.perform(get(ASSET_BY_ID, tenantB, endpointB)).andExpect(status().isOk());
+    mvc.perform(get(ASSET_BY_ID, tenantB, endpointA)).andExpect(status().isNotFound());
   }
 
   @Test
@@ -159,9 +169,14 @@ class AssetHttpIsolationTest extends IntegrationTest {
   // -- Write reach ---------------------------------------------------------
 
   @Test
-  @DisplayName("under tenant A's path: deleting B's endpoint does not remove it")
+  @DisplayName("under tenant A's path: deleting B's endpoint does not remove it, on either route")
   void deleteOtherTenantEndpointLeavesItInPlace() throws Exception {
+    // The endpoint route's delete is a native query carrying tenant_id = #tenantContext, so it
+    // matches nothing under A whatever the activation does. The generic asset route loads the row
+    // first (AssetService.deleteAsset calls asset(id), a primary-key load) and deletes the entity
+    // it got, so with assets disarmed that load returns B's endpoint and the row is gone.
     mvc.perform(delete(ENDPOINT_BY_ID, tenantA, endpointB).with(csrf()));
+    mvc.perform(delete(ASSET_BY_ID, tenantA, endpointB).with(csrf()));
     // The status is not the assertion: what matters is that the row is still there. A delete that
     // silently matched zero rows would return 200 and still be correct, so the ground truth is read
     // through raw JDBC, outside the request scope.

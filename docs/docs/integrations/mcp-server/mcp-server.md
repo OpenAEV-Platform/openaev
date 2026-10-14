@@ -30,7 +30,7 @@ OpenAEV   REST API (acting as the calling user)
 ## Prerequisites
 
 1. A running XTM One instance.
-2. The OpenAEV platform registered with XTM One (the same registration that powers the embedded AI experience).
+2. The OpenAEV platform registered with XTM One (see [XTM One](../xtm-suite/xtm-one.md)).
 3. A user account existing on both platforms with the same email address.
 4. A personal API key created in XTM One (**My Profile > API Keys**).
 
@@ -88,3 +88,8 @@ Administrators can disable the MCP servers globally in XTM One under **Settings 
 !!! note "Full documentation"
 
     For more details about MCP endpoints, API keys and platform administration, please refer to the [XTM One documentation](https://docs.xtmone.io/).
+
+## What's next?
+
+- [XTM One](../xtm-suite/xtm-one.md) -- Connect OpenAEV to XTM One
+- [XTM One documentation](https://docs.xtmone.io/) -- MCP endpoints, API keys and administration

@@ -28,11 +28,10 @@ import java.util.stream.Collectors;
  * withholding only the secret. Where the composition is unknown, the whole value is masked, so an
  * omission can only ever over-mask.
  *
- * <p>Note on location: this class currently lives in {@code openaev-api}, which covers every place
- * the platform hands a value out today (finding serialization, chaining engine, attack path). If
- * masking at indexing time ever becomes necessary - so that reports and dashboards are covered too
- * - this class will have to move back down to {@code openaev-model}, because {@code FindingHandler}
- * lives there and cannot depend on {@code openaev-api}.
+ * <p>Note on location: this class lives in {@code openaev-model} rather than {@code openaev-api} so
+ * that indexing can mask too: {@code FindingHandler} lives here and cannot depend on {@code
+ * openaev-api}. Masking at indexing time is what extends the coverage of finding serialization, the
+ * chaining engine and the attack path to reports and dashboards.
  *
  * <p>The database always keeps the cleartext value: deduplication, correlation and attack path
  * computation rely on it. Only the representation handed out is masked.

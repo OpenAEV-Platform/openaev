@@ -12,6 +12,7 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.service.InjectExpectationUtils;
 import io.openaev.utils.challenge.ChallengeExpectationUtils;
 import java.util.List;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -73,6 +74,18 @@ public class ChallengeBehavior extends AbstractTableTopBehavior {
               return (TableTopInjectExpectation) expectation;
             })
         .toList();
+  }
+
+  /** Matches expectations of the same challenge, as each challenge has its own expectation tree. */
+  @Override
+  protected boolean isSameContext(
+      TableTopInjectExpectation expectation, TableTopInjectExpectation reference) {
+    return Objects.equals(challengeId(expectation), challengeId(reference));
+  }
+
+  private static String challengeId(TableTopInjectExpectation expectation) {
+    Challenge challenge = ((ChallengeInjectExpectation) expectation).getChallenge();
+    return challenge != null ? challenge.getId() : null;
   }
 
   private List<Challenge> resolveChallenges(ExecutableInject executableInject) {

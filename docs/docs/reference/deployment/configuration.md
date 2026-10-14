@@ -1,21 +1,19 @@
 # Configuration
 
-The purpose of this section is to learn how to configure OpenAEV to have it tailored for your production and development
-needs. It is possible to check all default parameters implemented in the platform in the [
-`application.properties` file](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/resources/application.properties).
-
-Here are the configuration keys, for both containers (environment variables) and manual deployment.
+This page lists the main configuration keys of the OpenAEV platform, as properties (manual deployment) and as
+environment variables (containers). All defaults live in the
+[`application.properties` file](https://github.com/OpenAEV-Platform/openaev/blob/main/openaev-api/src/main/resources/application.properties).
 
 !!! note "Parameters equivalence"
 
-    The equivalent of a config variable in environment variables is the usage of an underscore (`_`) for a level of config.
+    To get the environment variable, write the key in upper case and replace each dot (`.`) with an underscore (`_`).
 
     For example:
-    ```yaml
+    ```properties
     spring.servlet.multipart.max-file-size=5GB
     ```
 
-    will become:
+    becomes:
     ```bash
     SPRING_SERVLET_MULTIPART_MAX-FILE-SIZE=5GB
     ```
@@ -35,14 +33,15 @@ Here are the configuration keys, for both containers (environment variables) and
 | server.servlet.session.timeout                        | SERVER_SERVLET_SESSION_TIMEOUT                        | 1440m                 | Rolling session timeout: every request extends the session by this duration. Sessions are persisted in PostgreSQL and survive platform restarts                                            |
 | openaev.session-idle-timeout                          | OPENAEV_SESSION-IDLE-TIMEOUT                          | 0                     | Idle time before the UI locks the screen and asks the user to continue or log out (0 = disabled, e.g. 30m). Must be lower than the session timeout                                          |
 | openaev.session-cookie                                | OPENAEV_SESSION-COOKIE                                | `false`               | When `true`, the session cookie dies when the browser closes (server-side timeout still applies). When `false`, users stay logged in across browser restarts: the cookie is re-issued on every request (sliding Max-Age), so it only expires after `openaev.cookie-duration` of inactivity |
+| openaev.session-cookie-same-site                      | OPENAEV_SESSION-COOKIE-SAME-SITE                      |                       | SameSite attribute of the session cookie: `None`, `Lax`, `Strict`, or blank to omit it. `Lax` drops the cookie on POST login callbacks (SAML2, OpenID `form_post`); `Strict` breaks all SSO (Single Sign-On) callbacks. `None` forces the `Secure` flag, for HTTPS SSO deployments |
 | openaev.cookie-secure                                 | OPENAEV_COOKIE-SECURE                                 | `false`               | Turn on if the access is done in HTTPS                                                                                                                                                     |
 | openaev.cookie-duration                               | OPENAEV_COOKIE-DURATION                               | P1D                   | Cookie validity sliding window (default 1 day). Each request re-issues the cookie with this Max-Age, so active users are never logged out by cookie expiration                             |
-| openaev.admin.email                                   | OPENAEV_ADMIN_EMAIL                                   | admin@openaev.io      | Default login email of the admin user                                                                                                                                                      |
-| openaev.admin.password                                | OPENAEV_ADMIN_PASSWORD                                | ChangeMe              | Default password of the admin user                                                                                                                                                         |
-| openaev.admin.token                                   | OPENAEV_ADMIN_TOKEN                                   | ChangeMe              | Default token (must be a valid UUIDv4)                                                                                                                                                     |
-| openaev.admin.encryption_key                          | OPENAEV_ADMIN_ENCRYPTION_KEY                          | ChangeMe              | Encryption key used for encrypting sensitive data in database. Encryption key and salt are used to generate a 256bit encryption key for encrypting purpose.                                |
-| openaev.admin.encryption_salt                         | OPENAEV_ADMIN_ENCRYPTION_SALT                         | ChangeMe              | Encryption salt used for encrypting sensitive data in database. Must be at least 8 bytes long. Encryption key and salt are used to generate a 256bit encryption key for encrypting purpose |
-| openaev.healthcheck.key                               | OPENAEV_HEALTHCHECK_KEY                               | ChangeMe              | The key to use in the health check endpoint (/api/health)                                                                                                                                  |
+| openaev.admin.email                                   | OPENAEV_ADMIN_EMAIL                                   | *required*            | Login email of the admin user (for example `admin@openaev.io`)                                                                                                                             |
+| openaev.admin.password                                | OPENAEV_ADMIN_PASSWORD                                | *required*            | Password of the admin user                                                                                                                                                                 |
+| openaev.admin.token                                   | OPENAEV_ADMIN_TOKEN                                   | *required*            | API token of the admin user (must be a valid UUIDv4)                                                                                                                                       |
+| openaev.admin.encryption_key                          | OPENAEV_ADMIN_ENCRYPTION_KEY                          | *required*            | Key used with the salt to derive the 256-bit key that encrypts sensitive data in the database                                                                                             |
+| openaev.admin.encryption_salt                         | OPENAEV_ADMIN_ENCRYPTION_SALT                         | *required*            | Salt used with the encryption key. Must be at least 8 bytes long                                                                                                                          |
+| openaev.healthcheck.key                               | OPENAEV_HEALTHCHECK_KEY                               | ChangeMe              | Key passed as `health_access_key` to the health check endpoint (`/api/health`). Change it in production                                                                                   |
 | openaev.healthcheck.connectivity-probe-interval       | OPENAEV_HEALTHCHECK_CONNECTIVITY_PROBE_INTERVAL       | PT10S                 | Interval between two background connectivity probes of the dependencies (ISO-8601 duration). `/api/health` serves the result of the last probe and never contacts a dependency itself; it answers 503 once a required dependency (database, RabbitMQ, file storage) is down or has not been probed for 3 intervals |
 | openaev.healthcheck.storage-probe-interval            | OPENAEV_HEALTHCHECK_STORAGE_PROBE_INTERVAL            | PT4H                  | Interval between two background computations of the storage sizes returned by `/api/health?details=true` and exported as `openaev_storage_used_bytes` (ISO-8601 duration). Computing them walks the whole object storage listing and queries the engine cluster, so low values are costly |
 | openaev.metrics.key                                   | OPENAEV_METRICS_KEY                                   | *empty*               | Scrape key for `/actuator/prometheus`, sent by the scraper as `Authorization: Bearer <key>`. While empty (the default), every `/actuator/**` request is rejected with a 401                |
@@ -52,6 +51,15 @@ Here are the configuration keys, for both containers (environment variables) and
 | openaev.starterpack.enabled                           | OPENAEV_STARTERPACK_ENABLED                           | true                  | StarterPack feature, providing default endpoint, asset group, scenarios and dashboards                                                                                                     |
 | openaev.url.access.token.expiry-margin-days           | OPENAEV_URL_ACCESS_TOKEN_EXPIRY-MARGIN-DAYS           | 7                     | Number of days added after an exercise end date before URL access tokens expire                                                                                                            |
 | openaev.url.access.token.retention-days               | OPENAEV_URL_ACCESS_TOKEN_RETENTION-DAYS               | 30                    | Number of days to retain expired or revoked URL access tokens before the purge job deletes them                                                                                            |
+| openaev.retention.execution-traces.retention-days     | OPENAEV_RETENTION_EXECUTION-TRACES_RETENTION-DAYS     | 0                     | Number of days to keep execution traces (one row per agent execution message). `0` disables the purge job                                                                                   |
+
+!!! warning "Admin settings are mandatory"
+
+    - On first start, the platform stops if the admin email, password or token is missing. Later starts keep the stored values.
+    - An invalid admin email or token stops every start.
+    - A missing `encryption_key` or `encryption_salt` stops every start.
+
+    Use strong, unique secrets, never `ChangeMe`.
 
 #### Network and security
 
@@ -62,20 +70,25 @@ Here are the configuration keys, for both containers (environment variables) and
 | server.ssl.key-store            | SERVER_SSL_KEY-STORE            | classpath:localhost.p12 | SSL keystore path                                                                                                                                                                                                                                                                                                                                                                                                           |
 | server.ssl.key-store-password   | SERVER_SSL_KEY-STORE-PASSWORD   | admin                   | SSL keystore password                                                                                                                                                                                                                                                                                                                                                                                                       |
 | server.ssl.key-alias            | SERVER_SSL_KEY-ALIAS            | localhost               | SSL key alias                                                                                                                                                                                                                                                                                                                                                                                                               |
-| openaev.unsecured-certificate   | OPENAEV_UNSECURED-CERTIFICATE   | `false`                 | Turn on to authorize self-signed or unsecure ssl certificate                                                                                                                                                                                                                                                                                                                                                                |
-| openaev.with-proxy              | OPENAEV_WITH-PROXY              | `false`                 | Turn on to authorize environment with proxy                                                                                                                                                                                                                                                                                                                                                                                |
-| openaev.extra-trusted-certs-dir | OPENAEV_EXTRA-TRUSTED-CERTS-DIR |                         | If you want to set extra trusted self-signed TLS certificates to communicate with external applications (Crowdstrike, Tanium, SentinelOne,...),<br/>fill this attribute with you local folder containing your public .PEM certs. If you install OpenAEV with Docker,<br/>uncomment the volume and set the attribute in the [docker compose file](https://github.com/OpenAEV-Platform/docker/blob/master/docker-compose.yml) | 
+| openaev.unsecured-certificate   | OPENAEV_UNSECURED-CERTIFICATE   | `false`                 | Turn on to accept self-signed or insecure SSL certificates                                                                                                                                                                                                                                                                                                                                                                  |
+| openaev.with-proxy              | OPENAEV_WITH-PROXY              | `false`                 | Turn on for environments that use a proxy                                                                                                                                                                                                                                                                                                                                                                                  |
+| openaev.extra-trusted-certs-dir | OPENAEV_EXTRA-TRUSTED-CERTS-DIR |                         | Local folder with extra trusted TLS certificates (public `.pem` files) to reach external applications such as CrowdStrike, Tanium or SentinelOne. With Docker, uncomment the volume in the [docker compose file](https://github.com/OpenAEV-Platform/docker/blob/master/docker-compose.yml) and set this value                                                                                                             |
+| openaev.notification.webhook-allow-internal-targets | OPENAEV_NOTIFICATION_WEBHOOK-ALLOW-INTERNAL-TARGETS | `false` | Turn on to let webhook notifiers call internal or private addresses. This skips the SSRF (Server-Side Request Forgery) check on private addresses; scheme, host and HTTP verb checks still apply |
 
 !!! warning "Extra trusted certificates format"
 
-    If you are using the parameter `openaev.extra-trusted-certs-dir`, the file format needed for the certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 certs.
+    Certificates in `openaev.extra-trusted-certs-dir` must be public PEM-armoured (`*.pem`), DER-encoded X509 certificates.
 
 #### Rate limiting
+
+!!! note "Preview feature"
+
+    Rate limiting only applies when `RATE_LIMITING` is listed in `openaev.enabled-dev-features`.
 
 | Parameter                           | Environment variable                | Default value | Description                                                                                               |
 |:------------------------------------|:------------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------|
 | openaev.ratelimit.enabled           | OPENAEV_RATELIMIT_ENABLED           | `true`        | Turn on to enable global rate limiting on the REST API                                                    |
-| openaev.ratelimit.store-backend     | OPENAEV_RATELIMIT_STORE-BACKEND     | `IN_MEMORY`   | Selects the rate limit bucket store backend. As fo writing, only the `IN_MEMORY` store backend available. |
+| openaev.ratelimit.store-backend     | OPENAEV_RATELIMIT_STORE-BACKEND     | `IN_MEMORY`   | Rate limit bucket store backend. Only `IN_MEMORY` is available.                                           |
 | openaev.ratelimit.default-rps       | OPENAEV_RATELIMIT_DEFAULT-RPS       | 10            | Maximum requests per second for unauthenticated requests, segmented per originating IP address.           |
 | openaev.ratelimit.authenticated-rps | OPENAEV_RATELIMIT_AUTHENTICATED-RPS | 300           | Maximum requests per second for authenticated requests, segmented per user account.                       |
 
@@ -108,40 +121,50 @@ Since OpenAEV 3.260917.1, audit logs also record the following events:
 
 | Parameter                          | Environment variable               | Default value | Description                                                                                                                                               |
 |:-----------------------------------|:-----------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |               | Lists of transports to use for audit logging separated by comma. No transports means audit logging is disabled. The transports usable are : file,console  |
-| openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false         | Parameter to stop the platform if audit logging is failing.                                                                                               |
-| logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |               | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                           |
-| openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs          | Preferred setting for the audit log directory when `file` transport is enabled.                                                                           |
-| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit         | Preferred setting for the audit log basename (without extension) when `file` transport is enabled.                                                        |
+| openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |               | Comma-separated list of transports: `file`, `console`. Empty disables audit logging. `engine` is accepted but not usable yet |
+| openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false         | Stop the platform when audit logging fails                                                                                                                |
+| logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |               | Log level of the `console` audit transport. The `file` transport always logs at INFO |
+| openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs          | Audit log directory for the `file` transport                                                                                                              |
+| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit         | Audit log basename (without extension) for the `file` transport                                                                                           |
+| openaev.audit-logs.file.retention-days | OPENAEV_AUDIT-LOGS_FILE_RETENTION-DAYS | 365 | Number of days of rolled audit log files to keep                                                                                                          |
+| openaev.audit-logs.file.rollover-max-size | OPENAEV_AUDIT-LOGS_FILE_ROLLOVER-MAX-SIZE | 100MB | Maximum size of one audit log file before rollover                                                                                                    |
+| openaev.audit-logs.file.rollover-total-size-cap | OPENAEV_AUDIT-LOGS_FILE_ROLLOVER-TOTAL-SIZE-CAP | 20GB | Maximum total size of the audit log files. The oldest files are deleted first                                                                    |
 |                                    | AUDIT_LOG_DIR                      | logs          | Legacy compatibility env var for the audit log directory. When set, it overrides `openaev.audit-logs.file.dir`.                                           |
 |                                    | AUDIT_LOG_FILENAME                 | audit         | Legacy compatibility env var for the audit log basename. When set, it overrides `openaev.audit-logs.file.filename`; `audit` and `audit.log` are accepted. |
 
 #### Inject execution
 
-The inject execution engine is the component responsible for executing the actions described in the various contracts
-registered in OpenAEV.
+The inject execution engine runs the actions described in the Injector contracts registered in OpenAEV.
 
-| Parameter                                     | Environment variable                          | Default value | Description                                                                                                                                                                                                                                                                                          |
-|:----------------------------------------------|:----------------------------------------------|:--------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Recommended value: `4` (four minutes). Supported values: positive integers. Duration in minutes for the grace period after a time-based inject's configured start time, within which the inject is considered for execution. After this period, an inject will be deemed "too old" and set in error. |
-
+| Parameter                                     | Environment variable                          | Default value | Description                                                                                                                                                                                       |
+|:----------------------------------------------|:----------------------------------------------|:--------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Grace period in minutes after the start time of a time-based Inject, during which it can still run. Past this period, the Inject is set in error. Values below `1` are treated as `1`. |
 
 #### Credential status validation
 
-A scheduled job periodically re-checks the credentials stored in the platform against their cloud
-provider and records the result on the credential, so an operator can see that a credential
-was revoked or expired *before* a simulation fails on it.
+A scheduled job re-checks the stored credentials against their cloud provider and records the result, so you see a
+revoked or expired credential *before* a Simulation fails on it.
 
-The job runs per tenant and only considers credentials whose status is stale, capped by a per-run
-budget. credential types with no remote counterpart (username/password, hash) are never checked and keep the `UNSET` status.
+The job runs per Tenant and only checks credentials whose status is stale, up to a per-run limit. Credential types with
+no remote counterpart (username/password, hash) are never checked and keep the `UNSET` status.
 
 | Parameter                                                   | Environment variable                                       | Default value | Description                                                                                              |
 |:------------------------------------------------------------|:-----------------------------------------------------------|:--------------|:---------------------------------------------------------------------------------------------------------|
 | openaev.credentials.status-validation.enabled               | OPENAEV_CREDENTIALS_STATUS-VALIDATION_ENABLED              | true          | Enables the credential status validation job. When false, the job returns immediately and writes nothing. |
-| openaev.credentials.status-validation.cron                  | OPENAEV_CREDENTIALS_STATUS-VALIDATION_CRON                 | 0 0 3 * * ?   | Quartz cron expression driving the job. Defaults to 3:00 AM: a run makes one outbound call per stale credential, keep it off-peak. |
-| openaev.credentials.status-validation.revalidate-after-days | OPENAEV_CREDENTIALS_STATUS-VALIDATION_REVALIDATE-AFTER-DAYS | 7             | How long a credential status stays fresh. Past this age the credential is checked again.                 |
+| openaev.credentials.status-validation.cron                  | OPENAEV_CREDENTIALS_STATUS-VALIDATION_CRON                 | 0 */6 * * * ? | Quartz cron expression driving the job. The default runs every 6 minutes. Each run makes one outbound call per stale credential. |
+| openaev.credentials.status-validation.revalidate-after-days | OPENAEV_CREDENTIALS_STATUS-VALIDATION_REVALIDATE-AFTER-DAYS | 1             | How long a credential status stays fresh. Past this age the credential is checked again.                 |
 | openaev.credentials.status-validation.max-per-run           | OPENAEV_CREDENTIALS_STATUS-VALIDATION_MAX-PER-RUN          | 500           | Maximum number of credentials checked per tenant and per run. Oldest verification first.                 |
 | openaev.credentials.status-validation.timeout-seconds       | OPENAEV_CREDENTIALS_STATUS-VALIDATION_TIMEOUT-SECONDS      | 10            | Per-call budget for a single provider probe. A probe exceeding it is inconclusive, not a rejection.      |
+
+#### Report rendering
+
+The platform renders reports server-side with a headless Chromium browser.
+
+| Parameter                               | Environment variable                    | Default value | Description                                                                                                                                         |
+|:----------------------------------------|:----------------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.reporting.render-timeout-seconds | OPENAEV_REPORTING_RENDER-TIMEOUT-SECONDS | 90           | Maximum duration of a single render, in seconds                                                                                                     |
+| openaev.reporting.max-concurrent-renders | OPENAEV_REPORTING_MAX-CONCURRENT-RENDERS | 2            | Maximum number of simultaneous browser contexts. Bounds Chromium memory usage                                                                       |
+| openaev.reporting.render-base-url        | OPENAEV_REPORTING_RENDER-BASE-URL        |              | URL the headless browser uses to reach the platform. Empty uses loopback (`http(s)://localhost:{server.port}`). Override only when loopback does not serve the UI |
 
 ### Dependencies
 
@@ -155,18 +178,17 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 | openaev.xtm.opencti.{id}.url                 | OPENAEV_XTM_OPENCTI_{id}_URL                 |               | OpenCTI instance URL                                                                                                                           |
 | openaev.xtm.opencti.{id}.api_url             | OPENAEV_XTM_OPENCTI_{id}_API_URL             |               | OpenCTI API URL — completely overrides the base URL. Defaults to `openaev.xtm.opencti.{id}.url` + `/graphql`                                   |
 | openaev.xtm.opencti.{id}.token               | OPENAEV_XTM_OPENCTI_{id}_TOKEN               |               | OpenCTI API token                                                                                                                              |
-| openaev.xtm.opencti.{id}.disable-display     | OPENAEV_XTM_OPENCTI_{id}_DISABLE-DISPLAY     | `false`       | Hide this OpenCTI instance in the UI                                                                                                           |
 
 #### XTM Suite: XTM Hub
 
 | Parameter                                             | Environment variable             | Default value | Description                                                         |
 |:--------------------------------------------------------|:--------------------------------------------------------|:---------------------------------------|:----------------------------------------------------------------------|
-| openaev.xtm.hub.enable                                | OPENAEV_XTM_HUB_ENABLE                                | false                                | Enables integration with XTM Hub                                     |
-| openaev.xtm.hub.url                                   | OPENAEV_XTM_HUB_URL              |               | XTM Hub URL                                                         |
+| openaev.xtm.hub.enable                                | OPENAEV_XTM_HUB_ENABLE                                | true                                 | Enables integration with XTM Hub                                     |
+| openaev.xtm.hub.url                                   | OPENAEV_XTM_HUB_URL                                   | https://hub.filigran.io              | XTM Hub URL                                                         |
 | openaev.xtm.hub.override-api-url                      | OPENAEV_XTM_HUB_OVERRIDE_API_URL                      |                                      | When specified, override `openaev.xtm.hub.url` during backend calls |
 | openaev.xtm.hub.collector.enable                      | OPENAEV_XTM_HUB_COLLECTOR_ENABLE                      | false                                | Enables the XTM Hub connectivity collector                          |
 | openaev.xtm.hub.collector.id                          | OPENAEV_XTM_HUB_COLLECTOR_ID                          | b402f1f5-29ba-4ee3-b366-f0467754cf4e | Identifier of the XTM Hub connectivity collector                    |
-| openaev.xtm.hub.collector.connectivity-check-interval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 1 hour in milliseconds               | Interval at which the connectivity with XTM Hub is checked          |
+| openaev.xtm.hub.collector.connectivity-check-interval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 3600000 (1 hour)                     | Interval in milliseconds at which the connectivity with XTM Hub is checked |
 
 #### XTM Suite: XTM One
 
@@ -175,31 +197,39 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 | openaev.xtm.one.url   | OPENAEV_XTM_ONE_URL   |               | XTM One URL, as reachable from OpenAEV (an internal address such as `http://xtm-one:4000` in Docker works)         |
 | openaev.xtm.one.token | OPENAEV_XTM_ONE_TOKEN |               | XTM One registration token. With the URL, OpenAEV registers with XTM One every 5 minutes                          |
 
-OpenAEV signs the requests of its users to XTM One, and verifies the requests XTM One sends back, with short-lived tokens. When `OPENAEV_XTM_ONE_URL` is an internal address, OpenAEV reads XTM One's public identity (its `BASE_URL`) from `/xtm/auth/metadata` on that address and fetches XTM One's signing keys there too, so the two URLs may differ. The links that open XTM One in the browser (Ask Ariane, the CTEM Command Center, the MCP card, the autonomous run and autonomous attack settings) use that public identity as well: it is read in the background with the five-minute registration and refreshed at most once an hour, so a change of XTM One's public URL reaches them at the next successful refresh; while XTM One cannot be reached they keep the last identity it published. On the XTM One side, set `OPENAEV_API_URL` to the address XTM One reaches OpenAEV on. `openaev.base-url` stays the public URL of OpenAEV: it is the identity XTM One trusts, and the audience OpenAEV expects on XTM One's tokens.
+OpenAEV and XTM One sign their requests to each other with short-lived tokens:
+
+- OpenAEV reads XTM One's public identity (its `BASE_URL`) and signing keys from `/xtm/auth/metadata` on `openaev.xtm.one.url`, so this URL can be an internal address.
+- The links that open XTM One in the browser also use this public identity. OpenAEV refreshes it with the 5-minute registration, at most once an hour, and keeps the last known value while XTM One is unreachable.
+- On the XTM One side, set `OPENAEV_API_URL` to the address XTM One uses to reach OpenAEV.
+- Keep `openaev.base-url` as the public URL of OpenAEV: XTM One trusts it as OpenAEV's identity and token audience.
 
 #### PostgreSQL
 
 | Parameter                  | Environment variable       | Default value         | Description                                                                                |
 |:------------------------------|:------------------------------|:-------------------------|:-------------------------------------------------------------------------------------------|
-| spring.datasource.url      | SPRING_DATASOURCE_URL      | jdbc:postgresql://... | URL of the PostgreSQL database (ex jdbc:postgresql://postgresql.mydomain.com:5432/openaev) |
-| spring.datasource.username | SPRING_DATASOURCE_USERNAME |                       | Login for the database                                                                     |
-| spring.datasource.password | SPRING_DATASOURCE_PASSWORD | password              | Password for the database                                                                  |
+| spring.datasource.url      | SPRING_DATASOURCE_URL      | jdbc:postgresql://localhost:5432/openaev | URL of the PostgreSQL database                                              |
+| spring.datasource.username | SPRING_DATASOURCE_USERNAME | openaev               | Login for the database                                                                     |
+| spring.datasource.password | SPRING_DATASOURCE_PASSWORD | openaev               | Password for the database                                                                  |
+| spring.datasource.hikari.maximum-pool-size | SPRING_DATASOURCE_HIKARI_MAXIMUM-POOL-SIZE | 20 | Maximum number of database connections in the pool                                  |
 
 #### Engine
 
-2 options are available for the engine: 
+OpenAEV stores and searches data in Elasticsearch or OpenSearch. The default selector `elk` targets Elasticsearch 8
+(8.19 or later). Elasticsearch 9 is also supported with `engine.engine-selector=elk9`.
 
-- With a classic authentication, you can use either ElasticSearch or OpenSearch as an engine.
+With classic authentication, use Elasticsearch or OpenSearch:
 
 | Parameter              | Environment variable   | Default value         | Description                                                                                                                            |
 |:--------------------------|:--------------------------|:--------------------------|:---------------------------------------------------------------------------------------------------------------------------------------|
 | engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Classic authentication (no)                                                                                                            |
-| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch 8 -default-, `elk9` for Elasticsearch 9 and `opensearch` for OpenSearch) |
-| engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                                                                      |
-| engine.username        | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                                                                     |
-| engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the database                                                                                  |
+| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use: `elk` (Elasticsearch 8, default), `elk9` (Elasticsearch 9) or `opensearch` (OpenSearch)                                  |
+| engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the engine                                                                                                                      |
+| engine.username        | ENGINE_USERNAME        |                       | Optional. Login for the engine                                                                                                         |
+| engine.password        | ENGINE_PASSWORD        |                       | Optional. Password for the engine                                                                                                      |
+| engine.index-prefix    | ENGINE_INDEX-PREFIX    | openaev               | Prefix of the index and lifecycle policy names                                                                                        |
 
-- With AWS SigV4 authentication, you can use Amazon OpenSearch or Amazon OpenSearch Serverless as an engine.
+With AWS SigV4 authentication, use Amazon OpenSearch or Amazon OpenSearch Serverless:
 
 | Parameter                    | Environment variable     | Default value         | Description                                                                                                |
 |:-----------------------------|:-------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------------------|
@@ -226,8 +256,9 @@ Tuning parameters applicable to both engines:
 | engine.indexing-misfire-threshold-ms     | ENGINE_INDEXING_MISFIRE_THRESHOLD_MS     | 120000        | Threshold in milliseconds after which a model synchronisation is declared misfired and is rescheduled.                                                                                                                                                             |
 | engine.indexing-reset-epoch-reassert-delay-seconds | ENGINE_INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS | 180 | Delay in seconds after which an instance that reset an index during a rolling deploy re-asserts the indexing cursor of that model, so a stale cursor written by an instance still running an older version does not skip rows. Must exceed the longest indexing round. Set to `0` to disable once every instance runs OpenAEV 3.261001.0 or later. |
 
-If you switch your engine selector, you'll need to delete the `indexing_status` table in PostgreSQL to trigger a full
-reindex.
+!!! warning "Switching engines"
+
+    After you change `engine.engine-selector`, delete the `indexing_status` table in PostgreSQL to trigger a full reindex.
 
 #### RabbitMQ
 
@@ -243,35 +274,36 @@ reindex.
 | openaev.rabbitmq.pass                 | OPENAEV_RABBITMQ_PASS                 | guest                             | RabbitMQ password                                                                                                                                                                 |
 | openaev.rabbitmq.queue-type           | OPENAEV_RABBITMQ_QUEUE-TYPE           | classic                           | RabbitMQ Queue Type ("classic" or "quorum")                                                                                                                                       |
 | openaev.rabbitmq.management-insecure  | OPENAEV_RABBITMQ_MANAGEMENT-INSECURE  | `true`                            | Whether or not the calls to the management plugin of rabbitmq can be insecure                                                                                                     |
-| openaev.rabbitmq.trust.store          | OPENAEV_RABBITMQ_TRUST_STORE          | <file:/path/to/client-store.p12\> | Path to the p12 keystore file to use if ssl is activated and insecure management is deactivated. The keystore must contain the client side certificate and key generated for ssl. |
-| openaev.rabbitmq.trust-store-password | OPENAEV_RABBITMQ_TRUST-STORE-PASSWORD | <trust-store-password\>           | Password of the keystore                                                                                                                                                          |
+| openaev.rabbitmq.trust-store          | OPENAEV_RABBITMQ_TRUST_STORE          |                                   | Path to the p12 trust store (for example `file:/path/to/truststore.p12`) with the CA of the RabbitMQ server certificate. Used when SSL is on. When empty, the JVM default trust store applies. |
+| openaev.rabbitmq.trust-store-password | OPENAEV_RABBITMQ_TRUST-STORE-PASSWORD |                                   | Password of the keystore                                                                                                                                                          |
 | openaev.rabbitmq.publish-timeout-ms   | OPENAEV_RABBITMQ_PUBLISH-TIMEOUT-MS   | 30000                             | Hard cap in milliseconds on a single publish, so a broker that stops answering cannot hold a database transaction open. Must be strictly positive, otherwise the default applies.  |
 
 #### S3 bucket
 
 | Parameter               | Environment variable    | Default value | Description                                                                                                                                                                                                                                                                                                                                                                                                                   |
 |:---------------------------|:---------------------------|:-------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| minio.endpoint          | MINIO_ENDPOINT          | localhost     | Hostname of the S3 Service. Example if you use AWS Bucket S3: __s3.us-east-1.amazonaws.com__ (if `minio:bucket_region` value is _us-east-1_). This parameter value can be omitted if you use Silo as an S3 Bucket Service.                                                                                                                                                                                                    |
-| minio.port              | MINIO_PORT              | 9000          | Port of the S3 Service. For AWS Bucket S3 over HTTPS, this value can be changed (usually __443__).                                                                                                                                                                                                                                                                                                                            |
-| minio.secure            | MINIO_SECURE            | `false`       | Indicates whether the S3 Service has TLS enabled. For AWS Bucket S3 over HTTPS, this value could be `true`.                                                                                                                                                                                                                                                                                                                   |
-| minio.access-key        | MINIO_ACCESS-KEY        | key           | Access key for the S3 Service.                                                                                                                                                                                                                                                                                                                                                                                                |
-| minio.access-secret     | MINIO_ACCESS-SECRET     | secret        | Secret key for the S3 Service.                                                                                                                                                                                                                                                                                                                                                                                                |
-| minio.bucket            | MINIO_BUCKET            | openaev       | S3 bucket name. Useful to change if you use AWS.                                                                                                                                                                                                                                                                                                                                                                              |
-| minio.bucket-region     | MINIO_BUCKET-REGION     | us-east-1     | Region of the S3 bucket if you are using AWS. This parameter value can be omitted if you use Silo as an S3 Bucket Service.                                                                                                                                                                                                                                                                                                    |
-| openaev.s3.use-aws-role | OPENAEV_S3_USE-AWS-ROLE | `false`       | Whether or not we want to get the AWS role using AWS Security Token Service                                                                                                                                                                                                                                                                                                                                                   |
-| openaev.s3.sts-endpoint | OPENAEV_S3_STS-ENDPOINT |               | `experimental` This parameter is optional. If it stays empty, it will use either the AWS legacy STS endpoint (https://sts.amazonaws.com) or the regional one using AWS_REGION if the environment variable is set (you can learn more about it [here](https://docs.aws.amazon.com/general/latest/gr/sts.html#sts_region)). Otherwise, if you want to use your own custom implementation of STS endpoints, you can set it here. |
+| minio.endpoint          | MINIO_ENDPOINT          | localhost     | Hostname of the S3 service. For AWS S3, for example `s3.us-east-1.amazonaws.com`                                                                                                                                                                       |
+| minio.port              | MINIO_PORT              | 9000          | Port of the S3 service. For AWS S3 over HTTPS, usually `443`                                                                                                                                                                                         |
+| minio.secure            | MINIO_SECURE            | `false`       | Turn on when the S3 service uses TLS (for example AWS S3 over HTTPS)                                                                                                                                                                                |
+| minio.access-key        | MINIO_ACCESS-KEY        | key           | Access key for the S3 service                                                                                                                                                                                                                       |
+| minio.access-secret     | MINIO_ACCESS-SECRET     | secret        | Secret key for the S3 service                                                                                                                                                                                                                       |
+| minio.bucket            | MINIO_BUCKET            | openaev       | S3 bucket name. Created at startup if missing                                                                                                                                                                                                       |
+| openaev.s3.use-aws-role | OPENAEV_S3_USE-AWS-ROLE | `false`       | Use the AWS IAM role of the host, through AWS STS (Security Token Service), instead of access keys                                                                                                                                                  |
+| openaev.s3.sts-endpoint | OPENAEV_S3_STS-ENDPOINT |               | `experimental` Optional custom STS endpoint. When empty, OpenAEV uses the global AWS STS endpoint (`https://sts.amazonaws.com`), or the [regional one](https://docs.aws.amazon.com/general/latest/gr/sts.html#sts_region) when `AWS_REGION` is set |
 
 #### Agents (executors)
 
-To be able to use the power of the OpenAEV platform on endpoints, you need at least one **neutral executor** that will
-be in charge of executing implants as detached processes. Implants will then execute Threat Arsenal Actions.
+To run actions on endpoints, you need at least one **neutral Executor**. It runs implants as detached processes, and
+the implants run the Threat Arsenal actions.
 
 | Parameter                                    | Environment variable                         | Default value | Description                                                                              |
 |:------------------------------------------------|:------------------------------------------------|:------------------|:-------------------------------------------------------------------------------------------|
-| executor.openaev.agent.max-simultaneous-jobs | EXECUTOR_OPENAEV_AGENT_MAX-SIMULTANEOUS-JOBS | 5             | Simultaneous jobs execution limitation for agents, to avoid overloading the system.      |
+| executor.openaev.agent.max-simultaneous-jobs | EXECUTOR_OPENAEV_AGENT_MAX-SIMULTANEOUS-JOBS | 5             | Maximum number of simultaneous jobs per agent, to avoid overloading the endpoint         |
+| executor.openaev.agent.auto-update-enabled   | EXECUTOR_OPENAEV_AGENT_AUTO-UPDATE-ENABLED   | true          | When `false`, the platform does not queue agent upgrade jobs. Only applies with an active Enterprise Edition license |
 | openaev.agent.queue-threshold              | OPENAEV_AGENT_QUEUE-THRESHOLD               | 0            | Max number of pending jobs per agent before marking it overloaded. 0 disables the check. |
+
 ##### OpenAEV Agent
-s
+
 The OpenAEV agent is enabled by default and cannot be disabled. It is available for:
 
 - Windows (`x86_64` / `arm64`)
@@ -280,21 +312,25 @@ The OpenAEV agent is enabled by default and cannot be disabled. It is available 
 
 ##### Other executors
 
-To know more about other available executors, please refer to the [executors documentation](../../integrations/executors/executors.md)
+See the [Executors documentation](../../integrations/executors/executors.md) for the other available Executors.
 
 #### Mail services
 
-For the associated mailbox, for the moment the platform only relies on IMAP (Internet Message Access Protocol) / SMTP (Simple Mail Transfer Protocol) protocols, we are actively developing
-integrations with APIs such as O365 and Google Apps.
+The platform sends emails with SMTP (Simple Mail Transfer Protocol) and synchronizes mailboxes with IMAP (Internet
+Message Access Protocol).
+
+!!! warning "Gmail two-factor authentication"
+
+    With two-factor authentication on a Gmail account, SMTP and IMAP need an [app-specific password](https://support.google.com/accounts/answer/185833).
 
 ##### General
 
-These parameters control the default sender identity used when creating Scenarios and Simulations. They are always
-available (mandatory) regardless of which mail transport (SMTP/IMAP) is configured below.
+These mandatory parameters set the default sender identity of new Scenarios and Simulations, whatever the mail
+transport.
 
 | Parameter                   | Environment variable        | Default value        | Description                                                                                                                                                                                          |
 |:-------------------------------|:--------------------------------|:-------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| openaev.default-mailer      | OPENAEV_DEFAULT-MAILER      | no-reply@openaev.io  | Default sender email address, used to pre-fill new Scenarios/Simulations. This field is read-only in the UI (locked to prevent spoofing — see [#4726](https://github.com/OpenAEV-Platform/openaev/issues/4726)); only the sender name below can be edited from the UI |
+| openaev.default-mailer      | OPENAEV_DEFAULT-MAILER      | no-reply@openaev.io  | Default sender email address, used to pre-fill new Scenarios/Simulations. It is read-only in the UI to prevent spoofing; only the sender name below can be edited from the UI |
 | openaev.default-mailer-name | OPENAEV_DEFAULT-MAILER-NAME | no-reply             | Default sender display name ("Sender email from"), pre-fills the sender name on new Scenario/Simulation creation. Editable per-Scenario/Simulation afterwards in the UI                              |
 | openaev.default-reply-to    | OPENAEV_DEFAULT-REPLY-TO    | contact@openaev.io   | Default Reply-To address used on outgoing emails                                                                                                                                                     |
 
@@ -303,32 +339,21 @@ available (mandatory) regardless of which mail transport (SMTP/IMAP) is configur
 | Parameter                      | Environment variable           | Default value     | Description                                                                                                            |
 |:-----------------------------------|:------------------------------------|:----------------------|:-----------------------------------------------------------------------------------------------------------------------|
 | openaev.listener.smtp.enabled  | OPENAEV_LISTENER_SMTP_ENABLED  | `true`            | SMTP connection monitoring, enabled by default. Allow you to monitor service state from healthchecks and settings page |
-| spring.mail.host               | SPRING_MAIL_HOST               | smtp.mail.com     | SMTP Server hostname                                                                                                   |
-| spring.mail.port               | SPRING_MAIL_PORT               | 465               | SMTP Server port                                                                                                       |
+| spring.mail.host               | SPRING_MAIL_HOST               | smtp.gmail.com    | SMTP Server hostname                                                                                                   |
+| spring.mail.port               | SPRING_MAIL_PORT               | 587               | SMTP Server port                                                                                                       |
 | spring.mail.username           | SPRING_MAIL_USERNAME           | username@mail.com | SMTP Server username                                                                                                   |
 | spring.mail.password           | SPRING_MAIL_PASSWORD           | password          | SMTP Server password                                                                                                   |
 
 | Parameter                                        | Environment variable                             | Default value | Description                   |
 |:-----------------------------------------------------|:-----------------------------------------------------|:------------------|:--------------------------------|
-| spring.mail.properties.mail.smtp.ssl.enable      | SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE      | `true`        | Turn on SMTP SSL mode         |
+| spring.mail.properties.mail.smtp.ssl.enable      | SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE      | `false`       | Turn on SMTP SSL mode         |
 | spring.mail.properties.mail.smtp.ssl.trust       | SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST       | *             | Trust unverified certificates |
 | spring.mail.properties.mail.smtp.auth            | SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH            | `true`        | Turn on SMTP authentication   |
-| spring.mail.properties.mail.smtp.starttls.enable | SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE | `false`       | Turn on SMTP STARTTLS         |
+| spring.mail.properties.mail.smtp.starttls.enable | SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE | `true`        | Turn on SMTP STARTTLS         |
 
-> **Note :** Example with Gmail
+!!! note "Gmail"
 
-| Parameter                                        | Environment variable                             | Value             | Description                  |
-|:-----------------------------------------------------|:-----------------------------------------------------|:----------------------|:--------------------------------|
-| spring.mail.host                                 | SPRING_MAIL_HOST                                 | smtp.gmail.com    | Gmail SMTP server hostname   |
-| spring.mail.port                                 | SPRING_MAIL_PORT                                 | 587               | Gmail SMTP server port (TLS) |
-| spring.mail.username                             | SPRING_MAIL_USERNAME                             | username@mail.com | Gmail address                |
-| spring.mail.password                             | SPRING_MAIL_PASSWORD                             | app password      | Gmail App-specific password  |
-| spring.mail.properties.mail.smtp.auth            | SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH            | true              | Enable SMTP authentication   |
-| spring.mail.properties.mail.smtp.starttls.enable | SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE | true              | Enable SMTP STARTTLS         |
-
-!!! warning "Gmail two-factor authentication"
-
-    If you are using two-factor authentication on your Gmail account, an app-specific password is required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
+    The defaults match Gmail (port 587 with STARTTLS). Set your Gmail address as username and an app-specific password as password.
 
 ##### IMAP
 
@@ -347,41 +372,43 @@ available (mandatory) regardless of which mail transport (SMTP/IMAP) is configur
 | openaev.mail.imap.ssl.enable      | OPENAEV_MAIL_IMAP_SSL_ENABLE      | true          | Turn on IMAP SSL mode         |
 | openaev.mail.imap.ssl.trust       | OPENAEV_MAIL_IMAP_SSL_TRUST       | *             | Trust unverified certificates |
 | openaev.mail.imap.auth            | OPENAEV_MAIL_IMAP_AUTH            | true          | Turn on IMAP authentication   |
-| openaev.mail.imap.starttls.enable | OPENAEV_MAIL_IMAP_STARTTLS_ENABLE | true          | Turn on IMAP STARTTLS         |
+| openaev.mail.imap.starttls.enable | OPENAEV_MAIL_IMAP_STARTTLS_ENABLE | false         | Turn on IMAP STARTTLS         |
 
-> **Note :** Example with Gmail
+!!! example "Gmail"
 
-| Parameter                    | Environment variable         | Value             | Description                             |
-|:---------------------------------|:----------------------------------|:----------------------|:---------------------------------------------|
-| openaev.mail.imap.enabled    | OPENAEV_MAIL_IMAP_ENABLED    | true              | Enable IMAP for Gmail                   |
-| openaev.mail.imap.host       | OPENAEV_MAIL_IMAP_HOST       | imap.gmail.com    | Gmail IMAP server hostname              |
-| openaev.mail.imap.port       | OPENAEV_MAIL_IMAP_PORT       | 993               | Gmail IMAP port (SSL)                   |
-| openaev.mail.imap.username   | OPENAEV_MAIL_IMAP_USERNAME   | username@mail.com | Gmail address                           |
-| openaev.mail.imap.password   | OPENAEV_MAIL_IMAP_PASSWORD   | app password      | Gmail App-specific password             |
-| openaev.mail.imap.ssl.enable | OPENAEV_MAIL_IMAP_SSL_ENABLE | true              | Enable IMAP SSL                         |
-| openaev.mail.imap.ssl.trust  | OPENAEV_MAIL_IMAP_SSL_TRUST  | *                 | Trust unverified certificates           |
-| openaev.mail.imap.auth       | OPENAEV_MAIL_IMAP_AUTH       | true              | Enable IMAP authentication              |
-| openaev.mail.imap.sent       | OPENAEV_MAIL_IMAP_SENT       | [Gmail]/Sent Mail | IMAP sent directory to synchronize from |
+    Keep the other defaults and set:
 
-!!! warning "Gmail two-factor authentication"
-
-    If you are using two-factor authentication on your Gmail account, an app-specific password is required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
+    ```properties
+    openaev.mail.imap.enabled=true
+    openaev.mail.imap.host=imap.gmail.com
+    openaev.mail.imap.username=username@gmail.com
+    openaev.mail.imap.password=<app-specific password>
+    openaev.mail.imap.sent=[Gmail]/Sent Mail
+    ```
 
 #### AI service
 
 !!! note "AI deployment and cloud services"
 
-    There are several possibilities for [Enterprise Edition](../../administration/enterprise.md) customers to use OpenAEV AI endpoints:
+    [Enterprise Edition](../../administration/enterprise.md) customers can use OpenAEV AI endpoints in several ways:
 
-     - Use the Filigran AI Service leveraging our custom AI model using the token given by the support team.
-     - Use OpenAI or MistralAI cloud endpoints using your own tokens.
-     - Deploy or use local AI endpoints (Filigran can provide you with the custom model).
+    - The Filigran AI Service, with the token given by the support team.
+    - OpenAI or MistralAI cloud endpoints, with your own tokens.
+    - Local AI endpoints (Filigran can provide the custom model).
 
 | Parameter       | Environment variable | Default value | Description                                               |
 |:-------------------|:--------------------|:-----------------|:--------------------------------------------------------------|
-| ai.enabled      | AI_ENABLED           | true          | Enable AI capabilities                                    |
+| ai.enabled      | AI_ENABLED           | false         | Enable AI capabilities                                    |
 | ai.type         | AI_TYPE              | mistralai     | AI type (`mistralai` or `openai`)                         |
-| ai.endpoint     | AI_ENDPOINT          |               | Endpoint URL (empty means default cloud service)          |
+| ai.endpoint     | AI_ENDPOINT          |               | Endpoint URL. Required when AI is enabled |
 | ai.token        | AI_TOKEN             |               | Token for endpoint credentials                            |
-| ai.model        | AI_MODEL             |               | Model to be used for text generation (depending on type)  |
+| ai.model        | AI_MODEL             | mistral       | Model to be used for text generation (depending on type)  |
 | ai.model_images | AI_MODEL_IMAGES      |               | Model to be used for image generation (depending on type) |
+
+## What's next?
+
+- [Installation](../../deployment/platform/installation.md) -- Deploy OpenAEV with Docker or manually
+- [Authentication](../../deployment/platform/authentication.md) -- Configure local, OpenID and SAML2 login
+- [Run modes](../../deployment/platform/run-modes.md) -- Start the platform in safe mode
+- [Global debug mode](../../administration/debug-mode.md) -- Debug mode properties for diagnostics
+- [Usage telemetry](telemetry.md) -- Usage data the platform collects

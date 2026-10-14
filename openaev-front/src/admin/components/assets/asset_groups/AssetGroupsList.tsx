@@ -54,7 +54,8 @@ const AssetGroupsList: FunctionComponent<Props> = ({
   const location = useLocation();
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [assetGroupValues, setAssetGroupValues] = useState<AssetGroupOutput[]>([]);
+  // Asset groups fetched because the store did not hold them yet.
+  const [fetchedAssetGroups, setFetchedAssetGroups] = useState<AssetGroupOutput[]>([]);
   const { fetchAssetGroupsByIds } = useContext(EndpointContext);
   const { assetGroupMaps } = useHelper((helper: AssetGroupsHelper) => ({ assetGroupMaps: helper.getAssetGroupMaps() }));
 
@@ -63,22 +64,29 @@ const AssetGroupsList: FunctionComponent<Props> = ({
   };
 
   useEffect(() => {
-    setLoading(true);
-    const assetGroups = assetGroupIds.map(id => assetGroupMaps[id]).filter(e => e !== undefined) as AssetGroupOutput[];
     const missingIds = assetGroupIds.filter(id => !assetGroupMaps[id]);
 
     if (missingIds.length > 0) {
+      setLoading(true);
       // Can't check if the EndpointContext exists so check the URL to know which method used
       const assetGroupPromise = location.pathname.includes(ASSET_RULES_BASE_URL) ? findAssetGroups(missingIds) : fetchAssetGroupsByIds(missingIds);
       assetGroupPromise.then((result) => {
-        setAssetGroupValues([...result.data, ...assetGroups]);
+        setFetchedAssetGroups(result.data);
         setLoading(false);
       });
     } else {
-      setAssetGroupValues(assetGroups);
       setLoading(false);
     }
   }, [assetGroupIds]);
+
+  // The store wins over the fetched copy: the popover actions (update, manage assets) write the
+  // edited asset group to the store, so the list shows the edit without being reloaded.
+  const assetGroupValues = useMemo(() => {
+    const fetchedById = new Map(fetchedAssetGroups.map(assetGroup => [assetGroup.asset_group_id, assetGroup]));
+    return assetGroupIds
+      .map(id => (assetGroupMaps[id] as AssetGroupOutput | undefined) ?? fetchedById.get(id))
+      .filter((assetGroup): assetGroup is AssetGroupOutput => assetGroup !== undefined);
+  }, [assetGroupIds, assetGroupMaps, fetchedAssetGroups]);
 
   // Headers
   const headers: Header[] = useMemo(() => [

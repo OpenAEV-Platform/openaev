@@ -51,6 +51,16 @@ of the intended finding:
   code path that isn't v2 yet. Only recommend removing the call when the
   block is read-only, every touched table is v2-active, and no legacy path is
   reached — otherwise flag its *absence* as 🔴 CRITICAL, never its presence.
+- **Step 3 (native queries)**: besides the v1/v2 shape checks, look at what the
+  join is *keyed on*. An id that repeats across tenants by design, which is any
+  key whose uniqueness is composite with `tenant_id`, is not a tenant boundary:
+  joining on it alone admits another tenant's row even when every table in the
+  statement is v2-active, because the inspector restricts tables and not join
+  keys. `openaev-api/src/test/resources/shared-tenant-keys.txt` is the list.
+  A join on one of them either constrains both sides to the same tenant or
+  carries a reasoned waiver, and the waiver's `reaches-active-table:` and
+  `until-active:` reasons are themselves checked against the activation list,
+  so an activation can expire one. Flag an unwaived one as 🟠 HIGH.
 
 ## Model Policy
 

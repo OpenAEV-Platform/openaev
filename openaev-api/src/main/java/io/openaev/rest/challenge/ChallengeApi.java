@@ -52,7 +52,7 @@ public class ChallengeApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
   public Iterable<Challenge> challenges(TxCtx ctx) {
     // The documents are fetch-joined here, so the enrichment does not load them per challenge.
-    return challengeRepository.findAllFetchingDocuments().stream()
+    return challengeService.findAllWithDocumentsAndTags().stream()
         .map(challengeService::enrichChallengeWithExercisesOrScenarios)
         .toList();
   }
@@ -66,11 +66,9 @@ public class ChallengeApi extends RestBehavior {
     if (challengeIds.isEmpty()) {
       return List.of();
     }
-    // Return raw Challenge entities, whose lazy challenge_documents @ManyToMany would otherwise
-    // serialize open-in-view AFTER the scoped transaction commits and fail closed to an empty array
-    // once documents is v2-active. A single scoped query fetch-joins the documents inside the
-    // scope, instead of one lazy-initialization SELECT per challenge.
-    return this.challengeRepository.findAllByIdInFetchingDocuments(challengeIds);
+    // Returns raw Challenge entities: their documents and tags are loaded inside the scope, as a
+    // lazy load during serialization would fail closed to an empty array.
+    return this.challengeService.findAllByIdWithDocumentsAndTags(challengeIds);
   }
 
   @PutMapping({CHALLENGE_URI + "/{challengeId}", TENANT_CHALLENGE_URI + "/{challengeId}"})

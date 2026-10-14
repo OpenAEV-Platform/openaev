@@ -3,8 +3,11 @@ package io.openaev.rest.domain.enums;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.Tenant;
 import java.util.*;
+import java.util.regex.Pattern;
 
 public class PresetDomain {
+  private static final Pattern NOT_LETTER_OR_DIGIT = Pattern.compile("[^\\p{L}\\p{N}]");
+
   private static final Domain ENDPOINT = Domain.builder().name("Endpoint").color("#389CFF").build();
   private static final Domain NETWORK = Domain.builder().name("Network").color("#009933").build();
   private static final Domain WEB_APP = Domain.builder().name("Web App").color("#FF9933").build();
@@ -20,6 +23,19 @@ public class PresetDomain {
   private static final Domain TABLETOP = Domain.builder().name("Tabletop").color("#FFCC33").build();
   private static final Domain TOCLASSIFY =
       Domain.builder().name("To classify").color("#FFFFFF").build();
+
+  private static final List<Domain> PRESETS =
+      List.of(
+          ENDPOINT,
+          NETWORK,
+          WEB_APP,
+          EMAIL_INFILTRATION,
+          DATA_EXFILTRATION,
+          URL_FILTERING,
+          CLOUD,
+          ARTIFICIAL_INTELLIGENCE,
+          TABLETOP,
+          TOCLASSIFY);
 
   private static final Map<Domain, List<String>> domainKeywordsMap =
       Map.of(
@@ -72,23 +88,35 @@ public class PresetDomain {
 
   public static List<Domain> getDomainsForTenant(Tenant tenant) {
     List<Domain> domains = new ArrayList<>();
-    List<Domain> listToInsert =
-        List.of(
-            ENDPOINT,
-            NETWORK,
-            WEB_APP,
-            EMAIL_INFILTRATION,
-            DATA_EXFILTRATION,
-            URL_FILTERING,
-            CLOUD,
-            ARTIFICIAL_INTELLIGENCE,
-            TABLETOP,
-            TOCLASSIFY);
-    for (Domain domain : listToInsert) {
+    for (Domain domain : PRESETS) {
       domains.add(
           Domain.builder().name(domain.getName()).color(domain.getColor()).tenant(tenant).build());
     }
     return domains;
+  }
+
+  /** Names of the preset domains every tenant is provisioned with. */
+  public static List<String> getNames() {
+    return PRESETS.stream().map(Domain::getName).toList();
+  }
+
+  public static boolean isPresetName(String name) {
+    return getNames().contains(name);
+  }
+
+  /**
+   * Key under which two domain names designate the same domain: lower case, letters and digits
+   * only, so "Table-Top", "table top" and "Tabletop" all share the key "tabletop". A name without
+   * any letter or digit yields an empty key, which must never be matched.
+   *
+   * @param name a domain name, possibly null
+   * @return the matching key, empty when the name is null or has no letter or digit
+   */
+  public static String toMatchingKey(String name) {
+    if (name == null) {
+      return "";
+    }
+    return NOT_LETTER_OR_DIGIT.matcher(name.toLowerCase(Locale.ROOT)).replaceAll("");
   }
 
   public static Set<Domain> getRelevantDomainsFromKeywords(String searchValue) {
