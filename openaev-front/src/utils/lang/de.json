@@ -42,6 +42,7 @@
   "A meaningful share of attacks got through - worth reviewing.": "Ein erheblicher Anteil der Angriffe ist durchgeschlagen – dies sollte überprüft werden.",
   "A meaningful share of validations got through - worth reviewing.": "Ein erheblicher Teil der Validierungen kam durch - eine Überprüfung lohnt sich.",
   "a Missing scope cannot be resolved: carry a real scope": "ein fehlender Geltungsbereich kann nicht aufgelöst werden: Geben Sie einen tatsächlichen Geltungsbereich an",
+  "A payload with this name already exists": "Ein Payload mit diesem Namen existiert bereits",
   "A plan can only be launched once building has settled": "Ein Plan kann erst gestartet werden, wenn der Aufbau abgeschlossen ist",
   "A prerequisite check failed before the main command could run. Review prerequisite dependencies and ensure they are met on the target.": "Eine Voraussetzungsprüfung ist fehlgeschlagen, bevor der Hauptbefehl ausgeführt werden konnte. Überprüfen Sie die Abhängigkeiten und stellen Sie sicher, dass sie auf dem Ziel erfüllt sind.",
   "A revoked payload no longer runs in this tenant: injects using it are skipped and their scenarios cannot launch until it is lifted.": "Ein widerrufener Payload wird in diesem Mandanten nicht mehr ausgeführt: Injects, die ihn verwenden, werden übersprungen, und ihre Szenarien können erst nach Aufhebung des Widerrufs gestartet werden.",

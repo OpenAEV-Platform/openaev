@@ -42,6 +42,7 @@
   "A meaningful share of attacks got through - worth reviewing.": "A meaningful share of attacks got through - worth reviewing.",
   "A meaningful share of validations got through - worth reviewing.": "A meaningful share of validations got through - worth reviewing.",
   "a Missing scope cannot be resolved: carry a real scope": "a Missing scope cannot be resolved: carry a real scope",
+  "A payload with this name already exists": "A payload with this name already exists",
   "A plan can only be launched once building has settled": "A plan can only be launched once building has settled",
   "A prerequisite check failed before the main command could run. Review prerequisite dependencies and ensure they are met on the target.": "A prerequisite check failed before the main command could run. Review prerequisite dependencies and ensure they are met on the target.",
   "A revoked payload no longer runs in this tenant: injects using it are skipped and their scenarios cannot launch until it is lifted.": "A revoked payload no longer runs in this tenant: injects using it are skipped and their scenarios cannot launch until it is lifted.",

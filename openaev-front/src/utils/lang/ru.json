@@ -42,6 +42,7 @@
   "A meaningful share of attacks got through - worth reviewing.": "Значительная доля атак прошла — стоит проверить.",
   "A meaningful share of validations got through - worth reviewing.": "Значительная часть проверок прошла - стоит проверить.",
   "a Missing scope cannot be resolved: carry a real scope": "невозможно разрешить отсутствующую область действия: укажите реальную область действия",
+  "A payload with this name already exists": "Полезная нагрузка с таким именем уже существует",
   "A plan can only be launched once building has settled": "План можно запустить только после завершения сборки",
   "A prerequisite check failed before the main command could run. Review prerequisite dependencies and ensure they are met on the target.": "Перед выполнением основной команды произошел сбой проверки предварительных условий. Проверьте зависимости предварительных условий и убедитесь, что они выполняются на целевой системе.",
   "A revoked payload no longer runs in this tenant: injects using it are skipped and their scenarios cannot launch until it is lifted.": "Отозванный payload больше не выполняется в этом тенанте: использующие его инжекты пропускаются, а их сценарии нельзя запустить, пока отзыв не отменён.",

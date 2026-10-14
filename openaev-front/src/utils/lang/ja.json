@@ -42,6 +42,7 @@
   "A meaningful share of attacks got through - worth reviewing.": "かなりの割合の攻撃が突破されました。確認が必要です。",
   "A meaningful share of validations got through - worth reviewing.": "検証のかなりの部分が突破されました - 確認をお勧めします。",
   "a Missing scope cannot be resolved: carry a real scope": "Missingスコープは解決できません。実際のスコープを指定してください",
+  "A payload with this name already exists": "この名前のペイロードは既に存在します",
   "A plan can only be launched once building has settled": "プランは、ビルドが完了してからでないと起動できません",
   "A prerequisite check failed before the main command could run. Review prerequisite dependencies and ensure they are met on the target.": "メインコマンドの実行前に前提条件チェックが失敗しました。前提条件の依存関係を確認し、ターゲット上で満たされていることを確認してください。",
   "A revoked payload no longer runs in this tenant: injects using it are skipped and their scenarios cannot launch until it is lifted.": "失効したペイロードはこのテナントで実行されなくなります。これを使用するインジェクトはスキップされ、失効が解除されるまでそのシナリオは開始できません。",
