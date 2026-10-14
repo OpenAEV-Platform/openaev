@@ -1,6 +1,7 @@
 package io.openaev.rest.injector_contract;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.database.specification.InjectorContractSpecification.withLatestPayload;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
@@ -85,8 +86,8 @@ public class InjectorContractApi extends RestBehavior {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec,
-                specCount,
+                input.isLatestVersionsOnly() ? spec.and(withLatestPayload()) : spec,
+                input.isLatestVersionsOnly() ? specCount.and(withLatestPayload()) : specCount,
                 pageable,
                 input.isIncludeFullDetails()
                     ? InjectorContractService.OutputMode.FULL

@@ -5,6 +5,7 @@ import static io.openaev.service.payload.PayloadVersionService.isManaged;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.threat_arsenal.ContentHistoryOutput;
 import io.openaev.api.threat_arsenal.PayloadUsageOutput;
 import io.openaev.api.threat_arsenal.PayloadVersionChangeInput;
 import io.openaev.api.threat_arsenal.PayloadVersionChangeOutput;
@@ -23,6 +24,7 @@ import io.openaev.service.content.ContentHistoryService;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -107,6 +109,19 @@ public class PayloadVersionChangeService {
     return usages;
   }
 
+  /** History of the action's payload across its versions, newest first (F7). */
+  @Transactional(readOnly = true)
+  public List<ContentHistoryOutput> history(String actionId) {
+    Payload payload = payloadOf(actionId);
+    if (!isManaged(payload)) {
+      return List.of();
+    }
+    return contentHistoryService
+        .findHistory(ContentType.PAYLOAD, payload.getExternalId(), PageRequest.of(0, 100))
+        .map(ContentHistoryOutput::of)
+        .getContent();
+  }
+
   // -- UPDATE --
 
   /**
@@ -145,7 +160,7 @@ public class PayloadVersionChangeService {
           reason -> refused.add(new Refusal(stepId, reason)), () -> moved.add(stepId));
     }
     if (!moved.isEmpty()) {
-      contentHistoryService.payloadVersionChanged(target);
+      contentHistoryService.payloadVersionChanged(source, target);
     }
     return new PayloadVersionChangeOutput(moved, refused);
   }

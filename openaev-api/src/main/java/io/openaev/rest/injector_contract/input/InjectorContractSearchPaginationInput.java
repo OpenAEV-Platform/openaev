@@ -24,6 +24,12 @@ public class InjectorContractSearchPaginationInput extends SearchPaginationInput
   @JsonProperty("injector_contract_ids_to_ignore")
   private List<String> injectorContractIdsToIgnore;
 
+  @Schema(
+      description =
+          "Only contracts without payload and the latest non-revoked payload versions (pickers, F11)")
+  @JsonProperty("latest_versions_only")
+  private boolean latestVersionsOnly = false;
+
   @Schema(description = "List of all the ids to include on the search")
   @JsonProperty("injector_contract_ids_to_process")
   private List<String> injectorContractIdsToProcess;

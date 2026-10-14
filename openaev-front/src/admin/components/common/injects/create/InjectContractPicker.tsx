@@ -131,7 +131,11 @@ const InjectContractPicker: FunctionComponent<Props> = ({
   const fetchContracts = (input: InjectorContractSearchPaginationInput) => {
     const seq = ++fetchSeqRef.current;
     setLoading(true);
-    return searchInjectorContracts(input).finally(() => {
+    // F11: pickers offer the latest version of each payload, never an old or revoked one.
+    return searchInjectorContracts({
+      ...input,
+      latest_versions_only: true,
+    }).finally(() => {
       if (seq === fetchSeqRef.current) {
         setLoading(false);
       }

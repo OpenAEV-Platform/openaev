@@ -660,4 +660,14 @@ public interface InjectRepository
   @Query(
       "SELECT i FROM Inject i WHERE i.injectorContract.payload.id = :payloadId AND i.exercise IS NULL")
   List<Inject> findTemplateInjectsByPayloadId(@Param("payloadId") String payloadId);
+
+  /**
+   * Per external ID, scenario and atomic testing injects still on a version that is not the latest.
+   */
+  @Query(
+      "SELECT p.externalId, COUNT(i) FROM Inject i JOIN i.injectorContract c JOIN c.payload p"
+          + " WHERE p.externalId IN :externalIds AND p.latest = false AND i.exercise IS NULL"
+          + " GROUP BY p.externalId")
+  List<Object[]> countTemplateInjectsOnOlderVersions(
+      @Param("externalIds") Collection<String> externalIds);
 }

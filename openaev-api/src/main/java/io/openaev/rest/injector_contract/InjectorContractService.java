@@ -1183,8 +1183,14 @@ public class InjectorContractService implements DependenciesManager {
    * @return the list of domain counts derived from effective contract associations
    */
   public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
+    return getDomainCounts(input, Specification.unrestricted());
+  }
+
+  /** Same, narrowed by {@code scope} (e.g. the Threat Arsenal's latest-version rule). */
+  public List<InjectorContractDomainCountOutput> getDomainCounts(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input).and(scope);
 
     CriteriaQuery<InjectorContractDomainCountOutput> qDirect =
         cb.createQuery(InjectorContractDomainCountOutput.class);
@@ -1209,8 +1215,14 @@ public class InjectorContractService implements DependenciesManager {
    * author" facet.
    */
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
+    return getAuthorCounts(input, Specification.unrestricted());
+  }
+
+  /** Same, narrowed by {@code scope} (e.g. the Threat Arsenal's latest-version rule). */
+  public List<InjectorContractAuthorCountOutput> getAuthorCounts(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input).and(scope);
 
     CriteriaQuery<InjectorContractAuthorCountOutput> q =
         cb.createQuery(InjectorContractAuthorCountOutput.class);
@@ -1267,8 +1279,14 @@ public class InjectorContractService implements DependenciesManager {
    * filter engine ({@link io.openaev.utils.OperationUtilsJpa}).
    */
   public Map<String, Long> getPlatformCounts(SearchPaginationInput input) {
+    return getPlatformCounts(input, Specification.unrestricted());
+  }
+
+  /** Same, narrowed by {@code scope} (e.g. the Threat Arsenal's latest-version rule). */
+  public Map<String, Long> getPlatformCounts(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input).and(scope);
 
     Map<String, Long> counts = new LinkedHashMap<>();
     for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
@@ -1294,8 +1312,14 @@ public class InjectorContractService implements DependenciesManager {
    * carry no status and are excluded (like the author facet excludes authorless contracts).
    */
   public Map<String, Long> getStatusCounts(SearchPaginationInput input) {
+    return getStatusCounts(input, Specification.unrestricted());
+  }
+
+  /** Same, narrowed by {@code scope} (e.g. the Threat Arsenal's latest-version rule). */
+  public Map<String, Long> getStatusCounts(
+      SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input).and(scope);
 
     CriteriaQuery<Tuple> q = cb.createTupleQuery();
     Root<InjectorContract> root = q.from(InjectorContract.class);
