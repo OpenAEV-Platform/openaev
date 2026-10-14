@@ -25,6 +25,13 @@ public class PayloadSimple {
   @JsonProperty("payload_revoked")
   private boolean revoked;
 
+  @JsonProperty("payload_version")
+  private String version;
+
+  // Scenario and atomic testing injects still on another version of this payload (F3).
+  @JsonProperty("payload_older_versions_in_use")
+  private long olderVersionsInUse;
+
   @Builder
   public PayloadSimple(
       String id, String type, String collectorType, Payload.PAYLOAD_STATUS status) {

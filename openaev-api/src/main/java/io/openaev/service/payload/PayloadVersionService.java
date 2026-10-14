@@ -4,6 +4,7 @@ import io.openaev.database.model.ContentRevocation;
 import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ManagedPayloadReadOnlyException;
@@ -27,6 +28,7 @@ public class PayloadVersionService {
 
   private final PayloadRepository payloadRepository;
   private final ContentRevocationRepository contentRevocationRepository;
+  private final InjectRepository injectRepository;
   private final EntityManager entityManager;
 
   public static boolean isManaged(Payload payload) {
@@ -101,6 +103,19 @@ public class PayloadVersionService {
           .forEach(p -> revoked.add(p.getId()));
     }
     return revoked;
+  }
+
+  /** Per external ID, how many scenario and atomic testing injects still run an older version. */
+  @Transactional(readOnly = true)
+  public Map<String, Long> countTemplateInjectsOnOlderVersions(Collection<String> externalIds) {
+    if (externalIds.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, Long> counts = new HashMap<>();
+    injectRepository
+        .countTemplateInjectsOnOlderVersions(externalIds)
+        .forEach(row -> counts.put((String) row[0], (Long) row[1]));
+    return counts;
   }
 
   // -- UPDATE --
