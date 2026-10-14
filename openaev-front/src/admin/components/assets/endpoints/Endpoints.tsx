@@ -96,6 +96,7 @@ const Endpoints = () => {
     'asset_cloud_provider',
     'asset_internet_facing',
     'asset_tags',
+    'asset_markings',
   ];
 
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);

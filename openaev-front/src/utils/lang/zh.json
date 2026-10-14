@@ -421,6 +421,7 @@
   "asset_linked_person": "人员",
   "asset_linked_person must reference a user of the current tenant": "asset_linked_person 必须引用当前租户的用户",
   "asset_mac_addresses": "MAC 地址",
+  "asset_markings": "标记",
   "asset_name": "名称",
   "asset_seen_ip": "终端看到的 IP",
   "asset_status": "状态",

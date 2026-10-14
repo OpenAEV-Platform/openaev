@@ -11,6 +11,7 @@ import { searchExerciseByIdAsOption } from '../../../../actions/exercises/exerci
 import { searchInjectorByIdAsOptions } from '../../../../actions/injectors/injector-action';
 import { searchInjectByIdAsOption, searchTargetOptionsById } from '../../../../actions/injects/inject-action';
 import { searchKillChainPhasesByIdAsOption } from '../../../../actions/kill_chain_phases/killChainPhase-action';
+import { searchMarkingDefinitionByIdAsOption } from '../../../../actions/marking_definitions/marking-definition-actions';
 import { searchOrganizationByIdAsOptions } from '../../../../actions/organizations/organization-actions';
 import { searchScenarioByIdAsOption } from '../../../../actions/scenarios/scenario-actions';
 import { searchSimulationByIdAsOptions } from '../../../../actions/simulations/simulation-action';
@@ -175,6 +176,11 @@ const useRetrieveOptions = () => {
       case 'payload_author_user':
       case 'asset_linked_person':
         searchPlayerByIdAsOption(ids).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'asset_markings':
+        searchMarkingDefinitionByIdAsOption(ids).then((response) => {
           setOptions(response.data);
         });
         break;
