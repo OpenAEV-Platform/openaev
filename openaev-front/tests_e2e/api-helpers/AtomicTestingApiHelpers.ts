@@ -19,11 +19,6 @@ class AtomicTestingApiHelpers {
     return response.json();
   }
 
-  async getAtomicTesting(id: string): Promise<InjectResultOverviewOutput> {
-    const response = await this.request.get(`${this.atomicTestingUri}/${id}`);
-    return response.json();
-  }
-
   async deleteAtomicTesting(id: string) {
     await this.request.delete(`${this.atomicTestingUri}/${id}`);
   }

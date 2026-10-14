@@ -7141,8 +7141,6 @@ export interface InjectResultOverviewOutput {
    * @format date-time
    */
   inject_recurrence_start?: string;
-  /** Secret references */
-  inject_secret_references?: string[];
   /** status */
   inject_status?: InjectStatusSimple;
   /**

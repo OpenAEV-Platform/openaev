@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
-import AtomicTestingApiHelpers from '../../api-helpers/AtomicTestingApiHelpers';
 import CredentialApiHelpers from '../../api-helpers/CredentialApiHelpers';
+import InjectApiHelpers from '../../api-helpers/InjectApiHelpers';
 import { CREDENTIAL_REFERENCE_FIELD_LABEL } from '../../api-helpers/InjectorContractApiHelpers';
 import { test } from '../../fixtures';
 import AtomicTestingPage from '../../model/atomic-testings/AtomicTestingPage';
@@ -213,7 +213,7 @@ test.describe('Inject form - Credential reference', () => {
       await credentialSection.save();
 
       // Only the credential reference is persisted on the inject
-      const savedInject = await new AtomicTestingApiHelpers(request).getAtomicTesting(atomicTesting.inject_id);
+      const savedInject = await new InjectApiHelpers(request).getInject(atomicTesting.inject_id);
       expect(savedInject.inject_secret_references).toEqual([awsProduction.credential_id]);
       const storedContent = JSON.stringify(savedInject.inject_content);
       awsProduction.secrets.forEach(secret => expect(storedContent).not.toContain(secret));
@@ -268,7 +268,7 @@ test.describe('Inject form - Credential reference', () => {
       await expect(credentialSection.getSelectedCredential(awsProduction.credential_name)).toHaveCount(0);
       await credentialSection.save();
 
-      const savedInject = await new AtomicTestingApiHelpers(request).getAtomicTesting(atomicTesting.inject_id);
+      const savedInject = await new InjectApiHelpers(request).getInject(atomicTesting.inject_id);
       expect(savedInject.inject_secret_references).toEqual([awsStaging.credential_id]);
     });
 
@@ -292,7 +292,7 @@ test.describe('Inject form - Credential reference', () => {
       await expect(credentialSection.getSelectedCredential(awsStaging.credential_name)).toHaveCount(0);
       await credentialSection.save();
 
-      const savedInject = await new AtomicTestingApiHelpers(request).getAtomicTesting(atomicTesting.inject_id);
+      const savedInject = await new InjectApiHelpers(request).getInject(atomicTesting.inject_id);
       expect(savedInject.inject_secret_references).toEqual([awsProduction.credential_id]);
     });
 
@@ -311,7 +311,7 @@ test.describe('Inject form - Credential reference', () => {
       await expect(credentialSection.form.getByText('Required', { exact: true })).toBeVisible();
       await credentialSection.save();
 
-      const savedInject = await new AtomicTestingApiHelpers(request).getAtomicTesting(atomicTesting.inject_id);
+      const savedInject = await new InjectApiHelpers(request).getInject(atomicTesting.inject_id);
       expect(savedInject.inject_secret_references).toEqual([]);
     });
   });
