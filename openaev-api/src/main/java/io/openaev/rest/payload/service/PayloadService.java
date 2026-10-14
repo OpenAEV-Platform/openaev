@@ -58,6 +58,7 @@ import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -77,6 +78,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class PayloadService {
+
+  public static final String PAYLOAD_NAME_TAKEN = "A payload with this name already exists";
 
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY = "dynamic_hostname_key";
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE =
@@ -369,6 +372,29 @@ public class PayloadService {
       }
     }
     return expectation;
+  }
+
+  /**
+   * Whether no other payload of the tenant uses this name (#3399). Versions of the same payload
+   * share their name on purpose; existing duplicates are left as they are.
+   */
+  @Transactional(readOnly = true)
+  public boolean isNameAvailable(String name, @Nullable String payloadId) {
+    if (name == null || name.isBlank()) {
+      return true;
+    }
+    String externalId =
+        payloadId == null
+            ? null
+            : payloadRepository.findById(payloadId).map(Payload::getExternalId).orElse(null);
+    return !payloadRepository.existsOtherPayloadWithName(name, payloadId, externalId);
+  }
+
+  /** Refuses a name another payload of the tenant already uses (#3399). */
+  public void assertNameAvailable(String name, @Nullable String payloadId) {
+    if (!isNameAvailable(name, payloadId)) {
+      throw new BadRequestException(PAYLOAD_NAME_TAKEN);
+    }
   }
 
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(

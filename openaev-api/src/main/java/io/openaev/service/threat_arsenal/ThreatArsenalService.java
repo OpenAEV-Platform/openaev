@@ -42,6 +42,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -258,11 +259,24 @@ public class ThreatArsenalService {
    */
   @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction create(TxCtx ctx, ThreatArsenalActionCreateInput actionInput) {
+    payloadService.assertNameAvailable(actionInput.name(), null);
     PayloadCreateInput payloadCreateInput =
         convertActionCreateInputToPayloadCreateInput(actionInput);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(ctx, payloadCreateInput);
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
+  }
+
+  /** Whether the name is free for this action's payload, or for a new one (#3399). */
+  @Transactional(readOnly = true)
+  public boolean isNameAvailable(String name, @jakarta.annotation.Nullable String actionId) {
+    String payloadId =
+        actionId == null || actionId.isBlank()
+            ? null
+            : Optional.ofNullable(injectorContractService.injectorContract(actionId).getPayload())
+                .map(Payload::getId)
+                .orElse(null);
+    return payloadService.isNameAvailable(name, payloadId);
   }
 
   /**
@@ -299,6 +313,7 @@ public class ThreatArsenalService {
     if (actionInput.expectations() == null) {
       throw new BadRequestException("action_expectations is required for payload-based actions");
     }
+    payloadService.assertNameAvailable(actionInput.name(), injectorContract.getPayload().getId());
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
     // update payload using the resolved payload ID

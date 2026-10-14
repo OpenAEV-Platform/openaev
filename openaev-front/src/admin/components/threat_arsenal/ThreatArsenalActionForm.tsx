@@ -6,6 +6,7 @@ import { type SyntheticEvent, useEffect } from 'react';
 import { type FieldValues, FormProvider, type Resolver, type SubmitHandler, useForm, useWatch } from 'react-hook-form';
 import { z, type ZodTypeAny } from 'zod';
 
+import { isThreatArsenalNameAvailable } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
@@ -263,6 +264,14 @@ const ThreatArsenalActionForm = ({
     const isValid = await methods.trigger();
     if (!isValid) {
       focusFirstErrorTab();
+      return;
+    }
+    const nameAvailable = await isThreatArsenalNameAvailable(methods.getValues('action_name'), initialValues.action_id)
+      .then(response => response.data as boolean)
+      .catch(() => true);
+    if (!nameAvailable) {
+      methods.setError('action_name', { message: t('A payload with this name already exists') });
+      handleChangeTab('General');
       return;
     }
     await handleSubmit(onSubmit as SubmitHandler<FieldValues>)(e);

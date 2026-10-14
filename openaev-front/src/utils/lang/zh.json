@@ -10,6 +10,7 @@
   "-": "-",
   ",": ",",
   ".": ".",
+  "A payload with this name already exists": "已存在同名载荷",
   "All versions": "所有版本",
   "Chained step": "链式步骤",
   "Change version": "更改版本",

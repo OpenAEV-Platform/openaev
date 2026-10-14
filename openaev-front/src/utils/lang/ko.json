@@ -10,6 +10,7 @@
   "-": "없음",
   ",": ",",
   ".": ".",
+  "A payload with this name already exists": "이 이름의 페이로드가 이미 존재합니다",
   "All versions": "모든 버전",
   "Chained step": "연결된 단계",
   "Change version": "버전 변경",

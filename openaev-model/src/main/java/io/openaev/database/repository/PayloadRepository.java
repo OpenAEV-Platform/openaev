@@ -34,6 +34,15 @@ public interface PayloadRepository
 
   Optional<Payload> findByExternalIdAndLatestTrue(@NotNull String externalId);
 
+  @Query(
+      "SELECT COUNT(p) > 0 FROM Payload p WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(:name))"
+          + " AND (:payloadId IS NULL OR p.id <> :payloadId)"
+          + " AND (:externalId IS NULL OR p.externalId IS NULL OR p.externalId <> :externalId)")
+  boolean existsOtherPayloadWithName(
+      @Param("name") String name,
+      @Param("payloadId") String payloadId,
+      @Param("externalId") String externalId);
+
   @Query("SELECT p FROM Payload p WHERE p.contentHash = :hash AND p.tenant.id = :tenantId")
   List<Payload> findAllByContentHash(
       @Param("hash") String hash, @Param("tenantId") String tenantId);

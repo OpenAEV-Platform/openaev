@@ -10,6 +10,7 @@
   "-": "Nessuno",
   ",": ",",
   ".": ".",
+  "A payload with this name already exists": "Esiste già un payload con questo nome",
   "All versions": "Tutte le versioni",
   "Chained step": "Passo concatenato",
   "Change version": "Cambia versione",
