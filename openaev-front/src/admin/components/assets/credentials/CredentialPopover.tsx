@@ -1,5 +1,3 @@
-import { Button } from '@filigran/design-system';
-import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import {
@@ -9,7 +7,6 @@ import {
 import ButtonPopover, { type PopoverEntry, type VariantButtonPopover } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
-import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type CredentialOutput } from '../../../../utils/api-types';
@@ -45,7 +42,6 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
   const ability = useAbility();
 
   const [openDelete, setOpenDelete] = useState(false);
-  const [openRemove, setOpenRemove] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [isLoadingEditValues, setIsLoadingEditValues] = useState(false);
   const [editValues, setEditValues] = useState<CredentialFormInitialValues>();
@@ -86,14 +82,6 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
     });
   };
 
-  const handleOpenRemove = () => setOpenRemove(true);
-  const handleCloseRemove = () => setOpenRemove(false);
-
-  const submitRemove = () => {
-    onRemove?.(credentialId);
-    handleCloseRemove();
-  };
-
   const entries: PopoverEntry[] = [
     ...(onUpdate
       ? [{
@@ -105,7 +93,7 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
     ...(onRemove
       ? [{
           label: 'Remove from the inject',
-          action: handleOpenRemove,
+          action: () => onRemove(credentialId),
           userRight: true,
         }]
       : []),
@@ -145,24 +133,6 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
         handleSubmit={submitDelete}
         text={`${t('Do you want to delete the credential:')} ${credentialName}?`}
       />
-      <Dialog
-        open={openRemove}
-        slots={{ transition: Transition }}
-        onClose={handleCloseRemove}
-        slotProps={{ paper: { elevation: 1 } }}
-      >
-        <DialogContent>
-          <DialogContentText>
-            {t('Do you want to remove this credential from the inject?')}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button priority="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button priority="primary" onClick={submitRemove}>
-            {t('Remove')}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };
