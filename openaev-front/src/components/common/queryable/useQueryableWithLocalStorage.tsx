@@ -97,6 +97,9 @@ const buildUseQueryable = (
   // Uri
   let uriHelpers;
   if (localStorageKey) {
+    // useQueryableWithLocalStorage always passes a non-empty key and useQueryable always passes null,
+    // so this branch never flips for a mounted caller and the hook order stays stable.
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- TODO: make useUriState callable without a key
     uriHelpers = useUriState(localStorageKey, searchPaginationInput, (input: SearchPaginationInput) => setSearchPaginationInput(input));
   }
 
