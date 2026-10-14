@@ -209,6 +209,7 @@ const InjectContractCard: FunctionComponent<Props> = ({
           minHeight: 22,
         }}
         >
+          {contract.injector_contract_payload_version && <Chip label={`v${contract.injector_contract_payload_version}`} />}
           {primaryDomain && (
             <Chip
               startIcon={getIconByDomain(primaryDomain.domain_name, {

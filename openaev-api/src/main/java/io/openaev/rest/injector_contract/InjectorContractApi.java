@@ -2,6 +2,7 @@ package io.openaev.rest.injector_contract;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.InjectorContractSpecification.withLatestPayload;
+import static io.openaev.database.specification.InjectorContractSpecification.withoutRevokedPayload;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
@@ -33,6 +34,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -76,6 +78,18 @@ public class InjectorContractApi extends RestBehavior {
                         InjectorContractBaseOutput.class,
                         InjectorContractFullOutput.class,
                       })))
+  private static Specification<InjectorContract> versionScope(
+      InjectorContractSearchPaginationInput input) {
+    Specification<InjectorContract> scope = Specification.unrestricted();
+    if (input.isLatestVersionsOnly()) {
+      scope = scope.and(withLatestPayload());
+    }
+    if (input.isExcludeRevokedPayloads()) {
+      scope = scope.and(withoutRevokedPayload());
+    }
+    return scope;
+  }
+
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
@@ -86,8 +100,8 @@ public class InjectorContractApi extends RestBehavior {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                input.isLatestVersionsOnly() ? spec.and(withLatestPayload()) : spec,
-                input.isLatestVersionsOnly() ? specCount.and(withLatestPayload()) : specCount,
+                spec.and(versionScope(input)),
+                specCount.and(versionScope(input)),
                 pageable,
                 input.isIncludeFullDetails()
                     ? InjectorContractService.OutputMode.FULL
