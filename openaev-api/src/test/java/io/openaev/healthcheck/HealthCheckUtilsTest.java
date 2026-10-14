@@ -25,9 +25,9 @@ import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.util.ArrayList;
 import java.util.List;
@@ -200,11 +200,18 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       List<HealthCheck> healthChecks =
           healthCheckUtils.runContentChecks(
-              injectorContract, prepareContentWithArticle(), allTeams, teams, assets, assetGroups);
+              injectorContract,
+              prepareContentWithArticle(),
+              allTeams,
+              teams,
+              assets,
+              assetGroups,
+              secretReferences);
 
       // -- ASSERT --
       assertEquals(1, healthChecks.size());
@@ -221,6 +228,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -231,7 +239,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -247,6 +256,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = List.of("teamId");
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -257,7 +267,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
