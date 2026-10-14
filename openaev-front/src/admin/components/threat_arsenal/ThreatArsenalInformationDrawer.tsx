@@ -1,3 +1,4 @@
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
@@ -8,6 +9,7 @@ import {
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
+import PayloadVersionsTab from './PayloadVersionsTab';
 import ThreatArsenalActionOverview from './ThreatArsenalActionOverview';
 
 const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
@@ -55,6 +57,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
 
   const [loading, setLoading] = useState(false);
   const [fullOutput, setFullOutput] = useState<ThreatArsenalActionFullOutput | null>(null);
+  const [tab, setTab] = useState<'overview' | 'versions'>('overview');
 
   useEffect(() => {
     // Reset state on every (re)entry so a previous in-flight fetch whose
@@ -67,6 +70,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
     }
 
     setFullOutput(null);
+    setTab('overview');
     setLoading(true);
     let cancelled = false;
     // Always fetch the full details: both payload-based contracts (execution,
@@ -105,15 +109,31 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       title={t('Action information')}
     >
       {threatArsenalAction == null ? <></> : (
-        <ThreatArsenalActionOverview
-          action={threatArsenalAction}
-          payload={selectedPayload}
-          expectations={fullOutput?.action_expectations}
-          expectationDetails={fullOutput?.action_expectation_details}
-          expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
-          providing={fullOutput?.action_providing}
-          loading={loading}
-        />
+        <>
+          {threatArsenalAction.action_payload && (
+            <Tabs value={tab} onValueChange={value => setTab(value as 'overview' | 'versions')} panels="external">
+              <TabsList>
+                <TabsTrigger value="overview">{t('Overview')}</TabsTrigger>
+                <TabsTrigger value="versions">{t('Versions')}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          <div style={{ marginTop: threatArsenalAction.action_payload ? 16 : 0 }}>
+            {tab === 'versions' && threatArsenalAction.action_payload
+              ? <PayloadVersionsTab actionId={threatArsenalAction.injector_contract_id} />
+              : (
+                  <ThreatArsenalActionOverview
+                    action={threatArsenalAction}
+                    payload={selectedPayload}
+                    expectations={fullOutput?.action_expectations}
+                    expectationDetails={fullOutput?.action_expectation_details}
+                    expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
+                    providing={fullOutput?.action_providing}
+                    loading={loading}
+                  />
+                )}
+          </div>
+        </>
       )}
     </Drawer>
   );

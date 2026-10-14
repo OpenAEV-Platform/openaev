@@ -182,6 +182,7 @@ public class PayloadUtils {
     duplicate.setVersion(null);
     duplicate.setContentHash(null);
     duplicate.setOriginId(origin.getId());
+    duplicate.setLatest(true);
     duplicate.setArguments(
         Optional.ofNullable(origin.getArguments()).map(ArrayList::new).orElseGet(ArrayList::new));
     duplicate.setPrerequisites(

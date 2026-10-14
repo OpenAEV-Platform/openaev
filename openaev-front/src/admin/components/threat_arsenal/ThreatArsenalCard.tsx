@@ -166,6 +166,17 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       )}
       chips={(
         <>
+          {action.action_payload?.payload_version && <Chip label={`v${action.action_payload.payload_version}`} />}
+          {(action.action_payload?.payload_older_versions_in_use ?? 0) > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Chip label={t('Older version in use')} severity="medium" />
+              </TooltipTrigger>
+              <TooltipContent>
+                {`${action.action_payload?.payload_older_versions_in_use} inject(s) · ${t('Change version')}`}
+              </TooltipContent>
+            </Tooltip>
+          )}
           {primaryDomain && <Chip label={t(primaryDomain.domain_name)} color={accent} />}
           {domains.length > 1 && (
             <Tooltip>

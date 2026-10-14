@@ -8,10 +8,12 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Filters;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -38,8 +40,11 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.ListUtils;
 import org.springframework.beans.BeanUtils;
@@ -51,6 +56,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Service
 public class ThreatArsenalService {
+
+  private static final String ALL_VERSIONS_FILTER_KEY = "action_all_versions";
+  private static final String PAYLOAD_STATUS_FILTER_KEY = "injector_contract_payload_status";
 
   private final PayloadCreationService payloadCreationService;
   private final PayloadUpdateService payloadUpdateService;
@@ -143,7 +151,7 @@ public class ThreatArsenalService {
   public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    return injectorContractService.getDomainCounts(filtered);
+    return injectorContractService.getDomainCounts(filtered, versionScope(filtered));
   }
 
   /**
@@ -154,7 +162,7 @@ public class ThreatArsenalService {
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    return injectorContractService.getAuthorCounts(filtered);
+    return injectorContractService.getAuthorCounts(filtered, versionScope(filtered));
   }
 
   /**
@@ -165,8 +173,10 @@ public class ThreatArsenalService {
   public ThreatArsenalFacetCountsOutput getFacetCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
+    Specification<InjectorContract> scope = versionScope(filtered);
+    // Status counts ignore the scope, so the "Revoked" row still shows how many are hidden.
     return new ThreatArsenalFacetCountsOutput(
-        injectorContractService.getPlatformCounts(filtered),
+        injectorContractService.getPlatformCounts(filtered, scope),
         injectorContractService.getStatusCounts(filtered));
   }
 
@@ -359,6 +369,7 @@ public class ThreatArsenalService {
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
     SearchPaginationInput searchInput =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
+    Specification<InjectorContract> scope = versionScope(searchInput);
     ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext =
         providingFilterSpecificationBuilder.extractProvidingFilter(searchInput);
     Specification<InjectorContract> searchSpecification =
@@ -367,9 +378,10 @@ public class ThreatArsenalService {
         buildPaginationCriteriaBuilder(
             (spec, specCount, pageable) ->
                 this.injectorContractService.getSinglePage(
-                    combineWithProvidingSpec(spec, providingFilterContext, searchSpecification),
                     combineWithProvidingSpec(
-                        specCount, providingFilterContext, searchSpecification),
+                        spec.and(scope), providingFilterContext, searchSpecification),
+                    combineWithProvidingSpec(
+                        specCount.and(scope), providingFilterContext, searchSpecification),
                     pageable,
                     mode,
                     input.getInjectorContractIdsToIgnore(),
@@ -391,6 +403,7 @@ public class ThreatArsenalService {
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
     SearchPaginationInput searchInput =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
+    Specification<InjectorContract> scope = versionScope(searchInput);
     ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext =
         providingFilterSpecificationBuilder.extractProvidingFilter(searchInput);
     Specification<InjectorContract> searchSpecification =
@@ -406,9 +419,11 @@ public class ThreatArsenalService {
             (spec, specCount, pageable) ->
                 this.injectorContractService.getSinglePage(
                     combineWithProvidingSpec(
-                        spec.and(excludeTabletop), providingFilterContext, searchSpecification),
+                        spec.and(excludeTabletop).and(scope),
+                        providingFilterContext,
+                        searchSpecification),
                     combineWithProvidingSpec(
-                        specCount.and(excludeTabletop),
+                        specCount.and(excludeTabletop).and(scope),
                         providingFilterContext,
                         searchSpecification),
                     pageable,
@@ -419,6 +434,34 @@ public class ThreatArsenalService {
             InjectorContract.class));
   }
 
+  /**
+   * Hides older versions and revoked payloads unless the user asks for every version or for the
+   * revoked ones (F9, F11, F34). Removes the all-versions flag from the filters it reads.
+   */
+  private Specification<InjectorContract> versionScope(SearchPaginationInput input) {
+    Filters.FilterGroup group = input.getFilterGroup();
+    List<Filters.Filter> filters =
+        group == null || group.getFilters() == null ? List.of() : group.getFilters();
+    boolean allVersions =
+        filters.stream().anyMatch(f -> ALL_VERSIONS_FILTER_KEY.equals(f.getKey()));
+    if (allVersions) {
+      group.setFilters(
+          filters.stream().filter(f -> !ALL_VERSIONS_FILTER_KEY.equals(f.getKey())).toList());
+    }
+    boolean revokedAsked =
+        filters.stream()
+            .anyMatch(
+                f ->
+                    PAYLOAD_STATUS_FILTER_KEY.equals(f.getKey())
+                        && f.getValues() != null
+                        && f.getValues().contains(Payload.PAYLOAD_STATUS.REVOKED.name()));
+    if (allVersions || revokedAsked) {
+      return Specification.unrestricted();
+    }
+    return InjectorContractSpecification.withLatestPayload();
+  }
+
+  /** Adds what the cards show about a payload: revoked, version, older versions still used. */
   private Page<? extends InjectorContractBaseOutput> markRevoked(
       Page<? extends InjectorContractBaseOutput> page) {
     List<PayloadSimple> payloads =
@@ -427,10 +470,31 @@ public class ThreatArsenalService {
             .map(action -> ((ThreatArsenalAction) action).getPayload())
             .filter(Objects::nonNull)
             .toList();
-    Set<String> revoked =
-        payloadRevocationService.revokedIdsAmong(
-            payloads.stream().map(PayloadSimple::getId).toList());
-    payloads.forEach(payload -> payload.setRevoked(revoked.contains(payload.getId())));
+    if (payloads.isEmpty()) {
+      return page;
+    }
+    List<Payload> entities =
+        payloadVersionService.findAllById(payloads.stream().map(PayloadSimple::getId).toList());
+    Map<String, Payload> byId =
+        entities.stream().collect(Collectors.toMap(Payload::getId, Function.identity()));
+    Set<String> revoked = payloadRevocationService.revokedIds(entities);
+    Map<String, Long> olderInUse =
+        payloadVersionService.countTemplateInjectsOnOlderVersions(
+            entities.stream()
+                .filter(p -> p.getVersion() != null && p.isLatest())
+                .map(Payload::getExternalId)
+                .collect(Collectors.toSet()));
+    payloads.forEach(
+        payload -> {
+          Payload entity = byId.get(payload.getId());
+          payload.setRevoked(revoked.contains(payload.getId()));
+          if (entity != null) {
+            payload.setVersion(entity.getVersion());
+            if (entity.isLatest() && entity.getExternalId() != null) {
+              payload.setOlderVersionsInUse(olderInUse.getOrDefault(entity.getExternalId(), 0L));
+            }
+          }
+        });
     return page;
   }
 

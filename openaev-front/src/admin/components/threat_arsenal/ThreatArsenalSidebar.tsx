@@ -1,3 +1,4 @@
+import { HistoryOutlined } from '@mui/icons-material';
 import { useMemo } from 'react';
 
 import {
@@ -18,6 +19,8 @@ import { type ThreatArsenalFacetCounts } from './useThreatArsenalFacetCounts';
 const PLATFORM_FILTER_KEY = 'action_platforms';
 const STATUS_FILTER_KEY = 'action_payload_status';
 const AUTHOR_FILTER_KEY = 'action_author';
+// Lifts the default "latest version only" view (F11).
+const ALL_VERSIONS_FILTER_KEY = 'action_all_versions';
 const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
 
 interface Props {
@@ -41,6 +44,7 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
   const { filters, valuesOf, toggleValue } = useFacetFilterValues(searchPaginationInput, filterHelpers);
   const platformValues = valuesOf(PLATFORM_FILTER_KEY);
   const statusValues = valuesOf(STATUS_FILTER_KEY);
+  const allVersions = valuesOf(ALL_VERSIONS_FILTER_KEY).includes('true');
   const {
     authorValues,
     noAuthorActive,
@@ -106,8 +110,19 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
         label: t('Author'),
         rows: authorRows,
       },
+      {
+        id: 'versions',
+        label: t('Versions'),
+        rows: [{
+          value: 'true',
+          label: t('All versions'),
+          icon: () => <HistoryOutlined sx={{ fontSize: 16 }} />,
+          checked: allVersions,
+          onToggle: () => toggleValue(ALL_VERSIONS_FILTER_KEY, 'true'),
+        }],
+      },
     ].filter(section => section.rows.length > 0);
-  }, [domainElements, authorOptions, facetCounts, platformValues, statusValues, authorValues, noAuthorActive, toggleValue, toggleAuthorValue, toggleNoAuthor, t]);
+  }, [domainElements, authorOptions, facetCounts, platformValues, statusValues, allVersions, authorValues, noAuthorActive, toggleValue, toggleAuthorValue, toggleNoAuthor, t]);
 
   return <FacetSidebar sections={sections} />;
 };

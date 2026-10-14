@@ -3155,6 +3155,25 @@ export interface ConsumedFindingKeyDTO {
   value?: string;
 }
 
+export interface ContentHistoryOutput {
+  content_history_action?:
+    | "INSTALL"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "DUPLICATE"
+    | "VERSION_CHANGE"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION";
+  /** @format date-time */
+  content_history_created_at?: string;
+  content_history_from_version?: string;
+  /** @minLength 1 */
+  content_history_id: string;
+  content_history_user?: string;
+  content_history_version?: string;
+}
+
 export interface ContractOutputElement {
   /** @format date-time */
   contract_output_element_created_at: string;
@@ -7578,6 +7597,8 @@ export interface InjectorContractSearchPaginationInput {
   injector_contract_ids_to_ignore?: string[];
   /** List of all the ids to include on the search */
   injector_contract_ids_to_process?: string[];
+  /** Only contracts without payload and the latest non-revoked payload versions (pickers, F11) */
+  latest_versions_only?: boolean;
   /**
    * Page number to get
    * @format int32
@@ -9879,9 +9900,12 @@ export interface PayloadRevocationOutput {
 export interface PayloadSimple {
   payload_collector_type?: string;
   payload_id?: string;
+  /** @format int64 */
+  payload_older_versions_in_use?: number;
   payload_revoked?: boolean;
   payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_version?: string;
 }
 
 export interface PayloadUpdateInput {

@@ -56,6 +56,21 @@ public class ThreatArsenalVersionApi {
     return payloadVersionChangeService.usages(actionId);
   }
 
+  @LogExecutionTime
+  @Operation(summary = "History of the action's payload across its versions, newest first")
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/history",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/history"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  public List<ContentHistoryOutput> history(TxCtx ctx, @PathVariable String actionId) {
+    return payloadVersionChangeService.history(actionId);
+  }
+
   // -- UPDATE --
 
   @LogExecutionTime
