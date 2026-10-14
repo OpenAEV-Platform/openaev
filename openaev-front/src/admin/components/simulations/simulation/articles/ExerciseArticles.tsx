@@ -10,7 +10,7 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import Articles from '../../../common/articles/Articles';
 import { ArticleContext } from '../../../common/Context';
-import articleContextForExercise from './articleContextForExercise';
+import useArticleContextForExercise from './useArticleContextForExercise';
 
 const ExerciseArticles = () => {
   // Standard hooks
@@ -23,7 +23,7 @@ const ExerciseArticles = () => {
     dispatch(fetchExerciseDocuments(exerciseId));
     dispatch(fetchSimulationChannels(exerciseId));
   });
-  const context = articleContextForExercise(exerciseId);
+  const context = useArticleContextForExercise(exerciseId);
   return (
     <ArticleContext.Provider value={context}>
       <Articles articles={articles} />

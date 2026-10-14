@@ -30,7 +30,7 @@ import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../../utils/utils';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import ToolBar from '../../common/ToolBar';
@@ -67,7 +67,7 @@ const Endpoints = () => {
   const dispatch = useAppDispatch();
   // Gates the Markings column (and its data fetch below) so the flag-off platform looks exactly as
   // it does today — mirrors the settings.config.tsx pattern used for the Marking Definitions menu.
-  const markingEnabled = isFeatureEnabled('MARKING');
+  const markingEnabled = useIsFeatureEnabled('MARKING');
   // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
   // the flag is off so the platform issues no marking-definitions request at all.
   const markingDefinitions = useMarkingDefinitions({

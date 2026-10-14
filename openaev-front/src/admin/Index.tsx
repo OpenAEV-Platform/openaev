@@ -21,7 +21,7 @@ import useAuth from '../utils/hooks/useAuth';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
-import { isFeatureEnabled } from '../utils/utils';
+import { useIsFeatureEnabled } from '../utils/utils';
 import ChatbotProvider from './components/ariane/ChatbotProvider';
 import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
@@ -113,7 +113,7 @@ const Index = () => {
 
   const chatbotMargin = useChatbotContentMargin();
   const chatbotTransition = useChatbotContentTransition(theme);
-  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const isCredentialAssetEnabled = useIsFeatureEnabled('CREDENTIAL_ASSET');
 
   const { currentUserTenant } = useAuth();
 

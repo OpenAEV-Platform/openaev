@@ -2,14 +2,9 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockIsFeatureEnabled, mockCan } = vi.hoisted(() => ({
-  mockIsFeatureEnabled: vi.fn(),
-  mockCan: vi.fn(),
-}));
+const { mockCan } = vi.hoisted(() => ({ mockCan: vi.fn() }));
 
 vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string) => value }) }));
-
-vi.mock('../../../../../utils/utils', () => ({ isFeatureEnabled: mockIsFeatureEnabled }));
 
 vi.mock('../../../../../utils/hooks/useAuth', () => ({ default: () => ({ settings: { default_tenant_id: '2cffad3a-0001-4078-b0e2-ef74274022c3' } }) }));
 
@@ -81,28 +76,15 @@ vi.mock('../../../../../admin/components/platform/tenants/tenants.queryable', ()
 
 import Tenants from '../../../../../admin/components/platform/tenants/Tenants';
 
-// Validates that the Tenants page renders or hides UI based on permissions and feature-flag state.
+// Validates that the Tenants page renders or hides UI based on permissions.
 describe('Tenants', () => {
   beforeEach(() => {
     mockCan.mockReturnValue(true);
-    mockIsFeatureEnabled.mockReturnValue(true);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
     cleanup();
-  });
-
-  it('renders tenants page even when MULTI_TENANCY feature flag is disabled (route handles access gate)', () => {
-    // Arrange
-    mockIsFeatureEnabled.mockReturnValue(false);
-
-    // Act
-    render(<Tenants />);
-
-    // Assert
-    expect(screen.getByText('Platform / Tenants management')).toBeDefined();
-    expect(screen.getByTestId('pagination-component')).toBeDefined();
   });
 
   it('hides tenant creation when user cannot manage tenants', () => {
@@ -117,9 +99,8 @@ describe('Tenants', () => {
     expect(screen.getByText('Platform / Tenants management')).toBeDefined();
   });
 
-  it('renders tenants page when feature is enabled and user has access', () => {
+  it('renders tenants page when user has access', () => {
     // Arrange
-    mockIsFeatureEnabled.mockReturnValue(true);
     mockCan.mockReturnValue(true);
 
     // Act

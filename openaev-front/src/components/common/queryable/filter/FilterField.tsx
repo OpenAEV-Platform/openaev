@@ -2,11 +2,11 @@ import { type CSSProperties, type FunctionComponent, useEffect, useState } from 
 
 import { type FilterGroup, type PropertySchemaDTO } from '../../../../utils/api-types';
 import { useFormatter } from '../../../i18n';
+import fetchFilterableProperties from './fetchFilterableProperties';
 import FilterAutocomplete, { type OptionPropertySchema } from './FilterAutocomplete';
 import FilterChips from './FilterChips';
 import { type FilterHelpers } from './FilterHelpers';
 import { availableOperators } from './FilterUtils';
-import useFilterableProperties from './useFilterableProperties';
 
 interface Props {
   entityPrefix: string;
@@ -42,7 +42,7 @@ const FilterField: FunctionComponent<Props> = ({
 
   useEffect(() => {
     let cancelled = false;
-    useFilterableProperties(entityPrefix, availableFilterNames).then((propertySchemas: PropertySchemaDTO[]) => {
+    fetchFilterableProperties(entityPrefix, availableFilterNames).then((propertySchemas: PropertySchemaDTO[]) => {
       if (cancelled) {
         return;
       }

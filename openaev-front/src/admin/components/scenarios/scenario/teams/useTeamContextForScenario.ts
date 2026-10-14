@@ -12,7 +12,7 @@ import { type Scenario, type ScenarioTeamUser, type SearchPaginationInput, type 
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { type UserStore } from '../../../teams/players/Player';
 
-const teamContextForScenario = (scenarioId: Scenario['scenario_id'], scenarioTeamsUsers: Scenario['scenario_teams_users'], allUsersNumber = 0, allUsersEnabledNumber = 0) => {
+const useTeamContextForScenario = (scenarioId: Scenario['scenario_id'], scenarioTeamsUsers: Scenario['scenario_teams_users'], allUsersNumber = 0, allUsersEnabledNumber = 0) => {
   const dispatch = useAppDispatch();
 
   return {
@@ -63,4 +63,4 @@ const teamContextForScenario = (scenarioId: Scenario['scenario_id'], scenarioTea
   };
 };
 
-export default teamContextForScenario;
+export default useTeamContextForScenario;

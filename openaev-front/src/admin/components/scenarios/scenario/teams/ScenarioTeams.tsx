@@ -12,7 +12,7 @@ import ConfigurationSection from '../../../common/ConfigurationSection';
 import { PermissionsContext, TeamContext } from '../../../common/Context';
 import ContextualTeams from '../../../components/teams/ContextualTeams';
 import UpdateTeams from '../../../components/teams/UpdateTeams';
-import teamContextForScenario from './teamContextForScenario';
+import useTeamContextForScenario from './useTeamContextForScenario';
 
 interface Props { scenarioTeamsUsers: Scenario['scenario_teams_users'] }
 
@@ -28,7 +28,7 @@ const ScenarioTeams: FunctionComponent<Props> = ({ scenarioTeamsUsers }) => {
   useDataLoader(() => {
     dispatch(fetchScenarioTeams(scenarioId));
   });
-  const teamContext = teamContextForScenario(scenarioId, scenarioTeamsUsers);
+  const teamContext = useTeamContextForScenario(scenarioId, scenarioTeamsUsers);
 
   return (
     <TeamContext.Provider value={teamContext}>

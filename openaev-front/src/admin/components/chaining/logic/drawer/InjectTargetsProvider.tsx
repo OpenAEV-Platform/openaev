@@ -12,8 +12,8 @@ import { type ScopeTeamOutput, type SearchPaginationInput, type TeamOutput } fro
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { TeamContext, type TeamContextType } from '../../../common/Context';
-import teamContextForScenario from '../../../scenarios/scenario/teams/teamContextForScenario';
-import teamContextForExercise from '../../../simulations/simulation/teams/teamContextForExercise';
+import useTeamContextForScenario from '../../../scenarios/scenario/teams/useTeamContextForScenario';
+import useTeamContextForExercise from '../../../simulations/simulation/teams/useTeamContextForExercise';
 import { type LogicContext } from '../AddComponentButton';
 
 // The reused inject-form widgets (teams, documents) read from TeamContext and the Redux
@@ -76,7 +76,7 @@ const ScenarioInjectTargetsProvider: FunctionComponent<{
     dispatch(fetchScenarioDocuments(scenarioId));
   });
   const searchTeams = useScopeTeamSearch(validTeams);
-  const teamContext = teamContextForScenario(
+  const teamContext = useTeamContextForScenario(
     scenarioId,
     scenario?.scenario_teams_users,
     scenario?.scenario_all_users_number,
@@ -104,7 +104,7 @@ const ExerciseInjectTargetsProvider: FunctionComponent<{
     dispatch(fetchExerciseDocuments(exerciseId));
   });
   const searchTeams = useScopeTeamSearch(validTeams);
-  const teamContext = teamContextForExercise(exerciseId);
+  const teamContext = useTeamContextForExercise(exerciseId);
   return (
     <TeamContext.Provider value={{
       ...teamContext,
