@@ -719,8 +719,7 @@ public class PhishingTrackingService {
       try {
         attackPathFindingIngestion.copyFindingsAfterCommit(inject, result.getStep());
       } catch (Exception e) {
-        log.warn(
-            "Attack-path findings copy skipped for inject {} (non-fatal)", inject.getId(), e);
+        log.warn("Attack-path findings copy skipped for inject {} (non-fatal)", inject.getId(), e);
       }
     }
   }
