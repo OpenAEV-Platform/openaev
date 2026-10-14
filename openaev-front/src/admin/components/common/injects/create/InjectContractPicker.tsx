@@ -1,4 +1,4 @@
-import { ButtonGroup, ButtonGroupItem, Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
 import { Box, Skeleton, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
@@ -264,6 +264,8 @@ const InjectContractPicker: FunctionComponent<Props> = ({
           domainElements={iconBarOrderedDomains}
           searchPaginationInput={searchPaginationInput}
           filterHelpers={queryableHelpers.filterHelpers}
+          allVersions={allVersions}
+          onToggleAllVersions={() => setAllVersions(previous => !previous)}
         />
         <Box sx={{
           'flex': 1,
@@ -284,33 +286,26 @@ const InjectContractPicker: FunctionComponent<Props> = ({
             attackPatterns={attackPatterns}
             contextId={allVersions ? 'all-versions' : 'latest-versions'}
             topBarButtons={(
-              <>
-                <Checkbox
-                  label={t('All versions')}
-                  checked={allVersions}
-                  onCheckedChange={checked => setAllVersions(checked === true)}
-                />
-                <ButtonGroup
-                  size="md"
-                  usecase="isolated"
-                  value={viewMode}
-                  onValueChange={handleViewMode}
-                  style={{ marginLeft: 1.5 }}
-                >
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
-                    </TooltipTrigger>
-                    <TooltipContent>{t('Grid view')}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
-                    </TooltipTrigger>
-                    <TooltipContent>{t('List view')}</TooltipContent>
-                  </Tooltip>
-                </ButtonGroup>
-              </>
+              <ButtonGroup
+                size="md"
+                usecase="isolated"
+                value={viewMode}
+                onValueChange={handleViewMode}
+                style={{ marginLeft: 1.5 }}
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Grid view')}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('List view')}</TooltipContent>
+                </Tooltip>
+              </ButtonGroup>
             )}
           />
 

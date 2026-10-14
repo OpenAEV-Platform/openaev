@@ -1,3 +1,4 @@
+import { HistoryOutlined } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { fetchInjectorContractAuthorCounts, fetchInjectorContractFacetCounts } from '../../../../../actions/InjectorContracts';
@@ -70,12 +71,15 @@ interface Props {
   domainElements: IconBarElement[];
   searchPaginationInput: SearchPaginationInput;
   filterHelpers: FilterHelpers;
+  /** Every payload version instead of the latest one only (F11). */
+  allVersions: boolean;
+  onToggleAllVersions: () => void;
 }
 
 // The inject-contract picker sidebar: same sticky faceted panel as the Threat
 // Arsenal / integrations marketplace, whose rows toggle REAL backend filters.
 // The generic "Add filter" bar still handles every other property.
-const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHelpers }: Props) => {
+const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHelpers, allVersions, onToggleAllVersions }: Props) => {
   const { t } = useFormatter();
 
   const { killChainPhasesMap }: { killChainPhasesMap: Record<string, KillChainPhase> } = useHelper(
@@ -184,7 +188,7 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
       statusValues,
       statusCounts: facetCounts?.statuses,
       toggle: value => toggleValue(STATUS_FILTER_KEY, statusValues, value),
-    });
+    }).filter(row => row.value !== 'REVOKED');
 
     const authorRows = buildAuthorRows({
       authorOptions,
@@ -234,11 +238,23 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
         label: t('Author'),
         rows: authorRows,
       },
+      {
+        id: 'versions',
+        label: t('Versions'),
+        rows: [{
+          value: 'all-versions',
+          label: t('All versions'),
+          icon: () => <HistoryOutlined sx={{ fontSize: 16 }} />,
+          checked: allVersions,
+          onToggle: onToggleAllVersions,
+        }],
+      },
       ...killChainSections,
     ].filter(section => section.rows.length > 0);
   }, [
     domainElements, authorOptions, platformValues, killChainValues, statusValues, noAuthorActive,
     authorValues, sortedPhases, killChains, facetCounts, toggleValue, toggleAuthorValue, toggleNoAuthor, t,
+    allVersions, onToggleAllVersions,
   ]);
 
   return <FacetSidebar sections={sections} />;
