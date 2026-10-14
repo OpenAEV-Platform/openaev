@@ -7539,6 +7539,8 @@ export interface InjectorContractFullOutput {
   injector_contract_labels?: Record<string, string>;
   /** Payload type */
   injector_contract_payload_type?: string;
+  /** Version of the contract's payload; empty for a local copy or no payload */
+  injector_contract_payload_version?: string;
   /** Platforms */
   injector_contract_platforms?: (
     | "Linux"
@@ -7587,6 +7589,8 @@ export interface InjectorContractInput {
 }
 
 export interface InjectorContractSearchPaginationInput {
+  /** Leave out contracts whose payload is revoked (pickers, F9) */
+  exclude_revoked_payloads?: boolean;
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
   /** Include the injector contract content on the returned object if set to true */

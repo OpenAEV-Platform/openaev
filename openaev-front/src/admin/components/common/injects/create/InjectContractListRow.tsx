@@ -138,7 +138,7 @@ const InjectContractListRow: FunctionComponent<Props> = ({
               minWidth: 0,
             }}
           >
-            {name}
+            {contract.injector_contract_payload_version ? `${name} · v${contract.injector_contract_payload_version}` : name}
           </Typography>
         </TooltipTrigger>
         {name && <TooltipContent>{name}</TooltipContent>}

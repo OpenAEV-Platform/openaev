@@ -1,4 +1,4 @@
-import { ButtonGroup, ButtonGroupItem, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
 import { Box, Skeleton, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
@@ -126,15 +126,17 @@ const InjectContractPicker: FunctionComponent<Props> = ({
   // the latest request clears the loading state, so a slow stale response
   // never hides the skeletons while a newer search is still in flight.
   const [contracts, setContracts] = useState<InjectorContractFullOutput[]>([]);
+  const [allVersions, setAllVersions] = useState(false);
   const [loading, setLoading] = useState(true);
   const fetchSeqRef = useRef(0);
   const fetchContracts = (input: InjectorContractSearchPaginationInput) => {
     const seq = ++fetchSeqRef.current;
     setLoading(true);
-    // F11: pickers offer the latest version of each payload, never an old or revoked one.
+    // F11: the latest version of each payload by default, every version on demand, never a revoked one.
     return searchInjectorContracts({
       ...input,
-      latest_versions_only: true,
+      latest_versions_only: !allVersions,
+      exclude_revoked_payloads: true,
     }).finally(() => {
       if (seq === fetchSeqRef.current) {
         setLoading(false);
@@ -280,27 +282,35 @@ const InjectContractPicker: FunctionComponent<Props> = ({
             availableFilterNames={availableFilterNames}
             queryableHelpers={queryableHelpers}
             attackPatterns={attackPatterns}
+            contextId={allVersions ? 'all-versions' : 'latest-versions'}
             topBarButtons={(
-              <ButtonGroup
-                size="md"
-                usecase="isolated"
-                value={viewMode}
-                onValueChange={handleViewMode}
-                style={{ marginLeft: 1.5 }}
-              >
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
-                  </TooltipTrigger>
-                  <TooltipContent>{t('Grid view')}</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
-                  </TooltipTrigger>
-                  <TooltipContent>{t('List view')}</TooltipContent>
-                </Tooltip>
-              </ButtonGroup>
+              <>
+                <Checkbox
+                  label={t('All versions')}
+                  checked={allVersions}
+                  onCheckedChange={checked => setAllVersions(checked === true)}
+                />
+                <ButtonGroup
+                  size="md"
+                  usecase="isolated"
+                  value={viewMode}
+                  onValueChange={handleViewMode}
+                  style={{ marginLeft: 1.5 }}
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+                    </TooltipTrigger>
+                    <TooltipContent>{t('Grid view')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
+                    </TooltipTrigger>
+                    <TooltipContent>{t('List view')}</TooltipContent>
+                  </Tooltip>
+                </ButtonGroup>
+              </>
             )}
           />
 
