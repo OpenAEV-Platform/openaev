@@ -46,9 +46,8 @@ const SecurityMenuComponent: FunctionComponent = () => {
   } = useSecurityScope();
   const ability = useAbility();
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
-  const canAccessMarkingDefinitions
-    = useIsFeatureEnabled('MARKING')
-      && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
+  const isMarkingEnabled = useIsFeatureEnabled('MARKING');
+  const canAccessMarkingDefinitions = isMarkingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
 
   // The platform scope is an EE feature: in Community Edition the switcher is
   // not displayed at all and the section stays on the tenant scope.

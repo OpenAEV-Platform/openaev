@@ -58,9 +58,8 @@ const SecurityLanding = () => {
     canAccessSession,
   } = useSecurityScope();
   const ability = useAbility();
-  const canAccessMarkingDefinitions
-    = useIsFeatureEnabled('MARKING')
-      && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
+  const isMarkingEnabled = useIsFeatureEnabled('MARKING');
+  const canAccessMarkingDefinitions = isMarkingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   // The landing arbitrates between both scopes, so each one is named explicitly.
   const canManageSessions = canAccessSession('TENANT');
   const canManagePlatformSessions = canAccessSession('PLATFORM');

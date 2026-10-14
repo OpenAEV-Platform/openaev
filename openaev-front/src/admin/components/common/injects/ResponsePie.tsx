@@ -70,7 +70,7 @@ const ResponsePie: FunctionComponent<Props> = ({
       ? expectationResultsByType.distribution.map(e => `${t(e.label)} (${(((e.value!) / getTotal(expectationResultsByType.distribution!)) * 100).toFixed(1)}%)`)
       : [`${t('No expectation for')} ${title}`];
     const colors = hasDistribution ? expectationResultsByType.distribution.map(e => getStatusColor(theme, e.label)) : ['rgba(202, 203, 206, 0.18)'];
-    const data = useMemo(() => (hasDistribution ? expectationResultsByType.distribution.map(e => e.value) : [1]), [expectationResultsByType]);
+    const data = hasDistribution ? expectationResultsByType.distribution.map(e => e.value) : [1];
 
     return (
       <div style={{

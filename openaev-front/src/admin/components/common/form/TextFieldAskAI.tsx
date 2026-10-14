@@ -66,12 +66,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const { enabled, configured, xtmOneConfigured } = useAI();
 
-  // Hide entirely when AI is explicitly disabled
-  if (enabled === false) {
-    return null;
-  }
-
-  const useXtmOne = xtmOneConfigured === true;
+  const isXtmOne = xtmOneConfigured === true;
   const [content, setContent] = useState('');
   const [agentMode, setAgentMode] = useState<AgentMode | null>(null);
   const [disableResponse, setDisableResponse] = useState(false);
@@ -93,6 +88,12 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
     anchorEl: null,
   });
   const [displayAskAI, setDisplayAskAI] = useState(false);
+
+  // Hide entirely when AI is explicitly disabled
+  if (enabled === false) {
+    return null;
+  }
+
   const handleOpenMenu = (event: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
     if (isEnterpriseEdition) {
       event.preventDefault();
@@ -270,7 +271,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
-                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('spelling') : handleAskAi('spelling'))} disabled={isContentEmpty()}>
+                <MenuItem onClick={() => (isXtmOne ? handleAgentAction('spelling') : handleAskAi('spelling'))} disabled={isContentEmpty()}>
                   {t('Fix spelling & grammar')}
                 </MenuItem>
               </div>
@@ -280,7 +281,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
-                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('shorter') : handleAskAi('shorter'))} disabled={isContentEmpty()}>
+                <MenuItem onClick={() => (isXtmOne ? handleAgentAction('shorter') : handleAskAi('shorter'))} disabled={isContentEmpty()}>
                   {t('Make it shorter')}
                 </MenuItem>
               </div>
@@ -290,7 +291,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
-                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('longer') : handleAskAi('longer'))} disabled={isContentEmpty()}>
+                <MenuItem onClick={() => (isXtmOne ? handleAgentAction('longer') : handleAskAi('longer'))} disabled={isContentEmpty()}>
                   {t('Make it longer')}
                 </MenuItem>
               </div>
@@ -300,7 +301,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
-                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('tone') : handleOpenToneOptions())} disabled={isContentEmpty()}>
+                <MenuItem onClick={() => (isXtmOne ? handleAgentAction('tone') : handleOpenToneOptions())} disabled={isContentEmpty()}>
                   {t('Change tone')}
                 </MenuItem>
               </div>
@@ -310,7 +311,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
-                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('summarize') : handleAskAi('summarize'))} disabled={isContentEmpty()}>
+                <MenuItem onClick={() => (isXtmOne ? handleAgentAction('summarize') : handleAskAi('summarize'))} disabled={isContentEmpty()}>
                   {t('Summarize')}
                 </MenuItem>
               </div>
@@ -320,7 +321,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
-                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('explain') : handleAskAi('explain', false))} disabled={isContentEmpty()}>
+                <MenuItem onClick={() => (isXtmOne ? handleAgentAction('explain') : handleAskAi('explain', false))} disabled={isContentEmpty()}>
                   {t('Explain')}
                 </MenuItem>
               </div>
@@ -329,7 +330,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           </Tooltip>
         </Menu>
         <ResponseDialog
-          isDisabled={useXtmOne ? false : disableResponse}
+          isDisabled={isXtmOne ? false : disableResponse}
           isOpen={displayAskAI}
           handleClose={() => {
             setAgentMode(null);
@@ -346,13 +347,13 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             setAgentMode(null);
             handleCloseAskAI();
           }}
-          followUpActions={useXtmOne ? [] : [{
+          followUpActions={isXtmOne ? [] : [{
             key: 'retry',
             label: t('Retry'),
           }]}
           format={format}
           isAcceptable={isAcceptable}
-          agentMode={useXtmOne ? agentMode : null}
+          agentMode={isXtmOne ? agentMode : null}
         />
         <Dialog
           open={openGenMessageOptions}
@@ -428,7 +429,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               disabled={messageInput.length === 0}
               onClick={() => {
                 handleCloseGenMessageOptions();
-                if (useXtmOne) {
+                if (isXtmOne) {
                   const prompt = `Generate an email message.\n\nTone: ${messageTone}\nFrom: ${messageSender || 'not specified'}\nTo: ${messageRecipient || 'not specified'}\nNumber of paragraphs: ${messageParagraphs}\nContext: ${messageContext || 'none'}\n\nContent/Instructions:\n${messageInput}\n\nReturn only the raw email body in ${format} format. Do not wrap in code fences or markdown blocks. No explanation.`;
                   setContent('');
                   setIsAcceptable(true);
@@ -515,7 +516,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               disabled={messageInput.length === 0}
               onClick={() => {
                 handleCloseGenMediaOptions();
-                if (useXtmOne) {
+                if (isXtmOne) {
                   const prompt = `Generate a media article.\n\nTone: ${messageTone}\nAuthor: ${messageSender || 'not specified'}\nNumber of paragraphs: ${messageParagraphs}\nContext: ${messageContext || 'none'}\n\nContent/Instructions:\n${messageInput}\n\nReturn only the raw article body in ${format} format. Do not wrap in code fences or markdown blocks. No explanation.`;
                   setContent('');
                   setIsAcceptable(true);
