@@ -2,7 +2,7 @@ package io.openaev.rest;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -412,23 +412,18 @@ public class AtomicTestingApiTest extends IntegrationTest {
           .getContentAsString();
     }
 
-    private String getAtomicTesting(String injectId) throws Exception {
+    private List<String> persistedCredentialIds(String injectId) {
       entityManager.flush();
       entityManager.clear();
-      return mvc.perform(
-              get(ATOMIC_TESTINGS_URI + "/" + injectId)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
+      return injectRepository.findById(injectId).orElseThrow().getSecretReferences().stream()
+          .map(SecretReference::getId)
+          .toList();
     }
 
     @Test
-    @DisplayName("given_credentialOfTheInjectTenant_should_persistAndExposeIt")
+    @DisplayName("given_credentialOfTheInjectTenant_should_persistIt")
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-    void given_credentialOfTheInjectTenant_should_persistAndExposeIt() throws Exception {
+    void given_credentialOfTheInjectTenant_should_persistIt() throws Exception {
       // Arrange
       CredentialSecretReference credential = persistDefaultTenantCredential();
 
@@ -440,15 +435,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
               status().is2xxSuccessful());
 
       // Assert
-      assertThatJson(response)
-          .node("inject_secret_references")
-          .isArray()
-          .containsExactly(credential.getId());
       String injectId = JsonPath.read(response, "$.inject_id");
-      assertThatJson(getAtomicTesting(injectId))
-          .node("inject_secret_references")
-          .isArray()
-          .containsExactly(credential.getId());
+      assertThat(persistedCredentialIds(injectId)).containsExactly(credential.getId());
     }
 
     @Test
@@ -471,10 +459,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
           status().is2xxSuccessful());
 
       // Assert
-      assertThatJson(getAtomicTesting(injectId))
-          .node("inject_secret_references")
-          .isArray()
-          .isEmpty();
+      assertThat(persistedCredentialIds(injectId)).isEmpty();
     }
 
     @Test
@@ -489,7 +474,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
               status().is2xxSuccessful());
 
       // Assert
-      assertThatJson(response).node("inject_secret_references").isArray().isEmpty();
+      String injectId = JsonPath.read(response, "$.inject_id");
+      assertThat(persistedCredentialIds(injectId)).isEmpty();
     }
   }
 
