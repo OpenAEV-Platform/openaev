@@ -18,10 +18,11 @@ const CatalogScenarioInstallDrawer: FunctionComponent<Props> = ({ externalId, na
   return (
     <ScenarioTargetsDrawer
       title={`${t('Install')} ${name} v${version}`}
-      submitLabel={t('Install')}
+      mode="install"
       load={() => fetchCatalogScenarioInstallPreview(externalId, version).then(({ data }) => ({
         injects: data.injects,
         previousVersion: data.previous_version,
+        missingRequirements: data.missing_requirements,
       }))}
       onSubmit={input => installCatalogScenario(externalId, version, input).then(({ data }) => onInstalled(data.scenario_id))}
       onClose={onClose}

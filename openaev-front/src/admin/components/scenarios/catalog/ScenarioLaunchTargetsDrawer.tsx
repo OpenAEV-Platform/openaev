@@ -20,7 +20,8 @@ const ScenarioLaunchTargetsDrawer: FunctionComponent<Props> = ({ scenarioId, sce
   return (
     <ScenarioTargetsDrawer
       title={`${t('Launch')} ${scenarioName}`}
-      submitLabel={t('Launch')}
+      mode="launch"
+      scenarioId={scenarioId}
       load={() => fetchScenarioTargets(scenarioId).then(({ data }) => ({ injects: data.injects }))}
       onSubmit={input => completeScenarioTargets(scenarioId, input)
         .then(() => createRunningExerciseFromScenario(scenarioId))
