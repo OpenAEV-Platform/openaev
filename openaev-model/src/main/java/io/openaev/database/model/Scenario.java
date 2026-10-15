@@ -267,6 +267,18 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @Schema(description = "Organization author of the scenario", type = "string")
   private Organization authorOrganization;
 
+  // -- CATALOGUE --
+
+  // Identity of the catalogue scenario this one was installed from; never set by a zip import.
+  @Column(name = "scenario_catalog_id")
+  @JsonProperty("scenario_catalog_id")
+  @Queryable(filterable = true)
+  private String catalogId;
+
+  @Column(name = "scenario_version")
+  @JsonProperty("scenario_version")
+  private String version;
+
   // Single author filter over both author FKs (the facet and the filter bar use it).
   @Queryable(
       filterable = true,

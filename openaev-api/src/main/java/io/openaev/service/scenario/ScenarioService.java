@@ -183,6 +183,20 @@ public class ScenarioService {
     return computeAndCreateScenario(scenario);
   }
 
+  /** Installed catalogue scenarios: scenario ID per version, per catalogue ID (F5, F11). */
+  @Transactional(readOnly = true)
+  public Map<String, Map<String, String>> findInstalledCatalogVersions() {
+    Map<String, Map<String, String>> versions = new HashMap<>();
+    scenarioRepository
+        .findInstalledCatalogVersions()
+        .forEach(
+            row ->
+                versions
+                    .computeIfAbsent((String) row[0], k -> new HashMap<>())
+                    .put((String) row[1], (String) row[2]));
+    return versions;
+  }
+
   /** Creation from the UI: unlike imports and system flows, the scenario gets an author (F33). */
   @Transactional
   public Scenario createManualScenario(@NotNull final Scenario scenario) {
@@ -492,7 +506,9 @@ public class ScenarioService {
             workflowSubquery.alias("scenario_workflow_id"),
             authorId.alias("scenario_author"),
             authorName.alias("scenario_author_name"),
-            authorType.alias("scenario_author_type"))
+            authorType.alias("scenario_author_type"),
+            scenarioRoot.get("catalogId").alias("scenario_catalog_id"),
+            scenarioRoot.get("version").alias("scenario_version"))
         .distinct(true);
     // Group By (and the author columns selected: organizations has a composite key)
     cq.groupBy(
@@ -527,21 +543,26 @@ public class ScenarioService {
     List<RawPaginationScenario> scenarios =
         query.getResultList().stream()
             .map(
-                tuple ->
-                    new RawPaginationScenario(
-                        tuple.get("scenario_id", String.class),
-                        tuple.get("scenario_name", String.class),
-                        tuple.get("scenario_description", String.class),
-                        tuple.get("scenario_severity", Scenario.SEVERITY.class),
-                        tuple.get("scenario_category", String.class),
-                        tuple.get("scenario_recurrence", String.class),
-                        tuple.get("scenario_updated_at", Instant.class),
-                        tuple.get("scenario_tags", String[].class),
-                        tuple.get("scenario_platforms", String[].class),
-                        tuple.get("scenario_workflow_id", String.class),
-                        tuple.get("scenario_author", String.class),
-                        tuple.get("scenario_author_name", String.class),
-                        tuple.get("scenario_author_type", String.class)))
+                tuple -> {
+                  RawPaginationScenario scenario =
+                      new RawPaginationScenario(
+                          tuple.get("scenario_id", String.class),
+                          tuple.get("scenario_name", String.class),
+                          tuple.get("scenario_description", String.class),
+                          tuple.get("scenario_severity", Scenario.SEVERITY.class),
+                          tuple.get("scenario_category", String.class),
+                          tuple.get("scenario_recurrence", String.class),
+                          tuple.get("scenario_updated_at", Instant.class),
+                          tuple.get("scenario_tags", String[].class),
+                          tuple.get("scenario_platforms", String[].class),
+                          tuple.get("scenario_workflow_id", String.class),
+                          tuple.get("scenario_author", String.class),
+                          tuple.get("scenario_author_name", String.class),
+                          tuple.get("scenario_author_type", String.class));
+                  scenario.setScenario_catalog_id(tuple.get("scenario_catalog_id", String.class));
+                  scenario.setScenario_version(tuple.get("scenario_version", String.class));
+                  return scenario;
+                })
             .toList();
 
     // -- Count Query --
@@ -628,6 +649,12 @@ public class ScenarioService {
             .and(
                 ScenarioSpecification.recurrenceStartDateBefore(instant)
                     .or(ScenarioSpecification.recurrenceStopDateBefore(instant))));
+  }
+
+  /** Installed versions of a catalogue scenario. */
+  @Transactional(readOnly = true)
+  public List<Scenario> findAllByCatalogId(@NotBlank final String catalogId) {
+    return scenarioRepository.findAllByCatalogId(catalogId);
   }
 
   public Scenario scenario(@NotBlank final String scenarioId) {

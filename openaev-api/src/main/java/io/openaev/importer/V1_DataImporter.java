@@ -402,7 +402,8 @@ public class V1_DataImporter implements Importer {
             ctx, importNode, prefix, savedExercise, savedScenario, baseIds, resolvedContracts);
     List<MissingImportedAction> missingActions =
         skippedSteps.stream().map(V1_DataImporter::toMissingImportedAction).toList();
-    return new ImportResult(new ArrayList<>(missingActions));
+    return new ImportResult(
+        new ArrayList<>(missingActions), savedScenario != null ? savedScenario.getId() : null);
   }
 
   private static MissingImportedAction toMissingImportedAction(SkippedWorkflowStep step) {
@@ -1688,6 +1689,11 @@ public class V1_DataImporter implements Importer {
                 dependsDuration,
                 content,
                 injectTenant);
+          }
+          // A catalogue package carries a stable inject ID across versions (F17, F24).
+          JsonNode catalogIdNode = injectNode.get("inject_catalog_id");
+          if (catalogIdNode != null && catalogIdNode.isTextual()) {
+            injectRepository.setCatalogId(injectId, catalogIdNode.asText());
           }
           baseIds.put(id, new BaseHolder(injectId));
           originalIds.add(id);

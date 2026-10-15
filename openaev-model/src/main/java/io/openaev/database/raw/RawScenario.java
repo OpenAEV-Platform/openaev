@@ -244,4 +244,8 @@ public interface RawScenario {
    * @return {@code true} if the scenario is autonomous
    */
   boolean getScenario_autonomous();
+
+  String getScenario_catalog_id();
+
+  String getScenario_version();
 }
