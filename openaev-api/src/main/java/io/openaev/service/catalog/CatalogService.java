@@ -39,6 +39,7 @@ public class CatalogService {
   private final FileService fileService;
   private final ScenarioService scenarioService;
   private final PayloadVersionService payloadVersionService;
+  private final CatalogRequirementsService catalogRequirementsService;
   private final EntityManager entityManager;
   private final ObjectMapper mapper;
 
@@ -49,6 +50,7 @@ public class CatalogService {
   public List<CatalogItemOutput> list(ContentType type) {
     Map<String, Map<String, String>> installedScenarios =
         type == ContentType.SCENARIO ? scenarioService.findInstalledCatalogVersions() : Map.of();
+    CatalogRequirementsService.Checker requirements = catalogRequirementsService.checker();
     Map<String, Set<String>> installed =
         type == ContentType.SCENARIO
             ? installedScenarios.entrySet().stream()
@@ -82,7 +84,8 @@ public class CatalogService {
                   installedVersions.stream()
                       .filter(scenarioIds::containsKey)
                       .map(v -> new CatalogItemOutput.InstalledScenario(v, scenarioIds.get(v)))
-                      .toList());
+                      .toList(),
+                  requirements.missing(latest));
             })
         .sorted(
             Comparator.comparing(CatalogItemOutput::name, Comparator.nullsLast(String::compareTo)))
@@ -166,7 +169,7 @@ public class CatalogService {
         refused.add(new Refusal(item.externalId(), item.version(), reason));
         continue;
       }
-      ContentType type = ContentType.valueOf(item.type().toUpperCase(Locale.ROOT));
+      ContentType type = item.contentType();
       Optional<CatalogItem> existing =
           catalogItemRepository.findByTypeAndExternalIdAndVersion(
               type, item.externalId(), item.version());
@@ -212,13 +215,19 @@ public class CatalogService {
     target.setSeverity(item.severity());
     target.setCategory(item.category());
     target.setMainFocus(item.mainFocus());
-    target.setScenarioType(item.scenarioType());
+    target.setScenarioType(item.scenarioTypeOrType());
     target.setPlatforms(
         item.platforms() == null ? new String[0] : item.platforms().toArray(new String[0]));
     target.setInjectsCount(item.injectsCount());
     target.setChangelog(item.changelog());
-    target.setPublishedAt(item.publishedAt());
+    target.setPublishedAt(item.publishedAt() == null ? manifest.issuedAt() : item.publishedAt());
     target.setArchiveName(item.archive().name());
+    try {
+      target.setRequires(
+          item.requires() == null ? null : mapper.writeValueAsString(item.requires()));
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Unreadable requirements", e);
+    }
     target.setRepository(manifest.repository());
     target.setRelease(manifest.release());
     try {
@@ -238,7 +247,7 @@ public class CatalogService {
       return Optional.of("Incomplete manifest entry");
     }
     try {
-      ContentType.valueOf(item.type().toUpperCase(Locale.ROOT));
+      item.contentType();
       SemanticVersion.parse(item.version());
     } catch (Exception e) {
       return Optional.of("Unknown type or version format");

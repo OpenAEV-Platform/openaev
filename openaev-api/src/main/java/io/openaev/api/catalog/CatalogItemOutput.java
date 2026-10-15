@@ -26,7 +26,8 @@ public record CatalogItemOutput(
     @JsonProperty("catalog_item_published_at") Instant publishedAt,
     @JsonProperty("catalog_item_versions") List<String> versions,
     @JsonProperty("catalog_item_installed_versions") List<String> installedVersions,
-    @JsonProperty("catalog_item_installed_scenarios") List<InstalledScenario> installedScenarios) {
+    @JsonProperty("catalog_item_installed_scenarios") List<InstalledScenario> installedScenarios,
+    @JsonProperty("catalog_item_missing_requirements") List<String> missingRequirements) {
 
   public record InstalledScenario(
       @JsonProperty("version") @NotBlank String version,
@@ -36,7 +37,8 @@ public record CatalogItemOutput(
       CatalogItem latest,
       List<String> versions,
       List<String> installedVersions,
-      List<InstalledScenario> installedScenarios) {
+      List<InstalledScenario> installedScenarios,
+      List<String> missingRequirements) {
     return new CatalogItemOutput(
         latest.getType(),
         latest.getExternalId(),
@@ -55,6 +57,7 @@ public record CatalogItemOutput(
         latest.getPublishedAt(),
         versions,
         installedVersions,
-        installedScenarios);
+        installedScenarios,
+        missingRequirements);
   }
 }

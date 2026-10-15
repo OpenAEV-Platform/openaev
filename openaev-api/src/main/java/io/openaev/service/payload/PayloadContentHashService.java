@@ -188,7 +188,8 @@ public class PayloadContentHashService {
     }
   }
 
-  private String fileHash(Document document) {
+  // Package-private: the conformance test gives the file hashes the shared vectors state.
+  String fileHash(Document document) {
     if (document == null) {
       return null;
     }

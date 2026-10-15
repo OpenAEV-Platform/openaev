@@ -8,12 +8,19 @@ import java.util.List;
 public record CatalogInstallPreviewOutput(
     @JsonProperty("previous_version") String previousVersion,
     @JsonProperty("previous_scenario_id") String previousScenarioId,
-    @JsonProperty("injects") @NotNull List<InjectPreview> injects) {
+    @JsonProperty("injects") @NotNull List<InjectPreview> injects,
+    @JsonProperty("missing_requirements") @NotNull List<String> missingRequirements) {
 
   public record InjectPreview(
       @JsonProperty("inject_catalog_id") String catalogId,
       @JsonProperty("inject_title") @NotNull String title,
       @JsonProperty("target_fields") @NotNull List<String> targetFields,
       @JsonProperty("is_new") boolean isNew,
-      @JsonProperty("is_targeted") boolean isTargeted) {}
+      @JsonProperty("is_targeted") boolean isTargeted,
+      // Kind the inject's target selector picks, for injects that target one kind at a time.
+      @JsonProperty("target_selector") String targetSelector,
+      @JsonProperty("current_targets") @NotNull List<TargetLabel> currentTargets) {}
+
+  public record TargetLabel(
+      @JsonProperty("kind") @NotNull String kind, @JsonProperty("label") @NotNull String label) {}
 }
