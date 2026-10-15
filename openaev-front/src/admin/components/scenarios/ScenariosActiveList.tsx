@@ -75,7 +75,10 @@ const ScenariosActiveList: FunctionComponent<Props> = ({
       field: 'scenario_name',
       label: 'Name',
       isSortable: true,
-      value: (scenario: Scenario) => scenario.scenario_name,
+      value: (scenario: Scenario) => {
+        const { scenario_version: version } = scenario as unknown as Record<string, string | undefined>;
+        return version ? `${scenario.scenario_name} (v${version})` : scenario.scenario_name;
+      },
     },
     {
       field: 'scenario_severity',
