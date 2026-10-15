@@ -72,9 +72,9 @@ const Endpoints = () => {
   const ability = useAbility();
   const canAccessMarkings = markingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
-  // the flag is off so the platform issues no marking-definitions request at all.
+  // either gate is closed so the platform issues no marking-definitions request at all.
   const markingDefinitions = useMarkingDefinitions({
-    skip: !markingEnabled,
+    skip: !canAccessMarkings,
     assignableOnly: true,
   });
 
