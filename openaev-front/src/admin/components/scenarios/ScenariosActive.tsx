@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react';
+
+import { fetchCatalogScenarios } from '../../../actions/catalog/scenario-catalog-actions';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../components/common/marketplace/MarketplaceFacetSidebar';
 import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
@@ -7,6 +10,7 @@ import useMarketplaceView from '../../../components/common/marketplace/useMarket
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
+import { type CatalogItemOutput } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { scenarioCategories } from './constants';
@@ -34,6 +38,10 @@ const ScenariosActive = () => {
   const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios:view-mode');
   const active = useActiveScenarios();
   const { selection } = active;
+  const [catalogItems, setCatalogItems] = useState<Map<string, CatalogItemOutput>>(new Map());
+  useEffect(() => {
+    fetchCatalogScenarios().then(items => setCatalogItems(new Map(items.map(item => [item.catalog_item_external_id, item]))));
+  }, [active.scenarios]);
   const authorSection = useAuthorFacetSection('scenario_author', active.authorOptions, active.searchPaginationInput, active.queryableHelpers.filterHelpers);
 
   const facets: MarketplaceFacet[] = [
@@ -119,7 +127,7 @@ const ScenariosActive = () => {
       )}
     >
       {viewMode === 'grid'
-        ? <ScenarioCardGrid {...items} />
+        ? <ScenarioCardGrid {...items} catalogItems={catalogItems} />
         : (
             <ScenariosActiveList
               {...items}
