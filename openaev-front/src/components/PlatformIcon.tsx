@@ -78,7 +78,9 @@ const renderIcon = (platform: string, width: number | undefined = 40, borderRadi
           width,
           borderRadius,
           marginRight,
-          height: 'fit-content',
+          // The logos are square. An explicit height keeps a flex row from stretching the
+          // image, and WebKit resolves `fit-content` to the bitmap's own 800px height.
+          height: width,
         }}
         src={brand}
         alt={platform}
