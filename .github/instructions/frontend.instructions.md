@@ -18,6 +18,8 @@ description: "Frontend React/TypeScript conventions: components, Filigran Design
 - TypeScript strict mode, annotate API responses with generated types
 - No `any` types, no `@ts-ignore` without explanatory comment
 - Props defined via explicit `interface Props` (not inline)
+- Prefer a default export for a module's main component; helpers, constants and hooks modules may use named exports
+- Never export a mutable binding (`export let` / `export var`): export a `const`, or a getter/setter function (enforced by `custom-rules/no-mutable-exports`)
 
 ## Design System & Layout
 

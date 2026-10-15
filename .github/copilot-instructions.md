@@ -41,7 +41,7 @@ The minimum Node.js version is specified in `openaev-front/package.json` (`engin
 ### Linting & Formatting
 
 **Backend**: `mvn spotless:check` / `mvn spotless:apply` (Google Java Format)
-**Frontend**: `yarn lint` (~60s), `yarn check-ts`, `yarn i18n-checker`
+**Frontend**: `yarn lint` (~60s), `yarn check-ts`, `yarn depcruise` (import cycles, dependency rules), `yarn knip --dependencies` (unused or undeclared dependencies), `yarn i18n-checker`, `yarn test:eslint-rules` (when changing `packages/eslint-plugin-custom-rules`)
 **Known Issue**: Pre-existing Spotless errors in `DetectionRemediationApiTest.java` and `InjectExpectationUtils.java` -
 ignore unless your changes touch these.
 
@@ -56,7 +56,7 @@ ignore unless your changes touch these.
 CI runs on GitHub Actions (see `.github/workflows/`):
 
 1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, `mvn jacoco:check`
-2. **Frontend Tests**: `yarn install/build/check-ts/lint/i18n-checker/test`
+2. **Frontend Tests**: `yarn install/build/check-ts/lint/test:eslint-rules/depcruise/knip/i18n-checker/test`
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
 
@@ -89,7 +89,7 @@ Before creating a pull request, validate locally:
 1. **Formatting**: `mvn spotless:check` (or via Docker: `docker run --rm -v $(pwd):/app -w /app maven:3.9-eclipse-temurin-21-noble mvn spotless:check`)
 2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix. The `openaev-pr-checks` GitHub App validates this pattern; titles with extra prefixes (e.g. `[backend]`) will be rejected.
 3. **Compile**: `mvn compile -DskipTests` (or via Docker)
-4. **Frontend** (if changed): `cd openaev-front && yarn check-ts && yarn lint`
+4. **Frontend** (if changed): `cd openaev-front && yarn check-ts && yarn lint && yarn depcruise && yarn knip --dependencies`
 5. **PR description**: Must follow [`.github/PULL_REQUEST_TEMPLATE.md`](/.github/PULL_REQUEST_TEMPLATE.md) — see [PR description format](#pr-description-format).
 
 ## Code Conventions

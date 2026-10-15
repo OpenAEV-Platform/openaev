@@ -148,7 +148,6 @@ const PhishingPage = () => {
         : null}
       <div
         ref={containerRef}
-        // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
       />
     </div>

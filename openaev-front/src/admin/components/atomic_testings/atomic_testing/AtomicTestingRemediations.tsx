@@ -2,7 +2,6 @@ import { Paper, Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { PolicyOutlined, ShieldOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-// eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router';

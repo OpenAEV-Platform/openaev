@@ -10,10 +10,6 @@ import { LessonContext } from '../../../common/Context';
 import LessonsQuestionForm from './LessonsQuestionForm';
 
 const useStyles = makeStyles()(theme => ({
-  createButton: {
-    float: 'left',
-    margin: '-15px 0 0 5px',
-  },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,

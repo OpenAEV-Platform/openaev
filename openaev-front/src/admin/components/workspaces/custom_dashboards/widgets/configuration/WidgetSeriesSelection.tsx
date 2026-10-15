@@ -29,15 +29,6 @@ const useStyles = makeStyles()(theme => ({
     borderRadius: 4,
     position: 'relative',
   },
-  icon: {
-    paddingTop: 4,
-    display: 'inline-block',
-  },
-  text: {
-    display: 'inline-block',
-    flexGrow: 1,
-    marginLeft: 10,
-  },
 }));
 
 const WidgetSeriesSelection: FunctionComponent<{

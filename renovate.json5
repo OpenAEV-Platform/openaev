@@ -275,6 +275,26 @@
             ],
             rebaseWhen: 'auto',
         },
+        // The local ESLint plugin only runs in development, but its rule helpers are dependencies of
+        // its package, which the batch above would take. They join the devDependencies batch, so that
+        // @typescript-eslint/utils moves in the same PR as typescript-eslint.
+        {
+            groupName: 'devDependencies (non-major)',
+            groupSlug: 'dev-dependencies-non-major',
+            description: 'Dependencies of the local ESLint plugin follow the dev dependencies batch',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchFileNames: [
+                'openaev-front/packages/**',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+        },
         {
             groupName: 'back-end production dependencies (non-major)',
             groupSlug: 'back-prod-non-major',
@@ -376,14 +396,13 @@
         },
         // These parse, sanitise or transport untrusted input, dompurify most of all: it is the XSS
         // boundary of the UI and a regression there is a security bug the E2E suite passes straight
-        // through. All six are in dependencies, so the front batch would otherwise take them.
+        // through. All five are in dependencies, so the front batch would otherwise take them.
         {
             description: 'Parsers, sanitisers and HTTP clients on the front keep their own PR',
             matchDepNames: [
                 'dompurify',
                 'qs',
                 'axios',
-                'http-proxy-middleware',
                 'ipaddr.js',
                 '@filigran/chatbot',
             ],

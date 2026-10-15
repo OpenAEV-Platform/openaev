@@ -1,10 +1,7 @@
 import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { normalize, type Schema } from 'normalizr';
 
-interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  __isRetryRequest?: boolean;
-}
+interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig { __isRetryRequest?: boolean }
 
 interface ApiErrorResponse {
   status: number;
@@ -32,7 +29,6 @@ export const ensureCsrf = async (): Promise<void> => {
   await csrfBootstrapPromise;
 };
 
-// eslint-disable-next-line import/prefer-default-export
 export const api = <T>(schema?: Schema<T> | null): AxiosInstance => {
   const instance = axios.create({
     headers: { responseType: 'json' },

@@ -30,7 +30,6 @@ const useStyles = makeStyles()(() => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 }));
 
 interface Props {

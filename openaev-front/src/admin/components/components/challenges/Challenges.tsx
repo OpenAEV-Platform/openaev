@@ -49,13 +49,6 @@ const useStyles = makeStyles()(() => ({
     paddingLeft: 10,
     height: 50,
   },
-  exercise: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
-    marginRight: 7,
-    width: 120,
-  },
 }));
 
 const headerStyles: Record<string, CSSProperties> = {

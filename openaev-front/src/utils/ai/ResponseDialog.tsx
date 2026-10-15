@@ -5,14 +5,12 @@ import { RefreshOutlined } from '@mui/icons-material';
 import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 // As we can ask AI after and follow up, there is a dependency lifecycle here that can be accepted
 // TODO: Cleanup a bit in upcoming version
-// eslint-disable-next-line import/no-cycle
 import MDEditor, { commands } from '@uiw/react-md-editor/nohighlight';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { type FunctionComponent, useEffect, useRef, useState } from 'react';
 
 import { type AgentAction } from '../../admin/components/common/form/TextFieldAskAI';
-// eslint-disable-next-line import/no-cycle
 import { useFormatter } from '../../components/i18n';
 import { isNotEmptyField } from '../utils';
 import { type AgentOption, fetchAgentsForIntent } from './agentApi';

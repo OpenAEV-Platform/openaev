@@ -7,6 +7,5 @@
  * which takes the whole component down with it. `color-mix` resolves the
  * variable at paint time instead, and accepts a plain hex just the same.
  */
-// eslint-disable-next-line import/prefer-default-export -- a named helper reads clearer at the call sites
 export const tint = (colour: string, percent: number): string =>
   `color-mix(in srgb, ${colour} ${percent}%, transparent)`;

@@ -35,7 +35,7 @@ If build fails: stop review, report build failure.
 
 For frontend changes:
 ```bash
-cd openaev-front && yarn check-ts && yarn lint
+cd openaev-front && yarn check-ts && yarn lint && yarn depcruise && yarn knip --dependencies
 ```
 
 ## Step 4 — Review architecture alignment

@@ -31,31 +31,6 @@ const useStyles = makeStyles()(theme => ({
     display: 'flex',
     gap: theme.spacing(3),
   },
-  chipInList: {
-    height: 20,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-    width: 200,
-  },
-  chipStatusAcc: {
-    height: 30,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-    width: 150,
-    float: 'right',
-    marginLeft: 5,
-  },
-  points: {
-    height: 20,
-    backgroundColor: 'var(--color-entities-events-transparency-20)',
-    border: '1px solid var(--color-entities-events)',
-    color: 'var(--color-entities-events)',
-  },
-  validationType: {
-    height: 20,
-    border: '1px solid',
-    borderRadius: 4,
-  },
 }));
 
 interface Props {

@@ -1,5 +1,4 @@
-import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { type Theme } from '@mui/material/styles';
+import { createTheme, type Theme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
