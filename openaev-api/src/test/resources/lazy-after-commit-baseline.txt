@@ -428,19 +428,16 @@ InjectApi.inject -> Communication.getExercise() | NOT ESTABLISHED | not written 
 InjectApi.inject -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 InjectApi.inject -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 InjectApi.inject -> Inject.getType() | ATTENUATED | measured: initialised inside the transaction whenever written
-InjectApi.inject -> Inject.secretReferences | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
 InjectApi.inject -> Inject.tags | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
 InjectApi.injectExecutionReception -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 InjectApi.injectExecutionReception -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 InjectApi.injectExecutionReception -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 InjectApi.injectExecutionReception -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-InjectApi.injectExecutionReception -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 InjectApi.injectExecutionReception -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 InjectApi.nextInjectsToExecute -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 InjectApi.nextInjectsToExecute -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 InjectApi.nextInjectsToExecute -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 InjectApi.nextInjectsToExecute -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-InjectApi.nextInjectsToExecute -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 InjectApi.nextInjectsToExecute -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 InjectApi.updateInject -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 InjectApi.updateInject -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
@@ -553,28 +550,24 @@ OrganizationApi.createOrganization -> Communication.getExercise() | NOT ESTABLIS
 OrganizationApi.createOrganization -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.createOrganization -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.createOrganization -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-OrganizationApi.createOrganization -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.createOrganization -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.createOrganization -> Organization.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 OrganizationApi.organization -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.organization -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.organization -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.organization -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-OrganizationApi.organization -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.organization -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.organization -> Organization.tags | ATTENUATED | fixed in #8392: loaded inside the scoped transaction
 OrganizationApi.organizations -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.organizations -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.organizations -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.organizations -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-OrganizationApi.organizations -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.organizations -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.organizations -> Organization.tags | ATTENUATED | fixed in #8392: loaded inside the scoped transaction
 OrganizationApi.updateOrganization -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.updateOrganization -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.updateOrganization -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.updateOrganization -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-OrganizationApi.updateOrganization -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.updateOrganization -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.updateOrganization -> Organization.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 PayloadApi.createPayload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
@@ -822,13 +815,11 @@ ScenarioInjectApi.bulkDeleteInjectsForScenario -> Communication.getExercise() | 
 ScenarioInjectApi.bulkDeleteInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkDeleteInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkDeleteInjectsForScenario -> Inject.getType() | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioInjectApi.bulkDeleteInjectsForScenario -> Inject.secretReferences | NOT ESTABLISHED | read after the commit, but no test row to lose
 ScenarioInjectApi.bulkDeleteInjectsForScenario -> Inject.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-ScenarioInjectApi.bulkUpdateInjectsForScenario -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.createInjectForScenario -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.createInjectForScenario -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
@@ -875,7 +866,6 @@ ScenarioInjectApi.createInjectsForScenario -> Communication.getExercise() | NOT 
 ScenarioInjectApi.createInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.createInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.createInjectsForScenario -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-ScenarioInjectApi.createInjectsForScenario -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.createInjectsForScenario -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.duplicateInjectForScenario -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.duplicateInjectForScenario -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
@@ -922,19 +912,16 @@ ScenarioInjectApi.generateInjectsForScenario -> Communication.getExercise() | NO
 ScenarioInjectApi.generateInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.generateInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.generateInjectsForScenario -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-ScenarioInjectApi.generateInjectsForScenario -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.generateInjectsForScenario -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.scenarioInject -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.scenarioInject -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.scenarioInject -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.scenarioInject -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-ScenarioInjectApi.scenarioInject -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.scenarioInject -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.scenarioInjects -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.scenarioInjects -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.scenarioInjects -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.scenarioInjects -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-ScenarioInjectApi.scenarioInjects -> Inject.secretReferences | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
 ScenarioInjectApi.scenarioInjects -> Inject.tags | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
 ScenarioInjectApi.scenarioInjectsSimple -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.scenarioInjectsSimple -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
@@ -981,7 +968,6 @@ ScenarioInjectApi.updateInjectActivationForScenario -> Communication.getExercise
 ScenarioInjectApi.updateInjectActivationForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.updateInjectActivationForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.updateInjectActivationForScenario -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-ScenarioInjectApi.updateInjectActivationForScenario -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.updateInjectActivationForScenario -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.updateInjectForScenario -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.updateInjectForScenario -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
@@ -1058,13 +1044,11 @@ SimulationInjectApi.bulkDeleteInjectsForSimulation -> Communication.getExercise(
 SimulationInjectApi.bulkDeleteInjectsForSimulation -> Communication.users | NOT ESTABLISHED | written while lazy, no gated read recorded
 SimulationInjectApi.bulkDeleteInjectsForSimulation -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.bulkDeleteInjectsForSimulation -> Inject.getType() | ATTENUATED | measured: initialised inside the transaction whenever written
-SimulationInjectApi.bulkDeleteInjectsForSimulation -> Inject.secretReferences | NOT ESTABLISHED | read after the commit, but no test row to lose
 SimulationInjectApi.bulkDeleteInjectsForSimulation -> Inject.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-SimulationInjectApi.bulkUpdateInjectsForSimulation -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.createInjectForExercise -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.createInjectForExercise -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
@@ -1111,7 +1095,6 @@ SimulationInjectApi.createInjectsForExercise -> Communication.getExercise() | NO
 SimulationInjectApi.createInjectsForExercise -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.createInjectsForExercise -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.createInjectsForExercise -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-SimulationInjectApi.createInjectsForExercise -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.createInjectsForExercise -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.duplicateInjectForExercise -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.duplicateInjectForExercise -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
@@ -1208,7 +1191,6 @@ SimulationInjectApi.exerciseInjects -> Communication.getExercise() | NOT ESTABLI
 SimulationInjectApi.exerciseInjects -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.exerciseInjects -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.exerciseInjects -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-SimulationInjectApi.exerciseInjects -> Inject.secretReferences | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
 SimulationInjectApi.exerciseInjects -> Inject.tags | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
 SimulationInjectApi.exerciseInjectsSimple -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.exerciseInjectsSimple -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
@@ -1255,25 +1237,21 @@ SimulationInjectApi.setInjectStatus -> Communication.getExercise() | NOT ESTABLI
 SimulationInjectApi.setInjectStatus -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.setInjectStatus -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.setInjectStatus -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-SimulationInjectApi.setInjectStatus -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.setInjectStatus -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectActivationForExercise -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectActivationForExercise -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectActivationForExercise -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectActivationForExercise -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-SimulationInjectApi.updateInjectActivationForExercise -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectActivationForExercise -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTeams -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTeams -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTeams -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTeams -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-SimulationInjectApi.updateInjectTeams -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTeams -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTrigger -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTrigger -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTrigger -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTrigger -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-SimulationInjectApi.updateInjectTrigger -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTrigger -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 TeamApi.createTeam -> Team.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
 TeamApi.createTeam -> Team.getExercisesInjects() | NOT ESTABLISHED | read after the commit, but no test row to lose
