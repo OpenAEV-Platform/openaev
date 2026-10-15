@@ -94,6 +94,11 @@ public class CatalogService {
     return catalogItemRepository.findByTypeAndExternalIdAndVersion(type, externalId, version);
   }
 
+  @Transactional(readOnly = true)
+  public List<CatalogItem> findVersions(ContentType type, String externalId) {
+    return catalogItemRepository.findAllByTypeAndExternalId(type, externalId);
+  }
+
   /** The stored package of a catalogue item, as released. */
   public Optional<byte[]> readPackage(CatalogItem item) {
     return fileService
