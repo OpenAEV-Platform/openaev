@@ -2542,6 +2542,7 @@ export interface CatalogConnectorSimpleOutput {
 export interface CatalogInstallInput {
   asset_group_ids?: string[];
   asset_ids?: string[];
+  manual_targets?: string[];
   team_ids?: string[];
 }
 
@@ -2552,6 +2553,7 @@ export interface CatalogInstallOutput {
 
 export interface CatalogInstallPreviewOutput {
   injects: InjectPreview[];
+  missing_requirements: string[];
   previous_scenario_id?: string;
   previous_version?: string;
 }
@@ -2568,6 +2570,7 @@ export interface CatalogItemOutput {
   catalog_item_installed_scenarios?: InstalledScenario[];
   catalog_item_installed_versions?: string[];
   catalog_item_main_focus?: string;
+  catalog_item_missing_requirements?: string[];
   catalog_item_name?: string;
   catalog_item_platforms?: string[];
   /** @format date-time */
@@ -7188,11 +7191,13 @@ export interface InjectOutput {
 }
 
 export interface InjectPreview {
+  current_targets: TargetLabel[];
   inject_catalog_id?: string;
   inject_title: string;
   is_new?: boolean;
   is_targeted?: boolean;
   target_fields: string[];
+  target_selector?: string;
 }
 
 export interface InjectReceptionInput {
@@ -12680,6 +12685,11 @@ export interface TagUpdateInput {
    * @minLength 1
    */
   tag_name: string;
+}
+
+export interface TargetLabel {
+  kind: string;
+  label: string;
 }
 
 export interface TargetSimple {

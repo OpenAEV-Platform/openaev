@@ -37,6 +37,9 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, onIns
       }}
       >
         {installedVersions.length > 0 && <Chip label={t('Update available')} severity="medium" />}
+        {(item.catalog_item_missing_requirements ?? []).length > 0 && (
+          <Chip label={t('Requirements missing')} severity="high" title={(item.catalog_item_missing_requirements ?? []).join(', ')} />
+        )}
         <Button size="sm" priority="secondary" onClick={onInstall} disabled={!canInstall}>
           {t('Install')}
         </Button>

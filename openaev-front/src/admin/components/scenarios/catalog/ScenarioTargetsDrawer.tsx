@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   Chip,
   Combobox,
@@ -8,12 +9,16 @@ import {
   ComboboxControls,
   ComboboxField,
   ComboboxInput,
-  ComboboxLabel,
   ComboboxTrigger,
+  IconButton,
+  Input,
   Spinner,
   Text,
 } from '@filigran/design-system';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { AccountTreeOutlined, DnsOutlined, EditOutlined, GroupsOutlined, PlayArrowOutlined } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
+import { Link } from 'react-router';
 
 import { searchAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
 import { searchEndpoints } from '../../../../actions/assets/endpoint-actions';
@@ -26,9 +31,17 @@ import {
   type EndpointOutput,
   type InjectPreview,
   type SearchPaginationInput,
+  type TargetLabel,
   type TeamOutput,
 } from '../../../../utils/api-types';
 import { type Option } from '../../../../utils/Option';
+
+const ASSETS = 'assets';
+const ASSET_GROUPS = 'asset_groups';
+const TEAMS = 'teams';
+const MANUAL = 'manual';
+// Kinds an inject with a target selector falls back to, in this order, when it has no target.
+const SELECTOR_KINDS = [ASSET_GROUPS, ASSETS, MANUAL];
 
 // Every target of the tenant, not only those already used: first page of the search by name.
 const searchAsOptions = <T, >(
@@ -38,26 +51,31 @@ const searchAsOptions = <T, >(
   page: 0,
   size: 50,
   textSearch: text,
-}).then(({ data }) => ({ data: data.content.map(toOption) }));
+}).then(({ data }) => data.content.map(toOption));
 
 const searchEndpointOptions = searchAsOptions<EndpointOutput>(searchEndpoints, endpoint => ({
-  id: endpoint.asset_id,
+  id: `${ASSETS}:${endpoint.asset_id}`,
   label: endpoint.asset_name,
 }));
 const searchAssetGroupOptions = searchAsOptions<AssetGroupOutput>(searchAssetGroups, group => ({
-  id: group.asset_group_id,
+  id: `${ASSET_GROUPS}:${group.asset_group_id}`,
   label: group.asset_group_name,
 }));
 const searchTeamOptions = searchAsOptions<TeamOutput>(searchTeams, team => ({
-  id: team.team_id,
+  id: `${TEAMS}:${team.team_id}`,
   label: team.team_name,
 }));
+const searchEndpointAndGroupOptions = (text: string) => Promise.all([searchAssetGroupOptions(text), searchEndpointOptions(text)])
+  .then(([groups, endpoints]) => [...groups, ...endpoints]);
+
+const kindOf = (option: Option) => option.id.split(':')[0];
+const idOf = (option: Option) => option.id.substring(option.id.indexOf(':') + 1);
 
 interface TargetFieldProps {
   label: string;
   value: Option[];
   onChange: (value: Option[]) => void;
-  search: (text: string) => Promise<{ data: Option[] }>;
+  search: (text: string) => Promise<Option[]>;
 }
 
 const TargetField: FunctionComponent<TargetFieldProps> = ({ label, value, onChange, search }) => {
@@ -66,7 +84,7 @@ const TargetField: FunctionComponent<TargetFieldProps> = ({ label, value, onChan
   const [inputValue, setInputValue] = useState('');
 
   useEffect(() => {
-    search(inputValue).then(({ data }) => setOptions(data));
+    search(inputValue).then(setOptions);
   }, [inputValue]);
 
   return (
@@ -84,10 +102,9 @@ const TargetField: FunctionComponent<TargetFieldProps> = ({ label, value, onChan
       }}
       onValueChange={next => onChange(next as Option[])}
     >
-      <ComboboxLabel>{label}</ComboboxLabel>
-      <ComboboxField>
+      <ComboboxField aria-label={label}>
         <ComboboxChips />
-        <ComboboxInput />
+        <ComboboxInput placeholder={t('Search...')} />
         <ComboboxControls>
           <ComboboxClear />
           <ComboboxTrigger />
@@ -98,48 +115,130 @@ const TargetField: FunctionComponent<TargetFieldProps> = ({ label, value, onChan
   );
 };
 
+interface TargetRowProps {
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}
+
+const TargetRow: FunctionComponent<TargetRowProps> = ({ icon, title, subtitle, children }) => (
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: '24px minmax(0, 1fr) minmax(0, 2fr)',
+    gap: 12,
+    alignItems: 'start',
+  }}
+  >
+    {icon}
+    <div>
+      <Text variant="content-base">{title}</Text>
+      <Text variant="content-caption">{subtitle}</Text>
+    </div>
+    {children}
+  </div>
+);
+
+const injectIcon = (fields: string[]) => {
+  if (fields.includes(MANUAL)) return <AccountTreeOutlined fontSize="small" />;
+  if (fields.includes(ASSETS) || fields.includes(ASSET_GROUPS)) return <DnsOutlined fontSize="small" />;
+  if (fields.includes(TEAMS)) return <GroupsOutlined fontSize="small" />;
+  return <span />;
+};
+
 interface Props {
   title: string;
-  submitLabel: string;
+  mode: 'install' | 'launch';
+  // The scenario whose injects can be opened from the list; none before install.
+  scenarioId?: string;
   load: () => Promise<{
     injects: InjectPreview[];
     previousVersion?: string;
+    missingRequirements?: string[];
   }>;
   onSubmit: (input: CatalogInstallInput) => Promise<unknown>;
   onClose: () => void;
 }
 
-// Targets are mandatory (F12): injects without one get those chosen here.
-const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, submitLabel, load, onSubmit, onClose }) => {
+// Section 6.3: the chosen targets are added to every inject that takes their kind, existing ones kept.
+const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenarioId, load, onSubmit, onClose }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const [injects, setInjects] = useState<InjectPreview[] | null>(null);
   const [previousVersion, setPreviousVersion] = useState<string | undefined>();
-  const [assets, setAssets] = useState<Option[]>([]);
-  const [assetGroups, setAssetGroups] = useState<Option[]>([]);
+  const [missingRequirements, setMissingRequirements] = useState<string[]>([]);
+  const [endpointsAndGroups, setEndpointsAndGroups] = useState<Option[]>([]);
   const [teams, setTeams] = useState<Option[]>([]);
+  const [manual, setManual] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     load().then((loaded) => {
       setInjects(loaded.injects);
       setPreviousVersion(loaded.previousVersion);
+      setMissingRequirements(loaded.missingRequirements ?? []);
     });
   }, []);
 
-  const neededFields = new Set((injects ?? []).filter(inject => !inject.is_targeted).flatMap(inject => inject.target_fields));
-  const isTargeted = (fields: string[]) => (fields.includes('assets') && assets.length > 0)
-    || (fields.includes('asset_groups') && assetGroups.length > 0)
-    || (fields.includes('teams') && teams.length > 0);
-  const missing = (injects ?? []).filter(inject => !inject.is_targeted && !isTargeted(inject.target_fields));
+  const manualTargets = manual.split(/[\s,;]+/).map(target => target.trim()).filter(target => target.length > 0);
+  const chosen: Record<string, TargetLabel[]> = {
+    [ASSETS]: endpointsAndGroups.filter(o => kindOf(o) === ASSETS).map(o => ({
+      kind: ASSETS,
+      label: o.label,
+    })),
+    [ASSET_GROUPS]: endpointsAndGroups.filter(o => kindOf(o) === ASSET_GROUPS).map(o => ({
+      kind: ASSET_GROUPS,
+      label: o.label,
+    })),
+    [TEAMS]: teams.map(o => ({
+      kind: TEAMS,
+      label: o.label,
+    })),
+    [MANUAL]: manualTargets.map(target => ({
+      kind: MANUAL,
+      label: target,
+    })),
+  };
+
+  // Same rule as the server: one kind at a time for an inject with a target selector.
+  const addedTo = (inject: InjectPreview): TargetLabel[] => {
+    const current = new Set((inject.current_targets ?? []).map(target => `${target.kind}:${target.label}`));
+    const fresh = (kind: string) => chosen[kind].filter(target => !current.has(`${kind}:${target.label}`));
+    if (inject.target_fields.includes(MANUAL)) {
+      let kind = inject.target_selector ?? ASSET_GROUPS;
+      if (chosen[kind].length === 0 && !inject.is_targeted) {
+        kind = SELECTOR_KINDS.find(k => chosen[k].length > 0) ?? kind;
+      }
+      return fresh(kind);
+    }
+    return inject.target_fields.flatMap(fresh);
+  };
+
+  const statusChip = (targetable: boolean, targeted: boolean) => {
+    if (!targetable) return <span />;
+    return targeted
+      ? <Chip label={t('Targeted')} severity="low" />
+      : <Chip label={t('Missing target')} severity="high" />;
+  };
+
+  const all = injects ?? [];
+  const takes = (kind: string) => all.some(inject => inject.target_fields.includes(kind));
+  const missing = all.filter(inject => inject.target_fields.length > 0 && !inject.is_targeted && addedTo(inject).length === 0);
+  const blocked = missing.length > 0 || missingRequirements.length > 0;
 
   const submit = () => {
     setSubmitting(true);
     onSubmit({
-      asset_ids: assets.map(o => o.id),
-      asset_group_ids: assetGroups.map(o => o.id),
-      team_ids: teams.map(o => o.id),
+      asset_ids: endpointsAndGroups.filter(o => kindOf(o) === ASSETS).map(idOf),
+      asset_group_ids: endpointsAndGroups.filter(o => kindOf(o) === ASSET_GROUPS).map(idOf),
+      team_ids: teams.map(idOf),
+      manual_targets: manualTargets,
     }).finally(() => setSubmitting(false));
   };
+
+  const intro = mode === 'launch'
+    ? t('Targets chosen here are added to every inject that takes this kind of target; existing targets are kept. They are saved on the scenario, then the simulation starts.')
+    : t('Targets chosen here are added to every inject that takes this kind of target; existing targets are kept. They are saved on the installed scenario.');
 
   return (
     <Drawer open handleClose={onClose} title={title}>
@@ -149,44 +248,111 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, submitLabel, l
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 16,
+              gap: 24,
             }}
             >
+              {missingRequirements.length > 0 && (
+                <Alert
+                  severity="error"
+                  title={t('This platform lacks what the scenario needs')}
+                  description={missingRequirements.join(', ')}
+                />
+              )}
+              <Text variant="content-base">{intro}</Text>
               {previousVersion && (
-                <Text variant="content-base">{t('Injects already in version {version} keep their targets.', { version: previousVersion })}</Text>
-              )}
-              {neededFields.has('assets') && (
-                <TargetField label={t('Assets')} value={assets} onChange={setAssets} search={searchEndpointOptions} />
-              )}
-              {neededFields.has('asset_groups') && (
-                <TargetField label={t('Asset groups')} value={assetGroups} onChange={setAssetGroups} search={searchAssetGroupOptions} />
-              )}
-              {neededFields.has('teams') && (
-                <TargetField label={t('Teams')} value={teams} onChange={setTeams} search={searchTeamOptions} />
+                <Text variant="content-caption">{t('Injects already in version {version} keep their targets.', { version: previousVersion })}</Text>
               )}
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 8,
+                gap: 16,
               }}
               >
-                {injects.map((inject, index) => (
-                  <div
-                    key={inject.inject_catalog_id ?? index}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
-                  >
-                    <Text variant="content-base" style={{ flex: 1 }}>{inject.inject_title}</Text>
-                    {inject.is_new && previousVersion && <Chip label={t('New')} />}
-                    {inject.is_targeted || isTargeted(inject.target_fields)
-                      ? <Chip label={t('Targeted')} severity="low" />
-                      : <Chip label={t('Missing target')} severity="high" />}
-                  </div>
-                ))}
+                {(takes(ASSETS) || takes(ASSET_GROUPS)) && (
+                  <TargetRow icon={<DnsOutlined fontSize="small" />} title={t('Assets and asset groups')} subtitle={t('Endpoint injects')}>
+                    <TargetField label={t('Assets and asset groups')} value={endpointsAndGroups} onChange={setEndpointsAndGroups} search={searchEndpointAndGroupOptions} />
+                  </TargetRow>
+                )}
+                {takes(MANUAL) && (
+                  <TargetRow icon={<AccountTreeOutlined fontSize="small" />} title={t('Manual targets')} subtitle={t('Injects in manual targeting')}>
+                    <Input
+                      aria-label={t('Manual targets')}
+                      placeholder="e.g. 10.0.0.12, 10.20.0.0/24, app.example.com"
+                      value={manual}
+                      onChange={event => setManual(event.target.value)}
+                    />
+                  </TargetRow>
+                )}
+                {takes(TEAMS) && (
+                  <TargetRow icon={<GroupsOutlined fontSize="small" />} title={t('Teams and players')} subtitle={t('Human injects: mail, SMS, challenges')}>
+                    <TargetField label={t('Teams and players')} value={teams} onChange={setTeams} search={searchTeamOptions} />
+                  </TargetRow>
+                )}
               </div>
+              <div>
+                <Text variant="content-base-bold">{`${t('Injects')} (${all.length})`}</Text>
+                <Text variant="content-caption">{t('Targets marked "added" come from this choice; the others were already on the scenario.')}</Text>
+              </div>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              >
+                {all.map((inject, index) => {
+                  const added = addedTo(inject);
+                  const targeted = inject.is_targeted || added.length > 0;
+                  return (
+                    <div
+                      key={inject.inject_catalog_id ?? index}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '24px minmax(0, 2fr) minmax(0, 2fr) auto auto',
+                        gap: 12,
+                        alignItems: 'center',
+                        padding: '8px 0',
+                        borderBottom: `1px solid ${theme.palette.divider}`,
+                      }}
+                    >
+                      {injectIcon(inject.target_fields)}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                      >
+                        <Text variant="content-base">{inject.inject_title}</Text>
+                        {inject.is_new && previousVersion && <Chip label={t('New')} />}
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        gap: 4,
+                        flexWrap: 'wrap',
+                      }}
+                      >
+                        {(inject.current_targets ?? []).map(target => <Chip key={`${target.kind}:${target.label}`} label={target.label} />)}
+                        {added.map(target => <Chip key={`added:${target.kind}:${target.label}`} label={`${target.label} · ${t('added')}`} severity="info" />)}
+                      </div>
+                      {statusChip(inject.target_fields.length > 0, targeted)}
+                      {mode === 'launch' && scenarioId
+                        ? (
+                            <IconButton asChild size="sm" priority="tertiary" aria-label={t('Edit the injects')} icon={<EditOutlined fontSize="small" />}>
+                              <Link to={`/admin/scenarios/${scenarioId}/injects`} />
+                            </IconButton>
+                          )
+                        : <span />}
+                    </div>
+                  );
+                })}
+              </div>
+              {missing.length > 0 && (
+                <Alert
+                  severity="warning"
+                  title={missing.length === 1 ? t('1 inject has no target') : t('{count} injects have no target', { count: String(missing.length) })}
+                  description={mode === 'launch'
+                    ? t('Launch stays disabled until each targetable inject has a target.')
+                    : t('Install stays disabled until each targetable inject has a target.')}
+                />
+              )}
               <div style={{
                 display: 'flex',
                 justifyContent: 'flex-end',
@@ -194,7 +360,13 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, submitLabel, l
               }}
               >
                 <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-                <Button onClick={submit} disabled={submitting || missing.length > 0}>{submitLabel}</Button>
+                <Button
+                  onClick={submit}
+                  disabled={submitting || blocked}
+                  startIcon={mode === 'launch' ? <PlayArrowOutlined fontSize="small" /> : undefined}
+                >
+                  {mode === 'launch' ? t('Save targets and launch') : t('Install')}
+                </Button>
               </div>
             </div>
           )}
