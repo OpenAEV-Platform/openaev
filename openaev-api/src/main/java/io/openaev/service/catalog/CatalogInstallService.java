@@ -12,6 +12,9 @@ import io.openaev.api.catalog.CatalogInstallOutput;
 import io.openaev.api.catalog.CatalogInstallPreviewOutput;
 import io.openaev.api.catalog.CatalogInstallPreviewOutput.InjectPreview;
 import io.openaev.api.catalog.CatalogManifest.PayloadRef;
+import io.openaev.api.catalog.CatalogScenarioVersionsOutput;
+import io.openaev.api.catalog.ScenarioTargetsOutput;
+import io.openaev.api.threat_arsenal.ContentHistoryOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.importer.ImportResult;
@@ -38,6 +41,7 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -101,6 +105,59 @@ public class CatalogInstallService {
         injects);
   }
 
+  /** Every release of an installed scenario, which ones are installed, and its history (F7). */
+  @Transactional(readOnly = true)
+  public CatalogScenarioVersionsOutput versions(String scenarioId) {
+    Scenario scenario = installedScenario(scenarioId);
+    String catalogId = scenario.getCatalogId();
+    Map<String, String> installed =
+        scenarioService.findInstalledCatalogVersions().getOrDefault(catalogId, Map.of());
+    List<CatalogItem> items =
+        catalogService.findVersions(ContentType.SCENARIO, catalogId).stream()
+            .sorted(Comparator.comparing(CatalogItem::getVersion, SemanticVersion.ORDER).reversed())
+            .toList();
+    String latest = items.isEmpty() ? null : items.getFirst().getVersion();
+    List<CatalogScenarioVersionsOutput.Version> versions =
+        items.stream()
+            .map(
+                i ->
+                    new CatalogScenarioVersionsOutput.Version(
+                        i.getVersion(),
+                        i.getStatus(),
+                        i.getChangelog(),
+                        i.getPublishedAt(),
+                        installed.get(i.getVersion()),
+                        i.getVersion().equals(scenario.getVersion()),
+                        i.getVersion().equals(latest)))
+            .toList();
+    List<ContentHistoryOutput> history =
+        contentHistoryService
+            .findHistory(ContentType.SCENARIO, catalogId, PageRequest.of(0, 100))
+            .map(ContentHistoryOutput::of)
+            .getContent();
+    return new CatalogScenarioVersionsOutput(catalogId, scenario.getVersion(), versions, history);
+  }
+
+  /** Target state of each inject, for the drawer a launch opens when one is missing (F12). */
+  @Transactional(readOnly = true)
+  public ScenarioTargetsOutput targets(String scenarioId) {
+    List<InjectPreview> injects =
+        injectService.findByScenarioId(scenarioService.scenario(scenarioId).getId()).stream()
+            .sorted(Comparator.comparing(Inject::getTitle, Comparator.nullsLast(String::compareTo)))
+            .map(
+                inject -> {
+                  List<String> fields = targetFields(inject);
+                  return new InjectPreview(
+                      inject.getCatalogId(),
+                      inject.getTitle(),
+                      fields,
+                      false,
+                      fields.isEmpty() || isTargeted(inject, fields));
+                })
+            .toList();
+    return new ScenarioTargetsOutput(injects);
+  }
+
   // -- CREATE --
 
   /**
@@ -128,6 +185,7 @@ public class CatalogInstallService {
 
     scenario.setCatalogId(externalId);
     scenario.setVersion(version);
+    copyMetadata(item, scenario);
     if (item.getAuthor() != null && !item.getAuthor().isBlank()) {
       scenario.setAuthorOrganization(
           organizationService.findOrCreateByName(item.getAuthor(), tenantId));
@@ -139,17 +197,49 @@ public class CatalogInstallService {
     return new CatalogInstallOutput(scenario.getId(), version);
   }
 
+  // -- UPDATE --
+
+  /** Gives the chosen targets to every inject that has none; none may stay without (F12). */
+  public ScenarioTargetsOutput completeTargets(String scenarioId, CatalogInstallInput input) {
+    Scenario scenario = scenarioService.scenario(scenarioId);
+    setTargets(
+        injectService.findByScenarioId(scenario.getId()),
+        Map.of(),
+        input == null ? CatalogInstallInput.empty() : input);
+    return targets(scenarioId);
+  }
+
   // -- DELETE --
 
   /** Removes an installed version; the payload versions it used stay installed (F11). */
   public void uninstall(String scenarioId) {
+    Scenario scenario = installedScenario(scenarioId);
+    contentHistoryService.scenarioUninstalled(scenario);
+    autonomousRunService.deleteForScenario(scenarioId);
+    scenarioService.deleteScenario(scenarioId);
+  }
+
+  private Scenario installedScenario(String scenarioId) {
     Scenario scenario = scenarioService.scenario(scenarioId);
     if (scenario.getCatalogId() == null) {
       throw new BadRequestException("This scenario was not installed from the catalogue");
     }
-    contentHistoryService.scenarioUninstalled(scenario);
-    autonomousRunService.deleteForScenario(scenarioId);
-    scenarioService.deleteScenario(scenarioId);
+    return scenario;
+  }
+
+  private static void copyMetadata(CatalogItem item, Scenario scenario) {
+    if (item.getSeverity() != null) {
+      Arrays.stream(Scenario.SEVERITY.values())
+          .filter(s -> s.name().equalsIgnoreCase(item.getSeverity()))
+          .findFirst()
+          .ifPresent(scenario::setSeverity);
+    }
+    if (item.getCategory() != null) {
+      scenario.setCategory(item.getCategory());
+    }
+    if (item.getMainFocus() != null) {
+      scenario.setMainFocus(item.getMainFocus());
+    }
   }
 
   // -- PAYLOADS --
@@ -242,6 +332,9 @@ public class CatalogInstallService {
         inject.setAssetGroups(new ArrayList<>(before.getAssetGroups()));
         inject.setTeams(new ArrayList<>(before.getTeams()));
         inject.setAllTeams(before.isAllTeams());
+        continue;
+      }
+      if (isTargeted(inject, fields)) {
         continue;
       }
       if (fields.contains(CONTRACT_ELEMENT_CONTENT_KEY_ASSETS)) {
