@@ -31,13 +31,6 @@ const useStyles = makeStyles()(theme => ({
     placeContent: 'end',
     gap: theme.spacing(2),
   },
-  chipInList: {
-    height: 30,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-    width: 150,
-    float: 'right',
-  },
 }));
 
 interface FormProps {

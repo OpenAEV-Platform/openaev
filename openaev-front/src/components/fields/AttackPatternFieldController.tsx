@@ -41,7 +41,6 @@ const useStyles = makeStyles()(theme => ({
     flexGrow: 1,
     marginLeft: theme.spacing(1),
   },
-  autoCompleteIndicator: { display: 'none' },
 }));
 
 interface Props {
@@ -167,7 +166,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
             <Dialog
               open={attackPatternCreation}
               onClose={handleCloseAttackPatternCreation}
-              PaperProps={{ elevation: 1 }}
+              slotProps={{ paper: { elevation: 1 } }}
             >
               <DialogTitle>{t('Create a new attack pattern')}</DialogTitle>
               <DialogContent>

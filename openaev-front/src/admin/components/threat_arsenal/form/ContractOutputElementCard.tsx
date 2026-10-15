@@ -11,6 +11,7 @@ import TagFieldController from '../../../../components/fields/TagFieldController
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { type RegexGroup } from '../../../../utils/api-types';
+import { formatRegexGroupFieldLabel } from '../../../../utils/String';
 import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../findings/ContractOutputElementType';
 
 interface Props {
@@ -147,7 +148,7 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
             }}
             variant="h3"
           >
-            {t(field.regex_group_field.charAt(0).toUpperCase() + field.regex_group_field.slice(1))}
+            {t(formatRegexGroupFieldLabel(field.regex_group_field))}
           </Typography>
           <TextFieldController placeholder={`$${indexField + 1}`} name={getRegexIndexesValueName(field.regex_group_field)} required />
         </div>

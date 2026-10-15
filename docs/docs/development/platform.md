@@ -102,6 +102,7 @@ yarn lint                  # ESLint (must pass with 0 warnings)
 yarn check-ts              # TypeScript type checking
 yarn depcruise             # Import cycles and dependency rules (dependency-cruiser)
 yarn knip --dependencies   # Unused or undeclared dependencies (knip)
+yarn test:eslint-rules     # Tests of the local ESLint rules (packages/eslint-plugin-custom-rules)
 yarn test                  # Unit tests (Vitest)
 yarn test:e2e              # E2E tests (Playwright, requires running application)
 ```

@@ -75,7 +75,12 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
     }
     const labelKey = `${getTimeRangeItem(widgetTimeRange)?.label_key}_progression`;
     return (
-      <Box display="flex" alignItems="center">
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
         <Icon sx={{ color }} fontSize="small" />
         <Typography
           variant="body2"

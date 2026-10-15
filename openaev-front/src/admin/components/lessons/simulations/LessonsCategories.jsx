@@ -183,10 +183,12 @@ const LessonsCategories = ({
                         <ListItemText
                           primary={question.lessons_question_content}
                           secondary={question.lessons_question_explanation || t('No explanation')}
-                          primaryTypographyProps={{
-                            sx: {
-                              fontSize: 13.5,
-                              fontWeight: 600,
+                          slotProps={{
+                            primary: {
+                              sx: {
+                                fontSize: 13.5,
+                                fontWeight: 600,
+                              },
                             },
                           }}
                         />
@@ -257,10 +259,12 @@ const LessonsCategories = ({
                             sx={{ width: '50%' }}
                             primary={`${consolidatedAnswer.number} ${t('answers')}`}
                             secondary={`${t('of which')} ${consolidatedAnswer.comments} ${t('contain comments')}`}
-                            primaryTypographyProps={{
-                              sx: {
-                                fontSize: 13.5,
-                                fontWeight: 600,
+                            slotProps={{
+                              primary: {
+                                sx: {
+                                  fontSize: 13.5,
+                                  fontWeight: 600,
+                                },
                               },
                             }}
                           />

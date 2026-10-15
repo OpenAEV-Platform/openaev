@@ -58,7 +58,14 @@ const TenantUsersTab = () => {
         availableFilterNames={TENANT_USER_FILTERS}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <CreateUser onCreate={addUser} disabled={!canManage} disabledMessage={PERMISSION_REQUIRED} />
+          <CreateUser
+            onCreate={(user) => {
+              addUser(user);
+              queryableHelpers.paginationHelpers.incrementTotalElements(1);
+            }}
+            disabled={!canManage}
+            disabledMessage={PERMISSION_REQUIRED}
+          />
         )}
       />
       <List>
@@ -89,7 +96,7 @@ const TenantUsersTab = () => {
                     user={user}
                     actions={['Update', 'Delete']}
                     onSubmitUpdate={data => editUser(user.user_id, data)}
-                    onSubmitDelete={() => removeUser(user.user_id)}
+                    onSubmitDelete={() => removeUser(user.user_id).then(() => queryableHelpers.paginationHelpers.incrementTotalElements(-1))}
                     permissions={{
                       manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES],
                       delete: [ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES],

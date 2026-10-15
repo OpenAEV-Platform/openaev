@@ -86,9 +86,9 @@ const LessonsQuestionPopover = ({
       </Menu>
       <Dialog
         open={openDelete}
-        TransitionComponent={Transition}
         onClose={handleCloseDelete}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

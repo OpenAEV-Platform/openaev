@@ -99,7 +99,7 @@ class OrganizationFieldComponent extends Component {
         <Dialog
           open={this.state.organizationCreation}
           onClose={this.handleCloseOrganizationCreation.bind(this)}
-          PaperProps={{ elevation: 1 }}
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Create a new organization')}</DialogTitle>
           <DialogContent>

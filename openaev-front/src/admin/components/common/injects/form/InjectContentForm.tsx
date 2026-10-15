@@ -97,6 +97,7 @@ const InjectContentForm = ({
             disabled={enhancedFieldsMapByType.get('asset-group')?.readOnly || readOnly}
             assetGroup={assetGroup}
             inline
+            actions={['update', 'manage-asset', 'remove']}
             onRemoveAssetGroupFromList={removeAssetGroup}
           />
         )}

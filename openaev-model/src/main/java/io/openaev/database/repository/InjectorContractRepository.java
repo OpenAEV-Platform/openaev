@@ -246,12 +246,12 @@ public interface InjectorContractRepository
    * cascade on).
    *
    * <p>Deliberately NOT tenant-scoped, unlike the other native queries here: the sweep set must be
-   * exactly what the database cascade deletes, whatever tenant it lives in. Today the schema
-   * guarantees at most one row - {@code unique_injector_contract_payload} (V4_98) is a
-   * single-column unique on the payload FK, so a payload backs one contract platform-wide - but
-   * returning the (contract, tenant) pair keeps the delete path correct even if that 1:1 constraint
-   * is ever relaxed. The caller sweeps each returned tenant separately; the sweep itself stays
-   * strictly tenant-scoped per pair.
+   * exactly what the database cascade deletes, whatever tenant it lives in. {@code
+   * injector_contract_payload_unique} allows one contract per payload per tenant, so this normally
+   * returns one row, but nothing in the schema stops a contract of another tenant from referencing
+   * the same payload: returning the (contract, tenant) pair keeps the delete path correct then. The
+   * caller sweeps each returned tenant separately; the sweep itself stays strictly tenant-scoped
+   * per pair.
    *
    * @param payloadId the payload whose contract rows are enumerated
    * @return one (contract id, tenant id) pair per contract row referencing the payload

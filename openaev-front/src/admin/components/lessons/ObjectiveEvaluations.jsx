@@ -99,7 +99,10 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
                   />
                 </Box>
                 <Box sx={{ minWidth: 35 }}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                  >
                     {evaluation.evaluation_score}
                     %
                   </Typography>
@@ -136,7 +139,10 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
                 <LinearProgress variant="determinate" value={0} />
               </Box>
               <Box sx={{ minWidth: 35 }}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   -
                 </Typography>
               </Box>

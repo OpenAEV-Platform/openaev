@@ -94,9 +94,9 @@ const AvailableVariablesDialog: FunctionComponent<
       open={open}
       fullWidth={true}
       maxWidth="md"
-      PaperProps={{ elevation: 1 }}
-      TransitionComponent={Transition}
       classes={{ paper: classes.dialogPaper }}
+      slots={{ transition: Transition }}
+      slotProps={{ paper: { elevation: 1 } }}
     >
       <Tabs
         value={tab}

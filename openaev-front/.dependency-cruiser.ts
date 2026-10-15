@@ -4,6 +4,8 @@
 // .dependency-cruiser-known-violations.json and ignored; once one is fixed, drop it from that
 // file with `yarn depcruise --baseline --baseline-mode shrink-only`.
 
+import type { IConfiguration } from 'dependency-cruiser';
+
 // Files allowed to import devDependencies: unit tests, e2e tests and tooling.
 const DEV_FILES = [
   '\\.(test|spec)\\.(js|jsx|ts|tsx)$',
@@ -14,8 +16,7 @@ const DEV_FILES = [
   '^playwright\\.config\\.ts$',
   '^eslint\\.config\\.js$',
   '^knip\\.ts$',
-  '^\\.dependency-cruiser\\.cjs$',
-  '^builder/',
+  '^\\.dependency-cruiser\\.ts$',
   '^scripts/',
 ];
 
@@ -25,8 +26,7 @@ const TEST_FILES = [
   '^tests_e2e/',
 ];
 
-/** @type {import('dependency-cruiser').IConfiguration} */
-module.exports = {
+export default {
   forbidden: [
     {
       name: 'no-circular',
@@ -60,7 +60,10 @@ module.exports = {
       name: 'not-to-test',
       severity: 'error',
       comment: 'Production code must not import unit or e2e test code.',
-      from: { path: '^src/', pathNot: TEST_FILES },
+      from: {
+        path: '^src/',
+        pathNot: TEST_FILES,
+      },
       to: { path: TEST_FILES },
     },
   ],
@@ -68,7 +71,6 @@ module.exports = {
     doNotFollow: { path: ['node_modules'] },
     exclude: {
       path: [
-        '^builder/[^/]+/build/',
         '__generated__',
         '^src/static/ext/',
         '^coverage/',
@@ -92,4 +94,4 @@ module.exports = {
     },
     skipAnalysisNotInRules: true,
   },
-};
+} satisfies IConfiguration;

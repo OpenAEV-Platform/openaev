@@ -184,6 +184,7 @@ class StepServiceGraphCopyIntegrationTest {
       Condition standalone =
           ConditionFixture.getDefaultCondition(PrimitiveType.Text, "standalone-value");
       standalone.setWorkflowId(scenarioTemplate.getId());
+      standalone.setTenant(scenarioTemplate.getTenant());
       standalone.setName("Unattached event");
       conditionComposer.forCondition(standalone).persist();
 

@@ -319,7 +319,6 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
                       user={user}
                       teamId={teamId}
                       onUpdate={() => onPlayersChange?.()}
-                      onDelete={() => onPlayersChange?.()}
                     />
                   )
                 : <span> &nbsp; </span>}

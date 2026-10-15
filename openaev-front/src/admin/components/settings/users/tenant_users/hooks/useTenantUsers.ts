@@ -43,7 +43,7 @@ const useTenantUsers = () => {
   }, [dispatch]);
 
   const removeUser = useCallback((userId: string) => {
-    dispatch(deleteUser(userId)).then(() => {
+    return dispatch(deleteUser(userId)).then(() => {
       setUsers(prev => prev.filter(u => u.user_id !== userId));
     });
   }, [dispatch]);

@@ -75,7 +75,8 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     compositeId.setTenantId(tenant != null ? tenant.getId() : null);
   }
 
-  @Column(name = "injector_contract_external_id", unique = true)
+  // Unique per tenant, not platform-wide: injector_contract_external_id_unique.
+  @Column(name = "injector_contract_external_id")
   @JsonProperty("injector_contract_external_id")
   @Nullable
   private String externalId;

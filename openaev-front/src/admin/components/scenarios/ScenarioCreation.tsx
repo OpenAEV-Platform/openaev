@@ -160,14 +160,22 @@ const ScenarioCreation: FunctionComponent = () => {
                 padding: theme.spacing(1.5),
               }}
             >
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: 'center' }}
+              >
                 <AutoAwesome sx={{
                   color: theme.palette.ai.main,
                   flexShrink: 0,
                 }}
                 />
                 <Box sx={{ flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center">
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ alignItems: 'center' }}
+                  >
                     <Typography
                       variant="subtitle2"
                       sx={{
@@ -179,7 +187,10 @@ const ScenarioCreation: FunctionComponent = () => {
                     </Typography>
                     {!isEnterpriseEdition && <EEChip />}
                   </Stack>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.secondary' }}
+                  >
                     {t('Let the orchestrator design this chained scenario from an objective, templates, agents and a scope.')}
                   </Typography>
                 </Box>
@@ -226,7 +237,11 @@ const ScenarioCreation: FunctionComponent = () => {
             padding: theme.spacing(1.5),
           }}
         >
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: 'center' }}
+          >
             <DashboardCustomizeOutlined sx={{
               color: theme.palette.primary.main,
               flexShrink: 0,
@@ -242,7 +257,10 @@ const ScenarioCreation: FunctionComponent = () => {
               >
                 {t('Scenario assistant')}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography
+                variant="caption"
+                sx={{ color: 'text.secondary' }}
+              >
                 {t('Build this time-based scenario with the guided assistant - coverage matrix and generated injects.')}
               </Typography>
             </Box>

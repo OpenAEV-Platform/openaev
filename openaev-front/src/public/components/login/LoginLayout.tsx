@@ -143,11 +143,12 @@ const LoginLayout: FunctionComponent<Props> = ({ children }) => {
   return (
     <Stack data-testid="login-page" direction="row" sx={{ height: '100vh' }}>
       <Stack
-        flex={1}
-        sx={contentSx}
-        justifyContent="center"
-        alignItems="center"
-        gap={4}
+        sx={[{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 4,
+        }, ...(Array.isArray(contentSx) ? contentSx : [contentSx])]}
       >
         <img
           src={loginLogo && loginLogo.length > 0
@@ -158,7 +159,9 @@ const LoginLayout: FunctionComponent<Props> = ({ children }) => {
         />
         {children}
       </Stack>
-      <Box flex={1} sx={asideSx}>
+      <Box
+        sx={[{ flex: 1 }, ...(Array.isArray(asideSx) ? asideSx : [asideSx])]}
+      >
         {loginAsideType === '' && <LogoFiligran />}
         {!isWhitemarkEnable && <LogoBaseline />}
       </Box>

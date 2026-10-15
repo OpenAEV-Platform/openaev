@@ -92,9 +92,11 @@ class MigrateWorkflowStateToNormalizedEntriesMigrationTest extends IntegrationTe
             .createNativeQuery(
                 "INSERT INTO workflow_states (workflow_state_id, workflow_execution_id,"
                     + (stepTemplate != null ? " workflow_step_template_id," : "")
-                    + " workflow_state_entries, workflow_state_created_at, workflow_state_updated_at)"
+                    + " tenant_id, workflow_state_entries, workflow_state_created_at,"
+                    + " workflow_state_updated_at)"
                     + " VALUES (:id, :run,"
                     + (stepTemplate != null ? " :step," : "")
+                    + " (SELECT tenant_id FROM workflows WHERE workflow_id = :run),"
                     + " CAST(:json AS jsonb), now(), now())")
             .setParameter("id", id)
             .setParameter("run", run.getId())

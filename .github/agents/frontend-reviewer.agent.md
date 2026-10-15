@@ -58,6 +58,8 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 | **Hardcoded tokens** | Colors, spacing, border-radius, or typography not from `theme.*` or a design-system token (fixed `width` exempt) | 🟡 MEDIUM |
 | **Dead props** | Props declared in `interface Props` but never passed by any call-site in the codebase | 🟡 MEDIUM |
 | **`@ts-ignore`** | Any `@ts-ignore` without an explanatory comment | 🟡 MEDIUM |
+| **Mutable export** | `export let` / `export var` instead of a `const` or a getter/setter function; lint enforces it (`custom-rules/no-mutable-exports`), so flag a new `eslint-disable` of that rule | 🟡 MEDIUM |
+| **Main component export** | A module's main component exported only by name (helpers, constants and hooks modules may use named exports) | 🟢 LOW |
 | **Button convention** | Affirmative confirm not `priority="primary"`, Cancel not `priority="secondary"`, or irreversible delete confirm not `variant="destructive"` (per `frontend.instructions.md`) | 🟡 MEDIUM |
 | **Props count** | Component with >8 props → suggest decomposition or context | 🟢 LOW |
 

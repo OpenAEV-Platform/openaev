@@ -119,7 +119,7 @@ const AtomicTestingRemediations = () => {
       if (!tabsData || !tabsData[activeTabIndex]) return map;
 
       map.set(tabsData[activeTabIndex].asset_id, {
-        ...map.get(tabsData[activeTabIndex].asset_id) || {},
+        ...(map.get(tabsData[activeTabIndex].asset_id) || {}),
         isLoading: isLoading,
       } as SnapshotEditionRemediationType);
 
@@ -132,7 +132,7 @@ const AtomicTestingRemediations = () => {
       const map = new Map(prev || []);
       if (!tabsData) return map;
       map.set(securityPlatformId, {
-        ...map.get(securityPlatformId) || {},
+        ...(map.get(securityPlatformId) || {}),
         isLoading: isLoading,
         AIRules: AIRules,
       } as SnapshotEditionRemediationType);
@@ -220,7 +220,10 @@ const AtomicTestingRemediations = () => {
         color: 'text.disabled',
       }}
       />
-      <Typography variant="body2" color="text.secondary">
+      <Typography
+        variant="body2"
+        sx={{ color: 'text.secondary' }}
+      >
         {t('No detection rule available for this security platform yet.')}
       </Typography>
     </Paper>

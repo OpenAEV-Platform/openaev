@@ -149,7 +149,11 @@ const RoleDetail = () => {
   return (
     <RoleScopeProvider scope={scope}>
       <div style={{ display: 'flex' }}>
-        <div style={{ flexGrow: 1 }}>
+        <div style={{
+          flexGrow: 1,
+          minWidth: 0,
+        }}
+        >
           <Breadcrumbs
             variant="object"
             elements={[

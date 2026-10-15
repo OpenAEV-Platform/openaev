@@ -21,7 +21,11 @@ const Roles = () => {
 
   return (
     <div style={{ display: 'flex' }}>
-      <div style={{ flexGrow: 1 }}>
+      <div style={{
+        flexGrow: 1,
+        minWidth: 0,
+      }}
+      >
         <Breadcrumbs
           variant="list"
           elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Security') }, { label: platformScope ? t('Platform') : t('This tenant') }, {

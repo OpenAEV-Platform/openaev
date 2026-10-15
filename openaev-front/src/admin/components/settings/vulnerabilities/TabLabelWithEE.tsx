@@ -9,7 +9,13 @@ const TabLabelWithEE = ({ label }: { label: string }) => {
   const theme = useTheme();
 
   return (
-    <Box component="span" display="inline-flex" alignItems="center">
+    <Box
+      component="span"
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+      }}
+    >
       {/* The theme's MuiTab override lowercases the label and re-capitalizes it
           with ::first-letter - a rule that does not apply to flex containers.
           Keeping the text in an inline-block span restores the capital letter. */}

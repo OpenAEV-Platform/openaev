@@ -31,7 +31,6 @@ import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -315,23 +314,19 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
       // Arrange
       InjectExecutionInput input = buildExecutionInput();
 
-      // Act & Assert — RBAC passes, business logic may throw (proves access granted)
-      try {
-        int status =
-            mvc.perform(
-                    post(INJECT_URI + "/execution/" + FAKE_AGENT_ID + "/callback/" + FAKE_INJECT_ID)
-                        .content(asJsonString(input))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andReturn()
-                .getResponse()
-                .getStatus();
-        assertThat(status).isNotEqualTo(403);
-      } catch (ServletException e) {
-        // Any exception other than access denied means RBAC passed
-        assertThat(e.getRootCause()).isNotNull();
-      }
+      // Act & Assert — the unknown inject is rejected by the object-level gate
+      // (ForbiddenException), not by the RBAC aspect (ResponseStatusException), which proves RBAC
+      // passed
+      mvc.perform(
+              post(INJECT_URI + "/execution/" + FAKE_AGENT_ID + "/callback/" + FAKE_INJECT_ID)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertThat(result.getResolvedException()).isInstanceOf(ForbiddenException.class));
     }
   }
 

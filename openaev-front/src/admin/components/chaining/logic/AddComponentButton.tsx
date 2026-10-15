@@ -58,7 +58,11 @@ const AddComponentButton = ({
 
   return (
     <div className={classes.buttonEmptyCanvas}>
-      <Typography variant="body1" color="text.secondary" align="center">
+      <Typography
+        variant="body1"
+        align="center"
+        sx={{ color: 'text.secondary' }}
+      >
         {context === 'scenario'
           ? t('Start adding components to complete the configuration of your scenario.')
           : t('Start adding components to complete the configuration of your simulation.')}

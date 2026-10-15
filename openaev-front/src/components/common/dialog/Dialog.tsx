@@ -41,7 +41,13 @@ const Dialog: FunctionComponent<DialogProps> = ({
       {title && (
         <DialogTitle>
           {showCloseIcon ? (
-            <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
               {title}
               <IconButton
                 icon={<Close />}

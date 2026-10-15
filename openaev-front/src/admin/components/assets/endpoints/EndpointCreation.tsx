@@ -16,11 +16,13 @@ import AssetForm from '../AssetForm';
 interface Props {
   agentless?: boolean;
   onCreate?: (result: Endpoint) => void;
+  onAiTargetCreate?: () => void;
 }
 
 const EndpointCreation: FunctionComponent<Props> = ({
   agentless = true,
   onCreate,
+  onAiTargetCreate,
 }) => {
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<AssetCategory | null>(null);
@@ -53,9 +55,10 @@ const EndpointCreation: FunctionComponent<Props> = ({
 
   const onSubmitAiTarget = (data: AiTargetInput) => {
     // AI targets are base Assets, not Endpoints, so they are not prepended to the
-    // (endpoint-shaped) onCreate list here; they surface in the unified asset inventory.
+    // (endpoint-shaped) onCreate list: the caller refetches the inventory instead.
     dispatch(addAiTarget(data)).then((result: { entities?: unknown }) => {
       if (result.entities) {
+        onAiTargetCreate?.();
         handleClose();
       }
       return result;

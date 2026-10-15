@@ -54,19 +54,7 @@ const useStyles = makeStyles()(theme => ({
     opacity: 0.38,
     pointerEvents: 'none',
   },
-  duration: {
-    fontSize: 12,
-    height: theme.spacing(2.5),
-    float: 'left',
-    marginRight: theme.spacing(1),
-    borderRadius: theme.shape.borderRadius,
-    width: 180,
-    backgroundColor: 'var(--color-filigran-brand-primary-transparency-10)',
-    color: 'var(--color-filigran-brand-primary)',
-    border: '1px solid var(--color-filigran-brand-primary)',
-  },
   itemHead: { textTransform: 'uppercase' },
-  item: { height: theme.spacing(6.25) },
   bodyItems: { display: 'flex' },
   bodyItem: {
     minHeight: theme.spacing(2.5),
@@ -523,7 +511,13 @@ const Injects: FunctionComponent<Props> = ({
         queryableHelpers={queryableHelpers}
         reloadContentCount={reloadInjectCount}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <InjectsListButtons
               availableButtons={availableButtons}
               setViewMode={setViewMode}

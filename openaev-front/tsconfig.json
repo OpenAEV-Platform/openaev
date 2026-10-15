@@ -21,16 +21,22 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
+  // the default "**/*" skips dot files
+  "include": [
+    "**/*",
+    ".dependency-cruiser.ts"
+  ],
   "exclude": [
     "node_modules",
     "coverage",
     "packages",
     "public",
-    "builder/dev/build",
     "builder/prod/build",
     "src/static/ext/*",
     "vite.config.ts",
-    "__generated__"
+    "__generated__",
+    // imports the ESLint plugin, which packages/eslint-plugin-custom-rules/tsconfig.json checks
+    "eslint.config.js"
   ],
   "references": [
     {

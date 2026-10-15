@@ -1,7 +1,9 @@
 package io.openaev.service;
 
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Asset;
 import io.openaev.database.repository.AgentRepository;
+import io.openaev.database.repository.AssetRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
@@ -20,6 +22,7 @@ public class AgentService {
   @PersistenceContext private EntityManager entityManager;
 
   private final AgentRepository agentRepository;
+  private final AssetRepository assetRepository;
 
   public Optional<Agent> getAgentForAnAssetByExecutorId(
       String assetId,
@@ -29,6 +32,46 @@ public class AgentService {
       String executorId) {
     return agentRepository.findByAssetExecutorIdUserDeploymentAndPrivilege(
         assetId, user, deploymentMode, privilege, executorId);
+  }
+
+  /**
+   * True when the agent is a primary agent and its asset is targeted by the inject, either directly
+   * or as a static member of one of the inject's asset groups. Dynamic group membership is not
+   * covered here.
+   *
+   * @param agentId the agent id
+   * @param injectId the inject id
+   * @return whether the primary agent's asset is a static target of the inject
+   */
+  public boolean isPrimaryAgentAssetStaticallyTargetedByInject(
+      @NotBlank final String agentId, @NotBlank final String injectId) {
+    return agentRepository.isPrimaryAgentAssetStaticallyTargetedByInject(agentId, injectId);
+  }
+
+  /**
+   * True when the agent is a primary agent that was granted the inject at launch, i.e. it has an
+   * expectation or an execution trace on it. Unlike the target check, this does not change when the
+   * inject's targets are edited afterwards.
+   *
+   * @param agentId the agent id
+   * @param injectId the inject id
+   * @return whether the primary agent holds an expectation or a trace on the inject
+   */
+  public boolean isPrimaryAgentGrantedInject(
+      @NotBlank final String agentId, @NotBlank final String injectId) {
+    return agentRepository.isPrimaryAgentGrantedInject(agentId, injectId);
+  }
+
+  /**
+   * Find the asset of an agent, only when it is a primary agent (no parent and not created for a
+   * specific inject).
+   *
+   * @param agentId the agent id
+   * @return the agent's asset, or empty if the agent does not exist, is not a primary agent or has
+   *     no asset
+   */
+  public Optional<Asset> findPrimaryAgentAsset(@NotBlank final String agentId) {
+    return agentRepository.findPrimaryAgentAssetId(agentId).flatMap(assetRepository::findById);
   }
 
   public List<Agent> getAgentsByExecutorId(String executorId) {

@@ -208,9 +208,9 @@ class GroupPopoverComponent extends Component {
         <ButtonPopover entries={entries} variant={this.props.variant ?? 'icon'} />
         <Dialog
           open={this.state.openDelete}
-          TransitionComponent={Transition}
           onClose={this.handleCloseDelete.bind(this)}
-          PaperProps={{ elevation: 1 }}
+          slots={{ transition: Transition }}
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogContent>
             <DialogContentText>

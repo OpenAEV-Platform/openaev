@@ -30,14 +30,6 @@ const useStyles = makeStyles()(() => ({
     height: '100%',
     fontSize: 13,
   },
-  chipInList: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    marginRight: 5,
-  },
 }));
 
 const headerStyles = {

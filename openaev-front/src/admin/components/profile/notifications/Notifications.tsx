@@ -122,9 +122,7 @@ const Notifications = () => {
   const onDelete = (notification: NotificationOutput) => {
     deleteNotification(notification.notification_id).then(() => {
       setNotifications(notifications.filter(existing => existing.notification_id !== notification.notification_id));
-      queryableHelpers.paginationHelpers.handleChangeTotalElements(
-        Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - 1),
-      );
+      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
     });
   };
 

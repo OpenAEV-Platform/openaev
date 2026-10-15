@@ -1,5 +1,5 @@
 import { Button, Chip, Paper } from '@filigran/design-system';
-import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
+import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutlineOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
 import { Alert, Box, Divider, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
@@ -176,8 +176,8 @@ const OutcomeCard: FunctionComponent<{
         {createdAtLabel && (
           <Typography
             variant="caption"
-            color="text.secondary"
             sx={{
+              color: 'text.secondary',
               flex: '0 0 auto',
               whiteSpace: 'nowrap',
             }}
@@ -190,8 +190,8 @@ const OutcomeCard: FunctionComponent<{
       {body && (
         <Typography
           variant="caption"
-          color="text.secondary"
           sx={{
+            color: 'text.secondary',
             marginTop: 0.5,
             ...clampSx(3),
           }}
@@ -622,7 +622,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
           {run.autonomous_run_objective}
         </Typography>
         {run.autonomous_run_last_error && (
-          <Alert severity="error" icon={<ErrorOutline />} sx={{ marginTop: 1 }}>
+          <Alert severity="error" icon={<ErrorOutlineOutlined />} sx={{ marginTop: 1 }}>
             {run.autonomous_run_last_error}
           </Alert>
         )}
@@ -758,7 +758,13 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                           <Chip label={t(eventTypeLabel(event.autonomous_event_type))} color={color} />
                           <Box sx={{ flex: 1 }} />
                           {time && (
-                            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: 'text.secondary',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
                               {time}
                             </Typography>
                           )}
@@ -828,7 +834,13 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                         {eventTitle || t(eventTypeLabel(event.autonomous_event_type))}
                       </Typography>
                       {time && (
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            fontSize: 10,
+                          }}
+                        >
                           {time}
                         </Typography>
                       )}

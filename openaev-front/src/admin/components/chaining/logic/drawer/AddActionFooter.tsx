@@ -62,7 +62,10 @@ const AddActionFooter = ({ numberOfSelectedElements, onClear, onSubmit }: AddAct
         }}
       >
         <InfoOutlined fontSize="small" color="info" />
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          sx={{ color: 'text.secondary' }}
+        >
           {t('Bulk select lets you add multiple actions, which you will need to configure after adding them')}
         </Typography>
       </Box>

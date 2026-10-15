@@ -108,8 +108,18 @@ const FieldOutputLink: FunctionComponent<Props> = ({
                 gap: 1,
               }}
               >
-                <Typography variant="body2" fontWeight={600}>{fieldLabel}</Typography>
-                <Typography variant="body2" color="text.secondary">-</Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 600 }}
+                >
+                  {fieldLabel}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
+                  -
+                </Typography>
                 <LinkOutlined fontSize="small" color="primary" />
                 <Typography variant="body2" color="primary">
                   {normalizedLinkOutputTypes.map(type => t(formatPrimitiveTypeLabel(type))).join(', ')}
@@ -128,7 +138,10 @@ const FieldOutputLink: FunctionComponent<Props> = ({
                     onChange={(_, checked) => onToggleLocalScope(fieldKey, checked)}
                     color="primary"
                   />
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.secondary' }}
+                  >
                     {t('Limit to Local Scope')}
                   </Typography>
                   <Button type="button" priority="tertiary" size="sm" endIcon={<KeyboardArrowDown fontSize="small" />} onClick={openTypeSelector}>

@@ -191,15 +191,19 @@ const Players = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
               <CreatePlayer
                 onCreate={(result) => {
                   setPlayers([result, ...players]);
-                  queryableHelpers.paginationHelpers.handleChangeTotalElements(
-                    queryableHelpers.paginationHelpers.getTotalElements() + 1,
-                  );
+                  queryableHelpers.paginationHelpers.incrementTotalElements(1);
                 }}
               />
             </Can>
@@ -275,9 +279,7 @@ const Players = () => {
                       : p)))}
                     onDelete={(result) => {
                       setPlayers(players.filter(p => (p.user_id !== result)));
-                      queryableHelpers.paginationHelpers.handleChangeTotalElements(
-                        Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - 1),
-                      );
+                      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
                     }}
                   />
                 )}

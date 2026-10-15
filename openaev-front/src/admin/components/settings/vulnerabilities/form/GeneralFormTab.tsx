@@ -46,13 +46,23 @@ const GeneralFormTab = ({ editing = false }: Props) => {
       <TextFieldController name="vulnerability_description" label={t('Description')} multiline rows={5} />
 
       {/* QUICK INFO */}
-      <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Quick Info')}</Typography>
+      <Typography
+        variant="h5"
+        sx={{ marginTop: theme.spacing(3) }}
+      >
+        {t('Quick Info')}
+      </Typography>
       <DateField name="vulnerability_published" label={t('NVD Published Date')} />
       <TextFieldController name="vulnerability_source_identifier" label={t('Source')} />
       <SelectFieldController name="vulnerability_vuln_status" label={t('Vulnerability status')} items={vulnerabilityStatus} />
 
       {/* CISA */}
-      <Typography variant="h5" marginTop={theme.spacing(3)}>{t('CISA\'s Known Exploited Vulnerabilities Catalog')}</Typography>
+      <Typography
+        variant="h5"
+        sx={{ marginTop: theme.spacing(3) }}
+      >
+        {t('CISA\'s Known Exploited Vulnerabilities Catalog')}
+      </Typography>
       <TextFieldController name="vulnerability_cisa_vulnerability_name" label={t('Vulnerability Name')} />
       <TextFieldController name="vulnerability_cisa_required_action" label={t('Required Action')} />
       <div style={{
@@ -66,7 +76,12 @@ const GeneralFormTab = ({ editing = false }: Props) => {
       </div>
 
       {/* CWES */}
-      <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Weakness Enumeration')}</Typography>
+      <Typography
+        variant="h5"
+        sx={{ marginTop: theme.spacing(3) }}
+      >
+        {t('Weakness Enumeration')}
+      </Typography>
       {cwesFields.map((cwesField, cwesIndex) => (
         <div
           style={{
@@ -106,7 +121,12 @@ const GeneralFormTab = ({ editing = false }: Props) => {
       </Button>
 
       {/* REFERENCES */}
-      <Typography variant="h5" marginTop={theme.spacing(3)}>{t('References to Advisories, Solutions, and Tools')}</Typography>
+      <Typography
+        variant="h5"
+        sx={{ marginTop: theme.spacing(3) }}
+      >
+        {t('References to Advisories, Solutions, and Tools')}
+      </Typography>
       {referencesFields.map((referencesField, referencesIndex) => (
         <div
           style={{

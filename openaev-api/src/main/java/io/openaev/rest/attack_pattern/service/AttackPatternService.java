@@ -12,7 +12,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.api.StructuralHistogramRuntime;
@@ -71,7 +70,6 @@ public class AttackPatternService {
   private final Environment env;
   private final AttackPatternRepository attackPatternRepository;
   private final TenantWriteScopeResolver writeScopeResolver;
-  private final KillChainPhaseRepository killChainPhaseRepository;
   private final EnterpriseEditionService enterpriseEditionService;
   private final RestTemplate restTemplate;
   private final SecurityCoverageUtils securityCoverageUtils;
@@ -573,24 +571,11 @@ public class AttackPatternService {
     return attackPatternRepository.findAllByIdIn(idsAttackPattern);
   }
 
-  private AttackPattern createAttackPatternFromAttackPatternCreateInput(
-      AttackPatternCreateInput input, String tenantId) {
-    AttackPattern newAttackPattern = new AttackPattern();
-    newAttackPattern.setName(input.getName());
-    newAttackPattern.setStixId(input.getStixId());
-    newAttackPattern.setDescription(input.getDescription());
-    newAttackPattern.setExternalId(input.getExternalId());
-    newAttackPattern.setPlatforms(input.getPlatforms());
-    newAttackPattern.setPermissionsRequired(input.getPermissionsRequired());
-    newAttackPattern.setTenant(new Tenant(tenantId));
-    return newAttackPattern;
-  }
-
   /**
    * Finds an existing attack pattern by external ID, or creates a new one if none exists.
    *
-   * <p>Unlike {@link #internalUpsertAttackPatterns}, this method does <b>not</b> update an existing
-   * entity.
+   * <p>Unlike {@link AttackPatternUpsertService#upsert}, this method does <b>not</b> update an
+   * existing entity.
    *
    * @param input the attack pattern data used for lookup (by external ID) and creation
    * @return the existing or newly created attack pattern
@@ -606,65 +591,6 @@ public class AttackPatternService {
             .stream()
             .findFirst();
     return attackPattern.orElseGet(
-        () ->
-            attackPatternRepository.save(
-                createAttackPatternFromAttackPatternCreateInput(input, tenantId)));
-  }
-
-  public List<AttackPattern> internalUpsertAttackPatterns(
-      TxCtx ctx, List<AttackPatternCreateInput> attackPatterns, Boolean ignoreDependencies) {
-    // Same reasoning as findOrCreate: the external id and the STIX id are unique per tenant, so
-    // every lookup this upsert makes is pinned to the tenant the new rows are attributed to.
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    List<AttackPattern> upserted = new ArrayList<>();
-    attackPatterns.forEach(
-        attackPatternInput -> {
-          String attackPatternExternalId = attackPatternInput.getExternalId();
-          Optional<AttackPattern> optionalAttackPattern =
-              attackPatternRepository.findByExternalIdAndTenantId(
-                  attackPatternExternalId, tenantId);
-          List<KillChainPhase> killChainPhases =
-              attackPatternInput.getKillChainPhasesIds() != null
-                      && !attackPatternInput.getKillChainPhasesIds().isEmpty()
-                  ? fromIterable(
-                      killChainPhaseRepository.findAllById(
-                          attackPatternInput.getKillChainPhasesIds()))
-                  : new ArrayList<>();
-          AttackPattern attackPatternParent =
-              attackPatternInput.getParentId() != null
-                  ? attackPatternRepository
-                      .findByStixIdAndTenantId(attackPatternInput.getParentId(), tenantId)
-                      .orElseThrow(ElementNotFoundException::new)
-                  : null;
-          if (optionalAttackPattern.isEmpty()) {
-            attackPatternInput.setExternalId(attackPatternExternalId);
-            AttackPattern newAttackPattern =
-                createAttackPatternFromAttackPatternCreateInput(attackPatternInput, tenantId);
-            newAttackPattern.setKillChainPhases(killChainPhases);
-            newAttackPattern.setExternalId(attackPatternExternalId);
-            upserted.add(newAttackPattern);
-          } else {
-            AttackPattern attackPattern = optionalAttackPattern.get();
-            // In this case, the input may not contain kill chain phases or parent, we keep the
-            // original
-            if (ignoreDependencies) {
-              if (killChainPhases.isEmpty() && !attackPattern.getKillChainPhases().isEmpty()) {
-                killChainPhases = attackPattern.getKillChainPhases();
-              }
-              if (attackPatternParent == null && attackPattern.getParent() != null) {
-                attackPatternParent = attackPattern.getParent();
-              }
-            }
-            attackPattern.setStixId(attackPatternInput.getStixId());
-            attackPattern.setKillChainPhases(killChainPhases);
-            attackPattern.setName(attackPatternInput.getName());
-            attackPattern.setDescription(attackPatternInput.getDescription());
-            attackPattern.setPlatforms(attackPatternInput.getPlatforms());
-            attackPattern.setPermissionsRequired(attackPatternInput.getPermissionsRequired());
-            attackPattern.setParent(attackPatternParent);
-            upserted.add(attackPattern);
-          }
-        });
-    return fromIterable(this.attackPatternRepository.saveAll(upserted));
+        () -> attackPatternRepository.save(input.toAttackPattern(tenantId)));
   }
 }

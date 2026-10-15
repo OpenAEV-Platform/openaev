@@ -85,9 +85,9 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
       onClose={handleClose}
       fullWidth
       maxWidth="sm"
-      TransitionComponent={Transition}
       slotProps={{ paper: { elevation: 1 } }}
       data-testid="target-result-alerts-dialog"
+      slots={{ transition: Transition }}
     >
       {/* Header: framed platform logo + name + type context + close */}
       <Box sx={{

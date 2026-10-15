@@ -22,7 +22,7 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class WorkflowScopeRule implements Base {
+public class WorkflowScopeRule implements TenantBase {
 
   @Id
   @Column(name = "workflow_scope_rule_id")
@@ -32,6 +32,11 @@ public class WorkflowScopeRule implements Base {
   @EqualsAndHashCode.Include
   @Schema(description = "ID of the workflow scope rule")
   private String id;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  private Tenant tenant;
 
   @Column(name = "workflow_scope_rule_selected_mode")
   @Enumerated(EnumType.STRING)
@@ -112,5 +117,11 @@ public class WorkflowScopeRule implements Base {
         .valueType(source.getValueType())
         .workflow(target)
         .build();
+  }
+
+  /** A scope rule belongs to its workflow's tenant. */
+  @PrePersist
+  void attributeTenantFromWorkflow() {
+    tenant = ParentTenant.inherit(this, tenant, workflow != null ? workflow.getTenant() : null);
   }
 }

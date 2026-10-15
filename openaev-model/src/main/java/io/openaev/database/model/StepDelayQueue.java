@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -16,7 +17,7 @@ import org.hibernate.annotations.*;
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
-public class StepDelayQueue implements Base {
+public class StepDelayQueue implements TenantBase {
   @Id
   @Column(name = "steps_delay_queue_id")
   @JsonProperty("steps_delay_queue_id")
@@ -25,6 +26,11 @@ public class StepDelayQueue implements Base {
   @EqualsAndHashCode.Include
   @Schema(description = "ID of the deferred step action")
   private String id;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  private Tenant tenant;
 
   @Column(name = "steps_delay_queue_input")
   @JsonProperty("steps_delay_queue_input")
@@ -69,4 +75,11 @@ public class StepDelayQueue implements Base {
   @UpdateTimestamp
   @Schema(description = "Timestamp when the action step delayed was last updated")
   private Instant updatedAt;
+
+  /** A delayed step belongs to its workflow run's tenant. */
+  @PrePersist
+  void attributeTenantFromWorkflowRun() {
+    tenant =
+        ParentTenant.inherit(this, tenant, workflowRun != null ? workflowRun.getTenant() : null);
+  }
 }

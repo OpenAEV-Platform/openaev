@@ -2,7 +2,7 @@ import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/d
 import { ArrowDownward } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type ReactNode, useRef } from 'react';
+import { Fragment, type ReactNode, useRef } from 'react';
 
 import { useFormatter } from '../../i18n';
 import { FONT_FAMILY_CODE } from '../../Theme';
@@ -54,7 +54,7 @@ const Terminal = ({ lines, maxHeight = 400 }: TerminalProps) => {
   };
 
   return (
-    <Box position="relative">
+    <Box sx={{ position: 'relative' }}>
       <div
         ref={containerRef}
         style={{
@@ -67,17 +67,14 @@ const Terminal = ({ lines, maxHeight = 400 }: TerminalProps) => {
           fontSize: theme.typography.h4.fontSize,
           overflowX: 'auto',
           maxHeight,
+          display: 'grid',
+          gridTemplateColumns: 'max-content 1fr',
+          columnGap: theme.spacing(1),
+          alignContent: 'start',
         }}
       >
         {lines.map(line => (
-          <Box
-            key={line.key}
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: line.date ? '200px 1fr' : '1fr',
-              columnGap: 1,
-            }}
-          >
+          <Fragment key={line.key}>
             {line.date && (
               <Box
                 sx={{
@@ -94,11 +91,12 @@ const Terminal = ({ lines, maxHeight = 400 }: TerminalProps) => {
                 color: getColor(line.level),
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
+                gridColumn: line.date ? undefined : '1 / -1',
               }}
             >
               {line.content}
             </Box>
-          </Box>
+          </Fragment>
         ))}
       </div>
       <Tooltip>

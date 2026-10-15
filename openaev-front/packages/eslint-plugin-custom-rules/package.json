@@ -1,16 +1,20 @@
 {
   "name": "eslint-plugin-custom-rules",
-  "version": "0.0.2",
-  "description": "Additional custom rules",
-  "main": "lib/index.js",
-  "exports": "./lib/index.js",
+  "version": "1.0.0",
+  "description": "OpenAEV frontend ESLint rules",
+  "type": "module",
+  "exports": "./lib/index.ts",
   "dependencies": {
-    "requireindex": "1.2.0"
+    "@typescript-eslint/utils": "8.71.1"
   },
   "devDependencies": {
-    "@typescript-eslint/parser": "8.71.1"
+    "@types/node": "24.19.1",
+    "@typescript-eslint/rule-tester": "8.71.1",
+    "eslint": "10.12.0",
+    "typescript": "6.0.3"
   },
   "peerDependencies": {
-    "eslint": ">=7"
+    "eslint": ">=9",
+    "typescript": ">=4.8.4"
   }
 }

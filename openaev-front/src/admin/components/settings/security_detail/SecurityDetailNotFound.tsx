@@ -9,7 +9,11 @@ import SecurityMenu from '../SecurityMenu';
 // in the current scope), keeping the right-hand SecurityMenu in place.
 export const SecurityDetailNotFound = ({ children }: { children: ReactNode }) => (
   <div style={{ display: 'flex' }}>
-    <div style={{ flexGrow: 1 }}>
+    <div style={{
+      flexGrow: 1,
+      minWidth: 0,
+    }}
+    >
       <Box sx={{ paddingTop: 6 }}>
         <Empty message={children} />
       </Box>

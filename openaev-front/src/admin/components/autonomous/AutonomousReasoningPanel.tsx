@@ -1,8 +1,8 @@
 import { Chip, IconButton, Radio, RadioGroup } from '@filigran/design-system';
 import {
   AutoAwesome,
-  ErrorOutline,
-  HelpOutline,
+  ErrorOutlineOutlined,
+  HelpOutlineOutlined,
   HourglassEmpty,
   SendOutlined,
   WarningAmber,
@@ -980,7 +980,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                   fontSize: 40,
                 }}
                 />
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('No decisions recorded for this run.')}
                 </Typography>
               </Stack>
@@ -1030,7 +1033,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                         <Chip label={t(eventTypeLabel(event.autonomous_event_type))} color={color} />
                         <Box sx={{ flex: 1 }} />
                         {event.autonomous_event_created_at && (
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography
+                            variant="caption"
+                            sx={{ color: 'text.secondary' }}
+                          >
                             {nsdt(event.autonomous_event_created_at)}
                           </Typography>
                         )}
@@ -1084,7 +1090,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     }}
                     >
                       {runNotice.severity === 'error'
-                        ? <ErrorOutline fontSize="small" color="error" sx={{ marginTop: '2px' }} />
+                        ? <ErrorOutlineOutlined fontSize="small" color="error" sx={{ marginTop: '2px' }} />
                         : <WarningAmber fontSize="small" color="warning" sx={{ marginTop: '2px' }} />}
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="subtitle2" sx={{ margin: 0 }}>
@@ -1129,7 +1135,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                       gap: 1,
                     }}
                     >
-                      <HelpOutline fontSize="small" color="warning" sx={{ marginTop: '2px' }} />
+                      <HelpOutlineOutlined fontSize="small" color="warning" sx={{ marginTop: '2px' }} />
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="subtitle2" sx={{ margin: 0 }}>
                           {sanitizeEventText(pendingQuestion.autonomous_event_title) || t('The AI needs your input to continue')}
@@ -1185,7 +1191,13 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           borderTop: `1px solid ${theme.palette.divider}`,
         }}
         >
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              display: 'block',
+            }}
+          >
             {t('Observe-only view. Steer and control this run from the parent scenario.')}
           </Typography>
         </Box>
@@ -1231,7 +1243,6 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               minRows={hasChoices ? 2 : 3}
               maxRows={8}
               variant="standard"
-              InputProps={{ disableUnderline: true }}
               sx={{
                 '& .MuiInputBase-root': {
                   alignItems: 'flex-start',
@@ -1239,6 +1250,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                   fontSize: '0.875rem',
                 },
               }}
+              slotProps={{ input: { disableUnderline: true } }}
             />
             <Stack sx={{
               flexDirection: 'row',
@@ -1249,8 +1261,8 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
             >
               <Typography
                 variant="caption"
-                color="text.secondary"
                 sx={{
+                  color: 'text.secondary',
                   fontSize: '0.6875rem',
                   opacity: 0.7,
                 }}

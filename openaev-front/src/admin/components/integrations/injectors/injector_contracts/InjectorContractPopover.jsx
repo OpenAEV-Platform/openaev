@@ -140,9 +140,9 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
       </Menu>
       <Dialog
         open={openDelete}
-        TransitionComponent={Transition}
         onClose={handleCloseDelete}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

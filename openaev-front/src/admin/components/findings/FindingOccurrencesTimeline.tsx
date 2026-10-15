@@ -318,8 +318,8 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
       {total > sorted.length && (
         <Typography
           variant="caption"
-          color="text.secondary"
           sx={{
+            color: 'text.secondary',
             display: 'block',
             marginTop: 1,
           }}

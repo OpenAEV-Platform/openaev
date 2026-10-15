@@ -41,7 +41,7 @@ The minimum Node.js version is specified in `openaev-front/package.json` (`engin
 ### Linting & Formatting
 
 **Backend**: `mvn spotless:check` / `mvn spotless:apply` (Google Java Format)
-**Frontend**: `yarn lint` (~60s), `yarn check-ts`, `yarn depcruise` (import cycles, dependency rules), `yarn knip --dependencies` (unused or undeclared dependencies), `yarn i18n-checker`
+**Frontend**: `yarn lint` (~60s), `yarn check-ts`, `yarn depcruise` (import cycles, dependency rules), `yarn knip --dependencies` (unused or undeclared dependencies), `yarn i18n-checker`, `yarn test:eslint-rules` (when changing `packages/eslint-plugin-custom-rules`)
 **Known Issue**: Pre-existing Spotless errors in `DetectionRemediationApiTest.java` and `InjectExpectationUtils.java` -
 ignore unless your changes touch these.
 
@@ -56,7 +56,7 @@ ignore unless your changes touch these.
 CI runs on GitHub Actions (see `.github/workflows/`):
 
 1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, `mvn jacoco:check`
-2. **Frontend Tests**: `yarn install/build/check-ts/lint/depcruise/knip/i18n-checker/test`
+2. **Frontend Tests**: `yarn install/build/check-ts/lint/test:eslint-rules/depcruise/knip/i18n-checker/test`
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
 

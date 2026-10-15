@@ -135,6 +135,7 @@ import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.attack_pattern.AttackPatternApi;
 import io.openaev.rest.attack_pattern.AttackPatternInitializer;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.attack_pattern.service.AttackPatternUpsertService;
 import io.openaev.rest.challenge.ChallengeApi;
 import io.openaev.rest.challenge.ScenarioChallengeApi;
 import io.openaev.rest.challenge.SimulationChallengeApi;
@@ -1626,7 +1627,7 @@ class TenantActiveTableAccessArchTest {
               KillChainPhaseService.class,
               // Reads phases by id for an upserted attack pattern; driven by the TxCtx-carrying
               // AttackPatternApi#upsertAttackPatterns:
-              AttackPatternService.class)
+              AttackPatternUpsertService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(KillChainPhaseRepository.class)
@@ -1657,6 +1658,7 @@ class TenantActiveTableAccessArchTest {
               InjectService.class,
               ScenarioService.class,
               AttackPatternService.class,
+              AttackPatternUpsertService.class,
               WorkflowExportInitializer.class,
               EsAttackPathService.class,
               V1_DataImporter.class)
@@ -1680,6 +1682,7 @@ class TenantActiveTableAccessArchTest {
               // Services behind wired handlers; every lookup names the tenant it writes to, or
               // relies on the handler's scope:
               AttackPatternService.class,
+              AttackPatternUpsertService.class,
               InjectorContractService.class,
               PayloadCreationService.class,
               PayloadUpdateService.class,

@@ -33,6 +33,22 @@ public class QueueChainingJob implements Job {
   /** Periodically processes the next eligible step from the delay queue. */
   @Override
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
+    // Quartz pools its threads, so the next job on this one would inherit whatever tenant the loop
+    // below sets per entry. Restored in a finally: a processing failure escapes the loop.
+    String previousTenant =
+        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
+    try {
+      processDueEntries();
+    } finally {
+      if (previousTenant == null) {
+        TenantContext.clearCurrentTenant();
+      } else {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+    }
+  }
+
+  private void processDueEntries() {
     // Pop and process inside the same transaction so that if processing fails, the DELETE is
     // rolled back and the entry is not lost. The transaction is opened through the tenant-aware
     // primitive rather than a raw TransactionTemplate, which is what background jobs are required
@@ -109,7 +125,6 @@ public class QueueChainingJob implements Job {
               log.error("[Chaining] Delay consume failed : {}", e.getMessage(), e);
             }
           }
-          TenantContext.clearCurrentTenant();
         });
   }
 

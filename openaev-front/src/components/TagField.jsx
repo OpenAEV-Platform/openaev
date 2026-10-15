@@ -112,7 +112,7 @@ class TagFieldComponent extends Component {
           <Dialog
             open={this.state.tagCreation}
             onClose={this.handleCloseTagCreation.bind(this)}
-            PaperProps={{ elevation: 1 }}
+            slotProps={{ paper: { elevation: 1 } }}
           >
             <DialogTitle>{t('Create a new tag')}</DialogTitle>
             <DialogContent>

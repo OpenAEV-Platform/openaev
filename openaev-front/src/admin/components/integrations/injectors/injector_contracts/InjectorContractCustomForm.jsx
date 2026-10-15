@@ -1,6 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { RichTextEditor } from '@filigran/rich-text-editor';
-import { GridLegacy, Switch, Typography } from '@mui/material';
+import { Grid, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
@@ -143,8 +143,8 @@ const InjectorContractForm = (props) => {
                   {field.label}
                 </Typography>
 
-                <GridLegacy container={true} spacing={3}>
-                  <GridLegacy item={true} xs={6}>
+                <Grid container={true} spacing={3}>
+                  <Grid size={6}>
                     <Typography
                       variant="h4"
                       gutterBottom={true}
@@ -153,9 +153,9 @@ const InjectorContractForm = (props) => {
                       {t('Type')}
                     </Typography>
                     {field.type}
-                  </GridLegacy>
+                  </Grid>
 
-                  <GridLegacy item={true} xs={6}>
+                  <Grid size={6}>
                     <Typography
                       variant="h4"
                       gutterBottom={true}
@@ -172,8 +172,8 @@ const InjectorContractForm = (props) => {
                         [field.key]: { readOnly: event.target.checked },
                       })}
                     />
-                  </GridLegacy>
-                </GridLegacy>
+                  </Grid>
+                </Grid>
 
                 <Typography
                   variant="h4"

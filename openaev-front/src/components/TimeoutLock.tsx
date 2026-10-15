@@ -116,7 +116,6 @@ const TimeoutLock = () => {
   return (
     <Dialog
       open={dialogOpen}
-      disableEscapeKeyDown
       slotProps={{ backdrop: { sx: { backdropFilter: 'blur(15px)' } } }}
     >
       <DialogTitle>{t('Session timeout')}</DialogTitle>

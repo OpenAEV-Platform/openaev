@@ -1,7 +1,6 @@
 import js from '@eslint/js';
 import stylistic from '@stylistic/eslint-plugin';
 import vitest from '@vitest/eslint-plugin';
-import customRules from 'eslint-plugin-custom-rules';
 import i18next from 'eslint-plugin-i18next';
 import playwright from 'eslint-plugin-playwright';
 import react from 'eslint-plugin-react';
@@ -10,6 +9,12 @@ import { reactRefresh } from 'eslint-plugin-react-refresh';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 import ts from 'typescript-eslint';
+
+import { checkNodeVersion } from './scripts/check-node-version.js';
+
+checkNodeVersion();
+// imported once the version is checked: an older Node fails to load its TypeScript sources
+const { default: customRules } = await import('eslint-plugin-custom-rules');
 
 export default [
   // rules recommended by @eslint/js
@@ -65,6 +70,9 @@ export default [
   // rules recommended by eslint-plugin-i18next
   i18next.configs['flat/recommended'],
 
+  // rules of the local package eslint-plugin-custom-rules
+  customRules.configs.recommended,
+
   // other config
   {
     plugins: {
@@ -72,8 +80,6 @@ export default [
       'react-refresh': reactRefresh.plugin,
       // eslint-plugin-simple-import-sort
       'simple-import-sort': simpleImportSort,
-      // local package eslint-plugin-custom-rules
-      'custom-rules': customRules,
     },
     rules: {
     // react-refresh rules
@@ -85,10 +91,6 @@ export default [
       // eslint-plugin-simple-import-sort rules
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',
-
-      // local package eslint-plugin-custom-rules rules
-      'custom-rules/classes-rule': 1,
-      'custom-rules/no-mutable-exports': 'error',
 
       // @typescript-eslint rules
       '@typescript-eslint/naming-convention': ['error', {
@@ -175,7 +177,6 @@ export default [
         process: true,
       },
     },
-    linterOptions: { reportUnusedDisableDirectives: 'error' },
   },
 
   // unit tests config
@@ -207,25 +208,14 @@ export default [
     },
   },
 
-  // CommonJS tooling config (.dependency-cruiser.cjs)
-  {
-    files: ['**/*.cjs'],
-    languageOptions: {
-      sourceType: 'commonjs',
-      globals: globals.node,
-    },
-  },
-
   // ignores patterns
   {
     ignores: [
       'node_modules',
       'coverage',
-      'packages',
       'public',
       'src/static/ext',
       'builder/prod/build',
-      'builder/dev/build',
       '__generated__',
       // fds-migration bridge (filigran-design-system pnpm generate:mui-bridge) —
       // pure generated data, regenerate upstream instead of hand-fixing lint

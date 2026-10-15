@@ -195,11 +195,11 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
       )}
 
       <Dialog
-        PaperProps={{ elevation: 1 }}
         open={open}
         onClose={handleClose}
         fullWidth={true}
         maxWidth="md"
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle sx={{ paddingBottom: 1 }}>
           <Box sx={{

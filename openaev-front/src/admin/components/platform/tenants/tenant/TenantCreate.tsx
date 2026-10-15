@@ -69,7 +69,10 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
         }}
       >
         <Loader />
-        <Typography variant="h6" color="inherit">
+        <Typography
+          variant="h6"
+          sx={{ color: 'inherit' }}
+        >
           {t('Creating tenant…')}
         </Typography>
       </Backdrop>

@@ -282,7 +282,16 @@ const FindingDetailPanel = ({
                 gap: 0.5,
               }}
               >
-                <Typography variant="caption" color="text.secondary" noWrap sx={{ minWidth: 0 }}>{endpointSub}</Typography>
+                <Typography
+                  variant="caption"
+                  noWrap
+                  sx={{
+                    color: 'text.secondary',
+                    minWidth: 0,
+                  }}
+                >
+                  {endpointSub}
+                </Typography>
                 {/* The IP/platform line is opaque on its own ("Unknown" reads as an error): an info
                     affordance spells out what it is and what an undetermined platform means. */}
                 <Tooltip>
@@ -339,7 +348,14 @@ const FindingDetailPanel = ({
                 }}
                 >
                   <Typography variant="body2" noWrap title={a.contract}>{a.contract}</Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                  <Typography
+                    variant="caption"
+                    noWrap
+                    sx={{
+                      color: 'text.secondary',
+                      display: 'block',
+                    }}
+                  >
                     {a.subtitle}
                   </Typography>
                 </Box>

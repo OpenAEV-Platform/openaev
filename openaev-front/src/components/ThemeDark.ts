@@ -439,17 +439,23 @@ const ThemeDark = (
               backgroundColor: hexToRGB('#ffffff', 0.05),
             },
           },
+          // Outlined primary (used by every Cancel/dismiss button) mirrors OpenCTI's
+          // "secondary" design-system button: neutral grey border + primary-colored
+          // label, not a bright primary-colored border.
+          'variants': [{
+            props: {
+              variant: 'outlined',
+              color: 'primary',
+            },
+            style: ({ theme }) => ({
+              'borderColor': theme.palette.border.main,
+              '&:hover': {
+                borderColor: theme.palette.border.main,
+                backgroundColor: alpha(theme.palette.primary.main, 0.15),
+              },
+            }),
+          }],
         },
-        // Outlined primary (used by every Cancel/dismiss button) mirrors OpenCTI's
-        // "secondary" design-system button: neutral grey border + primary-colored
-        // label, not a bright primary-colored border.
-        outlinedPrimary: ({ theme }) => ({
-          'borderColor': theme.palette.border.main,
-          '&:hover': {
-            borderColor: theme.palette.border.main,
-            backgroundColor: alpha(theme.palette.primary.main, 0.15),
-          },
-        }),
       },
     },
     MuiDialog: {

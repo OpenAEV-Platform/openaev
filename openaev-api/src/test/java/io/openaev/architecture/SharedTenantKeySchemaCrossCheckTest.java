@@ -188,14 +188,15 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
        ORDER BY 1
       """;
 
-  private static final List<String> KNOWN_GLOBALLY_UNIQUE_EXCLUSIONS =
-      List.of(
-          // injector_contract_payload holds payload_id values, and payloads.payload_id is a
-          // single-column primary key, so the value is globally unique.
-          // Nothing else today. users_tenants.user_id used to be here, wrongly: a foreign key onto
-          // users says users.user_id is unique in users, not that user_id is unique in
-          // users_tenants, where it repeats once per tenant the user belongs to.
-          "injectors_contracts injector_contract_payload");
+  // Empty today, and that is a result rather than an oversight. injectors_contracts
+  // injector_contract_payload was the only entry: it was dropped as globally unique because the
+  // table carried a total single-column unique index on it, and that index was replaced by a
+  // per-tenant one, so the column is now a shared key and appears in shared-tenant-keys.txt.
+  // users_tenants.user_id was here before that, wrongly: a foreign key onto users says
+  // users.user_id is unique in users, not that user_id is unique in users_tenants, where it
+  // repeats once per tenant the user belongs to. The assertion below still earns its place: it
+  // fails the moment a column starts being dropped again, which is a schema decision to look at.
+  private static final List<String> KNOWN_GLOBALLY_UNIQUE_EXCLUSIONS = List.of();
 
   /**
    * Shared keys the derivation is right about and the join guard cannot enforce yet.

@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,18 @@ public class ConditionServiceTest {
   @Mock private WorkflowRepository workflowRepository;
   @Mock private WorkflowStateService workflowStateService;
   @Spy private ConditionUtils conditionUtils;
+
+  /**
+   * A condition tree is always created under a workflow that exists, and the service now takes the
+   * row's tenant from it. Lenient so the tests that never reach a workflow lookup, and the ones
+   * that stub a specific id of their own, are unaffected.
+   */
+  @BeforeEach
+  void anyWorkflowResolvesToATenant() {
+    Workflow workflow = new Workflow();
+    workflow.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    lenient().when(workflowRepository.findById(anyString())).thenReturn(Optional.of(workflow));
+  }
 
   /* ============================================================
    * isMapperCondition

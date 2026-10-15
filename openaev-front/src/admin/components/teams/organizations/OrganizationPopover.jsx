@@ -115,9 +115,9 @@ class OrganizationPopoverComponent extends Component {
         </Menu>
         <Dialog
           open={this.state.openDelete}
-          TransitionComponent={Transition}
           onClose={this.handleCloseDelete.bind(this)}
-          PaperProps={{ elevation: 1 }}
+          slots={{ transition: Transition }}
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogContent>
             <DialogContentText>

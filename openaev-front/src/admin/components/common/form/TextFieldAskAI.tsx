@@ -356,11 +356,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           agentMode={useXtmOne ? agentMode : null}
         />
         <Dialog
-          PaperProps={{ elevation: 1 }}
           open={openGenMessageOptions}
           onClose={handleCloseGenMessageOptions}
           fullWidth={true}
           maxWidth="xs"
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Select options')}</DialogTitle>
           <DialogContent>
@@ -450,11 +450,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           </DialogActions>
         </Dialog>
         <Dialog
-          PaperProps={{ elevation: 1 }}
           open={openGenMediaOptions}
           onClose={handleCloseGenMediaOptions}
           fullWidth={true}
           maxWidth="xs"
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Select options')}</DialogTitle>
           <DialogContent>
@@ -537,11 +537,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           </DialogActions>
         </Dialog>
         <Dialog
-          PaperProps={{ elevation: 1 }}
           open={openToneOptions}
           onClose={handleCloseToneOptions}
           fullWidth={true}
           maxWidth="xs"
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Select options')}</DialogTitle>
           <DialogContent>
