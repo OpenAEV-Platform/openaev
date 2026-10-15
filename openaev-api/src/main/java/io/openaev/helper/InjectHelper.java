@@ -4,6 +4,7 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Stream.concat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.comparator.InjectExecutionComparator;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -114,7 +115,7 @@ public class InjectHelper {
 
   private boolean isBeforeOrEqualsNow(Injection injection) {
     Instant now = Instant.now();
-    Instant injectWhen = injection.getDate().orElseThrow();
+    Instant injectWhen = injection.getDate(now).orElseThrow();
     return injectWhen.equals(now) || injectWhen.isBefore(now);
   }
 
@@ -195,7 +196,7 @@ public class InjectHelper {
           Stream<ExecutableInject> executableInjects =
               injects.stream()
                   .filter(this::isBeforeOrEqualsNow)
-                  .sorted(Inject.executionComparator)
+                  .sorted(new InjectExecutionComparator(Instant.now()))
                   .map(this::toExecutableInject);
           // Get atomic testing injects
           List<Inject> atomicTests =
@@ -205,7 +206,7 @@ public class InjectHelper {
           Stream<ExecutableInject> executableAtomicTests =
               atomicTests.stream()
                   .filter(this::isBeforeOrEqualsNow)
-                  .sorted(Inject.executionComparator)
+                  .sorted(new InjectExecutionComparator(Instant.now()))
                   .map(this::toExecutableInject);
           // Combine injects
           return concat(executableInjects, executableAtomicTests).collect(Collectors.toList());

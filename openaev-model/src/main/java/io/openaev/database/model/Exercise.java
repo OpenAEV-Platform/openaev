@@ -12,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
+import io.openaev.comparator.InjectExecutionComparator;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
@@ -446,12 +447,13 @@ public class Exercise implements GrantableBase, TenantBase {
 
   @JsonProperty("exercise_next_inject_date")
   public Optional<Instant> getNextInjectExecution() {
+    Instant now = Instant.now();
     return getInjects().stream()
         .filter(inject -> inject.getStatus().isEmpty())
-        .filter(inject -> inject.getDate().isPresent())
-        .filter(inject -> inject.getDate().get().isAfter(now()))
+        .filter(inject -> inject.getDate(now).isPresent())
+        .filter(inject -> inject.getDate(now).get().isAfter(now()))
         .findFirst()
-        .flatMap(Inject::getDate);
+        .flatMap(inject -> inject.getDate(now));
   }
 
   @JsonIgnore
@@ -559,7 +561,7 @@ public class Exercise implements GrantableBase, TenantBase {
 
   public List<Inject> getInjects() {
     return injects.stream()
-        .sorted(Inject.executionComparator)
+        .sorted(new InjectExecutionComparator(Instant.now()))
         .collect(Collectors.toList()); // Should be modifiable
   }
 

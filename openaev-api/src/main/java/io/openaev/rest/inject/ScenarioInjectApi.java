@@ -7,6 +7,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.comparator.InjectExecutionComparator;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -28,6 +29,7 @@ import jakarta.persistence.criteria.Join;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -107,7 +109,7 @@ public class ScenarioInjectApi extends RestBehavior {
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     List<Inject> injects =
         this.injectRepository.findByScenarioId(scenarioId).stream()
-            .sorted(Inject.executionComparator)
+            .sorted(new InjectExecutionComparator(Instant.now()))
             .toList();
     KillChainPhaseInitializer.initializeFromInjects(injects);
     InjectLinksInitializer.initialize(injects);

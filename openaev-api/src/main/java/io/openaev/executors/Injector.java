@@ -48,7 +48,7 @@ public abstract class Injector {
             "Inject is now too old for execution: id "
                 + executableInject.getInjection().getId()
                 + ", launch date "
-                + executableInject.getInjection().getDate()
+                + executableInject.getInjection().getDate(Instant.now())
                 + ", now date "
                 + Instant.now());
       }

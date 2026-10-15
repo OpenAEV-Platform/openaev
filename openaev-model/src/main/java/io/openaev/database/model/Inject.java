@@ -48,17 +48,6 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   public static final String ID_COLUMN_NAME = "inject_id";
   public static final String ID_FIELD_NAME = "id";
 
-  public static final Comparator<Inject> executionComparator =
-      (o1, o2) -> {
-        if (o1.getDate().isPresent() && o2.getDate().isPresent()) {
-          return o1.getDate().get().compareTo(o2.getDate().get());
-        }
-        if (o1.getId() != null && o2.getId() != null) {
-          return o1.getId().compareTo(o2.getId());
-        }
-        return 0;
-      };
-
   @Getter
   @Id
   @Column(name = ID_COLUMN_NAME)
@@ -497,11 +486,22 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @JsonIgnore
   public Instant computeInjectDate(Instant source, int speed) {
-    return InjectModelHelper.computeInjectDate(source, speed, getDependsDuration(), getExercise());
+    return InjectModelHelper.computeInjectDate(
+        source, speed, getDependsDuration(), getExercise(), now());
   }
 
+  /**
+   * Deprecated; prefer using getDate(Instant) This is kept for serialisation purposes
+   *
+   * @return the execution date if applicable
+   */
   @JsonProperty("inject_date")
   public Optional<Instant> getDate() {
+    return this.getDate(now());
+  }
+
+  @JsonIgnore
+  public Optional<Instant> getDate(Instant stableNowReference) {
     // If a trigger now was executed for this inject linked to an exercise, we ignore pauses and we
     // set inject inside of a range of execution
     if (getExercise() != null && triggerNowDate != null) {
@@ -509,10 +509,11 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       if (exerciseStartOpt.isPresent()
           && (exerciseStartOpt.get().equals(triggerNowDate)
               || exerciseStartOpt.get().isBefore(triggerNowDate))) {
-        return Optional.of(now().minusSeconds(60));
+        return Optional.of(stableNowReference.minusSeconds(60));
       }
     }
-    return InjectModelHelper.getDate(getExercise(), getScenario(), getDependsDuration());
+    return InjectModelHelper.getDate(
+        getExercise(), getScenario(), getDependsDuration(), stableNowReference);
   }
 
   @JsonIgnore
@@ -527,12 +528,14 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @JsonIgnore
   public boolean isPastInject() {
-    return this.getDate().map(date -> date.isBefore(now())).orElse(false);
+    Instant now = Instant.now();
+    return this.getDate(now).map(date -> date.isBefore(now)).orElse(false);
   }
 
   @JsonIgnore
   public boolean isFutureInject() {
-    return this.getDate().map(date -> date.isAfter(now())).orElse(false);
+    Instant now = Instant.now();
+    return this.getDate(now).map(date -> date.isAfter(now)).orElse(false);
   }
 
   // endregion
