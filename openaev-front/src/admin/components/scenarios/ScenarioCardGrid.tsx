@@ -4,12 +4,13 @@ import { type FunctionComponent, type MouseEvent } from 'react';
 import EmptyPlaceholder from '../../../components/common/EmptyPlaceholder';
 import MarketplaceGrid from '../../../components/common/marketplace/MarketplaceGrid';
 import { useFormatter } from '../../../components/i18n';
-import { type Scenario } from '../../../utils/api-types';
+import { type CatalogItemOutput, type Scenario } from '../../../utils/api-types';
 import ToolBar from '../common/ToolBar';
 import ScenarioCard from './ScenarioCard';
 
 interface Props {
   scenarios: Scenario[];
+  catalogItems: Map<string, CatalogItemOutput>;
   loading: boolean;
   canManage: boolean;
   numberOfSelectedElements: number;
@@ -22,6 +23,7 @@ interface Props {
 
 const ScenarioCardGrid: FunctionComponent<Props> = ({
   scenarios,
+  catalogItems,
   loading,
   canManage,
   numberOfSelectedElements,
@@ -32,6 +34,14 @@ const ScenarioCardGrid: FunctionComponent<Props> = ({
   onDelete,
 }) => {
   const { t } = useFormatter();
+  // One card per catalogue scenario: its highest installed version, the others in its picker.
+  const isShownVersion = (scenario: Scenario) => {
+    const item = scenario.scenario_catalog_id ? catalogItems.get(scenario.scenario_catalog_id) : undefined;
+    if (!item) return true;
+    const highest = (item.catalog_item_versions ?? []).find(v => (item.catalog_item_installed_versions ?? []).includes(v));
+    return !highest || scenario.scenario_version === highest;
+  };
+  const shown = scenarios.filter(isShownVersion);
   return (
     <>
       {numberOfSelectedElements > 0 && (
@@ -46,13 +56,14 @@ const ScenarioCardGrid: FunctionComponent<Props> = ({
       )}
       <MarketplaceGrid
         loading={loading}
-        isEmpty={scenarios.length === 0}
+        isEmpty={shown.length === 0}
         emptyState={<EmptyPlaceholder icon={<RouteOutlined />} title={t('No scenario matches these filters.')} />}
       >
-        {scenarios.map(scenario => (
+        {shown.map(scenario => (
           <ScenarioCard
             key={scenario.scenario_id}
             scenario={scenario}
+            catalogItem={scenario.scenario_catalog_id ? catalogItems.get(scenario.scenario_catalog_id) : undefined}
             checked={isSelected(scenario)}
             anySelected={numberOfSelectedElements > 0}
             canManage={canManage}
