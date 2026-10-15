@@ -2534,6 +2534,58 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogInstallInput {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  team_ids?: string[];
+}
+
+export interface CatalogInstallOutput {
+  scenario_id: string;
+  scenario_version: string;
+}
+
+export interface CatalogInstallPreviewOutput {
+  injects: InjectPreview[];
+  previous_scenario_id?: string;
+  previous_version?: string;
+}
+
+export interface CatalogItemOutput {
+  catalog_item_author?: string;
+  catalog_item_category?: string;
+  catalog_item_changelog?: string;
+  catalog_item_description?: string;
+  /** @minLength 1 */
+  catalog_item_external_id: string;
+  /** @format int32 */
+  catalog_item_injects_count?: number;
+  catalog_item_installed_scenarios?: InstalledScenario[];
+  catalog_item_installed_versions?: string[];
+  catalog_item_main_focus?: string;
+  catalog_item_name?: string;
+  catalog_item_platforms?: string[];
+  /** @format date-time */
+  catalog_item_published_at?: string;
+  catalog_item_scenario_type?: string;
+  catalog_item_severity?: string;
+  catalog_item_status?: string;
+  catalog_item_type?: "PAYLOAD" | "SCENARIO";
+  /** @minLength 1 */
+  catalog_item_version: string;
+  catalog_item_versions?: string[];
+}
+
+export interface CatalogSyncOutput {
+  /** @format int32 */
+  added?: number;
+  applied?: boolean;
+  refused?: Refusal[];
+  release?: string;
+  /** @format int32 */
+  unchanged?: number;
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -6502,6 +6554,7 @@ export interface ImportPostSummary {
 
 export interface ImportResult {
   missingActions?: MissingImportedAction[];
+  scenarioId?: string;
 }
 
 export interface ImportTestSummary {
@@ -7089,6 +7142,14 @@ export interface InjectOutput {
   inject_users_number?: number;
   /** Stream listener value of the inject */
   listened?: boolean;
+}
+
+export interface InjectPreview {
+  inject_catalog_id?: string;
+  inject_title: string;
+  is_new?: boolean;
+  is_targeted?: boolean;
+  target_fields: string[];
 }
 
 export interface InjectReceptionInput {
@@ -7707,6 +7768,13 @@ export interface InstalledInjector {
   name?: string;
   /** True when the injector can carry custom payloads */
   payloads?: boolean;
+}
+
+export interface InstalledScenario {
+  /** @minLength 1 */
+  scenario_id: string;
+  /** @minLength 1 */
+  version: string;
 }
 
 export interface Internal {
@@ -10720,6 +10788,7 @@ export interface RawPaginationScenario {
   scenario_author?: string;
   scenario_author_name?: string;
   scenario_author_type?: string;
+  scenario_catalog_id?: string;
   scenario_category?: string;
   scenario_description?: string;
   scenario_id?: string;
@@ -10732,6 +10801,7 @@ export interface RawPaginationScenario {
   scenario_tags?: string[];
   /** @format date-time */
   scenario_updated_at?: string;
+  scenario_version?: string;
   scenario_workflow_id?: string;
 }
 
@@ -11278,6 +11348,7 @@ export interface Scenario {
   /** User author of the scenario */
   scenario_author_user?: string;
   scenario_autonomous?: boolean;
+  scenario_catalog_id?: string;
   scenario_category?: string;
   /** @format int64 */
   scenario_communications_number?: number;
@@ -11344,6 +11415,7 @@ export interface Scenario {
   scenario_users?: string[];
   /** @format int64 */
   scenario_users_number?: number;
+  scenario_version?: string;
 }
 
 export interface ScenarioAndInjectorContractsInputs {
@@ -11429,6 +11501,8 @@ export interface ScenarioOutput {
   scenario_author_type?: string;
   /** Whether the scenario is an autonomous (AI-driven) attack-path scenario */
   scenario_autonomous?: boolean;
+  /** Catalogue scenario this one was installed from */
+  scenario_catalog_id?: string;
   /** Category of the scenario */
   scenario_category?: string;
   /**
@@ -11506,6 +11580,8 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_users_number?: number;
+  /** Installed catalogue version */
+  scenario_version?: string;
   /** Workflow ID associated with the scenario */
   scenario_workflow_id?: string;
 }

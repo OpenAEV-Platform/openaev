@@ -1,8 +1,9 @@
 import { RouteOutlined } from '@mui/icons-material';
+import { useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import {
   fetchCatalogScenarioFacets,
-  installCatalogScenario,
   SCENARIO_AUTHOR_FILTER,
   SCENARIO_CATEGORY_FILTER,
   SCENARIO_PLATFORM_FILTER,
@@ -10,21 +11,21 @@ import {
   SCENARIO_TYPE_FILTER,
   searchCatalogScenarios,
 } from '../../../../actions/catalog/scenario-catalog-actions';
-import { type CatalogScenario } from '../../../../actions/catalog/scenario-catalog-preview';
 import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
 import MarketplaceBrowser from '../../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/MarketplaceFacetSidebar';
 import MarketplaceGrid from '../../../../components/common/marketplace/MarketplaceGrid';
-import MarketplacePreviewNotice from '../../../../components/common/marketplace/MarketplacePreviewNotice';
 import MarketplaceSortSelect from '../../../../components/common/marketplace/MarketplaceSortSelect';
 import useMarketplaceCatalog from '../../../../components/common/marketplace/useMarketplaceCatalog';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
+import { type CatalogItemOutput } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { scenarioCategories } from '../constants';
+import { SCENARIO_TYPE_LABELS, scenarioCategories } from '../constants';
 import { SCENARIO_SEVERITIES, severityLabelKey } from '../scenarioSeverity';
+import CatalogScenarioInstallDrawer from './CatalogScenarioInstallDrawer';
 import ScenarioCatalogCard from './ScenarioCatalogCard';
 
 const SORT_OPTIONS = [
@@ -40,6 +41,8 @@ const SORT_OPTIONS = [
 
 const ScenariosAvailable = () => {
   const { t } = useFormatter();
+  const navigate = useNavigate();
+  const [installing, setInstalling] = useState<CatalogItemOutput | null>(null);
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const {
     items,
@@ -49,9 +52,7 @@ const ScenariosAvailable = () => {
     queryableHelpers,
     searchPaginationInput,
     facetCounts,
-    isInstalled,
-    install,
-  } = useMarketplaceCatalog<CatalogScenario>({
+  } = useMarketplaceCatalog<CatalogItemOutput>({
     storageKey: 'scenarios-catalog',
     defaultSorts: [{
       property: 'catalog_item_published_at',
@@ -59,9 +60,6 @@ const ScenariosAvailable = () => {
     }],
     search: searchCatalogScenarios,
     fetchFacets: fetchCatalogScenarioFacets,
-    installOne: installCatalogScenario,
-    // Scenarios are installed one by one, with their targets (F6, F24).
-    installAll: () => Promise.resolve([]),
   });
 
   const facets: MarketplaceFacet[] = [
@@ -79,6 +77,7 @@ const ScenariosAvailable = () => {
     {
       filterKey: SCENARIO_TYPE_FILTER,
       label: 'Type',
+      valueLabel: value => t(SCENARIO_TYPE_LABELS[value] ?? value),
     },
     {
       filterKey: SCENARIO_PLATFORM_FILTER,
@@ -94,7 +93,6 @@ const ScenariosAvailable = () => {
 
   return (
     <MarketplaceBrowser
-      hero={<MarketplacePreviewNotice />}
       sidebar={(
         <MarketplaceFacetSidebar
           facets={facets}
@@ -129,12 +127,19 @@ const ScenariosAvailable = () => {
           <ScenarioCatalogCard
             key={item.catalog_item_external_id}
             item={item}
-            installed={isInstalled(item.catalog_item_external_id)}
             canInstall={canInstall}
-            onInstall={() => install(item.catalog_item_external_id)}
+            onInstall={() => setInstalling(item)}
           />
         ))}
       </MarketplaceGrid>
+      {installing && (
+        <CatalogScenarioInstallDrawer
+          item={installing}
+          version={installing.catalog_item_version}
+          onClose={() => setInstalling(null)}
+          onInstalled={scenarioId => navigate(`/admin/scenarios/${scenarioId}`)}
+        />
+      )}
     </MarketplaceBrowser>
   );
 };

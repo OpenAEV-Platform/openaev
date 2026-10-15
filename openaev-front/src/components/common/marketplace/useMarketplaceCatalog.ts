@@ -10,12 +10,21 @@ interface Options<T> {
   defaultSorts: SortField[];
   search: (input: SearchPaginationInput) => Promise<{ data: Page<T> }>;
   fetchFacets: (input: SearchPaginationInput) => Promise<{ data: Record<string, Record<string, number>> }>;
-  installOne: (id: string) => Promise<string[]>;
-  installAll: () => Promise<string[]>;
+  installOne?: (id: string) => Promise<string[]>;
+  installAll?: () => Promise<string[]>;
 }
 
 // Search, facets and installation state of a marketplace "Available" tab.
-const useMarketplaceCatalog = <T>({ storageKey, defaultSorts, search, fetchFacets, installOne, installAll }: Options<T>) => {
+const NOTHING_INSTALLED = () => Promise.resolve([]);
+
+const useMarketplaceCatalog = <T>({
+  storageKey,
+  defaultSorts,
+  search,
+  fetchFacets,
+  installOne = NOTHING_INSTALLED,
+  installAll = NOTHING_INSTALLED,
+}: Options<T>) => {
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [facetCounts, setFacetCounts] = useState<Record<string, Record<string, number>> | null>(null);
