@@ -3,48 +3,68 @@ import { RouteOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
-import { type CatalogScenario } from '../../../../actions/catalog/scenario-catalog-preview';
 import MarketplaceCard from '../../../../components/common/marketplace/MarketplaceCard';
 import { useFormatter } from '../../../../components/i18n';
 import ItemSeverity from '../../../../components/ItemSeverity';
-import { scenarioCategories } from '../constants';
+import { type CatalogItemOutput } from '../../../../utils/api-types';
+import { SCENARIO_TYPE_LABELS, scenarioCategories } from '../constants';
 import { severityAccent, severityLabelKey } from '../scenarioSeverity';
 
 interface Props {
-  item: CatalogScenario;
-  installed: boolean;
+  item: CatalogItemOutput;
   canInstall: boolean;
   onInstall: () => void;
 }
 
-const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, installed, canInstall, onInstall }) => {
+const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, onInstall }) => {
   const { t, nsd } = useFormatter();
   const theme = useTheme();
-  const accent = severityAccent(theme, item.catalog_item_severity);
+  const severity = item.catalog_item_severity;
+  const category = item.catalog_item_category;
+  const scenarioType = item.catalog_item_scenario_type;
+  const installedVersions = item.catalog_item_installed_versions ?? [];
+  const latestInstalled = installedVersions.includes(item.catalog_item_version);
+
+  let footer;
+  if (latestInstalled) {
+    footer = <Chip label={t('Installed')} severity="low" />;
+  } else {
+    footer = (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}
+      >
+        {installedVersions.length > 0 && <Chip label={t('Update available')} severity="medium" />}
+        <Button size="sm" priority="secondary" onClick={onInstall} disabled={!canInstall}>
+          {t('Install')}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <MarketplaceCard
-      accent={accent}
+      accent={severityAccent(theme, severity)}
       testId="scenario-catalog-card"
       icon={<RouteOutlined color="primary" />}
-      title={item.catalog_item_name}
-      subtitle={`${t('by')} ${item.catalog_item_author}`}
+      title={item.catalog_item_name ?? item.catalog_item_external_id}
+      subtitle={item.catalog_item_author ? `${t('by')} ${item.catalog_item_author}` : undefined}
       chips={(
         <>
-          <ItemSeverity label={t(severityLabelKey(item.catalog_item_severity))} severity={item.catalog_item_severity} />
-          <Chip label={t(scenarioCategories.get(item.catalog_item_category) ?? item.catalog_item_category)} />
-          <Chip label={t(item.catalog_item_type)} />
+          {severity && <ItemSeverity label={t(severityLabelKey(severity))} severity={severity} />}
+          {category && <Chip label={t(scenarioCategories.get(category) ?? category)} />}
+          {scenarioType && <Chip label={t(SCENARIO_TYPE_LABELS[scenarioType] ?? scenarioType)} />}
         </>
       )}
-      platforms={item.catalog_item_platforms}
-      footerRight={installed
-        ? <Chip label={t('Installed')} severity="low" />
-        : (
-            <Button size="sm" priority="secondary" onClick={onInstall} disabled={!canInstall}>
-              {t('Install')}
-            </Button>
-          )}
-      caption={`v${item.catalog_item_version} · ${item.catalog_item_injects_count} ${t('injects')} · ${t('Published')} ${nsd(item.catalog_item_published_at)}`}
+      platforms={item.catalog_item_platforms ?? []}
+      footerRight={footer}
+      caption={[
+        `v${item.catalog_item_version}`,
+        item.catalog_item_injects_count != null ? `${item.catalog_item_injects_count} ${t('injects')}` : null,
+        item.catalog_item_published_at ? `${t('Published')} ${nsd(item.catalog_item_published_at)}` : null,
+      ].filter(Boolean).join(' · ')}
     />
   );
 };
