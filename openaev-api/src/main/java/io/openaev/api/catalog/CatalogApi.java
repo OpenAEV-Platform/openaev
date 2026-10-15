@@ -69,6 +69,36 @@ public class CatalogApi {
     return catalogInstallService.preview(externalId, version);
   }
 
+  @LogExecutionTime
+  @Operation(summary = "Releases of an installed catalogue scenario and its history")
+  @GetMapping({
+    CATALOG_URI + "/installed-scenarios/{scenarioId}/versions",
+    TENANT_CATALOG_URI + "/installed-scenarios/{scenarioId}/versions"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public CatalogScenarioVersionsOutput versions(TxCtx ctx, @PathVariable String scenarioId) {
+    return catalogInstallService.versions(scenarioId);
+  }
+
+  @LogExecutionTime
+  @Operation(summary = "Target state of each inject of a scenario")
+  @GetMapping({
+    CATALOG_URI + "/installed-scenarios/{scenarioId}/targets",
+    TENANT_CATALOG_URI + "/installed-scenarios/{scenarioId}/targets"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public ScenarioTargetsOutput targets(TxCtx ctx, @PathVariable String scenarioId) {
+    return catalogInstallService.targets(scenarioId);
+  }
+
   // -- CREATE --
 
   @LogExecutionTime
@@ -91,6 +121,26 @@ public class CatalogApi {
       throws Exception {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return catalogInstallService.install(ctx, tenantId, externalId, version, input);
+  }
+
+  // -- UPDATE --
+
+  @LogExecutionTime
+  @Operation(
+      summary = "Give targets to the injects that have none",
+      description = "Refused while an inject would stay without a target.")
+  @PutMapping({
+    CATALOG_URI + "/installed-scenarios/{scenarioId}/targets",
+    TENANT_CATALOG_URI + "/installed-scenarios/{scenarioId}/targets"
+  })
+  @Transactional(rollbackFor = Exception.class)
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  public ScenarioTargetsOutput completeTargets(
+      TxCtx ctx, @PathVariable String scenarioId, @RequestBody CatalogInstallInput input) {
+    return catalogInstallService.completeTargets(scenarioId, input);
   }
 
   // -- DELETE --
