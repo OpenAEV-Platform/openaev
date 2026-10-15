@@ -277,6 +277,11 @@ public class InjectService {
     return inject;
   }
 
+  @Transactional(readOnly = true)
+  public Set<Inject> findByScenarioId(@NotBlank final String scenarioId) {
+    return injectRepository.findByScenarioId(scenarioId);
+  }
+
   public Inject inject(@NotBlank final String injectId) {
     return this.injectRepository
         .findById(injectId)

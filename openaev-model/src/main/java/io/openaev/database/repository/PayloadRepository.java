@@ -121,4 +121,10 @@ public interface PayloadRepository
           + "AND NOT EXISTS (SELECT ic FROM InjectorContract ic WHERE ic.payload = p)")
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
+
+  /** Installed managed payload versions, as {external id, version} pairs (F5). */
+  @Query(
+      "SELECT p.externalId, p.version FROM Payload p WHERE p.externalId IS NOT NULL"
+          + " AND p.version IS NOT NULL")
+  List<Object[]> findInstalledManagedVersions();
 }

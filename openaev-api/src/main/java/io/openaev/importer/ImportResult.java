@@ -11,10 +11,15 @@ import java.util.List;
  * missing actions must be aggregated into a single consolidated result.
  *
  * @param missingActions the actions skipped during import (never {@code null})
+ * @param scenarioId the scenario the import created, if any
  */
-public record ImportResult(List<MissingImportedAction> missingActions) {
+public record ImportResult(List<MissingImportedAction> missingActions, String scenarioId) {
   public ImportResult {
     missingActions = missingActions == null ? new ArrayList<>() : missingActions;
+  }
+
+  public ImportResult(List<MissingImportedAction> missingActions) {
+    this(missingActions, null);
   }
 
   public static ImportResult empty() {

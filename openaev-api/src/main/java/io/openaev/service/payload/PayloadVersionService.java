@@ -118,6 +118,20 @@ public class PayloadVersionService {
     return counts;
   }
 
+  /** Installed managed versions per external ID, for the Threat Arsenal Available tab (F5). */
+  @Transactional(readOnly = true)
+  public Map<String, Set<String>> findInstalledManagedVersions() {
+    return versionsById(payloadRepository.findInstalledManagedVersions());
+  }
+
+  private static Map<String, Set<String>> versionsById(List<Object[]> rows) {
+    Map<String, Set<String>> versions = new HashMap<>();
+    rows.forEach(
+        row ->
+            versions.computeIfAbsent((String) row[0], k -> new HashSet<>()).add((String) row[1]));
+    return versions;
+  }
+
   // -- UPDATE --
 
   /**
@@ -147,6 +161,21 @@ public class PayloadVersionService {
               payloadRepository.save(l);
             });
     return latest;
+  }
+
+  /**
+   * Turns a local copy made by a catalogue install into the managed version the release names
+   * (F11): same content, checked against the manifest hash by the caller.
+   */
+  public Payload promoteToVersion(Payload payload, String externalId, String version) {
+    payload.setLatest(false);
+    payload.setExternalId(externalId);
+    payload.setVersion(version);
+    payload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+    payloadRepository.save(payload);
+    entityManager.flush();
+    refreshLatest(externalId);
+    return payload;
   }
 
   /** Status shown and filtered on; the execution check reads the revocations, not this status. */

@@ -3,6 +3,7 @@ package io.openaev.service.content;
 import io.openaev.database.model.ContentHistory;
 import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ContentHistoryRepository;
 import io.openaev.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -45,25 +46,47 @@ public class ContentHistoryService {
 
   /** Injects moved to this payload version (F30). */
   public ContentHistory payloadVersionChanged(Payload source, Payload target) {
-    ContentHistory history = save(target, ContentHistory.ACTION.VERSION_CHANGE);
-    history.setFromVersion(source.getVersion());
-    return contentHistoryRepository.save(history);
+    return save(target, ContentHistory.ACTION.VERSION_CHANGE, source.getVersion());
   }
 
   public ContentHistory payloadRevoked(Payload payload) {
-    return save(payload, ContentHistory.ACTION.REVOKE);
+    return save(payload, ContentHistory.ACTION.REVOKE, null);
   }
 
   public ContentHistory payloadRevocationLifted(Payload payload) {
-    return save(payload, ContentHistory.ACTION.LIFT_REVOCATION);
+    return save(payload, ContentHistory.ACTION.LIFT_REVOCATION, null);
   }
 
-  private ContentHistory save(Payload payload, ContentHistory.ACTION action) {
+  /** A catalogue scenario version installed (F11), or a new version next to an older one. */
+  public ContentHistory scenarioInstalled(Scenario scenario, String fromVersion) {
+    return save(scenario, ContentHistory.ACTION.INSTALL, fromVersion);
+  }
+
+  public ContentHistory scenarioUninstalled(Scenario scenario) {
+    return save(scenario, ContentHistory.ACTION.UNINSTALL, null);
+  }
+
+  private ContentHistory save(Scenario scenario, ContentHistory.ACTION action, String fromVersion) {
+    ContentHistory history = new ContentHistory();
+    history.setType(ContentType.SCENARIO);
+    history.setExternalId(scenario.getCatalogId());
+    history.setVersion(scenario.getVersion());
+    history.setAction(action);
+    history.setFromVersion(fromVersion);
+    history.setEntityId(scenario.getId());
+    history.setUser(userService.currentUserOrNull());
+    history.setTenant(scenario.getTenant());
+    return contentHistoryRepository.save(history);
+  }
+
+  // History rows are never updated: set every field before the single save.
+  private ContentHistory save(Payload payload, ContentHistory.ACTION action, String fromVersion) {
     ContentHistory history = new ContentHistory();
     history.setType(ContentType.PAYLOAD);
     history.setExternalId(payload.getExternalId());
     history.setVersion(payload.getVersion());
     history.setAction(action);
+    history.setFromVersion(fromVersion);
     history.setEntityId(payload.getId());
     history.setUser(userService.currentUserOrNull());
     history.setTenant(payload.getTenant());
