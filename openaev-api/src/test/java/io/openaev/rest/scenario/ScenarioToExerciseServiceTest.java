@@ -22,12 +22,14 @@ import io.openaev.service.LoadService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.fixtures.CredentialFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -57,6 +59,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private LessonsQuestionRepository lessonsQuestionRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private SecretReferenceRepository secretReferenceRepository;
   @Autowired private VariableRepository variableRepository;
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
@@ -283,5 +286,36 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     assertEquals(1, exerciseSaved.getInjects().size());
     // Dashboard
     assertEquals(customDashboardSaved.getId(), exerciseSaved.getCustomDashboard().getId());
+  }
+
+  @DisplayName("Scenario to Exercise keeps the credentials of the injects")
+  @Test
+  void given_scenarioInjectWithCredential_should_copyCredentialToExerciseInject() {
+    // Arrange
+    Scenario scenarioSaved = this.scenarioService.createScenario(ScenarioFixture.getScenario());
+    CredentialSecretReference credentialSaved =
+        this.secretReferenceRepository.save(
+            CredentialFixture.createDefaultUsernameCredentialReference(
+                new Tenant(Tenant.DEFAULT_TENANT_UUID)));
+    Inject inject =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    inject.setScenario(scenarioSaved);
+    inject.setSecretReferences(new ArrayList<>(List.of(credentialSaved)));
+    this.injectRepository.save(inject);
+    scenarioSaved.setInjects(new HashSet<>(Set.of(inject)));
+
+    // Act
+    Exercise exercise = this.scenarioToExerciseService.toExercise(scenarioSaved, null, false);
+    entityManager.flush();
+    entityManager.clear();
+    Exercise exerciseSaved = this.loadService.exercise(exercise.getId());
+
+    // Assert
+    assertEquals(1, exerciseSaved.getInjects().size());
+    assertEquals(
+        List.of(credentialSaved.getId()),
+        exerciseSaved.getInjects().getFirst().getSecretReferences().stream()
+            .map(SecretReference::getId)
+            .toList());
   }
 }

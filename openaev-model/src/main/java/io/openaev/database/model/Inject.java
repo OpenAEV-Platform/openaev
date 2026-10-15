@@ -15,11 +15,6 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.*;
-import io.openaev.helper.InjectModelHelper;
-import io.openaev.helper.MonoIdSerializer;
-import io.openaev.helper.MultiIdListSerializer;
-import io.openaev.helper.MultiIdSetSerializer;
-import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
@@ -343,7 +338,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @Schema(implementation = String[].class)
   @Getter
-  @ManyToMany(fetch = FetchType.LAZY)
+  @ManyToMany(fetch = FetchType.EAGER)
   @Fetch(FetchMode.SUBSELECT)
   @JoinTable(
       name = "injects_secret_references",

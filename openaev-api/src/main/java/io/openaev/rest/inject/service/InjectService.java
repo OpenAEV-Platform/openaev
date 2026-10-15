@@ -2,9 +2,7 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
 import static io.openaev.database.model.ExecutionStatus.*;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
 import static io.openaev.helper.CryptoHelper.hashWithSHA256;
@@ -60,14 +58,11 @@ import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
+import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
-import io.openaev.utils.FilterUtilsJpa;
-import io.openaev.utils.InjectContentUtils;
-import io.openaev.utils.InjectUtils;
-import io.openaev.utils.JpaUtils;
-import io.openaev.utils.TargetType;
+import io.openaev.utils.*;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -107,6 +102,7 @@ public class InjectService {
   private static final String CREDENTIAL_INACTIVE = "CREDENTIAL_INACTIVE";
 
   private final TeamRepository teamRepository;
+  private final SecretReferenceService secretReferenceService;
   private final ExecutionTraceRepository executionTraceRepository;
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
@@ -190,6 +186,8 @@ public class InjectService {
     inject.setUser(this.userService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
+    inject.setSecretReferences(
+        secretReferenceService.secretReferences(input.getSecretReferences()));
     inject.setTags(tagService.tagSet(input.getTagIds()));
     List<InjectDocument> injectDocuments =
         input.getDocuments().stream()
@@ -856,6 +854,8 @@ public class InjectService {
       inject.setAssets(fromIterable(this.assetService.assets(input.getAssets())));
     }
     inject.setAssetGroups(fromIterable(this.assetGroupService.assetGroups(input.getAssetGroups())));
+    inject.setSecretReferences(
+        secretReferenceService.secretReferences(input.getSecretReferences()));
     inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
 
     // Set documents

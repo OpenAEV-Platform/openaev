@@ -341,6 +341,22 @@ public class InjectorContractFixture {
     return builder.build();
   }
 
+  /**
+   * Credential reference fields are only declared by external injectors: the framework has no
+   * dedicated contract element for them, so the fixture defines one inline.
+   */
+  public static List<ContractElement> buildCredentialReferenceField(final boolean mandatory) {
+    ContractElement credentialReferenceField =
+        new ContractElement("credential_reference", "Credential") {
+          @Override
+          public ContractFieldType getType() {
+            return ContractFieldType.CredentialReference;
+          }
+        };
+    credentialReferenceField.setMandatory(mandatory);
+    return List.of(credentialReferenceField);
+  }
+
   public static List<ContractElement> buildMandatoryGroup() {
     ContractAsset assetField = assetField(Multiple);
     ContractAssetGroup assetGroupField = assetGroupField(Multiple);
