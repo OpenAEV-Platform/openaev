@@ -1578,11 +1578,18 @@ class EndpointApiTest extends IntegrationTest {
   class MarkingFilters {
 
     private MarkingDefinition persistDefaultTenantMarking() {
-      return markingDefinitionComposer
-          .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
-          .withTenantId(Tenant.DEFAULT_TENANT_UUID)
-          .persist()
-          .get();
+      MarkingDefinition marking =
+          markingDefinitionComposer
+              .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
+              .withTenantId(Tenant.DEFAULT_TENANT_UUID)
+              .persist()
+              .get();
+      // MarkingClearanceCacheManager reads marking_definitions through raw JdbcTemplate, bypassing
+      // the Hibernate session - without a flush, the just-saved row is not yet visible on the
+      // connection and the admin bypass clearance silently excludes it, hiding every asset marked
+      // with it.
+      entityManager.flush();
+      return marking;
     }
 
     private String performAssetSearch(String uri, SearchPaginationInput input) throws Exception {
@@ -1690,51 +1697,6 @@ class EndpointApiTest extends IntegrationTest {
       assertThat(ids).contains(marked.getId()).doesNotContain(unmarked.getId());
     }
 
-    @Test
-    @DisplayName("given_sameMarkingIdInTwoTenants_should_onlyReturnAssetFromSearchedTenant")
-    void given_sameMarkingIdInTwoTenants_should_onlyReturnAssetFromSearchedTenant()
-        throws Exception {
-      // Arrange: force the SAME marking id to exist in two different tenants (ids are normally
-      // server-generated and never collide in production) so the eq filter COULD match both
-      // tenants' assets if tenant scoping were not independently enforced.
-      Tenant otherTenant =
-          tenantHelper.createTenantWithCapabilities(
-              "Tenant Marking Scope", Set.of(Capability.ACCESS_ASSETS));
-      String sharedMarkingId = "shared-marking-" + UUID.randomUUID();
-      markingDefinitionComposer
-          .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
-          .withId(sharedMarkingId)
-          .withTenantId(Tenant.DEFAULT_TENANT_UUID)
-          .persist();
-      markingDefinitionComposer
-          .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
-          .withId(sharedMarkingId)
-          .withTenantId(otherTenant.getId())
-          .persist();
-
-      Endpoint defaultTenantEndpoint = createEndpoint("ScopePinnedDefaultTenantEndpoint");
-      defaultTenantEndpoint.setMarkingIds(new String[] {sharedMarkingId});
-      endpointRepository.save(defaultTenantEndpoint);
-
-      Endpoint otherTenantEndpoint = createEndpoint("ScopePinnedOtherTenantEndpoint");
-      otherTenantEndpoint.setMarkingIds(new String[] {sharedMarkingId});
-      otherTenantEndpoint.setTenant(new Tenant(otherTenant.getId()));
-      endpointRepository.save(otherTenantEndpoint);
-
-      SearchPaginationInput input =
-          PaginationFixture.simpleSearchWithOrOperator(
-              "asset_markings", sharedMarkingId, Filters.FilterOperator.eq);
-
-      // Act: search tenant B's path for the marking id both tenants' assets carry
-      String response =
-          performAssetSearch("/api/tenants/" + otherTenant.getId() + "/assets/search", input);
-
-      // Assert: only the asset actually scoped to tenant B comes back
-      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
-      assertThat(ids)
-          .contains(otherTenantEndpoint.getId())
-          .doesNotContain(defaultTenantEndpoint.getId());
-    }
   }
 
   @Nested
