@@ -3,14 +3,17 @@ package io.openaev.service.catalog;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TEAMS;
+import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.catalog.CatalogInstallInput;
 import io.openaev.api.catalog.CatalogInstallOutput;
 import io.openaev.api.catalog.CatalogInstallPreviewOutput;
 import io.openaev.api.catalog.CatalogInstallPreviewOutput.InjectPreview;
+import io.openaev.api.catalog.CatalogInstallPreviewOutput.TargetLabel;
 import io.openaev.api.catalog.CatalogManifest.PayloadRef;
 import io.openaev.api.catalog.CatalogScenarioVersionsOutput;
 import io.openaev.api.catalog.ScenarioTargetsOutput;
@@ -34,12 +37,19 @@ import io.openaev.utils.SemanticVersion;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -60,7 +70,18 @@ public class CatalogInstallService {
           CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS,
           CONTRACT_ELEMENT_CONTENT_KEY_TEAMS);
 
+  // Free-text hosts of an inject with a target selector (nmap, nuclei...).
+  static final String MANUAL = "manual";
+  private static final String SELECTOR = "target_selector";
+  private static final String MANUAL_TARGETS = "targets";
+  private static final Map<String, String> SELECTOR_VALUES =
+      Map.of(
+          CONTRACT_ELEMENT_CONTENT_KEY_ASSETS, "assets",
+          CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS, "asset-groups",
+          MANUAL, "manual");
+
   private final CatalogService catalogService;
+  private final CatalogRequirementsService catalogRequirementsService;
   private final ImportService importService;
   private final ScenarioService scenarioService;
   private final InjectService injectService;
@@ -86,23 +107,32 @@ public class CatalogInstallService {
     Map<String, Inject> previousInjects = previousInjects(previous);
     List<InjectPreview> injects = new ArrayList<>();
     for (JsonNode inject : packagedInjects(readPackage(item))) {
-      String catalogId = text(inject, "inject_catalog_id");
+      String catalogId = catalogId(inject);
       JsonNode contract = inject.get("inject_injector_contract");
       List<String> fields =
           contract == null ? List.of() : targetFields(text(contract, "injector_contract_content"));
       Inject before = catalogId == null ? null : previousInjects.get(catalogId);
+      boolean carried = before != null && isTargeted(before, fields);
+      JsonNode content = inject.get("inject_content");
+      List<TargetLabel> labels =
+          carried ? currentTargets(before, fields) : packagedTargets(content, fields);
       injects.add(
           new InjectPreview(
               catalogId,
               text(inject, "inject_title"),
               fields,
               before == null,
-              fields.isEmpty() || (before != null && isTargeted(before, fields))));
+              fields.isEmpty() || !labels.isEmpty(),
+              fields.contains(MANUAL)
+                  ? (carried ? selectorKind(before.getContent()) : selectorKind(content))
+                  : null,
+              labels));
     }
     return new CatalogInstallPreviewOutput(
         previous.map(Scenario::getVersion).orElse(null),
         previous.map(Scenario::getId).orElse(null),
-        injects);
+        injects,
+        catalogRequirementsService.checker().missing(item));
   }
 
   /** Every release of an installed scenario, which ones are installed, and its history (F7). */
@@ -152,7 +182,9 @@ public class CatalogInstallService {
                       inject.getTitle(),
                       fields,
                       false,
-                      fields.isEmpty() || isTargeted(inject, fields));
+                      fields.isEmpty() || isTargeted(inject, fields),
+                      fields.contains(MANUAL) ? selectorKind(inject.getContent()) : null,
+                      currentTargets(inject, fields));
                 })
             .toList();
     return new ScenarioTargetsOutput(injects);
@@ -168,13 +200,17 @@ public class CatalogInstallService {
       TxCtx ctx, String tenantId, String externalId, String version, CatalogInstallInput input)
       throws Exception {
     CatalogItem item = findInstallable(externalId, version);
+    List<String> missing = catalogRequirementsService.checker().missing(item);
+    if (!missing.isEmpty()) {
+      throw new BadRequestException("Missing to run this scenario: " + String.join(", ", missing));
+    }
     Optional<Scenario> previous = previousInstall(externalId, version);
     byte[] archive = readPackage(item);
 
     Instant start = Instant.now();
     ImportResult result =
         importService.handleInputStreamFileImport(
-            ctx, new ByteArrayInputStream(archive), null, null, null, null, "");
+            ctx, new ByteArrayInputStream(withCatalogIds(archive)), null, null, null, null, "");
     if (result.scenarioId() == null) {
       throw new BadRequestException("The package holds no scenario");
     }
@@ -199,7 +235,7 @@ public class CatalogInstallService {
 
   // -- UPDATE --
 
-  /** Gives the chosen targets to every inject that has none; none may stay without (F12). */
+  /** Adds the chosen targets to every inject that takes their kind; none may stay without. */
   public ScenarioTargetsOutput completeTargets(String scenarioId, CatalogInstallInput input) {
     Scenario scenario = scenarioService.scenario(scenarioId);
     setTargets(
@@ -309,16 +345,39 @@ public class CatalogInstallService {
 
   // -- TARGETS --
 
+  private record Chosen(
+      List<Asset> assets, List<AssetGroup> assetGroups, List<Team> teams, List<String> manual) {
+
+    boolean has(String kind) {
+      return switch (kind) {
+        case CONTRACT_ELEMENT_CONTENT_KEY_ASSETS -> !assets.isEmpty();
+        case CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS -> !assetGroups.isEmpty();
+        case CONTRACT_ELEMENT_CONTENT_KEY_TEAMS -> !teams.isEmpty();
+        case MANUAL -> !manual.isEmpty();
+        default -> false;
+      };
+    }
+  }
+
+  /**
+   * Injects keep the targets of the installed version they replace; then the chosen targets are
+   * added to every inject that takes their kind (section 6.3). None may stay without a target.
+   */
   private void setTargets(
       Set<Inject> injects, Map<String, Inject> previousInjects, CatalogInstallInput input) {
-    List<Asset> assets =
-        isEmpty(input.assetIds()) ? List.of() : assetService.assets(input.assetIds());
-    List<AssetGroup> assetGroups =
-        isEmpty(input.assetGroupIds())
-            ? List.of()
-            : assetGroupService.assetGroups(input.assetGroupIds());
-    List<Team> teams =
-        isEmpty(input.teamIds()) ? List.of() : teamService.getTeamsByIds(input.teamIds());
+    Chosen chosen =
+        new Chosen(
+            isEmpty(input.assetIds()) ? List.of() : assetService.assets(input.assetIds()),
+            isEmpty(input.assetGroupIds())
+                ? List.of()
+                : assetGroupService.assetGroups(input.assetGroupIds()),
+            isEmpty(input.teamIds()) ? List.of() : teamService.getTeamsByIds(input.teamIds()),
+            input.manualTargets() == null
+                ? List.of()
+                : input.manualTargets().stream()
+                    .map(String::trim)
+                    .filter(t -> !t.isEmpty())
+                    .toList());
     List<String> missing = new ArrayList<>();
     for (Inject inject : injects) {
       List<String> fields = targetFields(inject);
@@ -328,24 +387,9 @@ public class CatalogInstallService {
       Inject before =
           inject.getCatalogId() == null ? null : previousInjects.get(inject.getCatalogId());
       if (before != null && isTargeted(before, fields)) {
-        inject.setAssets(new ArrayList<>(before.getAssets()));
-        inject.setAssetGroups(new ArrayList<>(before.getAssetGroups()));
-        inject.setTeams(new ArrayList<>(before.getTeams()));
-        inject.setAllTeams(before.isAllTeams());
-        continue;
+        carryOver(before, inject, fields);
       }
-      if (isTargeted(inject, fields)) {
-        continue;
-      }
-      if (fields.contains(CONTRACT_ELEMENT_CONTENT_KEY_ASSETS)) {
-        inject.setAssets(new ArrayList<>(assets));
-      }
-      if (fields.contains(CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS)) {
-        inject.setAssetGroups(new ArrayList<>(assetGroups));
-      }
-      if (fields.contains(CONTRACT_ELEMENT_CONTENT_KEY_TEAMS)) {
-        inject.setTeams(new ArrayList<>(teams));
-      }
+      addTargets(inject, fields, chosen);
       if (!isTargeted(inject, fields)) {
         missing.add(inject.getTitle());
       }
@@ -355,11 +399,87 @@ public class CatalogInstallService {
     }
   }
 
+  private void carryOver(Inject before, Inject inject, List<String> fields) {
+    inject.setAssets(new ArrayList<>(before.getAssets()));
+    inject.setAssetGroups(new ArrayList<>(before.getAssetGroups()));
+    inject.setTeams(new ArrayList<>(before.getTeams()));
+    inject.setAllTeams(before.isAllTeams());
+    if (fields.contains(MANUAL) && before.getContent() != null) {
+      ObjectNode content = content(inject);
+      content.set(SELECTOR, before.getContent().get(SELECTOR));
+      content.set(MANUAL_TARGETS, before.getContent().get(MANUAL_TARGETS));
+      inject.setContent(content);
+    }
+  }
+
+  // An inject with a target selector takes one kind at a time: the chosen one, if it has none.
+  private void addTargets(Inject inject, List<String> fields, Chosen chosen) {
+    if (fields.contains(MANUAL)) {
+      String kind = selectorKind(inject.getContent());
+      if (!chosen.has(kind) && !isTargeted(inject, fields)) {
+        kind =
+            Stream.of(
+                    CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS,
+                    CONTRACT_ELEMENT_CONTENT_KEY_ASSETS,
+                    MANUAL)
+                .filter(chosen::has)
+                .findFirst()
+                .orElse(kind);
+        ObjectNode content = content(inject);
+        content.put(SELECTOR, SELECTOR_VALUES.get(kind));
+        inject.setContent(content);
+      }
+      add(inject, kind, chosen);
+      return;
+    }
+    fields.forEach(kind -> add(inject, kind, chosen));
+  }
+
+  private void add(Inject inject, String kind, Chosen chosen) {
+    switch (kind) {
+      case CONTRACT_ELEMENT_CONTENT_KEY_ASSETS ->
+          inject.setAssets(union(inject.getAssets(), chosen.assets(), Asset::getId));
+      case CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS ->
+          inject.setAssetGroups(
+              union(inject.getAssetGroups(), chosen.assetGroups(), AssetGroup::getId));
+      case CONTRACT_ELEMENT_CONTENT_KEY_TEAMS ->
+          inject.setTeams(union(inject.getTeams(), chosen.teams(), Team::getId));
+      case MANUAL -> {
+        if (!chosen.manual().isEmpty()) {
+          ObjectNode content = content(inject);
+          content.put(
+              MANUAL_TARGETS,
+              String.join(",", union(manualTargets(inject.getContent()), chosen.manual(), t -> t)));
+          inject.setContent(content);
+        }
+      }
+      default -> {}
+    }
+  }
+
+  private static <T> List<T> union(List<T> current, List<T> added, Function<T, String> id) {
+    List<T> merged = new ArrayList<>(current);
+    Set<String> ids = current.stream().map(id).collect(Collectors.toSet());
+    added.stream().filter(item -> ids.add(id.apply(item))).forEach(merged::add);
+    return merged;
+  }
+
+  private ObjectNode content(Inject inject) {
+    return inject.getContent() == null ? mapper.createObjectNode() : inject.getContent().deepCopy();
+  }
+
   private List<String> targetFields(Inject inject) {
     InjectorContract contract = inject.getInjectorContract().orElse(null);
-    return TARGET_FIELDS.stream()
-        .filter(field -> injectorContractContentUtils.hasField(contract, field))
-        .toList();
+    List<String> fields =
+        new ArrayList<>(
+            TARGET_FIELDS.stream()
+                .filter(field -> injectorContractContentUtils.hasField(contract, field))
+                .toList());
+    if (injectorContractContentUtils.hasField(contract, SELECTOR)
+        && injectorContractContentUtils.hasField(contract, MANUAL_TARGETS)) {
+      fields.add(MANUAL);
+    }
+    return fields;
   }
 
   private List<String> targetFields(String contractContent) {
@@ -372,18 +492,88 @@ public class CatalogInstallService {
       if (fields != null && fields.isArray()) {
         fields.forEach(field -> keys.add(text(field, "key")));
       }
-      return TARGET_FIELDS.stream().filter(keys::contains).toList();
+      List<String> kinds = new ArrayList<>(TARGET_FIELDS.stream().filter(keys::contains).toList());
+      if (keys.contains(SELECTOR) && keys.contains(MANUAL_TARGETS)) {
+        kinds.add(MANUAL);
+      }
+      return kinds;
     } catch (Exception e) {
       return List.of();
     }
   }
 
   private static boolean isTargeted(Inject inject, List<String> fields) {
+    if (fields.contains(MANUAL)) {
+      return switch (selectorKind(inject.getContent())) {
+        case MANUAL -> !manualTargets(inject.getContent()).isEmpty();
+        case CONTRACT_ELEMENT_CONTENT_KEY_ASSETS -> !inject.getAssets().isEmpty();
+        default -> !inject.getAssetGroups().isEmpty();
+      };
+    }
     return (fields.contains(CONTRACT_ELEMENT_CONTENT_KEY_ASSETS) && !inject.getAssets().isEmpty())
         || (fields.contains(CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS)
             && !inject.getAssetGroups().isEmpty())
         || (fields.contains(CONTRACT_ELEMENT_CONTENT_KEY_TEAMS)
             && (inject.isAllTeams() || !inject.getTeams().isEmpty()));
+  }
+
+  private static List<TargetLabel> currentTargets(Inject inject, List<String> fields) {
+    List<TargetLabel> labels = new ArrayList<>();
+    String selected = fields.contains(MANUAL) ? selectorKind(inject.getContent()) : null;
+    if (fields.contains(CONTRACT_ELEMENT_CONTENT_KEY_ASSETS)
+        && (selected == null || CONTRACT_ELEMENT_CONTENT_KEY_ASSETS.equals(selected))) {
+      inject
+          .getAssets()
+          .forEach(
+              a -> labels.add(new TargetLabel(CONTRACT_ELEMENT_CONTENT_KEY_ASSETS, a.getName())));
+    }
+    if (fields.contains(CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS)
+        && (selected == null || CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS.equals(selected))) {
+      inject
+          .getAssetGroups()
+          .forEach(
+              g ->
+                  labels.add(
+                      new TargetLabel(CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS, g.getName())));
+    }
+    if (MANUAL.equals(selected)) {
+      manualTargets(inject.getContent()).forEach(t -> labels.add(new TargetLabel(MANUAL, t)));
+    }
+    if (fields.contains(CONTRACT_ELEMENT_CONTENT_KEY_TEAMS)) {
+      if (inject.isAllTeams()) {
+        labels.add(new TargetLabel(CONTRACT_ELEMENT_CONTENT_KEY_TEAMS, "All teams"));
+      }
+      inject
+          .getTeams()
+          .forEach(
+              t -> labels.add(new TargetLabel(CONTRACT_ELEMENT_CONTENT_KEY_TEAMS, t.getName())));
+    }
+    return labels;
+  }
+
+  // A package only carries manual hosts: its assets, groups and teams belong to another platform.
+  private static List<TargetLabel> packagedTargets(JsonNode content, List<String> fields) {
+    if (!fields.contains(MANUAL) || !MANUAL.equals(selectorKind(content))) {
+      return List.of();
+    }
+    return manualTargets(content).stream().map(t -> new TargetLabel(MANUAL, t)).toList();
+  }
+
+  private static String selectorKind(JsonNode content) {
+    String value = content == null ? null : text(content, SELECTOR);
+    return SELECTOR_VALUES.entrySet().stream()
+        .filter(e -> e.getValue().equals(value))
+        .map(Map.Entry::getKey)
+        .findFirst()
+        .orElse(CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS);
+  }
+
+  private static List<String> manualTargets(JsonNode content) {
+    String value = content == null ? null : text(content, MANUAL_TARGETS);
+    if (value == null || value.isBlank()) {
+      return List.of();
+    }
+    return Arrays.stream(value.split(",")).map(String::trim).filter(t -> !t.isEmpty()).toList();
   }
 
   // -- PACKAGE --
@@ -427,6 +617,62 @@ public class CatalogInstallService {
       throw new BadRequestException("The stored package does not match its release");
     }
     return archive;
+  }
+
+  // A repository keeps each inject's ID across versions; the import gives injects new IDs.
+  private static String catalogId(JsonNode inject) {
+    String catalogId = text(inject, "inject_catalog_id");
+    return catalogId != null ? catalogId : text(inject, "inject_id");
+  }
+
+  /** The package with each inject's catalogue ID written, entry comments kept for the import. */
+  private byte[] withCatalogIds(byte[] archive) throws IOException {
+    Path file = Files.createTempFile("openaev-catalog-", ".zip");
+    try {
+      Files.write(file, archive);
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      try (ZipFile zip = new ZipFile(file.toFile());
+          ZipOutputStream rewritten = new ZipOutputStream(out)) {
+        Enumeration<? extends ZipEntry> entries = zip.entries();
+        while (entries.hasMoreElements()) {
+          ZipEntry entry = entries.nextElement();
+          byte[] content;
+          try (InputStream in = zip.getInputStream(entry)) {
+            content = in.readAllBytes();
+          }
+          if (EXPORT_ENTRY_SCENARIO.equals(entry.getComment())) {
+            JsonNode root = mapper.readTree(content);
+            JsonNode injects = root.get("scenario_injects");
+            if (injects != null && injects.isArray()) {
+              injects.forEach(
+                  inject -> {
+                    if (inject.isObject() && catalogId(inject) != null) {
+                      ((ObjectNode) inject).put("inject_catalog_id", catalogId(inject));
+                    }
+                    // A payload contract ID comes from another platform: link the payload by
+                    // content.
+                    JsonNode contract = inject.get("inject_injector_contract");
+                    if (contract != null
+                        && contract.isObject()
+                        && contract.hasNonNull("injector_contract_payload")) {
+                      ((ObjectNode) contract)
+                          .put("injector_contract_id", UUID.randomUUID().toString());
+                    }
+                  });
+            }
+            content = mapper.writeValueAsBytes(root);
+          }
+          ZipEntry copy = new ZipEntry(entry.getName());
+          copy.setComment(entry.getComment());
+          rewritten.putNextEntry(copy);
+          rewritten.write(content);
+          rewritten.closeEntry();
+        }
+      }
+      return out.toByteArray();
+    } finally {
+      Files.deleteIfExists(file);
+    }
   }
 
   private List<JsonNode> packagedInjects(byte[] archive) {

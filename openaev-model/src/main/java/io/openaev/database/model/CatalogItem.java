@@ -97,6 +97,11 @@ public class CatalogItem implements TenantBase, Auditable {
 
   // -- PACKAGE --
 
+  // What the item needs to run, as the manifest's requires object.
+  @Column(name = "catalog_item_requires")
+  @JsonIgnore
+  private String requires;
+
   // Payloads a scenario references, as a JSON array of {external_id, version, sha256}.
   @Column(name = "catalog_item_payload_refs")
   @JsonIgnore
