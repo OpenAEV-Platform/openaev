@@ -22,13 +22,12 @@ vi.mock('../../../../../utils/hooks', () => ({ useAppDispatch: () => mockDispatc
 
 vi.mock('../../../../../utils/hooks/useDataLoader', async () => {
   const React = await import('react');
-  return {
-    default: (loader: () => Promise<void> | void) => {
-      React.useEffect(() => {
-        void loader();
-      }, []);
-    },
+  const useDataLoader = (loader: () => Promise<void> | void) => {
+    React.useEffect(() => {
+      void loader();
+    }, []);
   };
+  return { default: useDataLoader };
 });
 
 vi.mock('../../../../../components/i18n', async (importOriginal) => {

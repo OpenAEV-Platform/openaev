@@ -3,7 +3,7 @@ import { SecurityNetwork, SelectGroup } from 'mdi-material-ui';
 
 // Keep in sync with the left menu (LeftBar.tsx): search results must display
 // the same icon as the section the entity lives in.
-const useEntityIcon = (entity: string) => {
+const getEntityIcon = (entity: string) => {
   switch (entity) {
     case 'Asset':
       return (<DnsOutlined color="primary" />);
@@ -26,4 +26,4 @@ const useEntityIcon = (entity: string) => {
   }
 };
 
-export default useEntityIcon;
+export default getEntityIcon;

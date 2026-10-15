@@ -66,11 +66,6 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const { enabled, configured, xtmOneConfigured } = useAI();
 
-  // Hide entirely when AI is explicitly disabled
-  if (enabled === false) {
-    return null;
-  }
-
   const useXtmOne = xtmOneConfigured === true;
   const [content, setContent] = useState('');
   const [agentMode, setAgentMode] = useState<AgentMode | null>(null);
@@ -93,6 +88,12 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
     anchorEl: null,
   });
   const [displayAskAI, setDisplayAskAI] = useState(false);
+
+  // Hide entirely when AI is explicitly disabled
+  if (enabled === false) {
+    return null;
+  }
+
   const handleOpenMenu = (event: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
     if (isEnterpriseEdition) {
       event.preventDefault();

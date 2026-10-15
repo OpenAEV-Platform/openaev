@@ -4,6 +4,7 @@ import vitest from '@vitest/eslint-plugin';
 import i18next from 'eslint-plugin-i18next';
 import playwright from 'eslint-plugin-playwright';
 import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
 import { reactRefresh } from 'eslint-plugin-react-refresh';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
@@ -33,6 +34,33 @@ export default [
         // Renovate keeps in step (customManagers in renovate.json5)
         version: '19.3',
       },
+    },
+  },
+
+  // rules recommended by eslint-plugin-react-hooks: the rules of hooks plus the React Compiler rules
+  {
+    files: ['**/*.{ts,tsx,js,jsx}'],
+    ...reactHooks.configs.flat.recommended,
+  },
+  {
+    files: ['**/*.{ts,tsx,js,jsx}'],
+    rules: {
+      // nothing to fix: raised to error (unsupported-syntax only warns in the recommended set,
+      // void-use-memo is only in recommended-latest)
+      'react-hooks/unsupported-syntax': 'error',
+      'react-hooks/void-use-memo': 'error',
+      // follow-up backlog: these rules still report existing code, so they stay off until it is fixed
+      'react-hooks/exhaustive-deps': 'off',
+      'react-hooks/static-components': 'off',
+      'react-hooks/use-memo': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+      'react-hooks/incompatible-library': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/globals': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/set-state-in-render': 'off',
     },
   },
 
@@ -171,6 +199,13 @@ export default [
     files: ['tests_e2e/**/*'],
     // rules recommended by eslint-plugin-playwright
     ...playwright.configs['flat/recommended'],
+  },
+  {
+    files: ['tests_e2e/**/*'],
+    rules: {
+      // Playwright fixtures receive a `use` callback, which the rule mistakes for React's `use` hook
+      'react-hooks/rules-of-hooks': 'off',
+    },
   },
 
   // ignores patterns

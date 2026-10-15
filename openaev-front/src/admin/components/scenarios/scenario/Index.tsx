@@ -25,9 +25,9 @@ import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
 import { useAutonomousRunForScenario } from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
-import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
 import buildScenarioTabs from './scenarioTabs';
+import useInjectContextForScenario from './useInjectContextForScenario';
 
 const ScenarioComponent = lazy(() => import('./Scenario'));
 const Injects = lazy(() => import('./injects/ScenarioInjects'));
@@ -295,7 +295,7 @@ const Index = () => {
     });
   }, [scenarioId]);
 
-  const scenarioInjectContext = injectContextForScenario(scenario);
+  const scenarioInjectContext = useInjectContextForScenario(scenario);
 
   // Loader until the CURRENT scenario's fetch has completed
   if (loadedScenarioId !== scenarioId || !autonomousResolved) {

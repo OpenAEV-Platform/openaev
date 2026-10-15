@@ -44,22 +44,20 @@ const ConnectorLayout = () => {
   const [relatedIds, setRelatedIds] = useState<ConnectorIds>();
   const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean>(false);
 
-  const getConnectorHelper = () => {
+  const { connector } = useHelper((helper: ExecutorHelper & InjectorHelper & CollectorHelper & SecretsProviderHelper) => {
     switch (connectorType) {
       case 'executor':
-        return useHelper((helper: ExecutorHelper) => ({ connector: helper.getExecutor(connectorId ?? '') }));
+        return { connector: helper.getExecutor(connectorId ?? '') };
       case 'injector':
-        return useHelper((helper: InjectorHelper) => ({ connector: helper.getInjector(connectorId ?? '') }));
+        return { connector: helper.getInjector(connectorId ?? '') };
       case 'collector':
-        return useHelper((helper: CollectorHelper) => ({ connector: helper.getCollector(connectorId ?? '') }));
+        return { connector: helper.getCollector(connectorId ?? '') };
       case 'secrets_provider':
-        return useHelper((helper: SecretsProviderHelper) => ({ connector: helper.getSecretsProvider(connectorId ?? '') }));
+        return { connector: helper.getSecretsProvider(connectorId ?? '') };
       default:
         return {};
     }
-  };
-
-  const { connector } = getConnectorHelper();
+  });
 
   const { connector: catalogConnector } = useHelper((helper: CatalogConnectorsHelper) => ({ connector: helper.getCatalogConnector(relatedIds?.catalog_connector_id ?? '') }));
   const { instance } = useHelper((helper: ConnectorInstanceHelper) => ({ instance: helper.getConnectorInstance(relatedIds?.connector_instance_id ?? '') }));

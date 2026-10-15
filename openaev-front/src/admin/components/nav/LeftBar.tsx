@@ -30,7 +30,7 @@ import { type NavMenuEntries } from '../../../components/common/menu/navbar/nav-
 import useAuth from '../../../utils/hooks/useAuth';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 import settingsEntries from './config/settings.config';
 import LeftBarHeader from './LeftBarHeader';
@@ -43,7 +43,8 @@ const LeftBar = () => {
   // tenant). Passing no headerElement in the single-tenant case keeps the menu
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
-  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const isCredentialAssetEnabled = useIsFeatureEnabled('CREDENTIAL_ASSET');
+  const isMarkingEnabled = useIsFeatureEnabled('MARKING');
 
   const entries: NavMenuEntries[] = [
     {
@@ -206,7 +207,7 @@ const LeftBar = () => {
       ],
     },
   ];
-  const settingsItems = settingsEntries(ability);
+  const settingsItems = settingsEntries(ability, isMarkingEnabled);
   entries.push(
     // Always visible: "Settings" hides itself when the user lacks the right.
     {
