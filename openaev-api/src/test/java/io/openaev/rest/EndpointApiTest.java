@@ -1696,7 +1696,6 @@ class EndpointApiTest extends IntegrationTest {
       List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
       assertThat(ids).contains(marked.getId()).doesNotContain(unmarked.getId());
     }
-
   }
 
   @Nested
