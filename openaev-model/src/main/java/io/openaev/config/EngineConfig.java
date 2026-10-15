@@ -137,6 +137,20 @@ public class EngineConfig {
      * with the compare-and-set).
      */
     public static final long INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS = 180;
+
+    /**
+     * Default delay, in seconds, after which the pod that applied a migration requesting an
+     * in-place re-feed of an index (see {@code EsIndexingUtils#requestRefeedAtStartup}) re-asserts
+     * the model's epoch cursor, so the index is re-fed a second time. During a rolling deploy, the
+     * pods still running the previous version take part in the first re-feed with their own
+     * document building - writing, for instance, finding values in cleartext - and may overwrite
+     * the epoch cursor; the second re-feed rewrites whatever they wrote. The delay must therefore
+     * exceed the longest rolling deploy plus one sync round. Unlike {@link
+     * #INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS}, it waits for the old pods to be gone, not only
+     * for one of their rounds to drain. 0 disables the second re-feed, which is safe on
+     * single-instance installs (no old pod runs alongside the new one).
+     */
+    public static final long INDEXING_REFEED_REASSERT_DELAY_SECONDS = 1800;
   }
 
   private String engineSelector = Defaults.ENGINE_SELECTOR;
@@ -199,6 +213,8 @@ public class EngineConfig {
 
   private long indexingResetEpochReassertDelaySeconds =
       Defaults.INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS;
+
+  private long indexingRefeedReassertDelaySeconds = Defaults.INDEXING_REFEED_REASSERT_DELAY_SECONDS;
 
   /**
    * Wildcard pattern matching all indices of this platform and only them.
