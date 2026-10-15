@@ -2581,6 +2581,15 @@ export interface CatalogItemOutput {
   catalog_item_versions?: string[];
 }
 
+export interface CatalogScenarioVersionsOutput {
+  /** @minLength 1 */
+  catalog_id: string;
+  /** @minLength 1 */
+  current_version: string;
+  history: ContentHistoryOutput[];
+  versions: Version[];
+}
+
 export interface CatalogSyncOutput {
   /** @format int32 */
   added?: number;
@@ -11623,6 +11632,10 @@ export interface ScenarioStatistic {
   simulations_results_latest: SimulationsResultsLatest;
 }
 
+export interface ScenarioTargetsOutput {
+  injects: InjectPreview[];
+}
+
 export interface ScenarioTeamPlayersEnableInput {
   scenario_team_players?: string[];
 }
@@ -13806,6 +13819,18 @@ export interface VariableInput {
    */
   variable_key: string;
   variable_value?: string;
+}
+
+export interface Version {
+  changelog?: string;
+  is_current?: boolean;
+  is_latest?: boolean;
+  /** @format date-time */
+  published_at?: string;
+  scenario_id?: string;
+  status?: string;
+  /** @minLength 1 */
+  version: string;
 }
 
 export interface VulnerabilityBulkInsertInput {

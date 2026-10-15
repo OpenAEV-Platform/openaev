@@ -1,9 +1,10 @@
 import { RouteOutlined } from '@mui/icons-material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import {
   fetchCatalogScenarioFacets,
+  fetchCatalogScenarios,
   SCENARIO_AUTHOR_FILTER,
   SCENARIO_CATEGORY_FILTER,
   SCENARIO_PLATFORM_FILTER,
@@ -15,6 +16,7 @@ import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
 import MarketplaceBrowser from '../../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/MarketplaceFacetSidebar';
 import MarketplaceGrid from '../../../../components/common/marketplace/MarketplaceGrid';
+import MarketplaceHero from '../../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceSortSelect from '../../../../components/common/marketplace/MarketplaceSortSelect';
 import useMarketplaceCatalog from '../../../../components/common/marketplace/useMarketplaceCatalog';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -43,6 +45,13 @@ const ScenariosAvailable = () => {
   const { t } = useFormatter();
   const navigate = useNavigate();
   const [installing, setInstalling] = useState<CatalogItemOutput | null>(null);
+  const [catalog, setCatalog] = useState<CatalogItemOutput[]>([]);
+  useEffect(() => {
+    fetchCatalogScenarios().then(setCatalog);
+  }, []);
+  const installedCount = catalog.filter(item => (item.catalog_item_installed_versions ?? []).length > 0).length;
+  const updateCount = catalog.filter(item => (item.catalog_item_installed_versions ?? []).length > 0
+    && !(item.catalog_item_installed_versions ?? []).includes(item.catalog_item_version)).length;
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const {
     items,
@@ -93,6 +102,25 @@ const ScenariosAvailable = () => {
 
   return (
     <MarketplaceBrowser
+      hero={(
+        <MarketplaceHero
+          title={t('Catalog')}
+          totalLabel={t('scenarios in the catalog')}
+          totalElements={catalog.length}
+          stats={[
+            {
+              id: 'installed',
+              label: t('Installed'),
+              value: installedCount,
+            },
+            {
+              id: 'updates',
+              label: t('Update available'),
+              value: updateCount,
+            },
+          ]}
+        />
+      )}
       sidebar={(
         <MarketplaceFacetSidebar
           facets={facets}
@@ -134,7 +162,8 @@ const ScenariosAvailable = () => {
       </MarketplaceGrid>
       {installing && (
         <CatalogScenarioInstallDrawer
-          item={installing}
+          externalId={installing.catalog_item_external_id}
+          name={installing.catalog_item_name ?? installing.catalog_item_external_id}
           version={installing.catalog_item_version}
           onClose={() => setInstalling(null)}
           onInstalled={scenarioId => navigate(`/admin/scenarios/${scenarioId}`)}

@@ -1,9 +1,11 @@
-import { simpleCall, simpleDelCall, simplePostCall } from '../../utils/Action';
+import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import {
   type CatalogInstallInput,
   type CatalogInstallOutput,
   type CatalogInstallPreviewOutput,
   type CatalogItemOutput,
+  type CatalogScenarioVersionsOutput,
+  type ScenarioTargetsOutput,
   type SearchPaginationInput,
 } from '../../utils/api-types';
 import { facetsPreview, type PreviewCatalog, searchPreview } from './catalog-preview-search';
@@ -52,4 +54,16 @@ export const installCatalogScenario = (externalId: string, version: string, inpu
 
 export const uninstallCatalogScenario = (scenarioId: string) => {
   return simpleDelCall(`${CATALOG_URI}/installed-scenarios/${scenarioId}`);
+};
+
+export const fetchScenarioTargets = (scenarioId: string): Promise<{ data: ScenarioTargetsOutput }> => {
+  return simpleCall(`${CATALOG_URI}/installed-scenarios/${scenarioId}/targets`);
+};
+
+export const completeScenarioTargets = (scenarioId: string, input: CatalogInstallInput): Promise<{ data: ScenarioTargetsOutput }> => {
+  return simplePutCall(`${CATALOG_URI}/installed-scenarios/${scenarioId}/targets`, input, undefined, true, false);
+};
+
+export const fetchCatalogScenarioVersions = (scenarioId: string): Promise<{ data: CatalogScenarioVersionsOutput }> => {
+  return simpleCall(`${CATALOG_URI}/installed-scenarios/${scenarioId}/versions`);
 };
