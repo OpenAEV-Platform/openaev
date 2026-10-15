@@ -89,7 +89,19 @@ const ScenariosActive = () => {
           title={t('Scenarios')}
           totalLabel={t('total scenarios')}
           totalElements={active.totalElements}
-          stats={[]}
+          stats={[
+            {
+              id: 'catalog',
+              label: t('From the catalog'),
+              value: [...catalogItems.values()].filter(item => (item.catalog_item_installed_versions ?? []).length > 0).length,
+            },
+            {
+              id: 'updates',
+              label: t('Update available'),
+              value: [...catalogItems.values()].filter(item => (item.catalog_item_installed_versions ?? []).length > 0
+                && !(item.catalog_item_installed_versions ?? []).includes(item.catalog_item_version)).length,
+            },
+          ]}
           rightSlot={(
             <ScenariosHeaderActions
               viewMode={viewMode}
