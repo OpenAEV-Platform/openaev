@@ -658,4 +658,9 @@ public interface InjectRepository
           + " GROUP BY p.externalId")
   List<Object[]> countTemplateInjectsOnOlderVersions(
       @Param("externalIds") Collection<String> externalIds);
+
+  // Bulk update on a row the importer has just inserted natively, by its fresh UUID.
+  @Modifying
+  @Query("UPDATE Inject i SET i.catalogId = :catalogId WHERE i.id = :injectId")
+  void setCatalogId(@Param("injectId") String injectId, @Param("catalogId") String catalogId);
 }
