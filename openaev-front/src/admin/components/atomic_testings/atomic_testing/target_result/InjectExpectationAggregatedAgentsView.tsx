@@ -42,13 +42,13 @@ const InjectExpectationAggregatedAgentsView = ({ inject, injectExpectation, expe
       if (!agentExpectation.inject_expectation_agent) return;
       const agentName = agentExpectation.inject_expectation_agent_name ?? '-';
       (agentExpectation.inject_expectation_results ?? []).forEach((result) => {
-        const key = result.sourceId ?? result.sourceName ?? '';
+        const key = result.inject_expectation_result_source_id ?? result.inject_expectation_result_source_name ?? '';
         if (!key) return;
         (map[key] ??= []).push({
           agentName,
-          result: result.result,
-          score: result.score,
-          date: result.date,
+          result: result.inject_expectation_result_result || '',
+          score: result.inject_expectation_result_score,
+          date: result.inject_expectation_result_date,
         });
       });
     });

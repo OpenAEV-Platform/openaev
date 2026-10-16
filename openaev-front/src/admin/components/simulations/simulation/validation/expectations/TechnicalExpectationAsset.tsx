@@ -94,7 +94,7 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
                           disablePadding
                         >
                           {expectation.inject_expectation_results?.map(result => (
-                            <ListItemButton key={result.sourceId} divider onClick={() => setSelected(result)}>
+                            <ListItemButton key={result.inject_expectation_result_source_id} divider onClick={() => setSelected(result)}>
                               <ListItemText
                                 style={{
                                   minWidth: '200px',
@@ -102,7 +102,7 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
                                 }}
                                 primary={<span>{getSourceLabel(result)}</span>}
                               />
-                              <ListItemText primary={<span>{truncate(result.result, 40)}</span>} />
+                              <ListItemText primary={<span>{truncate(result.inject_expectation_result_result, 40)}</span>} />
                               <ListItemIcon>
                                 <KeyboardArrowRightOutlined />
                               </ListItemIcon>
@@ -117,7 +117,7 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
             {selected !== null
               && (
                 <pre>
-                  {toJsonFormat(selected.result)}
+                  {toJsonFormat(selected.inject_expectation_result_result || '')}
                 </pre>
               )}
           </Alert>

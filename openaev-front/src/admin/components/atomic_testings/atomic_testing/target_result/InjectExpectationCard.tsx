@@ -100,7 +100,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
   // message-bearing result is surfaced with its timestamp and, when the backend
   // stamped them, the forensic origin of the triggering request.
   const manualOutcomes = isManualExpectation(injectExpectation.inject_expectation_type)
-    ? (injectExpectation.inject_expectation_results ?? []).filter(result => (result.result ?? '').trim().length > 0)
+    ? (injectExpectation.inject_expectation_results ?? []).filter(result => (result.inject_expectation_result_result ?? '').trim().length > 0)
     : [];
 
   const showMissingSecurityPlatformMessage = injectExpectation.inject_expectation_collector_missing_at_init;
@@ -287,7 +287,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
         }}
         >
           {manualOutcomes.map((result, index) => {
-            const metadata = result.metadata ?? {};
+            const metadata = result.inject_expectation_result_metadata ?? {};
             const sourceIp = metadata[PHISHING_SOURCE_IP_KEY];
             const sourceUserAgent = metadata[PHISHING_SOURCE_USER_AGENT_KEY];
             const sourceDelay = metadata[PHISHING_SOURCE_DELAY_KEY];
@@ -298,7 +298,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
             const hasOrigin = Boolean(sourceIp || sourceUserAgent || sourceDelay);
             return (
               <div
-                key={`${result.sourceId ?? 'outcome'}-${index}`}
+                key={`${result.inject_expectation_result_source_id ?? 'outcome'}-${index}`}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -324,14 +324,14 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
                   >
                     {t('Outcome:')}
                   </Typography>
-                  <Typography sx={{ fontSize: 13 }}>{result.result}</Typography>
-                  {result.date && (
+                  <Typography sx={{ fontSize: 13 }}>{result.inject_expectation_result_result}</Typography>
+                  {result.inject_expectation_result_date && (
                     <Typography sx={{
                       fontSize: 11,
                       color: 'text.secondary',
                     }}
                     >
-                      {nsdt(result.date)}
+                      {nsdt(result.inject_expectation_result_date)}
                     </Typography>
                   )}
                 </div>

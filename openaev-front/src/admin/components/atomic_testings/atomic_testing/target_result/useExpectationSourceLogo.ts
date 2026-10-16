@@ -40,20 +40,20 @@ const useExpectationSourceLogo = () => {
   // go through the live collector link; results written by a since-deleted
   // collector fall back to a name match against the (surviving) platforms.
   const resolveSecurityPlatformId = (expectationResult: InjectExpectationResult): string | undefined => {
-    if (!expectationResult.sourceId) {
+    if (!expectationResult.inject_expectation_result_source_id) {
       return undefined;
     }
-    if (expectationResult.sourceType === 'security-platform') {
-      return expectationResult.sourceId;
+    if (expectationResult.inject_expectation_result_source_type === 'security-platform') {
+      return expectationResult.inject_expectation_result_source_id;
     }
-    if (expectationResult.sourceType !== 'collector') {
+    if (expectationResult.inject_expectation_result_source_type !== 'collector') {
       return undefined;
     }
-    const linkedPlatformId = collectorsMap[expectationResult.sourceId]?.collector_security_platform?.asset_id;
+    const linkedPlatformId = collectorsMap[expectationResult.inject_expectation_result_source_id]?.collector_security_platform?.asset_id;
     if (linkedPlatformId) {
       return linkedPlatformId;
     }
-    const sourceName = expectationResult.sourceName?.trim().toLowerCase();
+    const sourceName = expectationResult.inject_expectation_result_source_name?.trim().toLowerCase();
     if (!sourceName) {
       return undefined;
     }
@@ -68,8 +68,8 @@ const useExpectationSourceLogo = () => {
     if (platformId) {
       return buildTenantApiPath(`/api/images/security_platforms/id/${platformId}/${theme.palette.mode}`);
     }
-    if (expectationResult.sourceType === 'collector' && expectationResult.sourceId) {
-      return buildTenantApiPath(`/api/collectors/id/${expectationResult.sourceId}/image`);
+    if (expectationResult.inject_expectation_result_source_type === 'collector' && expectationResult.inject_expectation_result_source_id) {
+      return buildTenantApiPath(`/api/collectors/id/${expectationResult.inject_expectation_result_source_id}/image`);
     }
     return undefined;
   };

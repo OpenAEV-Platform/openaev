@@ -43,7 +43,7 @@ const InjectExpectationProvider = ({ children, inject }: {
     setOpenDeleteResult(false);
   };
   const onDelete = () => {
-    dispatch(deleteInjectExpectationResult(selectedInjectExpectation?.inject_expectation_id ?? '', selectedResult?.sourceId ?? '')).then(() => {
+    dispatch(deleteInjectExpectationResult(selectedInjectExpectation?.inject_expectation_id ?? '', selectedResult?.inject_expectation_result_source_id ?? '')).then(() => {
       fetchInjectResultOverviewOutput(inject.inject_id).then((result: { data: InjectResultOverviewOutput }) => {
         updateInjectResultOverviewOutput(result.data);
         onCloseDeleteInjectExpectationResult();
@@ -89,8 +89,8 @@ const InjectExpectationProvider = ({ children, inject }: {
   const computeExistingSourceIds = (results: InjectExpectationResult[]) => {
     const sourceIds: string[] = [];
     results.forEach((result) => {
-      if (result.sourceId) {
-        sourceIds.push(result.sourceId);
+      if (result.inject_expectation_result_source_id) {
+        sourceIds.push(result.inject_expectation_result_source_id);
       }
     });
     return sourceIds;
@@ -141,7 +141,7 @@ const InjectExpectationProvider = ({ children, inject }: {
       {selectedInjectExpectation && (
         <TargetResultAlertsDialog
           injectExpectation={selectedInjectExpectation}
-          sourceId={selectedResult?.sourceId ?? ''}
+          sourceId={selectedResult?.inject_expectation_result_source_id ?? ''}
           expectationResult={selectedResult}
           open={openAlertsDialog}
           handleClose={onCloseAlertsDialog}

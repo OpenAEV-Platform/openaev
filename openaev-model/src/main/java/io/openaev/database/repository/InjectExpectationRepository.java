@@ -29,11 +29,18 @@ public interface InjectExpectationRepository
   // whole table). Without it, any query embedding these predicates that also touches a
   // tenant-active table (e.g. collectors) is refused with TENANT_FILTERING_REFUSED (#7007).
   String RESULTS_HAS_NO_RESULT_FOR_SOURCE =
-      "NOT EXISTS (SELECT 1 FROM LATERAL jsonb_array_elements(e.inject_expectation_results::jsonb) r "
-          + "WHERE r->>'sourceId' = :sourceId AND COALESCE(r->>'result', '') <> '') ";
+      """
+      NOT EXISTS (SELECT 1 FROM inject_expectation_results ier
+      WHERE ier.inject_expectation_result_result IS NOT NULL
+        AND ier.inject_expectation_result_source_id = :sourceId
+        AND ier.inject_expectation_result_inject_expectation_id = e.inject_expectation_id)
+      """;
   String RESULTS_HAS_NO_RESULT_AT_ALL =
-      "NOT EXISTS (SELECT 1 FROM LATERAL jsonb_array_elements(e.inject_expectation_results::jsonb) r "
-          + "WHERE COALESCE(r->>'result', '') <> '') ";
+      """
+      NOT EXISTS (SELECT 1 FROM inject_expectation_results ier
+      WHERE ier.inject_expectation_result_result IS NOT NULL
+        AND ier.inject_expectation_result_inject_expectation_id = e.inject_expectation_id)
+      """;
 
   @NotNull
   Optional<BaseInjectExpectation> findById(@NotNull String id);
@@ -220,6 +227,10 @@ public interface InjectExpectationRepository
   @Query(value = "select i from InjectExpectation i where i.inject.id = :injectId")
   List<BaseInjectExpectation> findAllByInjectId(@Param("injectId") @NotBlank final String injectId);
 
+  @Query(value = "select i from InjectExpectation i where i.inject.id in (:injectIds)")
+  List<BaseInjectExpectation> findAllByInjectIds(
+      @Param("injectId") @NotBlank final Set<String> injectIds);
+
   /**
    * Pre-loads agent / asset / assetGroup relations of all {@link TechnicalInjectExpectation}
    * instances for a given inject into the Hibernate session cache via JOIN FETCH. Must be called
@@ -374,7 +385,7 @@ public interface InjectExpectationRepository
               + "i.inject_expectation_type AS inject_expectation_type, "
               + "i.user_id AS user_id, "
               + "i.inject_expectation_score AS inject_expectation_score, "
-              + "i.inject_expectation_results AS inject_expectation_results, "
+              + "'[]'::jsonb AS inject_expectation_results, "
               + "i.inject_expectation_expected_score AS inject_expectation_expected_score, "
               + "i.inject_expectation_group AS inject_expectation_group "
               + "FROM injects_expectations i "
@@ -479,7 +490,7 @@ public interface InjectExpectationRepository
     base AS (
         -- One row per ranked expectation (1:1 joins only — no fan-out).
         SELECT ie.inject_expectation_id, ie.inject_expectation_name, ie.inject_expectation_description, ie.inject_expectation_type,
-               ie.inject_expectation_results, ie.inject_expectation_score, ie.inject_expectation_expected_score, ie.inject_expiration_time,
+               '[]'::json as inject_expectation_results, ie.inject_expectation_score, ie.inject_expectation_expected_score, ie.inject_expiration_time,
                ie.inject_expectation_group, ie.inject_expectation_created_at,
                ie.exercise_id, ie.inject_id, ie.user_id, ie.team_id, ie.agent_id, ie.asset_id, ie.asset_group_id,
                i.tenant_id, i.inject_title, i.inject_injector_contract AS contract_id,
@@ -551,7 +562,7 @@ public interface InjectExpectationRepository
          AND child_ie.inject_expectation_type = b.inject_expectation_type
          AND (b.asset_id IS NULL OR child_ie.asset_id = b.asset_id)
          AND (b.asset_group_id IS NULL OR child_ie.asset_group_id = b.asset_group_id)
-        LEFT JOIN LATERAL jsonb_array_elements(child_ie.inject_expectation_results::jsonb) AS child_r(elem) ON true
+        LEFT JOIN LATERAL jsonb_array_elements('[]'::jsonb) AS child_r(elem) ON true
         LEFT JOIN collectors child_c ON child_r.elem->>'sourceId' = child_c.collector_id::text
                                     AND child_c.tenant_id = b.tenant_id
         LEFT JOIN assets child_a ON child_r.elem->>'sourceId' = child_a.asset_id::text

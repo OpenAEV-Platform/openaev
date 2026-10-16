@@ -72,8 +72,8 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
       security_platform: z.string().min(1, { message: t('Should not be empty') }),
     })),
     defaultValues: {
-      expectation_score: result?.score ?? expectation.inject_expectation_expected_score ?? 0,
-      security_platform: result?.sourceId ?? '',
+      expectation_score: result?.inject_expectation_result_score ?? expectation.inject_expectation_expected_score ?? 0,
+      security_platform: result?.inject_expectation_result_source_id ?? '',
     },
   });
 

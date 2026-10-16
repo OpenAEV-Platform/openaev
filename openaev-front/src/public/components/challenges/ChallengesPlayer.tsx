@@ -80,19 +80,19 @@ const ChallengesPlayer = () => {
         if (updatedEntry) {
           setCurrentChallengeEntry(updatedEntry);
         }
-        const answered = updatedEntry?.challenge_expectation?.inject_expectation_results?.find(r => r.result != null);
-        setSubmissionOutcome(answered?.result === SUCCESS ? 'success' : 'failure');
+        const answered = updatedEntry?.challenge_expectation?.inject_expectation_results?.find(r => r.inject_expectation_result_result != null);
+        setSubmissionOutcome(answered?.inject_expectation_result_result === SUCCESS ? 'success' : 'failure');
       },
     );
   };
 
   // Result
   const resultList = currentExpectation?.inject_expectation_results ?? [];
-  const answeredResults = resultList.filter(r => r.result != null);
+  const answeredResults = resultList.filter(r => r.inject_expectation_result_result != null);
 
   const hasResult = () => answeredResults.length > 0 || submissionOutcome !== null;
-  const validResult = () => answeredResults.some(r => r.result === SUCCESS);
-  const invalidResult = () => answeredResults.some(r => r.result === FAILED) || submissionOutcome === 'failure';
+  const validResult = () => answeredResults.some(r => r.inject_expectation_result_result === SUCCESS);
+  const invalidResult = () => answeredResults.some(r => r.inject_expectation_result_result === FAILED) || submissionOutcome === 'failure';
   const maxAttemptsExceeded = () => !!currentChallenge?.challenge_max_attempts && (currentAttempt ?? 0) >= currentChallenge.challenge_max_attempts;
 
   if (!exercise) {
@@ -110,12 +110,12 @@ const ChallengesPlayer = () => {
     color: 'inherit' | 'success' | 'error';
     icon: JSX.Element;
   }) = (result: InjectExpectationResult | undefined) => {
-    if (result?.result == null) {
+    if (result?.inject_expectation_result_result == null) {
       return {
         color: 'inherit',
         icon: <PendingActionsOutlined fontSize="large" />,
       };
-    } else if (result.result === SUCCESS) {
+    } else if (result.inject_expectation_result_result === SUCCESS) {
       return {
         color: 'success',
         icon: <CheckCircleOutlined fontSize="large" />,

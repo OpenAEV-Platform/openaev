@@ -145,7 +145,7 @@ const InjectExpectationResultList = ({
       return (
         <img
           src={logoSrc}
-          alt={expectationResult.sourceName ?? expectationResult.sourceId}
+          alt={expectationResult.inject_expectation_result_source_name ?? expectationResult.inject_expectation_result_source_id}
           onError={onLogoError}
           style={{
             width: 18,
@@ -204,7 +204,7 @@ const InjectExpectationResultList = ({
           // Result labels are written with inconsistent casing across producers (backend
           // ExpectationType says "Partially vulnerable", the frontend status map "Partially
           // Vulnerable"), so match them case-insensitively.
-          const resultLabel = expectationResult.result?.toLowerCase();
+          const resultLabel = expectationResult.inject_expectation_result_result?.toLowerCase();
           const showDetectionTime = resultLabel === 'prevented' || resultLabel === 'detected' || resultLabel === 'success'
             // Vulnerability verdicts (e.g. written by a scanner platform like Nuclei) carry the scan time.
             || resultLabel === 'not vulnerable' || resultLabel === 'vulnerable' || resultLabel === 'partially vulnerable';
@@ -212,17 +212,17 @@ const InjectExpectationResultList = ({
           // for a per-agent row (injectExpectationAgent set) or for the aggregated endpoint
           // row, where the backend rolls the child agents' traces up onto the asset
           // expectation id. Anything else (no collector match, non-collector source) shows a dash.
-          const alertsApplicable = !!expectationResult.sourceId
-            && expectationResult.sourceType === 'collector'
+          const alertsApplicable = !!expectationResult.inject_expectation_result_source_id
+            && expectationResult.inject_expectation_result_source_type === 'collector'
             && (resultLabel === 'prevented' || resultLabel === 'detected');
           const alertsInScope = !!injectExpectationAgent || aggregateAgentAlerts;
           const showAlerts = alertsApplicable && alertsInScope;
           const showAlertsDash = !showAlerts;
 
-          const sourceName = expectationResult.sourceName?.trim() || '-';
-          const breakdownKey = expectationResult.sourceId ?? expectationResult.sourceName ?? '';
+          const inject_expectation_result_source_name = expectationResult.inject_expectation_result_source_name?.trim() || '-';
+          const breakdownKey = expectationResult.inject_expectation_result_source_id ?? expectationResult.inject_expectation_result_source_name ?? '';
           const agentBreakdown = breakdownKey ? agentBreakdownBySource?.[breakdownKey] : undefined;
-          const platformType = expectationResult.sourcePlatform?.trim();
+          const platformType = expectationResult.inject_expectation_result_source_platform?.trim();
           const securityPlatformId = canPivotToSecurityPlatform ? resolveSecurityPlatformId(expectationResult) : undefined;
 
           const cellSx = {
@@ -243,7 +243,7 @@ const InjectExpectationResultList = ({
             // Each row is its own grid container (same column template as the
             // header) so hover and click cover the full line, like any list item.
             <Box
-              key={`${expectationResult.sourceName}-${index}`}
+              key={`${expectationResult.inject_expectation_result_source_name}-${index}`}
               onClick={handleRowClick}
               sx={{
                 display: 'grid',
@@ -291,7 +291,7 @@ const InjectExpectationResultList = ({
                       textOverflow: 'ellipsis',
                     }}
                   >
-                    {sourceName}
+                    {inject_expectation_result_source_name}
                   </Typography>
                   {agentBreakdown && agentBreakdown.length > 0 && (
                     <Tooltip>
@@ -326,10 +326,10 @@ const InjectExpectationResultList = ({
                     )}
               </Box>
               <Box sx={cellSx}>
-                {expectationResult.result && (
+                {expectationResult.inject_expectation_result_result && (
                   <StatusPill
-                    label={t(expectationResult.result)}
-                    status={expectationResult.result}
+                    label={t(expectationResult.inject_expectation_result_result)}
+                    status={expectationResult.inject_expectation_result_result}
                   />
                 )}
               </Box>
@@ -339,7 +339,7 @@ const InjectExpectationResultList = ({
                   fontVariantNumeric: 'tabular-nums',
                 }}
                 >
-                  {showDetectionTime ? nsdt(expectationResult.date) : '-'}
+                  {showDetectionTime ? nsdt(expectationResult.inject_expectation_result_date) : '-'}
                 </Typography>
               </Box>
               <Box sx={cellSx}>
@@ -360,7 +360,7 @@ const InjectExpectationResultList = ({
                 }}
               >
                 <ButtonPopover
-                  disabled={['collector', 'media-pressure', 'challenge'].includes(expectationResult.sourceType ?? 'unknown')}
+                  disabled={['collector', 'media-pressure', 'challenge'].includes(expectationResult.inject_expectation_result_source_type ?? 'unknown')}
                   entries={[{
                     label: t('Update'),
                     action: () => onOpenEditInjectExpectationResultResult(expectationResult, injectExpectation),

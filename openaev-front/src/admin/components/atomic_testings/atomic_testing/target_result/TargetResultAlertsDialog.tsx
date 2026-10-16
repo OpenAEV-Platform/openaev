@@ -52,8 +52,8 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
       .finally(() => setLoading(false));
   }, [injectExpectation.inject_expectation_id, sourceId]);
 
-  const sourceName = expectationResult?.sourceName?.trim() || '-';
-  const platformType = expectationResult?.sourcePlatform?.trim();
+  const sourceName = expectationResult?.inject_expectation_result_source_name?.trim() || '-';
+  const platformType = expectationResult?.inject_expectation_result_source_platform?.trim();
   const expectationTypeLabel = injectExpectation.inject_expectation_type
     ? t(injectExpectation.inject_expectation_type)
     : t('Alerts');

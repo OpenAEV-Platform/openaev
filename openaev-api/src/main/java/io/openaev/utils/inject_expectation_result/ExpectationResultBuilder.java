@@ -178,7 +178,7 @@ public final class ExpectationResultBuilder {
         .sourceName(sourceName)
         .sourcePlatform(sourcePlatform)
         .sourceAssetId(sourceAssetId)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
@@ -219,10 +219,10 @@ public final class ExpectationResultBuilder {
               .sourcePlatform(input.getSourcePlatform())
               .sourceAssetId(input.getSourceId())
               .result(resultMsg)
-              .date(now().toString())
+              .date(now())
               .score(input.getScore())
               .build();
-      baseInjectExpectation.getResults().add(existing);
+      baseInjectExpectation.addResult(existing);
     }
   }
 
@@ -254,11 +254,11 @@ public final class ExpectationResultBuilder {
                       .orElse(null))
               .sourceAssetId(getSourceAssetId(collector))
               .result(input.getResult())
-              .date(Instant.now().toString())
+              .date(Instant.now())
               .score(score)
               .metadata(input.getMetadata())
               .build();
-      baseInjectExpectation.getResults().add(existing);
+      baseInjectExpectation.addResult(existing);
     }
   }
 
@@ -295,11 +295,11 @@ public final class ExpectationResultBuilder {
                       : null)
               .sourceAssetId(securityPlatform.getId())
               .result(input.getResult())
-              .date(Instant.now().toString())
+              .date(Instant.now())
               .score(score)
               .metadata(input.getMetadata())
               .build();
-      baseInjectExpectation.getResults().add(existing);
+      baseInjectExpectation.addResult(existing);
     }
   }
 
@@ -324,7 +324,7 @@ public final class ExpectationResultBuilder {
         .sourcePlatform(NOT_APPLICABLE)
         .sourceAssetId(NO_ASSET)
         .result(result)
-        .date(Instant.now().toString())
+        .date(Instant.now())
         .score(score)
         .build();
   }
@@ -358,7 +358,7 @@ public final class ExpectationResultBuilder {
         .sourceAssetId(NO_ASSET)
         .score(score)
         .result(result)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
@@ -386,7 +386,7 @@ public final class ExpectationResultBuilder {
         .sourceAssetId(securityPlatform.getId())
         .score(score)
         .result(result)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
@@ -409,7 +409,7 @@ public final class ExpectationResultBuilder {
         .sourceAssetId(NO_ASSET)
         .result(result)
         .score(score)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
@@ -423,7 +423,7 @@ public final class ExpectationResultBuilder {
         .sourceAssetId(NO_ASSET)
         .result(result)
         .score(score)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 

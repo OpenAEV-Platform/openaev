@@ -49,8 +49,8 @@ const EditInjectExpectationResultDialog = ({ open, injectExpectation, sourceIds,
   const description = injectExpectation.inject_expectation_description?.trim();
   // When editing an existing result show its outcome, otherwise the current
   // expectation status - both feed the same status chip in the header.
-  const statusLabel = resultToEdit?.result || computeLabel(injectExpectation.inject_expectation_status);
-  const statusValue = resultToEdit?.result || injectExpectation.inject_expectation_status;
+  const statusLabel = resultToEdit?.inject_expectation_result_result || computeLabel(injectExpectation.inject_expectation_status);
+  const statusValue = resultToEdit?.inject_expectation_result_result || injectExpectation.inject_expectation_status;
 
   return (
     <Dialog

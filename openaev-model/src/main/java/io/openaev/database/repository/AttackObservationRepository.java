@@ -131,7 +131,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         -- population counted for the attempts and mined for security-platform attribution.
         SELECT
           l.tenant_id, l.asset_id, l.attack_pattern_external_id, l.inject_expectation_type, l.scenario_id,
-          ie.inject_expectation_id, ie.inject_id, ie.inject_expectation_results,
+          ie.inject_expectation_id, ie.inject_id, '[]'::jsonb as inject_expectation_results,
           ie.inject_expectation_score, ie.inject_expectation_expected_score, ie.inject_expectation_updated_at
         FROM latest l
         JOIN injects_expectations ie
@@ -214,7 +214,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
          AND child_ie.agent_id IS NOT NULL
          AND child_ie.inject_expectation_type = m.inject_expectation_type
          AND child_ie.asset_id = m.asset_id
-        LEFT JOIN LATERAL jsonb_array_elements(child_ie.inject_expectation_results::jsonb) AS child_r(elem) ON true
+        LEFT JOIN LATERAL jsonb_array_elements('[]'::jsonb) AS child_r(elem) ON true
         LEFT JOIN collectors child_c ON child_r.elem->>'sourceId' = child_c.collector_id::text AND child_c.tenant_id = m.tenant_id
         LEFT JOIN assets child_a ON child_r.elem->>'sourceId' = child_a.asset_id::text
         GROUP BY m.tenant_id, m.asset_id, m.attack_pattern_external_id, m.inject_expectation_type, m.scenario_id

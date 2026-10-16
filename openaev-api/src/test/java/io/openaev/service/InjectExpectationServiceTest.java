@@ -31,6 +31,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.lang.reflect.Method;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -160,7 +161,7 @@ class InjectExpectationServiceTest {
               .sourceId("collector-1")
               .sourceName("EDR Collector")
               .sourceType("automatic")
-              .date("2026-08-05T10:15:30Z")
+              .date(Instant.parse("2026-08-05T10:15:30Z"))
               .build();
 
       // Act
