@@ -15,6 +15,20 @@ const nonInfraTestIgnore = isArm ? [/infra\/.*/, armUnsupportedTests] : [/infra\
 // budget is larger, because they poll for a real agent to execute (up to 240s).
 const INFRA_TEST_TIMEOUT = 420_000;
 
+const isFirstCiAttempt = !!process.env.CI && Number(process.env.GITHUB_RUN_ATTEMPT ?? '1') <= 1;
+
+// Desktop Safari defaults to deviceScaleFactor 2, which is slow to render on the CI runners.
+// Its video is recorded only when CI re-runs a failed job, not on the first attempt.
+// WebKit on Linux sometimes stalls a request for ~20s (#8507), so it gets 30s timeouts.
+const WEBKIT_TIMEOUT = 30_000;
+const webkitUse = {
+  ...devices['Desktop Safari'],
+  deviceScaleFactor: 1,
+  video: isFirstCiAttempt ? 'off' : 'retain-on-failure',
+  actionTimeout: WEBKIT_TIMEOUT,
+  navigationTimeout: WEBKIT_TIMEOUT,
+} as const;
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -122,8 +136,9 @@ export default defineConfig({
     {
       name: 'webkit',
       testIgnore: nonInfraTestIgnore,
+      expect: { timeout: WEBKIT_TIMEOUT },
       use: {
-        ...devices['Desktop Safari'],
+        ...webkitUse,
         storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
@@ -193,8 +208,9 @@ export default defineConfig({
       name: 'infra-webkit',
       testMatch: /infra\/.*\.spec\.ts/,
       timeout: INFRA_TEST_TIMEOUT,
+      expect: { timeout: WEBKIT_TIMEOUT },
       use: {
-        ...devices['Desktop Safari'],
+        ...webkitUse,
         storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,

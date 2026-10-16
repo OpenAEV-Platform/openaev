@@ -191,11 +191,13 @@ package is never silently untested.
 | Browsers | chrome (amd64), chromium (arm64)                 | chrome, chromium, webkit, firefox, edge                |
 | Search engines | Elasticsearch 8 only                             | Elasticsearch 8 & 9 + OpenSearch                       |
 | Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites                                  |
-| Infra tests | 4 cells, `infra-chromium`                        | 7 cells across chrome, chromium, firefox, webkit, edge |
-| **Total cells** | **10**                                           | **25**                                                 |
+| Infra tests | 4 cells, `infra-chromium`                        | 6 cells across chrome, chromium, firefox, webkit, edge |
+| **Total cells** | **10**                                           | **19**                                                 |
 
 `ubi9` and `webkit` are nightly-only: they exercise the same JAR and were doubling the
-critical path. `artifact_suffix` must stay unique per cell — the report artifact is named
+critical path. WebKit runs one UI cell and one infra cell (std-amd64, Elasticsearch 8): the
+image, architecture and search engine do not change what the browser exercises.
+`artifact_suffix` must stay unique per cell — the report artifact is named
 `playwright-report-<browser><suffix>` and duplicates fail the upload.
 
 ---
