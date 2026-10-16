@@ -7114,6 +7114,8 @@ export interface InjectResultOverviewOutput {
   inject_expectation_results: ExpectationResultsByType[];
   /** Expectations */
   inject_expectations?: InjectExpectationSimple[];
+  /** Indicates whether the inject targets at least one team, asset or asset group */
+  inject_has_targets?: boolean;
   /**
    * Id of inject
    * @minLength 1

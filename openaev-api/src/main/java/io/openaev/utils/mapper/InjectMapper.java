@@ -84,6 +84,11 @@ public class InjectMapper {
                 expectationsForScoring,
                 InjectExpectationResultUtils::getScores))
         .isReady(healthCheckUtils.runContentChecks(inject).isEmpty())
+        .hasTargets(
+            inject.isAllTeams()
+                || !inject.getTeams().isEmpty()
+                || !inject.getAssets().isEmpty()
+                || !inject.getAssetGroups().isEmpty())
         .updatedAt(inject.getUpdatedAt())
         .recurrence(inject.getRecurrence())
         .recurrenceStart(inject.getRecurrenceStart())

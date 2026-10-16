@@ -96,4 +96,9 @@ public class InjectResultOverviewOutput {
   @JsonProperty("inject_expectation_results")
   @NotNull
   private List<ExpectationResultsByType> expectationResultByTypes = new ArrayList<>();
+
+  @Schema(
+      description = "Indicates whether the inject targets at least one team, asset or asset group")
+  @JsonProperty("inject_has_targets")
+  private boolean hasTargets;
 }

@@ -24,6 +24,8 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
   const tabValue = location.pathname;
   const current = (path: string) => (tabValue === path ? 'page' : undefined);
   const hasPayload = !!injectResultOverview.inject_injector_contract?.injector_contract_payload;
+  const hasOverview = injectResultOverview.inject_has_targets;
+  const hasFindings = hasPayload || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '');
 
   const handleRemediationClick = (event: React.SyntheticEvent) => {
     event.preventDefault();
@@ -35,13 +37,20 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
     }
   };
 
+  // Execution details is always there: a lone tab is no tab bar.
+  if (!hasOverview && !hasFindings) {
+    return null;
+  }
+
   // Route-based tabs: the panels are the routed pages, so every tab is a real link.
   return (
     <Tabs value={tabValue} panels="external">
       <TabsList>
-        <TabsTrigger value={base} asChild>
-          <Link to={base} aria-current={current(base)}>{t('Overview')}</Link>
-        </TabsTrigger>
+        {hasOverview && (
+          <TabsTrigger value={base} asChild>
+            <Link to={base} aria-current={current(base)}>{t('Overview')}</Link>
+          </TabsTrigger>
+        )}
         <TabsTrigger value={`${base}/execution_details`} asChild>
           <Link to={`${base}/execution_details`} aria-current={current(`${base}/execution_details`)}>{t('Execution details')}</Link>
         </TabsTrigger>
@@ -50,7 +59,7 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
             <Link to={`${base}/payload_info`} aria-current={current(`${base}/payload_info`)}>{t('Action details')}</Link>
           </TabsTrigger>
         )}
-        {(hasPayload || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
+        {hasFindings && (
           <TabsTrigger value={`${base}/findings`} asChild>
             <Link to={`${base}/findings`} aria-current={current(`${base}/findings`)}>{t('Findings')}</Link>
           </TabsTrigger>

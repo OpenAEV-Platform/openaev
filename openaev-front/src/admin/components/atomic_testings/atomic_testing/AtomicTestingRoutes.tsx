@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Route, Routes } from 'react-router';
+import { Navigate, Route, Routes, useLocation } from 'react-router';
 
 import { errorWrapper } from '../../../../components/Error';
 import NotFound from '../../../../components/NotFound';
@@ -16,10 +16,17 @@ const AtomicTestingPayloadInfo = lazy(() => import('./payload_info/AtomicTesting
 const AtomicTestingRemediations = lazy(() => import('./AtomicTestingRemediations'));
 
 const AtomicTestingRoutes = ({ injectResultOverview }: Props) => {
+  const location = useLocation();
+
   return (
     <SnapshotRemediationProvider>
       <Routes>
-        <Route path="" element={errorWrapper(AtomicTesting)()} />
+        <Route
+          path=""
+          element={injectResultOverview.inject_has_targets
+            ? errorWrapper(AtomicTesting)()
+            : <Navigate to={`execution_details${location.search}`} replace />}
+        />
         <Route path="execution_details" element={errorWrapper(AtomicTestingExecutionDetails)()} />
         {(injectResultOverview.inject_injector_contract?.injector_contract_payload
           || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (

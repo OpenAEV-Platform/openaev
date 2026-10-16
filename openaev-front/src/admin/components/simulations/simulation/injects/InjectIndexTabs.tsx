@@ -23,6 +23,8 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
   const tabValue = location.pathname;
   const current = (path: string) => (tabValue === path ? 'page' : undefined);
   const hasPayload = !!injectResultOverview.inject_injector_contract?.injector_contract_payload;
+  const hasOverview = injectResultOverview.inject_has_targets;
+  const hasFindings = hasPayload || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '');
 
   const computePath = (path: string) => {
     if (backlabel && backuri) {
@@ -47,13 +49,20 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
     }
   };
 
+  // Execution details is always there: a lone tab is no tab bar.
+  if (!hasOverview && !hasFindings) {
+    return null;
+  }
+
   // Route-based tabs: the panels are the routed pages, so every tab is a real link.
   return (
     <Tabs value={tabValue} panels="external">
       <TabsList>
-        <TabsTrigger value={base} asChild>
-          <Link to={computePath(base)} aria-current={current(base)}>{t('Overview')}</Link>
-        </TabsTrigger>
+        {hasOverview && (
+          <TabsTrigger value={base} asChild>
+            <Link to={computePath(base)} aria-current={current(base)}>{t('Overview')}</Link>
+          </TabsTrigger>
+        )}
         <TabsTrigger value={`${base}/execution_details`} asChild>
           <Link to={computePath(`${base}/execution_details`)} aria-current={current(`${base}/execution_details`)}>{t('Execution details')}</Link>
         </TabsTrigger>
@@ -62,7 +71,7 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
             <Link to={computePath(`${base}/payload_info`)} aria-current={current(`${base}/payload_info`)}>{t('Action details')}</Link>
           </TabsTrigger>
         )}
-        {(hasPayload || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
+        {hasFindings && (
           <TabsTrigger value={`${base}/findings`} asChild>
             <Link to={computePath(`${base}/findings`)} aria-current={current(`${base}/findings`)}>{t('Findings')}</Link>
           </TabsTrigger>
