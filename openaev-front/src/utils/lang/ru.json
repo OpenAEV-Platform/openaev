@@ -4080,6 +4080,7 @@
   "This is the default tenant. It can be renamed but cannot be deleted.": "Это тенант по умолчанию. Его можно переименовать, но нельзя удалить.",
   "This item does not exist or you are not allowed to view it.": "Этот элемент не существует или у вас нет прав на его просмотр.",
   "This landing page is published as the phishing action \"{name}\". Pick it when adding an inject to a scenario or simulation.": "Эта целевая страница опубликована как фишинговое действие «{name}». Выберите её при добавлении инъекта в сценарий или симуляцию.",
+  "This marking definition is currently assigned. Deleting it will remove it from every entity that carries it.": "Данное определение маркировки в настоящее время закреплено. Его удаление приведет к удалению из всех объектов, на которых оно применено.",
   "This marking definition is protected. It cannot be updated or deleted.": "Это определение маркировки защищено. Его нельзя обновлять или удалять.",
   "this month": "в этом месяце",
   "This objective targets a specific perimeter. Add the assets, asset groups, teams or persons to focus on, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.": "Эта цель нацелена на конкретный периметр. Добавьте ресурсы, группы ресурсов, команды или лиц, на которых следует сосредоточиться, либо оставьте поле пустым — ИИ перечислит возможные варианты и спросит вас, какие из них входят в сферу действия, прежде чем начать атаку.",

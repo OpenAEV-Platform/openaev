@@ -4080,6 +4080,7 @@
   "This is the default tenant. It can be renamed but cannot be deleted.": "Il s'agit du tenant par défaut. Il peut être renommé mais ne peut pas être supprimé.",
   "This item does not exist or you are not allowed to view it.": "Cet élément n’existe pas ou vous n’êtes pas autorisé à le consulter.",
   "This landing page is published as the phishing action \"{name}\". Pick it when adding an inject to a scenario or simulation.": "Cette page de destination est publiée sous le nom d’action de phishing « {name} ». Sélectionnez-la lorsque vous ajoutez un inject à un scénario ou à une simulation.",
+  "This marking definition is currently assigned. Deleting it will remove it from every entity that carries it.": "Cette définition de balisage est actuellement attribuée. Sa suppression entraînera sa suppression de toutes les entités qui la contiennent.",
   "This marking definition is protected. It cannot be updated or deleted.": "Cette définition de marquage est protégée. Elle ne peut être ni mise à jour ni supprimée.",
   "this month": "ce mois-ci",
   "This objective targets a specific perimeter. Add the assets, asset groups, teams or persons to focus on, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.": "Cet objectif cible un périmètre spécifique. Ajoutez les actifs, groupes d’actifs, équipes ou personnes à cibler, ou laissez ce champ vide : l’IA répertoriera les candidats et vous demandera lesquels sont dans le scope avant de lancer l’attaque.",
