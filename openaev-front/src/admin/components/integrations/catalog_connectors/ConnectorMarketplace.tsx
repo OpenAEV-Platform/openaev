@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactNode, useMemo, useState } from 'react';
 
+import CardGrid from '../../../../components/common/card/CardGrid';
 import { useFormatter } from '../../../../components/i18n';
 import {
   CONNECTOR_TYPE_ORDER,
@@ -233,22 +234,7 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
                   ))}
                 </Box>
               ) : (
-                /* Capped at 4 columns like OpenCTI (Grid2 xs-12 sm-6 lg-4 xl-3):
-                   cards grow with the screen instead of multiplying columns.
-                   minmax(0, 1fr) keeps every track the same width even when a
-                   card's intrinsic content would otherwise stretch its column. */
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gap: 2,
-                    gridTemplateColumns: {
-                      xs: 'minmax(0, 1fr)',
-                      sm: 'repeat(2, minmax(0, 1fr))',
-                      lg: 'repeat(3, minmax(0, 1fr))',
-                      xl: 'repeat(4, minmax(0, 1fr))',
-                    },
-                  }}
-                >
+                <CardGrid>
                   {section.items.map(item => (
                     <CatalogConnectorCard
                       key={item.id}
@@ -256,7 +242,7 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
                       footerAction={renderFooterAction?.(item, 'card')}
                     />
                   ))}
-                </Box>
+                </CardGrid>
               )}
             </section>
           );

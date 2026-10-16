@@ -1,3 +1,4 @@
+import { type ChipSeverity } from '@filigran/design-system';
 import { type Theme } from '@mui/material/styles';
 
 export type PayloadStatus = 'VERIFIED' | 'UNVERIFIED' | 'DEPRECATED';
@@ -16,6 +17,18 @@ export const getStatusColor = (theme: Theme, status: PayloadStatus | string | un
       return theme.palette.text.disabled;
     default:
       return theme.palette.text.disabled;
+  }
+};
+
+// Same ladder as getStatusColor, for the library Chip tones.
+export const getStatusSeverity = (status: PayloadStatus | string | undefined | null): ChipSeverity => {
+  switch (status) {
+    case 'VERIFIED':
+      return 'low';
+    case 'UNVERIFIED':
+      return 'medium';
+    default:
+      return 'neutral';
   }
 };
 
