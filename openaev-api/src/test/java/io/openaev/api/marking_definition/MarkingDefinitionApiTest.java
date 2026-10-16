@@ -1,22 +1,30 @@
 package io.openaev.api.marking_definition;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createDefaultMarkingDefinition;
+import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.AssetFixture;
+import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
@@ -24,6 +32,8 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -46,6 +56,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
   @Autowired private MarkingDefinitionRepository repository;
   @Autowired private EntityManager entityManager;
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private AssetRepository assetRepository;
 
   @Nested
   @WithMockUser(
@@ -459,6 +471,120 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       assertThat(reloaded.getDefinition()).isEqualTo("ORIGINAL-A");
       assertThat(reloaded.getColor()).isEqualTo("#123456");
       assertThat(reloaded.getOrder()).isEqualTo(3);
+    }
+  }
+
+  @Nested
+  @WithMockUser(withCapabilities = Capability.ACCESS_MARKING_DEFINITION)
+  @DisplayName("Assigned check")
+  class AssignedCheck {
+
+    @BeforeEach
+    void setUp() {
+      markingDefinitionComposer.reset();
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = Capability.ACCESS_MARKING_DEFINITION,
+        autoJoinDefaultTenant = true)
+    @DisplayName("given_markingCarriedByAnAsset_should_returnTrue")
+    void given_markingCarriedByAnAsset_should_returnTrue() throws Exception {
+      // Arrange
+      MarkingDefinition marking = persistedMarking(Tenant.DEFAULT_TENANT_UUID);
+      persistedAssetCarrying(marking);
+
+      // Act & Assert
+      mvc.perform(
+              get(URI + "/{id}/assigned", Tenant.DEFAULT_TENANT_UUID, marking.getId())
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(content().string("true"));
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = Capability.ACCESS_MARKING_DEFINITION,
+        autoJoinDefaultTenant = true)
+    @DisplayName("given_markingCarriedByNoEntity_should_returnFalse")
+    void given_markingCarriedByNoEntity_should_returnFalse() throws Exception {
+      // Arrange
+      MarkingDefinition marking = persistedMarking(Tenant.DEFAULT_TENANT_UUID);
+      entityManager.flush();
+
+      // Act & Assert
+      mvc.perform(
+              get(URI + "/{id}/assigned", Tenant.DEFAULT_TENANT_UUID, marking.getId())
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(content().string("false"));
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = Capability.ACCESS_MARKING_DEFINITION,
+        autoJoinDefaultTenant = true)
+    @DisplayName("given_unknownId_should_returnNotFound")
+    void given_unknownId_should_returnNotFound() throws Exception {
+      // Arrange
+      String unknownId = UUID.randomUUID().toString();
+
+      // Act & Assert
+      mvc.perform(
+              get(URI + "/{id}/assigned", Tenant.DEFAULT_TENANT_UUID, unknownId)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("given_markingOfAnotherTenant_should_notRevealAssignment")
+    void given_markingOfAnotherTenant_should_notRevealAssignment() throws Exception {
+      // Arrange
+      Tenant tenantA =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-assigned-a", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      Tenant tenantB =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-assigned-b", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      MarkingDefinition tenantAMarking = persistedMarking(tenantA.getId());
+      persistedAssetCarrying(tenantAMarking);
+
+      // Act & Assert - the tenant B caller must not learn whether tenant A's definition is in use.
+      mvc.perform(
+              get(URI + "/{id}/assigned", tenantB.getId(), tenantAMarking.getId())
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(autoJoinDefaultTenant = true)
+    @DisplayName("given_missingAccessCapability_should_returnForbidden")
+    void given_missingAccessCapability_should_returnForbidden() throws Exception {
+      // Arrange - tenant membership is granted, so the 403 can only come from @AccessControl.
+      MarkingDefinition marking = persistedMarking(Tenant.DEFAULT_TENANT_UUID);
+      persistedAssetCarrying(marking);
+
+      // Act & Assert
+      mvc.perform(
+              get(URI + "/{id}/assigned", Tenant.DEFAULT_TENANT_UUID, marking.getId())
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+
+    private MarkingDefinition persistedMarking(String tenantId) {
+      return markingDefinitionComposer
+          .forMarkingDefinition(createDefaultMarkingDefinition())
+          .withTenantId(tenantId)
+          .persist()
+          .get();
+    }
+
+    /** Flushes so the raw-JDBC probe behind the endpoint sees the row, not just the session. */
+    private void persistedAssetCarrying(MarkingDefinition marking) {
+      Asset asset = AssetFixture.createDefaultAsset("marking-assigned-" + uniqueDefinition());
+      asset.setMarkingIds(new String[] {marking.getId()});
+      assetRepository.save(asset);
+      entityManager.flush();
     }
   }
 
