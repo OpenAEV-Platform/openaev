@@ -129,6 +129,38 @@ public class MarkingDefinitionService {
     };
   }
 
+  /**
+   * Tells whether a marking definition is currently assigned to at least one marked entity, i.e.
+   * whether its id appears in the {@code marking_ids} array of any row of any marked table.
+   *
+   * <p>Checks the same schema-driven table set as {@link #scrubMarkingIds(String)} rather than the
+   * allowlist-narrowed {@link io.openaev.config.MarkedTables}: a marking write is not
+   * feature-gated, so an inactive table can still hold the id. Raw JDBC also bypasses the caller's
+   * marking clearance, so a row the caller cannot see still counts as an assignment.
+   *
+   * <p>Short-circuits on the first table that holds the id; the {@code @>} containment predicate
+   * lets each probe use the GIN index on {@code marking_ids}.
+   *
+   * @param ctx transaction context containing tenant scope
+   * @param markingDefinitionId identifier of the marking definition
+   * @return {@code true} if at least one marked entity carries the definition
+   */
+  @Transactional(readOnly = true)
+  public boolean isAssigned(@NotNull TxCtx ctx, @NotBlank String markingDefinitionId) {
+    findByIdOrThrow(ctx, markingDefinitionId);
+    for (String table : allTablesWithMarkingIds.tableNames()) {
+      Boolean assigned =
+          jdbcTemplate.queryForObject(
+              "SELECT EXISTS (SELECT 1 FROM " + table + " WHERE marking_ids @> ARRAY[?]::text[])",
+              Boolean.class,
+              markingDefinitionId);
+      if (Boolean.TRUE.equals(assigned)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private MarkingDefinition findByIdOrThrow(
       @NotNull TxCtx ctx, @NotBlank String markingDefinitionId) {
     MarkingDefinition markingDefinition =

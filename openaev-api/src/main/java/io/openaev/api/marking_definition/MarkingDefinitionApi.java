@@ -87,6 +87,18 @@ public class MarkingDefinitionApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @GetMapping("/{markingDefinitionId}/assigned")
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#markingDefinitionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.MARKING_DEFINITION)
+  @Operation(summary = "Check if a marking definition is currently assigned to any entity")
+  public boolean assigned(TxCtx ctx, @PathVariable String markingDefinitionId) {
+    return service.isAssigned(ctx, markingDefinitionId);
+  }
+
+  @LogExecutionTime
   @PostMapping("/search")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)

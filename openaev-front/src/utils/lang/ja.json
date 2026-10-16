@@ -4080,6 +4080,7 @@
   "This is the default tenant. It can be renamed but cannot be deleted.": "これはデフォルトのテナントです。名前を変更できますが、削除はできません。",
   "This item does not exist or you are not allowed to view it.": "この項目は存在しないか、または閲覧権限がありません。",
   "This landing page is published as the phishing action \"{name}\". Pick it when adding an inject to a scenario or simulation.": "このランディングページは、フィッシングアクション「{name}」として公開されています。シナリオやシミュレーションにインジェクトを追加する際に選択してください。",
+  "This marking definition is currently assigned. Deleting it will remove it from every entity that carries it.": "このマーキング定義は現在割り当てられています。これを削除すると、このマーキング定義が設定されているすべてのエンティティから削除されます。",
   "This marking definition is protected. It cannot be updated or deleted.": "このマーキング定義は保護されています。更新や削除はできません。",
   "this month": "今月",
   "This objective targets a specific perimeter. Add the assets, asset groups, teams or persons to focus on, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.": "この目標は特定の境界を対象としています。対象とするアセット、アセットグループ、チーム、人物を追加するか、空欄のままにしてください。AIが候補を列挙し、攻撃前にどれをスコープに含めるかを確認します。",

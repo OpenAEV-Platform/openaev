@@ -4080,6 +4080,7 @@
   "This is the default tenant. It can be renamed but cannot be deleted.": "This is the default tenant. It can be renamed but cannot be deleted.",
   "This item does not exist or you are not allowed to view it.": "This item does not exist or you are not allowed to view it.",
   "This landing page is published as the phishing action \"{name}\". Pick it when adding an inject to a scenario or simulation.": "This landing page is published as the phishing action \"{name}\". Pick it when adding an inject to a scenario or simulation.",
+  "This marking definition is currently assigned. Deleting it will remove it from every entity that carries it.": "This marking definition is currently assigned. Deleting it will remove it from every entity that carries it.",
   "This marking definition is protected. It cannot be updated or deleted.": "This marking definition is protected. It cannot be updated or deleted.",
   "this month": "this month",
   "This objective targets a specific perimeter. Add the assets, asset groups, teams or persons to focus on, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.": "This objective targets a specific perimeter. Add the assets, asset groups, teams or persons to focus on, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.",

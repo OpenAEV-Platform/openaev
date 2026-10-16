@@ -4080,6 +4080,7 @@
   "This is the default tenant. It can be renamed but cannot be deleted.": "这是默认租户。可以重命名，但不能删除。",
   "This item does not exist or you are not allowed to view it.": "此项目不存在，或者您无权查看它。",
   "This landing page is published as the phishing action \"{name}\". Pick it when adding an inject to a scenario or simulation.": "此着陆页已作为钓鱼行动“{name}”发布。在将注入添加到场景或模拟时，请选择它。",
+  "This marking definition is currently assigned. Deleting it will remove it from every entity that carries it.": "该标记定义目前已被分配。删除它将使其从所有包含该定义的实体中移除。",
   "This marking definition is protected. It cannot be updated or deleted.": "此标记定义受保护。无法对其进行更新或删除。",
   "this month": "本月",
   "This objective targets a specific perimeter. Add the assets, asset groups, teams or persons to focus on, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.": "此目标针对特定的边界范围。请添加需要关注的资产、资产组、团队或人员，或留空——AI 将枚举候选对象，并在发起攻击前询问您哪些在范围之内。",
