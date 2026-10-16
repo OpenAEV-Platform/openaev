@@ -44,9 +44,11 @@ import io.openaev.stix.types.*;
 import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
+import io.openaev.utils.ExpectationChildrenIndex;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.SecurityCoverageUtils;
+import io.openaev.utils.SecurityPlatformResultUtils;
 import io.openaev.utils.StringUtils;
 import io.openaev.utils.time.TimeUtils;
 import jakarta.validation.constraints.NotNull;
@@ -611,11 +613,39 @@ public class SecurityCoverageService {
     sroStopTime.ifPresent(
         instant -> coverage.setProperty(ExtendedProperties.VALID_TO.toString(), instant));
 
+    // Platforms and expectations are loaded once for the whole simulation: every covered object
+    // and every platform is then attributed in memory, without a query per object or platform.
+    Set<String> simulationInjectIds =
+        simulation.getInjects().stream().map(Inject::getId).collect(Collectors.toSet());
+    List<BaseInjectExpectation> simulationExpectations =
+        resultUtils.findExpectationsForPlatformResults(simulationInjectIds);
+    Map<String, List<BaseInjectExpectation>> expectationsByInjectId =
+        simulationExpectations.stream()
+            .collect(Collectors.groupingBy(expectation -> expectation.getInject().getId()));
+    // The children of every expectation are indexed once for all covered objects and platforms
+    ExpectationChildrenIndex expectationChildren = new ExpectationChildrenIndex();
+    PlatformIdentities identities =
+        PlatformIdentities.of(injectService.extractSecurityPlatforms(simulation.getInjects()));
+    Map<String, DomainObject> platformIdentities = identities.identityByStixId();
+    Map<String, Set<String>> platformIdsByStixId = identities.platformIdsByStixId();
+    // coverage_platforms may only reference the identities emitted below in the same bundle
+    Map<String, Identifier> platformStixIds = identities.stixIdByPlatformId();
+    // coverage, covered and coverage_platforms of a covered object are scored on the same
+    // expectations
+    Function<List<Inject>, BaseType<?>> coverageFunction =
+        matchingInjects -> computeCoverageFromExpectations(matchingInjects, expectationsByInjectId);
+    Function<List<Inject>, List<PlatformCoverageResult>> coveragePlatformsFunction =
+        matchingInjects ->
+            computeCoveragePlatforms(
+                matchingInjects, expectationsByInjectId, platformStixIds, expectationChildren);
+
     // Process coverage refs by stix object: attack patterns
     processCoverageRefs(
         simulation.getSecurityCoverage().getAttackPatternRefs(),
         simulation,
-        this::getAttackPatternCoverage,
+        this::getAttackPatternInjects,
+        coverageFunction,
+        coveragePlatformsFunction,
         coverage.getId(),
         sroStartTime,
         sroStopTime,
@@ -628,7 +658,9 @@ public class SecurityCoverageService {
       processCoverageRefs(
           simulation.getSecurityCoverage().getVulnerabilitiesRefs(),
           simulation,
-          this::getVulnerabilityCoverage,
+          this::getVulnerabilityInjects,
+          coverageFunction,
+          coveragePlatformsFunction,
           coverage.getId(),
           sroStartTime,
           sroStopTime,
@@ -641,7 +673,9 @@ public class SecurityCoverageService {
       processCoverageRefs(
           simulation.getSecurityCoverage().getIndicatorsRefs(),
           simulation,
-          this::getDnsIndicatorCoverage,
+          this::getDnsIndicatorInjects,
+          coverageFunction,
+          coveragePlatformsFunction,
           coverage.getId(),
           sroStartTime,
           sroStopTime,
@@ -654,7 +688,9 @@ public class SecurityCoverageService {
       processCoverageRefs(
           simulation.getSecurityCoverage().getArtifactsRefs(),
           simulation,
-          this::getArtifactCoverage,
+          this::getArtifactInjects,
+          coverageFunction,
+          coveragePlatformsFunction,
           coverage.getId(),
           sroStartTime,
           sroStopTime,
@@ -662,12 +698,17 @@ public class SecurityCoverageService {
           externalLink);
     }
 
-    for (SecurityPlatform securityPlatform :
-        injectService.extractSecurityPlatforms(simulation.getInjects())) {
-      DomainObject platformIdentity = securityPlatform.toStixDomainObject();
+    for (Map.Entry<String, Set<String>> platformGroup : platformIdsByStixId.entrySet()) {
+      DomainObject platformIdentity = platformIdentities.get(platformGroup.getKey());
       objects.add(platformIdentity);
 
-      BaseType<?> platformCoverage = getOverallCoveragePerPlatform(simulation, securityPlatform);
+      BaseType<?> platformCoverage =
+          computeCoverage(
+              resultUtils.computeGlobalExpectationResultsForPlatforms(
+                  simulationInjectIds,
+                  simulationExpectations,
+                  platformGroup.getValue(),
+                  expectationChildren));
       boolean covered = !((List<?>) platformCoverage.getValue()).isEmpty();
       RelationshipObject sro =
           new RelationshipObject(
@@ -706,14 +747,19 @@ public class SecurityCoverageService {
   private void processCoverageRefs(
       Set<StixRefToExternalRef> refs,
       Exercise simulation,
-      BiFunction<List<String>, Exercise, BaseType<?>> coverageFunction,
+      BiFunction<List<String>, Exercise, List<Inject>> matchingInjectsFunction,
+      Function<List<Inject>, BaseType<?>> coverageFunction,
+      Function<List<Inject>, List<PlatformCoverageResult>> coveragePlatformsFunction,
       Identifier coverageId,
       Optional<Timestamp> sroStartTime,
       Optional<Timestamp> sroStopTime,
       List<ObjectBase> objects,
       String externalLink) {
     for (StixRefToExternalRef stixRef : refs) {
-      BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRefs(), simulation);
+      List<Inject> matchingInjects =
+          matchingInjectsFunction.apply(stixRef.getExternalRefs(), simulation);
+      BaseType<?> coverageResult =
+          matchingInjects.isEmpty() ? uncovered() : coverageFunction.apply(matchingInjects);
       boolean covered = !((List<?>) coverageResult.getValue()).isEmpty();
 
       RelationshipObject sro =
@@ -744,21 +790,134 @@ public class SecurityCoverageService {
       if (covered) {
         sro.setProperty(ExtendedProperties.COVERAGE.toString(), coverageResult);
       }
+      List<PlatformCoverageResult> coveragePlatforms =
+          coveragePlatformsFunction.apply(matchingInjects);
+      if (!coveragePlatforms.isEmpty()) {
+        sro.setProperty(
+            ExtendedProperties.COVERAGE_PLATFORMS.toString(),
+            new io.openaev.stix.types.List<>(
+                coveragePlatforms.stream().map(Complex::new).toList()));
+      }
       objects.add(sro);
     }
+  }
+
+  /**
+   * The STIX identities of the security platforms of a bundle. Platforms sharing a name (different
+   * types) are one identity in OpenCTI: one identity, one relationship and one set of scores for
+   * all of them. The identity of such a group is built from its platform with the smallest id, so
+   * the emitted name and dates never depend on the order the platforms are loaded in.
+   *
+   * @param identityByStixId the identity to emit, by STIX id, in platform id order
+   * @param platformIdsByStixId the ids of the platforms of each identity, by STIX id
+   * @param stixIdByPlatformId the STIX id of the identity of every platform, by platform id
+   */
+  record PlatformIdentities(
+      Map<String, DomainObject> identityByStixId,
+      Map<String, Set<String>> platformIdsByStixId,
+      Map<String, Identifier> stixIdByPlatformId) {
+
+    static PlatformIdentities of(Collection<SecurityPlatform> platforms) {
+      Map<String, DomainObject> identityByStixId = new LinkedHashMap<>();
+      Map<String, Set<String>> platformIdsByStixId = new LinkedHashMap<>();
+      Map<String, Identifier> stixIdByPlatformId = new LinkedHashMap<>();
+      platforms.stream()
+          .sorted(Comparator.comparing(SecurityPlatform::getId))
+          .forEach(
+              platform -> {
+                DomainObject identity = platform.toStixDomainObject();
+                String stixId = identity.getId().getValue();
+                identityByStixId.putIfAbsent(stixId, identity);
+                platformIdsByStixId
+                    .computeIfAbsent(stixId, key -> new LinkedHashSet<>())
+                    .add(platform.getId());
+                stixIdByPlatformId.put(platform.getId(), identity.getId());
+              });
+      return new PlatformIdentities(identityByStixId, platformIdsByStixId, stixIdByPlatformId);
+    }
+  }
+
+  /**
+   * Attributes the results of the injects matching one covered object to the security platforms
+   * that produced them: the {@code coverage_platforms} property of its {@code has-covered}
+   * relationship.
+   *
+   * <p>Each platform identity is scored only on the expectations of these injects one of its
+   * platforms reported on (see {@link
+   * SecurityPlatformResultUtils#computeResultsBySecurityPlatformGroup}); an identity without any
+   * result on them is not listed. Platforms sharing an identity (same name) are scored together.
+   * Scores use the rounding of the overall {@code coverage}.
+   *
+   * @param matchingInjects the injects matching the covered object, the ones its {@code coverage}
+   *     is computed from
+   * @param expectationsByInjectId the expectations of the simulation the platform results are
+   *     computed from ({@link ResultUtils#findExpectationsForPlatformResults}), by inject id
+   * @param platformStixIds the STIX identity id of every security platform emitted in the bundle,
+   *     by platform id; no other platform is ever referenced
+   * @return one entry per platform identity and expectation type, ordered by identity id then
+   *     expectation type; empty when nothing is attributable
+   */
+  static List<PlatformCoverageResult> computeCoveragePlatforms(
+      List<Inject> matchingInjects,
+      Map<String, List<BaseInjectExpectation>> expectationsByInjectId,
+      Map<String, Identifier> platformStixIds) {
+    return computeCoveragePlatforms(
+        matchingInjects, expectationsByInjectId, platformStixIds, new ExpectationChildrenIndex());
+  }
+
+  /**
+   * Attributes the results of the injects matching one covered object to the security platforms
+   * that produced them, see {@link #computeCoveragePlatforms(List, Map, Map)}, resolving the
+   * children of the expectations through the index of the bundle generation.
+   *
+   * @param matchingInjects the injects matching the covered object
+   * @param expectationsByInjectId the expectations of the simulation, by inject id
+   * @param platformStixIds the STIX identity id of every security platform emitted in the bundle,
+   *     by platform id
+   * @param expectationChildren the children index shared by every covered object of the bundle
+   * @return one entry per platform identity and expectation type, ordered by identity id then
+   *     expectation type; empty when nothing is attributable
+   */
+  static List<PlatformCoverageResult> computeCoveragePlatforms(
+      List<Inject> matchingInjects,
+      Map<String, List<BaseInjectExpectation>> expectationsByInjectId,
+      Map<String, Identifier> platformStixIds,
+      ExpectationChildrenIndex expectationChildren) {
+    if (matchingInjects.isEmpty() || platformStixIds.isEmpty()) {
+      return List.of();
+    }
+    List<BaseInjectExpectation> matchingExpectations =
+        matchingInjects.stream()
+            .map(Inject::getId)
+            .distinct()
+            .flatMap(injectId -> expectationsByInjectId.getOrDefault(injectId, List.of()).stream())
+            .toList();
+    Map<String, Set<String>> platformIdsByStixId = new LinkedHashMap<>();
+    platformStixIds.forEach(
+        (platformId, stixId) ->
+            platformIdsByStixId
+                .computeIfAbsent(stixId.getValue(), key -> new LinkedHashSet<>())
+                .add(platformId));
+    return SecurityPlatformResultUtils.computeResultsBySecurityPlatformGroup(
+            matchingExpectations, platformIdsByStixId, expectationChildren)
+        .entrySet()
+        .stream()
+        .flatMap(
+            identityResults ->
+                identityResults.getValue().stream()
+                    .map(
+                        result ->
+                            PlatformCoverageResult.of(
+                                new Identifier(identityResults.getKey()), result)))
+        .toList();
   }
 
   private BaseType<?> getOverallCoverage(Exercise simulation) {
     return computeCoverageFromInjects(simulation.getInjects());
   }
 
-  private BaseType<?> getOverallCoveragePerPlatform(
-      Exercise simulation, SecurityPlatform securityPlatform) {
-    return computeCoverageFromInjects(simulation.getInjects(), securityPlatform);
-  }
-
-  private BaseType<?> getVulnerabilityCoverage(List<String> externalRefs, Exercise simulation) {
-    return getCoverage(
+  private List<Inject> getVulnerabilityInjects(List<String> externalRefs, Exercise simulation) {
+    return findMatchingInjects(
         externalRefs,
         simulation,
         ids -> vulnerabilityService.getVulnerabilitiesByExternalIds(new HashSet<>(ids)),
@@ -771,8 +930,8 @@ public class SecurityCoverageService {
         Vulnerability::getId);
   }
 
-  private BaseType<?> getAttackPatternCoverage(List<String> externalRefs, Exercise simulation) {
-    return getCoverage(
+  private List<Inject> getAttackPatternInjects(List<String> externalRefs, Exercise simulation) {
+    return findMatchingInjects(
         externalRefs,
         simulation,
         ids -> attackPatternService.getAttackPatternsByExternalIds(new HashSet<>(ids)),
@@ -785,8 +944,8 @@ public class SecurityCoverageService {
         AttackPattern::getId);
   }
 
-  private BaseType<?> getDnsIndicatorCoverage(List<String> externalRefs, Exercise simulation) {
-    return getCoverage(
+  private List<Inject> getDnsIndicatorInjects(List<String> externalRefs, Exercise simulation) {
+    return findMatchingInjects(
         externalRefs,
         simulation,
         hostnames ->
@@ -808,8 +967,8 @@ public class SecurityCoverageService {
         Inject::getId);
   }
 
-  private BaseType<?> getArtifactCoverage(List<String> externalRefs, Exercise simulation) {
-    return getCoverage(
+  private List<Inject> getArtifactInjects(List<String> externalRefs, Exercise simulation) {
+    return findMatchingInjects(
         externalRefs,
         simulation,
         documentIds ->
@@ -827,7 +986,13 @@ public class SecurityCoverageService {
         Inject::getId);
   }
 
-  private <T> BaseType<?> getCoverage(
+  /**
+   * Finds the injects of the simulation matching a covered object: its {@code coverage} and its
+   * {@code coverage_platforms} are both computed from these injects only.
+   *
+   * @return the matching injects, empty when the object is unknown or no inject matches it
+   */
+  private <T> List<Inject> findMatchingInjects(
       List<String> externalRefs,
       Exercise simulation,
       Function<List<String>, Collection<T>> entityFetcher,
@@ -836,33 +1001,37 @@ public class SecurityCoverageService {
     // fetch entity
     Optional<T> entity = entityFetcher.apply(externalRefs).stream().findFirst();
     if (entity.isEmpty()) {
-      return uncovered();
+      return List.of();
     }
 
     // find matching injects
-    List<Inject> injects =
-        simulation.getInjects().stream()
-            .filter(
-                i ->
-                    contractExtractor.apply(i).stream()
-                        .anyMatch(
-                            e -> idExtractor.apply(e).equals(idExtractor.apply(entity.get()))))
-            .toList();
-
-    if (injects.isEmpty()) {
-      return uncovered();
-    }
-
-    return computeCoverageFromInjects(injects);
+    return simulation.getInjects().stream()
+        .filter(
+            i ->
+                contractExtractor.apply(i).stream()
+                    .anyMatch(e -> idExtractor.apply(e).equals(idExtractor.apply(entity.get()))))
+        .toList();
   }
 
-  private BaseType<?> computeCoverageFromInjects(
-      List<Inject> injects, SecurityPlatform securityPlatform) {
-    List<InjectExpectationResultUtils.ExpectationResultsByType> coverageResults =
-        resultUtils.computeGlobalExpectationResultsForPlatform(
-            injects.stream().map(Inject::getId).collect(Collectors.toSet()), securityPlatform);
-
-    return computeCoverage(coverageResults);
+  /**
+   * The {@code coverage} of a covered object, all sources together, scored on the expectations its
+   * {@code coverage_platforms} are computed from ({@link
+   * ResultUtils#findExpectationsForPlatformResults}): an inject without any primary expectation is
+   * scored on its agent-level expectations, so {@code covered} and {@code coverage} always agree
+   * with the platforms the results are attributed to.
+   *
+   * @param matchingInjects the injects matching the covered object
+   * @param expectationsByInjectId the expectations of the simulation, by inject id
+   */
+  private BaseType<?> computeCoverageFromExpectations(
+      List<Inject> matchingInjects,
+      Map<String, List<BaseInjectExpectation>> expectationsByInjectId) {
+    Set<String> injectIds = matchingInjects.stream().map(Inject::getId).collect(Collectors.toSet());
+    List<BaseInjectExpectation> expectations =
+        injectIds.stream()
+            .flatMap(injectId -> expectationsByInjectId.getOrDefault(injectId, List.of()).stream())
+            .toList();
+    return computeCoverage(resultUtils.computeGlobalExpectationResults(injectIds, expectations));
   }
 
   private BaseType<?> computeCoverageFromInjects(List<Inject> injects) {
@@ -878,11 +1047,7 @@ public class SecurityCoverageService {
       List<InjectExpectationResultUtils.ExpectationResultsByType> coverageResults) {
     List<Complex<?>> coverageValues = new ArrayList<>();
     for (InjectExpectationResultUtils.ExpectationResultsByType result : coverageResults) {
-      CoverageResult cov =
-          new CoverageResult(
-              result.type().name(),
-              (int) Math.round(result.getSuccessRate() * 100)); // force percentage points
-      coverageValues.add(new Complex<>(cov));
+      coverageValues.add(new Complex<>(CoverageResult.of(result)));
     }
     return new io.openaev.stix.types.List<>(coverageValues);
   }

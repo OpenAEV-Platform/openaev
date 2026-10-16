@@ -18,10 +18,18 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.UUID;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -35,13 +43,137 @@ import org.hibernate.annotations.BatchSize;
 @EntityListeners(ModelBaseListener.class)
 public class SecurityPlatform extends Asset implements StixDomainObjectConvertible {
 
+  private static final String STIX_IDENTITY_CLASS = "securityplatform";
+  private static final UUID OASIS_NAMESPACE =
+      UUID.fromString("00abedb4-aa42-466c-9c01-fed23315a9b7");
+
+  /**
+   * STIX id of the security platform identity, derived from its name exactly like the OpenCTI
+   * standard id of an identity (UUIDv5 in the OASIS namespace over the canonical JSON of the
+   * lower-cased trimmed name and the identity class), so the same named platform resolves to the
+   * same identity across OpenAEV instances and in OpenCTI.
+   *
+   * @throws IllegalArgumentException when the name holds a lone surrogate, which OpenCTI refuses as
+   *     well (and PostgreSQL cannot store)
+   */
+  public static String stixIdentityId(String name) {
+    Map<String, String> contributions = new TreeMap<>();
+    contributions.put("identity_class", STIX_IDENTITY_CLASS);
+    contributions.put("name", normalizeIdentityName(name));
+    try {
+      return "%s--%s"
+          .formatted(
+              ObjectTypes.IDENTITY.toString(),
+              uuidV5(OASIS_NAMESPACE, canonicalJson(contributions)));
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("Cannot generate the security platform STIX id", e);
+    }
+  }
+
+  /**
+   * The JSON Canonicalization Scheme (RFC 8785) serialization of string members, the one OpenCTI
+   * hashes: members in the order of their names' UTF-16 code units (the order of a {@link TreeMap}
+   * of strings) and strings escaped like ECMAScript {@code JSON.stringify}.
+   */
+  static String canonicalJson(Map<String, String> members) {
+    StringBuilder json = new StringBuilder("{");
+    members.forEach(
+        (key, value) -> {
+          if (json.length() > 1) {
+            json.append(',');
+          }
+          json.append(canonicalString(key)).append(':').append(canonicalString(value));
+        });
+    return json.append('}').toString();
+  }
+
+  /**
+   * A JSON string as RFC 8785 writes it: two-character escapes for the quotation mark, the reverse
+   * solidus, backspace, form feed, line feed, carriage return and tab, a lower-case {@code \\u00xx}
+   * escape for the other control characters, and every other character as is.
+   */
+  static String canonicalString(String value) {
+    StringBuilder json = new StringBuilder(value.length() + 2).append('"');
+    for (int index = 0; index < value.length(); index++) {
+      char c = value.charAt(index);
+      switch (c) {
+        case '"' -> json.append("\\\"");
+        case '\\' -> json.append("\\\\");
+        case '\b' -> json.append("\\b");
+        case '\f' -> json.append("\\f");
+        case '\n' -> json.append("\\n");
+        case '\r' -> json.append("\\r");
+        case '\t' -> json.append("\\t");
+        default -> {
+          if (c < 0x20) {
+            json.append("\\u%04x".formatted((int) c));
+          } else if (Character.isHighSurrogate(c)
+              && index + 1 < value.length()
+              && Character.isLowSurrogate(value.charAt(index + 1))) {
+            json.append(c).append(value.charAt(++index));
+          } else if (Character.isSurrogate(c)) {
+            throw new IllegalArgumentException("A lone surrogate cannot be canonicalized");
+          } else {
+            json.append(c);
+          }
+        }
+      }
+    }
+    return json.append('"').toString();
+  }
+
+  /**
+   * The name as OpenCTI normalizes it for an identity standard id: lower-cased, then trimmed of the
+   * characters the JavaScript {@code String.prototype.trim} removes (every Unicode space separator,
+   * tab, line terminators and the byte order mark), which {@link String#trim()} does not all
+   * remove.
+   */
+  static String normalizeIdentityName(String name) {
+    String lower = Objects.requireNonNullElse(name, "").toLowerCase(Locale.ROOT);
+    int start = 0;
+    int end = lower.length();
+    while (start < end && isTrimmedByOpenCti(lower.charAt(start))) {
+      start++;
+    }
+    while (end > start && isTrimmedByOpenCti(lower.charAt(end - 1))) {
+      end--;
+    }
+    return lower.substring(start, end);
+  }
+
+  private static boolean isTrimmedByOpenCti(char c) {
+    return c == '\t'
+        || c == '\n'
+        || c == '\u000B'
+        || c == '\f'
+        || c == '\r'
+        || c == '\u2028'
+        || c == '\u2029'
+        || c == '\uFEFF'
+        || Character.getType(c) == Character.SPACE_SEPARATOR;
+  }
+
+  private static UUID uuidV5(UUID namespace, String name) throws NoSuchAlgorithmException {
+    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+    sha1.update(
+        ByteBuffer.allocate(16)
+            .putLong(namespace.getMostSignificantBits())
+            .putLong(namespace.getLeastSignificantBits())
+            .array());
+    byte[] hash = sha1.digest(name.getBytes(StandardCharsets.UTF_8));
+    hash[6] = (byte) ((hash[6] & 0x0f) | 0x50);
+    hash[8] = (byte) ((hash[8] & 0x3f) | 0x80);
+    ByteBuffer buffer = ByteBuffer.wrap(hash, 0, 16);
+    return new UUID(buffer.getLong(), buffer.getLong());
+  }
+
   @Override
   public DomainObject toStixDomainObject() {
     return new DomainObject(
         new HashMap<>(
             Map.of(
                 CommonProperties.ID.toString(),
-                new Identifier(ObjectTypes.IDENTITY.toString(), this.getId()),
+                new Identifier(stixIdentityId(this.getName())),
                 CommonProperties.CREATED.toString(),
                 new Timestamp(this.getCreatedAt()),
                 CommonProperties.MODIFIED.toString(),
