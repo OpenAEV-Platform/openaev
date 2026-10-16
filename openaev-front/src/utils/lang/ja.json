@@ -421,6 +421,7 @@
   "asset_linked_person": "人物",
   "asset_linked_person must reference a user of the current tenant": "`asset_linked_person` は、現在のテナントのユーザーを参照する必要があります",
   "asset_mac_addresses": "MAC アドレス",
+  "asset_markings": "マーキング",
   "asset_name": "名前",
   "asset_seen_ip": "IPアドレス",
   "asset_status": "ステータス",

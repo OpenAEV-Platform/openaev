@@ -4,6 +4,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -17,6 +18,7 @@ import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.MarkingDefinitionFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
@@ -24,6 +26,7 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -285,12 +288,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     @DisplayName("given_protectedDefinition_should_notDelete")
     void given_protectedDefinition_should_notDelete() throws Exception {
       // Arrange
-      MarkingDefinition protectedDefinition = new MarkingDefinition();
-      protectedDefinition.setType("TLP");
-      protectedDefinition.setDefinition("TLP:RED");
-      protectedDefinition.setColor("#E53935");
-      protectedDefinition.setOrder(5);
-      protectedDefinition.setProtectedDefinition(true);
+      MarkingDefinition protectedDefinition =
+          MarkingDefinitionFixture.createProtectedMarkingDefinition("TLP", "TLP:RED", 5, "#E53935");
       protectedDefinition.setTenant(
           entityManager.getReference(Tenant.class, Tenant.DEFAULT_TENANT_UUID));
       MarkingDefinition saved = repository.save(protectedDefinition);
@@ -669,17 +668,464 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @WithMockUser(withCapabilities = Capability.ACCESS_MARKING_DEFINITION)
+  @DisplayName("GET /options - search by name")
+  class OptionsByName {
+
+    @Test
+    @DisplayName("given_searchTextMatchingType_should_returnMatchingOption")
+    void given_searchTextMatchingType_should_returnMatchingOption() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-name-type", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      MarkingDefinition matching =
+          createPersistedMarkingDefinition(
+              tenant.getId(), "PAP", "AMBER", "#FFB300", 6, Instant.parse("2026-07-01T08:00:00Z"));
+      MarkingDefinition other =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "GREEN-CUSTOM",
+              "#4CAF50",
+              7,
+              Instant.parse("2026-07-01T09:00:00Z"));
+
+      // Act
+      String response =
+          mvc.perform(
+                  get(URI + "/options", tenant.getId())
+                      .queryParam("searchText", "pap")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$[*].id");
+      assertThat(ids).containsExactly(matching.getId()).doesNotContain(other.getId());
+    }
+
+    @Test
+    @DisplayName("given_searchTextMatchingDefinition_should_returnMatchingOption")
+    void given_searchTextMatchingDefinition_should_returnMatchingOption() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-name-def", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      MarkingDefinition matching =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "BESPOKE-CUSTOM-LABEL",
+              "#123123",
+              6,
+              Instant.parse("2026-07-02T08:00:00Z"));
+      MarkingDefinition other =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "UNRELATED-LABEL",
+              "#321321",
+              7,
+              Instant.parse("2026-07-02T09:00:00Z"));
+
+      // Act
+      // lower-case search text also exercises the case-insensitive match on the stored definition.
+      String response =
+          mvc.perform(
+                  get(URI + "/options", tenant.getId())
+                      .queryParam("searchText", "bespoke-custom")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$[*].id");
+      assertThat(ids).containsExactly(matching.getId()).doesNotContain(other.getId());
+    }
+
+    @Test
+    @DisplayName("given_noSearchText_should_returnOptionsOrderedByOrderAscending")
+    void given_noSearchText_should_returnOptionsOrderedByOrderAscending() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-name-order", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      MarkingDefinition lowOrder =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-OPTION-LOW",
+              "#111111",
+              0,
+              Instant.parse("2026-07-03T08:00:00Z"));
+      MarkingDefinition highOrder =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-OPTION-HIGH",
+              "#222222",
+              100,
+              Instant.parse("2026-07-03T09:00:00Z"));
+
+      // Act
+      String response =
+          mvc.perform(
+                  get(URI + "/options", tenant.getId())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$[*].id");
+      assertThat(ids.indexOf(lowOrder.getId())).isLessThan(ids.indexOf(highOrder.getId()));
+    }
+
+    @Test
+    @DisplayName("given_definitionAlreadyPrefixedWithType_should_useStoredDefinitionAsLabel")
+    void given_definitionAlreadyPrefixedWithType_should_useStoredDefinitionAsLabel()
+        throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-name-canonical-prefixed",
+              Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      createPersistedMarkingDefinition(
+          tenant.getId(),
+          "TLP",
+          "TLP:ALREADY-PREFIXED-TEST",
+          "#E53935",
+          6,
+          Instant.parse("2026-07-04T08:00:00Z"));
+
+      // Act
+      String response =
+          mvc.perform(
+                  get(URI + "/options", tenant.getId())
+                      .queryParam("searchText", "already-prefixed")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert: the definition already carries the "TLP:" prefix, so the label must not double it.
+      List<String> labels = JsonPath.read(response, "$[*].label");
+      assertThat(labels).containsExactly("TLP:ALREADY-PREFIXED-TEST");
+    }
+
+    @Test
+    @DisplayName("given_definitionStoredBareWithoutTypePrefix_should_prefixLabelWithType")
+    void given_definitionStoredBareWithoutTypePrefix_should_prefixLabelWithType() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-name-canonical-bare", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      createPersistedMarkingDefinition(
+          tenant.getId(), "PAP", "AMBER", "#FFB300", 6, Instant.parse("2026-07-05T08:00:00Z"));
+
+      // Act
+      String response =
+          mvc.perform(
+                  get(URI + "/options", tenant.getId())
+                      .queryParam("searchText", "pap")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert: the stored definition is bare ("AMBER"), so the label must prefix it with the type.
+      List<String> labels = JsonPath.read(response, "$[*].label");
+      assertThat(labels).containsExactly("PAP:AMBER");
+    }
+
+    @Test
+    @DisplayName("given_tenantBPath_should_excludeTenantARowFromNameSearch")
+    void given_tenantBPath_should_excludeTenantARowFromNameSearch() throws Exception {
+      // Arrange
+      Tenant tenantA =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-name-cross-a", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      Tenant tenantB =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-name-cross-b", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      MarkingDefinition tenantARow =
+          createPersistedMarkingDefinition(
+              tenantA.getId(),
+              "TLP",
+              "ONLY-IN-TENANT-A-OPTION",
+              "#0066CC",
+              6,
+              Instant.parse("2026-07-06T08:00:00Z"));
+      MarkingDefinition tenantBRow =
+          createPersistedMarkingDefinition(
+              tenantB.getId(),
+              "TLP",
+              "ONLY-IN-TENANT-B-OPTION",
+              "#CC6600",
+              7,
+              Instant.parse("2026-07-06T09:00:00Z"));
+
+      // Act
+      // A single test method stays on one tenant path: TenantScopeTransactionAspect refuses to
+      // redefine the tenant scope already set on this transaction.
+      String response =
+          mvc.perform(
+                  get(URI + "/options", tenantB.getId())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$[*].id");
+      assertThat(ids).contains(tenantBRow.getId()).doesNotContain(tenantARow.getId());
+    }
+  }
+
+  @Nested
+  @WithMockUser(withCapabilities = Capability.ACCESS_MARKING_DEFINITION)
+  @DisplayName("POST /options - resolve by id")
+  class OptionsById {
+
+    @Test
+    @DisplayName("given_knownIds_should_resolveLabelsForEachId")
+    void given_knownIds_should_resolveLabelsForEachId() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-id-known", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      MarkingDefinition rowA =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ID-RESOLVE-A",
+              "#AABBCC",
+              6,
+              Instant.parse("2026-07-07T08:00:00Z"));
+      MarkingDefinition rowB =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "PAP",
+              "ID-RESOLVE-B",
+              "#CCBBAA",
+              7,
+              Instant.parse("2026-07-07T09:00:00Z"));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/options", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(List.of(rowA.getId(), rowB.getId())))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$[*].id");
+      assertThat(ids).containsExactlyInAnyOrder(rowA.getId(), rowB.getId());
+      List<String> labels = JsonPath.read(response, "$[*].label");
+      assertThat(labels).containsExactlyInAnyOrder("TLP:ID-RESOLVE-A", "PAP:ID-RESOLVE-B");
+    }
+
+    @Test
+    @DisplayName("given_unknownId_should_excludeItFromResult")
+    void given_unknownId_should_excludeItFromResult() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-id-unknown", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      MarkingDefinition known =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ID-RESOLVE-KNOWN",
+              "#AABBCC",
+              6,
+              Instant.parse("2026-07-08T08:00:00Z"));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/options", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(List.of(known.getId(), UUID.randomUUID().toString())))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert: an id that resolves to no row is silently dropped, not an error.
+      List<String> ids = JsonPath.read(response, "$[*].id");
+      assertThat(ids).containsExactly(known.getId());
+    }
+
+    @Test
+    @DisplayName("given_emptyIdList_should_returnEmptyList")
+    void given_emptyIdList_should_returnEmptyList() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-id-empty", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      // Act & Assert
+      mvc.perform(
+              post(URI + "/options", tenant.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(List.of()))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$").isArray())
+          .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    @DisplayName("given_idFromAnotherTenant_should_excludeCrossTenantId")
+    void given_idFromAnotherTenant_should_excludeCrossTenantId() throws Exception {
+      // Arrange
+      Tenant tenantA =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-id-cross-a", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      Tenant tenantB =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-options-id-cross-b", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      MarkingDefinition tenantARow =
+          createPersistedMarkingDefinition(
+              tenantA.getId(),
+              "TLP",
+              "CROSS-TENANT-ID-A",
+              "#0066CC",
+              6,
+              Instant.parse("2026-07-09T08:00:00Z"));
+      MarkingDefinition tenantBRow =
+          createPersistedMarkingDefinition(
+              tenantB.getId(),
+              "TLP",
+              "CROSS-TENANT-ID-B",
+              "#CC6600",
+              7,
+              Instant.parse("2026-07-09T09:00:00Z"));
+
+      // Act
+      // Explicitly request both ids under tenant B's path: tenant A's row must not resolve even
+      // though its id was asked for by name.
+      String response =
+          mvc.perform(
+                  post(URI + "/options", tenantB.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(List.of(tenantARow.getId(), tenantBRow.getId())))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$[*].id");
+      assertThat(ids).containsExactly(tenantBRow.getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("Options authorization")
+  class OptionsAuthorization {
+
+    @Test
+    @DisplayName("given_noAuthentication_should_return401OnOptionsByName")
+    void given_noAuthentication_should_return401OnOptionsByName() throws Exception {
+      // Act & Assert
+      mvc.perform(get(URI + "/options", Tenant.DEFAULT_TENANT_UUID).with(csrf()))
+          .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("given_noAuthentication_should_return401OnOptionsById")
+    void given_noAuthentication_should_return401OnOptionsById() throws Exception {
+      // Act & Assert
+      mvc.perform(
+              post(URI + "/options", Tenant.DEFAULT_TENANT_UUID)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(List.of()))
+                  .with(csrf()))
+          .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("given_noCapability_should_forbidOptionsByName")
+    void given_noCapability_should_forbidOptionsByName() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("marking-options-authz-nocap-name");
+
+      // Act & Assert
+      mvc.perform(get(URI + "/options", tenant.getId()).with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("given_noCapability_should_forbidOptionsById")
+    void given_noCapability_should_forbidOptionsById() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("marking-options-authz-nocap-id");
+
+      // Act & Assert
+      mvc.perform(
+              post(URI + "/options", tenant.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(List.of()))
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = Capability.ACCESS_MARKING_DEFINITION)
+    @DisplayName("given_tenantCallerIsNotMemberOf_should_forbidOptionsByName")
+    void given_tenantCallerIsNotMemberOf_should_forbidOptionsByName() throws Exception {
+      // Arrange: capability granted in a tenant the caller belongs to, but the request targets a
+      // different tenant the caller was never attached to.
+      tenantIsolationTestHelper.createTenantWithCapabilities(
+          "marking-options-authz-home", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+      Tenant foreignTenant =
+          tenantIsolationTestHelper.createTenant(
+              "marking-options-authz-foreign-" + UUID.randomUUID());
+
+      // Act & Assert
+      mvc.perform(get(URI + "/options", foreignTenant.getId()).with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+  }
+
   private MarkingDefinition createPersistedMarkingDefinition(
       String tenantId, String type, String definition, String color, int order, Instant createdAt) {
-    MarkingDefinition markingDefinition = new MarkingDefinition();
-    markingDefinition.setType(type);
-    markingDefinition.setDefinition(definition);
-    markingDefinition.setColor(color);
-    markingDefinition.setOrder(order);
-    markingDefinition.setProtectedDefinition(false);
+    MarkingDefinition markingDefinition =
+        MarkingDefinitionFixture.createMarkingDefinition(type, definition, order, color, createdAt);
     markingDefinition.setTenant(entityManager.getReference(Tenant.class, tenantId));
-    markingDefinition.setCreatedAt(createdAt);
-    markingDefinition.setUpdatedAt(createdAt);
     return repository.save(markingDefinition);
   }
 }

@@ -421,6 +421,7 @@
   "asset_linked_person": "Лицо",
   "asset_linked_person must reference a user of the current tenant": "параметр `asset_linked_person` должен ссылаться на пользователя текущего арендатора",
   "asset_mac_addresses": "MAC-адреса",
+  "asset_markings": "Маркировка",
   "asset_name": "Имя",
   "asset_seen_ip": "Видимый IP-адрес",
   "asset_status": "Статус",

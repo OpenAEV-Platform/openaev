@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures;
 
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
 import io.openaev.database.model.MarkingDefinition;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -52,6 +53,26 @@ public class MarkingDefinitionFixture {
     marking.setDefinition(definition);
     marking.setOrder(order);
     marking.setColor(color);
+    return marking;
+  }
+
+  /**
+   * Same as {@link #createMarkingDefinition(String, String, int, String)} with an explicit,
+   * deterministic {@code createdAt}/{@code updatedAt} for tests asserting creation-time ordering.
+   */
+  public static MarkingDefinition createMarkingDefinition(
+      String type, String definition, int order, String color, Instant createdAt) {
+    MarkingDefinition marking = createMarkingDefinition(type, definition, order, color);
+    marking.setCreatedAt(createdAt);
+    marking.setUpdatedAt(createdAt);
+    return marking;
+  }
+
+  /** A protected (platform-seeded-like) definition, which the API refuses to update or delete. */
+  public static MarkingDefinition createProtectedMarkingDefinition(
+      String type, String definition, int order, String color) {
+    MarkingDefinition marking = createMarkingDefinition(type, definition, order, color);
+    marking.setProtectedDefinition(true);
     return marking;
   }
 

@@ -421,6 +421,7 @@
   "asset_linked_person": "사람",
   "asset_linked_person must reference a user of the current tenant": "asset_linked_person은 현재 테넌트의 사용자를 참조해야 합니다",
   "asset_mac_addresses": "MAC 주소",
+  "asset_markings": "표시",
   "asset_name": "이름",
   "asset_seen_ip": "본 IP 주소",
   "asset_status": "상태",

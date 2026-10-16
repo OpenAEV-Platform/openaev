@@ -421,6 +421,7 @@
   "asset_linked_person": "Persona",
   "asset_linked_person must reference a user of the current tenant": "`asset_linked_person` deve fare riferimento a un utente del tenant corrente",
   "asset_mac_addresses": "Indirizzi MAC",
+  "asset_markings": "Marcature",
   "asset_name": "Nome",
   "asset_seen_ip": "Indirizzo IP visto",
   "asset_status": "Stato",

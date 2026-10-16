@@ -15,6 +15,7 @@ import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.UserService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -138,5 +140,30 @@ public class MarkingDefinitionApi extends RestBehavior {
   @Operation(summary = "Delete a marking definition")
   public void delete(TxCtx ctx, @PathVariable String markingDefinitionId) {
     service.delete(ctx, markingDefinitionId);
+  }
+
+  // -- OPTIONS --
+
+  @LogExecutionTime
+  @GetMapping("/options")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
+  @Operation(
+      summary = "Search marking definition options",
+      description = "Labeled {id, label} options for a filter's dynamic value picker")
+  public List<FilterUtilsJpa.Option> optionsByName(
+      TxCtx ctx, @RequestParam(required = false) String searchText) {
+    return service.optionsByName(ctx, searchText);
+  }
+
+  @LogExecutionTime
+  @PostMapping("/options")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
+  @Operation(
+      summary = "Resolve marking definition options by id",
+      description = "Labels a set of already-selected marking definition ids")
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody List<String> ids) {
+    return service.optionsById(ctx, ids);
   }
 }
