@@ -238,20 +238,19 @@ public interface InjectorContractRepository
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
   /**
-   * Returns the (injector_contract_id, tenant_id) pair of EVERY contract row backed by the given
-   * payload, across all tenants. Deleting a payload cascades to its contracts at the database level
-   * ({@code injector_contract_payload ... ON DELETE CASCADE}), so the payload-delete path must
-   * resolve these pairs BEFORE the delete to cascade-clean the chaining steps that reference the
-   * doomed contracts (the step -> contract link lives only inside {@code step_data}, with no FK to
-   * cascade on).
+   * Returns the (injector_contract_id, tenant_id) pair of every contract row backed by the given
+   * payload that the transaction's tenant scope can read. Deleting a payload cascades to its
+   * contracts at the database level ({@code injector_contract_payload ... ON DELETE CASCADE}), so
+   * the payload-delete path must resolve these pairs BEFORE the delete to cascade-clean the
+   * chaining steps that reference the doomed contracts (the step -> contract link lives only inside
+   * {@code step_data}, with no FK to cascade on).
    *
-   * <p>Deliberately NOT tenant-scoped, unlike the other native queries here: the sweep set must be
-   * exactly what the database cascade deletes, whatever tenant it lives in. {@code
-   * injector_contract_payload_unique} allows one contract per payload per tenant, so this normally
-   * returns one row, but nothing in the schema stops a contract of another tenant from referencing
-   * the same payload: returning the (contract, tenant) pair keeps the delete path correct then. The
-   * caller sweeps each returned tenant separately; the sweep itself stays strictly tenant-scoped
-   * per pair.
+   * <p>Scoped like any other read once {@code injectors_contracts} is tenant-isolated, so it
+   * returns the contracts of the tenants in scope, normally the payload's own: {@code
+   * injector_contract_payload_unique} allows one contract per payload per tenant. A contract of
+   * another tenant referencing the same payload is a cross-tenant link the schema does not forbid
+   * yet; the database cascade still removes it, but its chaining steps are not swept. The caller
+   * sweeps each returned tenant separately; the sweep itself stays strictly tenant-scoped per pair.
    *
    * @param payloadId the payload whose contract rows are enumerated
    * @return one (contract id, tenant id) pair per contract row referencing the payload

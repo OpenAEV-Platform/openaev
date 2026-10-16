@@ -42,6 +42,11 @@ public class WorkflowTimeoutJob implements Job {
         // the simulation that owns it (workflows carry no tenant column).
         String tenantId = tenantOf(workflow);
         if (tenantId == null) {
+          // Accepted degradation, deliberately not scoped: with no owning tenant there is nothing
+          // to scope to, and borrowing one would turn every write below into a wrong-tenant write.
+          // Tenant-isolated reads come back empty here, and a read that must find its row throws,
+          // which the catch below logs and the next cycle retries. Reaching this branch takes a
+          // workflow whose simulation or scenario cannot be resolved (see tenantOf).
           log.warn(
               "[Chaining] Expired workflow run {} has no simulation tenant; force-completing it"
                   + " with no tenant scope, so its end snapshot may resolve nothing.",

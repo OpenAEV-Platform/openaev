@@ -76,12 +76,25 @@ public class InjectsFinalizationJob implements Job {
 
   @VisibleForTesting
   void handleInjectExpectationCollectStatus() {
-    // Cross-tenant: no transaction is open here, so no v1 filter narrows the read. Once injects is
-    // activated this sweep needs the primitive.
-    List<Inject> injects = injectService.getExecutedAndNotFinished();
-    if (injects.isEmpty()) {
-      return;
-    }
+    // The sweep is cross-tenant and reads under allTenants(). Only the ids leave it: each tenant's
+    // injects are refetched, evaluated and saved inside that tenant's scope, like
+    // handlePendingInject
+    // below. Saving the swept entities instead merges them back, and the merge reloads each
+    // inject's
+    // injector contract: once that table is tenant-isolated, an unscoped merge cannot load it and
+    // throws, which stops execute() before the phases below, for every tenant.
+    Map<String, List<String>> collectingIdsByTenant =
+        tenantScopedJobRunner.supplyAcrossTenants(
+            () -> idsByTenant(injectService.getExecutedAndNotFinished()));
+    collectingIdsByTenant.forEach(
+        (tenantId, injectIds) ->
+            tenantScopedJobRunner.runInTenant(
+                tenantId,
+                () -> completeFinishedCollections(injectRepository.findAllById(injectIds))));
+  }
+
+  @VisibleForTesting
+  void completeFinishedCollections(List<Inject> injects) {
     List<Inject> fulfilled = new ArrayList<>();
     for (Inject inject : injects) {
       // An expectation is done collecting when it has nothing to collect (no result
@@ -206,6 +219,16 @@ public class InjectsFinalizationJob implements Job {
                 tenantId,
                 () ->
                     injectRepository.findAllById(injectIds).forEach(this::finalizePendingInject)));
+  }
+
+  private static Map<String, List<String>> idsByTenant(List<Inject> injects) {
+    Map<String, List<String>> idsByTenant = new LinkedHashMap<>();
+    for (Inject inject : injects) {
+      idsByTenant
+          .computeIfAbsent(inject.getTenant().getId(), key -> new ArrayList<>())
+          .add(inject.getId());
+    }
+    return idsByTenant;
   }
 
   private void finalizePendingInject(Inject inject) {

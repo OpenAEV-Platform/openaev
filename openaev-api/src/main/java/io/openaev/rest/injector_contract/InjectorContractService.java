@@ -13,6 +13,7 @@ import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
 import io.openaev.config.OpenAEVAnonymous;
@@ -51,6 +52,7 @@ import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.tenants.TenantProvisioningScope;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -67,6 +69,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -112,17 +115,30 @@ public class InjectorContractService implements DependenciesManager {
   private final InjectIndexCleanupService injectIndexCleanupService;
   private final StepRepository stepRepository;
   private final ChainingStepCleanupService chainingStepCleanupService;
+  private final TenantProvisioningScope tenantProvisioningScope;
 
-  private final List<String> listDefaultInjectorContract =
+  /**
+   * Built-in contracts whose injectors start with the platform through an autostart instance, so
+   * the default tenant always holds them.
+   */
+  private static final List<String> REQUIRED_DEFAULT_CONTRACTS =
       List.of(
           EmailContract.EMAIL_GLOBAL,
           EmailContract.EMAIL_DEFAULT,
           ChallengeContract.CHALLENGE_PUBLISH,
-          OvhSmsContract.OVH_DEFAULT,
           ManualContract.MANUAL_DEFAULT,
-          ChannelContract.CHANNEL_PUBLISH,
+          ChannelContract.CHANNEL_PUBLISH);
+
+  /** Built-in contracts the default tenant holds only once their connector is configured there. */
+  private static final List<String> OPTIONAL_DEFAULT_CONTRACTS =
+      List.of(
+          OvhSmsContract.OVH_DEFAULT,
           OpenCTIContract.OPENCTI_CREATE_CASE,
           OpenCTIContract.OPENCTI_CREATE_REPORT);
+
+  private final List<String> listDefaultInjectorContract =
+      Stream.concat(REQUIRED_DEFAULT_CONTRACTS.stream(), OPTIONAL_DEFAULT_CONTRACTS.stream())
+          .toList();
 
   /** Configuration flag for enabling email import from XLS files. */
   @Value("${openaev.xls.import.mail.enable}")
@@ -596,11 +612,11 @@ public class InjectorContractService implements DependenciesManager {
    * pass-through for {@code InjectorContractRepository#findContractTenantPairsByPayloadId} so
    * consumers outside this service (the payload-delete path) never touch the repository directly.
    *
-   * <p>The result deliberately spans all tenants so the payload-delete path sweeps exactly what the
-   * database cascade removes, each tenant with its own tenant-scoped call. {@code
-   * injector_contract_payload_unique} allows one contract per payload per tenant, so the map
-   * normally holds one entry; the grouped shape keeps the delete path correct when a contract of
-   * another tenant references the same payload, which the schema does not prevent.
+   * <p>The result covers the tenants the caller's scope can read, each swept with its own
+   * tenant-scoped call. {@code injector_contract_payload_unique} allows one contract per payload
+   * per tenant, so the map normally holds one entry. A contract of another tenant referencing the
+   * same payload, which the schema does not prevent yet, is removed by the database cascade but its
+   * steps are not swept.
    *
    * @param payloadId the payload whose contract ids are resolved
    * @return contract ids grouped by tenant id, empty when the payload backs no contract
@@ -1320,32 +1336,58 @@ public class InjectorContractService implements DependenciesManager {
 
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
+    copyDefaultContracts(tenant, REQUIRED_DEFAULT_CONTRACTS, OPTIONAL_DEFAULT_CONTRACTS);
+  }
+
+  /**
+   * Copies the default tenant's built-in contracts into a new tenant. The templates are read under
+   * the default tenant's scope whatever the caller's, and their links are re-resolved in the new
+   * tenant by business key: a link with no counterpart there is dropped and logged, never carried
+   * over by id. A template the default tenant lacks is logged, as an error when it is required.
+   */
+  @VisibleForTesting
+  void copyDefaultContracts(Tenant tenant, List<String> requiredIds, List<String> optionalIds)
+      throws DependenciesManagerException {
+    List<InjectorContract> templates;
     try {
-      int copied = 0;
-      for (String injectorContractId : listDefaultInjectorContract) {
-        InjectorContractId compositeId =
-            new InjectorContractId(injectorContractId, Tenant.DEFAULT_TENANT_UUID);
-        InjectorContract source = entityManager.find(InjectorContract.class, compositeId);
-        if (source == null) {
-          continue; // contract does not exist for the current tenant — skip
-        }
-        entityManager.detach(source);
-        source.setTenant(tenant);
-        // Provision the default contracts only. The injector rows for this tenant do not exist yet
-        // (built-in injectors register later, in the ManagerFactory round), so cascading the join
-        // rows here would reference a missing injector and violate the composite foreign key
-        // injectors_injector_contracts_injector_fk. Injector registration recreates the links
-        // FK-safely once its own injector row is in place. Replace the collection with a fresh list
-        // (instead of clearing it) so orphanRemoval does not schedule a delete of the detached
-        // default-tenant links loaded with the source.
-        source.setInjectorLinks(new ArrayList<>());
-        entityManager.persist(source);
-        copied++;
+      templates =
+          tenantProvisioningScope.readDefaultInjectorContracts(
+              Stream.concat(requiredIds.stream(), optionalIds.stream()).toList());
+    } catch (Exception e) {
+      throw new DependenciesManagerException(
+          "Failed to read the default injector contracts for tenant " + tenant.getId(), e);
+    }
+    Set<String> found = templates.stream().map(InjectorContract::getId).collect(Collectors.toSet());
+    List<String> missing = requiredIds.stream().filter(id -> !found.contains(id)).toList();
+    if (!missing.isEmpty()) {
+      // Not fatal: the default tenant gets these once its built-in injectors have registered, and
+      // the new tenant's own registration, later in this onboarding, creates them as well.
+      log.error(
+          "The default tenant holds no built-in injector contract {}, so tenant {} gets them only"
+              + " from its own built-in injector registration",
+          missing,
+          tenant.getId());
+    }
+    optionalIds.stream()
+        .filter(id -> !found.contains(id))
+        .forEach(
+            id ->
+                log.info(
+                    "Injector contract {} is not configured on the default tenant, not provisioned"
+                        + " for tenant {}",
+                    id,
+                    tenant.getId()));
+    try {
+      // The new tenant's rows written earlier in this transaction, its domains, are read under its
+      // own scope; the caller's never includes it.
+      tenantProvisioningScope.scopeTo(tenant);
+      for (InjectorContract template : templates) {
+        entityManager.persist(copyForTenant(template, tenant));
       }
       log.info(
           "Provisioned {} default injector contract(s) for tenant {}; their join rows are "
               + "(re)created during builtin injector registration",
-          copied,
+          templates.size(),
           tenant.getId());
     } catch (Exception e) {
       log.error(
@@ -1353,8 +1395,122 @@ public class InjectorContractService implements DependenciesManager {
           tenant.getId(),
           e.getMessage());
       throw new DependenciesManagerException(
-          "Failed to create default injector contracts for tenant " + tenant.getName(), e);
+          "Failed to create default injector contracts for tenant " + tenant.getId(), e);
     }
+  }
+
+  /**
+   * Turns a detached default-tenant template into the new tenant's contract. Authors are dropped:
+   * they name rows of the default tenant, and built-in injector registration stamps the new
+   * tenant's own author later in the same onboarding.
+   */
+  private InjectorContract copyForTenant(InjectorContract template, Tenant tenant) {
+    if (template.getPayload() != null) {
+      throw new IllegalStateException(
+          "Built-in injector contract " + template.getId() + " carries a payload");
+    }
+    String tenantId = tenant.getId();
+    Set<String> domainNames =
+        template.getDomains().stream().map(Domain::getName).collect(Collectors.toSet());
+    Set<String> tagNames =
+        template.getTags().stream().map(Tag::getName).collect(Collectors.toSet());
+    List<String> attackPatternIds =
+        template.getAttackPatterns().stream()
+            .map(AttackPattern::getExternalId)
+            .filter(Objects::nonNull)
+            .toList();
+    Set<String> vulnerabilityIds =
+        template.getVulnerabilities().stream()
+            .map(Vulnerability::getExternalId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    Set<Domain> domains =
+        new HashSet<>(domainService.findAllByNamesAndTenantId(domainNames, tenantId));
+    // One batched lookup, like the domains above: this runs inside the tenant-creation
+    // transaction and once per copied contract, so a query per tag name is a loop over the
+    // database.
+    Set<Tag> tags =
+        tagNames.isEmpty()
+            ? Set.of()
+            : new HashSet<>(tagRepository.findByNameInAndTenantId(tagNames, tenantId));
+    List<AttackPattern> attackPatterns =
+        attackPatternIds.isEmpty()
+            ? new ArrayList<>()
+            : new ArrayList<>(
+                attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+                    attackPatternIds, tenantId));
+    Set<Vulnerability> vulnerabilities =
+        new HashSet<>(
+            vulnerabilityService.getVulnerabilitiesByExternalIds(vulnerabilityIds, tenantId));
+
+    String contractId = template.getId();
+    // Domains and tags resolve by exact name, attack patterns and vulnerabilities ignoring case.
+    logDroppedLinks(contractId, tenantId, "domain", domainNames, domains, Domain::getName, false);
+    logDroppedLinks(contractId, tenantId, "tag", tagNames, tags, Tag::getName, false);
+    logDroppedLinks(
+        contractId,
+        tenantId,
+        "attack pattern",
+        attackPatternIds,
+        attackPatterns,
+        AttackPattern::getExternalId,
+        true);
+    logDroppedLinks(
+        contractId,
+        tenantId,
+        "vulnerability",
+        vulnerabilityIds,
+        vulnerabilities,
+        Vulnerability::getExternalId,
+        true);
+
+    template.setTenant(tenant);
+    template.setDomains(domains);
+    template.setTags(tags);
+    template.setAttackPatterns(attackPatterns);
+    template.setVulnerabilities(vulnerabilities);
+    template.setAuthorUser(null);
+    template.setAuthorTeam(null);
+    template.setAuthorOrganization(null);
+    // The injector rows for this tenant do not exist yet (built-in injectors register later, in the
+    // ManagerFactory round), so cascading the join rows here would reference a missing injector and
+    // violate the composite foreign key injectors_injector_contracts_injector_fk. Injector
+    // registration recreates the links FK-safely once its own injector row is in place. Replace the
+    // collection with a fresh list (instead of clearing it) so orphanRemoval does not schedule a
+    // delete of the detached default-tenant links loaded with the template.
+    template.setInjectorLinks(new ArrayList<>());
+    return template;
+  }
+
+  private static <T> void logDroppedLinks(
+      String contractId,
+      String tenantId,
+      String kind,
+      Collection<String> keys,
+      Collection<T> resolved,
+      Function<T, String> keyOf,
+      boolean ignoreCase) {
+    Function<String, String> normalize =
+        ignoreCase ? key -> key.toLowerCase(Locale.ROOT) : Function.identity();
+    Set<String> resolvedKeys =
+        resolved.stream().map(keyOf).map(normalize).collect(Collectors.toSet());
+    List<String> dropped =
+        keys.stream().filter(key -> !resolvedKeys.contains(normalize.apply(key))).toList();
+    if (!dropped.isEmpty()) {
+      log.warn(
+          "Injector contract {}: no {} {} in tenant {}, link not provisioned",
+          contractId,
+          kind,
+          dropped,
+          tenantId);
+    }
+  }
+
+  @Override
+  public List<Class<? extends DependenciesManager>> getPrerequisite() {
+    // The copies link to the new tenant's own domains, provisioned first.
+    return List.of(DomainService.class);
   }
 
   @Override

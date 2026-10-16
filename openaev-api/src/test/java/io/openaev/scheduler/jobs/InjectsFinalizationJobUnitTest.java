@@ -336,7 +336,7 @@ class InjectsFinalizationJobUnitTest {
   // Inject expectation collect status
   // ========================================================================
   @Nested
-  @DisplayName("handleInjectExpectationCollectStatus")
+  @DisplayName("completeFinishedCollections")
   class HandleInjectExpectationCollectStatusTests {
 
     @Captor private ArgumentCaptor<List<Inject>> injectsCaptor;
@@ -346,7 +346,6 @@ class InjectsFinalizationJobUnitTest {
     @BeforeEach
     void setUpCollectStatus() {
       inject = new Inject();
-      when(injectService.getExecutedAndNotFinished()).thenReturn(List.of(inject));
     }
 
     private BaseInjectExpectation buildExpectation(
@@ -362,7 +361,7 @@ class InjectsFinalizationJobUnitTest {
     }
 
     private List<Inject> actAndCaptureSaved() {
-      finalizationJob.handleInjectExpectationCollectStatus();
+      finalizationJob.completeFinishedCollections(List.of(inject));
       verify(injectService).saveAll(injectsCaptor.capture());
       return injectsCaptor.getValue();
     }

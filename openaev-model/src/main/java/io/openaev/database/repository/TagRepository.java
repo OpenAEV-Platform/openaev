@@ -4,6 +4,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.raw.RawTagIndexing;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -12,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecificationExecutor<Tag> {
@@ -34,6 +36,11 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
 
   @NotNull
   Optional<Tag> findByNameAndTenantId(@NotNull String name, @NotNull String tenantId);
+
+  /** Tags of the given tenant carrying one of the given names, matched exactly. */
+  @NotNull
+  @Transactional(readOnly = true)
+  List<Tag> findByNameInAndTenantId(@NotNull Collection<String> names, @NotNull String tenantId);
 
   @NotNull
   List<Tag> findByNameIgnoreCase(@NotNull final String name);

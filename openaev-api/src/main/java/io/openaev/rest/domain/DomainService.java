@@ -68,6 +68,15 @@ public class DomainService implements DependenciesManager {
     return domainRepository.findByNameAndTenantId(name, tenantId);
   }
 
+  /** Domains of the given tenant carrying one of the given names. */
+  public List<Domain> findAllByNamesAndTenantId(
+      final Collection<String> names, final String tenantId) {
+    if (names.isEmpty()) {
+      return List.of();
+    }
+    return domainRepository.findByNameInAndTenantId(names, tenantId);
+  }
+
   public Domain findById(final String domainId) {
     return domainRepository
         .findById(domainId)

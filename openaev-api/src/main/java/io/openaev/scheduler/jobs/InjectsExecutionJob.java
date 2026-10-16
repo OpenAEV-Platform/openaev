@@ -335,16 +335,21 @@ public class InjectsExecutionJob implements Job {
   }
 
   private void executeChainedSimulations(List<Exercise> startedExercises) {
-    // Chained simulations do not execute injects here; they only start their workflow run.
+    // Chained simulations do not execute injects here; they only start their workflow run, in the
+    // simulation's tenant scope like the classical injects below: the start resolves the scope's
+    // assets and the steps' injector contracts, and with no scope it sees none of them.
     startedExercises.forEach(
-        exercise -> {
-          try {
-            workflowService.startWorkflowBySimulationIdIfPresent(exercise.getId());
-          } catch (ChainingException e) {
-            throw new IllegalStateException(
-                "Could not start workflow for scheduled simulation " + exercise.getId(), e);
-          }
-        });
+        exercise ->
+            tenantScopedJobRunner.runInTenant(
+                exercise.getTenant().getId(),
+                () -> {
+                  try {
+                    workflowService.startWorkflowBySimulationIdIfPresent(exercise.getId());
+                  } catch (ChainingException e) {
+                    throw new IllegalStateException(
+                        "Could not start workflow for scheduled simulation " + exercise.getId(), e);
+                  }
+                }));
   }
 
   private void executeClassicalInjects() throws Exception {
