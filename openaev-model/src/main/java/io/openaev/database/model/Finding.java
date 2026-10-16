@@ -199,4 +199,22 @@ public class Finding implements TenantBase {
     }
     return getInject().getAssetGroups().stream().collect(Collectors.toSet());
   }
+
+  // Identity is the id: a field-based equals/hashCode would initialize the lazy tags Set
+  // (PersistentSet.hashCode reads it) each time a finding is hashed or compared (#8443).
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof Finding other)) {
+      return false;
+    }
+    return id != null && id.equals(other.id);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id);
+  }
 }

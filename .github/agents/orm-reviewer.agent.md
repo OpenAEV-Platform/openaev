@@ -40,6 +40,7 @@ Additional ORM-specific levels:
 | 🔴 **CRITICAL** | Native or bulk write (`nativeQuery`, `@Modifying @Query`, raw JDBC) on an `@Indexable` / `@AuditDiffTracked` / streamed entity with no compensating update: the index, audit, or stream silently goes stale |
 | 🔴 **CRITICAL** | `@Id` / `@IdClass` does not cover the real composite primary key (missing `tenant_id`): cross-tenant identity bug |
 | 🟠 **HIGH** | Controller returns a JPA `@Entity` instead of a DTO / record (align with Backend/Performance) |
+| 🟠 **HIGH** | Entity `equals`/`hashCode` built from its fields (Lombok `@Data` / `@EqualsAndHashCode` without hand-written id-based methods or `onlyExplicitlyIncluded` + `@Include` on the id only) while it maps a `Set` or `Map`: hashing the owner loads the whole collection (#8443) |
 | 🟡 **MEDIUM** | `nativeQuery = true` with no one-line comment justifying both rubric halves (why the ORM cannot express it, why no side effect is lost) |
 | 🟡 **MEDIUM** | A test asserts wall-clock time as a performance gate instead of a query / entity count |
 | 🟡 **MEDIUM** | `instanceof` on a lazy polymorphic association (sees the proxy, not the subclass), or `Hibernate.unproxy()` scattered to resolve a `@Inheritance` subclass instead of an explicit fetch |
@@ -64,6 +65,11 @@ This agent has no separate skill; run these steps directly.
 6. **Inheritance / proxies.** `grep -rn "Hibernate.unproxy\|instanceof" openaev-api openaev-model`.
    Flag `instanceof` on a lazy `@Inheritance` association and unproxy proliferation; recommend an
    explicit `JOIN FETCH` / `@EntityGraph` of the concrete type.
+7. **Entity identity.** For each `@Entity` the PR touches that carries `@Data` or
+   `@EqualsAndHashCode`, check that `equals`/`hashCode` are id-based: hand-written (preferred) or
+   `onlyExplicitlyIncluded = true` with `@Include` on the id only (rule in
+   `orm.instructions.md` → Entity identity). Flag a `List` → `Set` switch whose owner still hashes
+   its fields; `EntityIdentityIgnoresCollectionsTest` must stay green.
 
 ## What NOT to Flag
 

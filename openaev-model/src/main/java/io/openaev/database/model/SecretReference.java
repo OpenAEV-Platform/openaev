@@ -16,6 +16,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import lombok.Data;
 import lombok.Setter;
@@ -135,5 +136,23 @@ public class SecretReference implements TenantBase {
   @JsonIgnore
   public boolean isListened() {
     return false;
+  }
+
+  // Identity is the id: a field-based equals/hashCode would initialize the lazy tags Set
+  // (PersistentSet.hashCode reads it) each time a secret reference is hashed or compared (#8443).
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof SecretReference other)) {
+      return false;
+    }
+    return id != null && id.equals(other.id);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id);
   }
 }
