@@ -63,6 +63,7 @@ plugins:
   - search
   - redirects:
       redirect_maps:
+        'administration/users.md': 'administration/users-and-rbac.md'
         'development/api-usage.md': 'reference/apis/rest-api.md'
         'deployment/authentication.md': 'deployment/platform/authentication.md'
         'deployment/certificate-validation.md': 'deployment/platform/certificate-validation.md'
@@ -109,6 +110,7 @@ plugins:
         'usage/notifications/notification-center.md': 'usage/run-and-evaluate/notifications/notification-center.md'
         'usage/notifications/overview.md': 'usage/run-and-evaluate/notifications/overview.md'
         'usage/notifications/triggers.md': 'usage/run-and-evaluate/notifications/triggers.md'
+        'usage/openaev-agent.md': 'integrations/agents/openaev-agent.md'
         'usage/rest-api.md': 'reference/apis/rest-api.md'
   - macros
   - git-committers:

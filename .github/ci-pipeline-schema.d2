@@ -4,11 +4,11 @@
 #   d2 --watch ci-pipeline-schema.d2          # live preview while editing
 #
 # Organised by TIME, not by function: the point of this pipeline is that almost
-# nothing waits. 14 of the 20 job definitions launch at t=0 and pull what they
+# nothing waits. 17 of the 23 job definitions launch at t=0 and pull what they
 # need by polling; only 6 use `needs:`.
 #
 # Fan-in/fan-out is drawn lane-to-lane rather than job-to-job on purpose — the
-# Gate really has 16 `needs:`, but 16 arrows converging on one box is unreadable.
+# Gate really has 19 `needs:`, but 19 arrows converging on one box is unreadable.
 #
 # Every duration printed on a job is its `timeout-minutes`, never a measured
 # runtime. Keep the word "timeout" in the label so nobody reads it as a duration.
@@ -54,7 +54,7 @@ style: {fill: "#FFE0B2"; stroke: "#E65100"; stroke-width: 3                     
 }
 }
 
-pipe: "⚙️  _ci-pipeline.yml\nshared reusable workflow  ·  secrets: inherit\n\nCore ≈ 36 jobs                Nightly ≈ 59 jobs" {
+pipe: "⚙️  _ci-pipeline.yml\nshared reusable workflow  ·  secrets: inherit\n\nCore 41 jobs (45 on push)        Nightly 110 jobs" {
 style: {fill: "#CFD8DC"; stroke: "#37474F"; stroke-width: 4                                                                               ; border-radius: 8; font-size: 24; bold: true}
 }
 
@@ -62,7 +62,7 @@ triggers.core -> pipe: "api-matrix · e2e-matrix\nvulnerability-scan-fail-on-err
 triggers.nightly -> pipe: "larger matrices\nvulnerability-scan-fail-on-error: true" {class: needs}
 
 # ═══ 2. Everything that starts immediately ═══════════════════════════════════
-wave0: "② LAUNCHED IMMEDIATELY AT  t = 0   —   14 job definitions, not one `needs:` between them" {
+wave0: "② LAUNCHED IMMEDIATELY AT  t = 0   —   17 job definitions, not one `needs:` between them" {
 direction: right
 style: {fill: "#ECEFF1"; stroke: "#546E7A"; stroke-width: 4                                             ; font-size: 26; bold: true}
 
@@ -84,6 +84,9 @@ class: lane
 sc: "🔍 Spotless Check\ntimeout 10 min · Java format" {class: quality}
 fq: "🧪 Frontend Quality & Unit Tests\ntimeout 20 min · ESLint + Vitest" {class: quality}
 bom: "🔎 BOM Override Guard\ntimeout 15 min · Spring Boot BOM overrides\nadvisory in the Gate" {class: quality}
+fds: "🎨 FDS Conformity\ntimeout 5 min · design-system conformity" {class: quality}
+fdsmui: "🎨 FDS MUI Regression\ntimeout 5 min · pull requests only" {class: quality}
+dl: "🔎 Docs Links Check\ntimeout 3 min · in-app docs.openaev.io links" {class: quality}
 }
 
 docker: "DOCKER" {
@@ -95,13 +98,13 @@ scan: "🔒 Container Vulnerability Scan\ntimeout 25 min · threshold high\nCore
 
 tests: "TESTS" {
 class: lane
-at: "🧪 API Tests\nCore 8 · Nightly 16 cells\ntimeout 30 min · fail-fast: false" {class: test}
-e2e: "🧪 E2E Tests (Playwright)\nCore 10 · Nightly 25 cells\ntimeout 45 min · fail-fast: false" {class: test}
+at: "🧪 API Tests\nCore 10 · Nightly 60 cells\ntimeout 30 min · fail-fast: false" {class: test}
+e2e: "🧪 E2E Tests (Playwright)\nCore 6 (10 on push) · Nightly 25 cells\ntimeout 45 min · fail-fast: false" {class: test}
 atc: "🔎 API Types Check\ntimeout 20 min · generated TS types\nvs live API schema" {class: test}
 }
 }
 
-pipe -> wave0: "starts all 14 at once" {class: launch}
+pipe -> wave0: "starts all 17 at once" {class: launch}
 
 # ═══ 3. The only jobs that actually wait ═════════════════════════════════════
 gated: "③ THE ONLY JOBS THAT WAIT ON  needs:" {
@@ -123,11 +126,11 @@ style: {fill: "#FCE4EC"; stroke: "#AD1457"; stroke-width: 3                     
 wave0.tests -> cov: "backend needs: API Tests\ne2e needs: E2E" {class: needs}
 wave0.quality -> cov: "frontend needs: Frontend Quality" {class: needs}
 
-gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 16 jobs  ·  Coverage excluded" {
+gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 19 jobs  ·  Coverage excluded" {
 style: {fill: "#FFCDD2"; stroke: "#B71C1C"; stroke-width: 5                                                                                                                             ; border-radius: 8; font-size: 28; bold: true}
 }
 
-wave0 -> gate: "14 of the 16" {class: needs}
+wave0 -> gate: "17 of the 19" {class: needs}
 gated -> gate: "the other 2" {class: needs}
 
 retry: "🔄 Auto-Retry Failed CI\n\nseparate workflow, on workflow_run: completed\nconclusion == failure  AND  run_attempt == 1\n→ POST rerun-failed-jobs on the same run\n\nLoops back to ② as attempt 2 — exactly once" {
@@ -173,7 +176,7 @@ row3: "" {
 direction: right
 style: {fill: transparent                                                                                                                         ; stroke: transparent}
 a: "workflow" {class: swatch}
-b: "LAUNCH  —  the workflow starting a job. Not a dependency:\nthese 14 jobs have no upstream and begin the instant the run does." {shape: text ; class: note}
+b: "LAUNCH  —  the workflow starting a job. Not a dependency:\nthese 17 jobs have no upstream and begin the instant the run does." {shape: text ; class: note}
 a -> b {class: launch}
 }
 
@@ -205,7 +208,7 @@ row4 -> row5: {style.opacity: 0}
 row5 -> row6: {style.opacity: 0}
 }
 
-matrix: "CORE vs NIGHTLY — THE ONLY THREE DIFFERENCES\n\nAPI TESTS\nCore: 8 cells — 7 balanced shards + a 'remaining' catch-all, Elasticsearch\nNightly: the same 8 run twice, on Elasticsearch AND OpenSearch\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 10 cells, standard image only, chrome/amd64 + chromium/arm64\nsharded arsenals / multitenant / remaining, plus 4 infra cells\nNightly: 25 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 7 infra cells\n\nCONTAINER VULNERABILITY SCAN\nCore: reports findings, never blocks the Gate\nNightly: fails the Gate on high/critical findings and scanner errors" {
+matrix: "CORE vs NIGHTLY — THE ONLY THREE DIFFERENCES\n\nAPI TESTS\nCore: 10 cells — 9 balanced shards + a 'remaining' catch-all, Elasticsearch 8\nNightly: 60 cells — the same 10 on Elasticsearch 8 (x3), Elasticsearch 9 (x2)\nand OpenSearch, including the multi-tenancy shadow runs\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 6 cells on PRs (chromium/amd64), 10 on push (+ chrome, arm64)\nsharded arsenals / external-integrations / remaining, plus 3 or 5 infra cells\nNightly: 25 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 7 infra cells\n\nCONTAINER VULNERABILITY SCAN\nCore: reports findings, never blocks the Gate\nNightly: fails the Gate on high/critical findings and scanner errors" {
 style: {fill: "#FFFFFF"; stroke: "#607D8B"; stroke-width: 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ; font-size: 20}
 }
 
