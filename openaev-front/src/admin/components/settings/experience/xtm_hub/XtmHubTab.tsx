@@ -13,6 +13,7 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import useExternalTab from '../../../../../utils/hooks/useExternalTab';
 import { getCurrentTenantId } from '../../../../../utils/url-helper';
+import { getXtmHubOrigin } from '../../../../../utils/xtm-hub-client';
 import { XTM_HUB_AUTO_REGISTER_QUERY_PARAM } from '../../../xtm_hub/XtmHubRedirect';
 import XtmHubConfirmationDialog from './XtmHubConfirmationDialog';
 import XtmHubProcessDialog from './XtmHubProcessDialog';
@@ -132,6 +133,7 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
   const { openTab, closeTab, focusTab } = useExternalTab({
     url: isRegistered ? unregistrationUrl : registrationUrl,
     tabName: isRegistered ? 'xtmhub-unregistration' : 'xtmhub-registration',
+    expectedOrigin: getXtmHubOrigin(registrationHubUrl),
     onMessage: handleTabMessage,
     onClosingTab: handleClosingTab,
   });

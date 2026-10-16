@@ -1,6 +1,17 @@
 import { type PlatformSettings } from './api-types';
 import { getUrl } from './utils';
 
+export const getXtmHubOrigin = (hubUrl?: string | null): string | null => {
+  if (!hubUrl) {
+    return null;
+  }
+  try {
+    return new URL(hubUrl).origin;
+  } catch {
+    return null;
+  }
+};
+
 interface FetchDocumentParams {
   settings: Pick<PlatformSettings, 'xtm_hub_url'>;
   serviceInstanceId: string;

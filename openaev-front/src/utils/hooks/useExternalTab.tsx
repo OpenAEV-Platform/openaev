@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 interface UseExternalTabProps {
   url: string;
   tabName: string;
+  expectedOrigin: string | null;
   onMessage: (event: MessageEvent) => void;
   onClosingTab: () => void;
 }
@@ -17,6 +18,7 @@ interface UseExternalTabReturn {
 const useExternalTab = ({
   url,
   tabName,
+  expectedOrigin,
   onMessage,
   onClosingTab,
 }: UseExternalTabProps): UseExternalTabReturn => {
@@ -56,7 +58,7 @@ const useExternalTab = ({
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.source === tabRef.current) {
+      if (event.source === tabRef.current && event.origin === expectedOrigin) {
         const closingTabEvent = ['cancel', 'register', 'unregister'];
         if (closingTabEvent.includes(event.data.action)) {
           closeTab();
@@ -86,7 +88,7 @@ const useExternalTab = ({
       window.removeEventListener('message', handleMessage);
       window.removeEventListener('beforeunload', beforeUnloadHandler);
     };
-  }, [isTabOpen, closeTab]);
+  }, [isTabOpen, closeTab, expectedOrigin]);
 
   return {
     isTabOpen,

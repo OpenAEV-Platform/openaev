@@ -21,7 +21,7 @@ interface Return { dialogConnectivityLostStatus: DialogConnectivityLostStatus }
 const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onError }: Props): Return => {
   const ability = useAbility();
   const { settings } = useContext(UserContext);
-  const { userPlatformToken } = useXtmHubUserPlatformToken();
+  const { userPlatformToken } = useXtmHubUserPlatformToken(settings?.xtm_hub_url);
   const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const [dialogConnectivityLostStatus, setDialogConnectivityLostStatus] = useState<DialogConnectivityLostStatus>(DialogConnectivityLostStatus.unknown);
 
