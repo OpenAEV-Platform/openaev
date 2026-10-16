@@ -2,43 +2,57 @@ package io.openaev.api.xtmone;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import io.openaev.IntegrationTest;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
+import io.openaev.xtmone.XtmOneUpstreamException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.web.server.ResponseStatusException;
 
 @TestInstance(PER_CLASS)
@@ -47,12 +61,16 @@ class XtmOneChatApiTest extends IntegrationTest {
 
   private static final String CHAT_AGENTS_URL = "/api/xtmone/chat/agents";
   private static final String CHAT_SESSIONS_URL = "/api/xtmone/chat/sessions";
+  private static final String CHAT_MESSAGES_URL = "/api/xtmone/chat/messages";
   private static final String CHAT_STEER_URL = "/api/xtmone/chat/messages/steer";
   private static final String CHAT_APPROVE_URL = "/api/xtmone/chat/messages/approve";
   private static final String CHAT_PROMPTS_URL = "/api/xtmone/chat/prompts";
   private static final String CHAT_QUOTA_URL = "/api/xtmone/chat/quota";
+  private static final String CHAT_WORKSPACES_URL = "/api/xtmone/chat/workspaces";
   private static final String CONVERSATION_ID = "11111111-1111-1111-1111-111111111111";
   private static final String MESSAGE_ID = "22222222-2222-2222-2222-222222222222";
+  private static final String WORKSPACE_ID = "33333333-3333-3333-3333-333333333333";
+  private static final ObjectMapper JSON = new ObjectMapper();
 
   @Autowired private MockMvc mvc;
   @MockitoBean private XtmOneClient xtmOneClient;
@@ -63,22 +81,78 @@ class XtmOneChatApiTest extends IntegrationTest {
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @Nested
-  @DisplayName("GET /api/xtmone/chat/agents")
-  class ListAgents {
+  @DisplayName("XTM One not configured")
+  class NotConfigured {
 
-    @Test
+    private static Stream<Arguments> chatRoutes() {
+      String conversationUrl = CHAT_SESSIONS_URL + "/" + CONVERSATION_ID;
+      String workspaceUrl = CHAT_WORKSPACES_URL + "/" + WORKSPACE_ID;
+      String conversationBody = "{\"conversation_id\":\"" + CONVERSATION_ID + "\"";
+      return Stream.of(
+          Arguments.of("GET agents", get(CHAT_AGENTS_URL)),
+          Arguments.of("POST sessions", json(post(CHAT_SESSIONS_URL), "{\"agent_slug\":\"a\"}")),
+          Arguments.of("GET sessions", get(CHAT_SESSIONS_URL)),
+          Arguments.of("PATCH session", json(patch(conversationUrl), "{\"title\":\"Renamed\"}")),
+          Arguments.of("DELETE session", delete(conversationUrl).with(csrf())),
+          Arguments.of("GET workspaces", get(CHAT_WORKSPACES_URL)),
+          Arguments.of(
+              "POST workspaces", json(post(CHAT_WORKSPACES_URL), "{\"name\":\"Red team\"}")),
+          Arguments.of("PATCH workspace", json(patch(workspaceUrl), "{\"name\":\"Blue\"}")),
+          Arguments.of("DELETE workspace", delete(workspaceUrl).with(csrf())),
+          Arguments.of(
+              "POST steer",
+              json(post(CHAT_STEER_URL), conversationBody + ",\"content\":\"hello\"}")),
+          Arguments.of(
+              "POST approve",
+              json(
+                  post(CHAT_APPROVE_URL),
+                  conversationBody
+                      + ",\"decisions\":[{\"tool_call_id\":\"t\",\"decision\":\"approve\"}]}")),
+          Arguments.of(
+              "GET pending approvals",
+              get("/api/xtmone/chat/conversations/" + CONVERSATION_ID + "/pending-approvals")),
+          Arguments.of("GET prompts", get(CHAT_PROMPTS_URL)),
+          Arguments.of("GET quota", get(CHAT_QUOTA_URL)),
+          Arguments.of(
+              "POST feedback",
+              json(post(feedbackUrl(CONVERSATION_ID, MESSAGE_ID)), "{\"rating\":\"positive\"}")),
+          Arguments.of(
+              "DELETE feedback", delete(feedbackUrl(CONVERSATION_ID, MESSAGE_ID)).with(csrf())),
+          Arguments.of(
+              "POST messages (stream)",
+              json(post(CHAT_MESSAGES_URL), "{\"content\":\"hello\"}")
+                  .accept(MediaType.TEXT_EVENT_STREAM)),
+          Arguments.of(
+              "POST upload",
+              multipart("/api/xtmone/chat/upload")
+                  .file(new MockMultipartFile("file", "iocs.csv", "text/csv", new byte[] {1}))
+                  .param("conversation_id", CONVERSATION_ID)
+                  .with(csrf())),
+          Arguments.of(
+              "GET file download", get("/api/xtmone/chat/files/" + MESSAGE_ID + "/download")));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("chatRoutes")
     @WithMockUser
-    @DisplayName("Given XTM One not configured should return 200 with empty list")
-    void given_notConfigured_should_returnEmptyList() throws Exception {
+    @DisplayName("Given XTM One not configured should answer 503 with one message, on every route")
+    void given_notConfigured_should_answerServiceUnavailable(String route, RequestBuilder request)
+        throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(false);
 
       // -- ACT & ASSERT --
-      mvc.perform(get(CHAT_AGENTS_URL).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$").isArray())
-          .andExpect(jsonPath("$").isEmpty());
+      mvc.perform(request)
+          .andExpect(status().isServiceUnavailable())
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+          .andExpect(jsonPath("$.detail").value("XTM One is not configured"));
+      verifyNoInteractions(xtmOneClient);
     }
+  }
+
+  @Nested
+  @DisplayName("GET /api/xtmone/chat/agents")
+  class ListAgents {
 
     @Test
     @WithMockUser
@@ -105,38 +179,30 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given XTM One returns 503 should propagate 503 to client")
+    @DisplayName("Given XTM One answers 503 should relay the status and XTM One's detail")
     void given_xtmOneReturns503_should_return503() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
-      when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
-          .thenReturn("fake-jwt");
-      when(xtmOneClient.listChatAgents(anyString()))
-          .thenThrow(
-              new ResponseStatusException(
-                  HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service unavailable"));
+      when(xtmOneClient.listChatAgents(anyString())).thenThrow(refusal(503, "Service unavailable"));
 
       // -- ACT & ASSERT --
       mvc.perform(get(CHAT_AGENTS_URL).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isServiceUnavailable());
+          .andExpect(status().isServiceUnavailable())
+          .andExpect(jsonPath("$.detail").value("Service unavailable"));
     }
 
     @Test
     @WithMockUser
-    @DisplayName("Given XTM One returns 401 should propagate UNAUTHORIZED to client")
-    void given_xtmOneReturns401_should_return401() throws Exception {
+    @DisplayName("Given XTM One rejects OpenAEV's credentials should answer 422, never a 401")
+    void given_xtmOneRejectsCredentials_should_return422() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
-      when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
-          .thenReturn("fake-jwt");
-      when(xtmOneClient.listChatAgents(anyString()))
-          .thenThrow(
-              new ResponseStatusException(
-                  HttpStatus.UNAUTHORIZED, "[XTM One] Unauthorized access to chat agents"));
+      when(xtmOneClient.listChatAgents(anyString())).thenThrow(refusal(422, "[XTM One] HTTP 401"));
 
       // -- ACT & ASSERT --
       mvc.perform(get(CHAT_AGENTS_URL).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isUnauthorized());
+          .andExpect(status().isUnprocessableEntity())
+          .andExpect(jsonPath("$.detail").value("[XTM One] HTTP 401"));
     }
   }
 
@@ -147,17 +213,6 @@ class XtmOneChatApiTest extends IntegrationTest {
     private static final String VALID_FILE_ID = "11111111-1111-1111-1111-111111111111";
     private static final String DOWNLOAD_URL =
         "/api/xtmone/chat/files/" + VALID_FILE_ID + "/download";
-
-    @Test
-    @WithMockUser
-    @DisplayName("Given XTM One not configured should return 400")
-    void given_notConfigured_should_returnBadRequest() throws Exception {
-      // -- ARRANGE --
-      when(xtmOneConfig.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      mvc.perform(get(DOWNLOAD_URL)).andExpect(status().isBadRequest());
-    }
 
     @Test
     @WithMockUser
@@ -204,6 +259,20 @@ class XtmOneChatApiTest extends IntegrationTest {
       // -- ACT & ASSERT --
       mvc.perform(get(DOWNLOAD_URL)).andExpect(status().isServiceUnavailable());
     }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One refuses the download should relay the status and XTM One's detail")
+    void given_xtmOneRefuses_should_relayStatusAndDetail() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.downloadChatFile(VALID_FILE_ID)).thenThrow(refusal(404, "File not found"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(DOWNLOAD_URL))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.detail").value("File not found"));
+    }
   }
 
   @Nested
@@ -212,31 +281,17 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given XTM One not configured should return 200 with empty history")
-    void given_notConfigured_should_returnEmptyHistory() throws Exception {
-      // -- ARRANGE --
-      when(xtmOneConfig.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      mvc.perform(get(CHAT_SESSIONS_URL).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.conversations").isArray())
-          .andExpect(jsonPath("$.conversations").isEmpty());
-    }
-
-    @Test
-    @WithMockUser
-    @DisplayName("Given upstream failure (null) should degrade to 200 with empty history")
-    void given_upstreamFailure_should_degradeToEmptyHistory() throws Exception {
+    @DisplayName("Given upstream refusal should relay the status and XTM One's detail")
+    void given_upstreamRefusal_should_relayStatusAndDetail() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
-      when(xtmOneClient.listChatSessions()).thenReturn(null);
+      when(xtmOneClient.listChatSessions())
+          .thenReturn(relayed(500, "{\"detail\":\"Database unavailable\"}"));
 
       // -- ACT & ASSERT --
       mvc.perform(get(CHAT_SESSIONS_URL).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.conversations").isArray())
-          .andExpect(jsonPath("$.conversations").isEmpty());
+          .andExpect(status().isInternalServerError())
+          .andExpect(jsonPath("$.detail").value("Database unavailable"));
     }
 
     @Test
@@ -247,9 +302,12 @@ class XtmOneChatApiTest extends IntegrationTest {
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.listChatSessions())
           .thenReturn(
-              Map.of(
-                  "conversations",
-                  List.of(Map.of("conversation_id", CONVERSATION_ID, "title", "My conversation"))));
+              ok(
+                  Map.of(
+                      "conversations",
+                      List.of(
+                          Map.of(
+                              "conversation_id", CONVERSATION_ID, "title", "My conversation")))));
 
       // -- ACT & ASSERT --
       mvc.perform(get(CHAT_SESSIONS_URL).accept(MediaType.APPLICATION_JSON))
@@ -258,23 +316,431 @@ class XtmOneChatApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.conversations[0].conversation_id").value(CONVERSATION_ID))
           .andExpect(jsonPath("$.conversations[0].title").value("My conversation"));
     }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given conversations filed in a workspace should pass their workspace_id through")
+    void given_conversationsInWorkspaces_should_passWorkspaceIdThrough() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.listChatSessions())
+          .thenReturn(
+              ok(
+                  Map.of(
+                      "conversations",
+                      List.of(
+                          Map.of(
+                              "conversation_id",
+                              CONVERSATION_ID,
+                              "title",
+                              "Filed",
+                              "workspace_id",
+                              WORKSPACE_ID)))));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(CHAT_SESSIONS_URL).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.conversations[0].workspace_id").value(WORKSPACE_ID));
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/xtmone/chat/sessions")
+  class CreateSession {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a workspace and a field unknown to OpenAEV should forward the body as-is")
+    void given_workspaceAndUnknownField_should_forwardBodyAsIs() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.createChatSession(anyMap()))
+          .thenReturn(ok(Map.of("conversation_id", CONVERSATION_ID, "workspace_id", WORKSPACE_ID)));
+
+      // -- ACT --
+      mvc.perform(
+              post(CHAT_SESSIONS_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"agent_slug\":\"ariane\",\"workspace_id\":\""
+                          + WORKSPACE_ID
+                          + "\",\"future_field\":true}"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.workspace_id").value(WORKSPACE_ID));
+
+      // -- ASSERT --
+      ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.captor();
+      verify(xtmOneClient).createChatSession(captor.capture());
+      assertThat(captor.getValue())
+          .isEqualTo(
+              Map.of("agent_slug", "ariane", "workspace_id", WORKSPACE_ID, "future_field", true));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream refusal should relay the status and XTM One's detail")
+    void given_upstreamRefusal_should_relayStatusAndDetail() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.createChatSession(anyMap()))
+          .thenReturn(relayed(404, "{\"detail\":\"Conversation not found\"}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_SESSIONS_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"agent_slug\":\"ariane\"}"))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.detail").value("Conversation not found"));
+    }
+  }
+
+  @Nested
+  @DisplayName("PATCH /api/xtmone/chat/sessions/{conversationId}")
+  class UpdateSession {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a non-UUID conversation id should return 400 without calling XTM One")
+    void given_invalidConversationId_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              patch(CHAT_SESSIONS_URL + "/not-a-uuid")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"title\":\"Renamed\"}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a non-UUID workspace id should return 400 without calling XTM One")
+    void given_invalidWorkspaceId_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              patch(CHAT_SESSIONS_URL + "/" + CONVERSATION_ID)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"workspace_id\":\"../other\"}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a title that is not a string should return 400 without calling XTM One")
+    void given_nonStringTitle_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              patch(CHAT_SESSIONS_URL + "/" + CONVERSATION_ID)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"title\":42}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a new title should forward it and relay the renamed conversation")
+    void given_newTitle_should_forwardAndRelay() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.updateChatSession(CONVERSATION_ID, Map.of("title", "Renamed")))
+          .thenReturn(
+              relayed(
+                  200,
+                  "{\"conversation_id\":\""
+                      + CONVERSATION_ID
+                      + "\",\"title\":\"Renamed\",\"workspace_id\":null}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              patch(CHAT_SESSIONS_URL + "/" + CONVERSATION_ID)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"title\":\"Renamed\",\"ignored\":true}"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.conversation_id").value(CONVERSATION_ID))
+          .andExpect(jsonPath("$.title").value("Renamed"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a null workspace id should forward the explicit null that unfiles it")
+    void given_nullWorkspaceId_should_forwardExplicitNull() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.updateChatSession(eq(CONVERSATION_ID), anyMap()))
+          .thenReturn(relayed(200, "{\"conversation_id\":\"" + CONVERSATION_ID + "\"}"));
+
+      // -- ACT --
+      mvc.perform(
+              patch(CHAT_SESSIONS_URL + "/" + CONVERSATION_ID)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"workspace_id\":null}"))
+          .andExpect(status().isOk());
+
+      // -- ASSERT --
+      ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.captor();
+      verify(xtmOneClient).updateChatSession(eq(CONVERSATION_ID), captor.capture());
+      assertThat(captor.getValue()).hasSize(1).containsEntry("workspace_id", null);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream answers 404 should relay the status and XTM One's detail")
+    void given_upstreamNotFound_should_relayStatusAndDetail() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.updateChatSession(eq(CONVERSATION_ID), anyMap()))
+          .thenReturn(relayed(404, "{\"detail\":\"Conversation not found\"}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              patch(CHAT_SESSIONS_URL + "/" + CONVERSATION_ID)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"workspace_id\":\"" + WORKSPACE_ID + "\"}"))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.detail").value("Conversation not found"));
+    }
+  }
+
+  @Nested
+  @DisplayName("GET /api/xtmone/chat/workspaces")
+  class ListWorkspaces {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream workspaces should relay every workspace field unchanged")
+    void given_workspaces_should_relayEveryField() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.listChatWorkspaces())
+          .thenReturn(
+              relayed(
+                  200,
+                  "{\"workspaces\":[{\"id\":\""
+                      + WORKSPACE_ID
+                      + "\",\"name\":\"Red team\",\"is_default\":false,"
+                      + "\"is_own\":true,\"can_manage\":true,\"is_company_managed\":false,"
+                      + "\"user_id\":\"user-1\",\"owner_name\":\"Analyst\"}]}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(CHAT_WORKSPACES_URL).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.workspaces[0].id").value(WORKSPACE_ID))
+          .andExpect(jsonPath("$.workspaces[0].name").value("Red team"))
+          .andExpect(jsonPath("$.workspaces[0].is_default").value(false))
+          .andExpect(jsonPath("$.workspaces[0].is_own").value(true))
+          .andExpect(jsonPath("$.workspaces[0].can_manage").value(true))
+          .andExpect(jsonPath("$.workspaces[0].is_company_managed").value(false))
+          .andExpect(jsonPath("$.workspaces[0].user_id").value("user-1"))
+          .andExpect(jsonPath("$.workspaces[0].owner_name").value("Analyst"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One not licensed (403) should relay the status and XTM One's detail")
+    void given_upstreamForbidden_should_relayStatusAndDetail() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.listChatWorkspaces())
+          .thenReturn(relayed(403, "{\"detail\":\"Enterprise Edition required\"}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(CHAT_WORKSPACES_URL).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.detail").value("Enterprise Edition required"));
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/xtmone/chat/workspaces")
+  class CreateWorkspace {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given no name should return 400 without calling XTM One")
+    void given_noName_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_WORKSPACES_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"description\":\"Q3\"}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a name that is not a string should return 400 without calling XTM One")
+    void given_nonStringName_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_WORKSPACES_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"name\":[\"Red team\"]}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a name should forward only the workspace fields and relay the 201")
+    void given_name_should_forwardWorkspaceFieldsAndRelayCreated() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.createChatWorkspace(Map.of("name", "Red team", "description", "Q3")))
+          .thenReturn(relayed(201, "{\"id\":\"" + WORKSPACE_ID + "\",\"name\":\"Red team\"}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_WORKSPACES_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"name\":\"Red team\",\"description\":\"Q3\","
+                          + "\"is_company_managed\":true}"))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.id").value(WORKSPACE_ID))
+          .andExpect(jsonPath("$.name").value("Red team"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream answers 422 should relay the status and XTM One's detail")
+    void given_upstreamUnprocessable_should_relayStatusAndDetail() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.createChatWorkspace(anyMap()))
+          .thenReturn(relayed(422, "{\"detail\":\"A workspace with this name already exists\"}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_WORKSPACES_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"name\":\"Red team\"}"))
+          .andExpect(status().isUnprocessableEntity())
+          .andExpect(jsonPath("$.detail").value("A workspace with this name already exists"));
+    }
+  }
+
+  @Nested
+  @DisplayName("PATCH /api/xtmone/chat/workspaces/{workspaceId}")
+  class UpdateWorkspace {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a non-UUID workspace id should return 400 without calling XTM One")
+    void given_invalidWorkspaceId_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              patch(CHAT_WORKSPACES_URL + "/not-a-uuid")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"name\":\"Blue team\"}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a new name should forward it and relay the renamed workspace")
+    void given_newName_should_forwardAndRelay() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.updateChatWorkspace(WORKSPACE_ID, Map.of("name", "Blue team")))
+          .thenReturn(relayed(200, "{\"id\":\"" + WORKSPACE_ID + "\",\"name\":\"Blue team\"}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              patch(CHAT_WORKSPACES_URL + "/" + WORKSPACE_ID)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"name\":\"Blue team\"}"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.name").value("Blue team"));
+    }
+  }
+
+  @Nested
+  @DisplayName("DELETE /api/xtmone/chat/workspaces/{workspaceId}")
+  class DeleteWorkspace {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a non-UUID workspace id should return 400 without calling XTM One")
+    void given_invalidWorkspaceId_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(delete(CHAT_WORKSPACES_URL + "/not-a-uuid").with(csrf()))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream deletes the workspace should return 204")
+    void given_upstreamDeletes_should_returnNoContent() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.deleteChatWorkspace(WORKSPACE_ID))
+          .thenReturn(new XtmOneClient.RelayedResponse(204, null));
+
+      // -- ACT & ASSERT --
+      mvc.perform(delete(CHAT_WORKSPACES_URL + "/" + WORKSPACE_ID).with(csrf()))
+          .andExpect(status().isNoContent())
+          .andExpect(content().string(""));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream refuses (409) should relay the status and XTM One's detail")
+    void given_upstreamRefuses_should_relayStatusAndDetail() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.deleteChatWorkspace(WORKSPACE_ID))
+          .thenReturn(relayed(409, "{\"detail\":\"This workspace still holds work items\"}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(delete(CHAT_WORKSPACES_URL + "/" + WORKSPACE_ID).with(csrf()))
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.detail").value("This workspace still holds work items"));
+    }
   }
 
   @Nested
   @DisplayName("DELETE /api/xtmone/chat/sessions/{conversationId}")
   class DeleteSession {
-
-    @Test
-    @WithMockUser
-    @DisplayName("Given XTM One not configured should return 400")
-    void given_notConfigured_should_returnBadRequest() throws Exception {
-      // -- ARRANGE --
-      when(xtmOneConfig.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      mvc.perform(delete(CHAT_SESSIONS_URL + "/" + CONVERSATION_ID).with(csrf()))
-          .andExpect(status().isBadRequest());
-    }
 
     @Test
     @WithMockUser
@@ -295,7 +761,8 @@ class XtmOneChatApiTest extends IntegrationTest {
     void given_upstreamAccepts_should_returnNoContent() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
-      when(xtmOneClient.deleteChatSession(CONVERSATION_ID)).thenReturn(true);
+      when(xtmOneClient.deleteChatSession(CONVERSATION_ID))
+          .thenReturn(new XtmOneClient.RelayedResponse(204, null));
 
       // -- ACT & ASSERT --
       mvc.perform(delete(CHAT_SESSIONS_URL + "/" + CONVERSATION_ID).with(csrf()))
@@ -304,38 +771,23 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given upstream rejects the deletion should return 500")
-    void given_upstreamRejects_should_returnInternalServerError() throws Exception {
+    @DisplayName("Given upstream rejects the deletion should relay the status and detail")
+    void given_upstreamRejects_should_relayStatusAndDetail() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
-      when(xtmOneClient.deleteChatSession(CONVERSATION_ID)).thenReturn(false);
+      when(xtmOneClient.deleteChatSession(CONVERSATION_ID))
+          .thenReturn(relayed(404, "{\"detail\":\"Conversation not found\"}"));
 
       // -- ACT & ASSERT --
       mvc.perform(delete(CHAT_SESSIONS_URL + "/" + CONVERSATION_ID).with(csrf()))
-          .andExpect(status().isInternalServerError());
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.detail").value("Conversation not found"));
     }
   }
 
   @Nested
   @DisplayName("POST /api/xtmone/chat/messages/steer")
   class SteerMessage {
-
-    @Test
-    @WithMockUser
-    @DisplayName("Given XTM One not configured should return 400")
-    void given_notConfigured_should_returnBadRequest() throws Exception {
-      // -- ARRANGE --
-      when(xtmOneConfig.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      mvc.perform(
-              post(CHAT_STEER_URL)
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(
-                      "{\"content\":\"hello\",\"conversation_id\":\"" + CONVERSATION_ID + "\"}"))
-          .andExpect(status().isBadRequest());
-    }
 
     @Test
     @WithMockUser
@@ -378,7 +830,7 @@ class XtmOneChatApiTest extends IntegrationTest {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.steerChatMessage("hello", CONVERSATION_ID))
-          .thenReturn(Map.of("status", "queued"));
+          .thenReturn(ok(Map.of("status", "queued")));
 
       // -- ACT & ASSERT --
       mvc.perform(
@@ -393,14 +845,12 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given upstream answers 409 (no run active) should propagate 409 to client")
+    @DisplayName("Given upstream answers 409 (no run active) should relay 409 and its detail")
     void given_upstreamConflict_should_return409() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.steerChatMessage("hello", CONVERSATION_ID))
-          .thenThrow(
-              new ResponseStatusException(
-                  HttpStatus.CONFLICT, "No response is currently being generated"));
+          .thenReturn(relayed(409, "{\"detail\":\"No response is currently being generated\"}"));
 
       // -- ACT & ASSERT --
       mvc.perform(
@@ -409,7 +859,8 @@ class XtmOneChatApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(
                       "{\"content\":\"hello\",\"conversation_id\":\"" + CONVERSATION_ID + "\"}"))
-          .andExpect(status().isConflict());
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.detail").value("No response is currently being generated"));
     }
   }
 
@@ -419,27 +870,6 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     private static final String DECISION =
         "{\"tool_call_id\":\"toolu_1\",\"decision\":\"approve\"}";
-
-    @Test
-    @WithMockUser
-    @DisplayName("Given XTM One not configured should return 400")
-    void given_notConfigured_should_returnBadRequest() throws Exception {
-      // -- ARRANGE --
-      when(xtmOneConfig.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      mvc.perform(
-              post(CHAT_APPROVE_URL)
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(
-                      "{\"conversation_id\":\""
-                          + CONVERSATION_ID
-                          + "\",\"decisions\":["
-                          + DECISION
-                          + "]}"))
-          .andExpect(status().isBadRequest());
-    }
 
     @Test
     @WithMockUser
@@ -614,7 +1044,7 @@ class XtmOneChatApiTest extends IntegrationTest {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.approveToolCalls(anyString(), anyList()))
-          .thenReturn(Map.of("status", "accepted", "decided", 1));
+          .thenReturn(ok(Map.of("status", "accepted", "decided", 1)));
 
       // -- ACT --
       mvc.perform(
@@ -651,7 +1081,7 @@ class XtmOneChatApiTest extends IntegrationTest {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.approveToolCalls(anyString(), anyList()))
-          .thenReturn(Map.of("status", "accepted"));
+          .thenReturn(ok(Map.of("status", "accepted")));
 
       // -- ACT --
       mvc.perform(
@@ -680,7 +1110,7 @@ class XtmOneChatApiTest extends IntegrationTest {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.approveToolCalls(anyString(), anyList()))
-          .thenReturn(Map.of("status", "accepted"));
+          .thenReturn(ok(Map.of("status", "accepted")));
 
       // -- ACT --
       mvc.perform(
@@ -709,7 +1139,7 @@ class XtmOneChatApiTest extends IntegrationTest {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.approveToolCalls(anyString(), anyList()))
-          .thenReturn(Map.of("status", "accepted", "decided", 2));
+          .thenReturn(ok(Map.of("status", "accepted", "decided", 2)));
 
       // -- ACT --
       mvc.perform(
@@ -735,15 +1165,15 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given upstream answers 409 (nothing awaiting) should propagate 409")
+    @DisplayName("Given upstream answers 409 (nothing awaiting) should relay 409")
     void given_upstreamConflict_should_return409() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.approveToolCalls(anyString(), anyList()))
-          .thenThrow(
-              new ResponseStatusException(
-                  HttpStatus.CONFLICT,
-                  "No turn is currently awaiting approval for this conversation"));
+          .thenReturn(
+              relayed(
+                  409,
+                  "{\"detail\":\"No turn is currently awaiting approval for this conversation\"}"));
 
       // -- ACT & ASSERT --
       mvc.perform(
@@ -770,18 +1200,6 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given XTM One not configured should return 400")
-    void given_notConfigured_should_returnBadRequest() throws Exception {
-      // -- ARRANGE --
-      when(xtmOneConfig.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      mvc.perform(get(url(CONVERSATION_ID)).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @WithMockUser
     @DisplayName("Given a non-UUID conversation id should return 400 without calling XTM One")
     void given_invalidConversationId_should_returnBadRequest() throws Exception {
       // -- ARRANGE --
@@ -801,7 +1219,9 @@ class XtmOneChatApiTest extends IntegrationTest {
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.getPendingApprovals(CONVERSATION_ID))
           .thenReturn(
-              Map.of("conversation_id", CONVERSATION_ID, "proposals", List.of(), "turn", "idle"));
+              ok(
+                  Map.of(
+                      "conversation_id", CONVERSATION_ID, "proposals", List.of(), "turn", "idle")));
 
       // -- ACT & ASSERT --
       mvc.perform(get(url(CONVERSATION_ID)).accept(MediaType.APPLICATION_JSON))
@@ -819,20 +1239,21 @@ class XtmOneChatApiTest extends IntegrationTest {
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.getPendingApprovals(CONVERSATION_ID))
           .thenReturn(
-              Map.of(
-                  "conversation_id",
-                  CONVERSATION_ID,
-                  "proposals",
-                  List.of(
-                      Map.of(
-                          "tool_call_id",
-                          "toolu_1",
-                          "tool_name",
-                          "delete_entity",
-                          "arguments",
-                          Map.of("cascade", true))),
-                  "turn",
-                  "running"));
+              ok(
+                  Map.of(
+                      "conversation_id",
+                      CONVERSATION_ID,
+                      "proposals",
+                      List.of(
+                          Map.of(
+                              "tool_call_id",
+                              "toolu_1",
+                              "tool_name",
+                              "delete_entity",
+                              "arguments",
+                              Map.of("cascade", true))),
+                      "turn",
+                      "running")));
 
       // -- ACT & ASSERT --
       mvc.perform(get(url(CONVERSATION_ID)).accept(MediaType.APPLICATION_JSON))
@@ -845,16 +1266,17 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given upstream answers 404 should propagate 404 rather than an empty list")
+    @DisplayName("Given upstream answers 404 should relay 404 rather than an empty list")
     void given_upstreamNotFound_should_return404() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.getPendingApprovals(CONVERSATION_ID))
-          .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
+          .thenReturn(relayed(404, "{\"detail\":\"Conversation not found\"}"));
 
       // -- ACT & ASSERT --
       mvc.perform(get(url(CONVERSATION_ID)).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isNotFound());
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.detail").value("Conversation not found"));
     }
   }
 
@@ -864,30 +1286,16 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given XTM One not configured should return an empty prompt list")
-    void given_notConfigured_should_returnEmptyPrompts() throws Exception {
-      // -- ARRANGE --
-      when(xtmOneConfig.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      mvc.perform(get(CHAT_PROMPTS_URL).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.prompts").isArray())
-          .andExpect(jsonPath("$.prompts").isEmpty());
-      verifyNoInteractions(xtmOneClient);
-    }
-
-    @Test
-    @WithMockUser
     @DisplayName("Given XTM One returns prompts should relay them")
     void given_prompts_should_relayThem() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.getChatPrompts())
           .thenReturn(
-              Map.of(
-                  "prompts",
-                  List.of(Map.of("id", "p-1", "title", "Summarize", "content", "Summarize"))));
+              ok(
+                  Map.of(
+                      "prompts",
+                      List.of(Map.of("id", "p-1", "title", "Summarize", "content", "Summarize")))));
 
       // -- ACT & ASSERT --
       mvc.perform(get(CHAT_PROMPTS_URL).accept(MediaType.APPLICATION_JSON))
@@ -898,16 +1306,16 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given upstream answers 503 should propagate 503")
+    @DisplayName("Given upstream answers 503 should relay 503")
     void given_upstreamUnavailable_should_return503() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
-      when(xtmOneClient.getChatPrompts())
-          .thenThrow(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI disabled"));
+      when(xtmOneClient.getChatPrompts()).thenReturn(relayed(503, "{\"detail\":\"AI disabled\"}"));
 
       // -- ACT & ASSERT --
       mvc.perform(get(CHAT_PROMPTS_URL).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isServiceUnavailable());
+          .andExpect(status().isServiceUnavailable())
+          .andExpect(jsonPath("$.detail").value("AI disabled"));
     }
   }
 
@@ -917,32 +1325,20 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given XTM One not configured should return a JSON null")
-    void given_notConfigured_should_returnNull() throws Exception {
-      // -- ARRANGE --
-      when(xtmOneConfig.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      mvc.perform(get(CHAT_QUOTA_URL).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isOk())
-          .andExpect(content().string("null"));
-      verifyNoInteractions(xtmOneClient);
-    }
-
-    @Test
-    @WithMockUser
     @DisplayName("Given XTM One returns a quota should relay it")
     void given_quota_should_relayIt() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.getChatQuota())
           .thenReturn(
-              JsonNodeFactory.instance
-                  .objectNode()
-                  .put("used", 3)
-                  .put("limit", 10)
-                  .put("period", "daily")
-                  .put("scope", "user"));
+              new XtmOneClient.RelayedResponse(
+                  200,
+                  JsonNodeFactory.instance
+                      .objectNode()
+                      .put("used", 3)
+                      .put("limit", 10)
+                      .put("period", "daily")
+                      .put("scope", "user")));
 
       // -- ACT & ASSERT --
       mvc.perform(get(CHAT_QUOTA_URL).accept(MediaType.APPLICATION_JSON))
@@ -958,7 +1354,8 @@ class XtmOneChatApiTest extends IntegrationTest {
     void given_nothingToShow_should_returnNull() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
-      when(xtmOneClient.getChatQuota()).thenReturn(NullNode.getInstance());
+      when(xtmOneClient.getChatQuota())
+          .thenReturn(new XtmOneClient.RelayedResponse(200, NullNode.getInstance()));
 
       // -- ACT & ASSERT --
       mvc.perform(get(CHAT_QUOTA_URL).accept(MediaType.APPLICATION_JSON))
@@ -970,22 +1367,6 @@ class XtmOneChatApiTest extends IntegrationTest {
   @Nested
   @DisplayName("POST /api/xtmone/chat/conversations/{conversationId}/messages/{messageId}/feedback")
   class SubmitMessageFeedback {
-
-    @Test
-    @WithMockUser
-    @DisplayName("Given XTM One not configured should return 400")
-    void given_notConfigured_should_returnBadRequest() throws Exception {
-      // -- ARRANGE --
-      when(xtmOneConfig.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      mvc.perform(
-              post(feedbackUrl(CONVERSATION_ID, MESSAGE_ID))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content("{\"rating\":\"positive\"}"))
-          .andExpect(status().isBadRequest());
-    }
 
     @Test
     @WithMockUser
@@ -1045,7 +1426,7 @@ class XtmOneChatApiTest extends IntegrationTest {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.submitMessageFeedback(CONVERSATION_ID, MESSAGE_ID, "negative", "Wrong CVE"))
-          .thenReturn(Map.of("rating", "negative", "comment", "Wrong CVE"));
+          .thenReturn(ok(Map.of("rating", "negative", "comment", "Wrong CVE")));
 
       // -- ACT & ASSERT --
       mvc.perform(
@@ -1060,13 +1441,13 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given upstream answers 404 (message not readable) should propagate 404")
+    @DisplayName("Given upstream answers 404 (message not readable) should relay 404")
     void given_upstreamNotFound_should_return404() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.submitMessageFeedback(
               eq(CONVERSATION_ID), eq(MESSAGE_ID), eq("positive"), isNull()))
-          .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"));
+          .thenReturn(relayed(404, "{\"detail\":\"Message not found\"}"));
 
       // -- ACT & ASSERT --
       mvc.perform(
@@ -1074,7 +1455,8 @@ class XtmOneChatApiTest extends IntegrationTest {
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"rating\":\"positive\"}"))
-          .andExpect(status().isNotFound());
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.detail").value("Message not found"));
     }
   }
 
@@ -1082,18 +1464,6 @@ class XtmOneChatApiTest extends IntegrationTest {
   @DisplayName(
       "DELETE /api/xtmone/chat/conversations/{conversationId}/messages/{messageId}/feedback")
   class RetractMessageFeedback {
-
-    @Test
-    @WithMockUser
-    @DisplayName("Given XTM One not configured should return 400")
-    void given_notConfigured_should_returnBadRequest() throws Exception {
-      // -- ARRANGE --
-      when(xtmOneConfig.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      mvc.perform(delete(feedbackUrl(CONVERSATION_ID, MESSAGE_ID)).with(csrf()))
-          .andExpect(status().isBadRequest());
-    }
 
     @Test
     @WithMockUser
@@ -1114,6 +1484,8 @@ class XtmOneChatApiTest extends IntegrationTest {
     void given_validIds_should_returnNoContent() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.retractMessageFeedback(CONVERSATION_ID, MESSAGE_ID))
+          .thenReturn(new XtmOneClient.RelayedResponse(204, null));
 
       // -- ACT & ASSERT --
       mvc.perform(delete(feedbackUrl(CONVERSATION_ID, MESSAGE_ID)).with(csrf()))
@@ -1123,18 +1495,75 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Given upstream answers 404 should propagate 404")
+    @DisplayName("Given upstream answers 404 should relay 404")
     void given_upstreamNotFound_should_return404() throws Exception {
       // -- ARRANGE --
       when(xtmOneConfig.isConfigured()).thenReturn(true);
-      doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"))
-          .when(xtmOneClient)
-          .retractMessageFeedback(CONVERSATION_ID, MESSAGE_ID);
+      when(xtmOneClient.retractMessageFeedback(CONVERSATION_ID, MESSAGE_ID))
+          .thenReturn(relayed(404, "{\"detail\":\"Message not found\"}"));
 
       // -- ACT & ASSERT --
       mvc.perform(delete(feedbackUrl(CONVERSATION_ID, MESSAGE_ID)).with(csrf()))
-          .andExpect(status().isNotFound());
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.detail").value("Message not found"));
     }
+  }
+
+  @Nested
+  @DisplayName("Enterprise Edition gating of the conversation and workspace routes")
+  class EnterpriseEditionGating {
+
+    private static Stream<Arguments> gatedRoutes() {
+      String conversationUrl = CHAT_SESSIONS_URL + "/" + CONVERSATION_ID;
+      String workspaceUrl = CHAT_WORKSPACES_URL + "/" + WORKSPACE_ID;
+      return Stream.of(
+          Arguments.of("POST sessions", json(post(CHAT_SESSIONS_URL), "{\"agent_slug\":\"a\"}")),
+          Arguments.of("PATCH session", json(patch(conversationUrl), "{\"title\":\"Renamed\"}")),
+          Arguments.of("GET workspaces", get(CHAT_WORKSPACES_URL)),
+          Arguments.of(
+              "POST workspaces", json(post(CHAT_WORKSPACES_URL), "{\"name\":\"Red team\"}")),
+          Arguments.of("PATCH workspace", json(patch(workspaceUrl), "{\"name\":\"Blue\"}")),
+          Arguments.of("DELETE workspace", delete(workspaceUrl).with(csrf())));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("gatedRoutes")
+    @WithMockUser
+    @DisplayName(
+        "Given an inactive Enterprise Edition license should refuse without calling XTM One")
+    void given_inactiveLicense_should_refuse(String route, MockHttpServletRequestBuilder request)
+        throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(request)
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+      verifyNoInteractions(xtmOneClient);
+    }
+  }
+
+  private static XtmOneClient.RelayedResponse relayed(int status, String json) throws Exception {
+    JsonNode body = JSON.readTree(json);
+    return new XtmOneClient.RelayedResponse(status, body);
+  }
+
+  /** XTM One accepting the request with this payload. */
+  private static XtmOneClient.RelayedResponse ok(Object payload) {
+    return new XtmOneClient.RelayedResponse(200, JSON.valueToTree(payload));
+  }
+
+  /** XTM One refusing a request the route does not relay itself, as the client reports it. */
+  private static XtmOneUpstreamException refusal(int status, String detail) {
+    return new XtmOneUpstreamException(
+        XtmOneClient.RelayedResponse.ofDetail(status, TextNode.valueOf(detail)));
+  }
+
+  private static MockHttpServletRequestBuilder json(
+      MockHttpServletRequestBuilder request, String json) {
+    return request.with(csrf()).contentType(MediaType.APPLICATION_JSON).content(json);
   }
 
   private static String feedbackUrl(String conversationId, String messageId) {
