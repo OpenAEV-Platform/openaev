@@ -276,6 +276,30 @@ public class V1_DataImporter implements Importer {
   }
 
   /**
+   * The tenant an imported inject is written in: its simulation's or scenario's, or the bundle's
+   * write tenant for an atomic testing, which has no parent. Never the ambient one. Same rule as
+   * the chaining rows' parent attribution, applied here because the native insert skips the entity
+   * listeners.
+   *
+   * @throws IllegalStateException when there is neither, or when they differ
+   */
+  static String injectTenant(Exercise exercise, Scenario scenario, String writeTenant) {
+    String parentTenant = parentTenantId(exercise, scenario);
+    if (parentTenant == null) {
+      if (writeTenant == null) {
+        throw new IllegalStateException(
+            "unattributed tenant write: Inject has no parent to take a tenant from");
+      }
+      return writeTenant;
+    }
+    if (writeTenant != null && !writeTenant.equals(parentTenant)) {
+      throw new IllegalStateException(
+          "cross-tenant write: Inject carries a tenant other than its parent's");
+    }
+    return parentTenant;
+  }
+
+  /**
    * Reads back the tenant scope already active on this transaction (set by {@code
    * TenantScopeTransactionAspect} from the request's own {@link TxCtx} at the top of the call
    * chain), rather than the narrower {@code TxCtx.forTenant(writeTenant)} this importer builds
@@ -1541,6 +1565,8 @@ public class V1_DataImporter implements Importer {
       List<JsonNode> injectsToAdd,
       List<JsonNode> allInjects,
       Map<String, String> resolvedContracts) {
+    String injectTenant =
+        injectTenant(exercise, scenario, tenantWriteScopeResolver.tenantForWrite(ctx, null));
     List<String> originalIds = new ArrayList<>();
     injectsToAdd.forEach(
         injectNode -> {
@@ -1628,7 +1654,8 @@ public class V1_DataImporter implements Importer {
                 enabled,
                 exercise.getId(),
                 dependsDuration,
-                content);
+                content,
+                injectTenant);
           } else if (scenario != null) {
             injectRepository.importSaveForScenario(
                 injectId,
@@ -1641,7 +1668,8 @@ public class V1_DataImporter implements Importer {
                 enabled,
                 scenario.getId(),
                 dependsDuration,
-                content);
+                content,
+                injectTenant);
           } else {
             injectRepository.importSaveStandAlone(
                 injectId,
@@ -1653,7 +1681,8 @@ public class V1_DataImporter implements Importer {
                 allTeams,
                 enabled,
                 dependsDuration,
-                content);
+                content,
+                injectTenant);
           }
           baseIds.put(id, new BaseHolder(injectId));
           originalIds.add(id);
