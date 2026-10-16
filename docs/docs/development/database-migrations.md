@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Database migrations
 
 OpenAEV uses [Flyway](https://www.red-gate.com/products/flyway/) as its database schema management tool,

@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Usage telemetry
 
 OpenAEV sends usage statistics to Filigran. This page lists what is sent, where and how often, and

@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # Parameters
 
 Parameters control the appearance, behavior, and preferences of the OpenAEV platform at runtime. Use them to apply your organization's branding, set default Dashboards, and review the health of connected services. Changes take effect immediately without restarting the application.

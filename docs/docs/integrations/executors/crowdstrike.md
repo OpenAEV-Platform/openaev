@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # CrowdStrike Falcon Executor
 
 The CrowdStrike Falcon Executor runs OpenAEV implants through the Falcon agent already deployed on your endpoints, with Real Time Response scripts.

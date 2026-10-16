@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Configuration
 
 This page lists the main configuration keys of the OpenAEV platform, as properties (manual deployment) and as

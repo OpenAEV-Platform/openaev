@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Deploy Injectors
 
 This page explains how to deploy and configure Injectors. To learn what Injectors do, see [Injectors](injectors.md).

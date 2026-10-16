@@ -140,6 +140,30 @@ End pages with a `## What's next?` section containing a bullet list of links. Us
 3. Add cross-links from related pages.
 4. Follow the page structure matching the page type (feature, reference, or index).
 
+## What not to document
+
+- Do not copy what the code already documents: endpoint and field lists are in Swagger, defaults in `application.properties`, connector setup in the connector repository README. Link to it instead.
+- One topic, one page: link to the page that owns a topic instead of repeating it.
+
+## Keeping pages accurate
+
+Each page tracks its freshness in its front matter:
+
+```yaml
+---
+last_verified: 2026-10-14   # every fact on the page was checked against the code that day
+---
+```
+
+- Set `last_verified` only after checking every fact on the page against the code. A page edited without updating it shows as "Changed since verified".
+- When a page is known to be wrong and cannot be fixed now, add `doc_status: outdated` and a short `doc_notes`.
+- Breaking-change guides use `doc_status: release-managed`: they change only at release time.
+- `python docs/scripts/docs-freshness.py` prints the report: pages to check first, oldest first. The `Docs freshness` workflow shows it every week in its job summary.
+
+## User journeys
+
+`docs/journeys/` lists end-to-end user tasks and the pages they rely on (see its README). Only use journeys with `status: validated` to drive documentation work.
+
 
 <!-- filigran-conventions:start -->
 ## Commit, PR & issue conventions

@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Executors
 
 Executors run implants as detached processes on your endpoints, and the implants run the Threat Arsenal Actions. You need at least one Executor to run Actions on endpoints. Executors work on Windows, Linux and macOS, on x86_64 or ARM64.

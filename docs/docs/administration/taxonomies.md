@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # Taxonomies
 
 Taxonomies are the reference data used to classify platform data. Manage them in **Settings > Taxonomies**: tags,
