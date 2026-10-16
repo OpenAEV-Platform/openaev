@@ -54,6 +54,7 @@ public class InjectExportTest extends IntegrationTest {
   public final String INJECT_EXPORT_URI = INJECT_URI + "/export";
   public final String INJECT_EXPORT_SEARCH_URI = INJECT_URI + "/search/export";
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private InjectComposer injectComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -99,9 +100,10 @@ public class InjectExportTest extends IntegrationTest {
     scenarioComposer.reset();
     payloadComposer.reset();
 
-    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(
-        TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        channelInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        challengeInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // delete the test files from the minio service
     for (String fileName : WELL_KNOWN_FILES.keySet()) {

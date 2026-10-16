@@ -60,6 +60,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   private static final String TENANT_THREAT_ARSENAL_URI = "/api/tenants/{tenantId}/threat_arsenals";
   private static Document EXECUTABLE_FILE;
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private PayloadRepository payloadRepository;
@@ -81,7 +82,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     injectorContractComposer.reset();
     attackPatternComposer.reset();
     tagComposer.reset();

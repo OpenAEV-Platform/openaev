@@ -28,6 +28,7 @@ import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFacto
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.TenantRoleService;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -50,6 +51,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser
 class TenantServiceTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private TenantService tenantService;
 
   @Autowired private TenantComposer tenantComposer;
@@ -145,7 +147,8 @@ class TenantServiceTest extends IntegrationTest {
     // Precondition: the default tenant must already carry a built-in contract WITH a join row, so
     // the copy step has a contract-with-link to copy. Without this the copy step is a no-op and the
     // foreign-key path is never exercised.
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     entityManager.flush();
     entityManager.clear();
 

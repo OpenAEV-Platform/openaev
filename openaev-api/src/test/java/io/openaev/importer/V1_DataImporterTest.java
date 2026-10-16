@@ -25,6 +25,7 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.ImportEntry;
 import io.openaev.utils.constants.Constants;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.KillChainPhaseFixture;
@@ -57,6 +58,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_METHOD)
 class V1_DataImporterTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private V1_DataImporter importer;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private TeamRepository teamRepository;
@@ -209,7 +211,8 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   void testScenario_with_attackpattern() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     MockitoAnnotations.openMocks(this);
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
@@ -251,7 +254,8 @@ class V1_DataImporterTest extends IntegrationTest {
     payloadRepository.deleteAll();
     entityManager.flush();
     entityManager.clear();
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     this.importer.importData(
         txCtx(),
@@ -1193,7 +1197,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // The step references the OpenAEV implant injector and a contract id: both must be resolvable
     // on
     // the target, otherwise importWorkflowSteps now skips the step (no step_data persisted).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     persistResolvableStepContract("dddddddd-0001-0001-0001-000000000098");
     String sourceUserId = "ffffffff-ffff-ffff-ffff-ffffffffffff";
     assertTrue(
@@ -2894,7 +2899,8 @@ class V1_DataImporterTest extends IntegrationTest {
       given_missingContractWithManualPayload_when_importing_should_bindInjectInjectorToResolvedOpenaevInjector()
           throws Exception {
     // -- Arrange --
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // -- Act --
     this.importer.importData(
@@ -2940,7 +2946,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // resolveStepData recreates the payload/contract and the step is imported normally.
     // (Regression: it used to be wrongly skipped because the read-only external-id lookup found
     // nothing and the contract was absent.)
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     ObjectMapper mapper = new ObjectMapper();
     JsonNode importData =
@@ -3005,7 +3012,8 @@ class V1_DataImporterTest extends IntegrationTest {
       given_twoInjectorsWithSameTypeForTenant_when_importingWorkflowStep_shouldRemainResolvableWithoutNonUniqueFailure()
           throws Exception {
     // -- Arrange --
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
     String injectorType =
         importData
@@ -3060,7 +3068,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // Re-importing the same chaining simulation must NOT pile up duplicate payloads: the embedded
     // Command payload is recreated once, then reused on the second import — provided the current
     // user can read its injector contract (RBAC on THREAT_ARSENAL grants).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     long payloadCountBefore = payloadRepository.count();
 
     // First import: creates the payload + its injector contract.
@@ -3119,7 +3128,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // RBAC is a priority filter but must NEVER block the import: when the equivalent existing
     // payload's contract is NOT readable by the current user, the dedup cascade falls through and a
     // fresh payload is recreated (product goal: maximise the chance the imported simulation runs).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // First import: creates the payload + contract, WITHOUT granting the user any read access.
     this.importer.importData(
@@ -3168,7 +3178,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // command name/executor/content but differing on an execution-relevant field (here: platforms)
     // must NOT be reused - reusing it would silently change the runtime behaviour of the imported
     // chain. The dedup must fall through and create a fresh payload.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // First import: creates the payload (Linux) + its injector contract, readable by the user so
     // only the semantics check can block reuse.
@@ -3238,7 +3249,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // The embedded payload node carries only a stale payload_id: buildPayload() would NPE on the
     // mandatory fields (payload_type/name/source/status) and roll back the whole import. Such a
     // partial shape must take the skip path and be reported as a missing action instead.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     ObjectMapper om = new ObjectMapper();
     ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
     ObjectNode contractNode =
@@ -3292,7 +3304,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Arrange --
     // Output parsers drive runtime result processing: a candidate sharing name/executor/content
     // but differing on parsers must not be reused.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // First import: creates the payload WITHOUT parsers, readable by the user.
     this.importer.importData(
@@ -3348,7 +3361,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // Counterpart of the mismatch test: identical parsers must still deduplicate, proving the
     // normalized signature comparison aligns the export JSON shape with the entity shape
     // (ids/timestamps/tags never break the equivalence).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     ObjectMapper om = new ObjectMapper();
 
     ObjectNode firstImport = (ObjectNode) readMissingContractWithPayloadFixture();
@@ -3411,7 +3425,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // unrelated (different name/content). The Step 1 UUID fast path must not trust the id alone:
     // the candidate has to pass the same name + content + semantics equivalence as Step 2,
     // otherwise the imported chain would execute an unrelated existing payload.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     String sourcePayloadId = "cccccccc-0003-0003-0003-000000000004";
     Command colliding = PayloadFixture.createCommand("sh", "rm -f /tmp/unrelated", null, null);
     colliding.setId(sourcePayloadId);
@@ -3473,7 +3488,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // Recreation goes through PayloadUtils.buildPayload(): runtime fields present in exports
     // (elevation requirement, expected security platform map) must survive, otherwise a recreated
     // elevated payload runs unelevated and expectation collectors are pre-seeded differently.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     ObjectMapper om = new ObjectMapper();
     ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
     ObjectNode payloadNode = fixtureEmbeddedPayloadNode(importData);
@@ -3522,7 +3538,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // Same name/executor/content, but the second import carries an expected security platform map
     // the candidate does not have: the dedup must not reuse it (different runtime expectation
     // behaviour).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     this.importer.importData(
         txCtx(),
         readMissingContractWithPayloadFixture(),
@@ -3580,7 +3597,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // (matching only compositeId.id) would link the inject to the foreign tenant's contract; the
     // tenant-scoped lookup must miss and fall through to recreating the embedded payload/contract
     // in the current tenant.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     Tenant foreignTenant =
         tenantRepository.save(TenantFixture.getTenant("v1-import-foreign-tenant-classic"));
     String sourceContractId = "bb128f18-c5ad-4f1a-b08b-93582ff0ae1c";
@@ -3682,7 +3700,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // PK is (tenant_id, id), so a non-tenant-scoped existence check would treat the foreign row as
     // "already present" and persist step_data pointing at another tenant's contract. The embedded
     // payload must instead be recreated locally, exactly as if the contract did not exist at all.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     Tenant foreignTenant =
         tenantRepository.save(TenantFixture.getTenant("v1-import-foreign-tenant-contract"));
     String sourceContractId = "cccccccc-0003-0003-0003-000000000003";
@@ -3861,7 +3880,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // QA regression: tags were dropped from the recreated payload. The step_data contract carries
     // bare tag ids (no root tag object seeds baseIds on this path); an id that already exists on
     // the target tenant must land on the recreated payload's contract instead of being dropped.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     Tag existing =
         tagRepository.save(
             TagFixture.getTagWithTextAndColour(
@@ -3912,7 +3932,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // already normalized on the source instance carry SCALAR ids that importAttackPattern used to
     // ignore; an id that still exists on the target tenant must land on the recreated payload's
     // contract instead of being dropped.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     AttackPattern existing =
         attackPatternRepository.save(
             AttackPatternFixture.createAttackPatternsWithExternalId(
@@ -3964,7 +3985,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // embedded payload (nothing to recreate). The injector type IS registered, so the only
     // unresolvable dependency is the injector contract itself: the step must be skipped and the
     // missing action reported (the "keep current behaviour" branch of the resolvability check).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode importData =
