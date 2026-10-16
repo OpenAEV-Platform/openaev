@@ -292,7 +292,13 @@ const InjectResultList: FunctionComponent<Props> = ({
         contextId={contextId}
         reloadContentCount={reloadContentCount + reloadCount}
         topBarButtons={showActions ? (
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -375,7 +381,10 @@ const InjectResultList: FunctionComponent<Props> = ({
                       <AtomicTestingPopover
                         atomic={injectResultOutput}
                         actions={['Duplicate', 'Export', 'Delete']}
-                        onDelete={result => setInjects(injects.filter(e => e.inject_id !== result))}
+                        onDelete={(result) => {
+                          setInjects(injects.filter(e => e.inject_id !== result));
+                          queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                        }}
                         inList
                       />
                     ) : null}

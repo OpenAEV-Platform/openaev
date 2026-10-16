@@ -31,6 +31,22 @@ public interface AssetGroupRepository
   Optional<AssetGroup> findByExternalReferenceAndTenantId(
       String externalReference, String tenantId);
 
+  /**
+   * The asset groups targeted by the inject, without loading the inject. Native so the join goes
+   * through {@code injects_asset_groups} and never roots on {@code Inject}, whose v1 {@code
+   * tenantFilter} would resolve the default tenant on the non-prefixed implant routes. The groups
+   * are scoped by the transaction's {@code TxCtx} (v2-active {@code asset_groups}).
+   */
+  @Query(
+      value =
+          """
+          SELECT ag.* FROM asset_groups ag
+            JOIN injects_asset_groups iag ON iag.asset_group_id = ag.asset_group_id
+            WHERE iag.inject_id = :injectId
+          """,
+      nativeQuery = true)
+  List<AssetGroup> findAllByInjectId(@Param("injectId") String injectId);
+
   @Query(
       "SELECT ag FROM AssetGroup ag "
           + "WHERE ag.id IN (SELECT DISTINCT ag2.id FROM AssetGroup ag2 "

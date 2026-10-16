@@ -1088,6 +1088,7 @@ public class StepService {
               .name(source.getName())
               .description(source.getDescription())
               .workflowId(workflowTo.getId())
+              .tenant(workflowTo.getTenant())
               .conditionParent(parentCopy)
               .stepFrom(resolveCopiedStepFrom(source, copiedStepsByOriginalId))
               .build();

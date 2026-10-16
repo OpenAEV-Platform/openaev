@@ -12,6 +12,18 @@ import type {
 // The connector "display name" lives in a type-specific configuration key.
 export const CONNECTOR_NAME_KEYS = ['COLLECTOR_NAME', 'INJECTOR_NAME', 'EXECUTOR_NAME'];
 
+export const resolveInitialConfigurationValue = (
+  definition: CatalogConnectorConfiguration,
+  storedValue: ConnectorInstanceConfiguration['connector_instance_configuration_value'] | undefined,
+  isEditing: boolean,
+) => {
+  // a secret in editing mode must display "DOTS" instead of something else
+  const defaultValue = (isEditing && definition.connector_configuration_writeonly) ? DOTS : (definition.connector_configuration_default ?? '');
+  // only fall back to the default when nothing is stored: a stored false / 0 / '' is the user's choice
+  const value = storedValue ?? defaultValue;
+  return definition.connector_configuration_type == 'INTEGER' ? value.toString() : value;
+};
+
 const useConnectorInstanceForm = (
   isEditing: boolean,
   catalogConnectorId: string,
@@ -49,12 +61,9 @@ const useConnectorInstanceForm = (
 
       const initialConfigurations: ConfigurationInput[] = Object.entries(defMap).map(([key, def]) => {
         const matchingValues = instanceConfigs.find(v => v.connector_instance_configuration_key === key)?.connector_instance_configuration_value;
-        // a secret in editing mode must display "DOTS" instead of something else
-        const defaultValue = (isEditing && def.connector_configuration_writeonly) ? DOTS : (def.connector_configuration_default ?? '');
-        const value = matchingValues ? matchingValues : defaultValue;
         return {
           configuration_key: key,
-          configuration_value: def.connector_configuration_type == 'INTEGER' ? value.toString() : value,
+          configuration_value: resolveInitialConfigurationValue(def, matchingValues, isEditing),
         } as ConfigurationInput;
       });
       setInitialValues(initialConfigurations);

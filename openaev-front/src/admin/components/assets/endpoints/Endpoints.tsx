@@ -70,7 +70,10 @@ const Endpoints = () => {
   const markingEnabled = isFeatureEnabled('MARKING');
   // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
   // the flag is off so the platform issues no marking-definitions request at all.
-  const markingDefinitions = useMarkingDefinitions({ skip: !markingEnabled });
+  const markingDefinitions = useMarkingDefinitions({
+    skip: !markingEnabled,
+    assignableOnly: true,
+  });
 
   // Load the executors once for the whole page; the per-row Executors column
   // reads them from the store (previously each row fetched them, firing
@@ -96,6 +99,7 @@ const Endpoints = () => {
   ];
 
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
+  const [reloadCount, setReloadCount] = useState<number>(0);
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('asset', buildSearchPagination({
     sorts: initSorting('asset_name'),
     textSearch: search,
@@ -256,11 +260,18 @@ const Endpoints = () => {
         fetch={searchEndpointsToLoad}
         searchPaginationInput={searchPaginationInput}
         setContent={setEndpoints}
+        reloadContentCount={reloadCount}
         entityPrefix="asset"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
                 which announced a group of choices that never existed. */}
             <Box sx={{
@@ -274,7 +285,14 @@ const Endpoints = () => {
               </Can>
             </Box>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-              <EndpointCreation onCreate={result => setEndpoints([result as EndpointOutput, ...endpoints])} agentless={true} />
+              <EndpointCreation
+                onCreate={(result) => {
+                  setEndpoints([result as EndpointOutput, ...endpoints]);
+                  queryableHelpers.paginationHelpers.incrementTotalElements(1);
+                }}
+                onAiTargetCreate={() => setReloadCount(count => count + 1)}
+                agentless={true}
+              />
             </Can>
           </Box>
         )}
@@ -345,7 +363,10 @@ const Endpoints = () => {
                         endpoint={{ ...endpoint }}
                         agentless={endpoint.asset_agents?.length === 0}
                         onUpdate={result => setEndpoints(endpoints.map(e => (e.asset_id !== result.asset_id ? e : result as EndpointOutput)))}
-                        onDelete={result => setEndpoints(endpoints.filter(e => (e.asset_id !== result)))}
+                        onDelete={(result) => {
+                          setEndpoints(endpoints.filter(e => (e.asset_id !== result)));
+                          queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                        }}
                       />
                     )}
                     disablePadding

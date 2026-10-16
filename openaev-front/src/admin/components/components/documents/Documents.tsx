@@ -168,6 +168,7 @@ const Documents = () => {
     // If the document was already in the list displayed, we don't add it to the list
     if (documents.find(element => element.document_id === result.document_id) === undefined) {
       setDocuments([result, ...documents]);
+      queryableHelpers.paginationHelpers.incrementTotalElements(1);
     }
   };
 
@@ -206,7 +207,13 @@ const Documents = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
                 which announced a group of choices that never existed. */}
             <Box sx={{
@@ -265,7 +272,10 @@ const Documents = () => {
                     <DocumentPopover
                       document={document}
                       onUpdate={(result: Document) => setDocuments(documents.map(d => (d.document_id !== result.document_id ? d : result)))}
-                      onDelete={(result: string) => setDocuments(documents.filter(d => (d.document_id !== result)))}
+                      onDelete={(result: string) => {
+                        setDocuments(documents.filter(d => (d.document_id !== result)));
+                        queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                      }}
                       managedMessage={document.document_can_be_updated === false
                         ? 'Generated report files are managed by the Reporting module and are read-only here.'
                         : undefined}

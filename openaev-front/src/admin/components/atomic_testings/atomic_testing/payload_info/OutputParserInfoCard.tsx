@@ -10,6 +10,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import ItemCopy from '../../../../../components/ItemCopy';
 import ItemTags from '../../../../../components/ItemTags';
 import { type OutputParserSimple } from '../../../../../utils/api-types';
+import { formatRegexGroupFieldLabel } from '../../../../../utils/String';
 import ContractOutputElementType from '../../../findings/ContractOutputElementType';
 
 interface Props { outputParsers: OutputParserSimple[] }
@@ -111,7 +112,7 @@ const OutputParserInfoCard = ({ outputParsers }: Props) => {
                           }}
                         >
                           {group.regex_group_field
-                            ? t(group.regex_group_field.charAt(0).toUpperCase() + group.regex_group_field.slice(1)) : ''}
+                            ? t(formatRegexGroupFieldLabel(group.regex_group_field)) : ''}
                         </Typography>
                         <ItemCopy content={group.regex_group_index_values ?? ' '} />
                       </Fragment>

@@ -6,6 +6,7 @@ import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.model.ExecutionProcess;
+import io.openaev.rest.document.DocumentService;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -101,7 +102,12 @@ public abstract class Injector {
             InputStream fileInputStream =
                 this.context.getFileService().getFile(doc, owningTenantId).orElseThrow();
             byte[] content = IOUtils.toByteArray(fileInputStream);
-            resolved.add(new DataAttachment(documentId, doc.getName(), content, doc.getType()));
+            resolved.add(
+                new DataAttachment(
+                    documentId,
+                    DocumentService.safeFileName(doc.getName()),
+                    content,
+                    doc.getType()));
           } catch (Exception e) {
             // Can't fetch the attachments, ignore
             String docInfo = askedDocument.map(Document::getName).orElse(documentId);

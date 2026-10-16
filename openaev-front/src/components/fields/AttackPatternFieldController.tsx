@@ -167,7 +167,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
             <Dialog
               open={attackPatternCreation}
               onClose={handleCloseAttackPatternCreation}
-              PaperProps={{ elevation: 1 }}
+              slotProps={{ paper: { elevation: 1 } }}
             >
               <DialogTitle>{t('Create a new attack pattern')}</DialogTitle>
               <DialogContent>

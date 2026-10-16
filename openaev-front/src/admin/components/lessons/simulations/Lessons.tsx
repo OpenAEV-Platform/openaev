@@ -330,13 +330,13 @@ const Lessons: FunctionComponent<Props> = ({
 
       {/* Dialogs */}
       <Dialog
-        TransitionComponent={Transition}
         keepMounted={false}
         open={selectedObjective !== null}
         onClose={() => setSelectedObjective(null)}
         fullWidth
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Objective achievement evaluation')}</DialogTitle>
         <DialogContent>
@@ -356,9 +356,9 @@ const Lessons: FunctionComponent<Props> = ({
       />
       <Dialog
         open={openResetAnswers}
-        TransitionComponent={Transition}
         onClose={() => setOpenResetAnswers(false)}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>
@@ -376,9 +376,9 @@ const Lessons: FunctionComponent<Props> = ({
       </Dialog>
       <Dialog
         open={openEmptyLessons}
-        TransitionComponent={Transition}
         onClose={() => setOpenEmptyLessons(false)}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>
@@ -398,11 +398,11 @@ const Lessons: FunctionComponent<Props> = ({
       </Dialog>
       <Dialog
         open={openSendLessons}
-        TransitionComponent={Transition}
         onClose={() => setOpenSendLessons(false)}
         fullWidth
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Send the lessons learned questionnaire')}</DialogTitle>
         <DialogContent style={{ overflowX: 'hidden' }}>
@@ -431,9 +431,9 @@ const Lessons: FunctionComponent<Props> = ({
       />
       <Dialog
         open={openAnonymize}
-        TransitionComponent={Transition}
         onClose={() => setOpenAnonymize(false)}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

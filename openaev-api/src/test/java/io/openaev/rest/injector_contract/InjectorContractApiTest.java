@@ -1,5 +1,6 @@
 package io.openaev.rest.injector_contract;
 
+import static io.openaev.migration.V6_20261014160000000__Make_injector_contract_unique_indexes_tenant_aware.EXTERNAL_ID_INDEX;
 import static io.openaev.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
@@ -850,7 +851,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         assertThatThrownBy(this::createStaticInjectorContract)
             .hasCauseInstanceOf(BatchUpdateException.class)
             .cause()
-            .hasMessageContaining("injectors_contracts_injector_contract_external_id_key");
+            .hasMessageContaining(EXTERNAL_ID_INDEX);
       }
 
       @Test

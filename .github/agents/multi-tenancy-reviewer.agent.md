@@ -51,6 +51,10 @@ of the intended finding:
   code path that isn't v2 yet. Only recommend removing the call when the
   block is read-only, every touched table is v2-active, and no legacy path is
   reached — otherwise flag its *absence* as 🔴 CRITICAL, never its presence.
+  A `session.disableFilter("tenantFilter")` presented as what makes a read
+  cross-tenant is not: it widens nothing (see `multi-tenancy.instructions.md`
+  > Background Threads Carry Both Scopes), and `TenantFilterDisableArchTest`
+  rejects any new call. Ask for the primitive with an explicit scope instead.
 - **Step 3 (native queries)**: besides the v1/v2 shape checks, look at what the
   join is *keyed on*. An id that repeats across tenants by design, which is any
   key whose uniqueness is composite with `tenant_id`, is not a tenant boundary:

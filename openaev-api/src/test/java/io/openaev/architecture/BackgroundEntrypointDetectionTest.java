@@ -867,8 +867,14 @@ class BackgroundEntrypointDetectionTest {
     // no_baseline_waiver_outlives_its_table now that the table is active. What the tag protected is
     // asserted behaviourally instead, through the real endpoint, by
     // DashboardAttackPathIsolationTest.
+    // StreamApi is no longer tagged either: its per-event read check runs through
+    // PermissionService#hasPermissionInTenant, whose TxCtx argument makes the aspect scope the
+    // check's transaction to the event row's tenant, so the inject it loads to resolve a parent is
+    // read inside a v2 scope. Asserted behaviourally, with injects armed, by
+    // StreamApiInjectsScopeTest.
     Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
-    assertUntilActive(baseline, "io.openaev.rest.stream.StreamApi", "injects");
+    assertUntilActive(
+        baseline, "io.openaev.notification.engine.NotificationEngineListener", "users_tenants");
   }
 
   private static void assertUntilActive(

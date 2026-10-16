@@ -208,13 +208,13 @@ const Lessons: FunctionComponent<Props> = ({
 
       {/* Dialogs */}
       <Dialog
-        TransitionComponent={Transition}
         keepMounted={false}
         open={selectedObjective !== null}
         onClose={() => setSelectedObjective(null)}
         fullWidth
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Objective achievement evaluation')}</DialogTitle>
         <DialogContent>
@@ -234,9 +234,9 @@ const Lessons: FunctionComponent<Props> = ({
       />
       <Dialog
         open={openEmptyLessons}
-        TransitionComponent={Transition}
         onClose={() => setOpenEmptyLessons(false)}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>
@@ -256,9 +256,9 @@ const Lessons: FunctionComponent<Props> = ({
       </Dialog>
       <Dialog
         open={openAnonymize}
-        TransitionComponent={Transition}
         onClose={() => setOpenAnonymize(false)}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

@@ -27,7 +27,7 @@ export interface AssetGroupPopoverProps {
   onUpdate?: (result: AssetGroup) => void;
   onDelete?: (result: string) => void;
   disabled?: boolean;
-  actions?: 'update' | 'delete' | 'manage-asset' | 'remove'[];
+  actions?: ('update' | 'delete' | 'manage-asset' | 'remove')[];
 }
 
 const AssetGroupPopover: FunctionComponent<AssetGroupPopoverProps> = ({

@@ -269,7 +269,7 @@ const ScenarioHeader = ({
         // Leave null: hasExistingLogic treats the unknown count as existing logic (fail safe).
       }
     }
-    let saved: AutonomousRunCreateInput | null = null;
+    let saved: AutonomousRunCreateInput | null;
     try {
       saved = (await fetchScenarioAutonomousConfig(scenarioId)).data;
     } catch {
@@ -1011,9 +1011,9 @@ const ScenarioHeader = ({
       />
       <Dialog
         open={openInstantiateSimulationAndStart}
-        TransitionComponent={Transition}
         onClose={() => setOpenInstantiateSimulationAndStart(false)}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

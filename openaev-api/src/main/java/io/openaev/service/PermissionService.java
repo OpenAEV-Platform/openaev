@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.repository.EvaluationRepository;
@@ -78,6 +79,30 @@ public class PermissionService {
 
   @Transactional
   public boolean hasPermission(
+      @NotNull final User user,
+      Optional<AccessControlAspect.HttpMappingInfo> httpMappingInfo,
+      String resourceId,
+      ResourceType resourceType,
+      Action action) {
+    return checkPermission(user, httpMappingInfo, resourceId, resourceType, action);
+  }
+
+  /**
+   * The same check, run in the tenant {@code ctx} names. For callers no request binds a {@code
+   * TxCtx} for, such as the stream listeners: resolving a parent permission loads the child row (an
+   * inject, an autonomous run), which a v2-active table hides from an unscoped transaction.
+   */
+  @Transactional(readOnly = true)
+  public boolean hasPermissionInTenant(
+      TxCtx ctx,
+      @NotNull final User user,
+      String resourceId,
+      ResourceType resourceType,
+      Action action) {
+    return checkPermission(user, Optional.empty(), resourceId, resourceType, action);
+  }
+
+  private boolean checkPermission(
       @NotNull final User user,
       Optional<AccessControlAspect.HttpMappingInfo> httpMappingInfo,
       String resourceId,

@@ -48,10 +48,12 @@ const LoginForm = ({ onSubmit, onResetPassword }: LoginFormProps) => {
             style={{ marginTop: 16 }}
           />
           <Stack
-            mt={3}
             direction="row"
-            alignItems="center"
-            justifyContent="space-between"
+            sx={{
+              mt: 3,
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
           >
             <Button type="button" priority="tertiary" onClick={onResetPassword} style={{ marginLeft: -1 }}>
               {t('I forgot my password')}

@@ -60,6 +60,21 @@ public interface AttackPatternRepository
 
   Optional<AttackPattern> findByStixIdAndTenantId(@NotNull String stixId, @NotNull String tenantId);
 
+  List<AttackPattern> findAllByStixIdInAndTenantId(Collection<String> stixIds, String tenantId);
+
+  @Query(
+      "SELECT DISTINCT ap FROM AttackPattern ap LEFT JOIN FETCH ap.killChainPhases"
+          + " WHERE ap.tenant.id = :tenantId AND ap.externalId IN :externalIds")
+  List<AttackPattern> findAllByExternalIdInAndTenantIdWithKillChainPhases(
+      @Param("externalIds") Collection<String> externalIds, @Param("tenantId") String tenantId);
+
+  // Native: advisory locks have no JPQL form; the statement reads and writes no table row.
+  @Query(
+      value =
+          "SELECT pg_try_advisory_xact_lock(hashtext('attack_patterns_upsert'), hashtext(:tenantId))",
+      nativeQuery = true)
+  boolean tryLockUpsert(@Param("tenantId") String tenantId);
+
   @Query(
       value =
           "select ap.*, array_remove(array_agg(apphase.phase_id), NULL) as attack_pattern_kill_chain_phases from attack_patterns ap "

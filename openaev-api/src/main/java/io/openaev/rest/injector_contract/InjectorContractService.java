@@ -597,10 +597,10 @@ public class InjectorContractService implements DependenciesManager {
    * consumers outside this service (the payload-delete path) never touch the repository directly.
    *
    * <p>The result deliberately spans all tenants so the payload-delete path sweeps exactly what the
-   * database cascade removes, each tenant with its own tenant-scoped call. Today {@code
-   * unique_injector_contract_payload} guarantees a payload backs at most one contract
-   * platform-wide, so the map holds at most one entry - the grouped shape simply keeps the delete
-   * path correct if that 1:1 constraint is ever relaxed.
+   * database cascade removes, each tenant with its own tenant-scoped call. {@code
+   * injector_contract_payload_unique} allows one contract per payload per tenant, so the map
+   * normally holds one entry; the grouped shape keeps the delete path correct when a contract of
+   * another tenant references the same payload, which the schema does not prevent.
    *
    * @param payloadId the payload whose contract ids are resolved
    * @return contract ids grouped by tenant id, empty when the payload backs no contract

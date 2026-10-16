@@ -5,7 +5,7 @@ import {
   FilterAltOffOutlined,
   FullscreenExitOutlined,
   FullscreenOutlined,
-  HelpOutline,
+  HelpOutlineOutlined,
   ImageOutlined,
   LocalFireDepartment,
   MoreHorizOutlined,
@@ -322,8 +322,10 @@ const AttackPathHeader: FunctionComponent<Props> = ({
                 <Typography
                   component="span"
                   variant="caption"
-                  color="text.secondary"
-                  sx={{ marginLeft: 'auto' }}
+                  sx={{
+                    color: 'text.secondary',
+                    marginLeft: 'auto',
+                  }}
                 >
                   {`${o.endpointCount ?? 0} ${t('endpoints')} · ${o.executionCount ?? 0} ${t('exec.')}`}
                 </Typography>
@@ -484,7 +486,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             labelAdornment={(
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <HelpOutline sx={{
+                  <HelpOutlineOutlined sx={{
                     fontSize: 13,
                     color: 'text.disabled',
                     flexShrink: 0,

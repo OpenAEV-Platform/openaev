@@ -126,7 +126,7 @@ jobs:
                   severity: 'CRITICAL', emoji: '🔴',
                   title: 'New REST API controller',
                   file: fn,
-                  doc: '`docs/docs/reference/apis/rest-api.md`, `docs/docs/development/api-usage.md`',
+                  doc: '`docs/docs/reference/apis/rest-api.md`',
                   reason: 'New API endpoints must be documented.',
                 });
               }

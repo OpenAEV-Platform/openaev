@@ -3,6 +3,7 @@ package io.openaev.security;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasLength;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.User;
 import io.openaev.security.token.ConnectorJwtExtractor;
 import io.openaev.security.token.ExtractorBase;
@@ -25,7 +26,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Slf4j
 public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
-  private static final String COOKIE_NAME = "openaev_token";
   private static final String HEADER_NAME = "Authorization";
   private static final String BEARER_PREFIX = "bearer ";
 
@@ -33,10 +33,16 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   private ConnectorJwtExtractor connectorJwtExtractor;
   private PlainTokenExtractor plainTokenExtractor;
   private XtmJwksExtractor xtmJwksExtractor;
+  private OpenAEVConfig openAEVConfig;
 
   @Autowired
   public void setUserService(UserService userService) {
     this.userService = userService;
+  }
+
+  @Autowired
+  public void setOpenAEVConfig(OpenAEVConfig openAEVConfig) {
+    this.openAEVConfig = openAEVConfig;
   }
 
   @Autowired
@@ -78,14 +84,15 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   }
 
   private Optional<User> getAuthedUser(HttpServletRequest request) {
+    String cookieName = openAEVConfig.getCookieName();
     String header = request.getHeader(HEADER_NAME);
     Cookie[] cookies = ofNullable(request.getCookies()).orElse(new Cookie[0]);
     Optional<Cookie> defaultCookie =
-        Arrays.stream(cookies).filter(cookie -> COOKIE_NAME.equals(cookie.getName())).findFirst();
+        Arrays.stream(cookies).filter(cookie -> cookieName.equals(cookie.getName())).findFirst();
     return hasLength(header)
         ? getAuthedUserFromAuthorizationHeader(header, request)
         : this.plainTokenExtractor.authUser(
-            defaultCookie.orElseGet(() -> new Cookie(COOKIE_NAME, null)).getValue(), request);
+            defaultCookie.orElseGet(() -> new Cookie(cookieName, null)).getValue(), request);
   }
 
   @Override

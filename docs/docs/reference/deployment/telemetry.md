@@ -1,45 +1,56 @@
 # Usage telemetry
 
-The application collects statistical data related to its usage and performances.
+OpenAEV sends usage statistics to Filigran. This page lists what is sent, where and how often, and
+how to stop it.
 
-!!! note "Confidentiality"
+!!! note "What telemetry contains"
 
-    The OpenAEV platform does not collect any information related to vulnerability which remains strictly confidential. Also, the collection is strictly anonymous and personally identifiable information is NOT collected (including IP addresses).
+    Telemetry sends counts, configuration flags and a few labels. The labels are:
 
-We do not collect any personal data, only statistical data. All collected data is aggregated to ensure privacy and compliance with relevant privacy regulations (see breakdown below for details).
+    - the IP address of the server running the platform;
+    - the platform unique identifier;
+    - Security Platform names, as entered by users;
+    - AI agent identifiers (lowercased, at most 64 characters);
+    - the deployment tags;
+    - the workflow safety policy values.
+
+    No end-user or client IP address is sent, and no content of your Scenarios, Findings,
+    vulnerabilities or Payloads.
 
 ## Purpose of the telemetry
 
-The collected data is used for the following purposes:
+Filigran uses the data to:
 
-- Improving the functionality and performance of the application.
-- Analyzing user behavior to enhance user experience.
-- Generating aggregated and anonymized statistics for internal and external reporting.
+- improve the features and performance of the platform;
+- understand how the platform is used, to improve the user experience;
+- produce aggregated statistics for internal and external reporting.
 
-## Important thing to know
+## How data is sent
 
-The platform send the metrics to the hostname `telemetry.filigran.io` using the OTLP protocol (over HTTPS). The format of the data is OpenTelemetry JSON.
+- **Destination**: `https://telemetry.oaev.filigran.io/v1/metrics`, using OTLP (OpenTelemetry
+  Protocol) over HTTPS, encoded as protobuf.
+- **Frequency**: metrics are collected every 60 minutes. The first export happens about 5 hours
+  after the platform starts, then every 6 hours.
+- **Startup check**: when the platform starts, it tests the connection to the destination. If the
+  destination cannot be reached, telemetry stays off until the next restart.
 
-The metrics push is done every 6 hours if OpenAEV was able to connect to the hostname when the telemetry manager is started.
+## How to disable telemetry
+
+There is no setting to turn telemetry off. To stop it, block outbound access or DNS resolution to
+`telemetry.oaev.filigran.io` from the platform, then restart the platform. Blocking without a
+restart only makes the exports fail. Air-gapped platforms never send telemetry.
 
 ## Telemetry metrics
 
-The application collects statistical data related to its usage. Here is an exhaustive list of the collected metrics:
+Metrics are counts and flags, grouped by area:
 
-- The current platform version
-- The platform's unique identifier
-- The platform creation date
-- The deployment tags, when configured by the operator (`telemetry.tags` / `TELEMETRY_TAGS` - comma-separated freeform tags such as `saas,eu-west`, normalized to lowercase and sorted before export)
-- Enterprise Edition status (activated or not)
-- The total number of users
-- The number of assets, broken down by asset category (host, cloud resource, web application, ...) and by agent coverage (agent based when at least one agent is installed on the asset, agentless otherwise). Counts only, no asset content.
-- The deployed injectors, collectors, and executors broken down by catalog identity (the catalog connector slug for components deployed from the catalog, otherwise the component's own type identifier, with a managed/manual flag). No component configuration is ever collected.
-- The number of simulations, scenarios, and atomic tests created
-- The number of simulations or injects executed
-- The number of injects played, broken down by injector type
-- AI usage counters, without any content: AI feature calls by feature (fix spelling, summarize, generate message, etc. - identical whichever backend serves them), chatbot messages, generic AI agent calls by agent identifier, TTP extractions, AI detection/remediation rule generations by collector type, and inject assistant runs
-- AI and ecosystem configuration state: whether the built-in LLM is enabled (with the provider type), whether XTM One is configured, whether the chatbot AI terms of use have been accepted, and whether the platform is registered on XTM Hub
-- Authentication strategies enabled (local, OIDC, SAML2, Kerberos) - configuration booleans only
-- Content inventory counts, without any content: payloads (by type, source and status), teams, endpoints (by platform), asset groups, security platforms, organizations, injects, challenges, documents, channels, articles, custom dashboards, import mappers, notification rules, workflows, findings, vulnerabilities, CVEs, vulnerable endpoints, attack patterns, reports, and recurring scenarios
-- Results and automation counters: expectation validation traces by collector type, security coverage bundles processed / scenarios generated / results sent, workflow runs and timeout-forced completions, payloads created / duplicated / upserted, and emails sent
+- **Platform identity**: version, unique identifier, creation date, server IP address and deployment tags (`telemetry.tags`).
+- **Usage**: Enterprise Edition status, users and logins, Tenants, Assets, deployed integrations, Scenarios, Simulations and Injects played.
+- **AI and ecosystem**: AI feature usage (no content), AI and XTM One configuration, XTM Hub registration, enabled authentication methods.
+- **Content inventory**: number of Payloads, Teams, Assets, Findings, vulnerabilities, Dashboards and other objects.
+- **Results and automation**: expectation traces, security coverage processing, workflow runs, Payload creation and emails sent.
 
+## What's next?
+
+- [Platform managers](../../deployment/platform/managers.md) -- How the telemetry manager runs
+- [Configuration](configuration.md) -- All platform configuration parameters

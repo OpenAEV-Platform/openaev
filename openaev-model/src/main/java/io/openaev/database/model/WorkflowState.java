@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -25,7 +26,7 @@ import org.hibernate.annotations.UuidGenerator;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class WorkflowState implements Base {
+public class WorkflowState implements TenantBase {
 
   @Id
   @Column(name = "workflow_state_id")
@@ -34,6 +35,11 @@ public class WorkflowState implements Base {
   @EqualsAndHashCode.Include
   @Schema(description = "ID of the workflow")
   private String id;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  private Tenant tenant;
 
   @Column(name = "workflow_state_created_at", updatable = false)
   @CreationTimestamp
@@ -50,4 +56,12 @@ public class WorkflowState implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "workflow_step_template_id") // Nullable for Global
   private Step stepTemplate;
+
+  /** A state belongs to its workflow run's tenant. */
+  @PrePersist
+  void attributeTenantFromWorkflowRun() {
+    tenant =
+        ParentTenant.inherit(
+            this, tenant, workflowExecution != null ? workflowExecution.getTenant() : null);
+  }
 }

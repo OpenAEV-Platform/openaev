@@ -54,7 +54,13 @@ const RolesTab = () => {
         availableFilterNames={ROLE_FILTERS}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <RoleCreate title={CREATE_TITLE[scope]} onCreate={addRole} />
+          <RoleCreate
+            title={CREATE_TITLE[scope]}
+            onCreate={(role) => {
+              addRole(role);
+              queryableHelpers.paginationHelpers.incrementTotalElements(1);
+            }}
+          />
         )}
       />
       <List>
@@ -85,7 +91,10 @@ const RolesTab = () => {
                     inList
                     role={role}
                     onUpdate={updateRoleInList}
-                    onDelete={removeRole}
+                    onDelete={(roleId) => {
+                      removeRole(roleId);
+                      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                    }}
                   />
                 )}
                 headers={headers}

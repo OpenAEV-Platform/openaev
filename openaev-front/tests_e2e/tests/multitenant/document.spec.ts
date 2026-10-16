@@ -40,7 +40,10 @@ test.describe('Multi-tenancy — document isolation', () => {
     documentId = uploaded.document_id;
   });
 
-  test.afterEach(async ({ request }) => {
+  test.afterEach(async ({ page, request }) => {
+    // Leave the tenant's pages before deleting it: an app left on a deleted tenant keeps
+    // reconnecting its event stream, and the context teardown can then hang until the test timeout.
+    await page.goto('about:blank');
     const documentApiHelpers = new DocumentApiHelpers(request);
     const tenantApiHelpers = new TenantApiHelpers(request);
 

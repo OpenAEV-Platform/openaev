@@ -69,9 +69,9 @@ public class SecurityPlatformApi {
    * form is filled from these responses, so a tag list serialized empty open-in-view was saved back
    * and erased the platform's tags.
    *
-   * <p>Create and upsert are exempt: create returns a brand-new entity whose empty in-memory
-   * associations serialize without a database load, and upsert is the connector-facing registration
-   * endpoint whose response the UI never consumes.
+   * <p>Create is exempt: it returns a brand-new entity whose empty in-memory associations serialize
+   * without a database load. Upsert is not: it reads an existing platform and its response carries
+   * the links, including the one the registration adds.
    */
   private static SecurityPlatform withManagerLinksInitialized(SecurityPlatform securityPlatform) {
     Hibernate.initialize(securityPlatform.getCollectors());
@@ -156,7 +156,10 @@ public class SecurityPlatformApi {
       securityPlatform.setLogoLight(null);
     }
     securityPlatform.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    SecurityPlatform saved = this.securityPlatformRepository.save(securityPlatform);
+    // Initialized before the link below is written, so the response carries the stored links
+    // plus the one this request adds.
+    SecurityPlatform saved =
+        withManagerLinksInitialized(this.securityPlatformRepository.save(securityPlatform));
     linkRegisteringInjector(saved, input.getExternalReference());
     return saved;
   }
@@ -188,6 +191,9 @@ public class SecurityPlatformApi {
             injector -> {
               injector.setSecurityPlatform(securityPlatform);
               injectorRepository.save(injector);
+              // Both sides: the platform's injectors are already loaded and are what the
+              // response serializes.
+              securityPlatform.getInjectors().add(injector);
             });
   }
 

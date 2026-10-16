@@ -21,8 +21,8 @@ import org.springframework.test.context.TestPropertySource;
  * The notification engine resolves every enabled trigger's delivery channels through {@code
  * NotificationTrigger#notifiers}, a lazy {@code @ManyToMany} onto {@code notifiers}, inside {@link
  * NotificationTriggerLoader}. That loader carries no tenant scope: it is reached from the trigger
- * cache refresh (async engine thread) and from the digest job, and it declares its cross-tenant
- * intent the v1 way, with {@code disableFilter("tenantFilter")} - inert under v2.
+ * cache refresh (async engine thread) and from the digest job, and a v1 filter toggle does nothing
+ * to the v2 scope.
  *
  * <p>Once {@code notifiers} is tenant-active the inspector fails closed on that collection query,
  * every resolved trigger comes back with an EMPTY notifier list, and {@code

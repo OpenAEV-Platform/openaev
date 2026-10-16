@@ -118,7 +118,7 @@ class OldAttackPatternFieldComponent extends Component {
           <Dialog
             open={this.state.attackPatternCreation}
             onClose={this.handleCloseAttackPatternCreation.bind(this)}
-            PaperProps={{ elevation: 1 }}
+            slotProps={{ paper: { elevation: 1 } }}
           >
             <DialogTitle>{t('Create a new attack pattern')}</DialogTitle>
             <DialogContent>

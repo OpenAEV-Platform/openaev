@@ -1444,6 +1444,7 @@ public class ScenarioService {
     List<HealthCheck> injectsHealthChecks =
         healthCheckUtils.removeDuplicates(
             scenario.getInjects().stream()
+                .filter(Inject::isEnabled)
                 .flatMap(inject -> injectService.runChecks(inject).stream())
                 .toList());
 

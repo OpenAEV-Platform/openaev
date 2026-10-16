@@ -136,7 +136,13 @@ const PhishingEmailTemplates = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.PHISHING}>
               <ButtonCreate onClick={() => navigate('/admin/components/phishing/email_templates/create')} />
             </Can>
@@ -204,7 +210,10 @@ const PhishingEmailTemplates = () => {
                     emailTemplate={emailTemplate}
                     inList
                     openEditOnInit={emailTemplate.phishing_email_template_id === searchId}
-                    onDelete={result => setEmailTemplates(emailTemplates.filter(v => v.phishing_email_template_id !== result))}
+                    onDelete={(result) => {
+                      setEmailTemplates(emailTemplates.filter(v => v.phishing_email_template_id !== result));
+                      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                    }}
                   />
                 )}
               >

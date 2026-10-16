@@ -30,14 +30,17 @@ public interface WorkflowStateRepository extends JpaRepository<WorkflowState, St
    * uq_workflow_state_global}), so that concurrent first writes cannot create two global states.
    */
   // Native: atomic insert-or-ignore (ON CONFLICT), not expressible in JPA; WorkflowState is not
-  // indexed, audited nor streamed (no entity listener).
+  // indexed, audited nor streamed (no entity listener). The tenant is the run's, read in the same
+  // statement: a run that does not exist leaves it NULL and the insert fails.
   @Transactional
   @Modifying
   @Query(
       value =
-          "INSERT INTO workflow_states (workflow_state_id, workflow_execution_id,"
+          "INSERT INTO workflow_states (workflow_state_id, workflow_execution_id, tenant_id,"
               + " workflow_state_created_at, workflow_state_updated_at)"
-              + " VALUES (:id, :workflowExecutionId, now(), now())"
+              + " VALUES (:id, :workflowExecutionId,"
+              + " (SELECT w.tenant_id FROM workflows w WHERE w.workflow_id = :workflowExecutionId),"
+              + " now(), now())"
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
   int insertGlobalStateIfAbsent(
@@ -48,14 +51,17 @@ public interface WorkflowStateRepository extends JpaRepository<WorkflowState, St
    * {@code uq_workflow_state_workflow_step}).
    */
   // Native: atomic insert-or-ignore (ON CONFLICT), not expressible in JPA; WorkflowState is not
-  // indexed, audited nor streamed (no entity listener).
+  // indexed, audited nor streamed (no entity listener). The tenant is the run's, as above.
   @Transactional
   @Modifying
   @Query(
       value =
           "INSERT INTO workflow_states (workflow_state_id, workflow_execution_id,"
-              + " workflow_step_template_id, workflow_state_created_at, workflow_state_updated_at)"
-              + " VALUES (:id, :workflowExecutionId, :stepTemplateId, now(), now())"
+              + " workflow_step_template_id, tenant_id, workflow_state_created_at,"
+              + " workflow_state_updated_at)"
+              + " VALUES (:id, :workflowExecutionId, :stepTemplateId,"
+              + " (SELECT w.tenant_id FROM workflows w WHERE w.workflow_id = :workflowExecutionId),"
+              + " now(), now())"
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
   int insertLocalStateIfAbsent(

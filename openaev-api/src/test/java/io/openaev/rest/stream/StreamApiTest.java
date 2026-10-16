@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
 import io.openaev.helper.ObjectMapperHelper;
@@ -528,11 +529,15 @@ public class StreamApiTest {
     consumers.put(
         "privileged-session", buildStreamConsumer(privilegedPrincipal, TENANT_ID, privilegedSink));
 
-    when(permissionService.hasPermission(
-            mockUser, Optional.empty(), RESOURCE_ID, ResourceType.NOTIFIER, Action.READ))
+    when(permissionService.hasPermissionInTenant(
+            TxCtx.forTenant(TENANT_ID), mockUser, RESOURCE_ID, ResourceType.NOTIFIER, Action.READ))
         .thenReturn(true);
-    when(permissionService.hasPermission(
-            privilegedUser, Optional.empty(), RESOURCE_ID, ResourceType.NOTIFIER, Action.READ))
+    when(permissionService.hasPermissionInTenant(
+            TxCtx.forTenant(TENANT_ID),
+            privilegedUser,
+            RESOURCE_ID,
+            ResourceType.NOTIFIER,
+            Action.READ))
         .thenReturn(true);
     when(permissionService.hasCapabilityPermission(mockUser, ResourceType.NOTIFIER, Action.READ))
         .thenAnswer(
@@ -636,6 +641,48 @@ public class StreamApiTest {
     verify(permissionService, times(1))
         .hasPermission(mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ);
     verify(mockSink, times(2)).next(any());
+  }
+
+  @Test
+  public void given_rowInATenant_when_consumerHasNoTenant_should_checkInTheRowsTenant() {
+    // Arrange
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setId(RESOURCE_ID);
+    scenario.setTenant(tenant(TENANT_ID));
+    when(permissionService.hasPermissionInTenant(
+            TxCtx.forTenant(TENANT_ID), mockUser, RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
+        .thenReturn(true);
+
+    // Act
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, scenario, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink).next(any());
+    verify(permissionService, never()).hasPermission(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  public void given_rowWithoutTenant_when_consumerHasATenant_should_checkInTheConsumersTenant()
+      throws Exception {
+    // Arrange
+    FluxSink<Object> sink = registerTenantConsumer(TENANT_ID);
+    Communication communication = new Communication();
+    communication.setId(RESOURCE_ID);
+    when(permissionService.hasPermissionInTenant(
+            TxCtx.forTenant(TENANT_ID),
+            mockUser,
+            RESOURCE_ID,
+            communication.getPermissionResourceType(),
+            Action.READ))
+        .thenReturn(true);
+
+    // Act
+    streamApi.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, communication, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(sink).next(any());
+    verify(permissionService, never()).hasPermission(any(), any(), any(), any(), any());
   }
 
   @Test

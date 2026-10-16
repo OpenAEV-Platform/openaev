@@ -32,6 +32,7 @@ import {
   EXPECTATIONS_CONTENT_KEY,
   getAutoLinkedFieldKeys,
   getContractFieldDefaultValue,
+  getPlaceholderDefault,
   isExpectationInput,
   normalizeFieldLinks,
   stripFrontendMetadataKeys,
@@ -106,7 +107,7 @@ const buildEnhancedField = (
     isVisible: isVisibleField(field, fields, values),
     isInMandatoryGroup: !!field.mandatoryGroups?.length,
     mandatoryGroupContractElementLabels: '',
-    settings: { required: isRequiredField(field, fields, values) },
+    settings: { required: isRequiredField(field, fields, values) && getPlaceholderDefault(field) === undefined },
   };
 };
 
@@ -369,7 +370,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
             mutually exclusive — the backend keeps the defined value as one more candidate alongside
             the linked type's resolved pool (ConditionService#resolveMapperPairs). Only auto-linked
             fields (e.g. targeted-asset) are system-managed and hide it. */}
-        {!isAutoLinked && <InjectContentFieldComponent field={ef} readOnly={readOnly} />}
+        {!isAutoLinked && <InjectContentFieldComponent field={ef} readOnly={readOnly} placeholder={getPlaceholderDefault(ef)} />}
         {showLink && (
           <FieldOutputLink
             panelOpen={open}
@@ -447,7 +448,10 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               )}
             >
               {loadingContract && (
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Loading contract fields...')}
                 </Typography>
               )}
@@ -473,7 +477,10 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
                 availableExpectations={expectationField.availableExpectations ?? []}
               />
               {expectations.length === 0 && (
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('No expectations for this action.')}
                 </Typography>
               )}

@@ -26,7 +26,7 @@ import org.hibernate.type.SqlTypes;
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
-public class Step implements Base {
+public class Step implements TenantBase {
 
   @Id
   @Column(name = "step_id")
@@ -36,6 +36,11 @@ public class Step implements Base {
   @EqualsAndHashCode.Include
   @Schema(description = "ID for the step")
   private String id;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  private Tenant tenant;
 
   @NotNull
   @Column(name = "step_action_class")
@@ -165,5 +170,11 @@ public class Step implements Base {
     if (condition.getConditionChildren() != null) {
       condition.getConditionChildren().forEach(child -> collectConditions(child, collector));
     }
+  }
+
+  /** A step belongs to its workflow's tenant. */
+  @PrePersist
+  void attributeTenantFromWorkflow() {
+    tenant = ParentTenant.inherit(this, tenant, workflow != null ? workflow.getTenant() : null);
   }
 }

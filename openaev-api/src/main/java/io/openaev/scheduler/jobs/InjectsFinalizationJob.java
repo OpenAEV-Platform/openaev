@@ -22,7 +22,6 @@ import io.openaev.service.NotificationEventService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.ExecutionTraceUtils;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -60,7 +58,6 @@ public class InjectsFinalizationJob implements Job {
   private final NotificationEventService notificationEventService;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final WorkflowService workflowService;
-  private final EntityManager entityManager;
   private final TenantScopedJobRunner tenantScopedJobRunner;
   private final InjectAgentResolverService injectAgentResolverService;
 
@@ -79,8 +76,8 @@ public class InjectsFinalizationJob implements Job {
 
   @VisibleForTesting
   void handleInjectExpectationCollectStatus() {
-    // Disable tenant filter — this job runs cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+    // Cross-tenant: no transaction is open here, so no v1 filter narrows the read. Once injects is
+    // activated this sweep needs the primitive.
     List<Inject> injects = injectService.getExecutedAndNotFinished();
     if (injects.isEmpty()) {
       return;
@@ -185,9 +182,9 @@ public class InjectsFinalizationJob implements Job {
     // Finalize each inject inside its own tenant's scope, the way handleAutoClosingSimulations
     // already does. The sweep above is deliberately cross-tenant and stays so; what needs a scope
     // is the per-inject work, because resolving the agents walks the inject's assets and asset
-    // groups. asset_groups is v2-active, and the disableFilter("tenantFilter") this job inherits
-    // from v1 does nothing about that: the statement inspector rewrites by SQL text and filters a
-    // findById like any other read, so AssetGroupService.assetGroup(id) finds nothing and throws.
+    // groups. asset_groups is v2-active and the statement inspector rewrites by SQL text: with no
+    // scope it filters a findById like any other read, so AssetGroupService.assetGroup(id) finds
+    // nothing and throws.
     // That exception escapes to execute(), so one inject targeting an asset group would stop the
     // whole sweep, for every tenant. PendingInjectAssetGroupScopeTest pins both halves.
     //

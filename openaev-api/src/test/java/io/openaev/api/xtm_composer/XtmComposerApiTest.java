@@ -2,6 +2,7 @@ package io.openaev.api.xtm_composer;
 
 import static io.openaev.api.xtm_composer.XtmComposerApi.XTMCOMPOSER_URI;
 import static io.openaev.database.model.SettingKeys.*;
+import static io.openaev.service.connector_instances.ConnectorInstanceLogService.LOG_SIZE_LIMIT;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCatalogConnectorManagedByXtmComposer;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
@@ -460,7 +461,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
         platformSettingsService.saveSettings(composerSettings);
         ConnectorInstanceLogsInput input = new ConnectorInstanceLogsInput();
-        input.setLogs(new HashSet<>());
+        input.setLogs(new ArrayList<>());
         mvc.perform(
                 post(XTMCOMPOSER_URI
                         + "/fake-composer-id/connector-instances/fake-instance-id/logs")
@@ -487,14 +488,88 @@ public class XtmComposerApiTest extends IntegrationTest {
         platformSettingsService.saveSettings(composerSettings);
 
         ConnectorInstanceLogsInput input = new ConnectorInstanceLogsInput();
-        Set<String> logs = new HashSet<>();
-        logs.add("New logs");
-        logs.add("New logs 2");
-        input.setLogs(logs);
+        input.setLogs(List.of("New logs", "New logs 2"));
         List<ConnectorInstanceLog> instanceLogsDb =
             connectorInstanceLogRepository.findByConnectorInstanceId(instance.getId());
         assertEquals(0, instanceLogsDb.size());
 
+        pushLogs(instance, input.getLogs());
+
+        List<ConnectorInstanceLog> instanceLogsDbAfter =
+            connectorInstanceLogRepository.findByConnectorInstanceId(instance.getId());
+        assertEquals(2, instanceLogsDbAfter.size());
+      }
+
+      @Test
+      @DisplayName("Should replace the stored logs with the latest snapshot, in order")
+      void givenSecondSnapshot_should_replaceLogsKeepingOrder() throws Exception {
+        // Arrange
+        ConnectorInstance instance = getConnectorInstance("Microsoft defender collector");
+        registerComposer();
+        pushLogs(instance, List.of("line 1", "line 2", "line 3"));
+
+        // Act: the composer resends its tail, which overlaps the previous push and repeats a line
+        pushLogs(instance, List.of("line 2", "line 3", "line 2"));
+
+        // Assert
+        assertEquals(List.of("line 2", "line 3", "line 2"), storedLogs(instance));
+      }
+
+      @Test
+      @DisplayName("Should keep only the last lines of an oversized snapshot")
+      void givenOversizedSnapshot_should_keepLastLines() throws Exception {
+        // Arrange
+        ConnectorInstance instance = getConnectorInstance("Microsoft defender collector");
+        registerComposer();
+        List<String> lines = new ArrayList<>();
+        for (int i = 0; i < LOG_SIZE_LIMIT + 20; i++) {
+          lines.add("line " + i);
+        }
+
+        // Act
+        pushLogs(instance, lines);
+
+        // Assert
+        assertEquals(lines.subList(20, lines.size()), storedLogs(instance));
+      }
+
+      @Test
+      @DisplayName("Should not rewrite logs when the snapshot is unchanged")
+      void givenIdenticalSnapshot_should_keepStoredLogs() throws Exception {
+        // Arrange
+        ConnectorInstance instance = getConnectorInstance("Microsoft defender collector");
+        registerComposer();
+        pushLogs(instance, List.of("line 1", "line 2"));
+        List<String> idsBefore =
+            connectorInstanceLogRepository
+                .findOrderedByConnectorInstanceId(instance.getId())
+                .stream()
+                .map(ConnectorInstanceLog::getId)
+                .toList();
+
+        // Act
+        pushLogs(instance, List.of("line 1", "line 2"));
+
+        // Assert
+        List<String> idsAfter =
+            connectorInstanceLogRepository
+                .findOrderedByConnectorInstanceId(instance.getId())
+                .stream()
+                .map(ConnectorInstanceLog::getId)
+                .toList();
+        assertEquals(idsBefore, idsAfter);
+      }
+
+      private void registerComposer() {
+        Map<String, String> composerSettings = new HashMap<>();
+        composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+        composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+        platformSettingsService.saveSettings(composerSettings);
+      }
+
+      private void pushLogs(ConnectorInstance instance, List<String> lines) throws Exception {
+        ConnectorInstanceLogsInput input = new ConnectorInstanceLogsInput();
+        input.setLogs(lines);
         mvc.perform(
                 post(XTMCOMPOSER_URI
                         + "/composer-id-test/connector-instances/"
@@ -504,14 +579,15 @@ public class XtmComposerApiTest extends IntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .with(csrf()))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+            .andExpect(status().is2xxSuccessful());
+      }
 
-        List<ConnectorInstanceLog> instanceLogsDbAfter =
-            connectorInstanceLogRepository.findByConnectorInstanceId(instance.getId());
-        assertEquals(2, instanceLogsDbAfter.size());
+      private List<String> storedLogs(ConnectorInstance instance) {
+        return connectorInstanceLogRepository
+            .findOrderedByConnectorInstanceId(instance.getId())
+            .stream()
+            .map(ConnectorInstanceLog::getLog)
+            .toList();
       }
     }
 

@@ -69,7 +69,7 @@ OpenAEV is an open source Adversarial Exposure Validation platform. It lets you 
 
     [:octicons-arrow-right-24:{ .middle } Look up](reference/deployment/configuration.md)
 
--   :material-lifebuoy:{ .lg .middle } __Troubleshooting & FAQ__
+-   :material-lifebuoy:{ .lg .middle } __Troubleshooting__
 
     ---
 

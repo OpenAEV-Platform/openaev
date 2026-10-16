@@ -16,23 +16,20 @@ public interface ConnectorInstanceLogRepository
     extends CrudRepository<ConnectorInstanceLog, String>,
         JpaSpecificationExecutor<ConnectorInstanceLog> {
 
-  long countByConnectorInstanceId(String connectorInstanceId);
-
-  @Modifying
-  @Query(
-      value =
-          "DELETE FROM connector_instance_logs "
-              + "WHERE ctid IN ("
-              + "  SELECT ctid FROM connector_instance_logs "
-              + "  WHERE connector_instance_id = :instanceId "
-              + "  ORDER BY connector_instance_log_created_at ASC "
-              + "  LIMIT :limit"
-              + ")",
-      nativeQuery = true)
-  void deleteOldestLogByConnectorInstanceId(
-      @Param("instanceId") String instanceId, @Param("limit") long limit);
-
   List<ConnectorInstanceLog> findByConnectorInstanceId(String connectorInstanceId);
+
+  @Query(
+      "SELECT l FROM ConnectorInstanceLog l"
+          + " WHERE l.connectorInstance.id = :connectorInstanceId"
+          + " ORDER BY l.connector_instance_log_created_at ASC")
+  List<ConnectorInstanceLog> findOrderedByConnectorInstanceId(
+      @Param("connectorInstanceId") String connectorInstanceId);
+
+  // Bulk delete: logs are not indexed nor audited, and StreamApi excludes them from the stream,
+  // so skipping the per-row listener events loses nothing.
+  @Modifying
+  @Query("DELETE FROM ConnectorInstanceLog l WHERE l.connectorInstance.id = :connectorInstanceId")
+  void deleteByConnectorInstanceId(@Param("connectorInstanceId") String connectorInstanceId);
 
   @Query(
       "SELECT l FROM ConnectorInstanceLog l"

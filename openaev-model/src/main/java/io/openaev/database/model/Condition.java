@@ -23,7 +23,7 @@ import org.hibernate.type.SqlTypes;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
-public class Condition implements Base {
+public class Condition implements TenantBase {
 
   @Id
   @Column(name = "condition_id")
@@ -33,6 +33,11 @@ public class Condition implements Base {
   @EqualsAndHashCode.Include
   @Schema(description = "ID of the condition")
   private String id;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  private Tenant tenant;
 
   @Column(name = "condition_workflow_id")
   @JsonProperty("condition_workflow_id")
@@ -147,5 +152,33 @@ public class Condition implements Base {
   @JsonProperty("condition_is_root")
   public boolean isRootCondition() {
     return conditionParent == null;
+  }
+
+  /**
+   * A condition belongs to its workflow's tenant. {@code condition_workflow_id} is a plain id, so
+   * the tenant is read from its parent condition, else from a step it is linked to, else from the
+   * step it comes from. A condition reachable through none of them (a standalone event) has its
+   * tenant set by its creator.
+   */
+  @PrePersist
+  void attributeTenantFromParent() {
+    tenant = ParentTenant.inherit(this, tenant, parentTenant());
+  }
+
+  private Tenant parentTenant() {
+    if (conditionParent != null && conditionParent.getTenant() != null) {
+      return conditionParent.getTenant();
+    }
+    if (conditionSteps != null) {
+      for (ConditionStep link : conditionSteps) {
+        if (link.getStep() != null && link.getStep().getWorkflow() != null) {
+          return link.getStep().getWorkflow().getTenant();
+        }
+      }
+    }
+    if (stepFrom != null && stepFrom.getWorkflow() != null) {
+      return stepFrom.getWorkflow().getTenant();
+    }
+    return null;
   }
 }

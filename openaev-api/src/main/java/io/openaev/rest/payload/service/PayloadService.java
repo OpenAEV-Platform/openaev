@@ -653,9 +653,9 @@ public class PayloadService {
     // event fires for them. Chaining steps referencing that contract have no FK to cascade on
     // (the contract is only a JSON snapshot in step_data), so inventory the doomed contract rows
     // BEFORE the delete and sweep the orphaned step templates explicitly too. The inventory is
-    // grouped by tenant and each sweep stays scoped to its own tenant: today a payload backs at
-    // most one contract platform-wide (unique_injector_contract_payload), the grouping simply
-    // keeps this path correct if that 1:1 constraint is ever relaxed.
+    // grouped by tenant and each sweep stays scoped to its own tenant: a payload backs at most one
+    // contract per tenant (injector_contract_payload_unique), and nothing in the schema stops a
+    // contract of another tenant from referencing it.
     String tenantId = payload.getTenant().getId();
     Map<String, List<String>> cascadeDeletedContractIdsPerTenant =
         injectorContractService.findContractIdsByPayloadIdPerTenant(payloadId);

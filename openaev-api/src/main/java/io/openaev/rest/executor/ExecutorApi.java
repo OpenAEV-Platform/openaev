@@ -520,4 +520,29 @@ public class ExecutorApi extends RestBehavior {
       return ResponseEntity.notFound().build();
     }
   }
+
+  @Operation(
+      summary = "Rotate the OpenAEV Agent installer token",
+      description =
+          "Revokes the tenant's current service-account bearer token and issues a new one. "
+              + "Holders of INSTALL_AGENT can read the token but cannot rotate or revoke it: this "
+              + "is the remediation endpoint for whoever administers tenant users (MANAGE_TENANT_"
+              + "USERS_GROUPS_AND_ROLES) after a suspected leak.")
+  @Transactional(rollbackFor = Exception.class)
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "204", description = "Token rotated."),
+        @ApiResponse(responseCode = "404", description = "Service account not found."),
+      })
+  @PostMapping(
+      value = {
+        AGENT_URI + "/installer/openaev/token/rotate",
+        TENANT_AGENT_URI + "/installer/openaev/token/rotate"
+      })
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  public ResponseEntity<Void> rotateOpenAevAgentInstallerToken(@RequireTenantSelector TxCtx ctx) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    privilegeService.rotateTokenForTenant(tenantId);
+    return ResponseEntity.noContent().build();
+  }
 }

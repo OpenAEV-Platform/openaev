@@ -523,7 +523,13 @@ const Injects: FunctionComponent<Props> = ({
         queryableHelpers={queryableHelpers}
         reloadContentCount={reloadInjectCount}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <InjectsListButtons
               availableButtons={availableButtons}
               setViewMode={setViewMode}

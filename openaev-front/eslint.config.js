@@ -23,7 +23,16 @@ export default [
   // rules recommended by eslint-plugin-react
   react.configs.flat.recommended,
   react.configs.flat['jsx-runtime'],
-  { settings: { react: { version: 'detect' } } },
+  {
+    settings: {
+      react: {
+        // temporary workaround for https://github.com/jsx-eslint/eslint-plugin-react/issues/3977
+        // ('detect' crashes on ESLint 10); must follow the installed React version, which
+        // Renovate keeps in step (customManagers in renovate.json5)
+        version: '19.3',
+      },
+    },
+  },
 
   // rules recommended by eslint-plugin-import
   importPlugin.flatConfigs.recommended,

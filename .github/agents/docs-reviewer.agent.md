@@ -42,7 +42,7 @@ Heuristic — use judgment for edge cases. The doc tree mirrors the product stru
 
 | Code area | Doc area |
 |---|---|
-| `**/api/**`, `**/rest/**` (controllers, DTOs) | `docs/docs/reference/apis/rest-api.md`, `docs/docs/development/api-usage.md` |
+| `**/api/**`, `**/rest/**` (controllers, DTOs) | `docs/docs/reference/apis/rest-api.md` |
 | `**/injector*/**`, `**/collector*/**`, `**/executor*/**` | `docs/docs/integrations/` (matching section) |
 | `**/scenario/**`, `**/exercise/**`, `**/inject/**` | `docs/docs/usage/build/`, `docs/docs/usage/run-and-evaluate/` (scenarios, simulations, injects) |
 | `**/config/**`, `application.properties` | `docs/docs/reference/deployment/configuration.md` |

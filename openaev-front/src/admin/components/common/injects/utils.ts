@@ -90,7 +90,7 @@ export const isVisibleField = (field: ContractElement, fields: ContractElement[]
 };
 
 export const getValidatingRule = (field: ContractElement, t: Translate) => {
-  let rule: ZodType = z.any();
+  let rule: ZodType;
   switch (field.type) {
     case 'number':
       rule = z.number();

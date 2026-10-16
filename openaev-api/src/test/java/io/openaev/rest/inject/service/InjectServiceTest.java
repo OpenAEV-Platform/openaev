@@ -44,6 +44,7 @@ import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AssetGroupFixture;
+import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
@@ -1035,6 +1036,7 @@ class InjectServiceTest {
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
     inject.setTenant(new Tenant("test-tenant-id"));
     inject.getInjectorContract().get().setNeedsExecutor(true);
+    inject.setAssets(new ArrayList<>(List.of(EndpointFixture.createEndpoint())));
 
     // MOCK
     when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());

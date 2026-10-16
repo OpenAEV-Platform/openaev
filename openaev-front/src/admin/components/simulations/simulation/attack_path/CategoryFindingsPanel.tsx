@@ -100,7 +100,13 @@ const CategoryFindingsPanel = ({
             size="md"
           />
         </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.secondary',
+            display: 'block',
+          }}
+        >
           {t('Click any item to highlight it on the attack map and focus the producing action in the feed.')}
         </Typography>
       </Box>
@@ -191,7 +197,15 @@ const CategoryFindingsPanel = ({
                         title tooltip keeps the full (masked) value, like the graph's node labels. */}
                     <Typography variant="body2" noWrap title={maskedValue}>{maskedValue}</Typography>
                     {endpointName && (
-                      <Typography variant="caption" color="text.secondary" noWrap title={endpointName} sx={{ display: 'block' }}>
+                      <Typography
+                        variant="caption"
+                        noWrap
+                        title={endpointName}
+                        sx={{
+                          color: 'text.secondary',
+                          display: 'block',
+                        }}
+                      >
                         {endpointName}
                       </Typography>
                     )}
@@ -206,8 +220,10 @@ const CategoryFindingsPanel = ({
         {!loading && totalCount > loadedCount && (
           <Typography
             variant="caption"
-            color="text.secondary"
-            sx={{ textAlign: 'center' }}
+            sx={{
+              color: 'text.secondary',
+              textAlign: 'center',
+            }}
           >
             {t('Showing the first {count} of {total}', {
               count: loadedCount,

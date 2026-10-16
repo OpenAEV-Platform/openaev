@@ -173,7 +173,12 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
       </Box>
       {rows.length === 0
         ? (
-            <Typography variant="body2" color="text.secondary">{t('No exposed endpoints')}</Typography>
+            <Typography
+              variant="body2"
+              sx={{ color: 'text.secondary' }}
+            >
+              {t('No exposed endpoints')}
+            </Typography>
           )
         : (
             <Table size="small" stickyHeader>

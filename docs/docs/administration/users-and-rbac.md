@@ -92,7 +92,7 @@ Platform settings, Tenants and the platform users, groups, roles and sessions ca
 | `Manage tenant sessions` | -- | The Tenant's user sessions |
 | `Access platform users, groups and roles` | Access, Manage, Delete | Platform users, groups and roles |
 | `Manage platform sessions` | -- | Platform user sessions |
-| `Install agent` | -- | Agent install command, installer token and agent binaries |
+| `Install agent` | -- | Agent install command, installer token and agent binaries; rotating or revoking the token needs `Manage tenant users, groups and roles`, since it belongs to the Tenant's service account |
 | `Access tags` | Access, Manage, Delete | Tags |
 | `Access tenants` | Access, Manage, Delete | Tenants |
 

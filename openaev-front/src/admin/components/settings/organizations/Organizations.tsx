@@ -98,7 +98,12 @@ const Organizations = () => {
 
   return (
     <div style={{ display: 'flex' }}>
-      <div style={{ flexGrow: 1 }}>
+      {/* minWidth 0: lets the list shrink so long cell values truncate instead of widening the page */}
+      <div style={{
+        flexGrow: 1,
+        minWidth: 0,
+      }}
+      >
         <Breadcrumbs
           variant="list"
           elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Security') }, {
@@ -116,7 +121,10 @@ const Organizations = () => {
           topBarButtons={(
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
               <CreateOrganization
-                onCreate={(result: Organization) => setOrganizations(prev => [result, ...prev])}
+                onCreate={(result: Organization) => {
+                  setOrganizations(prev => [result, ...prev]);
+                  queryableHelpers.paginationHelpers.incrementTotalElements(1);
+                }}
               />
             </Can>
           )}
@@ -149,7 +157,10 @@ const Organizations = () => {
                       organization={organization}
                       tagsMap={tagsMap}
                       onUpdate={(result: Organization) => setOrganizations(prev => prev.map(o => (o.organization_id !== result.organization_id ? o : result)))}
-                      onDelete={(result: string) => setOrganizations(prev => prev.filter(o => (o.organization_id !== result)))}
+                      onDelete={(result: string) => {
+                        setOrganizations(prev => prev.filter(o => (o.organization_id !== result)));
+                        queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                      }}
                       openEditOnInit={organization.organization_id === searchId}
                     />
                   )}

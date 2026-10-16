@@ -1,0 +1,1325 @@
+# Responses that serialise a lazy association into a tenant-active table, as listed by
+# LazyAssociationCatalog. Read by LazyAssociationAfterCommitArchTest. This list only shrinks: fix a
+# site and settle its line in the same change. Never add a line.
+#
+# Two kinds of fix, and they settle differently, because only the first one is visible to the
+# static catalog:
+#   The response stops reaching the association (a DTO, @JsonIgnore, the endpoint removed). The
+#   site leaves the catalog, so delete its line and lower BASELINE_SIZE by as many. The stale
+#   check fails and names the lines if you forget.
+#   The association is loaded inside the transaction (fetch join, entity graph,
+#   Hibernate.initialize). The site stays in the catalog and NOTHING here fails, so change its
+#   verdict by hand to `ATTENUATED | fixed in #<pr>` and leave the line in place. A line left
+#   CONFIRMED after such a fix is the one rot this file cannot detect on its own.
+#
+# Format: <Controller.method> -> <Class.property> | <VERDICT> | <evidence>
+#
+# Verdicts, measured on 2026-10-13 by driving the HTTP integration tests with the lazy-after-commit
+# probe on, against production's activation list:
+#   CONFIRMED        rows exist and the response comes back without them, read from the response or
+#                    by replaying the same statement under an empty scope, as production runs it.
+#   ATTENUATED       every time a test response wrote it, it was already initialised inside the
+#                    transaction (fetch join, entity graph, explicit initialisation, or a collection
+#                    the handler built itself). A code path that skips that is not excluded.
+#   NOT ESTABLISHED  the shape is there but no loss was shown: no test row to lose, no test response
+#                    wrote it, or no gated read was recorded. Not a clean bill.
+AiTargetApi.aiTarget -> Asset.tags | ATTENUATED | fixed in #8398: loaded inside the scoped transaction
+AiTargetApi.aiTarget -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+AiTargetApi.aiTarget -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+AiTargetApi.aiTargets -> Asset.tags | ATTENUATED | fixed in #8398: loaded inside the scoped transaction
+AiTargetApi.aiTargets -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+AiTargetApi.aiTargets -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+AiTargetApi.createAiTarget -> Asset.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+AiTargetApi.createAiTarget -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+AiTargetApi.createAiTarget -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+AiTargetApi.updateAiTarget -> Asset.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+AiTargetApi.updateAiTarget -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+AiTargetApi.updateAiTarget -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.assetGroup -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.assetGroup -> AssetGroup.assets | ATTENUATED | measured: initialised inside the transaction whenever written
+AssetGroupApi.assetGroup -> AssetGroup.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+AssetGroupApi.assetGroup -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.assetGroup -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.assetGroups -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.assetGroups -> AssetGroup.assets | ATTENUATED | measured: initialised inside the transaction whenever written
+AssetGroupApi.assetGroups -> AssetGroup.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+AssetGroupApi.assetGroups -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.assetGroups -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.createAssetGroup -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.createAssetGroup -> AssetGroup.assets | ATTENUATED | measured: initialised inside the transaction whenever written
+AssetGroupApi.createAssetGroup -> AssetGroup.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+AssetGroupApi.createAssetGroup -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.createAssetGroup -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.updateAssetGroup -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.updateAssetGroup -> AssetGroup.assets | ATTENUATED | measured: initialised inside the transaction whenever written
+AssetGroupApi.updateAssetGroup -> AssetGroup.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+AssetGroupApi.updateAssetGroup -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.updateAssetGroup -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.updateAssetsOnAssetGroup -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.updateAssetsOnAssetGroup -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.updateAssetsOnAssetGroup -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.updateAssetsOnAssetGroup -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+AssetGroupApi.updateAssetsOnAssetGroup -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+AttackPatternApi.createAttackPattern -> AttackPattern.killChainPhases | ATTENUATED | measured: initialised inside the transaction whenever written
+AttackPatternApi.injectorContracts -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+AttackPatternApi.updateAttackPattern -> AttackPattern.killChainPhases | ATTENUATED | measured: initialised inside the transaction whenever written
+AttackPatternApi.upsertAttackPatterns -> AttackPattern.killChainPhases | ATTENUATED | measured: initialised inside the transaction whenever written
+ChallengeApi.challenges -> Challenge.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ChallengeApi.challenges -> Challenge.tags | ATTENUATED | fixed in #8389: loaded inside the scoped transaction
+ChallengeApi.createChallenge -> Challenge.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ChallengeApi.createChallenge -> Challenge.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ChallengeApi.findEndpoints -> Challenge.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ChallengeApi.findEndpoints -> Challenge.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ChallengeApi.updateChallenge -> Challenge.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ChallengeApi.updateChallenge -> Challenge.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.createArticleForExercise -> Article.documents | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.createArticleForScenario -> Article.documents | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.observerArticles -> Article.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Exercise.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Exercise.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ChannelApi.observerArticles -> Exercise.teams | NOT ESTABLISHED | read after the commit, but no test row to lose
+ChannelApi.observerArticles -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Scenario.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ChannelApi.observerArticles -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Scenario.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Scenario.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.observerArticles -> Scenario.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ChannelApi.observerArticles -> Scenario.teams | NOT ESTABLISHED | read after the commit, but no test row to lose
+ChannelApi.observerArticles -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.playerArticles -> Article.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.playerArticles -> Exercise.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.playerArticles -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.playerArticles -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.playerArticles -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.playerArticles -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.playerArticles -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.playerArticles -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.playerArticles -> Exercise.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ChannelApi.playerArticles -> Exercise.teams | NOT ESTABLISHED | read after the commit, but no test row to lose
+ChannelApi.playerArticles -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ChannelApi.playerArticles -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.playerArticles -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.playerArticles -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.playerArticles -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.playerArticles -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.playerArticles -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.playerArticles -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.playerArticles -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.playerArticles -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.playerArticles -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.updateArticleForExercise -> Article.documents | NOT ESTABLISHED | not written by any measured test response
+ChannelApi.updateArticleForScenario -> Article.documents | NOT ESTABLISHED | not written by any measured test response
+CollectorApi.registerCollector -> Asset.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+CollectorApi.registerCollector -> SecurityPlatform.collectors | NOT ESTABLISHED | read after the commit, but no test row to lose
+CollectorApi.registerCollector -> SecurityPlatform.injectors | NOT ESTABLISHED | read after the commit, but no test row to lose
+CollectorApi.updateCollector -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+CollectorApi.updateCollector -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+CollectorApi.updateCollector -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+CustomDashboardApi.createCustomDashboard -> CustomDashboard.widgets | ATTENUATED | measured: initialised inside the transaction whenever written
+CustomDashboardApi.customDashboard -> CustomDashboard.widgets | ATTENUATED | measured: initialised inside the transaction whenever written
+CustomDashboardApi.customDashboards -> CustomDashboard.widgets | ATTENUATED | fixed in #8484: fetch join in CustomDashboardRepository#findAllByIdInFetchingWidgets
+CustomDashboardApi.updateCustomDashboard -> CustomDashboard.widgets | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.document -> Document.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.document -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.document -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.documentTags -> Document.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.documentTags -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.documentTags -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.playerDocuments -> Document.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.playerDocuments -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.playerDocuments -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.updateDocumentInformation -> Document.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.updateDocumentInformation -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.updateDocumentInformation -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.uploadDocument -> Document.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.uploadDocument -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.uploadDocument -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.upsertDocument -> Document.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.upsertDocument -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+DocumentApi.upsertDocument -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+EndpointApi.createEndpoint -> Asset.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+EndpointApi.endpoints -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+EndpointApi.findEndpoints -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+EndpointApi.upsertAgentLessEndpoint -> Asset.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+EndpointApi.upsertEndpoint -> Asset.tags | NOT ESTABLISHED | written while lazy, no gated read recorded
+ExerciseApi.addExerciseTeamPlayers -> Exercise.documents | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.addExerciseTeamPlayers -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.addExerciseTeamPlayers -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.addExerciseTeamPlayers -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.addExerciseTeamPlayers -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.addExerciseTeamPlayers -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.addExerciseTeamPlayers -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.addExerciseTeamPlayers -> Exercise.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.addExerciseTeamPlayers -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.addExerciseTeamPlayers -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.assetGroups -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.assetGroups -> AssetGroup.assets | ATTENUATED | fixed in #8406: loaded inside the scoped transaction
+ExerciseApi.assetGroups -> AssetGroup.tags | ATTENUATED | fixed in #8406: loaded inside the scoped transaction
+ExerciseApi.assetGroups -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.assetGroups -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.changeExerciseStatus -> Exercise.documents | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.changeExerciseStatus -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.changeExerciseStatus -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.changeExerciseStatus -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.changeExerciseStatus -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.changeExerciseStatus -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.changeExerciseStatus -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.changeExerciseStatus -> Exercise.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.changeExerciseStatus -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.changeExerciseStatus -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createExercise -> Exercise.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createExercise -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createExercise -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createExercise -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createExercise -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createExercise -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createExercise -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createExercise -> Exercise.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createExercise -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createExercise -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.createLog -> Log.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.deleteDocument -> Exercise.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.deleteDocument -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.deleteDocument -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.deleteDocument -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.deleteDocument -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.deleteDocument -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.deleteDocument -> Exercise.injects | NOT ESTABLISHED | written while lazy, no gated read recorded
+ExerciseApi.deleteDocument -> Exercise.tags | NOT ESTABLISHED | written while lazy, no gated read recorded
+ExerciseApi.deleteDocument -> Exercise.teams | NOT ESTABLISHED | written while lazy, no gated read recorded
+ExerciseApi.deleteDocument -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.deprecatedUpdateExerciseStart -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.deprecatedUpdateExerciseStart -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.deprecatedUpdateExerciseStart -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.deprecatedUpdateExerciseStart -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.deprecatedUpdateExerciseStart -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.deprecatedUpdateExerciseStart -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.deprecatedUpdateExerciseStart -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.deprecatedUpdateExerciseStart -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.deprecatedUpdateExerciseStart -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.deprecatedUpdateExerciseStart -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.disableExerciseTeamPlayers -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.disableExerciseTeamPlayers -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.disableExerciseTeamPlayers -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.disableExerciseTeamPlayers -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.disableExerciseTeamPlayers -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.disableExerciseTeamPlayers -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.disableExerciseTeamPlayers -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.disableExerciseTeamPlayers -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.disableExerciseTeamPlayers -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.disableExerciseTeamPlayers -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.documents -> Document.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.documents -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.documents -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.duplicateExercise -> Exercise.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.duplicateExercise -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.duplicateExercise -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.duplicateExercise -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.duplicateExercise -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.duplicateExercise -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.duplicateExercise -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.duplicateExercise -> Exercise.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.duplicateExercise -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.duplicateExercise -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.enableExerciseTeamPlayers -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.enableExerciseTeamPlayers -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.enableExerciseTeamPlayers -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.enableExerciseTeamPlayers -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.enableExerciseTeamPlayers -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.enableExerciseTeamPlayers -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.enableExerciseTeamPlayers -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.enableExerciseTeamPlayers -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.enableExerciseTeamPlayers -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.enableExerciseTeamPlayers -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.endpoints -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.exerciseCommunications -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.exerciseCommunications -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.injectResults -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.logs -> Log.tags | ATTENUATED | fixed in #8403: loaded inside the scoped transaction
+ExerciseApi.removeExerciseTeamPlayers -> Exercise.documents | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.removeExerciseTeamPlayers -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.removeExerciseTeamPlayers -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.removeExerciseTeamPlayers -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.removeExerciseTeamPlayers -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.removeExerciseTeamPlayers -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.removeExerciseTeamPlayers -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.removeExerciseTeamPlayers -> Exercise.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.removeExerciseTeamPlayers -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.removeExerciseTeamPlayers -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.scenarioFromSimulation -> Scenario.documents | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.scenarioFromSimulation -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.scenarioFromSimulation -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.scenarioFromSimulation -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.scenarioFromSimulation -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.scenarioFromSimulation -> Scenario.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.scenarioFromSimulation -> Scenario.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.scenarioFromSimulation -> Scenario.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.scenarioFromSimulation -> Scenario.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.scenarioFromSimulation -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseInformation -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseInformation -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseInformation -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseInformation -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseInformation -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseInformation -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseInformation -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseInformation -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseInformation -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseInformation -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLessons -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLessons -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLessons -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLessons -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLessons -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLessons -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLessons -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLessons -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLessons -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLessons -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseLogos -> Exercise.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseLogos -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseLogos -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseLogos -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseLogos -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseLogos -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseLogos -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseLogos -> Exercise.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.updateExerciseLogos -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseLogos -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseStart -> Exercise.documents | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.updateExerciseStart -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseStart -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseStart -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseStart -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseStart -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseStart -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseStart -> Exercise.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.updateExerciseStart -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseStart -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseApi.updateExerciseTags -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseTags -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseTags -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseTags -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseTags -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseTags -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseTags -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseTags -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseTags -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateExerciseTags -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseApi.updateLog -> Log.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseDashboardApi.dashboard -> CustomDashboard.widgets | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseImportApi.dryRunImportXLSFile -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.dryRunImportXLSFile -> Team.users | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+ExerciseImportApi.validateImportXLSFile -> Team.users | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.applyExerciseLessonsTemplate -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.applyExerciseLessonsTemplate -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.createExerciseLessonsCategory -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.createExerciseLessonsCategory -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.emptyExerciseLessons -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.emptyExerciseLessons -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.exerciseLessonsCategories -> LessonsCategory.getUsers() | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseLessonsApi.exerciseLessonsCategories -> LessonsCategory.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ExerciseLessonsApi.playerLessonsCategories -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.playerLessonsCategories -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.resetExerciseLessonsAnswers -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.resetExerciseLessonsAnswers -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.updateExerciseLessonsCategory -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.updateExerciseLessonsCategory -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.updateExerciseLessonsCategoryTeams -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ExerciseLessonsApi.updateExerciseLessonsCategoryTeams -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+FindingApi.createFinding -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
+FindingApi.finding -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+FindingApi.updateFinding -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
+FindingSearchApi.findings -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+FindingSearchApi.findingsByEndpoint -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+FindingSearchApi.findingsByInject -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+FindingSearchApi.findingsByScenario -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+FindingSearchApi.findingsBySimulation -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+InjectApi.getExecutablePayloadInject -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.inject -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.inject -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+InjectApi.inject -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.inject -> Inject.getType() | ATTENUATED | measured: initialised inside the transaction whenever written
+InjectApi.inject -> Inject.secretReferences | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
+InjectApi.inject -> Inject.tags | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
+InjectApi.injectExecutionReception -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.injectExecutionReception -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+InjectApi.injectExecutionReception -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.injectExecutionReception -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.injectExecutionReception -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+InjectApi.injectExecutionReception -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.nextInjectsToExecute -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.nextInjectsToExecute -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+InjectApi.nextInjectsToExecute -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.nextInjectsToExecute -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.nextInjectsToExecute -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+InjectApi.nextInjectsToExecute -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+InjectApi.updateInject -> Team.users | NOT ESTABLISHED | not written by any measured test response
+InjectorContractApi.createInjectorContract -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+InjectorContractApi.injectorContract -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+InjectorContractApi.updateInjectorContract -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+InjectorContractApi.updateInjectorContractMapping -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+MapperApi.testImportXLSFile -> Team.users | NOT ESTABLISHED | not written by any measured test response
+MeApi.me -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
+MeApi.me -> User.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+MeApi.me -> User.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+MeApi.updateEmail -> User.isPlayer() | NOT ESTABLISHED | not written by any measured test response
+MeApi.updateEmail -> User.tags | NOT ESTABLISHED | not written by any measured test response
+MeApi.updateEmail -> User.teams | NOT ESTABLISHED | not written by any measured test response
+MeApi.updateInformation -> User.isPlayer() | NOT ESTABLISHED | not written by any measured test response
+MeApi.updateInformation -> User.tags | NOT ESTABLISHED | not written by any measured test response
+MeApi.updateInformation -> User.teams | NOT ESTABLISHED | not written by any measured test response
+MeApi.updatePassword -> User.isPlayer() | NOT ESTABLISHED | not written by any measured test response
+MeApi.updatePassword -> User.tags | NOT ESTABLISHED | not written by any measured test response
+MeApi.updatePassword -> User.teams | NOT ESTABLISHED | not written by any measured test response
+MeApi.updateProfile -> User.isPlayer() | NOT ESTABLISHED | not written by any measured test response
+MeApi.updateProfile -> User.tags | NOT ESTABLISHED | not written by any measured test response
+MeApi.updateProfile -> User.teams | NOT ESTABLISHED | not written by any measured test response
+MitigationApi.createMitigation -> Mitigation.attackPatterns | ATTENUATED | measured: initialised inside the transaction whenever written
+MitigationApi.injectorContracts -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+MitigationApi.mitigation -> Mitigation.attackPatterns | ATTENUATED | measured: initialised inside the transaction whenever written
+MitigationApi.mitigations -> Mitigation.attackPatterns | ATTENUATED | measured: initialised inside the transaction whenever written
+MitigationApi.updateMitigation -> Mitigation.attackPatterns | ATTENUATED | measured: initialised inside the transaction whenever written
+MitigationApi.upsertMitigation -> Mitigation.attackPatterns | ATTENUATED | measured: initialised inside the transaction whenever written
+OrganizationApi.createOrganization -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.createOrganization -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.createOrganization -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.createOrganization -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.createOrganization -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.createOrganization -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.createOrganization -> Organization.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+OrganizationApi.organization -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organization -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organization -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organization -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organization -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organization -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organization -> Organization.tags | ATTENUATED | fixed in #8392: loaded inside the scoped transaction
+OrganizationApi.organizations -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organizations -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organizations -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organizations -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organizations -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organizations -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.organizations -> Organization.tags | ATTENUATED | fixed in #8392: loaded inside the scoped transaction
+OrganizationApi.updateOrganization -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.updateOrganization -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.updateOrganization -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.updateOrganization -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.updateOrganization -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.updateOrganization -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+OrganizationApi.updateOrganization -> Organization.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+PayloadApi.createPayload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+PayloadApi.duplicatePayload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+PayloadApi.payload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+PayloadApi.payloads -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+PayloadApi.updatePayload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+PayloadApi.upsertPayload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+PlayerApi.createPlayer -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
+PlayerApi.createPlayer -> User.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+PlayerApi.createPlayer -> User.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+PlayerApi.updatePlayer -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
+PlayerApi.updatePlayer -> User.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+PlayerApi.updatePlayer -> User.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+PlayerApi.upsertPlayer -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
+PlayerApi.upsertPlayer -> User.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+PlayerApi.upsertPlayer -> User.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ReportingApi.createReporting -> Reporting.generations | ATTENUATED | measured: initialised inside the transaction whenever written
+ReportingApi.createReporting -> Reporting.schedules | ATTENUATED | measured: initialised inside the transaction whenever written
+ReportingApi.createReporting -> ReportingSchedule.recipientUsers | NOT ESTABLISHED | not written by any measured test response
+ReportingApi.createReportingSchedule -> ReportingSchedule.recipientUsers | ATTENUATED | measured: initialised inside the transaction whenever written
+ReportingApi.reporting -> Reporting.generations | ATTENUATED | fixed in #8484: history loaded inside the scoped transaction
+ReportingApi.reporting -> Reporting.schedules | NOT ESTABLISHED | read after the commit, but no test row to lose
+ReportingApi.reporting -> ReportingSchedule.recipientUsers | NOT ESTABLISHED | not written by any measured test response
+ReportingApi.reportings -> Reporting.generations | ATTENUATED | fixed in #8484: history loaded inside the scoped transaction
+ReportingApi.reportings -> Reporting.schedules | NOT ESTABLISHED | read after the commit, but no test row to lose
+ReportingApi.reportings -> ReportingSchedule.recipientUsers | NOT ESTABLISHED | not written by any measured test response
+ReportingApi.reportingsByContext -> Reporting.generations | NOT ESTABLISHED | read after the commit, but no test row to lose
+ReportingApi.reportingsByContext -> Reporting.schedules | NOT ESTABLISHED | read after the commit, but no test row to lose
+ReportingApi.reportingsByContext -> ReportingSchedule.recipientUsers | NOT ESTABLISHED | not written by any measured test response
+ReportingApi.updateReporting -> Reporting.generations | NOT ESTABLISHED | read after the commit, but no test row to lose
+ReportingApi.updateReporting -> Reporting.schedules | NOT ESTABLISHED | read after the commit, but no test row to lose
+ReportingApi.updateReporting -> ReportingSchedule.recipientUsers | NOT ESTABLISHED | not written by any measured test response
+ReportingApi.updateReportingSchedule -> ReportingSchedule.recipientUsers | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.addScenarioTeamPlayers -> Scenario.documents | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.addScenarioTeamPlayers -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.addScenarioTeamPlayers -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.addScenarioTeamPlayers -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.addScenarioTeamPlayers -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.addScenarioTeamPlayers -> Scenario.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.addScenarioTeamPlayers -> Scenario.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.addScenarioTeamPlayers -> Scenario.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.addScenarioTeamPlayers -> Scenario.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.addScenarioTeamPlayers -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.assetGroups -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.assetGroups -> AssetGroup.assets | ATTENUATED | fixed in #8406: loaded inside the scoped transaction
+ScenarioApi.assetGroups -> AssetGroup.tags | ATTENUATED | fixed in #8406: loaded inside the scoped transaction
+ScenarioApi.assetGroups -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.assetGroups -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.createRunningExerciseFromScenario -> Exercise.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createRunningExerciseFromScenario -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createRunningExerciseFromScenario -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createRunningExerciseFromScenario -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createRunningExerciseFromScenario -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createRunningExerciseFromScenario -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createRunningExerciseFromScenario -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createRunningExerciseFromScenario -> Exercise.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createRunningExerciseFromScenario -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createRunningExerciseFromScenario -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenario -> Scenario.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenario -> Scenario.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenario -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenario -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenario -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenario -> Scenario.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenario -> Scenario.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenario -> Scenario.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenario -> Scenario.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenario -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.createScenarioWithInjectorContracts -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.documents -> Document.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.documents -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.documents -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.duplicateScenario -> Scenario.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.duplicateScenario -> Scenario.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.duplicateScenario -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.duplicateScenario -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.duplicateScenario -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.duplicateScenario -> Scenario.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.duplicateScenario -> Scenario.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.duplicateScenario -> Scenario.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.duplicateScenario -> Scenario.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.duplicateScenario -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.endpoints -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.documents | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.scenarios -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.scenariosById -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenario -> Scenario.documents | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.updateScenario -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.updateScenario -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenario -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenario -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenario -> Scenario.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenario -> Scenario.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenario -> Scenario.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenario -> Scenario.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenario -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenarioLessons -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioLessons -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioLessons -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioLessons -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioLessons -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioLessons -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioLessons -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioLessons -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioLessons -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioLessons -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioRecurrence -> Scenario.documents | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.updateScenarioRecurrence -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.updateScenarioRecurrence -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenarioRecurrence -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenarioRecurrence -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenarioRecurrence -> Scenario.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenarioRecurrence -> Scenario.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenarioRecurrence -> Scenario.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.updateScenarioRecurrence -> Scenario.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenarioRecurrence -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioApi.updateScenarioTags -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioTags -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioTags -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioTags -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioTags -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioTags -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioTags -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioTags -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioTags -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioTags -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenariosWithInjectorContracts -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioChallengesApi.playerDocuments -> Document.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioChallengesApi.playerDocuments -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioChallengesApi.playerDocuments -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioDashboardApi.dashboard -> CustomDashboard.widgets | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioImportApi.dryRunImportXLSFile -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.dryRunImportXLSFile -> Team.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioImportApi.validateImportXLSFile -> Team.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.bulkDeleteInjectsForScenario -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.bulkDeleteInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.bulkDeleteInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.bulkDeleteInjectsForScenario -> Inject.getType() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioInjectApi.bulkDeleteInjectsForScenario -> Inject.secretReferences | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioInjectApi.bulkDeleteInjectsForScenario -> Inject.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioInjectApi.bulkUpdateInjectsForScenario -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.bulkUpdateInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.bulkUpdateInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.bulkUpdateInjectsForScenario -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.bulkUpdateInjectsForScenario -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.bulkUpdateInjectsForScenario -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectForScenario -> Team.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectsForScenario -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectsForScenario -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectsForScenario -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectsForScenario -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.duplicateInjectForScenario -> Team.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.generateInjectsForScenario -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.generateInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.generateInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.generateInjectsForScenario -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.generateInjectsForScenario -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.generateInjectsForScenario -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInject -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInject -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInject -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInject -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInject -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInject -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjects -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjects -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjects -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjects -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjects -> Inject.secretReferences | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
+ScenarioInjectApi.scenarioInjects -> Inject.tags | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
+ScenarioInjectApi.scenarioInjectsSimple -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.scenarioInjectsSimple -> Team.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectActivationForScenario -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectActivationForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectActivationForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectActivationForScenario -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectActivationForScenario -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectActivationForScenario -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Scenario.documents | NOT ESTABLISHED | written while lazy, no gated read recorded
+ScenarioInjectApi.updateInjectForScenario -> Scenario.exercises | NOT ESTABLISHED | written while lazy, no gated read recorded
+ScenarioInjectApi.updateInjectForScenario -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioInjectApi.updateInjectForScenario -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioInjectApi.updateInjectForScenario -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioInjectApi.updateInjectForScenario -> Scenario.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioInjectApi.updateInjectForScenario -> Scenario.injects | NOT ESTABLISHED | written while lazy, no gated read recorded
+ScenarioInjectApi.updateInjectForScenario -> Scenario.tags | NOT ESTABLISHED | written while lazy, no gated read recorded
+ScenarioInjectApi.updateInjectForScenario -> Scenario.teams | NOT ESTABLISHED | written while lazy, no gated read recorded
+ScenarioInjectApi.updateInjectForScenario -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioInjectApi.updateInjectForScenario -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.updateInjectForScenario -> Team.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.applyScenarioLessonsTemplate -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.applyScenarioLessonsTemplate -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.createScenarioLessonsCategory -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.createScenarioLessonsCategory -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.emptyScenarioLessons -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.emptyScenarioLessons -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.scenarioLessonsCategories -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.scenarioLessonsCategories -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.updateScenarioLessonsCategory -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.updateScenarioLessonsCategory -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.updateScenarioLessonsCategoryTeams -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
+ScenarioLessonsApi.updateScenarioLessonsCategoryTeams -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+SecurityPlatformApi.createSecurityPlatform -> Asset.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.createSecurityPlatform -> SecurityPlatform.collectors | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.createSecurityPlatform -> SecurityPlatform.injectors | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.securityPlatform -> Asset.tags | ATTENUATED | fixed in #8397: loaded inside the scoped transaction
+SecurityPlatformApi.securityPlatform -> SecurityPlatform.collectors | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.securityPlatform -> SecurityPlatform.injectors | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.securityPlatforms -> Asset.tags | ATTENUATED | fixed in #8397: loaded inside the scoped transaction
+SecurityPlatformApi.securityPlatforms -> SecurityPlatform.collectors | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.securityPlatforms -> SecurityPlatform.injectors | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.updateSecurityPlatform -> Asset.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.updateSecurityPlatform -> SecurityPlatform.collectors | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.updateSecurityPlatform -> SecurityPlatform.injectors | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.upsertSecurityPlatform -> Asset.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+SecurityPlatformApi.upsertSecurityPlatform -> SecurityPlatform.collectors | NOT ESTABLISHED | read after the commit, but no test row to lose
+SecurityPlatformApi.upsertSecurityPlatform -> SecurityPlatform.injectors | ATTENUATED | fixed in #8484: upsert goes through withManagerLinksInitialized before the link is written
+SimulationChallengeApi.playerDocuments -> Document.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+SimulationChallengeApi.playerDocuments -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+SimulationChallengeApi.playerDocuments -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+SimulationInjectApi.bulkDeleteInjectsForSimulation -> Communication.getExercise() | ATTENUATED | measured: initialised inside the transaction whenever written
+SimulationInjectApi.bulkDeleteInjectsForSimulation -> Communication.users | NOT ESTABLISHED | written while lazy, no gated read recorded
+SimulationInjectApi.bulkDeleteInjectsForSimulation -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.bulkDeleteInjectsForSimulation -> Inject.getType() | ATTENUATED | measured: initialised inside the transaction whenever written
+SimulationInjectApi.bulkDeleteInjectsForSimulation -> Inject.secretReferences | NOT ESTABLISHED | read after the commit, but no test row to lose
+SimulationInjectApi.bulkDeleteInjectsForSimulation -> Inject.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+SimulationInjectApi.bulkUpdateInjectsForSimulation -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.bulkUpdateInjectsForSimulation -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.bulkUpdateInjectsForSimulation -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.bulkUpdateInjectsForSimulation -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.bulkUpdateInjectsForSimulation -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.bulkUpdateInjectsForSimulation -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectForExercise -> Team.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectsForExercise -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectsForExercise -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectsForExercise -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectsForExercise -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectsForExercise -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectsForExercise -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.duplicateInjectForExercise -> Team.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInject -> Team.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectCommunications -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectCommunications -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectTeams -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectTeams -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectTeams -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectTeams -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectTeams -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectTeams -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectTeams -> Team.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjects -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjects -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjects -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjects -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjects -> Inject.secretReferences | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
+SimulationInjectApi.exerciseInjects -> Inject.tags | ATTENUATED | fixed in #8402: loaded inside the scoped transaction
+SimulationInjectApi.exerciseInjectsSimple -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Exercise.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Exercise.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Exercise.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Exercise.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Exercise.getNextInjectExecution() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Exercise.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Exercise.injects | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Exercise.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> InjectOutput.assetGroups | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> InjectOutput.assets | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> InjectOutput.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> InjectOutput.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> InjectOutput.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Scenario.documents | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Scenario.getPlatforms() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Scenario.injects | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Scenario.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Team.exercises | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Team.getExercisesInjects() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Team.getScenariosInjects() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Team.getUsersNumber() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Team.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.exerciseInjectsSimple -> Team.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.setInjectStatus -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.setInjectStatus -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.setInjectStatus -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.setInjectStatus -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.setInjectStatus -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.setInjectStatus -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectActivationForExercise -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectActivationForExercise -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectActivationForExercise -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectActivationForExercise -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectActivationForExercise -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectActivationForExercise -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTeams -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTeams -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTeams -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTeams -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTeams -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTeams -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTrigger -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTrigger -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTrigger -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTrigger -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTrigger -> Inject.secretReferences | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.updateInjectTrigger -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+TeamApi.createTeam -> Team.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.createTeam -> Team.getExercisesInjects() | NOT ESTABLISHED | read after the commit, but no test row to lose
+TeamApi.createTeam -> Team.getScenariosInjects() | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.createTeam -> Team.getUsersNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.createTeam -> Team.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.createTeam -> Team.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.createTeam -> Team.users | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.getTeam -> Team.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+TeamApi.getTeam -> Team.getExercisesInjects() | NOT ESTABLISHED | written while lazy, no gated read recorded
+TeamApi.getTeam -> Team.getScenariosInjects() | NOT ESTABLISHED | written while lazy, no gated read recorded
+TeamApi.getTeam -> Team.getUsersNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.getTeam -> Team.scenarios | NOT ESTABLISHED | read after the commit, but no test row to lose
+TeamApi.getTeam -> Team.tags | ATTENUATED | fixed in #8401: loaded inside the scoped transaction
+TeamApi.getTeam -> Team.users | NOT ESTABLISHED | written while lazy, no gated read recorded
+TeamApi.getTeamPlayers -> User.isPlayer() | NOT ESTABLISHED | not written by any measured test response
+TeamApi.getTeamPlayers -> User.tags | ATTENUATED | fixed in #8401: loaded inside the scoped transaction
+TeamApi.getTeamPlayers -> User.teams | ATTENUATED | fixed in #8401: loaded inside the scoped transaction
+TeamApi.getTeams -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
+TeamApi.getTeams -> Communication.users | NOT ESTABLISHED | not written by any measured test response
+TeamApi.updateTeam -> Team.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+TeamApi.updateTeam -> Team.getExercisesInjects() | NOT ESTABLISHED | written while lazy, no gated read recorded
+TeamApi.updateTeam -> Team.getScenariosInjects() | NOT ESTABLISHED | written while lazy, no gated read recorded
+TeamApi.updateTeam -> Team.getUsersNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.updateTeam -> Team.scenarios | NOT ESTABLISHED | read after the commit, but no test row to lose
+TeamApi.updateTeam -> Team.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.updateTeam -> Team.users | NOT ESTABLISHED | written while lazy, no gated read recorded
+TeamApi.updateTeamUsers -> Team.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+TeamApi.updateTeamUsers -> Team.getExercisesInjects() | NOT ESTABLISHED | read after the commit, but no test row to lose
+TeamApi.updateTeamUsers -> Team.getScenariosInjects() | NOT ESTABLISHED | read after the commit, but no test row to lose
+TeamApi.updateTeamUsers -> Team.getUsersNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.updateTeamUsers -> Team.scenarios | NOT ESTABLISHED | read after the commit, but no test row to lose
+TeamApi.updateTeamUsers -> Team.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+TeamApi.updateTeamUsers -> Team.users | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.upsertTeam -> Team.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.upsertTeam -> Team.getExercisesInjects() | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.upsertTeam -> Team.getScenariosInjects() | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.upsertTeam -> Team.getUsersNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.upsertTeam -> Team.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.upsertTeam -> Team.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.upsertTeam -> Team.users | ATTENUATED | measured: initialised inside the transaction whenever written
+TenantSettingsApi.homeDashboard -> CustomDashboard.widgets | ATTENUATED | measured: initialised inside the transaction whenever written
+ThreatArsenalApi.threatArsenal -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+UserApi.changePasswordReset -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
+UserApi.changePasswordReset -> User.tags | NOT ESTABLISHED | written while lazy, no gated read recorded
+UserApi.changePasswordReset -> User.teams | NOT ESTABLISHED | written while lazy, no gated read recorded
+UserApi.login -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
+UserApi.login -> User.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+UserApi.login -> User.teams | NOT ESTABLISHED | read after the commit, but no test row to lose

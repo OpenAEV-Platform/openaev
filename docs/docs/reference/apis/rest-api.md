@@ -129,8 +129,32 @@ The unauthenticated limit also covers `/login`, `/oauth2`, `/saml2`, `/actuator`
 
 Tune the limits in the [server configuration](../deployment/configuration.md#rate-limiting).
 
+## Examples
+
+Create a Scenario:
+
+```http
+POST /api/scenarios
+```
+
+```json
+{
+  "scenario_name": "APT28 phishing campaign",
+  "scenario_description": "Simulates a spear-phishing attack chain",
+  "scenario_severity": "high"
+}
+```
+
+Update it with the full resource data, or delete it:
+
+```http
+PUT /api/scenarios/{scenarioId}
+DELETE /api/scenarios/{scenarioId}
+```
+
+To list Scenarios, see [Pagination](#pagination).
+
 ## What's next?
 
 - [Filters](filters.md) -- Filter format and operators
-- [API usage](../../development/api-usage.md) -- Examples of common API calls
 - [Profile](../../administration/profile.md) -- Where to manage your account

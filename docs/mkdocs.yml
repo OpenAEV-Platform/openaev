@@ -63,6 +63,7 @@ plugins:
   - search
   - redirects:
       redirect_maps:
+        'development/api-usage.md': 'reference/apis/rest-api.md'
         'deployment/authentication.md': 'deployment/platform/authentication.md'
         'deployment/certificate-validation.md': 'deployment/platform/certificate-validation.md'
         'deployment/configuration.md': 'reference/deployment/configuration.md'
@@ -298,7 +299,7 @@ nav:
     - Filters: reference/apis/filters.md
     - Bulk snapshot export: reference/apis/bulk-snapshot.md
     - Telemetry: reference/deployment/telemetry.md
-  - Troubleshooting & FAQ: troubleshooting/index.md
+  - Troubleshooting: troubleshooting/index.md
   - Development:
     - Prerequisites:
       - Ubuntu: development/environment-ubuntu.md
@@ -311,5 +312,4 @@ nav:
     - Collector development: development/collectors.md
     - Injector development: development/injectors.md
     - Attack path: development/attack-path.md
-    - REST API: development/api-usage.md
     - Translations: development/translations.md

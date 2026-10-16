@@ -30,6 +30,7 @@ import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.injectors.channel.model.ChannelContent;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
@@ -1010,7 +1011,7 @@ public class V1_DataImporter implements Importer {
     Document document = new Document();
     document.setTenant(new Tenant(writeTenant));
     document.setTarget(target);
-    document.setName(nodeDoc.get("document_name").textValue());
+    document.setName(DocumentService.safeFileName(nodeDoc.get("document_name").textValue()));
     document.setDescription(nodeDoc.get("document_description").textValue());
     if (savedExercise != null) {
       document.setExercises(new HashSet<>(Set.of(savedExercise)));
@@ -3527,6 +3528,7 @@ public class V1_DataImporter implements Importer {
         Condition condition =
             Condition.builder()
                 .workflowId(workflow.getId())
+                .tenant(workflow.getTenant())
                 .key(
                     condNode.has("condition_key") && !condNode.get("condition_key").isNull()
                         ? condNode.get("condition_key").asText()

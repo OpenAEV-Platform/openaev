@@ -53,6 +53,22 @@ public interface InjectRepository
   Optional<Inject> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   /**
+   * The inject's id and its tenant, and nothing else. For the one read that has to cross every
+   * tenant because its input carries no tenant: an inbound email routed by the inject id in its
+   * footer. Loading the entity there would pull its associations across the tenant boundary to
+   * answer a question about two columns.
+   */
+  @Query("select i.id as id, i.tenant.id as tenantId from Inject i where i.id = :id")
+  Optional<InjectTenantRef> findTenantRefById(@Param("id") @NotNull String id);
+
+  /** Projection of {@link #findTenantRefById(String)}. */
+  interface InjectTenantRef {
+    String getId();
+
+    String getTenantId();
+  }
+
+  /**
    * Updates only an inject's {@code updated_at} timestamp, through Hibernate so the tenant
    * statement inspector covers it (a previous raw-JDBC helper bypassed it). Returns the number of
    * rows updated.

@@ -97,4 +97,3 @@ By default, the UI offers these operators depending on the attribute type. Some 
 ## What's next?
 
 - [REST API](rest-api.md) -- Authentication, pagination and search endpoints
-- [API usage](../../development/api-usage.md) -- Examples of common API calls

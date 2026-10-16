@@ -185,10 +185,21 @@ const AssetGroups = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-              <AssetGroupCreation onCreate={result => setAssetGroups([result, ...assetGroups])} />
+              <AssetGroupCreation
+                onCreate={(result) => {
+                  setAssetGroups([result, ...assetGroups]);
+                  queryableHelpers.paginationHelpers.incrementTotalElements(1);
+                }}
+              />
             </Can>
           </Box>
         )}
@@ -254,7 +265,10 @@ const AssetGroups = () => {
                     <AssetGroupPopover
                       assetGroup={assetGroup}
                       onUpdate={onUpdateList}
-                      onDelete={result => setAssetGroups(assetGroups.filter(ag => (ag.asset_group_id !== result)))}
+                      onDelete={(result) => {
+                        setAssetGroups(assetGroups.filter(ag => (ag.asset_group_id !== result)));
+                        queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                      }}
                       openEditOnInit={assetGroup.asset_group_id === searchId}
                       onRemoveEndpointFromAssetGroup={assetId => setAssetGroups(assetGroups.map(ag => (ag.asset_group_id !== assetGroup.asset_group_id
                         ? ag

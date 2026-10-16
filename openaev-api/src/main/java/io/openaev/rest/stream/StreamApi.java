@@ -13,8 +13,10 @@ import io.openaev.annotation.NoTenantScope;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.Base;
 import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Tenant;
@@ -125,11 +127,19 @@ public class StreamApi extends RestBehavior {
    * atomic testing for child entities, see {@link BaseEvent#getPermissionResourceId()}), so it
    * needs no reload of the entity and is cached per parent rather than per child.
    *
+   * <p>Runs in the tenant of the row the event is about, else the consumer's: this thread carries
+   * no request {@code TxCtx}, and resolving a parent permission loads the child row from a table
+   * that may be v2-active. With neither tenant, the check runs unscoped.
+   *
    * <p>Fails closed: a check that throws counts as denied and is not cached.
    */
   private boolean hasReadPermission(StreamConsumer consumer, User user, BaseEvent event) {
     String resourceId = event.getPermissionResourceId();
     ResourceType resourceType = event.getPermissionResourceType();
+    String checkTenantId =
+        Optional.ofNullable(tenantOf(event.getInstance()))
+            .or(() -> Optional.ofNullable(consumer.tenantId()).filter(id -> !id.isBlank()))
+            .orElse(null);
     try {
       return hasReadPermission(
           consumer,
@@ -137,8 +147,11 @@ public class StreamApi extends RestBehavior {
           resourceType,
           CHECK_ENTITY_EVENT,
           () ->
-              permissionService.hasPermission(
-                  user, Optional.empty(), resourceId, resourceType, Action.READ));
+              checkTenantId != null
+                  ? permissionService.hasPermissionInTenant(
+                      TxCtx.forTenant(checkTenantId), user, resourceId, resourceType, Action.READ)
+                  : permissionService.hasPermission(
+                      user, Optional.empty(), resourceId, resourceType, Action.READ));
     } catch (Exception e) {
       log.debug(
           "Stream permission check failed for {} {}, treated as denied",
@@ -429,6 +442,20 @@ public class StreamApi extends RestBehavior {
             TenantContext.clearCurrentTenant();
           }
         });
+  }
+
+  /** The tenant of the row, or null for a row outside the tenant model or a platform row. */
+  private static String tenantOf(Base instance) {
+    if (instance instanceof TenantBase tenantScoped) {
+      return tenantScoped.getTenant() != null ? tenantScoped.getTenant().getId() : null;
+    }
+    if (instance instanceof DualScopeBase dualScope) {
+      return dualScope.getTenant() != null ? dualScope.getTenant().getId() : null;
+    }
+    if (instance instanceof TenantIdBase tenantIdScoped) {
+      return tenantIdScoped.getTenantId();
+    }
+    return null;
   }
 
   private boolean isVisibleForTenant(BaseEvent event, String consumerTenantId) {

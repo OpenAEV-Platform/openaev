@@ -154,7 +154,7 @@ const AtomicTesting = () => {
     }
     if (hasAiTargets) {
       tabs.push({
-        key: index++,
+        key: index,
         // AI targets are assets too, so the tab carries the same label as the
         // endpoint-backed one; keep the specific label only in the (theoretical)
         // case where both tabs coexist, to avoid two tabs named "Assets".

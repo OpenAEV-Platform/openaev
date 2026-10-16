@@ -6,11 +6,9 @@ import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.repository.NotificationEventRecordRepository;
 import io.openaev.database.repository.NotificationTriggerRepository;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Session;
 import org.springframework.stereotype.Service;
 
 /**
@@ -26,12 +24,6 @@ import org.springframework.stereotype.Service;
  * resolved by {@link ResolvedNotificationTrigger#from}. Without the scope below that collection
  * comes back EMPTY, {@code NotificationDispatchService.dispatch} no-ops on it, and every
  * notification stops being delivered with no log and no exception (#7864).
- *
- * <p>The {@code disableFilter} call below is defensive. {@code HibernateFilterTransactionAspect}
- * enables the v1 {@code tenantFilter} from a method-level {@code @Transactional}, which this class
- * no longer carries, so on the current call paths there should be nothing to disable; it is kept so
- * that a future {@code @Transactional} hop on this session cannot silently re-scope these
- * cross-tenant reads of the still-v1 {@code notification_triggers} / {@code notification_events}.
  */
 @Service
 @RequiredArgsConstructor
@@ -39,18 +31,15 @@ public class NotificationTriggerLoader {
 
   private final NotificationTriggerRepository notificationTriggerRepository;
   private final NotificationEventRecordRepository notificationEventRecordRepository;
-  private final EntityManager entityManager;
   private final TenantScopedTransaction tenantTx;
 
   public List<ResolvedNotificationTrigger> loadEnabledTriggers(NotificationTriggerType type) {
     return tenantTx.execute(
         TxCtx.allTenants(),
-        () -> {
-          disableV1TenantFilter();
-          return notificationTriggerRepository.findAllByTypeAndEnabledTrue(type).stream()
-              .map(ResolvedNotificationTrigger::from)
-              .toList();
-        });
+        () ->
+            notificationTriggerRepository.findAllByTypeAndEnabledTrue(type).stream()
+                .map(ResolvedNotificationTrigger::from)
+                .toList());
   }
 
   /**
@@ -62,7 +51,6 @@ public class NotificationTriggerLoader {
     return tenantTx.execute(
         TxCtx.allTenants(),
         () -> {
-          disableV1TenantFilter();
           List<NotificationEventRecord> events =
               notificationEventRecordRepository.findAllByTriggerIdsAndWindow(triggerIds, from, to);
           events.forEach(
@@ -72,10 +60,5 @@ public class NotificationTriggerLoader {
               });
           return events;
         });
-  }
-
-  // No-op when the filter was never enabled; see the class javadoc.
-  private void disableV1TenantFilter() {
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
   }
 }

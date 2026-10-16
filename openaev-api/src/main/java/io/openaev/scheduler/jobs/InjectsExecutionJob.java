@@ -30,7 +30,6 @@ import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.AgentUtils;
-import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -46,7 +45,6 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -83,7 +81,6 @@ public class InjectsExecutionJob implements Job {
   private final io.openaev.executors.Executor executor;
   private final ActionMetricCollector actionMetricCollector;
   private final WorkflowService workflowService;
-  private final EntityManager entityManager;
   private final TenantScopedJobRunner tenantScopedJobRunner;
 
   private final List<ExecutionStatus> executionStatusesNotReady =
@@ -100,8 +97,8 @@ public class InjectsExecutionJob implements Job {
   private final Optional<AuditLogger> auditLogger;
 
   public List<Exercise> autoStartDueExercises() {
-    // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+    // Cross-tenant: no transaction is open here, so no v1 filter narrows the read. Once exercises
+    // is activated this sweep needs the primitive.
     return promoteDueExercisesToRunning();
   }
 

@@ -1,46 +1,23 @@
 # Injector development
 
-!!! question "What are injectors?"
+This page explains what OpenAEV expects from an Injector: a process that adds new types of Injects to the platform.
 
-    For a functional overview of the role of Injectors within the OpenAEV ecosystem, please refer to [the User Guide section on Injectors](../integrations/injectors/injectors.md).
+To set up a new Injector project (template, `pyoaev` dependency, local development), follow the [Injectors repository README](https://github.com/OpenAEV-Platform/injectors#development). For a working example, read the [HTTP Injector](https://github.com/OpenAEV-Platform/injectors/tree/main/http-query). For a functional overview, see [Injectors](../integrations/injectors/injectors.md).
 
-### Introduction
+## How an Injector works with OpenAEV
 
-This guide explains how to implement an **OpenAEV injector**, to extend the platform's capabilities by adding new type
-of injects.
+An Injector talks to OpenAEV through the REST API and a RabbitMQ queue, so you can write it in any language.
 
-!!! note
+1. **Register.** The Injector sends `POST /api/injectors` as a multipart request: an `input` part with its `injector_id`, `injector_name`, `injector_type` and `injector_contracts`, and an optional PNG `icon` part. The response gives the RabbitMQ `connection` details and the queue to `listen` to: `<prefix>_injector_<injector_id>`, where the prefix is `openaev.rabbitmq.prefix` (`openaev` by default). The Injector then appears under **Integrations > Deployed**.
+2. **Consume.** OpenAEV pushes each Inject to execute to this queue.
+3. **Report.** The Injector sends the result with `POST /api/injects/execution/callback/{injectId}`, with at least `execution_message` and `execution_status`.
 
-    The following is based on the Filigran-maintained [HTTP Injector](https://github.com/OpenAEV-Platform/injectors/tree/main/http-query)
-    and only highlights the larger picture of the steps to create an injector from scratch. Please refer to the HTTP injector's
-    codebase for an example of the implementation of a functional injector.
+## Contracts
 
-### Implementing the Injector
+A contract lists the fields of an Inject. OpenAEV uses it to build the Inject form in the UI, and the Injector uses it to read the values the user entered. An Injector can declare several contracts.
 
-#### 1. Define one or more contracts
+## What's next?
 
-The contract is the list of parameters and corresponding fields that will constitute the data that the injector will
-handle as part of its core logic. It describes how OpenAEV will parse and display the input form in the GUI for defining
-new injects to be executed by the injector. It is also the data structure that the injector handles
-internally to access the parameter values.
-
-!!! note "🐍 Python-based injectors"
-
-    For injectors created with the Python language, Filigran maintains the [`pyoaev` library](https://pypi.org/project/pyoaev/)
-    which provides a wealth of utility classes to compose a functional contract.
-
-    Note however that injectors are typically independent processes communicating with OpenAEV via a network transport, 
-    and may be implemented in any language.
-
-#### 2. Define the internal logic
-
-The next step is to implement the internal logic based on the parameters defined in the contract.
-When the injector executes an inject based on its contract, it will retrieve the parameters provided by the end user and
-use them within its internal logic to perform the necessary actions.
-
-### Use it
-
-Now, the new injector may be launched as a new process, and it should register with OpenAEV. It will then be listed
-in ***Integrations > Injectors*** and its inject contracts should be available for creating new injects.
-
-![Injectors view in OpenAEV](assets/injectors-view.png)
+- [Deploy Injectors](../integrations/injectors/deploy-injectors.md) -- Deploy and configure an Injector
+- [Collector development](collectors.md) -- Build a custom Collector
+- [REST API](../reference/apis/rest-api.md) -- Authentication and API reference

@@ -3099,10 +3099,7 @@ export interface ConnectorInstanceLog {
 }
 
 export interface ConnectorInstanceLogsInput {
-  /**
-   * The connector instance logs
-   * @uniqueItems true
-   */
+  /** The connector instance logs, oldest first */
   connector_instance_logs?: string[];
 }
 

@@ -9,6 +9,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
@@ -667,10 +669,10 @@ class ScenarioServiceTest extends IntegrationTest {
     this.scenarioRepository.save(scenario);
 
     // Act
-    when(this.injectService.runChecks(any())).thenReturn(List.of());
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
 
     // Assert
+    verify(this.injectService, never()).runChecks(any());
     boolean hasMissingContent =
         healthchecks.stream()
             .anyMatch(

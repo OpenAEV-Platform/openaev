@@ -47,7 +47,9 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
           + "WHERE sdq.workflowRun = :workflowRun AND sdq.goal IS NOT NULL")
   int nullifyGoalsByWorkflowRun(@Param("workflowRun") Workflow workflowRun);
 
-  // Native upsert is required here to keep insert/update atomic under concurrency.
+  // Native upsert is required here to keep insert/update atomic under concurrency. The tenant is
+  // the run's, read in the same statement: a run that does not exist leaves it NULL and the insert
+  // fails. An update keeps the tenant the row was created with.
   @Modifying
   @Query(
       value =
@@ -59,6 +61,7 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
             steps_delay_queue_delay,
             steps_delay_queue_step_template_id,
             steps_delay_queue_workflow_run_id,
+            tenant_id,
             steps_delay_queue_created_at,
             steps_delay_queue_updated_at
           ) VALUES (
@@ -68,6 +71,7 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
             :delay,
             :stepTemplateId,
             :workflowRunId,
+            (SELECT w.tenant_id FROM workflows w WHERE w.workflow_id = :workflowRunId),
             now(),
             now()
           )

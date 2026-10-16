@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import LeftMenuComponent from '../../model/LeftMenuComponent';
 import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
+import { WEBKIT_PAGE_LOAD_TIMEOUT } from '../../utils/constants';
 import { tenantUrl } from '../../utils/url';
 
 /**
@@ -14,7 +15,13 @@ test.describe('Threat Arsenal list header', () => {
   let leftMenu: LeftMenuComponent;
   let threatArsenalList: ThreatArsenalListPage;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, browserName }) => {
+    // The WebKit stall can hit any request of the page load, including the first
+    // navigation and the menu link, so the whole load gets the WebKit budget.
+    if (browserName === 'webkit') {
+      page.setDefaultNavigationTimeout(WEBKIT_PAGE_LOAD_TIMEOUT);
+      page.setDefaultTimeout(WEBKIT_PAGE_LOAD_TIMEOUT);
+    }
     leftMenu = new LeftMenuComponent(page);
     threatArsenalList = new ThreatArsenalListPage(page);
 

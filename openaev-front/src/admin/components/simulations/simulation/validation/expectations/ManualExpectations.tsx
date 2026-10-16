@@ -101,7 +101,7 @@ const ManualExpectations: FunctionComponent<Props> = ({
   const childrenExpectations = expectations.filter(e => e.inject_expectation_user);
 
   let label;
-  let severity: ChipSeverity = 'neutral';
+  let severity: ChipSeverity;
 
   if (!parentExpectation || parentExpectation.inject_expectation_score == null) {
     label = t('Pending validation');

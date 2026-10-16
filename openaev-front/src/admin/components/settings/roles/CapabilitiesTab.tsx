@@ -115,15 +115,17 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
   return (
     <>
       <Box
-        pl={depth * 2}
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        width="100%"
         sx={{
+          pl: depth * 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+
           backgroundColor: isSelected
             ? 'action.selected'
             : 'transparent',
+
           paddingRight: theme.spacing(2),
           opacity: isCapabilityRestricted ? 0.5 : 1,
         }}

@@ -1,0 +1,64 @@
+name: "[Core] Validate CI matrices"
+
+# The pipeline's matrices are YAML block scalars read by fromJSON, a strict JSON parser. A YAML
+# parser accepts things fromJSON rejects, so a malformed entry passes review and every local YAML
+# check, and the matrix job then errors before a single instance starts. Three nightly runs in
+# September 2026 produced no API test shard at all for that reason. This check parses the matrices
+# with the parser the runner uses.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - '.github/shards/**'
+      - '.github/scripts/check-ci-matrices.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - '.github/shards/**'
+      - '.github/scripts/check-ci-matrices.py'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-ci-matrices:
+    name: "Validate the inline CI matrices"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Install the YAML parser
+        run: pip install --quiet pyyaml
+
+      - name: Parse every matrix the pipeline feeds to fromJSON
+        run: python3 .github/scripts/check-ci-matrices.py
+
+      - name: Prove the check can still fail
+        # A check nobody has seen fail is not a check. This replays the September break, one quote
+        # removed from one entry, on a throwaway copy and expects a non-zero exit.
+        run: |
+          set -euo pipefail
+          WORK=$(mktemp -d)
+          cp -r .github "$WORK/.github"
+          python3 - "$WORK/.github/workflows/nightly-ci.yml" <<'EOF'
+          import sys
+          path = sys.argv[1]
+          text = open(path).read()
+          broken = text.replace('"artifact_suffix":"-elk9","includes"', '"artifact_suffix":"-elk9,"includes"', 1)
+          assert broken != text, "the entry this check corrupts no longer exists; update this step"
+          open(path, "w").write(broken)
+          EOF
+          if python3 "$WORK/.github/scripts/check-ci-matrices.py"; then
+            echo "The matrix check passed a matrix that fromJSON would reject."
+            exit 1
+          fi
+          echo "The matrix check rejects a broken matrix."

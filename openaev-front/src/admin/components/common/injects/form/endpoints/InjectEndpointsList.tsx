@@ -60,7 +60,6 @@ const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = f
             endpoint={endpoint}
             onRemoveFromContext={onRemoveEndpoint}
             removeFromContextLabel="Remove from the inject"
-            onDelete={onRemoveEndpoint}
             disabled={disabled}
           />
         )}

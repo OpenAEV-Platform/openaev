@@ -48,7 +48,6 @@ public class ScenarioExecutionJob implements Job {
   @Override
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
-    // Disable tenant filter — this job runs cross-tenant
     createExercisesFromScenarios();
     cleanOutdatedRecurringScenario();
   }
@@ -143,8 +142,8 @@ public class ScenarioExecutionJob implements Job {
   }
 
   private void cleanOutdatedRecurringScenario() {
-    // MT v1: disable filter here to act on all tenants
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+    // Cross-tenant: no transaction is open here, so no v1 filter narrows the read. Once scenarios
+    // is activated this sweep needs the primitive.
     // Find each scenario with cron is outdated:
     List<Scenario> scenarios =
         this.scenarioService.potentialOutdatedRecurringScenario(Instant.now());

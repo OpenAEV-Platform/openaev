@@ -184,6 +184,20 @@ How it works:
 
     Only the agent executables are signed. Scripts and implants are not signed for now.
 
+### Rotating the installer token
+
+The **Install agent** capability only grants read access: it lets a user fetch the install command and installer token, but not rotate or revoke them. If the token is suspected to have leaked, rotate it:
+
+```http
+POST /api/agent/installer/openaev/token/rotate
+```
+
+Rotating the token requires the **Manage tenant users, groups and roles** capability (see [Users and RBAC](../../administration/users-and-rbac.md#capabilities)), since the installer token belongs to the tenant's service account rather than to an individual user.
+
+!!! warning
+
+    Rotation immediately invalidates the token used by every already-installed Agent in the tenant. Reinstall or reconfigure those Agents with a fresh install command after rotating.
+
 ## Troubleshooting
 
 Logs are in `openaev-agent.log` in the installation folder.

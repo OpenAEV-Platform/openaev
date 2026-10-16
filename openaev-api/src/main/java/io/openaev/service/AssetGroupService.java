@@ -91,6 +91,14 @@ public class AssetGroupService {
   }
 
   /**
+   * The asset groups targeted by the inject, without loading the inject. Dynamic members are not
+   * computed: use {@link #isAssetInDynamicGroup(Asset, AssetGroup)} to check a given asset.
+   */
+  public List<AssetGroup> assetGroupsOfInject(@NotBlank final String injectId) {
+    return this.assetGroupRepository.findAllByInjectId(injectId);
+  }
+
+  /**
    * Asset groups targeted by the injects of a simulation, with their assets and tags loaded: see
    * {@link #withLinksInitialized(List)}.
    */
@@ -288,7 +296,7 @@ public class AssetGroupService {
   }
 
   /** True when the group's dynamic filter matches the given asset (id-constrained query). */
-  private boolean isAssetInDynamicGroup(
+  public boolean isAssetInDynamicGroup(
       @NotNull final Asset asset, @NotNull final AssetGroup assetGroup) {
     if (Hibernate.unproxy(asset) instanceof Endpoint) {
       Specification<Endpoint> filterSpecification =

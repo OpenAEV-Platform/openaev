@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { mapFieldLinksToStepConditions } from '../../../../../../admin/components/chaining/logic/drawer/ConfigureActionDetail.utils';
+import {
+  buildContractDefaults,
+  getPlaceholderDefault,
+  mapFieldLinksToStepConditions,
+} from '../../../../../../admin/components/chaining/logic/drawer/ConfigureActionDetail.utils';
 import type { ActionDetailData } from '../../../../../../admin/components/chaining/logic/types';
+import type { ContractElement } from '../../../../../../utils/api-types-custom';
 
 // Minimal ActionDetailData carrying only what mapFieldLinksToStepConditions reads.
 const data = (over: Partial<ActionDetailData>): ActionDetailData => ({
@@ -119,5 +124,82 @@ describe('mapFieldLinksToStepConditions', () => {
     }));
 
     expect(conditions).toEqual([]);
+  });
+});
+
+describe('contract default values', () => {
+  const field = (over: Partial<ContractElement>): ContractElement => ({
+    key: 'k',
+    type: 'text',
+    defaultValue: ['fallback'],
+    ...over,
+  } as ContractElement);
+
+  describe('getPlaceholderDefault', () => {
+    it.each(['text', 'number'] as const)('returns the default of a %s field', (type) => {
+      // Arrange
+      const contractField = field({ type });
+
+      // Act & Assert
+      expect(getPlaceholderDefault(contractField)).toBe('fallback');
+    });
+
+    it.each([
+      [{ defaultValue: [''] }],
+      [{ defaultValue: undefined }],
+      [{
+        type: 'select',
+        defaultValue: ['fast'],
+      }],
+    ] as [Partial<ContractElement>][])('returns nothing for %j', (over) => {
+      // Arrange
+      const contractField = field(over);
+
+      // Act & Assert
+      expect(getPlaceholderDefault(contractField)).toBeUndefined();
+    });
+  });
+
+  describe('buildContractDefaults', () => {
+    it('leaves out the defaults displayed as a placeholder', () => {
+      // Arrange
+      const fields = [field({ key: 'target' }), field({
+        key: 'count',
+        type: 'number',
+        defaultValue: ['3'],
+      })];
+
+      // Act & Assert
+      expect(buildContractDefaults(fields)).toEqual({});
+    });
+
+    it('keeps the defaults of the other field types', () => {
+      // Arrange
+      const fields = [field({
+        key: 'mode',
+        type: 'select',
+        defaultValue: ['fast'],
+        cardinality: '1',
+      })];
+
+      // Act & Assert
+      expect(buildContractDefaults(fields)).toEqual({ mode: 'fast' });
+    });
+  });
+
+  it('never carries a contract default as a linked field defined value', () => {
+    // Arrange: nothing typed by the user, so the content holds no value for the linked field
+    const conditions = mapFieldLinksToStepConditions(data({
+      inject_content: buildContractDefaults([field({ key: 'target' })]),
+      inject_field_links: {
+        target: {
+          outputTypes: ['host'],
+          localScope: false,
+        },
+      },
+    }));
+
+    // Assert
+    expect(conditions[0].condition_value).toBeUndefined();
   });
 });

@@ -53,11 +53,15 @@ Install Git for Windows:
 winget install Git.Git
 ```
 
+!!! tip
+
+    The commands in [Build from source](build-from-source.md) use bash syntax. Run them in Git Bash, installed with Git for Windows.
+
 ## Frontend
 
 ### Node.js
 
-Install Node.js 24 or later. Use [nvm-windows](https://github.com/coreybutler/nvm-windows) to manage versions:
+Install Node.js 24.11.0 or later. Use [nvm-windows](https://github.com/coreybutler/nvm-windows) to manage versions:
 
 1. Download and install nvm-windows from the [releases page](https://github.com/coreybutler/nvm-windows/releases).
 2. Install and activate Node.js 24:
@@ -69,39 +73,16 @@ nvm use 24
 
 ### Yarn
 
-OpenAEV uses Yarn 4. After installing Node.js, enable Corepack:
+OpenAEV uses Yarn 4, pinned in `openaev-front/package.json`. Install and enable Corepack, which fetches that version when you run `yarn`:
 
 ```bash
+npm install -g corepack
 corepack enable
 ```
 
-Yarn is bundled with the repository and will be used automatically when running `yarn` commands inside `openaev-front/`.
-
-## Development services
-
-Start the backend dependencies with Docker Compose:
-
-```bash
-cd openaev-dev
-docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
-```
-
-This starts:
-
-| Service | Port | Description |
-|---|---|---|
-| PostgreSQL | 5432 | Database |
-| Silo | 10000, 10001 | S3-compatible object storage |
-| Elasticsearch | 9200 | Analytics engine |
-| RabbitMQ | 5672, 15672 | Message broker |
-
-!!! warning
-
-    Ensure these ports are not already in use on your machine before starting the services.
-
 ## What's next?
 
-- [Platform development](platform.md) -- Build and run OpenAEV from source
-- [Build from source](build-from-source.md) -- Detailed build instructions
+- [Build from source](build-from-source.md) -- Start the services, then build and run OpenAEV
+- [Platform development](platform.md) -- Day-to-day backend and frontend workflow
 - [Prerequisites Ubuntu](environment-ubuntu.md) -- Linux setup instructions
 - [Prerequisites macOS](environment-macos.md) -- macOS setup instructions

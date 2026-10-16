@@ -188,7 +188,14 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
               width: '100%',
             }}
           >
-            <Stack direction="row" gap={1.5} alignItems="flex-start" sx={{ width: '100%' }}>
+            <Stack
+              direction="row"
+              sx={{
+                gap: 1.5,
+                alignItems: 'flex-start',
+                width: '100%',
+              }}
+            >
               <Box
                 sx={{
                   width: 56,

@@ -87,10 +87,17 @@ public class HealthCheckUtils {
     List<HealthCheck> result = new ArrayList<>();
     InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
     Set<Agent> agents = agentsAndAssetsAgentless.agents();
+    // An inject without any configured target is a missing content issue, not a missing agent one
+    boolean hasTargets =
+        !ofNullable(inject.getAssets()).orElse(List.of()).isEmpty()
+            || !ofNullable(inject.getAssetGroups()).orElse(List.of()).isEmpty();
     agents = executorUtils.removeInactiveAgentsFromAgents(agents);
     agents = executorUtils.removeAgentsWithoutExecutorFromAgents(agents);
 
-    if (injectorContract != null && injectorContract.getNeedsExecutor() && agents.isEmpty()) {
+    if (injectorContract != null
+        && injectorContract.getNeedsExecutor()
+        && hasTargets
+        && agents.isEmpty()) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.AGENT_OR_EXECUTOR,
