@@ -50,9 +50,17 @@ ticked by anyone else, or a commit pushed by anyone else, unticks it again.
 Fork PRs cannot be deployed: a maintainer pushes the branch to this repository
 and deploys from a PR on it. Keep the trailing marker comment on the checkbox
 line.
+The env block sets startup environment variables, one KEY=VALUE per line, on
+top of (or over) the staging defaults. While the box is ticked, changing it
+redeploys. PR descriptions are public: never put secrets there. Keep the
+marker comment above the block.
 -->
 
 - [ ] 🚀 Deploy this branch to a staging environment <!-- feature-deploy -->
+
+<!-- feature-deploy-env -->
+```env
+```
 
 ### Further comments
 
