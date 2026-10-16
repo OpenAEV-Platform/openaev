@@ -355,6 +355,23 @@ public abstract class AbstractTechnicalBehavior
     return updatedParents;
   }
 
+  /**
+   * A single pass already recomputes every parent of the inject for the expectation type, so it
+   * runs once per distinct (inject, type) instead of once per expectation.
+   */
+  @Override
+  public List<? extends BaseInjectExpectation> recomputeParentScores(
+      List<? extends BaseInjectExpectation> expectations) {
+    Map<String, BaseInjectExpectation> oneExpectationPerInjectAndType = new LinkedHashMap<>();
+    expectations.forEach(
+        expectation ->
+            oneExpectationPerInjectAndType.putIfAbsent(
+                expectation.getInject().getId() + "|" + expectation.getType(), expectation));
+    return oneExpectationPerInjectAndType.values().stream()
+        .flatMap(expectation -> recomputeParentScores(expectation).stream())
+        .toList();
+  }
+
   private Optional<TechnicalInjectExpectation> recomputeParent(
       TechnicalInjectExpectation parent, List<TechnicalInjectExpectation> children) {
     if (children.isEmpty()) {

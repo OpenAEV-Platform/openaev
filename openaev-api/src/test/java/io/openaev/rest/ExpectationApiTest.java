@@ -26,9 +26,9 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.model.inject.form.Expectation;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
@@ -191,7 +191,7 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
-      ExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromUIInput expectationUpdateInput =
           getExpectationUpdateInput(savedEDRCollector.getId(), 100.0);
       callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
 
@@ -272,7 +272,7 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent 1 expectation
-      ExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromUIInput expectationUpdateInput =
           getExpectationUpdateInput(savedEDRCollector.getId(), 100.0);
       callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
 
@@ -402,7 +402,7 @@ class ExpectationApiTest extends IntegrationTest {
       em.clear();
 
       // Fill the same source's result on both agents, like a security platform collector does
-      ExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromUIInput expectationUpdateInput =
           getExpectationUpdateInput(savedEDRCollector.getId(), 100.0);
       callUpdateInjectExpectationFromUI(
           injectExpectationRepository
@@ -802,7 +802,7 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
-      InjectExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInput =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), DETECTION.successLabel, true);
       callUpdateInjectExpectation(injectExpectationsAgent.getFirst(), expectationUpdateInput);
 
@@ -884,12 +884,12 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
-      InjectExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInput =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), DETECTION.successLabel, true);
       callUpdateInjectExpectation(injectExpectations.getFirst(), expectationUpdateInput);
 
       // Add Failure result to Agent expectation
-      InjectExpectationUpdateInput expectationUpdateInput2 =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInput2 =
           getInjectExpectationUpdateInput(
               savedSIEMCollector.getId(), DETECTION.failureLabel, false);
       callUpdateInjectExpectation(injectExpectations.getFirst(), expectationUpdateInput2);
@@ -941,13 +941,13 @@ class ExpectationApiTest extends IntegrationTest {
       List<BaseInjectExpectation> injectExpectationsAgent1 =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
-      InjectExpectationUpdateInput expectationUpdateInputAgent1 =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInputAgent1 =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), "Detected", true);
       // Fetch BaseInjectExpectation created for agent 2
       List<BaseInjectExpectation> injectExpectationsAgent2 =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent2.getId());
-      InjectExpectationUpdateInput expectationUpdateInputAgent2 =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInputAgent2 =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), "Not detected", false);
 
       InjectExpectationBulkUpdateInput inputs =
@@ -1244,7 +1244,7 @@ class ExpectationApiTest extends IntegrationTest {
 
   private void callUpdateInjectExpectation(
       @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final InjectExpectationUpdateInput expectationUpdateInput)
+      @NotNull final InjectExpectationUpdateFromCollectorInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(INJECTS_EXPECTATIONS_URI + "/" + baseInjectExpectation.getId())
@@ -1257,7 +1257,7 @@ class ExpectationApiTest extends IntegrationTest {
 
   private void callUpdateInjectExpectationFromUI(
       @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExpectationUpdateInput expectationUpdateInput)
+      @NotNull final InjectExpectationUpdateFromUIInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(EXPECTATIONS_URI + "/" + baseInjectExpectation.getId())
@@ -1270,7 +1270,7 @@ class ExpectationApiTest extends IntegrationTest {
 
   private void callDeleteInjectExpectationFromUI(
       @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExpectationUpdateInput expectationUpdateInput)
+      @NotNull final InjectExpectationUpdateFromUIInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(EXPECTATIONS_URI

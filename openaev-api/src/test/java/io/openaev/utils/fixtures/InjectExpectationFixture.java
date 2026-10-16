@@ -1,7 +1,7 @@
 package io.openaev.utils.fixtures;
 
 import io.openaev.database.model.*;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import jakarta.annotation.Nullable;
 import java.util.Map;
 
@@ -107,9 +107,9 @@ public class InjectExpectationFixture {
     return expectation;
   }
 
-  public static InjectExpectationUpdateInput getInjectExpectationUpdateInput(
+  public static InjectExpectationUpdateFromCollectorInput getInjectExpectationUpdateInput(
       String collectorId, String result, boolean isSuccess) {
-    return InjectExpectationUpdateInput.builder()
+    return InjectExpectationUpdateFromCollectorInput.builder()
         .collectorId(collectorId)
         .result(result)
         .isSuccess(isSuccess)

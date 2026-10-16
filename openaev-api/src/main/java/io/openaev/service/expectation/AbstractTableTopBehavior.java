@@ -9,11 +9,12 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -197,14 +198,16 @@ public abstract class AbstractTableTopBehavior
 
   /**
    * Resolves to player expectations level. A team without players (e.g. an empty team targeted by
-   * an atomic testing) is its own leaf.
+   * an atomic testing) is its own leaf, and so is an expectation without team: a legacy MANUAL
+   * expectation created by a technical injector (implant, Caldera) on an agent, an asset or an
+   * asset group, which is loaded as a table-top expectation by its type.
    */
   @Override
   public List<? extends BaseInjectExpectation> getLeaves(BaseInjectExpectation expectation) {
     if (!(expectation instanceof TableTopInjectExpectation tableTop)) {
       return List.of();
     }
-    if (isPlayerExpectation(tableTop)) {
+    if (tableTop.getTeam() == null || isPlayerExpectation(tableTop)) {
       return List.of(tableTop);
     }
     List<TableTopInjectExpectation> playersExpectations =
@@ -212,12 +215,12 @@ public abstract class AbstractTableTopBehavior
     return playersExpectations.isEmpty() ? List.of(tableTop) : playersExpectations;
   }
 
-  /** A human response replaces every previous result */
+  /** A human response, or its expiration, replaces every previous result */
   @Override
   public void addResultToLeaf(
-      BaseInjectExpectation leaf, ExpectationUpdateInput input, String resultLabel) {
+      BaseInjectExpectation leaf, ExpectationVerdict verdict, String resultLabel) {
     leaf.setResults(new ArrayList<>());
-    addResult(leaf, input, resultLabel);
+    addResult(leaf, verdict, resultLabel);
   }
 
   /**
@@ -237,29 +240,44 @@ public abstract class AbstractTableTopBehavior
   @Override
   public List<? extends BaseInjectExpectation> recomputeParentScores(
       BaseInjectExpectation expectation) {
-    if (!(expectation instanceof TableTopInjectExpectation tableTopInjectExpectation)) {
-      return List.of();
+    return recomputeParentScores(List.of(expectation));
+  }
+
+  /**
+   * The players of a team share the same parent: the parent teams of the batch are collected first
+   * (same matching as a single expectation, context included), then each team is recomputed once,
+   * instead of once per player of the batch.
+   */
+  @Override
+  public List<? extends BaseInjectExpectation> recomputeParentScores(
+      List<? extends BaseInjectExpectation> expectations) {
+    Set<TableTopInjectExpectation> parentTeams = new LinkedHashSet<>();
+    for (BaseInjectExpectation expectation : expectations) {
+      if (!(expectation instanceof TableTopInjectExpectation tableTop)
+          || tableTop.getTeam() == null) {
+        continue;
+      }
+      getTeamsExpectations(tableTop).stream()
+          .filter(teamExpectation -> isSameContext(teamExpectation, tableTop))
+          .forEach(parentTeams::add);
     }
+    return parentTeams.stream().map(this::recomputeTeamScore).flatMap(Optional::stream).toList();
+  }
 
-    List<TableTopInjectExpectation> recomputedTeams = new ArrayList<>();
-    getTeamsExpectations(tableTopInjectExpectation).stream()
-        .filter(teamExpectation -> isSameContext(teamExpectation, tableTopInjectExpectation))
-        .forEach(
-            teamExpectation -> {
-              List<TableTopInjectExpectation> playersExpectations =
-                  getPlayersExpectationsInSameContext(teamExpectation);
-              if (playersExpectations.isEmpty()) {
-                return;
-              }
-              teamExpectation.setScore(
-                  computeChildrenScore(
-                      teamExpectation.isExpectationGroup(),
-                      teamExpectation.getExpectedScore(),
-                      playersExpectations));
-              recomputedTeams.add(teamExpectation);
-            });
-
-    return recomputedTeams;
+  /** Derives the team score from its players; a team without players keeps its own score. */
+  private Optional<TableTopInjectExpectation> recomputeTeamScore(
+      TableTopInjectExpectation teamExpectation) {
+    List<TableTopInjectExpectation> playersExpectations =
+        getPlayersExpectationsInSameContext(teamExpectation);
+    if (playersExpectations.isEmpty()) {
+      return Optional.empty();
+    }
+    teamExpectation.setScore(
+        computeChildrenScore(
+            teamExpectation.isExpectationGroup(),
+            teamExpectation.getExpectedScore(),
+            playersExpectations));
+    return Optional.of(teamExpectation);
   }
 
   // -- CONTEXT --

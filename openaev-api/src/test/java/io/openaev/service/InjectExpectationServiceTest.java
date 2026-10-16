@@ -25,7 +25,7 @@ import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.*;
@@ -43,15 +43,12 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class InjectExpectationServiceTest {
-
-  static final Long EXPIRATION_TIME_SIX_HOURS = 21600L;
 
   @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private InjectService injectService;
@@ -86,7 +83,7 @@ class InjectExpectationServiceTest {
   private void mockExpectation(BaseInjectExpectation expectation) {
     doReturn(expectation)
         .when(injectExpectationService)
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   private ExecutionProcessingContext createContext(InjectExecutionInput input) {
@@ -111,9 +108,9 @@ class InjectExpectationServiceTest {
   }
 
   /** Verifies a single verdict was written and returns its update input. */
-  private InjectExpectationUpdateInput captureSingleVerdict() {
-    ArgumentCaptor<InjectExpectationUpdateInput> captor =
-        ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
+  private InjectExpectationUpdateFromCollectorInput captureSingleVerdict() {
+    ArgumentCaptor<InjectExpectationUpdateFromCollectorInput> captor =
+        ArgumentCaptor.forClass(InjectExpectationUpdateFromCollectorInput.class);
     verify(injectExpectationService, times(1)).updateInjectExpectation(any(), captor.capture());
     return captor.getValue();
   }
@@ -240,63 +237,6 @@ class InjectExpectationServiceTest {
   }
 
   @Test
-  @DisplayName("Should return all prevention expectations when none expired")
-  void shouldReturnAllPreventionExpectationsWhenNoneExpired() {
-    BaseInjectExpectation expectation1 =
-        InjectExpectationFixture.createPreventionInjectExpectation(inject, null);
-    BaseInjectExpectation expectation2 =
-        InjectExpectationFixture.createPreventionInjectExpectation(inject, null);
-    when(injectExpectationRepository.findAll(any(Specification.class)))
-        .thenReturn(List.of(expectation1, expectation2));
-
-    List<BaseInjectExpectation> result =
-        injectExpectationService.preventionExpectationsNotExpired(
-            EXPIRATION_TIME_SIX_HOURS.intValue() * 2);
-
-    assertNotNull(result);
-    assertEquals(2, result.size());
-    assertEquals(expectation1.getId(), result.getFirst().getId());
-  }
-
-  @Test
-  @DisplayName("Should return all detection expectations when none expired")
-  void shouldReturnAllDetectionExpectationsWhenNoneExpired() {
-    BaseInjectExpectation expectation1 =
-        InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
-    BaseInjectExpectation expectation2 =
-        InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
-    when(injectExpectationRepository.findAll(any(Specification.class)))
-        .thenReturn(List.of(expectation1, expectation2));
-
-    List<BaseInjectExpectation> result =
-        injectExpectationService.detectionExpectationsNotExpired(
-            EXPIRATION_TIME_SIX_HOURS.intValue() * 2);
-
-    assertNotNull(result);
-    assertEquals(2, result.size());
-    assertEquals(expectation1.getId(), result.getFirst().getId());
-  }
-
-  @Test
-  @DisplayName("Should return all manual expectations when none expired")
-  void shouldReturnAllManualExpectationsWhenNoneExpired() {
-    BaseInjectExpectation expectation1 =
-        InjectExpectationFixture.createManualInjectExpectation(null, inject);
-    BaseInjectExpectation expectation2 =
-        InjectExpectationFixture.createManualInjectExpectation(null, inject);
-    when(injectExpectationRepository.findAll(any(Specification.class)))
-        .thenReturn(List.of(expectation1, expectation2));
-
-    List<BaseInjectExpectation> result =
-        injectExpectationService.manualExpectationsNotExpired(
-            EXPIRATION_TIME_SIX_HOURS.intValue() * 2);
-
-    assertNotNull(result);
-    assertEquals(2, result.size());
-    assertEquals(expectation1.getId(), result.getFirst().getId());
-  }
-
-  @Test
   @DisplayName("Agent path: empty structured output concludes not vulnerable")
   void shouldSetNotVulnerableWhenEmptyStructuredOutput() {
     setupVulnerabilityExpectation();
@@ -304,7 +244,7 @@ class InjectExpectationServiceTest {
     injectExpectationService.matchesVulnerabilityExpectations(
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
-    InjectExpectationUpdateInput input = captureSingleVerdict();
+    InjectExpectationUpdateFromCollectorInput input = captureSingleVerdict();
     assertEquals(Boolean.TRUE, input.getIsSuccess());
     assertEquals(ExpectationType.VULNERABILITY.successLabel, input.getResult());
   }
@@ -332,7 +272,7 @@ class InjectExpectationServiceTest {
     injectExpectationService.matchesVulnerabilityExpectations(
         createContext(buildDefaultInput(null)), structuredOutput);
 
-    InjectExpectationUpdateInput input = captureSingleVerdict();
+    InjectExpectationUpdateFromCollectorInput input = captureSingleVerdict();
     assertEquals(Boolean.FALSE, input.getIsSuccess());
     assertEquals(ExpectationType.VULNERABILITY.failureLabel, input.getResult());
     assertEquals(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID, input.getCollectorId());
@@ -351,7 +291,7 @@ class InjectExpectationServiceTest {
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
     verify(injectExpectationService, never())
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   @Test
@@ -368,7 +308,7 @@ class InjectExpectationServiceTest {
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
     verify(injectExpectationService, never())
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   @Test
@@ -384,7 +324,7 @@ class InjectExpectationServiceTest {
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
     verify(injectExpectationService, never())
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   @Test
@@ -396,7 +336,7 @@ class InjectExpectationServiceTest {
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
     verify(injectExpectationService, never())
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   @Test
@@ -408,14 +348,14 @@ class InjectExpectationServiceTest {
     inject.setExpectations(List.of(exp1, exp2));
     doReturn(exp1)
         .when(injectExpectationService)
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
 
     injectExpectationService.matchesVulnerabilityExpectations(
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
     // updateInjectExpectation called once per expectation
     verify(injectExpectationService, times(2))
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   @Nested
@@ -455,7 +395,7 @@ class InjectExpectationServiceTest {
       lenient()
           .doReturn(expectationAssetOne)
           .when(injectExpectationService)
-          .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+          .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
     }
 
     private ExecutionProcessingContext injectorContext(ArrayNode structuredOutput) {
@@ -463,9 +403,9 @@ class InjectExpectationServiceTest {
           inject, null, buildDefaultInput(structuredOutput), Map.of());
     }
 
-    private InjectExpectationUpdateInput capturedVerdict(String expectationId) {
-      ArgumentCaptor<InjectExpectationUpdateInput> captor =
-          ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
+    private InjectExpectationUpdateFromCollectorInput capturedVerdict(String expectationId) {
+      ArgumentCaptor<InjectExpectationUpdateFromCollectorInput> captor =
+          ArgumentCaptor.forClass(InjectExpectationUpdateFromCollectorInput.class);
       verify(injectExpectationService).updateInjectExpectation(eq(expectationId), captor.capture());
       return captor.getValue();
     }
@@ -562,7 +502,9 @@ class InjectExpectationServiceTest {
       doReturn(expectationAssetOne)
           .when(injectExpectationService)
           .updateInjectExpectationFromSecurityPlatform(
-              any(), any(InjectExpectationUpdateInput.class), any(SecurityPlatform.class));
+              any(),
+              any(InjectExpectationUpdateFromCollectorInput.class),
+              any(SecurityPlatform.class));
 
       ArrayNode structuredOutput = mapper.createArrayNode();
       ObjectNode cve = structuredOutput.addObject();
@@ -574,16 +516,16 @@ class InjectExpectationServiceTest {
 
       // The vulnerable asset AND its group are both concluded through the security platform
       // path, so the group row is immediately attributed to the Nuclei platform.
-      ArgumentCaptor<InjectExpectationUpdateInput> assetInput =
-          ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
+      ArgumentCaptor<InjectExpectationUpdateFromCollectorInput> assetInput =
+          ArgumentCaptor.forClass(InjectExpectationUpdateFromCollectorInput.class);
       verify(injectExpectationService)
           .updateInjectExpectationFromSecurityPlatform(
               eq("exp-asset-1"), assetInput.capture(), eq(securityPlatform));
       assertEquals(Boolean.FALSE, assetInput.getValue().getIsSuccess());
       assertNull(assetInput.getValue().getCollectorId());
 
-      ArgumentCaptor<InjectExpectationUpdateInput> groupInput =
-          ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
+      ArgumentCaptor<InjectExpectationUpdateFromCollectorInput> groupInput =
+          ArgumentCaptor.forClass(InjectExpectationUpdateFromCollectorInput.class);
       verify(injectExpectationService)
           .updateInjectExpectationFromSecurityPlatform(
               eq("exp-group"), groupInput.capture(), eq(securityPlatform));
@@ -592,10 +534,12 @@ class InjectExpectationServiceTest {
 
       verify(injectExpectationService)
           .updateInjectExpectationFromSecurityPlatform(
-              eq("exp-asset-2"), any(InjectExpectationUpdateInput.class), eq(securityPlatform));
+              eq("exp-asset-2"),
+              any(InjectExpectationUpdateFromCollectorInput.class),
+              eq(securityPlatform));
       // No verdict falls back to the generic Expectations Vulnerability Manager collector.
       verify(injectExpectationService, never())
-          .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+          .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
     }
 
     @Test

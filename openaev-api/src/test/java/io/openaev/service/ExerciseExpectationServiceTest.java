@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.service.expectation.ExpectationVerdict;
 import io.openaev.utils.fixtures.InjectExpectationFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.TeamFixture;
@@ -63,7 +63,7 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
     String id = expectations.getFirst().getId();
 
     // -- EXECUTE --
-    ExpectationUpdateInput input = ExpectationUpdateInput.builder().score(7.0).build();
+    ExpectationVerdict input = ExpectationVerdict.builder().score(7.0).build();
     BaseInjectExpectation expectation =
         this.injectExpectationService.updateInjectExpectation(id, input);
 

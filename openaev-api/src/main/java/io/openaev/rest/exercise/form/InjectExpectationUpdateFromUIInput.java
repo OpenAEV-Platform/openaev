@@ -8,7 +8,7 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 @Data
-public class ExpectationUpdateInput {
+public class InjectExpectationUpdateFromUIInput {
   @JsonProperty("source_id")
   @NotNull
   private String sourceId;

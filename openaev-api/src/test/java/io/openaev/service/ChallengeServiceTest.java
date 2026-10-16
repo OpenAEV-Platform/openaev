@@ -14,8 +14,8 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.challenge.form.ChallengeTryInput;
 import io.openaev.rest.challenge.response.ChallengeResult;
 import io.openaev.rest.challenge.response.SimulationChallengesReader;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.service.challenge.ChallengeAttemptService;
+import io.openaev.service.expectation.ExpectationVerdict;
 import io.openaev.utils.fixtures.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -284,7 +284,7 @@ public class ChallengeServiceTest extends IntegrationTest {
             user.getId(), "test", "test"))
         .thenReturn(playerExpectations);
     when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.empty());
-    when(injectExpectationService.updateInjectExpectation(any(), (ExpectationUpdateInput) any()))
+    when(injectExpectationService.updateInjectExpectation(any(), (ExpectationVerdict) any()))
         .thenReturn(new ChallengeInjectExpectation());
 
     // EXECUTE

@@ -27,7 +27,6 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
-import io.openaev.database.specification.InjectExpectationSpecification;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.injectors.common.model.BaseInjectContent;
@@ -36,12 +35,12 @@ import io.openaev.output_processor.CVEOutputProcessor;
 import io.openaev.rest.atomic_testing.form.InjectExpectationAgentOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.expectation.ExpectationBehavior;
 import io.openaev.service.expectation.ExpectationBehaviorResolver;
+import io.openaev.service.expectation.ExpectationVerdict;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Nullable;
@@ -59,7 +58,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -143,18 +141,18 @@ public class InjectExpectationService {
    * expectation and its related leaves and parents.
    *
    * @param expectationId the ID of the expectation to update
-   * @param input the update input containing the new data
+   * @param verdict the verdict carrying the source and the new score
    * @return the updated inject expectation
    * @throws ElementNotFoundException if no expectation is found with the given ID
    */
   public BaseInjectExpectation updateInjectExpectationUsingBehaviors(
-      @NotBlank final String expectationId, @NotNull final ExpectationUpdateInput input) {
+      @NotBlank final String expectationId, @NotNull final ExpectationVerdict verdict) {
     BaseInjectExpectation injectExpectation = this.findInjectExpectation(expectationId);
 
     ExpectationBehavior<BaseInjectExpectation> behavior =
         expectationBehaviorResolver.resolveFor(injectExpectation);
     List<? extends BaseInjectExpectation> updatedLeaves =
-        behavior.applyResultToLeaves(injectExpectation, input);
+        behavior.applyResultToLeaves(injectExpectation, verdict);
     List<? extends BaseInjectExpectation> updatedParents =
         behavior.recomputeParentScores(injectExpectation);
 
@@ -205,14 +203,14 @@ public class InjectExpectationService {
    * Updates an inject expectation
    *
    * @param expectationId the ID of the expectation to update
-   * @param input the update input containing the new data
+   * @param verdict the verdict carrying the source and the new score
    * @return the updated inject expectation
    * @throws IllegalArgumentException if trying to update an Asset Group expectation directly
    */
   @WorkflowUpdateEvent(expectationIds = "#expectationId")
   public BaseInjectExpectation updateInjectExpectation(
-      @NotBlank final String expectationId, @NotNull final ExpectationUpdateInput input) {
-    BaseInjectExpectation updated = updateInjectExpectationUsingBehaviors(expectationId, input);
+      @NotBlank final String expectationId, @NotNull final ExpectationVerdict verdict) {
+    BaseInjectExpectation updated = updateInjectExpectationUsingBehaviors(expectationId, verdict);
 
     Exercise exercise = updated.getInject().getExercise();
     if (exercise != null) {
@@ -258,26 +256,64 @@ public class InjectExpectationService {
     return injectExpectation;
   }
 
-  //  -- HUMAN RESPONSE --
+  // -- EXPIRATION --
 
   /**
-   * Computes an inject expectation for a human response from a collector.
+   * Expires a batch of unanswered expectations using behavior-based logic: every leaf (player, team
+   * without players, agent, agentless asset) receives the expiration verdict, then the parent
+   * scores (team, asset, asset group) are recomputed from their children. A parent is never
+   * answered directly: it stays pending until its children expire.
    *
-   * @param baseInjectExpectation the expectation to compute
-   * @param input the update input containing the response
-   * @param collector the collector submitting the response
-   * @return the updated inject expectation
+   * @param expectations the expired, unanswered expectations
+   * @param collector the expiration collector the verdicts are attributed to
+   * @return the number of expectations concluded by this run: the expired leaves and the parents
+   *     that received their score
    */
-  public BaseInjectExpectation computeInjectExpectationForHumanResponse(
-      @NotNull BaseInjectExpectation baseInjectExpectation,
-      @NotNull final InjectExpectationUpdateInput input,
-      @NotNull final Collector collector) {
-    // Keep only one result
-    baseInjectExpectation.getResults().clear();
-    addResult(baseInjectExpectation, input, collector);
-    final Double score = computeScore(baseInjectExpectation.getResults(), baseInjectExpectation);
-    baseInjectExpectation.setScore(score);
-    return baseInjectExpectation;
+  @WorkflowUpdateEvent(expectationIds = "#expectations.![id]")
+  public int expireExpectations(
+      @NotNull final List<BaseInjectExpectation> expectations, @NotNull final Collector collector) {
+    Map<ExpectationBehavior<BaseInjectExpectation>, List<BaseInjectExpectation>>
+        expectationsByBehavior =
+            expectations.stream()
+                .collect(
+                    Collectors.groupingBy(
+                        expectationBehaviorResolver::resolveFor,
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+
+    List<BaseInjectExpectation> allUpdated = new ArrayList<>();
+    List<BaseInjectExpectation> concluded = new ArrayList<>();
+    expectationsByBehavior.forEach(
+        (behavior, expectationsOfBehavior) -> {
+          // Leaves first: the parents are recomputed from their final scores
+          List<? extends BaseInjectExpectation> expiredLeaves =
+              behavior.expireLeaves(expectationsOfBehavior, collector);
+          List<? extends BaseInjectExpectation> recomputedParents =
+              behavior.recomputeParentScores(expectationsOfBehavior);
+          allUpdated.addAll(expiredLeaves);
+          allUpdated.addAll(recomputedParents);
+          concluded.addAll(expiredLeaves);
+          // A parent is audited only when this run concludes it: it was pending (in the batch) and
+          // now has a score. A parent already scored, recomputed again, is not audited twice
+          recomputedParents.stream()
+              .filter(
+                  parent -> parent.getScore() != null && expectationsOfBehavior.contains(parent))
+              .forEach(concluded::add);
+        });
+    injectExpectationRepository.saveAll(allUpdated);
+
+    concluded.forEach(expectation -> logAutomaticExpectationResult(expectation, collector));
+
+    List<Exercise> exercises =
+        expectations.stream()
+            .map(expectation -> expectation.getInject().getExercise())
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    if (!exercises.isEmpty()) {
+      securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
+    }
+    return concluded.size();
   }
 
   // -- TECHNICAL --
@@ -351,60 +387,6 @@ public class InjectExpectationService {
     return new ArrayList<>();
   }
 
-  // -- PARENT EXPECTATIONS (SCORE DERIVED FROM CHILDREN) --
-
-  /**
-   * Whether the expectation is a PARENT whose score is derived from its children (an asset-level
-   * expectation whose asset has agent expectations, or an asset-group-level expectation) rather
-   * than answered directly by a collector or a user.
-   *
-   * @param expectation the technical expectation to check
-   * @return {@code true} if the expectation score must be rolled up from children
-   */
-  public boolean isParentTechnicalExpectation(
-      @NotNull final TechnicalInjectExpectation expectation) {
-    return isAssetGroupExpectation(expectation)
-        || (isAssetExpectation(expectation)
-            && !getAgentsExpectationsForAsset(expectation).isEmpty());
-  }
-
-  /**
-   * Recomputes the score of a PARENT technical expectation (asset level with agent children, or
-   * asset group level) from its current children, without writing any direct result on it.
-   *
-   * <p>Used by the expectations expiration manager: a parent expectation must ALWAYS reflect its
-   * children. When the parent score is still null at expiration time but its agents were already
-   * answered by a security platform (e.g. Microsoft Defender answered PREVENTED/DETECTED), the
-   * parent must roll up to that green verdict instead of being independently forced to a failed
-   * score - otherwise the asset shows "Not prevented" while its only agent shows "Prevented",
-   * corrupting the asset/asset-group verdicts and every statistic built on them.
-   *
-   * <p>If the children are still unanswered, the parent score stays null (pending): it will be
-   * resolved by a later propagation or a later expiration run, never wrongly failed.
-   *
-   * @param parent the parent expectation to recompute
-   * @return the recomputed parent expectations (already saved), empty when the expectation is not a
-   *     recomputable parent
-   */
-  public List<BaseInjectExpectation> recomputeParentTechnicalExpectation(
-      @NotNull final TechnicalInjectExpectation parent) {
-    List<BaseInjectExpectation> recomputed = new ArrayList<>();
-    if (isAssetGroupExpectation(parent)) {
-      recomputed.addAll(propagateToAssetGroup(parent, null));
-    } else if (isAssetExpectation(parent) && !getAgentsExpectationsForAsset(parent).isEmpty()) {
-      recomputed.addAll(propagateToAsset(parent, null));
-    }
-    if (!recomputed.isEmpty()) {
-      this.injectExpectationRepository.saveAll(recomputed);
-      Exercise exercise = parent.getInject().getExercise();
-      if (exercise != null) {
-        securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
-            List.of(exercise));
-      }
-    }
-    return recomputed;
-  }
-
   // -- UPDATE FROM EXTERNAL SOURCE : COLLECTORS --
 
   /**
@@ -416,7 +398,8 @@ public class InjectExpectationService {
    */
   @WorkflowUpdateEvent(expectationIds = "#expectationId")
   public BaseInjectExpectation updateInjectExpectation(
-      @NotBlank String expectationId, @Valid @NotNull InjectExpectationUpdateInput input) {
+      @NotBlank String expectationId,
+      @Valid @NotNull InjectExpectationUpdateFromCollectorInput input) {
     BaseInjectExpectation baseInjectExpectation = this.findInjectExpectation(expectationId);
     if (!(baseInjectExpectation instanceof TechnicalInjectExpectation technicalExpectation)) {
       throw new IllegalArgumentException("Updates are only supported for technical expectations");
@@ -441,7 +424,7 @@ public class InjectExpectationService {
   @WorkflowUpdateEvent(expectationIds = "#expectationId")
   public BaseInjectExpectation updateInjectExpectationFromSecurityPlatform(
       @NotBlank String expectationId,
-      @Valid @NotNull InjectExpectationUpdateInput input,
+      @Valid @NotNull InjectExpectationUpdateFromCollectorInput input,
       @NotNull SecurityPlatform securityPlatform) {
     BaseInjectExpectation baseInjectExpectation = this.findInjectExpectation(expectationId);
     if (!(baseInjectExpectation instanceof TechnicalInjectExpectation technicalExpectation)) {
@@ -460,7 +443,8 @@ public class InjectExpectationService {
     // Same propagation contract as computeTechnicalExpectation: agentless expectations only
     // propagate asset -> group, agent expectations roll up the full chain.
     propagateTechnicalExpectation(updated, updated.getAgent() == null, null);
-    logAutomaticExpectationResult(updated, securityPlatform.getId(), securityPlatform.getName());
+    logAutomaticExpectationResult(
+        updated, securityPlatform.getId(), securityPlatform.getName(), SECURITY_PLATFORM);
     return technicalExpectation;
   }
 
@@ -470,7 +454,7 @@ public class InjectExpectationService {
    * @param inputs a map of expectation IDs to their update inputs
    */
   public void bulkUpdateInjectExpectation(
-      @Valid @NotNull Map<String, InjectExpectationUpdateInput> inputs) {
+      @Valid @NotNull Map<String, InjectExpectationUpdateFromCollectorInput> inputs) {
     if (inputs.isEmpty()) {
       return;
     }
@@ -507,7 +491,7 @@ public class InjectExpectationService {
   public void computeTechnicalExpectation(
       TechnicalInjectExpectation technicalInjectExpectation,
       Collector collector,
-      InjectExpectationUpdateInput input,
+      InjectExpectationUpdateFromCollectorInput input,
       boolean shouldPropagateLastInjectExpectationResult) {
     // Update inject expectation at agent level
     technicalInjectExpectation =
@@ -548,13 +532,13 @@ public class InjectExpectationService {
   @WorkflowUpdateEvent(expectationIds = "#expectations.![id]")
   public void bulkComputeTechnicalExpectations(
       @NotNull final List<TechnicalInjectExpectation> expectations,
-      @NotNull final Map<String, InjectExpectationUpdateInput> inputsById,
+      @NotNull final Map<String, InjectExpectationUpdateFromCollectorInput> inputsById,
       @NotNull final Collector collector,
       final boolean shouldPropagateLastInjectExpectationResult) {
     // 1) Agent-level updates, one batched save
     List<TechnicalInjectExpectation> updatedExpectations = new ArrayList<>(expectations.size());
     for (TechnicalInjectExpectation expectation : expectations) {
-      InjectExpectationUpdateInput input = inputsById.get(expectation.getId());
+      InjectExpectationUpdateFromCollectorInput input = inputsById.get(expectation.getId());
       if (input == null) {
         continue;
       }
@@ -643,7 +627,7 @@ public class InjectExpectationService {
    */
   public TechnicalInjectExpectation computeInjectExpectationForAgentOrAssetAgentless(
       @NotNull final TechnicalInjectExpectation technicalInjectExpectation,
-      @NotNull final InjectExpectationUpdateInput input,
+      @NotNull final InjectExpectationUpdateFromCollectorInput input,
       @NotNull final Collector collector) {
     addResult(technicalInjectExpectation, input, collector);
     final Double score =
@@ -728,17 +712,6 @@ public class InjectExpectationService {
         expectation.isExpectationGroup(), expectedScore, agentChildren);
   }
 
-  // -- FINAL UPDATE --
-
-  /**
-   * Saves all inject expectations in a batch operation.
-   *
-   * @param injectExpectations the list of expectations to save
-   */
-  public void updateAll(@NotNull List<BaseInjectExpectation> injectExpectations) {
-    this.injectExpectationRepository.saveAll(injectExpectations);
-  }
-
   // -- FETCH INJECT EXPECTATIONS --
 
   /**
@@ -797,25 +770,6 @@ public class InjectExpectationService {
   // -- PREVENTION --
 
   /**
-   * Retrieves prevention expectations that have not expired.
-   *
-   * @param expirationTime the expiration threshold in minutes
-   * @return a list of non-expired prevention expectations
-   */
-  public List<BaseInjectExpectation> preventionExpectationsNotExpired(
-      final Integer expirationTime) {
-    return this.injectExpectationRepository.findAll(
-        Specification.<BaseInjectExpectation>unrestricted()
-            .and(
-                InjectExpectationSpecification.type(PREVENTION)
-                    .and(InjectExpectationSpecification.agentNotNull())
-                    .and(InjectExpectationSpecification.assetNotNull())
-                    .and(
-                        InjectExpectationSpecification.from(
-                            now().minus(expirationTime, ChronoUnit.MINUTES)))));
-  }
-
-  /**
    * Retrieves prevention expectations without results from a specific source.
    *
    * @param sourceId the source ID to check for existing results
@@ -865,24 +819,6 @@ public class InjectExpectationService {
   }
 
   // -- DETECTION --
-
-  /**
-   * Retrieves detection expectations that have not expired.
-   *
-   * @param expirationTime the expiration threshold in minutes
-   * @return a list of non-expired detection expectations
-   */
-  public List<BaseInjectExpectation> detectionExpectationsNotExpired(final Integer expirationTime) {
-    return this.injectExpectationRepository.findAll(
-        Specification.<BaseInjectExpectation>unrestricted()
-            .and(
-                InjectExpectationSpecification.type(DETECTION)
-                    .and(InjectExpectationSpecification.agentNotNull())
-                    .and(InjectExpectationSpecification.assetNotNull())
-                    .and(
-                        InjectExpectationSpecification.from(
-                            now().minus(expirationTime, ChronoUnit.MINUTES)))));
-  }
 
   /**
    * Retrieves detection expectations without results from a specific source.
@@ -961,28 +897,10 @@ public class InjectExpectationService {
   // -- MANUAL
 
   /**
-   * Retrieves manual expectations that have not expired.
-   *
-   * @param expirationTime the expiration threshold in minutes
-   * @return a list of non-expired manual expectations
-   */
-  public List<BaseInjectExpectation> manualExpectationsNotExpired(final Integer expirationTime) {
-    return this.injectExpectationRepository.findAll(
-        Specification.<BaseInjectExpectation>unrestricted()
-            .and(
-                InjectExpectationSpecification.type(MANUAL)
-                    .and(InjectExpectationSpecification.agentNotNull())
-                    .and(InjectExpectationSpecification.assetNotNull())
-                    .and(
-                        InjectExpectationSpecification.from(
-                            now().minus(expirationTime, ChronoUnit.MINUTES)))));
-  }
-
-  /**
-   * Retrieves manual expectations without results from a specific source.
+   * Retrieves the pending manual expectations (no score) without results from a specific source.
    *
    * @param sourceId the source ID to check for existing results
-   * @return a list of manual expectations without results from the source
+   * @return a list of pending manual expectations without results from the source
    */
   public List<BaseInjectExpectation> manualExpectationsNotFill(
       @NotBlank final String tenantId, @NotBlank final String sourceId) {
@@ -991,10 +909,10 @@ public class InjectExpectationService {
   }
 
   /**
-   * Retrieves manual expectations without any results.
+   * Retrieves the pending manual expectations (no score) without any results.
    *
    * @param tenantId the tenant ID to scope the query
-   * @return a list of manual expectations without results
+   * @return a list of pending manual expectations without results
    */
   public List<BaseInjectExpectation> manualExpectationsNotFill(@NotBlank final String tenantId) {
     return this.injectExpectationRepository.findExpectationsNotFilled(
@@ -1686,10 +1604,11 @@ public class InjectExpectationService {
       VulnerabilityInjectExpectation expectation,
       boolean vulnerable,
       Optional<SecurityPlatform> securityPlatform) {
-    InjectExpectationUpdateInput.InjectExpectationUpdateInputBuilder input =
-        InjectExpectationUpdateInput.builder()
-            .result(vulnerable ? VULNERABILITY.failureLabel : VULNERABILITY.successLabel)
-            .isSuccess(!vulnerable);
+    InjectExpectationUpdateFromCollectorInput.InjectExpectationUpdateFromCollectorInputBuilder
+        input =
+            InjectExpectationUpdateFromCollectorInput.builder()
+                .result(vulnerable ? VULNERABILITY.failureLabel : VULNERABILITY.successLabel)
+                .isSuccess(!vulnerable);
     if (securityPlatform.isPresent()) {
       updateInjectExpectationFromSecurityPlatform(
           expectation.getId(), input.build(), securityPlatform.get());
@@ -1903,19 +1822,23 @@ public class InjectExpectationService {
    */
   public void logAutomaticExpectationResult(
       @NotNull final BaseInjectExpectation expectation, @NotNull final Collector collector) {
-    logAutomaticExpectationResult(expectation, collector.getId(), collector.getName());
+    logAutomaticExpectationResult(expectation, collector.getId(), collector.getName(), COLLECTOR);
   }
 
   private void logAutomaticExpectationResult(
       @NotNull final BaseInjectExpectation expectation,
       @NotBlank final String sourceId,
-      @Nullable final String sourceName) {
+      @Nullable final String sourceName,
+      @NotBlank final String sourceType) {
     InjectExpectationResult sourceResult = findResultBySourceId(expectation.getResults(), sourceId);
     if (sourceResult == null) {
+      // A parent concluded by the recompute of its children carries no result of the source: the
+      // audit still attributes the conclusion to it
       sourceResult =
           InjectExpectationResult.builder()
               .sourceId(sourceId)
               .sourceName(sourceName)
+              .sourceType(sourceType)
               .date(Instant.now().toString())
               .build();
     }

@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.timeout;
@@ -24,7 +26,7 @@ import io.openaev.database.repository.*;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.model.inject.form.Expectation;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.LogService;
 import io.openaev.utils.fixtures.*;
@@ -688,7 +690,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Parent expectations expiring before their agents stay pending, never failed")
+    @DisplayName(
+        "Parent expectations expiring before their agents stay pending, never failed nor audited")
     void parentExpirationBeforeAgentsStaysPending() {
       // Regression companion: parent asset / asset group expectations reaching their expiration
       // while their agent children are still legitimately pending (agents have a longer
@@ -714,11 +717,17 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           .executeUpdate();
       em.flush();
       em.clear();
+      reset(auditLogTransportDispatcherUtils);
 
       // -- EXECUTE --
       expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
-      // -- ASSERT -- everything still pending: agents within their window, parents wait for them
+      // -- ASSERT -- no expectation is concluded, so no automatic result is audited
+      verify(auditLogTransportDispatcherUtils, after(2000).never())
+          .dispatch(
+              argThat((LogEvent event) -> "expectation_result".equals(event.getEventScope())),
+              any());
+      // everything still pending: agents within their window, parents wait for them
       List<BaseInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
@@ -1070,7 +1079,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       // The scanner answers the ASSET row directly: nothing found.
-      InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
+      InjectExpectationUpdateFromCollectorInput input =
+          new InjectExpectationUpdateFromCollectorInput();
       input.setIsSuccess(true);
       input.setResult("Not vulnerable");
       injectExpectationService.updateInjectExpectationFromSecurityPlatform(

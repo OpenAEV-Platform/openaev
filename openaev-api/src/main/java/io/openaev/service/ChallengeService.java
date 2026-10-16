@@ -5,7 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.utils.challenge.ChallengeAttemptUtils.buildChallengeAttempt;
 import static io.openaev.utils.challenge.ChallengeAttemptUtils.buildChallengeAttemptID;
-import static io.openaev.utils.challenge.ChallengeExpectationUtils.buildChallengeUpdateInput;
+import static io.openaev.utils.challenge.ChallengeExpectationUtils.buildChallengeVerdict;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,8 +22,8 @@ import io.openaev.rest.challenge.response.ChallengeResult;
 import io.openaev.rest.challenge.response.SimulationChallengesReader;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.service.challenge.ChallengeAttemptService;
+import io.openaev.service.expectation.ExpectationVerdict;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -243,9 +243,8 @@ public class ChallengeService {
                     ? playerExpectation.getExpectedScore()
                     : 0;
 
-            ExpectationUpdateInput expectationUpdateInput = buildChallengeUpdateInput(score);
             this.injectExpectationService.updateInjectExpectation(
-                playerExpectation.getId(), expectationUpdateInput);
+                playerExpectation.getId(), buildChallengeVerdict(score));
           });
     } else {
       // Failure: Find and update the user's challenge attempt
@@ -274,7 +273,7 @@ public class ChallengeService {
       List<ChallengeAttempt> challengeAttempts =
           challengeAttemptService.getChallengeAttempts(challengeAttemptIds);
       List<ChallengeAttempt> attemptsToSave = new ArrayList<>();
-      Map<String, ExpectationUpdateInput> expectationsToUpdate = new HashMap<>();
+      Map<String, ExpectationVerdict> expectationsToUpdate = new HashMap<>();
       for (ChallengeAttemptId id : challengeAttemptIds) {
         ChallengeInjectExpectation expectation = expectationMap.get(id);
         ChallengeAttempt attempt =
@@ -288,7 +287,7 @@ public class ChallengeService {
 
         if (expectation.getChallenge().getMaxAttempts() != null
             && attempt.getAttempt() >= expectation.getChallenge().getMaxAttempts()) {
-          expectationsToUpdate.put(expectation.getId(), buildChallengeUpdateInput(0D));
+          expectationsToUpdate.put(expectation.getId(), buildChallengeVerdict(0D));
         }
       }
 

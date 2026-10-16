@@ -110,12 +110,14 @@ public interface InjectExpectationRepository
       @Param("createdAfter") Instant createdAfter,
       @Param("limit") int limit);
 
+  // A pending expectation is an expectation without score.
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
               + "JOIN injects i ON i.inject_id = e.inject_id "
               + "WHERE i.tenant_id = :tenantId "
               + "AND e.inject_expectation_type = :type "
+              + "AND e.inject_expectation_score IS NULL "
               + "AND "
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
@@ -170,12 +172,14 @@ public interface InjectExpectationRepository
       @Param("sourceId") String sourceId,
       @Param("limit") int limit);
 
+  // A pending expectation is an expectation without score (see findExpectationsNotFilledForSource)
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
               + "JOIN injects i ON i.inject_id = e.inject_id "
               + "WHERE i.tenant_id = :tenantId "
               + "AND e.inject_expectation_type = :type "
+              + "AND e.inject_expectation_score IS NULL "
               + "AND "
               + RESULTS_HAS_NO_RESULT_AT_ALL
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
@@ -183,16 +187,17 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findExpectationsNotFilled(
       @Param("tenantId") String tenantId, @Param("type") String type, @Param("limit") int limit);
 
-  /** Finds unfilled and expired expectations for the expiration manager, scoped by tenant. */
+  /**
+   * Finds pending (without score) and expired expectations for the expiration manager, scoped by
+   * tenant. Their results are not filtered: a leaf answered by some sources only is still pending,
+   * and its behavior decides which expectations receive the expiration verdict.
+   */
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
               + "JOIN injects i ON i.inject_id = e.inject_id "
               + "WHERE i.tenant_id = :tenantId "
               + "AND e.inject_expectation_score IS NULL "
-              + "AND (e.agent_id IS NOT NULL OR "
-              + RESULTS_HAS_NO_RESULT_AT_ALL
-              + ") "
               + "AND e.inject_expectation_created_at + (e.inject_expiration_time * interval '1 second') < now() "
               + "ORDER BY e.inject_expectation_created_at ASC "
               + "LIMIT :limit",

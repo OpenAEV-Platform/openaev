@@ -1,7 +1,7 @@
 package io.openaev.utils.challenge;
 
 import io.openaev.database.model.InjectExpectationResult;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.service.expectation.ExpectationVerdict;
 import java.time.Instant;
 
 public class ChallengeExpectationUtils {
@@ -16,13 +16,14 @@ public class ChallengeExpectationUtils {
 
   private ChallengeExpectationUtils() {}
 
-  public static ExpectationUpdateInput buildChallengeUpdateInput(Double score) {
-    ExpectationUpdateInput expectationUpdateInput = new ExpectationUpdateInput();
-    expectationUpdateInput.setSourceId(CHALLENGE_SOURCE_TYPE);
-    expectationUpdateInput.setSourceType(CHALLENGE_SOURCE_TYPE);
-    expectationUpdateInput.setSourceName(CHALLENGE_SOURCE_NAME);
-    expectationUpdateInput.setScore(score);
-    return expectationUpdateInput;
+  public static ExpectationVerdict buildChallengeVerdict(Double score) {
+    return ExpectationVerdict.builder()
+        .sourceId(CHALLENGE_SOURCE_TYPE)
+        .sourceType(CHALLENGE_SOURCE_TYPE)
+        .sourceName(CHALLENGE_SOURCE_NAME)
+        .sourceAssetId(null)
+        .score(score)
+        .build();
   }
 
   public static InjectExpectationResult buildDefaultChallengeInjectExpectationResult() {

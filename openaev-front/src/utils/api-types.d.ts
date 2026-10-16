@@ -5909,15 +5909,6 @@ export interface ExpectationResultsByType {
   type: "DETECTION" | "HUMAN_RESPONSE" | "PREVENTION" | "VULNERABILITY";
 }
 
-export interface ExpectationUpdateInput {
-  /** @format double */
-  expectation_score: number;
-  source_id: string;
-  source_name: string;
-  source_platform?: string;
-  source_type: string;
-}
-
 export interface ExpectationsDriftDismissInput {
   /** True to dismiss the drift warning, false to restore it */
   dismissed: boolean;
@@ -6726,7 +6717,7 @@ export interface InjectExpectationAgentOutput {
 }
 
 export interface InjectExpectationBulkUpdateInput {
-  inputs: Record<string, InjectExpectationUpdateInput>;
+  inputs: Record<string, InjectExpectationUpdateFromCollectorInput>;
 }
 
 export interface InjectExpectationOutput {
@@ -6900,11 +6891,20 @@ export interface InjectExpectationTraceInput {
   inject_expectation_trace_source_id: string;
 }
 
-export interface InjectExpectationUpdateInput {
+export interface InjectExpectationUpdateFromCollectorInput {
   collector_id: string;
   is_success: boolean;
   metadata?: Record<string, string>;
   result: string;
+}
+
+export interface InjectExpectationUpdateFromUIInput {
+  /** @format double */
+  expectation_score: number;
+  source_id: string;
+  source_name: string;
+  source_platform?: string;
+  source_type: string;
 }
 
 export interface InjectExportFromSearchRequestInput {

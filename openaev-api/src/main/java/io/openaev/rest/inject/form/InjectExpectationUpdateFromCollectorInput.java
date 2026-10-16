@@ -9,7 +9,7 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 @Data
-public class InjectExpectationUpdateInput {
+public class InjectExpectationUpdateFromCollectorInput {
   @NotNull
   @JsonProperty("collector_id")
   private String collectorId;
