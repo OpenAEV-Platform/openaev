@@ -36,7 +36,8 @@ Additional types exist for Active Directory findings (SID, delegation, Kerberoas
 ## Sensitive Findings
 
 Some Finding types carry secret material: their value is masked everywhere the platform returns it
-(list, detail, Simulation, Scenario, Endpoint and Inject views).
+(list, detail, Simulation, Scenario, Endpoint and Inject views), as well as in Dashboards, Widgets
+and the reports generated from them.
 
 | Sensitive type | Value shape | Masked as |
 | --- | --- | --- |
@@ -65,11 +66,25 @@ Kerberoastable and ASREPRoastable account Findings are not masked either, and ne
 be so: their value is the account name alone. The hash their type declares never reaches the value,
 so segment-level masking leaves them untouched on its own.
 
+### Searching sensitive Findings in Dashboards
+
+Dashboards, Widgets and reports store and read sensitive Findings in their masked form only. Their
+filters and their search therefore match **only the characters that are displayed**: with
+`admin:mo******` displayed, a filter on `admin` or `mo` finds the Finding, while a filter on `mot`
+or on the full password finds nothing. A filter cannot be used to guess the hidden part of a secret.
+
+As a consequence, different secrets that share the same masked form (for example `admin:mo******`
+for two different passwords starting with `mo`) appear as a single entry in Widgets that group by
+Finding value.
+
 !!! warning "The secret is not deleted"
 
     The full value is still stored in the database, because deduplication, correlation and attack
-    path computation rely on it. Only its API representation is masked: it is not possible to
-    retrieve the cleartext value of a sensitive Finding through the REST API.
+    path computation rely on it. Masking applies to the representation the platform displays: it
+    does not encrypt the stored value.
+
+    Reports generated before your platform masked Findings in Dashboards keep the values they were
+    generated with. Generate them again to get the masked values.
 
 ## Findings list
 

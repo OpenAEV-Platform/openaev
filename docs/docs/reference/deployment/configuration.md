@@ -255,6 +255,19 @@ Tuning parameters applicable to both engines:
 | engine.indexing-grace-window-seconds     | ENGINE_INDEXING_GRACE_WINDOW_SECONDS     | 60            | Indexing cursor grace window in seconds. The cursor persisted after each indexing round never gets closer to wall-clock than this window, so rows committed late by long write transactions are still indexed. Must exceed the longest expected write transaction. |
 | engine.indexing-misfire-threshold-ms     | ENGINE_INDEXING_MISFIRE_THRESHOLD_MS     | 120000        | Threshold in milliseconds after which a model synchronisation is declared misfired and is rescheduled.                                                                                                                                                             |
 | engine.indexing-reset-epoch-reassert-delay-seconds | ENGINE_INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS | 180 | Delay in seconds after which an instance that reset an index during a rolling deploy re-asserts the indexing cursor of that model, so a stale cursor written by an instance still running an older version does not skip rows. Must exceed the longest indexing round. Set to `0` to disable once every instance runs OpenAEV 3.261001.0 or later. |
+| engine.indexing-refeed-reassert-delay-seconds | ENGINE_INDEXING_REFEED_REASSERT_DELAY_SECONDS | 1800 | Delay in seconds after which the instance that applied an upgrade re-feeding an index in place (for example the findings index, to mask the sensitive values indexed before) re-feeds it a second time. During a rolling deploy, instances still running the previous version take part in the first re-feed and write their own documents, such as finding values in cleartext; the second re-feed rewrites them. Set it longer than your longest rolling deploy plus one indexing round (15 seconds). Set to `0` to skip the second re-feed, which is safe when a single instance runs. |
+
+!!! note "Re-feed of the Findings index after an upgrade"
+
+    When an upgrade changes how Findings are indexed, for example to mask sensitive Finding values, OpenAEV re-feeds the Findings index in place at startup. Dashboards stay complete, and the indexed values are updated progressively, at about 50 minutes per 100,000 Findings. On a multi-instance deployment, the instance that applied the upgrade re-feeds the index a second time after `engine.indexing-refeed-reassert-delay-seconds`, to rewrite what instances still running the previous version wrote in the meantime.
+
+    If your rolling deploy lasted longer than this delay, or if you rolled back and then upgraded again, trigger a new re-feed manually:
+
+    ```sql
+    UPDATE indexing_status
+       SET indexing_status_indexing_date = '1970-01-01T00:00:00Z', indexing_status_last_id = NULL
+     WHERE indexing_status_type = 'finding';
+    ```
 
 !!! warning "Switching engines"
 

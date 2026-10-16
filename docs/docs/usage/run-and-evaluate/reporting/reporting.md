@@ -57,7 +57,7 @@ Select and order the sections that make up the report. Available modules:
 | Security domains | Success rate per security domain (endpoint, network, email, etc.) |
 | Score trends | Evolution of results over time |
 | Failed expectations | Most recent failed Expectations |
-| Findings | Findings collected, grouped by type |
+| Findings | Findings collected, grouped by type. Sensitive values, such as passwords, are masked as on the Findings page |
 | Attack paths | Kill chain phase progression of executed Injects |
 | Custom markdown | Free-form markdown content with optional custom title |
 
@@ -101,6 +101,10 @@ Generate a report on demand from the report detail page:
 The **Generations** tab on the report detail page lists all past generations with their status, format, trigger type (manual or scheduled), and timestamps. Download any past generation directly from this list.
 
 ![Report generations](assets/reporting-generations.png)
+
+!!! note
+
+    Each generation is a snapshot. Reports generated before your platform masked sensitive Findings in Dashboards keep the values they were generated with: generate the report again to get the masked values.
 
 ## Schedules
 

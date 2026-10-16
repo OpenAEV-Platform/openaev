@@ -18,6 +18,7 @@ import io.openaev.engine.model.simulation.EsSimulation;
 import io.openaev.engine.model.simulation.SimulationHandler;
 import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
 import io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -27,7 +28,11 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
@@ -1020,6 +1025,105 @@ class IndexingRegressionTest extends IntegrationTest {
           .filteredOn(es -> es.getBase_id().equals(findingId))
           .singleElement()
           .satisfies(es -> assertThat(es.getBase_endpoint_side()).isEmpty());
+    }
+
+    private String persistFindingInSimulation(Finding finding) {
+      FindingComposer.Composer findingWrapper = findingComposer.forFinding(finding);
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withFinding(findingWrapper))
+          .persist();
+      entityManager.flush();
+      return findingWrapper.get().getId();
+    }
+
+    private EsFinding fetchIndexedFinding(String findingId) {
+      entityManager.clear();
+      return findingHandler.fetch(FROM, 5000).stream()
+          .filter(es -> es.getBase_id().equals(findingId))
+          .findFirst()
+          .orElseThrow();
+    }
+
+    @Test
+    @DisplayName("Credentials are indexed masked, in the value and in the representative")
+    void given_credentialsFinding_should_indexMaskedValueAndCurrentMaskingVersion() {
+      // Arrange
+      String findingId =
+          persistFindingInSimulation(FindingFixture.createFindingCredentialsWithDistinctPassword());
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo("admin:mo******");
+      assertThat(indexed.getBase_representative()).isEqualTo("admin:mo******");
+      assertThat(indexed.getFinding_masking_version())
+          .isEqualTo(SensitiveValueMaskingUtils.MASKING_VERSION);
+    }
+
+    static Stream<Arguments> nonSensitiveFindings() {
+      return Stream.of(
+          Arguments.of("Text", FindingFixture.createDefaultTextFinding()),
+          Arguments.of("CVE", FindingFixture.createDefaultCveFindingWithRandomTitle()),
+          // Its recipe names a "key", but that key is a policy setting name, not a secret
+          Arguments.of("PasswordPolicy", FindingFixture.createDefaultPasswordPolicyFinding()),
+          // The value is the account name alone: nothing secret to mask
+          Arguments.of(
+              "KerberoastableAccount", FindingFixture.createDefaultKerberoastableAccountFinding()),
+          Arguments.of(
+              "AsreproastableAccount", FindingFixture.createDefaultAsreproastableAccountFinding()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("nonSensitiveFindings")
+    @DisplayName("Non-sensitive findings are indexed unchanged")
+    void given_nonSensitiveFinding_should_indexValueUnchanged(String type, Finding finding) {
+      // Arrange
+      String cleartext = finding.getValue();
+      String findingId = persistFindingInSimulation(finding);
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo(cleartext);
+      assertThat(indexed.getBase_representative()).isEqualTo(cleartext);
+      assertThat(indexed.getFinding_masking_version())
+          .isEqualTo(SensitiveValueMaskingUtils.MASKING_VERSION);
+    }
+
+    @Test
+    @DisplayName("A type this version does not know is masked whole, without failing the batch")
+    void given_unknownFindingType_should_indexFullyMaskedValue() {
+      // Arrange
+      Finding finding = FindingFixture.createDefaultTextFinding();
+      String findingId = persistFindingInSimulation(finding);
+      String knownFindingId =
+          persistFindingInSimulation(FindingFixture.createDefaultCveFindingWithRandomTitle());
+      // What a newer instance could have written: the enum cannot carry it through JPA
+      entityManager
+          .createNativeQuery("UPDATE findings SET finding_type = :type WHERE finding_id = :id")
+          .setParameter("type", "SomeFutureSecretType")
+          .setParameter("id", findingId)
+          .executeUpdate();
+
+      // Act
+      List<EsFinding> results = findingHandler.fetch(FROM, 5000);
+
+      // Assert
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(findingId))
+          .singleElement()
+          .satisfies(
+              es -> {
+                assertThat(es.getFinding_value()).isEqualTo("te******");
+                assertThat(es.getBase_representative()).isEqualTo("te******");
+              });
+      assertThat(results).extracting(EsFinding::getBase_id).contains(knownFindingId);
     }
   }
 

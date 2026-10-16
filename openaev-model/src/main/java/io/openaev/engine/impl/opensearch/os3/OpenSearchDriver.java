@@ -319,9 +319,10 @@ public class OpenSearchDriver {
     } catch (Exception e) {
       throw new IOException(e);
     }
-    // Create index
+    // Create the index, or bring the existing one up to date
     try {
       client.indices().get(new GetIndexRequest.Builder().index(indexName).build());
+      addNewFieldsToExistingIndex(client, indexName, mappings);
     } catch (OpenSearchException e) {
       log.info("Creating index {}", indexName);
       client
@@ -337,6 +338,31 @@ public class OpenSearchDriver {
       // here kept models with no data yet in a wipe/recreate loop at every single boot,
       // because the indexing job only persists the row once a first document is indexed.
       resetIndexingCursor(name);
+    }
+  }
+
+  /**
+   * Adds to an existing index the fields its model gained since the index was created.
+   *
+   * <p>The template re-put at every boot only shapes the indices created after it, and the mapping
+   * is strict: without this, every document carrying a new field is rejected until the index is
+   * wiped and rebuilt, and dashboards stay incomplete for the whole rebuild. Adding a field to a
+   * live index keeps its documents in place, and a re-put of an unchanged mapping is a no-op.
+   *
+   * <p>A field whose type changed cannot be updated in place: the engine refuses the whole request.
+   * That case still needs an index reset, so the refusal is logged and the boot goes on with the
+   * index as it was, as it did before this update existed.
+   */
+  private void addNewFieldsToExistingIndex(
+      OpenSearchClient client, String indexName, Map<String, Property> mappings) {
+    try {
+      client.indices().putMapping(p -> p.index(indexName).properties(mappings));
+    } catch (Exception e) {
+      log.error(
+          "Cannot add the new fields of index {} to its mapping: documents carrying them are"
+              + " rejected until the index is reset",
+          indexName,
+          e);
     }
   }
 
