@@ -20,6 +20,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.service.StreamService;
 import io.openaev.utils.fixtures.GrantFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
@@ -58,7 +59,7 @@ import reactor.core.publisher.FluxSink;
  * event, and that check reads grants, groups and users only.
  *
  * <p>Real stack: a real inject update in tenant B, committed, published by the entity listener and
- * delivered by the real {@link StreamApi} bean on its own executor to a non-admin consumer who
+ * delivered by the real {@link StreamService} bean on its own executor to a non-admin consumer who
  * reads the atomic testing through a grant only (no capability, so the grant query actually runs).
  *
  * <p>The second group covers the one path that still reads {@code injects} there: an event whose
@@ -72,11 +73,11 @@ import reactor.core.publisher.FluxSink;
 @TestPropertySource(properties = "openaev.tenant.active-tables=injects")
 @WithMockUser(isAdmin = true)
 @DisplayName("Stream delivery of inject events with injects v2-active")
-class StreamApiInjectsScopeTest extends IntegrationTest {
+class StreamServiceInjectsScopeTest extends IntegrationTest {
 
   private static final long DELIVERY_TIMEOUT_MS = 10_000;
 
-  @Autowired private StreamApi streamApi;
+  @Autowired private StreamService streamService;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private InjectRepository injectRepository;
   @Autowired private InjectComposer injectComposer;
@@ -135,7 +136,7 @@ class StreamApiInjectsScopeTest extends IntegrationTest {
       TenantContext.clearCurrentTenant();
     }
 
-    StreamApi target = AopTestUtils.getUltimateTargetObject(streamApi);
+    StreamService target = AopTestUtils.getUltimateTargetObject(streamService);
     @SuppressWarnings("unchecked")
     Map<String, Object> map =
         (Map<String, Object>) ReflectionTestUtils.getField(target, "consumers");
@@ -169,7 +170,7 @@ class StreamApiInjectsScopeTest extends IntegrationTest {
     FluxSink<Object> sink = mock(FluxSink.class);
     OpenAEVPrincipal principal =
         new DefaultOpenAEVPrincipal(grantedUser.getId(), List.of(), false, "en");
-    Class<?> consumerType = Class.forName("io.openaev.rest.stream.StreamApi$StreamConsumer");
+    Class<?> consumerType = Class.forName("io.openaev.service.StreamService$StreamConsumer");
     Constructor<?> constructor =
         consumerType.getDeclaredConstructor(OpenAEVPrincipal.class, String.class, FluxSink.class);
     constructor.setAccessible(true);
@@ -191,7 +192,7 @@ class StreamApiInjectsScopeTest extends IntegrationTest {
 
   private boolean isUpdateOfTheInject(Object message) {
     return message instanceof ServerSentEvent<?> event
-        && StreamApi.EVENT_TYPE_MESSAGE.equals(event.event())
+        && StreamService.EVENT_TYPE_MESSAGE.equals(event.event())
         && event.data() instanceof BaseEvent baseEvent
         && injectId.equals(baseEvent.getInstance().getId());
   }
@@ -265,7 +266,7 @@ class StreamApiInjectsScopeTest extends IntegrationTest {
       BaseEvent event = eventTargetingTheInjectItself();
 
       // Act
-      streamApi.listenDatabaseUpdate(event);
+      streamService.listenDatabaseUpdate(event);
 
       // Assert
       verify(tenantBSink, timeout(DELIVERY_TIMEOUT_MS)).next(argThat(m -> isUpdateOfTheInject(m)));
