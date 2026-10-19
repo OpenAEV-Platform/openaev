@@ -1,5 +1,10 @@
 # Windows agent token encrypted with DPAPI
 
+!!! tip "Under construction"
+
+    This feature is under development.
+
+{% if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 !!! info ""
 
     * **Introduced in**: `OpenAEV [MigrationVersion]`
@@ -55,3 +60,4 @@ After upgrading, for each **Advanced installation as User (service)**:
 
 - [Token storage on Windows](../../integrations/agents/windows.md#token-storage) -- How the agent protects its token
 - [Breaking changes](../breaking-changes.md) -- All breaking changes per version
+{% endif %}
