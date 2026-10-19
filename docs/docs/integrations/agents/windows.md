@@ -1,6 +1,6 @@
 # Install the OpenAEV agent on Windows
 
-This page lists the Windows requirements, the installation modes, how the agent protects its token and how to uninstall the agent. Get the install command from the **Install simulation agents** page (see [OpenAEV agent](openaev-agent.md#installation)). "Best effort" support levels are explained in [Best effort support](openaev-agent.md#best-effort-support).
+This page lists the Windows requirements, the installation modes{% if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}, how the agent protects its token{% endif %} and how to uninstall the agent. Get the install command from the **Install simulation agents** page (see [OpenAEV agent](openaev-agent.md#installation)). "Best effort" support levels are explained in [Best effort support](openaev-agent.md#best-effort-support).
 
 ## Operating system & architecture
 
@@ -56,6 +56,7 @@ This page lists the Windows requirements, the installation modes, how the agent 
 | **Advanced installation as User (service)**   | Enable the "Service Logon" policy (see above)<br/>Terminal with admin privileges, replace `-User USER -Password PASSWORD` in the<br/>PowerShell snippet by the username with domain and password wanted | Background, as soon as the machine powers on, with the user privilege and environment                          | `Get-Service -Name "OAEVAgent-Service-[UserSanitized]"`<br/>`Start-Service -Name "OAEVAgent-Service-[UserSanitized]"`<br/>`Stop-Service -Name "OAEVAgent-Service-[UserSanitized]"`                                                                                           | `$HOME\.openaev\OAEVAgent-Service-[UserSanitized]`                                                                             | `$HOME\.openaev\OAEVAgent-Service-[UserSanitized]\runtimes`                                                                                      |
 | **Advanced installation as System (service)** | Terminal with admin privileges for the authority system user                                                                                                                                                                 | Background, as soon as the machine powers on, with the SYSTEM privilege and environment                        | `Get-Service -Name "OAEVAgentService"`<br/>`Start-Service -Name "OAEVAgentService"`<br/>`Stop-Service -Name "OAEVAgentService"`                                                                                                                                              | `C:\Program Files (x86)\Filigran\OAEV Agent`                                                                                   | `C:\Program Files (x86)\Filigran\OAEV Agent\runtimes`                                                                                            |
 
+{% if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 ## Token storage
 
 The agent uses a token to authenticate to OpenAEV. On Windows, the agent does not keep this token in clear text: it
@@ -123,6 +124,7 @@ returns `False`, and `Select-String` returns nothing.
 The agent also goes offline if `openaev-agent-token.dpapi` is damaged, or if the agent account can no longer decrypt
 it. In both cases, reinstall the agent.
 
+{% endif %}
 ## Uninstall the agent
 
 1. For a **Standard installation (session)**, stop the agent:
@@ -132,7 +134,7 @@ it. In both cases, reinstall the agent.
     ```
 
 2. Run `uninstall.exe` from the installation folder (see the **Folder path** column above) and confirm.
-   It stops and removes the service or the startup task, then deletes the folder, including the encrypted token file.
+   It stops and removes the service or the startup task, then deletes the folder{% if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}, including the encrypted token file{% endif %}.
    For the service modes, run it as administrator.
 3. For an **Advanced installation as User (service)**, disable the **Log on as a service** policy for the user if it no
    longer needs it.
@@ -140,5 +142,7 @@ it. In both cases, reinstall the agent.
 ## What's next?
 
 - [OpenAEV agent](openaev-agent.md) -- Features, proxy, security and troubleshooting
+{%- if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 - [Windows agent token encrypted with DPAPI](../../deployment/breaking-changes/MigrationVersion-windows-agent-token-dpapi.md) -- What changes on upgrade
+{%- endif %}
 - [Remove the Endpoint from OpenAEV](openaev-agent.md#remove-the-endpoint-from-openaev) -- Clean up after uninstalling
