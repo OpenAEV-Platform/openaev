@@ -12,6 +12,7 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import java.util.Collection;
@@ -56,6 +57,7 @@ class InjectCallbackContractTest {
   @Mock private InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
   @Mock private TenantScopedTransaction tenantTx;
+  @Mock private WorkflowUpdateEventPublisher workflowUpdateEventPublisher;
 
   private InjectExecutionService injectExecutionService;
   private BatchingInjectStatusService batchingService;
@@ -92,7 +94,11 @@ class InjectCallbackContractTest {
     // Can't use @InjectMocks: batchingService needs the spy, not a plain mock
     batchingService =
         new BatchingInjectStatusService(
-            injectRepository, agentRepository, injectExecutionService, tenantTx);
+            injectRepository,
+            agentRepository,
+            injectExecutionService,
+            workflowUpdateEventPublisher,
+            tenantTx);
     batchingService.setInjectTraceQueueService(injectTraceQueueService);
 
     // The batch path now scopes each callback under its inject's tenant. Resolve every inject to a
