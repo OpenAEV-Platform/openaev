@@ -160,6 +160,16 @@ This token belongs to the service account of the Tenant, which has the **Service
 and its Implants download a Document only by its exact ID, for example the file of a File Drop or Executable Action. They
 cannot list or search Documents.
 
+### Token storage on the endpoint
+
+The agent reads its token each time it contacts OpenAEV and wipes it from memory after use.
+
+| OS      | Where the token is stored                                                                                  |
+|:--------|:-----------------------------------------------------------------------------------------------------------|
+| Windows | Encrypted with DPAPI (Data Protection API) in `openaev-agent-token.dpapi` (see [Token storage](windows.md#token-storage)) |
+| Linux   | In clear text in `openaev-agent-config.toml`                                                               |
+| macOS   | In clear text in `openaev-agent-config.toml`                                                               |
+
 ### Signed agents
 
 Every OpenAEV Agent executable (the agent binaries and the Windows installers) is signed when its release is
@@ -219,11 +229,13 @@ check the following points:
 3. **The URL is reachable.** The `url` value in `openaev-agent-config.toml` (installation folder) comes from
    `openaev.agent-url`, or `openaev.base-url` when it is not set (see [Configuration](../../reference/deployment/configuration.md)).
    The endpoint must reach this URL. If it is wrong, fix the platform setting and install again with a new command.
-4. **You look in the right Tenant.** The `token` and `tenant_id` values come from the Tenant you were in when you copied
-   the install command. The Endpoint appears in this Tenant only.
-5. **The certificate is trusted.** If the endpoint does not trust the platform certificate (for example a self-signed
+4. **You look in the right Tenant.** The `tenant_id` value in `openaev-agent-config.toml` and the token come from the
+   Tenant you were in when you copied the install command. The Endpoint appears in this Tenant only.
+5. **The token is readable.** On Windows, look for token storage messages in the log (see
+   [Token storage messages in the log](windows.md#token-storage-messages-in-the-log)).
+6. **The certificate is trusted.** If the endpoint does not trust the platform certificate (for example a self-signed
    one), set `openaev.unsecured-certificate` to `true` on the platform, then install again.
-6. **The proxy is allowed.** Behind a proxy, follow [Proxy configuration](#proxy-configuration), including
+7. **The proxy is allowed.** Behind a proxy, follow [Proxy configuration](#proxy-configuration), including
    `openaev.with-proxy`.
 
 An Endpoint whose agents stop communicating for one hour shows as inactive (see [Assets](../../usage/build/assets.md)).
