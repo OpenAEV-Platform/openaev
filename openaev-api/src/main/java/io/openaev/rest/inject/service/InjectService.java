@@ -1501,6 +1501,7 @@ public class InjectService {
               query,
               cb,
               currentUser.getId(),
+              currentUser.scopedTenantId(),
               Grant.GRANT_RESOURCE_TYPE.SCENARIO,
               allowedGrantTypes);
       // Create subquery for accessible simulations
@@ -1509,6 +1510,7 @@ public class InjectService {
               query,
               cb,
               currentUser.getId(),
+              currentUser.scopedTenantId(),
               Grant.GRANT_RESOURCE_TYPE.SIMULATION,
               allowedGrantTypes);
       // Create subquery for accessible atomic testings
@@ -1517,6 +1519,7 @@ public class InjectService {
               query,
               cb,
               currentUser.getId(),
+              currentUser.scopedTenantId(),
               Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING,
               allowedGrantTypes);
 
