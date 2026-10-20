@@ -21,9 +21,13 @@ SOURCE_DIRS = ["openaev-api/src", "openaev-model/src", "openaev-front/src"]
 SOURCE_SUFFIXES = {".properties", ".java", ".ts", ".tsx", ".js", ".jsx"}
 MAX_REDIRECTS = 5
 
-URL_RE = re.compile(r"https://docs\.openaev\.io[^\s\"'`<>)\\]*")
+# The front builds some links from a documentation root constant: `${DOCUMENTATION_ROOT_URL}/latest/...`.
+ROOT = "https://docs.openaev.io"
+URL_RE = re.compile(r"(?:https://docs\.openaev\.io|\$\{documentation_?root_?url\})[^\s\"'`<>)\\]*", re.I)
+ROOT_CONSTANT_RE = re.compile(r"\$\{documentation_?root_?url\}", re.I)
+TRAILING_PUNCTUATION = ".,;:!?)]}|"
 REFRESH_RE = re.compile(r"""http-equiv=["']refresh["'][^>]*content=["']\d+;\s*url=([^"']+)["']""", re.I)
-ID_RE = re.compile(r"""\b(?:id|name)=["']([^"']+)["']""")
+ID_RE = re.compile(r"""(?:\bid|<a\b[^>]*\bname)=["']([^"']+)["']""")
 
 
 def page_file(site: Path, url_path: str) -> Path | None:
@@ -44,6 +48,8 @@ def follow_redirects(site: Path, url_path: str) -> tuple[str, Path | None]:
         page = page_file(site, url_path)
         if page is None:
             return url_path, None
+        if page.suffix != ".html":
+            return url_path, page
         refresh = REFRESH_RE.search(read_page(page))
         if not refresh:
             return url_path, page
@@ -53,7 +59,7 @@ def follow_redirects(site: Path, url_path: str) -> tuple[str, Path | None]:
 
 
 def check_url(site: Path, url: str) -> str | None:
-    parts = urlsplit(url)
+    parts = urlsplit(ROOT_CONSTANT_RE.sub(ROOT, url))
     segments = [s for s in parts.path.split("/") if s]
     if not segments:
         return None
@@ -62,8 +68,9 @@ def check_url(site: Path, url: str) -> str | None:
     url_path, page = follow_redirects(site, "/".join(segments[1:]))
     if page is None:
         return f"no page {url_path or 'index'} in the built docs site"
-    if parts.fragment and parts.fragment not in ID_RE.findall(read_page(page)):
-        return f"no anchor #{parts.fragment} on {page.relative_to(site).as_posix()}"
+    fragment = unquote(parts.fragment)
+    if fragment and (page.suffix != ".html" or fragment not in ID_RE.findall(read_page(page))):
+        return f"no anchor #{fragment} on {page.relative_to(site).as_posix()}"
     return None
 
 
@@ -84,8 +91,8 @@ def main() -> int:
     checked, errors = 0, []
     for file in source_files():
         rel = file.relative_to(REPO).as_posix()
-        for line_no, line in enumerate(file.read_text(encoding="utf-8").splitlines(), 1):
-            for url in URL_RE.findall(line):
+        for line_no, line in enumerate(file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            for url in (u.rstrip(TRAILING_PUNCTUATION) for u in URL_RE.findall(line)):
                 checked += 1
                 error = check_url(site, url)
                 if error:

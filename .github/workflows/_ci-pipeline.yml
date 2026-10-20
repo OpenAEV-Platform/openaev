@@ -174,13 +174,17 @@ jobs:
     name: "🔎 Docs Links Check"
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Installs and runs the docs toolchain: no write scope, and no token left in .git/config.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: ./.github/actions/docs-links-check
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
 
   # Pull requests only: the gate reads what a PR adds against its target branch, and a push or a
   # scheduled run has no target branch. Skipped counts as passed in the Pipeline Gate.
