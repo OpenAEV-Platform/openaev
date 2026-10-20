@@ -113,10 +113,14 @@ plugins:
         'usage/openaev-agent.md': 'integrations/agents/openaev-agent.md'
         'usage/rest-api.md': 'reference/apis/rest-api.md'
   - macros
+  # The contributors and dates shown on each page come from git history and the GitHub API.
+  # The docs links check only needs the pages, so it sets DOCS_GIT_PLUGINS=false to skip both.
   - git-committers:
+      enabled: !ENV [DOCS_GIT_PLUGINS, true]
       repository: OpenAEV-Platform/openaev
       branch: main
   - git-revision-date-localized:
+      enabled: !ENV [DOCS_GIT_PLUGINS, true]
       enable_creation_date: true
       type: timeago
   - glightbox

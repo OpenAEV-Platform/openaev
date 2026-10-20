@@ -3,12 +3,8 @@ description: >
   Every docs.openaev.io link in the API, model and front sources must resolve to a page of the
   built MkDocs site, and its anchor must exist on that page. Builds the docs the way the published
   site is built, so a docs move that breaks an in-app link fails here instead of on the site.
-  Needs a checkout with the full history, which the git-revision-date-localized plugin reads.
-
-inputs:
-  github-token:
-    description: Token the git-committers plugin uses to read commit history.
-    required: true
+  The git-committers and git-revision-date-localized plugins are switched off: they only fill in
+  contributors and dates, and git-committers calls the GitHub API for every page.
 
 runs:
   using: composite
@@ -26,7 +22,7 @@ runs:
       shell: bash
       working-directory: docs
       env:
-        MKDOCS_GIT_COMMITTERS_APIKEY: ${{ inputs.github-token }}
+        DOCS_GIT_PLUGINS: 'false'
       run: mkdocs build --quiet
 
     - name: Check in-app documentation links
