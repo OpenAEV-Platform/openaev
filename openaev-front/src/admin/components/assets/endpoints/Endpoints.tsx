@@ -1,11 +1,11 @@
 import { Checkbox } from '@filigran/design-system';
-import { HelpOutlineOutlined } from '@mui/icons-material';
+import { CenterFocusStrongOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { bulkDeleteAssets, searchAssets } from '../../../../actions/assets/endpoint-actions';
+import { bulkDeleteAssets, bulkReplaceAssetMarkings, searchAssets } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
@@ -39,6 +39,7 @@ import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScoreCell from '../PostureScoreCell';
 import usePostureScores from '../usePostureScores';
 import AssetPopover from './AssetPopover';
+import BulkMarkingsDrawer from './BulkMarkingsDrawer';
 import EndpointCreation from './EndpointCreation';
 import ImportUploaderEndpoints from './ImportUploaderEndpoints';
 
@@ -153,6 +154,30 @@ const Endpoints = () => {
       const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
       setEndpoints(endpoints.filter(e => !deletedIds.includes(e.asset_id)));
       queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
+  };
+
+  // Bulk marking replacement: every selected asset ends up carrying exactly the chosen markings
+  // server-side (see bulkReplaceAssetMarkings's backend doc) - mirrored here locally so the
+  // Markings column reflects the change without a full reload.
+  const [openEditMarkings, setOpenEditMarkings] = useState(false);
+  const bulkEditMarkings = (markingIds: string[]) => {
+    bulkReplaceAssetMarkings({
+      search_pagination_input: selectAll ? searchPaginationInput : undefined,
+      asset_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+      asset_ids_to_ignore: Object.keys(deSelectedElements),
+      marking_ids: markingIds,
+    }).then((result) => {
+      const updatedIds: string[] = result.data ?? [];
+      setEndpoints(prevEndpoints => prevEndpoints.map((e) => {
+        if (!updatedIds.includes(e.asset_id)) return e;
+        return {
+          ...e,
+          asset_markings: markingIds,
+        };
+      }));
+      setOpenEditMarkings(false);
       handleClearSelectedElements();
     });
   };
@@ -332,6 +357,14 @@ const Endpoints = () => {
                   canManage={canManage}
                   deleteConfirmationSingular={t('Do you want to delete this asset?')}
                   deleteConfirmationPlural={t('Do you want to delete these {count} assets?', { count: String(numberOfSelectedElements) })}
+                  toolTasks={canAccessMarkings
+                    ? [{
+                        type: 'edit-markings',
+                        title: t('Edit markings'),
+                        icon: () => <CenterFocusStrongOutlined fontSize="small" />,
+                        onClick: () => setOpenEditMarkings(true),
+                      }]
+                    : []}
                 />
               )}
             />
@@ -415,6 +448,13 @@ const Endpoints = () => {
               })
         }
       </List>
+      {canAccessMarkings && (
+        <BulkMarkingsDrawer
+          open={openEditMarkings}
+          onClose={() => setOpenEditMarkings(false)}
+          onSubmit={bulkEditMarkings}
+        />
+      )}
     </>
   );
 };
