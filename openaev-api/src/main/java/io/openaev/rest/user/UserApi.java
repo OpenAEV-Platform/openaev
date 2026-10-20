@@ -47,7 +47,7 @@ import org.springframework.web.bind.annotation.*;
     externalDocs =
         @ExternalDocumentation(
             description = "Documentation about users",
-            url = "https://docs.openaev.io/latest/administration/users/"))
+            url = "https://docs.openaev.io/latest/administration/users-and-rbac/"))
 public class UserApi extends RestBehavior {
 
   public static final String USER_URI = "/api/users";

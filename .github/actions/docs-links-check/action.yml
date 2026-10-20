@@ -3,7 +3,7 @@ description: >
   Every docs.openaev.io link in the API, model and front sources must resolve to a page of the
   built MkDocs site, and its anchor must exist on that page. Builds the docs the way the published
   site is built, so a docs move that breaks an in-app link fails here instead of on the site.
-  Needs a checkout with the full history, which the git-committers plugin reads.
+  Needs a checkout with the full history, which the git-revision-date-localized plugin reads.
 
 inputs:
   github-token:
@@ -15,7 +15,7 @@ runs:
   steps:
     - uses: actions/setup-python@v7
       with:
-        python-version: '3.14'
+        python-version: '3.15'
 
     - name: Install documentation dependencies
       shell: bash

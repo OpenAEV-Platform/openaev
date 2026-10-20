@@ -50,7 +50,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
         navigate('/admin/agents');
         break;
       case 'SECURITY_SYSTEM_COLLECTOR':
-        window.open(`${DOCUMENTATION_ROOT_URL}/latest/usage/collectors/?h=collector`);
+        window.open(`${DOCUMENTATION_ROOT_URL}/latest/integrations/collectors/collectors/?h=collector`);
         break;
       case 'INJECT':
       case 'TEAMS':
@@ -58,7 +58,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
         break;
       case 'NMAP':
       case 'NUCLEI':
-        window.open(`${DOCUMENTATION_ROOT_URL}/latest/usage/injectors`);
+        window.open(`${DOCUMENTATION_ROOT_URL}/latest/integrations/injectors/injectors/`);
         break;
       case 'SCOPE_DEFINITION':
         navigate(exerciseId ? `/admin/simulations/${exerciseId}/scope` : `/admin/scenarios/${scenarioId}/scope`);
