@@ -1,0 +1,34 @@
+name: Docs Links Check
+description: >
+  Every docs.openaev.io link in the API, model and front sources must resolve to a page of the
+  built MkDocs site, and its anchor must exist on that page. Builds the docs the way the published
+  site is built, so a docs move that breaks an in-app link fails here instead of on the site.
+  Needs a checkout with the full history, which the git-committers plugin reads.
+
+inputs:
+  github-token:
+    description: Token the git-committers plugin uses to read commit history.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.14'
+
+    - name: Install documentation dependencies
+      shell: bash
+      working-directory: docs
+      run: pip install --quiet -r requirements.txt
+
+    - name: Build documentation
+      shell: bash
+      working-directory: docs
+      env:
+        MKDOCS_GIT_COMMITTERS_APIKEY: ${{ inputs.github-token }}
+      run: mkdocs build --quiet
+
+    - name: Check in-app documentation links
+      shell: bash
+      run: python3 .github/scripts/check-docs-links.py
