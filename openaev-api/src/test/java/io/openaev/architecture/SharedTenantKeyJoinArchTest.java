@@ -166,7 +166,7 @@ class SharedTenantKeyJoinArchTest {
       Pattern.compile("\\b(FROM|JOIN|WHERE|USING)\\b", Pattern.CASE_INSENSITIVE);
 
   /** One run of concatenated string literals, with where it starts. */
-  private record SqlRun(String file, String className, String method, int line, String sql) {
+  record SqlRun(String file, String className, String method, int line, String sql) {
     String origin() {
       return className + "#" + method;
     }
@@ -821,7 +821,7 @@ class SharedTenantKeyJoinArchTest {
   // ---------------------------------------------------------------------------------------------
 
   /** Every production module's sources, derived so a new module cannot silently escape the scan. */
-  private static List<Path> productionRoots() throws IOException {
+  static List<Path> productionRoots() throws IOException {
     try (Stream<Path> modules = Files.list(Path.of("..").toAbsolutePath().normalize())) {
       return modules
           .filter(module -> module.getFileName().toString().startsWith("openaev-"))
@@ -838,7 +838,7 @@ class SharedTenantKeyJoinArchTest {
    */
   private static int skippedMigrations;
 
-  private static List<SqlRun> sqlCorpus() throws IOException {
+  static List<SqlRun> sqlCorpus() throws IOException {
     List<SqlRun> runs = new ArrayList<>();
     skippedMigrations = 0;
     for (Path root : productionRoots()) {
@@ -1018,7 +1018,7 @@ class SharedTenantKeyJoinArchTest {
    * <p>An annotation value is followed by its method, and SQL built in a body is preceded by the
    * method that builds it, so the direction is chosen by looking at what sits before the run.
    */
-  private static String owningMethod(String text, int start, int end) {
+  static String owningMethod(String text, int start, int end) {
     String before = text.substring(Math.max(0, start - 200), start);
     boolean annotationValue = ANNOTATION_VALUE.matcher(before.stripTrailing()).find();
     String method = nearestMember(METHOD_DECLARATION, text, start, end, annotationValue, true);
@@ -1070,7 +1070,7 @@ class SharedTenantKeyJoinArchTest {
     };
   }
 
-  private static String relative(Path source) {
+  static String relative(Path source) {
     String full = source.toAbsolutePath().normalize().toString();
     int module = full.indexOf("openaev-");
     return module < 0 ? full : full.substring(module);
