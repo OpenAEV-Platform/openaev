@@ -3,6 +3,7 @@ package io.openaev.scheduler.jobs;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +41,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class SecurityCoverageJobTest {
 
   private static final String TENANT_ID = "tenant-1";
+  private static final String SEND_JOB_ID = "send-job-1";
 
   @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private SecurityCoverageService securityCoverageService;
@@ -46,6 +49,23 @@ class SecurityCoverageJobTest {
   @Mock private TenantScopedTransaction tenantTx;
 
   @InjectMocks private SecurityCoverageJob job;
+
+  @BeforeEach
+  void runScopedWorkInline() {
+    // The scopes themselves are proven on the real stack (SimulationLifecycleSweepScopeTest); here
+    // the primitive just runs the work it is handed.
+    lenient()
+        .when(tenantTx.execute(any(), ArgumentMatchers.<Supplier<Object>>any()))
+        .thenAnswer(invocation -> invocation.<Supplier<Object>>getArgument(1).get());
+    lenient()
+        .doAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(), any(Runnable.class));
+  }
 
   @AfterEach
   void tearDown() {
@@ -58,15 +78,20 @@ class SecurityCoverageJobTest {
     Exercise simulation = new Exercise();
     simulation.setTenant(tenant);
     SecurityCoverageSendJob sendJob = new SecurityCoverageSendJob();
+    sendJob.setId(SEND_JOB_ID);
     sendJob.setSimulation(simulation);
+    lenient()
+        .when(securityCoverageSendJobService.securityCoverageSendJob(SEND_JOB_ID))
+        .thenReturn(sendJob);
     return sendJob;
   }
 
   @Test
   @DisplayName("a configured but not-yet-registered connector short-circuits before any push")
   void given_connectorNotRegistered_should_skipBundleCreationAndPush() throws Exception {
+    SecurityCoverageSendJob sendJob = pendingJobForTenant();
     when(securityCoverageSendJobService.getPendingSecurityCoverageSendJobs())
-        .thenReturn(List.of(pendingJobForTenant()));
+        .thenReturn(List.of(sendJob));
     ConnectorBase connector = org.mockito.Mockito.mock(ConnectorBase.class);
     when(connector.isRegistered()).thenReturn(false);
     when(openCTIConnectorService.getConnectorBase(TENANT_ID)).thenReturn(Optional.of(connector));
@@ -83,8 +108,9 @@ class SecurityCoverageJobTest {
   @Test
   @DisplayName("no connector at all is also skipped without a push")
   void given_noConnector_should_skip() throws Exception {
+    SecurityCoverageSendJob sendJob = pendingJobForTenant();
     when(securityCoverageSendJobService.getPendingSecurityCoverageSendJobs())
-        .thenReturn(List.of(pendingJobForTenant()));
+        .thenReturn(List.of(sendJob));
     when(openCTIConnectorService.getConnectorBase(TENANT_ID)).thenReturn(Optional.empty());
 
     job.execute(null);
@@ -97,9 +123,6 @@ class SecurityCoverageJobTest {
   @Test
   @DisplayName("a registered connector still gets its bundle built, pushed and the job consumed")
   void given_registeredConnector_should_pushAndConsume() throws Exception {
-    when(tenantTx.execute(any(), ArgumentMatchers.<Supplier<Bundle>>any()))
-        .thenAnswer(invocation -> invocation.<Supplier<Bundle>>getArgument(1).get());
-
     SecurityCoverageSendJob sendJob = pendingJobForTenant();
     when(securityCoverageSendJobService.getPendingSecurityCoverageSendJobs())
         .thenReturn(List.of(sendJob));
@@ -114,6 +137,6 @@ class SecurityCoverageJobTest {
 
     verify(securityCoverageService).createBundleFromSendJobs(anyList());
     verify(openCTIConnectorService).pushSecurityCoverageStixBundle(eq(bundle), eq(TENANT_ID));
-    verify(securityCoverageSendJobService).consumeJobs(anyList());
+    verify(securityCoverageSendJobService).consumeJobs(List.of(sendJob));
   }
 }
