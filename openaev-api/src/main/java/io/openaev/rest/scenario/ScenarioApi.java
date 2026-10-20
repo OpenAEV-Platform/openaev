@@ -19,8 +19,8 @@ import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.BulkOperationContext;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
@@ -102,6 +102,7 @@ public class ScenarioApi extends RestBehavior {
   private final AutonomousRunService autonomousRunService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final AmbientTenantBridge ambientTenantBridge;
   private final LicenseCacheManager licenseCacheManager;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
@@ -111,14 +112,15 @@ public class ScenarioApi extends RestBehavior {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
     }
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Scenario scenario = new Scenario();
     scenario.setUpdateAttributes(input);
+    scenario.setTenant(new Tenant(tenantId));
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     if (hasText(input.getCustomDashboard())) {
       scenario.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
-      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       scenario.setCustomDashboard(
           this.tenantSettingsService
               .findSetting(tenantId, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
@@ -154,14 +156,21 @@ public class ScenarioApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public ScenarioSimple createScenarioWithInjectorContracts(
       TxCtx ctx, @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
-    return BulkOperationContext.runSuppressed(
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    // The contract search and the injects are not tenant-active yet and follow the ambient tenant:
+    // align it on the write tenant so the scenario and its injects stay in one tenant on both
+    // routes.
+    return ambientTenantBridge.callInTenant(
+        tenantId,
         () ->
-            this.scenarioService.createScenarioWithInjectorContracts(
-                ctx,
-                TenantContext.getCurrentTenant(),
-                inputs.getScenarioInput(),
-                inputs.getInjectorContractSearchPaginationInput(),
-                inputs.getLocale()));
+            BulkOperationContext.runSuppressed(
+                () ->
+                    this.scenarioService.createScenarioWithInjectorContracts(
+                        ctx,
+                        tenantId,
+                        inputs.getScenarioInput(),
+                        inputs.getInjectorContractSearchPaginationInput(),
+                        inputs.getLocale())));
   }
 
   @PutMapping({

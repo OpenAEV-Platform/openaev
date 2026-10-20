@@ -912,13 +912,18 @@ public class ScenarioApiTest extends IntegrationTest {
                     TenantRoleFixture.getRole(new HashSet<>(Set.of(Capability.MANAGE_ASSESSMENT)))))
             .withGrant(grantComposer.forGrant(grant));
 
-    return userComposer
-        .forUser(
-            UserFixture.getUser(
-                "AccessThreatArsenals", "User", UUID.randomUUID() + "@unittests.invalid"))
-        .withGroup(threatArsenalGroup)
-        .persist()
-        .get();
+    User user =
+        userComposer
+            .forUser(
+                UserFixture.getUser(
+                    "AccessThreatArsenals", "User", UUID.randomUUID() + "@unittests.invalid"))
+            .withGroup(threatArsenalGroup)
+            .persist()
+            .get();
+    // A create takes its tenant from the caller's scope, which needs the membership every
+    // production user has.
+    tenantIsolationHelper.attachUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
+    return user;
   }
 
   private InjectorContractSearchPaginationInput createInjectorContractSearchPaginationInput() {
