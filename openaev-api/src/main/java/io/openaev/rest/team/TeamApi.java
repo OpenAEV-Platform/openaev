@@ -71,8 +71,7 @@ import org.springframework.web.bind.annotation.*;
     externalDocs =
         @ExternalDocumentation(
             description = "Documentation about teams",
-            url =
-                "https://docs.openaev.io/latest/usage/teams_and_players_and_organizations/#teams"))
+            url = "https://docs.openaev.io/latest/usage/build/people/#teams"))
 public class TeamApi extends RestBehavior {
 
   public static final String TEAM_URI = "/api/teams";
