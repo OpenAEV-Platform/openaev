@@ -1,7 +1,7 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall } from '../../utils/Action';
-import { type AssetBulkProcessingInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
+import { type AssetBulkProcessingInput, type AssetBulkReplaceMarkingsInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
 
 const ENDPOINT_URI = '/api/endpoints';
@@ -69,6 +69,14 @@ export const updateAssetMarkings = (
 // optional exclusions). Security platforms are always excluded server-side.
 export const bulkDeleteAssets = (input: AssetBulkProcessingInput) => {
   return simpleDelCall('/api/assets', { data: input });
+};
+
+// Bulk marking replacement for the unified inventory: same select-all-with-exclusions scope as
+// bulkDeleteAssets, plus the markings to replace each selected asset's set with - an empty list
+// clears them all, the bulk mirror of updateAssetMarkings (see AssetBulkReplaceMarkingsInput's
+// backend doc).
+export const bulkReplaceAssetMarkings = (input: AssetBulkReplaceMarkingsInput) => {
+  return simplePutCall('/api/assets/markings/bulk', input);
 };
 
 // Generic asset overview for the unified detail page: returns any asset type with its

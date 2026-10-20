@@ -117,6 +117,26 @@ public class AssetService {
    */
   public List<String> bulkDeleteAssets(
       final TxCtx ctx, @NotNull final AssetBulkProcessingInput input) {
+    List<String> assetIdsToDelete = resolveBulkAssetIds(ctx, input);
+    return bulkDeleteExecutor.deleteInChunks(
+        ctx,
+        "assets",
+        assetIdsToDelete,
+        chunk -> this.assetRepository.deleteAll(this.assetRepository.findAllById(chunk)));
+  }
+
+  /**
+   * Resolves the ids of assets matched by a bulk selection (explicit ids, or a search input with
+   * optional exclusions - the same select-all pattern as {@link #bulkDeleteAssets}), always
+   * excluding security platforms. Shared by every bulk asset operation so the selection semantics -
+   * including the explicit-ids-XOR-search-input validation - stay identical across them (today:
+   * delete, bulk marking assignment).
+   *
+   * <p>Resolved in a short read transaction (via {@code bulkDeleteExecutor}, despite the name a
+   * generic chunked-operation helper) so the Hibernate tenant filter applies to the query.
+   */
+  public List<String> resolveBulkAssetIds(
+      final TxCtx ctx, @NotNull final AssetBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getAssetIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getAssetIdsToProcess())
@@ -124,43 +144,37 @@ public class AssetService {
       throw new BadRequestException(
           "Either asset_ids_to_process or search_pagination_input must be provided, and not both at the same time");
     }
-    List<String> assetIdsToDelete =
-        bulkDeleteExecutor.resolveInTransaction(
-            ctx,
-            () -> {
-              Specification<Asset> specification;
-              if (input.getSearchPaginationInput() != null) {
-                // Same specification chain as the inventory search (filter group + text search),
-                // so the deletion scope matches exactly what the user sees in the list.
-                specification =
-                    FilterUtilsJpa.<Asset>computeFilterGroupJpa(
-                            input.getSearchPaginationInput().getFilterGroup())
-                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
-              } else {
-                specification = SpecificationUtils.hasIdIn(input.getAssetIdsToProcess());
-              }
-              if (!CollectionUtils.isEmpty(input.getAssetIdsToIgnore())) {
-                List<String> idsToIgnore = input.getAssetIdsToIgnore();
-                specification =
-                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
-              }
-              // Security platforms are managed from their dedicated area and never surface in the
-              // unified inventory: keep them out of the bulk scope even when their ids are
-              // explicitly provided.
-              specification =
-                  specification.and(
-                      (root, query, cb) ->
-                          cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE));
-              // Project only the ids: bulk scopes can span very large inventories, so loading
-              // the full entities just to extract ids would create a needless memory spike and
-              // lengthen the scope-resolution transaction.
-              return resolveAssetIds(specification);
-            });
-    return bulkDeleteExecutor.deleteInChunks(
+    return bulkDeleteExecutor.resolveInTransaction(
         ctx,
-        "assets",
-        assetIdsToDelete,
-        chunk -> this.assetRepository.deleteAll(this.assetRepository.findAllById(chunk)));
+        () -> {
+          Specification<Asset> specification;
+          if (input.getSearchPaginationInput() != null) {
+            // Same specification chain as the inventory search (filter group + text search),
+            // so the bulk scope matches exactly what the user sees in the list.
+            specification =
+                FilterUtilsJpa.<Asset>computeFilterGroupJpa(
+                        input.getSearchPaginationInput().getFilterGroup())
+                    .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+          } else {
+            specification = SpecificationUtils.hasIdIn(input.getAssetIdsToProcess());
+          }
+          if (!CollectionUtils.isEmpty(input.getAssetIdsToIgnore())) {
+            List<String> idsToIgnore = input.getAssetIdsToIgnore();
+            specification =
+                specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+          }
+          // Security platforms are managed from their dedicated area and never surface in the
+          // unified inventory: keep them out of the bulk scope even when their ids are
+          // explicitly provided.
+          specification =
+              specification.and(
+                  (root, query, cb) ->
+                      cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE));
+          // Project only the ids: bulk scopes can span very large inventories, so loading
+          // the full entities just to extract ids would create a needless memory spike and
+          // lengthen the scope-resolution transaction.
+          return resolveAssetIds(specification);
+        });
   }
 
   // Criteria query selecting only the id column, so scope resolution never materialises full
