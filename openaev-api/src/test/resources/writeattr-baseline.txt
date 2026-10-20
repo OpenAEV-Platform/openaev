@@ -74,7 +74,6 @@ domains OTHER io.openaev.service.tenants.TenantService.create
 # table with the v2 activations, not by site fixes outside an activation: remove each line when
 # its table activates (the activation attributes the create from the request's write scope and
 # the signature is no longer produced):
-#   scenarios ScenarioApi.createScenario           -> activation of scenarios (#6432)
 #   scenarios / exercises AutonomousRunApi.create  -> activation of scenarios (#6432) and
 #                                                     exercises (#6434)
 #   groups TenantGroupApi.createGroup              -> activation of groups (#6433)
@@ -83,8 +82,12 @@ domains OTHER io.openaev.service.tenants.TenantService.create
 #   exercises TenantScopedJobRunner.supplyInTenant   -> activation of exercises (#6434)
 # The detector's own attribution tests drive these paths on purpose (a deferred insert of a merged
 # copy, a composite-key row, a collection's link rows) and move to raw writes when the table
-# activates. The groups and injectors_contracts lines were invisible before those tests: the same
-# request shapes were waived as test-driven by the attribution holes the tests pin. The
+# activates. The three simulation and scenario creates (ExerciseApi.createExercise,
+# ScenarioApi.createScenario, ScenarioApi.createScenarioWithInjectorContracts) are no longer in this
+# group: they take the tenant of the request scope on both routes, so their header-route write is
+# inside the scope and produces no signature. The groups and injectors_contracts lines
+# were invisible before those tests: the same request shapes were waived as test-driven by the
+# attribution holes the tests pin. The
 # TenantScopedJobRunner.supplyInTenant line is the same class through the background primitive
 # instead of the header route: ScenarioToExerciseDocumentAttributionTest runs the conversion under
 # the source tenant's v2 scope on purpose (supplyInTenant(tenantA, ...)), but Exercise is still on
@@ -92,7 +95,6 @@ domains OTHER io.openaev.service.tenants.TenantService.create
 # listener from the ambient TenantContext (deliberately a third tenant, to prove the cloned document
 # stays attributed by its own merge-carried tenant rather than by that ambient value) instead of
 # from the v2 scope the primitive set. exercises is not active, so no cross-tenant read exists today.
-scenarios DEFAULT io.openaev.rest.scenario.ScenarioApi.createScenario
 scenarios DEFAULT io.openaev.api.autonomous.AutonomousRunApi.create
 exercises DEFAULT io.openaev.api.autonomous.AutonomousRunApi.create
 exercises OTHER io.openaev.scheduler.TenantScopedJobRunner.supplyInTenant
@@ -139,7 +141,11 @@ import_mappers OTHER io.openaev.rest.mapper.MapperApi.updateImportMapper
 # (no controller writes the connector tables outside the request scope today); the reporting
 # schedule loader is the codebase's dirty-checking shape (a managed reload and a setter, no save);
 # the unattributed line is the pinned shape of an entity nobody captured (loaded before the recording
-# window) whose UPDATE is flushed by the test. Retired with the tests that produce them.
+# window) whose UPDATE is flushed by the test. ScenarioService.createScenario is given a scenario
+# stamped with the default tenant under scope B, to prove a deferred persist is attributed to the
+# service that asked for it (no controller writes a scenario outside the request scope any more).
+# Retired with the tests that produce them.
 executors DEFAULT io.openaev.executors.ExecutorService.register
+scenarios DEFAULT io.openaev.service.scenario.ScenarioService.createScenario
 reporting_schedules DEFAULT io.openaev.rest.reporting.service.ReportingScheduleLoader.markLastRun
 reporting_schedules DEFAULT unattributed(io.openaev.config.WriteAttrDirtyUpdateReportingTest$DirtyUpdate.given_entityLoadedBeforeRecording_should_beReportedUnattributed)
