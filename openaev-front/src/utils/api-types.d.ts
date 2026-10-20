@@ -669,6 +669,13 @@ export interface AssetBulkProcessingInput {
   search_pagination_input?: SearchPaginationInput;
 }
 
+export interface AssetBulkReplaceMarkingsInput {
+  asset_ids_to_ignore?: string[];
+  asset_ids_to_process?: string[];
+  marking_ids: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface AssetGroup {
   asset_group_assets?: string[];
   /** @format date-time */
