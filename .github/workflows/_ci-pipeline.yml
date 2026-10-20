@@ -170,6 +170,18 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/fds-conformity
 
+  docs-links-check:
+    name: "🔎 Docs Links Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/docs-links-check
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
   # Pull requests only: the gate reads what a PR adds against its target branch, and a push or a
   # scheduled run has no target branch. Skipped counts as passed in the Pipeline Gate.
   fds-mui-regression:
@@ -713,6 +725,7 @@ jobs:
       - frontend-quality
       - fds-conformity
       - fds-mui-regression
+      - docs-links-check
       - api-tests
       # tenant-shadow-report is deliberately absent: it is the shadow runs' verdict, and those
       # report rather than gate. Adding it here would fail the Nightly run and page the on-call.
