@@ -5,10 +5,12 @@ on:
     paths:
       - 'docs/**'
       - '.github/workflows/ci-test-docs.yml'
+      - '.github/scripts/check-docs-site.py'
   pull_request:
     paths:
       - 'docs/**'
       - '.github/workflows/ci-test-docs.yml'
+      - '.github/scripts/check-docs-site.py'
 
 # The GITHUB_TOKEN is only used by the git-committers plugin to read commit history.
 permissions:
@@ -51,3 +53,10 @@ jobs:
         env:
           MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
         run: mkdocs build --strict
+
+      # A strict build is green when a plugin breaks silently (selectolax 1.0.1 dropped every
+      # image, #8602), so check the built site itself. This is the full build, git plugins
+      # included, so a dependency update that breaks one of them shows up here. It only runs when
+      # docs change, which keeps it out of the Pipeline Gate.
+      - name: Check the built site
+        run: python3 .github/scripts/check-docs-site.py docs/site
