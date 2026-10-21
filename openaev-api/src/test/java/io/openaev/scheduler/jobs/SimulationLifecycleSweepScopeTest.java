@@ -3,7 +3,9 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -135,6 +137,13 @@ class SimulationLifecycleSweepScopeTest extends IntegrationTest {
         tenantId,
         "lifecycle-sweep-" + tenantId);
     seededTenants.add(tenantId);
+    return tenantId;
+  }
+
+  /** A tenant deleted by an administrator: its rows stay, and no scope resolves to it any more. */
+  private String seedDeletedTenant() {
+    String tenantId = seedTenant();
+    jdbc.update("UPDATE tenants SET tenant_deleted_at = now() WHERE tenant_id = ?", tenantId);
     return tenantId;
   }
 
@@ -301,13 +310,57 @@ class SimulationLifecycleSweepScopeTest extends IntegrationTest {
 
       // -- Assert --
       verify(openCTIConnectorService).pushSecurityCoverageStixBundle(any(), eq(tenantId));
-      assertThat(
-              jdbc.queryForObject(
-                  "SELECT security_coverage_send_job_status FROM security_coverage_send_job"
-                      + " WHERE security_coverage_send_job_id = ?",
-                  String.class,
-                  sendJobId))
-          .isEqualTo("SENT");
+      assertThat(sendJobStatus(sendJobId)).isEqualTo("SENT");
+    }
+
+    @Test
+    @DisplayName(
+        "given pending send jobs of an active and a deleted tenant, the sweep still delivers the"
+            + " active tenant's bundle and leaves the deleted tenant's job untouched")
+    void given_pendingSendJobOfDeletedTenant_should_stillDeliverTheActiveTenantsBundle()
+        throws Exception {
+      // -- Arrange --
+      String activeTenant = seedTenant();
+      String deletedTenant = seedDeletedTenant();
+      String activeJob = seedPendingSendJob(seedExercise(activeTenant, "FINISHED", "-2 hours"));
+      String deletedJob = seedPendingSendJob(seedExercise(deletedTenant, "FINISHED", "-2 hours"));
+      ConnectorBase connector = mock(ConnectorBase.class);
+      when(connector.isRegistered()).thenReturn(true);
+      when(openCTIConnectorService.getConnectorBase(any())).thenReturn(Optional.of(connector));
+
+      // -- Act --
+      onBareThread(
+          () -> {
+            securityCoverageJob.execute(null);
+            return null;
+          });
+
+      // -- Assert --
+      verify(openCTIConnectorService).pushSecurityCoverageStixBundle(any(), eq(activeTenant));
+      assertThat(sendJobStatus(activeJob)).isEqualTo("SENT");
+      verify(openCTIConnectorService, never()).getConnectorBase(deletedTenant);
+      verify(openCTIConnectorService, never()).getConnectorBase(isNull());
+      assertThat(sendJobStatus(deletedJob)).isEqualTo("PENDING");
+    }
+
+    private String seedPendingSendJob(String exerciseId) {
+      String sendJobId = UUID.randomUUID().toString();
+      jdbc.update(
+          "INSERT INTO security_coverage_send_job (security_coverage_send_job_id,"
+              + " security_coverage_send_job_status, security_coverage_send_job_updated_at,"
+              + " security_coverage_send_job_simulation) VALUES (?, 'PENDING',"
+              + " now() - interval '5 minutes', ?)",
+          sendJobId,
+          exerciseId);
+      return sendJobId;
+    }
+
+    private String sendJobStatus(String sendJobId) {
+      return jdbc.queryForObject(
+          "SELECT security_coverage_send_job_status FROM security_coverage_send_job"
+              + " WHERE security_coverage_send_job_id = ?",
+          String.class,
+          sendJobId);
     }
   }
 
@@ -365,6 +418,34 @@ class SimulationLifecycleSweepScopeTest extends IntegrationTest {
               exerciseOfTask(tasks, otherComcheck).getId().equals(otherExercise)
                   && exerciseOfTask(tasks, defaultComcheck).getId().equals(defaultExercise))
           .isTrue();
+    }
+
+    @Test
+    @DisplayName(
+        "given running comchecks of an active and a deleted tenant, the active tenant's task is"
+            + " still built and the deleted tenant's comcheck is left out")
+    void given_runningComcheckOfDeletedTenant_should_stillBuildTheActiveTenantsTask()
+        throws Exception {
+      // -- Arrange --
+      String deletedTenant = seedDeletedTenant();
+      provisionEmailInjector(Tenant.DEFAULT_TENANT_UUID);
+      String activeExercise = seedExercise(Tenant.DEFAULT_TENANT_UUID, "RUNNING", "-1 hour");
+      String deletedExercise = seedExercise(deletedTenant, "RUNNING", "-1 hour");
+      String activeComcheck = seedRunningComcheck(activeExercise);
+      String deletedComcheck = seedRunningComcheck(deletedExercise);
+
+      // -- Act --
+      List<ComchecksExecutionJob.ComcheckSendTask> tasks =
+          onBareThread(() -> comchecksExecutionJob.prepareSendTasks(Instant.now()));
+
+      // -- Assert --
+      assertThat(tenantOfTask(tasks, activeComcheck)).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      assertThat(tasks)
+          .noneMatch(
+              task -> task.statuses().getFirst().getComcheck().getId().equals(deletedComcheck));
+      assertThat(tasks)
+          .extracting(ComchecksExecutionJob.ComcheckSendTask::tenantId)
+          .doesNotContain(deletedTenant);
     }
 
     private static ComchecksExecutionJob.ComcheckSendTask taskOf(

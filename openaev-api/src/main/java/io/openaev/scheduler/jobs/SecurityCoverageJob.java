@@ -7,7 +7,6 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.Exercise;
 import io.openaev.database.model.SecurityCoverageSendJob;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
@@ -51,8 +50,8 @@ public class SecurityCoverageJob implements Job {
   @Override
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
-    // The send jobs carry no tenant, their simulations do: the poll spans every tenant, then each
-    // job is loaded, bundled and consumed under its simulation's tenant.
+    // The send jobs carry no tenant, their simulations do: the poll spans every active tenant, then
+    // each job is loaded, bundled and consumed under its simulation's tenant.
     List<PendingSendJob> jobs = tenantTx.execute(TxCtx.allTenants(), this::readPendingJobs);
     Map<String, List<SecurityCoverageSendJob>> successfulJobsByTenant = new LinkedHashMap<>();
     // Tenants without an active Security Coverage connector: skip their jobs upfront (before any
@@ -63,9 +62,6 @@ public class SecurityCoverageJob implements Job {
     for (PendingSendJob pendingJob : jobs) {
       String tenantId = pendingJob.tenantId();
       try {
-        if (tenantId == null) {
-          throw new IllegalStateException("Simulation or tenant not found");
-        }
         if (tenantsWithoutConnector.contains(tenantId) || tenantsNotRegistered.contains(tenantId)) {
           continue;
         }
@@ -96,7 +92,7 @@ public class SecurityCoverageJob implements Job {
             .computeIfAbsent(tenantId, key -> new ArrayList<>())
             .add(tenantBundle.sendJob());
       } catch (Exception e) {
-        // don't crash the job; a send job without a simulation throws above
+        // don't crash the job
         if (e instanceof ConnectorError
             && e.getMessage() != null
             && e.getMessage().contains("hasn't registered yet")) {
@@ -134,15 +130,15 @@ public class SecurityCoverageJob implements Job {
   }
 
   private List<PendingSendJob> readPendingJobs() {
+    // A projection, not the entities: loading a job loads its simulation, which fails for a job
+    // whose simulation is outside the scope and would stop the sweep for every tenant.
     return securityCoverageSendJobService.getPendingSecurityCoverageSendJobs().stream()
         .map(
-            sendJob -> {
-              Exercise simulation = sendJob.getSimulation();
-              return simulation == null
-                  ? new PendingSendJob(sendJob.getId(), null, null)
-                  : new PendingSendJob(
-                      sendJob.getId(), simulation.getId(), simulation.getTenant().getId());
-            })
+            sendJob ->
+                new PendingSendJob(
+                    sendJob.getSecurity_coverage_send_job_id(),
+                    sendJob.getExercise_id(),
+                    sendJob.getTenant_id()))
         .toList();
   }
 

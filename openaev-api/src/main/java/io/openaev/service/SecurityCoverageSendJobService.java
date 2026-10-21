@@ -3,6 +3,7 @@ package io.openaev.service;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.SecurityCoverageSendJob;
+import io.openaev.database.raw.RawSecurityCoverageSendJobTenant;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -54,8 +55,9 @@ public class SecurityCoverageSendJobService {
     }
   }
 
-  public List<SecurityCoverageSendJob> getPendingSecurityCoverageSendJobs() {
-    return securityCoverageSendJobRepository.findByStatusAndUpdatedAtBeforeNoLock(
+  /** The pending send jobs with their simulation's tenant, limited to the caller's scope. */
+  public List<RawSecurityCoverageSendJobTenant> getPendingSecurityCoverageSendJobs() {
+    return securityCoverageSendJobRepository.findWithTenantByStatusAndUpdatedAtBefore(
         "PENDING", Instant.now().minus(1, ChronoUnit.MINUTES));
   }
 

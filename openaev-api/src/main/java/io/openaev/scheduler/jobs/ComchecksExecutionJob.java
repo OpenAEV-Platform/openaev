@@ -164,17 +164,17 @@ public class ComchecksExecutionJob implements Job {
     List<Comcheck> toExpired = comcheckRepository.thatMustBeExpired(now);
     comcheckRepository.saveAll(
         toExpired.stream().peek(comcheck -> comcheck.setState(EXPIRED)).toList());
-    // 02. Gather the comchecks that have statuses to send, by their simulation's tenant.
+    // 02. Gather the comchecks that have statuses to send, by their simulation's tenant. A
+    // projection, not the entities: loading a simulation outside the scope fails and would stop
+    // the preparation for every tenant.
     Map<String, List<String>> comcheckIdsByTenant = new LinkedHashMap<>();
-    comcheckStatusRepository.findAll(thatNeedExecution()).stream()
-        .map(ComcheckStatus::getComcheck)
-        .distinct()
+    comcheckStatusRepository
+        .findComchecksToSendWithTenant()
         .forEach(
             comcheck ->
                 comcheckIdsByTenant
-                    .computeIfAbsent(
-                        comcheck.getExercise().getTenant().getId(), key -> new ArrayList<>())
-                    .add(comcheck.getId()));
+                    .computeIfAbsent(comcheck.getTenant_id(), key -> new ArrayList<>())
+                    .add(comcheck.getComcheck_id()));
     return comcheckIdsByTenant;
   }
 
