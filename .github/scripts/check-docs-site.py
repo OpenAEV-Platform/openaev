@@ -18,14 +18,15 @@ import sys
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+import yaml
+
 REPO = Path(__file__).resolve().parents[2]
 DOCS_ROOT = REPO / "docs" / "docs"
 
 FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 INLINE_CODE_RE = re.compile(r"`[^`]*`")
-FRONT_MATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.S)
-SEARCH_EXCLUDED_RE = re.compile(r"^search:\s*\n(?:[ \t]+\S.*\n)*?[ \t]+exclude:\s*true\b", re.M)
+FRONT_MATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.S)
 MD_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(\s*(?:<([^>]+)>|([^)\s]+))")
 HTML_IMAGE_RE = re.compile(r"""<img\b[^>]*\bsrc=["']([^"']+)["']""", re.I)
 ARTICLE_RE = re.compile(r"<article\b.*</article>", re.S)
@@ -37,6 +38,19 @@ def url_of(page: Path) -> str:
     if relative.name in ("index", "README"):
         relative = relative.parent
     return "" if relative == Path(".") else f"{relative.as_posix()}/"
+
+
+def search_excluded(text: str) -> bool:
+    """True when the page front matter sets `search: {exclude: true}`."""
+    front_matter = FRONT_MATTER_RE.match(text)
+    if not front_matter:
+        return False
+    try:
+        meta = yaml.safe_load(front_matter.group(1))
+    except yaml.YAMLError:
+        return False  # MkDocs reports a malformed front matter itself
+    search = meta.get("search") if isinstance(meta, dict) else None
+    return isinstance(search, dict) and search.get("exclude") is True
 
 
 def image_name(src: str) -> str | None:
@@ -79,8 +93,7 @@ def main() -> int:
     for page in pages:
         rel = page.relative_to(REPO).as_posix()
         text = page.read_text(encoding="utf-8")
-        front_matter = FRONT_MATTER_RE.match(text)
-        if not (front_matter and SEARCH_EXCLUDED_RE.search(front_matter.group(1))):
+        if not search_excluded(text):
             searchable.add(url_of(page))
 
         output = site / url_of(page) / "index.html"

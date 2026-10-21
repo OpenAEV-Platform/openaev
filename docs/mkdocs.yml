@@ -86,6 +86,8 @@ plugins:
         'usage/autonomous-attack-chaining/configuration.md': 'usage/attack-chaining/autonomous/configuration.md'
         'usage/autonomous-attack-chaining/overview.md': 'usage/attack-chaining/autonomous/overview.md'
         'usage/autonomous-attack-chaining/scenario-creation.md': 'usage/attack-chaining/autonomous/scenario-creation.md'
+        'usage/collectors.md': 'integrations/collectors/collectors.md'
+        'usage/injectors.md': 'integrations/injectors/injectors.md'
         'usage/environment/collectors.md': 'integrations/collectors/collectors.md'
         'usage/environment/injectors.md': 'integrations/injectors/injectors.md'
         'usage/environment/injects-builtin.md': 'integrations/injectors/injects-builtin.md'

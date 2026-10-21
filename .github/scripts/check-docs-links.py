@@ -19,12 +19,13 @@ from urllib.parse import unquote, urljoin, urlsplit
 REPO = Path(__file__).resolve().parents[2]
 SOURCE_DIRS = ["openaev-api/src", "openaev-model/src", "openaev-front/src"]
 SOURCE_SUFFIXES = {".properties", ".java", ".ts", ".tsx", ".js", ".jsx"}
-MAX_REDIRECTS = 5
 
 # The front builds some links from a documentation root constant: `${DOCUMENTATION_ROOT_URL}/latest/...`.
 ROOT = "https://docs.openaev.io"
 URL_RE = re.compile(r"(?:https?://docs\.openaev\.io|\$\{documentation_?root_?url\})[^\s\"'`<>)\\]*", re.I)
 ROOT_CONSTANT_RE = re.compile(r"\$\{documentation_?root_?url\}", re.I)
+# Placeholders of a link built at run time: `${x}`, `%s`, `{0}`.
+TEMPLATE_RE = re.compile(r"\$\{|%s|%d(?![0-9A-Fa-f])|\{\d*\}")
 TRAILING_PUNCTUATION = ".,;:!?)]}|"
 REFRESH_RE = re.compile(r"""http-equiv=["']refresh["'][^>]*content=["']\d+;\s*url=([^"']+)["']""", re.I)
 ID_RE = re.compile(r"""(?:(?<![\w-])id|<a\b[^>]*(?<![\w-])name)=["']([^"']+)["']""")
@@ -42,46 +43,51 @@ def read_page(page: Path) -> str:
     return page.read_text(encoding="utf-8")
 
 
-def follow_redirects(site: Path, url_path: str) -> tuple[str, Path | None, str, bool]:
+def follow_redirects(site: Path, url_path: str) -> tuple[str, Path | None, str, str | None]:
     """Follow meta-refresh redirect pages.
 
     Return the final URL path, its page (None when missing), the fragment the redirect targets add
-    and whether the redirect chain loops.
+    and an error message when the chain cannot be followed.
     """
-    fragment = ""
-    for _ in range(MAX_REDIRECTS):
+    fragment, seen = "", set()
+    while url_path not in seen:
+        seen.add(url_path)
         page = page_file(site, url_path)
         if page is None:
-            return url_path, None, fragment, False
+            return url_path, None, fragment, None
         if page.suffix != ".html":
-            return url_path, page, fragment, False
+            return url_path, page, fragment, None
         refresh = REFRESH_RE.search(read_page(page))
         if not refresh:
-            return url_path, page, fragment, False
-        target = urlsplit(urljoin(f"/{url_path}/", refresh.group(1)))
-        fragment = fragment or unquote(target.fragment)
+            return url_path, page, fragment, None
+        target = urlsplit(urljoin("/" + page.relative_to(site).as_posix(), refresh.group(1)))
+        if target.netloc and target.netloc.lower() != "docs.openaev.io":
+            return url_path, page, fragment, f"redirect leaves the docs site for {target.netloc}"
+        target_fragment = unquote(target.fragment)
+        if fragment and target_fragment:
+            # The redirect page appends the incoming fragment to its target: `target#a#b` resolves nowhere.
+            return url_path, page, fragment, f"redirects add two anchors, #{fragment} and #{target_fragment}"
+        fragment = fragment or target_fragment
         url_path = unquote(target.path).strip("/")
-    return url_path, None, fragment, True
+    return url_path, None, fragment, f"redirect loop on {url_path or 'index'}"
 
 
 def check_url(site: Path, url: str) -> str | None:
-    url = ROOT_CONSTANT_RE.sub(ROOT, url)
-    if "${" in url:
+    parts = urlsplit(ROOT_CONSTANT_RE.sub(ROOT, url))
+    if TEMPLATE_RE.search(parts.path):
         return None  # built at run time, there is nothing to resolve statically
-    parts = urlsplit(url)
-    segments = [s for s in parts.path.split("/") if s]
+    segments = [unquote(s) for s in parts.path.split("/") if s]
     if not segments:
         return None
     if segments[0] != "latest":
         return "link must start with /latest/"
-    url_path, page, target_fragment, loop = follow_redirects(site, "/".join(segments[1:]))
-    if loop:
-        return f"redirect loop from {'/'.join(segments[1:])}"
+    url_path, page, target_fragment, error = follow_redirects(site, "/".join(segments[1:]))
+    if error:
+        return error
     if page is None:
         return f"no page {url_path or 'index'} in the built docs site"
-    link_fragment = unquote(parts.fragment)
+    link_fragment = "" if TEMPLATE_RE.search(parts.fragment) else unquote(parts.fragment)
     if link_fragment and target_fragment:
-        # The redirect page appends the incoming fragment to its target: `target#a#b` resolves nowhere.
         return f"redirect already targets #{target_fragment}, a link cannot add #{link_fragment}"
     fragment = link_fragment or target_fragment
     if fragment and (page.suffix != ".html" or fragment not in ID_RE.findall(read_page(page))):
