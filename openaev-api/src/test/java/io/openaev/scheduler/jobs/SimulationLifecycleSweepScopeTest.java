@@ -41,12 +41,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * The scheduler sweeps that move a simulation or a scenario through its lifecycle poll every
- * tenant's rows: the scheduled start, the auto-close, the security coverage send, the comcheck
- * preparation and the clean-up of an outdated recurrence. Once {@code exercises} and {@code
- * scenarios} are tenant-active, a poll with no scope reads nothing, so each poll spans the tenants
- * explicitly and each write runs inside the row's own tenant.
+ * tenant's rows: the scheduled start, the end of collection, the auto-close, the security coverage
+ * send, the comcheck preparation and the clean-up of an outdated recurrence. Once {@code
+ * exercises}, {@code scenarios} and {@code injects} are tenant-active, a poll with no scope reads
+ * nothing, so each poll spans the tenants explicitly and each write runs inside the row's own
+ * tenant.
  *
- * <p>The production active tables are armed with the chaining tables and the two tables these
+ * <p>The production active tables are armed with the chaining tables and the three tables these
  * sweeps read. Every sweep runs on a bare thread, as a Quartz worker does: no transaction, no
  * session, no ambient tenant. Rows are committed through JDBC in tenants of their own and removed
  * after each test.
@@ -71,7 +72,8 @@ class SimulationLifecycleSweepScopeTest extends IntegrationTest {
                         "workflow_scope_rules",
                         "workflow_states",
                         "exercises",
-                        "scenarios"))
+                        "scenarios",
+                        "injects"))
                 .distinct()
                 .collect(Collectors.joining(",")));
   }
@@ -106,6 +108,11 @@ class SimulationLifecycleSweepScopeTest extends IntegrationTest {
       jdbc.update("DELETE FROM comchecks WHERE comcheck_id = ?", comcheckId);
     }
     for (String exerciseId : seededExercises) {
+      jdbc.update(
+          "DELETE FROM injects_statuses WHERE status_inject IN"
+              + " (SELECT inject_id FROM injects WHERE inject_exercise = ?)",
+          exerciseId);
+      jdbc.update("DELETE FROM injects WHERE inject_exercise = ?", exerciseId);
       jdbc.update(
           "DELETE FROM security_coverage_send_job WHERE security_coverage_send_job_simulation = ?",
           exerciseId);
@@ -252,6 +259,83 @@ class SimulationLifecycleSweepScopeTest extends IntegrationTest {
       assertThat(started).extracting(Exercise::getId).contains(first, second);
       assertThat(exerciseStatus(first)).isEqualTo("RUNNING");
       assertThat(exerciseStatus(second)).isEqualTo("RUNNING");
+    }
+  }
+
+  @Nested
+  @DisplayName("End of collection")
+  class EndOfCollection {
+
+    /** An executed inject still collecting, with no expectation left to wait for. */
+    private String seedCollectingInject(String tenantId, String exerciseId) {
+      String injectId = UUID.randomUUID().toString();
+      jdbc.update(
+          "INSERT INTO injects (inject_id, inject_title, inject_all_teams, inject_enabled,"
+              + " inject_depends_duration, inject_exercise, tenant_id, inject_collect_status)"
+              + " VALUES (?, 'collecting inject', false, true, 0, ?, ?, 'COLLECTING')",
+          injectId,
+          exerciseId,
+          tenantId);
+      jdbc.update(
+          "INSERT INTO injects_statuses (status_id, status_inject, status_name, tracking_sent_date)"
+              + " VALUES (?, ?, 'EXECUTED', now() - interval '1 hour')",
+          UUID.randomUUID().toString(),
+          injectId);
+      return injectId;
+    }
+
+    private String collectStatus(String injectId) {
+      return jdbc.queryForObject(
+          "SELECT inject_collect_status FROM injects WHERE inject_id = ?", String.class, injectId);
+    }
+
+    @Test
+    @DisplayName(
+        "given collecting injects of running simulations in two tenants, the job completes both")
+    void given_collectingInjectsInTwoTenants_should_completeBoth() throws Exception {
+      // -- Arrange --
+      String firstTenant = seedTenant();
+      String secondTenant = seedTenant();
+      String first =
+          seedCollectingInject(firstTenant, seedExercise(firstTenant, "RUNNING", "-1 hour"));
+      String second =
+          seedCollectingInject(secondTenant, seedExercise(secondTenant, "RUNNING", "-1 hour"));
+
+      // -- Act --
+      onBareThread(
+          () -> {
+            injectsFinalizationJob.handleInjectExpectationCollectStatus();
+            return null;
+          });
+
+      // -- Assert --
+      assertThat(collectStatus(first)).isEqualTo("COMPLETED");
+      assertThat(collectStatus(second)).isEqualTo("COMPLETED");
+    }
+
+    @Test
+    @DisplayName(
+        "given collecting injects of an active and a deleted tenant, the job still completes the"
+            + " active tenant's inject and leaves the deleted tenant's one untouched")
+    void given_collectingInjectOfDeletedTenant_should_stillCompleteTheActiveOne() throws Exception {
+      // -- Arrange --
+      String activeTenant = seedTenant();
+      String deletedTenant = seedDeletedTenant();
+      String active =
+          seedCollectingInject(activeTenant, seedExercise(activeTenant, "RUNNING", "-1 hour"));
+      String deleted =
+          seedCollectingInject(deletedTenant, seedExercise(deletedTenant, "RUNNING", "-1 hour"));
+
+      // -- Act --
+      onBareThread(
+          () -> {
+            injectsFinalizationJob.handleInjectExpectationCollectStatus();
+            return null;
+          });
+
+      // -- Assert --
+      assertThat(collectStatus(active)).isEqualTo("COMPLETED");
+      assertThat(collectStatus(deleted)).isEqualTo("COLLECTING");
     }
   }
 
