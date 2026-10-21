@@ -1,5 +1,6 @@
 # Every version is pinned, direct dependencies first and what they pull in after. Renovate
-# updates them together once a week (renovate.json5). mike stays on a commit of its main branch.
+# updates them together once a week (renovate.json5). mike stays on a commit of its main branch,
+# which Renovate does not update: bump it by hand.
 
 mkdocs==1.6.1
 mkdocs-material==9.7.7
@@ -48,5 +49,6 @@ six==1.17.0
 smmap==5.0.3
 super_collections==0.6.2
 termcolor==3.3.0
+tzdata==2026.5 ; sys_platform == "win32"
 urllib3==2.8.0
 watchdog==6.0.0
