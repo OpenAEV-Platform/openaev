@@ -16,12 +16,15 @@ import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Manages tenant-scoped RabbitMQ queues lifecycle.
  *
  * <p>At startup, declares all configured queues for every active tenant. On tenant creation,
- * declares queues for the new tenant. On tenant deletion (purge), deletes the tenant's queues.
+ * declares queues for the new tenant, and deletes them again if the creation rolls back. On tenant
+ * deletion (purge), deletes the tenant's queues and exchanges.
  *
  * <p>Queue name pattern per tenant: {@code prefix-tenantId_execution_queueName}
  */
@@ -72,13 +75,20 @@ public class TenantQueueService implements DependenciesManager {
 
   // -- DEPENDENCIES MANAGER --
 
-  /** Declares all configured queues for a newly created tenant. */
+  /**
+   * Declares all configured queues for a newly created tenant.
+   *
+   * <p>The broker is not transactional: if the onboarding transaction rolls back, the declared
+   * objects are deleted once it has, since no tenant row is left for the purge to find them by.
+   */
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     List<QueueConfig> configs = getQueueConfigs();
     if (configs.isEmpty()) {
       return;
     }
+    // Registered before declaring, so a declaration that fails halfway is removed too.
+    deleteQueuesOnRollback(tenant.getId(), configs);
     try {
       rabbitmqService.declareQueuesForTenant(tenant.getId(), configs);
       log.info("Created all RabbitMQ queues for tenant '{}'", tenant.getId());
@@ -105,6 +115,28 @@ public class TenantQueueService implements DependenciesManager {
   }
 
   // -- INTERNAL --
+
+  private void deleteQueuesOnRollback(String tenantId, List<QueueConfig> configs) {
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      return;
+    }
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCompletion(int status) {
+            // Only a confirmed rollback: on an unknown outcome the tenant row may exist.
+            if (status != STATUS_ROLLED_BACK) {
+              return;
+            }
+            try {
+              rabbitmqService.deleteQueuesForTenant(tenantId, configs);
+              log.info("Deleted RabbitMQ queues of rolled back tenant '{}'", tenantId);
+            } catch (IOException | TimeoutException | RuntimeException e) {
+              log.error("Failed to delete RabbitMQ queues of rolled back tenant '{}'", tenantId, e);
+            }
+          }
+        });
+  }
 
   /** Returns the list of all configured queue configs (inject-trace, workflows-ready, etc.). */
   private List<QueueConfig> getQueueConfigs() {

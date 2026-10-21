@@ -4,6 +4,8 @@ import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsBase;
+import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.service.tenants.TenantQueueService;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
@@ -28,6 +30,10 @@ import org.springframework.stereotype.Component;
  * the state before the restore or the state after it, never an empty table. A restore that fails
  * rolls back, names the table and the row it could not insert, and leaves the foreign key guard on,
  * because {@code SET LOCAL} ends with the transaction.
+ *
+ * <p>A tenant the restore removes takes its broker queues and exchanges with it, through the
+ * production teardown: the broker is outside the database, so a tenant onboarded and committed by a
+ * test class would otherwise leave them on the broker for good.
  */
 @Component
 @Slf4j
@@ -37,6 +43,7 @@ public class DatabaseSnapshotManager {
   private final JdbcTemplate jdbcTemplate;
   private final ObjectProvider<io.openaev.engine.facade.EngineService> engineFacade;
   private final EngineContext engineContext;
+  private final ObjectProvider<TenantQueueService> tenantQueueService;
 
   private static final Map<String, List<Map<String, Object>>> startupData = new HashMap<>();
   private static final List<String> TABLE_WITHOUT_RESTORATION = List.of("indexing_status");
@@ -98,6 +105,8 @@ public class DatabaseSnapshotManager {
 
       cleanElasticsearchIndices(engineContext.getModels());
 
+      List<String> tenantsToRemove = tenantsNotInSnapshot();
+
       jdbcTemplate.execute(
           (Connection connection) -> {
             restoreInOneTransaction(connection);
@@ -105,6 +114,8 @@ public class DatabaseSnapshotManager {
           });
 
       log.info("Database restored to startup state via JDBC");
+
+      deleteBrokerObjects(tenantsToRemove);
 
     } catch (Exception e) {
       throw new IllegalStateException("Error restoring startup state: " + e.getMessage(), e);
@@ -147,6 +158,28 @@ public class DatabaseSnapshotManager {
       throw e;
     } finally {
       connection.setAutoCommit(autoCommit);
+    }
+  }
+
+  private List<String> tenantsNotInSnapshot() {
+    Set<Object> snapshotTenants =
+        startupData.getOrDefault("tenants", List.of()).stream()
+            .map(row -> row.get("tenant_id"))
+            .collect(Collectors.toSet());
+    return jdbcTemplate.queryForList("SELECT tenant_id FROM tenants", String.class).stream()
+        .filter(tenantId -> !snapshotTenants.contains(tenantId))
+        .toList();
+  }
+
+  private void deleteBrokerObjects(List<String> tenantIds) {
+    for (String tenantId : tenantIds) {
+      try {
+        tenantQueueService.getObject().deleteDependencyForTenant(tenantId);
+      } catch (DependenciesManagerException e) {
+        throw new IllegalStateException(
+            "Cannot delete the broker objects of tenant " + tenantId + " removed by the restore",
+            e);
+      }
     }
   }
 
