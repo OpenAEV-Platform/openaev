@@ -18,8 +18,10 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -211,6 +213,29 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("Create capability in both the default tenant and tenant B")
+  class CreateCapabilityInBothTenants {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Create.class)
+    @DisplayName(
+        "On the non-prefixed route with a header naming B, it is written in the ambient tenant")
+    void given_headerNamingOtherTenantWithCreateCapability_should_writeInAmbientTenant(
+        Create create) throws Exception {
+      // Arrange
+      String tenantB = createTenantWithCreateCapabilityInBoth();
+
+      // Act
+      int status = perform(nonPrefixed(create).header(TENANT_IDS_HEADER, tenantB));
+
+      // Assert
+      // These creates stamp their row from the ambient tenant, which the non-prefixed route
+      // leaves to the default one whatever the header names.
+      assertWrittenIn(create, status, DEFAULT_TENANT);
+    }
+  }
+
   /** The caller creates in {@code createTenant} and only reads in a new tenant B. */
   private String createTenantWithReadOnly(String createTenant) throws Exception {
     tenantHelper.grantCapabilitiesInTenant(createTenant, Set.of(Capability.MANAGE_ASSESSMENT));
@@ -222,6 +247,14 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
   /** The caller creates in a new tenant B and only reads in the default tenant. */
   private String createTenantWithCreateCapability() throws Exception {
     tenantHelper.grantCapabilitiesInTenant(DEFAULT_TENANT, Set.of(Capability.ACCESS_ASSESSMENT));
+    return tenantHelper
+        .createTenantWithCapabilities("capability-b", Set.of(Capability.MANAGE_ASSESSMENT))
+        .getId();
+  }
+
+  /** The caller creates in both the default tenant and a new tenant B. */
+  private String createTenantWithCreateCapabilityInBoth() throws Exception {
+    tenantHelper.grantCapabilitiesInTenant(DEFAULT_TENANT, Set.of(Capability.MANAGE_ASSESSMENT));
     return tenantHelper
         .createTenantWithCapabilities("capability-b", Set.of(Capability.MANAGE_ASSESSMENT))
         .getId();
@@ -264,12 +297,31 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
         () -> assertEquals(List.of(tenantId), rowTenants(create), "the row's tenant"));
   }
 
+  /**
+   * Reads on the current connection, past the statement inspector, so that rows of every tenant are
+   * seen whatever scope the request left on the test transaction.
+   */
   private List<String> rowTenants(Create create) {
     return entityManager
-        .createNativeQuery(
-            "SELECT tenant_id FROM " + create.table + " WHERE " + create.nameField + " = ?1",
-            String.class)
-        .setParameter(1, NAME)
-        .getResultList();
+        .unwrap(Session.class)
+        .doReturningWork(
+            connection -> {
+              try (var stmt =
+                  connection.prepareStatement(
+                      "SELECT tenant_id FROM "
+                          + create.table
+                          + " WHERE "
+                          + create.nameField
+                          + " = ?")) {
+                stmt.setString(1, NAME);
+                List<String> tenants = new ArrayList<>();
+                try (var rows = stmt.executeQuery()) {
+                  while (rows.next()) {
+                    tenants.add(rows.getString(1));
+                  }
+                }
+                return tenants;
+              }
+            });
   }
 }
