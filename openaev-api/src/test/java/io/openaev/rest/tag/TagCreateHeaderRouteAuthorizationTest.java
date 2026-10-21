@@ -15,8 +15,10 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -140,6 +142,25 @@ class TagCreateHeaderRouteAuthorizationTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("Create capability in both the default tenant and tenant B")
+  class CreateCapabilityInBothTenants {
+
+    @Test
+    @DisplayName("A header naming B writes in B")
+    void given_headerNamingOtherTenantWithCreateCapability_should_writeInThatTenant()
+        throws Exception {
+      // Arrange
+      String tenantB = createInDefaultAndInNewTenant();
+
+      // Act
+      int status = perform(createTag().header(TENANT_IDS_HEADER, tenantB));
+
+      // Assert
+      assertWrittenIn(status, tenantB);
+    }
+  }
+
   private String createInDefaultReadOnlyInNewTenant() throws Exception {
     tenantHelper.grantCapabilitiesInTenant(DEFAULT_TENANT, Set.of(Capability.MANAGE_TAGS));
     return tenantHelper
@@ -149,6 +170,13 @@ class TagCreateHeaderRouteAuthorizationTest extends IntegrationTest {
 
   private String createInNewTenantReadOnlyInDefault() throws Exception {
     tenantHelper.grantCapabilitiesInTenant(DEFAULT_TENANT, Set.of(Capability.ACCESS_TAGS));
+    return tenantHelper
+        .createTenantWithCapabilities("tag-capability-b", Set.of(Capability.MANAGE_TAGS))
+        .getId();
+  }
+
+  private String createInDefaultAndInNewTenant() throws Exception {
+    tenantHelper.grantCapabilitiesInTenant(DEFAULT_TENANT, Set.of(Capability.MANAGE_TAGS));
     return tenantHelper
         .createTenantWithCapabilities("tag-capability-b", Set.of(Capability.MANAGE_TAGS))
         .getId();
@@ -183,10 +211,26 @@ class TagCreateHeaderRouteAuthorizationTest extends IntegrationTest {
         () -> assertEquals(List.of(tenantId), rowTenants(), "the row's tenant"));
   }
 
+  /**
+   * Reads on the current connection, past the statement inspector, so that rows of every tenant are
+   * seen whatever scope the request left on the test transaction.
+   */
   private List<String> rowTenants() {
     return entityManager
-        .createNativeQuery("SELECT tenant_id FROM tags WHERE tag_name = ?1", String.class)
-        .setParameter(1, NAME)
-        .getResultList();
+        .unwrap(Session.class)
+        .doReturningWork(
+            connection -> {
+              try (var stmt =
+                  connection.prepareStatement("SELECT tenant_id FROM tags WHERE tag_name = ?")) {
+                stmt.setString(1, NAME);
+                List<String> tenants = new ArrayList<>();
+                try (var rows = stmt.executeQuery()) {
+                  while (rows.next()) {
+                    tenants.add(rows.getString(1));
+                  }
+                }
+                return tenants;
+              }
+            });
   }
 }
