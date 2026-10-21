@@ -2254,7 +2254,8 @@ class TenantActiveTableAccessArchTest {
               // fail-closed on an empty one:
               io.openaev.service.TeamService.class,
               // Services behind the entrypoints above; their team reads run in the scoped
-              // transaction the entrypoint opened:
+              // transaction the entrypoint opened, except ExerciseService's isolated team
+              // enablement, which opens its own and is scoped by the TxCtx its caller passes:
               io.openaev.rest.exercise.service.ExerciseService.class,
               io.openaev.rest.finding.FindingService.class,
               io.openaev.rest.inject.service.InjectService.class,
