@@ -48,7 +48,8 @@ Starting server at http://localhost:8000/
 ```
 
 Every dependency is pinned in `requirements.txt` and updated by Renovate. To try a new version
-locally, change its pin and run `pip install -r requirements.txt` again.
+locally, change its pin and run `pip install --no-deps -r requirements.txt && pip check` again:
+the CI installs it this way, so a package missing from the file fails there.
 
 `mkdocs serve` asks the GitHub API for the contributors of every page. To skip that, and the
 git dates, run `DOCS_GIT_PLUGINS=false mkdocs serve`.
