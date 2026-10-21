@@ -175,13 +175,6 @@
             ],
             allowedVersions: '<1.0.1',
         },
-        {
-            description: 'mike is pinned to a commit of its main branch, which is ahead of its latest release. Renovate reads that commit as a tag lookup and could propose an older release, so it is bumped by hand.',
-            matchDepNames: [
-                'mike',
-            ],
-            enabled: false,
-        },
         // group non-major devDependencies once a week to avoid Renovate noise
         {
             groupName: 'devDependencies (non-major)',
@@ -266,11 +259,9 @@
             ],
             rebaseWhen: 'auto',
         },
-        // The bulk of the volume, one PR at a time before this change. The cost of batching is that
-        // one bad member holds the whole batch, and the exit is a rule below with groupName: null.
         // docs/requirements.txt pins every package the docs build installs, about fifty lines, and a
-        // new release of one of them can break the build that now runs in the Pipeline Gate. One
-        // weekly PR keeps them moving together and the Gate shows whether the set still builds.
+        // new release of one of them can break the docs build. One weekly PR keeps them moving
+        // together, and its Docs build check and Docs Links Check show whether the set still builds.
         {
             groupName: 'docs tooling (non-major)',
             groupSlug: 'docs-tooling-non-major',
@@ -281,6 +272,9 @@
             matchManagers: [
                 'pip_requirements',
             ],
+            matchFileNames: [
+                'docs/requirements.txt',
+            ],
             matchUpdateTypes: [
                 'minor',
                 'patch',
@@ -289,6 +283,8 @@
             ],
             rebaseWhen: 'auto',
         },
+        // The bulk of the volume, one PR at a time before this change. The cost of batching is that
+        // one bad member holds the whole batch, and the exit is a rule below with groupName: null.
         {
             groupName: 'front-end production dependencies (non-major)',
             groupSlug: 'front-prod-non-major',

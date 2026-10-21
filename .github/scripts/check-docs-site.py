@@ -6,8 +6,8 @@ produces a green build (selectolax 1.0.1 made mkdocs-glightbox drop every image,
 for the site built in <site-dir> from docs/docs:
 
 - every Markdown page has its HTML page,
-- every local image a page references is an <img> of that built page,
-- the search index lists every page.
+- every local image a page references is an <img> of that page's content,
+- the search index has an entry for every page that is not excluded from search.
 
 Usage: check-docs-site.py [site-dir]   (default: docs/site)
 """
@@ -21,30 +21,50 @@ from urllib.parse import unquote, urlsplit
 REPO = Path(__file__).resolve().parents[2]
 DOCS_ROOT = REPO / "docs" / "docs"
 
-FENCE_RE = re.compile(r"^\s*(```|~~~)")
-MD_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(\s*<?([^)\s>]+)")
+FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
+COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
+INLINE_CODE_RE = re.compile(r"`[^`]*`")
+FRONT_MATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.S)
+SEARCH_EXCLUDED_RE = re.compile(r"^search:\s*\n\s+exclude:\s*true\b", re.M)
+MD_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(\s*(?:<([^>]+)>|([^)\s]+))")
 HTML_IMAGE_RE = re.compile(r"""<img\b[^>]*\bsrc=["']([^"']+)["']""", re.I)
+ARTICLE_RE = re.compile(r"<article\b.*</article>", re.S)
 
 
-def page_output(site: Path, page: Path) -> Path:
+def url_of(page: Path) -> str:
+    """Location of a page in the built site, as the search index writes it."""
     relative = page.relative_to(DOCS_ROOT).with_suffix("")
-    if relative.name == "index":
-        return site / relative.parent / "index.html"
-    return site / relative / "index.html"
+    if relative.name in ("index", "README"):
+        relative = relative.parent
+    return "" if relative == Path(".") else f"{relative.as_posix()}/"
 
 
-def local_image_names(page: Path) -> set[str]:
-    """File names of the local images a Markdown page references, outside code fences."""
-    names, in_fence = set(), False
-    for line in page.read_text(encoding="utf-8").splitlines():
-        if FENCE_RE.match(line):
-            in_fence = not in_fence
-        if in_fence:
+def image_name(src: str) -> str | None:
+    """File name of a local image source, or None for a remote, data or templated one."""
+    parts = urlsplit(src)
+    if parts.scheme or src.startswith(("//", "data:", "{{")):
+        return None
+    return Path(unquote(parts.path)).name
+
+
+def local_image_names(text: str) -> set[str]:
+    """File names of the local images a Markdown page references, outside code and comments."""
+    names, fence = set(), None
+    for line in COMMENT_RE.sub("", text).splitlines():
+        opener = FENCE_RE.match(line)
+        if fence is None and opener:
+            fence = opener.group(1)
             continue
-        for src in MD_IMAGE_RE.findall(line) + HTML_IMAGE_RE.findall(line):
-            parts = urlsplit(src)
-            if not parts.scheme and not src.startswith(("//", "data:", "{{")):
-                names.add(Path(unquote(parts.path)).name)
+        if fence is not None:
+            # A fence is closed by a line of the same character, at least as long as the opener.
+            if opener and opener.group(1)[0] == fence[0] and len(opener.group(1)) >= len(fence):
+                fence = None
+            continue
+        line = INLINE_CODE_RE.sub("", line)
+        for src in [a or b for a, b in MD_IMAGE_RE.findall(line)] + HTML_IMAGE_RE.findall(line):
+            name = image_name(src)
+            if name:
+                names.add(name)
     return names
 
 
@@ -55,24 +75,34 @@ def main() -> int:
         return 2
 
     pages = sorted(DOCS_ROOT.rglob("*.md"))
-    errors, images = [], 0
+    errors, images, searchable = [], 0, set()
     for page in pages:
         rel = page.relative_to(REPO).as_posix()
-        output = page_output(site, page)
+        text = page.read_text(encoding="utf-8")
+        front_matter = FRONT_MATTER_RE.match(text)
+        if not (front_matter and SEARCH_EXCLUDED_RE.search(front_matter.group(1))):
+            searchable.add(url_of(page))
+
+        output = site / url_of(page) / "index.html"
         if not output.is_file():
             errors.append((rel, "no HTML page in the built site"))
             continue
-        built = {Path(unquote(s)).name for s in HTML_IMAGE_RE.findall(output.read_text(encoding="utf-8"))}
-        for name in sorted(local_image_names(page)):
+        html = output.read_text(encoding="utf-8")
+        # Only the page content: the theme header and footer have images of their own.
+        content = ARTICLE_RE.search(html)
+        built = {image_name(s) for s in HTML_IMAGE_RE.findall(content.group(0) if content else html)}
+        for name in sorted(local_image_names(text)):
             images += 1
             if name not in built:
                 errors.append((rel, f"image {name} is not an <img> of the built page"))
 
     index = site / "search" / "search_index.json"
-    if index.is_file():
+    if not index.is_file():
+        errors.append(("docs/mkdocs.yml", "no search index in the built site"))
+    else:
         indexed = {doc["location"].split("#")[0] for doc in json.loads(index.read_text(encoding="utf-8"))["docs"]}
-        if len(indexed) < len(pages):
-            errors.append(("docs/mkdocs.yml", f"search index lists {len(indexed)} pages for {len(pages)} Markdown pages"))
+        for url in sorted(searchable - indexed):
+            errors.append(("docs/mkdocs.yml", f"page /{url} is missing from the search index"))
 
     for rel, error in errors:
         print(f"::error file={rel}::{error}")

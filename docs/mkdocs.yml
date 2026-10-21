@@ -114,7 +114,7 @@ plugins:
         'usage/rest-api.md': 'reference/apis/rest-api.md'
   - macros
   # The contributors and dates shown on each page come from git history and the GitHub API.
-  # The docs links check only needs the pages, so it sets DOCS_GIT_PLUGINS=false to skip both.
+  # The docs links check only needs the pages, so it sets DOCS_GIT_PLUGINS=false (true or false) to skip both.
   - git-committers:
       enabled: !ENV [DOCS_GIT_PLUGINS, true]
       repository: OpenAEV-Platform/openaev
