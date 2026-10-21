@@ -2,6 +2,9 @@ package io.openaev.aop;
 
 import io.openaev.config.SessionHelper;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.AmbientTenantBridge;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -12,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -45,6 +49,7 @@ public class AccessControlAspect {
   private final UserService userService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
@@ -114,16 +119,27 @@ public class AccessControlAspect {
           "Access denied for user " + SessionHelper.currentUser().getId()) {};
     }
 
-    // Perform your RBAC check with the extracted value
+    // Capabilities and grants resolve through the ambient tenant, which only the
+    // /api/tenants/{tenantId}/ route sets, while the TxCtx also honours the X-Tenant-Ids header.
+    // When the scope pins another tenant, the method may work in either one, so the caller must be
+    // authorized in both.
+    final User user = principal;
+    final String resource = resourceId;
+    BooleanSupplier permitted =
+        () ->
+            accessControl.requireAdmin()
+                ? permissionService.hasUserAdminPrivileges(user)
+                : permissionService.hasPermission(
+                    user,
+                    httpMappingInfo,
+                    resource,
+                    accessControl.resourceType(),
+                    accessControl.actionPerformed());
+    String pinnedTenant = pinnedTenant(args);
     boolean allowed =
-        accessControl.requireAdmin()
-            ? permissionService.hasUserAdminPrivileges(principal)
-            : permissionService.hasPermission(
-                principal,
-                httpMappingInfo,
-                resourceId,
-                accessControl.resourceType(),
-                accessControl.actionPerformed());
+        permitted.getAsBoolean()
+            && (pinnedTenant == null
+                || ambientTenantBridge.callInTenant(pinnedTenant, permitted::getAsBoolean));
 
     if (!allowed) {
       log.warn(
@@ -136,6 +152,20 @@ public class AccessControlAspect {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getEmail()) {};
     }
+  }
+
+  /**
+   * The single tenant a {@link TxCtx} argument pins, or {@code null} when there is no such
+   * argument, it pins several tenants or none, or it pins the ambient tenant.
+   */
+  private static String pinnedTenant(Object[] args) {
+    for (Object arg : args) {
+      if (arg instanceof TxCtx.Restricted restricted && restricted.tenantIds().size() == 1) {
+        String tenantId = restricted.tenantIds().getFirst();
+        return tenantId.equals(TenantContext.getCurrentTenant()) ? null : tenantId;
+      }
+    }
+    return null;
   }
 
   public record HttpMappingInfo(
