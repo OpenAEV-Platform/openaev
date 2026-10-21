@@ -23,6 +23,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -226,6 +227,66 @@ class ExecutorTest {
           .contains("secret-ref-1");
       assertThat(payload.path("attachments").path("authorisation_code").asText())
           .isEqualTo("auth-code");
+    }
+  }
+
+  @Nested
+  @DisplayName("execute - not targeted trace for assets outside the launcher's clearance")
+  class AssetsWithoutClearanceTraces {
+
+    private void givenStartedExternalInjector() {
+      Injector injector = new Injector();
+      injector.setId("injector-003");
+      injector.setTenantId(TENANT_ID);
+      injector.setType("openaev_test_injector");
+      injector.setExternal(true);
+      when(inject.getInjector()).thenReturn(injector);
+      when(connectorInstanceService.hasStartedConnectorInstanceForInjector("injector-003"))
+          .thenReturn(true);
+      when(injectStatusRepository.findByInjectId(INJECT_ID))
+          .thenReturn(Optional.of(mock(InjectStatus.class)));
+    }
+
+    @Test
+    @DisplayName(
+        "Given an injector without agent routing, execute should trace the restricted targets as"
+            + " not targeted")
+    void given_injectorWithoutAgentRouting_should_traceRestrictedTargets() throws Exception {
+      // -------- Arrange --------
+      givenStartedExternalInjector();
+      InjectStatus status = mock(InjectStatus.class);
+      when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
+          .thenReturn(status);
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      when(injectService.resolveAssetsWithoutClearance(inject)).thenReturn(Set.of(assetRed));
+
+      // -------- Act --------
+      executor.execute(executableInject);
+
+      // -------- Assert --------
+      verify(executionExecutorService).saveAssetsWithoutClearanceTraces(Set.of(assetRed), status);
+      verify(executionExecutorService, never()).launchExecutorContext(inject);
+    }
+
+    @Test
+    @DisplayName(
+        "Given an injector with agent routing, execute should leave the restricted targets to the"
+            + " executor context")
+    void given_injectorWithAgentRouting_should_delegateTracesToExecutorContext() throws Exception {
+      // -------- Arrange --------
+      givenStartedExternalInjector();
+      when(injectorContract.getNeedsExecutor()).thenReturn(true);
+      when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
+          .thenReturn(mock(InjectStatus.class));
+
+      // -------- Act --------
+      executor.execute(executableInject);
+
+      // -------- Assert --------
+      verify(executionExecutorService).launchExecutorContext(inject);
+      verify(executionExecutorService, never()).saveAssetsWithoutClearanceTraces(any(), any());
+      verify(injectService, never()).resolveAssetsWithoutClearance(inject);
     }
   }
 }

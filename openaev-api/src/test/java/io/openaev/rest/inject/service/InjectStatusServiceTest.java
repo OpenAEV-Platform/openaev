@@ -89,6 +89,119 @@ class InjectStatusServiceTest {
   }
 
   @Nested
+  @DisplayName("Completion with clearance-restricted agents")
+  class CompletionWithClearanceRestrictedAgentsTest {
+
+    @Mock private InjectRepository injectRepository;
+    @Mock private AgentRepository agentRepository;
+    @Mock private InjectAgentResolverService injectAgentResolverService;
+    @Mock private InjectUtils injectUtils;
+    @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
+    @Mock private InjectStatusRepository injectStatusRepository;
+    @Mock private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
+    @Mock private EntityManager entityManager;
+    @Mock private ObjectMapper objectMapper;
+    @Mock private ApplicationEventPublisher eventPublisher;
+
+    private InjectStatusService injectStatusService;
+    private Inject inject;
+    private InjectStatus injectStatus;
+
+    @BeforeEach
+    void setUp() {
+      injectStatusService =
+          new InjectStatusService(
+              injectRepository,
+              agentRepository,
+              injectAgentResolverService,
+              injectUtils,
+              injectAuthorisationRepository,
+              injectStatusRepository,
+              executionTraceRepositoryHelper,
+              Optional.empty(),
+              eventPublisher,
+              objectMapper,
+              entityManager);
+
+      // Two cleared agents are expected, the restricted one got its not-targeted trace at launch
+      inject = new Inject();
+      inject.setId("inject-mixed-clearance");
+      injectStatus = new InjectStatus();
+      injectStatus.setId("status-mixed-clearance");
+      injectStatus.setName(ExecutionStatus.PENDING);
+      injectStatus.setInject(inject);
+      injectStatus.setTraces(new ArrayList<>());
+      injectStatus.setExpectedAgentCount(2);
+      injectStatus
+          .getTraces()
+          .add(
+              completeTrace(
+                  injectStatus,
+                  agent("agent-restricted"),
+                  ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED));
+      inject.setStatus(injectStatus);
+
+      when(executionTraceRepositoryHelper.saveExecutionTrace(any())).thenReturn("trace-id");
+    }
+
+    private Agent agent(String id) {
+      Agent agent = new Agent();
+      agent.setId(id);
+      return agent;
+    }
+
+    private ExecutionTrace completeTrace(
+        InjectStatus status, Agent agent, ExecutionTraceStatus traceStatus) {
+      return new ExecutionTrace(
+          status, traceStatus, null, "complete", ExecutionTraceAction.COMPLETE, agent, START_TIME);
+    }
+
+    private InjectExecutionInput completeInput() {
+      InjectExecutionInput input = new InjectExecutionInput();
+      input.setAction(InjectExecutionAction.complete);
+      input.setStatus("SUCCESS");
+      input.setMessage("done");
+      input.setDuration(0);
+      return input;
+    }
+
+    @Test
+    @DisplayName(
+        "given restricted agent and first cleared agent complete should keep inject running")
+    void given_restrictedAgentAndFirstClearedAgentComplete_should_keepInjectRunning() {
+      // Arrange
+      Agent firstClearedAgent = agent("agent-cleared-1");
+
+      // Act
+      injectStatusService.updateInjectStatus(inject, firstClearedAgent, completeInput(), null);
+
+      // Assert
+      assertThat(injectStatus.getName()).isEqualTo(ExecutionStatus.PENDING);
+      assertThat(injectStatus.getTrackingEndDate()).isNull();
+      verify(injectAuthorisationRepository, never()).deleteAllByInjectId(any());
+    }
+
+    @Test
+    @DisplayName("given restricted agent and all cleared agents complete should finalize inject")
+    void given_restrictedAgentAndAllClearedAgentsComplete_should_finalizeInject() {
+      // Arrange
+      injectStatus
+          .getTraces()
+          .add(
+              completeTrace(injectStatus, agent("agent-cleared-1"), ExecutionTraceStatus.EXECUTED));
+      Agent secondClearedAgent = agent("agent-cleared-2");
+
+      // Act
+      injectStatusService.updateInjectStatus(inject, secondClearedAgent, completeInput(), null);
+
+      // Assert
+      assertThat(injectStatus.getName()).isEqualTo(ExecutionStatus.EXECUTED);
+      assertThat(injectStatus.getTrackingEndDate()).isNotNull();
+      verify(injectAuthorisationRepository).deleteAllByInjectId("inject-mixed-clearance");
+    }
+  }
+
+  @Nested
   @DisplayName("Audit event on status transition")
   class AuditEventOnStatusTransition {
 

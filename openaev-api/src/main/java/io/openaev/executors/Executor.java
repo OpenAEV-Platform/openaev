@@ -146,6 +146,11 @@ public class Executor {
     inject.setStatus(updatedStatus);
     if (Boolean.TRUE.equals(injectorContract.getNeedsExecutor())) {
       this.executionExecutorService.launchExecutorContext(inject);
+    } else {
+      // Without agent routing, the restricted targets are only dropped by
+      // resolveAllAssetsToExecute: trace them here, once per dispatch
+      this.executionExecutorService.saveAssetsWithoutClearanceTraces(
+          this.injectService.resolveAssetsWithoutClearance(inject), updatedStatus);
     }
     if (injector.isExternal()) {
       return executeExternal(executableInject, injector);

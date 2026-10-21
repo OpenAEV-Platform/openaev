@@ -21,6 +21,7 @@ public enum ExecutionTraceStatus {
 
   // -- Not counted (ignored in status computation) --
   ASSET_AGENTLESS,
+  ASSET_CLEARANCE_RESTRICTED,
   AGENT_INACTIVE,
   AGENT_OVERLOADED,
   INFO,
@@ -53,6 +54,10 @@ public enum ExecutionTraceStatus {
   public static final Set<ExecutionTraceStatus> SUCCESS_STATUSES =
       Set.of(EXECUTED, EXECUTED_WITH_CLEANUP_FAILURE, WARNING, ACCESS_DENIED);
 
+  /** Trace statuses that indicate the trace is not counted to resolve the status of inject. */
+  public static final Set<ExecutionTraceStatus> NOT_COUNTED =
+      Set.of(ASSET_AGENTLESS, ASSET_CLEARANCE_RESTRICTED, AGENT_INACTIVE, AGENT_OVERLOADED, INFO);
+
   public static ExecutionTraceStatus fromName(String status) {
     if ("SUCCESS".equalsIgnoreCase(status)) {
       return EXECUTED;
@@ -66,5 +71,9 @@ public enum ExecutionTraceStatus {
 
   public boolean isSuccess() {
     return SUCCESS_STATUSES.contains(this);
+  }
+
+  public boolean isCounted() {
+    return NOT_COUNTED.contains(this);
   }
 }

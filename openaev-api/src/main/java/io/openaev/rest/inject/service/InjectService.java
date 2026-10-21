@@ -467,6 +467,23 @@ public class InjectService {
 
   // -- ASSETS --
   public List<AssetToExecute> resolveAllAssetsToExecute(@NotNull final Inject inject) {
+    return filterByMarkingClearance(inject, resolveAllTargetedAssets(inject));
+  }
+
+  /**
+   * Returns the targets that {@link #resolveAllAssetsToExecute} drops because the launcher's
+   * clearance does not cover their markings, so the dispatch can trace them as not targeted instead
+   * of skipping them silently.
+   */
+  public Set<Asset> resolveAssetsWithoutClearance(@NotNull final Inject inject) {
+    MarkingCtx clearance = resolveLaunchedByClearance(inject);
+    return resolveAllTargetedAssets(inject).stream()
+        .map(AssetToExecute::asset)
+        .filter(asset -> !isVisibleUnderClearance(asset, clearance))
+        .collect(Collectors.toSet());
+  }
+
+  private List<AssetToExecute> resolveAllTargetedAssets(Inject inject) {
     List<AssetToExecute> assetToExecutes = new ArrayList<>();
 
     inject.getAssets().forEach(asset -> assetToExecutes.add(new AssetToExecute(asset)));
@@ -514,7 +531,7 @@ public class InjectService {
               }
             });
 
-    return filterByMarkingClearance(inject, assetToExecutes);
+    return assetToExecutes;
   }
 
   /**
@@ -1211,23 +1228,22 @@ public class InjectService {
   private AgentsAndAssetsAgentless agentsAndAgentlessAssets(
       Inject inject, java.util.function.Predicate<Asset> launchable) {
     Set<Agent> agents = new HashSet<>();
+    Set<Agent> agentsWithoutClearance = new HashSet<>();
     Set<Asset> assetsAgentless = new HashSet<>();
+    Set<Asset> assetsWithoutClearance = new HashSet<>();
 
-    for (Asset asset : inject.getAssets()) {
-      if (launchable.test(asset)) {
-        extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
+    List<AssetToExecute> targetedAssets = resolveAllTargetedAssets(inject);
+    for (AssetToExecute targetedAsset : targetedAssets) {
+      if (launchable.test(targetedAsset.asset())) {
+        extractAgentsAndAssetsAgentless(agents, assetsAgentless, targetedAsset.asset());
+      } else {
+        extractAgentsAndAssetsAgentless(
+            agentsWithoutClearance, assetsWithoutClearance, targetedAsset.asset());
       }
     }
 
-    for (AssetGroup assetGroup : inject.getAssetGroups()) {
-      for (Asset asset : assetGroupService.assetsFromAssetGroup(assetGroup.getId())) {
-        if (launchable.test(asset)) {
-          extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
-        }
-      }
-    }
-
-    return new AgentsAndAssetsAgentless(agents, assetsAgentless);
+    return new AgentsAndAssetsAgentless(
+        agents, assetsAgentless, agentsWithoutClearance, assetsWithoutClearance);
   }
 
   private void extractAgentsAndAssetsAgentless(

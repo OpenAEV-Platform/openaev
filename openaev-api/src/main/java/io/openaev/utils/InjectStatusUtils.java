@@ -16,12 +16,7 @@ public class InjectStatusUtils {
    */
   public static ExecutionStatus computeStatus(List<ExecutionTrace> traces) {
     List<ExecutionTrace> activeTraces =
-        traces.stream()
-            .filter(t -> !ExecutionTraceStatus.AGENT_INACTIVE.equals(t.getStatus()))
-            .filter(t -> !ExecutionTraceStatus.AGENT_OVERLOADED.equals(t.getStatus()))
-            .filter(t -> !ExecutionTraceStatus.ASSET_AGENTLESS.equals(t.getStatus()))
-            .filter(t -> !ExecutionTraceStatus.INFO.equals(t.getStatus()))
-            .toList();
+        traces.stream().filter(t -> !t.getStatus().isCounted()).toList();
 
     if (activeTraces.isEmpty()) {
       return ExecutionStatus.ERROR;

@@ -1868,6 +1868,26 @@ class InjectServiceTest {
       assertThat(resolved).isEmpty();
       verifyNoInteractions(markingClearanceCacheManager);
     }
+
+    @Test
+    @DisplayName(
+        "partial clearance: only the restricted target is returned as without clearance, so it can"
+            + " be traced as not targeted")
+    void given_partialClearance_should_returnOnlyRestrictedTargetAsWithoutClearance() {
+      User launcher = new User();
+      launcher.setId("user-green");
+      Asset assetGreen = assetWithMarking("asset-green", "m-green");
+      Asset assetRed = assetWithMarking("asset-red", "m-red");
+      Asset assetUnmarked = assetWithMarking("asset-plain");
+      Inject inject = injectTargeting(launcher, assetGreen, assetRed, assetUnmarked);
+      doReturn(MarkingCtx.forMarkings(List.of("m-green")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-green", "tenant-1", false);
+
+      Set<Asset> withoutClearance = injectService.resolveAssetsWithoutClearance(inject);
+
+      assertThat(withoutClearance).containsExactly(assetRed);
+    }
   }
 
   @Nested
@@ -1964,6 +1984,102 @@ class InjectServiceTest {
       assertThat(result.agents())
           .extracting(Agent::getExternalReference)
           .containsExactly("agent-plain");
+    }
+
+    @Test
+    @DisplayName(
+        "zero clearance: a restricted endpoint with an agent is traced through its agent, not at"
+            + " asset level")
+    void given_zeroClearance_should_returnRestrictedAgentOnly() {
+      User launcher = new User();
+      launcher.setId("user-1");
+      Endpoint endpointRed = endpointWithAgent("endpoint-red", "agent-red", "m-red");
+      Inject inject = injectTargetingEndpoints(launcher, endpointRed);
+      doReturn(MarkingCtx.none())
+          .when(markingClearanceCacheManager)
+          .findClearance("user-1", "tenant-1", false);
+
+      AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
+
+      assertThat(result.agentsWithoutClearance())
+          .extracting(Agent::getExternalReference)
+          .containsExactly("agent-red");
+      assertThat(result.assetsWithoutClearance()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "zero clearance: a restricted endpoint without agent is returned as without clearance, not"
+            + " as agentless")
+    void given_zeroClearance_should_returnRestrictedAgentlessEndpointAsWithoutClearance() {
+      User launcher = new User();
+      launcher.setId("user-1");
+      Endpoint endpointRed = EndpointFixture.createEndpoint("endpoint-red");
+      endpointRed.setId("endpoint-red");
+      endpointRed.setMarkingIds(new String[] {"m-red"});
+      endpointRed.setAgents(List.of());
+      Inject inject = injectTargetingEndpoints(launcher, endpointRed);
+      doReturn(MarkingCtx.none())
+          .when(markingClearanceCacheManager)
+          .findClearance("user-1", "tenant-1", false);
+
+      AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
+
+      assertThat(result.assetsWithoutClearance()).containsExactly(endpointRed);
+      assertThat(result.assetsAgentless()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("zero clearance: a restricted non-endpoint asset is returned as without clearance")
+    void given_zeroClearance_should_returnRestrictedNonEndpointAsWithoutClearance() {
+      User launcher = new User();
+      launcher.setId("user-1");
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      assetRed.setMarkingIds(new String[] {"m-red"});
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assetRed));
+      inject.setAssetGroups(List.of());
+      inject.setLaunchedBy(launcher);
+      doReturn(MarkingCtx.none())
+          .when(markingClearanceCacheManager)
+          .findClearance("user-1", "tenant-1", false);
+
+      AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
+
+      assertThat(result.assetsWithoutClearance()).containsExactly(assetRed);
+      assertThat(result.agentsWithoutClearance()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "partial clearance: a restricted endpoint reached through an asset group is split out like"
+            + " a directly targeted one")
+    void given_partialClearanceOnAssetGroup_should_splitRestrictedAgentFromDispatch() {
+      User launcher = new User();
+      launcher.setId("user-green");
+      Endpoint endpointGreen = endpointWithAgent("endpoint-green", "agent-green", "m-green");
+      Endpoint endpointRed = endpointWithAgent("endpoint-red", "agent-red", "m-red");
+      AssetGroup assetGroup = getAssetGroup("assetgroup-mixed");
+      Inject inject = injectTargetingEndpoints(launcher);
+      inject.setAssetGroups(List.of(assetGroup));
+      when(assetGroupService.assetsFromAssetGroup("assetgroup-mixed"))
+          .thenReturn(List.of(endpointGreen, endpointRed));
+      doReturn(MarkingCtx.forMarkings(List.of("m-green")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-green", "tenant-1", false);
+
+      AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
+
+      assertThat(result.agents())
+          .extracting(Agent::getExternalReference)
+          .containsExactly("agent-green");
+      assertThat(result.agentsWithoutClearance())
+          .extracting(Agent::getExternalReference)
+          .containsExactly("agent-red");
+      assertThat(result.assetsWithoutClearance()).isEmpty();
     }
   }
 }
