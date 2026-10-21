@@ -1,8 +1,8 @@
 name: Docs Links Check
 description: >
   Every docs.openaev.io link in the API, model and front sources must resolve to a page of the
-  built MkDocs site, and its anchor must exist on that page. Builds the docs the way the published
-  site is built, so a docs move that breaks an in-app link fails here instead of on the site.
+  built MkDocs site, and its anchor must exist on that page. Builds the docs with the pinned
+  dependencies, so a docs move that breaks an in-app link fails here instead of on the site.
   The git-committers and git-revision-date-localized plugins are switched off: they only fill in
   contributors and dates, and git-committers calls the GitHub API for every page.
 
