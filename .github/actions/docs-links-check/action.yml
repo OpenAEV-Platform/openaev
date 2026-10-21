@@ -16,7 +16,7 @@ runs:
     - name: Install documentation dependencies
       shell: bash
       working-directory: docs
-      run: pip install --quiet -r requirements.txt
+      run: pip install --quiet --no-deps -r requirements.txt && pip check
 
     - name: Build documentation
       shell: bash

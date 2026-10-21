@@ -23,11 +23,11 @@ MAX_REDIRECTS = 5
 
 # The front builds some links from a documentation root constant: `${DOCUMENTATION_ROOT_URL}/latest/...`.
 ROOT = "https://docs.openaev.io"
-URL_RE = re.compile(r"(?:https://docs\.openaev\.io|\$\{documentation_?root_?url\})[^\s\"'`<>)\\]*", re.I)
+URL_RE = re.compile(r"(?:https?://docs\.openaev\.io|\$\{documentation_?root_?url\})[^\s\"'`<>)\\]*", re.I)
 ROOT_CONSTANT_RE = re.compile(r"\$\{documentation_?root_?url\}", re.I)
 TRAILING_PUNCTUATION = ".,;:!?)]}|"
 REFRESH_RE = re.compile(r"""http-equiv=["']refresh["'][^>]*content=["']\d+;\s*url=([^"']+)["']""", re.I)
-ID_RE = re.compile(r"""(?:\bid|<a\b[^>]*\bname)=["']([^"']+)["']""")
+ID_RE = re.compile(r"""(?:(?<![\w-])id|<a\b[^>]*(?<![\w-])name)=["']([^"']+)["']""")
 
 
 def page_file(site: Path, url_path: str) -> Path | None:
@@ -42,36 +42,60 @@ def read_page(page: Path) -> str:
     return page.read_text(encoding="utf-8")
 
 
-def follow_redirects(site: Path, url_path: str) -> tuple[str, Path | None]:
-    """Return the final URL path and its page, following meta-refresh redirect pages."""
+def follow_redirects(site: Path, url_path: str) -> tuple[str, Path | None, str, bool]:
+    """Follow meta-refresh redirect pages.
+
+    Return the final URL path, its page (None when missing), the fragment the redirect targets add
+    and whether the redirect chain loops.
+    """
+    fragment = ""
     for _ in range(MAX_REDIRECTS):
         page = page_file(site, url_path)
         if page is None:
-            return url_path, None
+            return url_path, None, fragment, False
         if page.suffix != ".html":
-            return url_path, page
+            return url_path, page, fragment, False
         refresh = REFRESH_RE.search(read_page(page))
         if not refresh:
-            return url_path, page
-        target = urlsplit(urljoin(f"/{url_path}/", refresh.group(1))).path
-        url_path = unquote(target).strip("/")
-    return url_path, None
+            return url_path, page, fragment, False
+        target = urlsplit(urljoin(f"/{url_path}/", refresh.group(1)))
+        fragment = fragment or unquote(target.fragment)
+        url_path = unquote(target.path).strip("/")
+    return url_path, None, fragment, True
 
 
 def check_url(site: Path, url: str) -> str | None:
-    parts = urlsplit(ROOT_CONSTANT_RE.sub(ROOT, url))
+    url = ROOT_CONSTANT_RE.sub(ROOT, url)
+    if "${" in url:
+        return None  # built at run time, there is nothing to resolve statically
+    parts = urlsplit(url)
     segments = [s for s in parts.path.split("/") if s]
     if not segments:
         return None
     if segments[0] != "latest":
         return "link must start with /latest/"
-    url_path, page = follow_redirects(site, "/".join(segments[1:]))
+    url_path, page, target_fragment, loop = follow_redirects(site, "/".join(segments[1:]))
+    if loop:
+        return f"redirect loop from {'/'.join(segments[1:])}"
     if page is None:
         return f"no page {url_path or 'index'} in the built docs site"
-    fragment = unquote(parts.fragment)
+    link_fragment = unquote(parts.fragment)
+    if link_fragment and target_fragment:
+        # The redirect page appends the incoming fragment to its target: `target#a#b` resolves nowhere.
+        return f"redirect already targets #{target_fragment}, a link cannot add #{link_fragment}"
+    fragment = link_fragment or target_fragment
     if fragment and (page.suffix != ".html" or fragment not in ID_RE.findall(read_page(page))):
         return f"no anchor #{fragment} on {page.relative_to(site).as_posix()}"
     return None
+
+
+def strip_trailing_punctuation(url: str) -> str:
+    """Drop the punctuation that ends the sentence or string around a link, not a closing `}` of `${...}`."""
+    while url and url[-1] in TRAILING_PUNCTUATION:
+        if url[-1] == "}" and url.count("${") > url.count("}") - 1:
+            break
+        url = url[:-1]
+    return url
 
 
 def source_files() -> list[Path]:
@@ -92,7 +116,7 @@ def main() -> int:
     for file in source_files():
         rel = file.relative_to(REPO).as_posix()
         for line_no, line in enumerate(file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-            for url in (u.rstrip(TRAILING_PUNCTUATION) for u in URL_RE.findall(line)):
+            for url in map(strip_trailing_punctuation, URL_RE.findall(line)):
                 checked += 1
                 error = check_url(site, url)
                 if error:
