@@ -75,9 +75,13 @@ public class WorkflowUpdateEventPublisher {
     Iterator<String> remaining = stepIds.iterator();
     while (remaining.hasNext()) {
       String stepId = remaining.next();
+      // A send supersedes only the event kept before it: one another thread keeps meanwhile stays.
+      ExternalUpdateEvent keptBeforeSend = unsentEvents.get(stepId);
       try {
         queueChainingService.updateStep(stepId);
-        unsentEvents.remove(stepId);
+        if (keptBeforeSend != null) {
+          unsentEvents.remove(stepId, keptBeforeSend);
+        }
       } catch (IOException e) {
         // The queue is most likely down: keep this event and the rest without trying them.
         keep(stepId);

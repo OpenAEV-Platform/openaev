@@ -2,6 +2,8 @@ package io.openaev.service.chaining;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
@@ -17,6 +19,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -211,6 +218,55 @@ class WorkflowUpdateEventPublisherTest {
       // One resend, right after the refusal; the fresh send then supersedes the kept event.
       verify(queueChainingService, times(2)).updateStep("step-a");
       verify(queueChainingService, times(1)).republishUpdateEvent(any());
+    }
+
+    @Test
+    @DisplayName(
+        "given an event kept by another thread while a send is in flight, should keep it when that"
+            + " send succeeds")
+    void given_eventKeptWhileASendIsInFlight_should_keepItWhenThatSendSucceeds() throws Exception {
+      // -- Arrange --
+      when(stepService.findStepIdActiveByInjectId("inject-a")).thenReturn(Optional.of("step-a"));
+      CountDownLatch firstSendPublished = new CountDownLatch(1);
+      CountDownLatch resumeFirstSend = new CountDownLatch(1);
+      AtomicInteger sends = new AtomicInteger();
+      doAnswer(
+              invocation -> {
+                if (sends.incrementAndGet() == 1) {
+                  // The first send is on the queue and stops before the publisher reacts to it.
+                  firstSendPublished.countDown();
+                  assertThat(resumeFirstSend.await(10, TimeUnit.SECONDS)).isTrue();
+                  return null;
+                }
+                throw new IOException("queue down");
+              })
+          .when(queueChainingService)
+          .updateStep("step-a");
+      AtomicReference<ExternalUpdateEvent> keptMeanwhile = new AtomicReference<>();
+      when(queueChainingService.newUpdateEvent("step-a"))
+          .thenAnswer(
+              invocation -> {
+                ExternalUpdateEvent event = eventFor("step-a", TENANT_A);
+                keptMeanwhile.set(event);
+                return event;
+              });
+      doThrow(new IOException("queue down"))
+          .doNothing()
+          .when(queueChainingService)
+          .republishUpdateEvent(any());
+      CompletableFuture<Void> firstSend =
+          CompletableFuture.runAsync(() -> publisher.publishForInject("inject-a"));
+      assertThat(firstSendPublished.await(10, TimeUnit.SECONDS)).isTrue();
+      // A later update of the same step fails its send and its immediate resend, and is kept.
+      publisher.publishForInject("inject-a");
+
+      // -- Act --
+      resumeFirstSend.countDown();
+      firstSend.get(10, TimeUnit.SECONDS);
+
+      // -- Assert --
+      // The event kept meanwhile is resent by the first publication rather than dropped by it.
+      verify(queueChainingService, times(2)).republishUpdateEvent(same(keptMeanwhile.get()));
     }
   }
 }
