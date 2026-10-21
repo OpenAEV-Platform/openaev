@@ -39,8 +39,8 @@ itself, so their colour and dash pattern cannot drift from what they describe.
 
 ## The one thing to understand
 
-Almost nothing in this pipeline waits. Of the 23 job definitions in `_ci-pipeline.yml`,
-**17 launch at t = 0 with no `needs:` at all**; only 6 declare a dependency.
+Almost nothing in this pipeline waits. Of the 25 job definitions in `_ci-pipeline.yml`,
+**18 launch at t = 0 with no `needs:` at all**; only 7 declare a dependency.
 
 `needs:` waits for the *entire* upstream job to finish — including the artifact
 gzip / validate / upload tail, roughly 2.5 min the consumer never actually reads. So
@@ -61,7 +61,7 @@ terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 | **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec; runs on success or failure |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
-| **Pipeline Gate** | 19 jobs (see below) | Aggregates results; runs `if: always()` |
+| **Pipeline Gate** | 20 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
 
@@ -102,6 +102,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 
 | Job | `timeout-minutes` | Purpose |
 |-----|-------------------|---------|
+| 🔢 **ADR Numbering** | 5 min | A pull request must not add an ADR number main already has |
 | 🔎 **Migrations Guard** | 3 min | New DB migrations must be strictly appended after the last release tag |
 | 🔎 **OCSF Parser Generation Stability** | 3 min | Regenerated OCSF parser must leave no git diff |
 | 🔨 **Backend Compile** | 10 min | `mvn compile`; uploads `backend-compiled` and `api-build-output` |
@@ -139,9 +140,9 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 ⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
 If the caller's job key changes, the branch-protection rule must be updated.
 
-It `needs:` these 19 jobs:
+It `needs:` these 20 jobs:
 
-`ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
+`adr-numbering`, `ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
 `spotless-check`, `bom-override-guard`, `frontend-quality`, `fds-conformity`, `fds-mui-regression`, `docs-links-check`, `api-tests`, `e2e-tests`, `api-types-check`,
 `backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `container-vulnerability-scan`
 
@@ -172,7 +173,7 @@ job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocu
 | | Core CI | Nightly CI |
 |-|---------|------------|
 | Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → `main` | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
-| Total expanded jobs | 41 on pull requests, 45 on push and tags | 110 |
+| Total expanded jobs | 42 on pull requests, 46 on push and tags | 111 |
 
 ### API Tests matrix
 

@@ -4,11 +4,11 @@
 #   d2 --watch ci-pipeline-schema.d2          # live preview while editing
 #
 # Organised by TIME, not by function: the point of this pipeline is that almost
-# nothing waits. 17 of the 23 job definitions launch at t=0 and pull what they
-# need by polling; only 6 use `needs:`.
+# nothing waits. 18 of the 25 job definitions launch at t=0 and pull what they
+# need by polling; only 7 use `needs:`.
 #
 # Fan-in/fan-out is drawn lane-to-lane rather than job-to-job on purpose — the
-# Gate really has 19 `needs:`, but 19 arrows converging on one box is unreadable.
+# Gate really has 20 `needs:`, but 20 arrows converging on one box is unreadable.
 #
 # Every duration printed on a job is its `timeout-minutes`, never a measured
 # runtime. Keep the word "timeout" in the label so nobody reads it as a duration.
@@ -54,7 +54,7 @@ style: {fill: "#FFE0B2"; stroke: "#E65100"; stroke-width: 3                     
 }
 }
 
-pipe: "⚙️  _ci-pipeline.yml\nshared reusable workflow  ·  secrets: inherit\n\nCore 41 jobs (45 on push)        Nightly 110 jobs" {
+pipe: "⚙️  _ci-pipeline.yml\nshared reusable workflow  ·  secrets: inherit\n\nCore 42 jobs (46 on push)        Nightly 111 jobs" {
 style: {fill: "#CFD8DC"; stroke: "#37474F"; stroke-width: 4                                                                               ; border-radius: 8; font-size: 24; bold: true}
 }
 
@@ -62,12 +62,13 @@ triggers.core -> pipe: "api-matrix · e2e-matrix\nvulnerability-scan-fail-on-err
 triggers.nightly -> pipe: "larger matrices\nvulnerability-scan-fail-on-error: true" {class: needs}
 
 # ═══ 2. Everything that starts immediately ═══════════════════════════════════
-wave0: "② LAUNCHED IMMEDIATELY AT  t = 0   —   17 job definitions, not one `needs:` between them" {
+wave0: "② LAUNCHED IMMEDIATELY AT  t = 0   —   18 job definitions, not one `needs:` between them" {
 direction: right
 style: {fill: "#ECEFF1"; stroke: "#546E7A"; stroke-width: 4                                             ; font-size: 26; bold: true}
 
 preflight: "PRE-FLIGHT" {
 class: lane
+adr: "🔢 ADR Numbering\ntimeout 5 min\nno ADR number main already has" {class: preflight}
 mg: "🔎 Migrations Guard\ntimeout 3 min\nnew migrations must be appended\nafter the last release tag" {class: preflight}
 ocsf: "🔎 OCSF Parser Generation Stability\ntimeout 3 min\nregenerated OCSF parser\nmust leave no git diff" {class: preflight}
 }
@@ -104,7 +105,7 @@ atc: "🔎 API Types Check\ntimeout 20 min · generated TS types\nvs live API sc
 }
 }
 
-pipe -> wave0: "starts all 17 at once" {class: launch}
+pipe -> wave0: "starts all 18 at once" {class: launch}
 
 # ═══ 3. The only jobs that actually wait ═════════════════════════════════════
 gated: "③ THE ONLY JOBS THAT WAIT ON  needs:" {
@@ -126,11 +127,11 @@ style: {fill: "#FCE4EC"; stroke: "#AD1457"; stroke-width: 3                     
 wave0.tests -> cov: "backend needs: API Tests\ne2e needs: E2E" {class: needs}
 wave0.quality -> cov: "frontend needs: Frontend Quality" {class: needs}
 
-gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 19 jobs  ·  Coverage excluded" {
+gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 20 jobs  ·  Coverage excluded" {
 style: {fill: "#FFCDD2"; stroke: "#B71C1C"; stroke-width: 5                                                                                                                             ; border-radius: 8; font-size: 28; bold: true}
 }
 
-wave0 -> gate: "17 of the 19" {class: needs}
+wave0 -> gate: "18 of the 20" {class: needs}
 gated -> gate: "the other 2" {class: needs}
 
 retry: "🔄 Auto-Retry Failed CI\n\nseparate workflow, on workflow_run: completed\nconclusion == failure  AND  run_attempt == 1\n→ POST rerun-failed-jobs on the same run\n\nLoops back to ② as attempt 2 — exactly once" {
@@ -176,7 +177,7 @@ row3: "" {
 direction: right
 style: {fill: transparent                                                                                                                         ; stroke: transparent}
 a: "workflow" {class: swatch}
-b: "LAUNCH  —  the workflow starting a job. Not a dependency:\nthese 17 jobs have no upstream and begin the instant the run does." {shape: text ; class: note}
+b: "LAUNCH  —  the workflow starting a job. Not a dependency:\nthese 18 jobs have no upstream and begin the instant the run does." {shape: text ; class: note}
 a -> b {class: launch}
 }
 
