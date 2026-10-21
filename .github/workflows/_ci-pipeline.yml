@@ -172,7 +172,7 @@ jobs:
 
   docs-links-check:
     name: "🔎 Docs Links Check"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     # Installs and runs the docs toolchain: no write scope, and no token left in .git/config.
     permissions:

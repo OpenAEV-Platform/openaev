@@ -34,7 +34,7 @@ jobs:
 
       - name: Install documentation dependencies
         working-directory: docs
-        run: pip install -r requirements.txt
+        run: pip install --no-deps -r requirements.txt && pip check
 
       - name: Check for underscores in MkDocs URIs
         working-directory: docs
