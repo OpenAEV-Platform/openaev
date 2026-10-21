@@ -52,7 +52,7 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The six real `needs:` edges
+### The seven real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
@@ -61,6 +61,7 @@ terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 | **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec; runs on success or failure |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
+| **Tenant shadow verdict** | API Tests | Nightly only; collects the shadow shards' pass or fail into one table |
 | **Pipeline Gate** | 20 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
@@ -173,7 +174,7 @@ job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocu
 | | Core CI | Nightly CI |
 |-|---------|------------|
 | Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → `main` | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
-| Total expanded jobs | 42 on pull requests, 46 on push and tags | 111 |
+| Total expanded jobs | 42 on pull requests, 45 on push and tags | 113 |
 
 ### API Tests matrix
 
@@ -206,8 +207,8 @@ server it starts, with `search_engine`. Each value maps to a service of
 | Browsers | chromium on pull requests; chrome (amd64), chromium (arm64) on push | chrome, chromium, webkit, firefox, edge                |
 | Search engines | Elasticsearch 9 only                             | Elasticsearch 9 + OpenSearch                           |
 | Sharding | `arsenals`, `external-integrations`, `remaining` catch-all | unsharded full suites                                  |
-| Infra tests | 3 cells on pull requests, 5 on push, `infra-chromium` | 7 cells across chrome, chromium, firefox, webkit, edge |
-| **Total cells** | **6 on pull requests, 10 on push**               | **25**                                                 |
+| Infra tests | 3 cells on pull requests, 5 on push, `infra-chromium` | 8 cells across chrome, chromium, firefox, webkit, edge |
+| **Total cells** | **6 on pull requests, 10 on push**               | **27**                                                 |
 
 `ubi9` and `webkit` are nightly-only: they exercise the same JAR and were doubling the
 critical path. `artifact_suffix` must stay unique per cell — the report artifact is named
