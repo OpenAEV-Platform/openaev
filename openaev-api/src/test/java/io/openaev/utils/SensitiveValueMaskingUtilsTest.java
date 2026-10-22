@@ -304,6 +304,73 @@ class SensitiveValueMaskingUtilsTest {
   }
 
   @Nested
+  @DisplayName("When masking a value to store it (fail closed)")
+  class WhenMaskingAValueToStoreIt {
+
+    @Test
+    @DisplayName("Should mask the same way from the enum name, the label or the type itself")
+    void given_theEnumNameTheLabelOrTheType_should_maskTheSameWay() {
+      // -------- Act --------
+      String fromName =
+          SensitiveValueMaskingUtils.maskIfNeededFailClosed("Credentials", "admin:motdepasse");
+      String fromLabel =
+          SensitiveValueMaskingUtils.maskIfNeededFailClosed("credentials", "admin:motdepasse");
+      String fromType =
+          SensitiveValueMaskingUtils.maskIfNeededFailClosed(
+              ContractOutputType.Credentials, "admin:motdepasse");
+
+      // -------- Assert --------
+      assertThat(fromName).isEqualTo("admin:mo" + MASK);
+      assertThat(fromLabel).isEqualTo(fromName);
+      assertThat(fromType).isEqualTo(fromName);
+    }
+
+    @Test
+    @DisplayName("Should leave the value of a known, non-sensitive type untouched")
+    void given_aKnownNonSensitiveType_should_returnTheValueUntouched() {
+      // -------- Act & Assert --------
+      assertThat(SensitiveValueMaskingUtils.maskIfNeededFailClosed("Text", "admin:motdepasse"))
+          .isEqualTo("admin:motdepasse");
+    }
+
+    @Test
+    @DisplayName("Should mask the whole value of a type this version does not know")
+    void given_anUnknownType_should_maskTheWholeValue() {
+      // -------- Act & Assert --------
+      assertThat(
+              SensitiveValueMaskingUtils.maskIfNeededFailClosed("not_a_type", "admin:motdepasse"))
+          .isEqualTo("ad" + MASK + ":mo" + MASK);
+    }
+
+    @Test
+    @DisplayName("Should mask the whole value when the type is missing")
+    void given_aMissingType_should_maskTheWholeValue() {
+      // -------- Act & Assert --------
+      assertThat(SensitiveValueMaskingUtils.maskIfNeededFailClosed((String) null, "motdepasse"))
+          .isEqualTo("mo" + MASK);
+      assertThat(SensitiveValueMaskingUtils.maskIfNeededFailClosed(" ", "motdepasse"))
+          .isEqualTo("mo" + MASK);
+      assertThat(
+              SensitiveValueMaskingUtils.maskIfNeededFailClosed(
+                  (ContractOutputType) null, "motdepasse"))
+          .isEqualTo("mo" + MASK);
+    }
+
+    @Test
+    @DisplayName("Should hide what the label-based masking keeps readable for the attack path")
+    void given_anUnknownLabel_should_failClosedWhereTheLabelBasedMaskingFailsOpen() {
+      // -------- Act --------
+      String forTheGraph = SensitiveValueMaskingUtils.maskIfNeeded("not_a_type", "motdepasse");
+      String toStore =
+          SensitiveValueMaskingUtils.maskIfNeededFailClosed("not_a_type", "motdepasse");
+
+      // -------- Assert --------
+      assertThat(forTheGraph).isEqualTo("motdepasse");
+      assertThat(toStore).isEqualTo("mo" + MASK);
+    }
+  }
+
+  @Nested
   @DisplayName("When echoing a masked value back")
   class WhenEchoingAMaskedValue {
 

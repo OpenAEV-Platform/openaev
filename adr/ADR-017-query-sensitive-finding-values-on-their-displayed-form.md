@@ -77,12 +77,16 @@ Concretely:
   carries `@Queryable` under the same key `finding_value`, so the front end and saved filters keep
   working. A dedicated field is needed rather than `@Queryable(path)`, because sorting resolves the Java
   field name and ignores `path`.
-- One helper computes the value with `SensitiveValueMaskingUtils.maskIfNeeded(type, value)`. JPA writes
-  fill it in `@PrePersist` / `@PreUpdate`; the native upsert receives it from `FindingWriter`; a
-  migration backfills existing rows.
+- One helper, `SensitiveValueMaskingUtils.maskIfNeededFailClosed(type, value)`, computes the value, so
+  the masking rule stays in the masking class. JPA writes fill it in `@PrePersist` / `@PreUpdate`; the
+  native upsert receives it from `FindingWriter`; a migration backfills existing rows. A type the
+  version does not know masks the whole value, unlike the label-based `maskIfNeeded`, which keeps an
+  unknown attack path category readable.
+- The search index copies the column instead of masking the value again, so dashboards and the
+  Findings page show the same form.
 - A missing value (for example a row inserted by a pod of the previous version during a rolling
-  deploy) is displayed with the mask computed on the fly, never with the cleartext, and is absent from
-  value search until it is filled. The system fails closed.
+  deploy) is displayed and indexed with the mask computed on the fly, never with the cleartext, and is
+  absent from value search until it is filled. The system fails closed.
 - Distinct mode and the finding summary group by type and masked value, so `jdoe:Su111` and
   `jdoe:Su222` form one row, and its summary counts the occurrences of both.
 - A change of the masking rule bumps `MASKING_VERSION` and ships one migration that rewrites the column,

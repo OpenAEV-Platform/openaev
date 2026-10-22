@@ -1,6 +1,6 @@
 package io.openaev.migration;
 
-import io.openaev.database.model.Finding;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -18,11 +18,11 @@ import org.springframework.stereotype.Component;
  * cleartext {@code finding_value}, so they could confirm a secret the platform masks on screen
  * (issue #7893, ADR-017). They now read this column instead.
  *
- * <p>The backfill masks each value with {@link Finding#displayValueOf(String, String)}, the same
- * helper every write path uses, rather than with SQL: copying the masking rule into SQL would let
- * the two drift apart. Calling application code from a migration is deliberate here, because the
- * column must always hold the current masking rule. A type this version does not know gets its
- * whole value masked.
+ * <p>The backfill masks each value with {@link
+ * SensitiveValueMaskingUtils#maskIfNeededFailClosed(String, String)}, the same helper every write
+ * path uses, rather than with SQL: copying the masking rule into SQL would let the two drift apart.
+ * Calling application code from a migration is deliberate here, because the column must always hold
+ * the current masking rule. A type this version does not know gets its whole value masked.
  *
  * <p>Execution is batched ({@value #BATCH_SIZE} rows) and runs OUTSIDE a wrapping Flyway
  * transaction, so each batch commits on its own and locks stay short on large tables. It is
@@ -72,7 +72,7 @@ public class V6_20261022151200000__Add_finding_value_display extends BaseJavaMig
           while (rows.next()) {
             update.setString(
                 1,
-                Finding.displayValueOf(
+                SensitiveValueMaskingUtils.maskIfNeededFailClosed(
                     rows.getString("finding_type"), rows.getString("finding_value")));
             update.setString(2, rows.getString("finding_id"));
             update.addBatch();

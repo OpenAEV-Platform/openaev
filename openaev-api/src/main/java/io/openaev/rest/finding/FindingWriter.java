@@ -1,8 +1,8 @@
 package io.openaev.rest.finding;
 
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.Finding;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -58,7 +58,8 @@ public class FindingWriter {
         };
     // The native upsert skips the JPA callbacks of Finding, so the displayed value is computed here
     // with the same helper, and the row is never written without it.
-    String findingValueDisplay = Finding.displayValueOf(findingType, findingValue);
+    String findingValueDisplay =
+        SensitiveValueMaskingUtils.maskIfNeededFailClosed(findingType, findingValue);
     String findingId =
         findingRepository.upsertFinding(
             findingField,

@@ -97,29 +97,18 @@ class FindingValueDisplayTest {
   }
 
   @Nested
-  @DisplayName("When only the type name is known")
-  class WhenOnlyTheTypeNameIsKnown {
+  @DisplayName("When the type is not set yet")
+  class WhenTheTypeIsNotSetYet {
 
     @Test
-    @DisplayName("Should mask the same way from the enum name or the label")
-    void given_theEnumNameOrTheLabel_should_maskTheSameWay() {
-      // Act
-      String fromName = Finding.displayValueOf("Credentials", "admin:motdepasse");
-      String fromLabel = Finding.displayValueOf("credentials", "admin:motdepasse");
+    @DisplayName("Should mask the whole value until the type is known")
+    void given_aValueWithoutType_should_maskItWhole() {
+      // Arrange & Act
+      Finding finding = new Finding();
+      finding.setValue("admin:motdepasse");
 
       // Assert
-      assertThat(fromName).isEqualTo("admin:mo" + MASK);
-      assertThat(fromLabel).isEqualTo(fromName);
-    }
-
-    @Test
-    @DisplayName("Should mask the whole value of a type this version does not know")
-    void given_anUnknownType_should_maskTheWholeValue() {
-      // Act
-      String displayed = Finding.displayValueOf("not_a_type", "admin:motdepasse");
-
-      // Assert
-      assertThat(displayed).isEqualTo("ad" + MASK + ":mo" + MASK);
+      assertThat(finding.getValueDisplay()).isEqualTo("ad" + MASK + ":mo" + MASK);
     }
   }
 }

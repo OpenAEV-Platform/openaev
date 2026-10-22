@@ -132,7 +132,8 @@ public interface FindingRepository
   // bulk upsert overwrote the previous row) and the LIMIT applied to joined rows, not findings.
   @Query(
       value =
-          "SELECT f.finding_id, f.finding_value, f.finding_type, f.finding_field,"
+          "SELECT f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
+              + " f.finding_field,"
               + " f.finding_inject_id, i.inject_exercise, MAX(se.scenario_id) AS scenario_id,"
               + " array_agg(DISTINCT fa.asset_id) FILTER ( WHERE fa.asset_id IS NOT NULL ) AS asset_ids,"
               + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
@@ -152,7 +153,8 @@ public interface FindingRepository
               // "FROM findings f" into a derived table, the dependency can no longer be inferred,
               // and this query stops being valid SQL: search indexing then fails outright instead
               // of degrading. MAX(...) and array_agg(...) stay out, being aggregates.
-              + "GROUP BY f.finding_id, f.finding_value, f.finding_type, f.finding_field,"
+              + "GROUP BY f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
+              + " f.finding_field,"
               + " f.finding_inject_id, i.inject_exercise, f.finding_created_at,"
               + " f.finding_updated_at, f.tenant_id "
               + "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit;",
@@ -172,8 +174,9 @@ public interface FindingRepository
   // ES document would keep a stale asset list forever.
   //
   // This native write skips the JPA callbacks of Finding, so the caller passes the displayed value
-  // computed by Finding.displayValueOf. The conflict branch writes it again, so a row written
-  // before the column existed gets it the next time the finding is detected.
+  // computed by SensitiveValueMaskingUtils.maskIfNeededFailClosed. The conflict branch writes it
+  // again, so a row written before the column existed gets it the next time the finding is
+  // detected.
 
   @Query(
       value =

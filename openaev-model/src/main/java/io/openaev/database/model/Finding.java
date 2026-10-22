@@ -185,47 +185,18 @@ public class Finding implements TenantBase {
   private final ResourceType resourceType = ResourceType.SIMULATION;
 
   // -- DISPLAYED VALUE --
-
-  /**
-   * Computes the displayed form of a finding value. It is the only place that turns a cleartext
-   * value into what {@code finding_value_display} holds, so every write path (JPA, the native
-   * upsert of {@code FindingWriter} and the backfill migration) stores exactly the same masked
-   * form.
-   *
-   * @param type the contract output type the value was extracted as
-   * @param value the cleartext value
-   * @return the value as the platform displays it
-   */
-  public static String displayValueOf(final ContractOutputType type, final String value) {
-    return SensitiveValueMaskingUtils.maskIfNeeded(type, value);
-  }
-
-  /**
-   * Same as {@link #displayValueOf(ContractOutputType, String)}, for the writes that only hold the
-   * type as text: the native upsert and the backfill migration. The type is matched on its enum
-   * name or its label. A type this version does not know cannot be checked for secrets, so its
-   * value is masked whole: an unknown case can only hide more, never reveal.
-   *
-   * @param type the enum name or the label of the contract output type
-   * @param value the cleartext value
-   * @return the value as the platform displays it
-   */
-  public static String displayValueOf(final String type, final String value) {
-    return Arrays.stream(ContractOutputType.values())
-        .filter(known -> known.name().equals(type) || known.getLabel().equalsIgnoreCase(type))
-        .findFirst()
-        .map(known -> displayValueOf(known, value))
-        .orElseGet(() -> SensitiveValueMaskingUtils.mask(value));
-  }
+  // finding_value_display is computed by SensitiveValueMaskingUtils.maskIfNeededFailClosed, like on
+  // every other write path (the native upsert of FindingWriter, the backfill migration), so they
+  // all store exactly the same masked form.
 
   public void setValue(final String value) {
     this.value = value;
-    this.valueDisplay = displayValueOf(this.type, value);
+    this.valueDisplay = SensitiveValueMaskingUtils.maskIfNeededFailClosed(this.type, value);
   }
 
   public void setType(final ContractOutputType type) {
     this.type = type;
-    this.valueDisplay = displayValueOf(type, this.value);
+    this.valueDisplay = SensitiveValueMaskingUtils.maskIfNeededFailClosed(type, this.value);
   }
 
   /**
@@ -234,7 +205,9 @@ public class Finding implements TenantBase {
    * cleartext: a missing column can only hide more, never reveal the secret.
    */
   public String getValueDisplay() {
-    return valueDisplay != null ? valueDisplay : displayValueOf(type, value);
+    return valueDisplay != null
+        ? valueDisplay
+        : SensitiveValueMaskingUtils.maskIfNeededFailClosed(type, value);
   }
 
   // The setters above already keep the displayed value in sync. This callback is the safety net for
@@ -242,7 +215,7 @@ public class Finding implements TenantBase {
   @PrePersist
   @PreUpdate
   void refreshValueDisplay() {
-    this.valueDisplay = displayValueOf(this.type, this.value);
+    this.valueDisplay = SensitiveValueMaskingUtils.maskIfNeededFailClosed(this.type, this.value);
   }
 
   @JsonProperty("finding_simulation")
