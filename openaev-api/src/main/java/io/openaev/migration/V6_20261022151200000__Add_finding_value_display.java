@@ -30,7 +30,7 @@ import org.springframework.stereotype.Component;
  * where it stopped. The tenant of a row is never touched.
  */
 @Component
-public class V6_20261021150000000__Add_finding_value_display extends BaseJavaMigration {
+public class V6_20261022151200000__Add_finding_value_display extends BaseJavaMigration {
 
   private static final int BATCH_SIZE = 1000;
 

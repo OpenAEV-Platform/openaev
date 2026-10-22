@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Add finding value display migration")
 class AddFindingValueDisplayMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20261021150000000__Add_finding_value_display migration;
+  @Autowired private V6_20261022151200000__Add_finding_value_display migration;
 
   private String injectId;
 
