@@ -195,6 +195,9 @@ public class Finding implements TenantBase {
   }
 
   public void setType(final ContractOutputType type) {
+    if (this.id != null && this.type != null && this.type != type) {
+      throw new IllegalArgumentException("Finding type cannot be changed.");
+    }
     this.type = type;
     this.valueDisplay = SensitiveValueMaskingUtils.maskIfNeededFailClosed(type, this.value);
   }
