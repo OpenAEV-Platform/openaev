@@ -9,7 +9,7 @@ import { useFormatter } from '../../../../components/i18n';
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (markingIds: string[]) => void;
+  onSubmit: (markingIds: string[]) => Promise<void>;
 }
 
 // Replace-the-whole-set, the bulk mirror of the markings field on AssetForm (single-asset edit):
@@ -20,15 +20,27 @@ interface Props {
 const BulkMarkingsDrawer: FunctionComponent<Props> = ({ open, onClose, onSubmit }) => {
   const { t } = useFormatter();
   const [markingIds, setMarkingIds] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleClose = () => {
+    if (isSubmitting) return;
     setMarkingIds([]);
     onClose();
   };
 
-  const handleSubmit = () => {
-    onSubmit(markingIds);
-    setMarkingIds([]);
+  // The selection is only cleared once the PUT actually succeeds: clearing it eagerly
+  // left a second click (or a retry after a failed request) sending an empty marking
+  // set, which wipes the selected assets' markings instead of applying the intended one.
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      await onSubmit(markingIds);
+      setMarkingIds([]);
+    } catch {
+      // Keep the selection so the user can retry; the error is already surfaced globally.
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -49,7 +61,7 @@ const BulkMarkingsDrawer: FunctionComponent<Props> = ({ open, onClose, onSubmit 
           fieldOnChange={setMarkingIds}
         />
         <Box sx={{ textAlign: 'right' }}>
-          <Button type="button" variant="destructive" onClick={handleSubmit}>
+          <Button type="button" variant="destructive" onClick={handleSubmit} loading={isSubmitting}>
             {t('Edit markings')}
           </Button>
         </Box>

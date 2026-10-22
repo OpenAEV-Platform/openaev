@@ -66,14 +66,25 @@ const Endpoints = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  // Gates the Markings column/filter (and the data fetch below) so a flag-off or unauthorized
-  // platform looks exactly as it did before this feature — mirrors the settings.config.tsx pattern
-  // used for the Marking Definitions menu.
-  const markingEnabled = isFeatureEnabled('MARKING');
   const ability = useAbility();
-  const canAccessMarkings = markingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
-  // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
-  // either gate is closed so the platform issues no marking-definitions request at all.
+  // ACCESS_MARKING_DEFINITION and marking assignment (ASSIGN_MARKING / DELETE_MARKING_ASSIGNMENT,
+  // enforced server-side on the asset WRITE endpoints) are independent capabilities - a user can
+  // hold either without the other. Three separate gates, each matching what the request it guards
+  // actually requires server-side:
+  //  - markingEnabled: row display and the bulk picker, which only ever call the capability-free
+  //    /assignable endpoint (a row's own markings are always within the viewer's clearance already,
+  //    see useMarkingDefinitions's doc).
+  //  - canAccessMarkingDefinitions: the asset_markings filter, whose options come from
+  //    /marking_definitions/options|search, which does require ACCESS_MARKING_DEFINITION.
+  //  - canManage (MANAGE_ASSETS, i.e. asset WRITE): the bulk "Edit markings" action, mirroring the
+  //    @AccessControl on PUT /api/assets/markings/bulk; the finer-grained ASSIGN_MARKING /
+  //    DELETE_MARKING_ASSIGNMENT check depends on the payload and is only enforced server-side.
+  const markingEnabled = isFeatureEnabled('MARKING');
+  const canAccessMarkingDefinitions = markingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
+  const canBulkEditMarkings = markingEnabled && canManage;
+  // Resolved once for the whole page; the Markings column maps ids per row. Needs no capability,
+  // only the feature flag - see the gating note above.
   const markingDefinitions = useMarkingDefinitions({
     skip: !markingEnabled,
     assignableOnly: true,
@@ -100,7 +111,7 @@ const Endpoints = () => {
     'asset_cloud_provider',
     'asset_internet_facing',
     'asset_tags',
-    ...(canAccessMarkings ? ['asset_markings'] : []),
+    ...(canAccessMarkingDefinitions ? ['asset_markings'] : []),
   ];
 
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
@@ -127,7 +138,6 @@ const Endpoints = () => {
   };
 
   // Bulk selection
-  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
   const {
     selectedElements,
     deSelectedElements,
@@ -159,26 +169,23 @@ const Endpoints = () => {
   };
 
   // Bulk marking replacement: every selected asset ends up carrying exactly the chosen markings
-  // server-side (see bulkReplaceAssetMarkings's backend doc) - mirrored here locally so the
-  // Markings column reflects the change without a full reload.
+  // server-side (see bulkReplaceAssetMarkings's backend doc). Unlike bulkDelete, this cannot be
+  // mirrored by patching `endpoints` in place: the new markings can push a row out of (or into) an
+  // active asset_markings filter, which a local patch has no way to detect - it would leave a
+  // GREEN-filtered row displayed, and counted in the pagination total, after replacing it with
+  // YELLOW. Bumping reloadCount re-runs the current search server-side instead, so the filter and
+  // totalElements both reflect the new markings.
   const [openEditMarkings, setOpenEditMarkings] = useState(false);
   const bulkEditMarkings = (markingIds: string[]) => {
-    bulkReplaceAssetMarkings({
+    return bulkReplaceAssetMarkings({
       search_pagination_input: selectAll ? searchPaginationInput : undefined,
       asset_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
       asset_ids_to_ignore: Object.keys(deSelectedElements),
       marking_ids: markingIds,
-    }).then((result) => {
-      const updatedIds: string[] = result.data ?? [];
-      setEndpoints(prevEndpoints => prevEndpoints.map((e) => {
-        if (!updatedIds.includes(e.asset_id)) return e;
-        return {
-          ...e,
-          asset_markings: markingIds,
-        };
-      }));
+    }).then(() => {
       setOpenEditMarkings(false);
       handleClearSelectedElements();
+      setReloadCount(count => count + 1);
     });
   };
 
@@ -256,8 +263,9 @@ const Endpoints = () => {
       isSortable: false,
       value: (endpoint: EndpointOutput) => <ItemTags variant="list" tags={endpoint.asset_tags ?? []} />,
     },
-    // Rendered only when MARKING is enabled and the user can access marking definitions — with
-    // either gate closed, the list must look exactly as it did before this column was added.
+    // Rendered whenever MARKING is enabled, regardless of ACCESS_MARKING_DEFINITION: a row's
+    // markings are already clearance-filtered server-side (see the gating note above), so there is
+    // nothing left to gate here beyond the feature flag.
     ...(markingEnabled
       ? [{
           field: 'asset_markings',
@@ -357,7 +365,7 @@ const Endpoints = () => {
                   canManage={canManage}
                   deleteConfirmationSingular={t('Do you want to delete this asset?')}
                   deleteConfirmationPlural={t('Do you want to delete these {count} assets?', { count: String(numberOfSelectedElements) })}
-                  toolTasks={canAccessMarkings
+                  toolTasks={canBulkEditMarkings
                     ? [{
                         type: 'edit-markings',
                         title: t('Edit markings'),
@@ -448,7 +456,7 @@ const Endpoints = () => {
               })
         }
       </List>
-      {canAccessMarkings && (
+      {canBulkEditMarkings && (
         <BulkMarkingsDrawer
           open={openEditMarkings}
           onClose={() => setOpenEditMarkings(false)}
