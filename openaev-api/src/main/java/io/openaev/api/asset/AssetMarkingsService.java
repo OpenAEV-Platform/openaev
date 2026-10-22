@@ -37,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Writes the markings carried by an asset (design step 3.3).
@@ -220,6 +221,12 @@ public class AssetMarkingsService {
    * tenant filter), and the matched assets are then updated chunk by chunk in independent
    * transactions, the same shape {@code ExpectationsDriftService.realign} uses for the same reason
    * — a single transaction spanning a large bulk scope would hold row locks for its whole duration.
+   * When a caller breaks that rule (a transactional integration test, chiefly), {@code
+   * chunkRunner.call}'s {@code REQUIRED} propagation just joins the already-open transaction
+   * instead of opening and committing one per chunk - exactly like {@code
+   * BulkDeleteExecutor#deleteInChunks}, which this mirrors: {@code entityManager.clear()} between
+   * chunks is skipped in that case, because without a real per-chunk commit it would discard that
+   * chunk's still-unflushed write instead of merely detaching an already-persisted one.
    *
    * @param tenantId the tenant whose clearance the caller is checked against
    * @return the ids of the assets whose markings were updated
@@ -261,7 +268,13 @@ public class AssetMarkingsService {
     // locks in the same order instead of deadlocking each other.
     List<String> sortedIds = assetIds.stream().sorted().toList();
 
-    DiffDirections directions = findBulkDiffDirections(ctx, sortedIds, uniqueMarkingIds);
+    // See the class javadoc above: only a chunk that actually commits on its own may have its
+    // persistence context cleared afterward - a chunk nested inside an already-open transaction
+    // (e.g. a transactional test) has not flushed yet, and clearing would silently drop its write.
+    boolean clearBetweenChunks = !TransactionSynchronizationManager.isActualTransactionActive();
+
+    DiffDirections directions =
+        findBulkDiffDirections(ctx, sortedIds, uniqueMarkingIds, clearBetweenChunks);
     assertMarkingDirectionCapability(currentUser, directions.anyRemoved(), directions.anyAdded());
 
     String operationId = bulkOperationMonitor.start("replace-markings", "assets", sortedIds.size());
@@ -322,8 +335,12 @@ public class AssetMarkingsService {
         // With open-session-in-view the request session outlives each chunk transaction: clear it
         // so updated assets (and their eagerly-fetched agents, see Endpoint.agents) do not
         // accumulate in the persistence context across a large bulk - same as
-        // BulkDeleteExecutor.deleteInChunks.
-        entityManager.clear();
+        // BulkDeleteExecutor.deleteInChunks. Skipped when nested in an already-open transaction
+        // (see clearBetweenChunks above): that chunk never actually committed, so its write is
+        // still unflushed and clearing now would discard it instead of merely detaching it.
+        if (clearBetweenChunks) {
+          entityManager.clear();
+        }
         bulkOperationMonitor.progress(operationId, chunk.size());
       }
       bulkOperationMonitor.complete(operationId);
@@ -357,16 +374,23 @@ public class AssetMarkingsService {
    * loop below already does). Loading the scope twice (here, and again per chunk during the write)
    * costs more than a projection would, but a wrong cast here would silently mis-gate a security
    * check, which costs more than the extra read.
+   *
+   * @param clearBetweenChunks whether each batch's chunk transaction actually committed on its own
+   *     (see {@link #bulkReplaceAssetMarkings}) - this read never has anything unflushed to lose,
+   *     but skipping the clear when nested keeps this method's behavior symmetric with the write
+   *     loop's.
    */
   private DiffDirections findBulkDiffDirections(
-      TxCtx ctx, List<String> assetIds, Set<String> requested) {
+      TxCtx ctx, List<String> assetIds, Set<String> requested, boolean clearBetweenChunks) {
     boolean anyRemoved = false;
     boolean anyAdded = false;
     for (int start = 0; start < assetIds.size(); start += CHUNK_SIZE) {
       List<String> batch = assetIds.subList(start, Math.min(start + CHUNK_SIZE, assetIds.size()));
       DiffDirections batchDirections =
           chunkRunner.call(ctx, () -> findBatchDiffDirections(batch, requested));
-      entityManager.clear();
+      if (clearBetweenChunks) {
+        entityManager.clear();
+      }
       anyRemoved = anyRemoved || batchDirections.anyRemoved();
       anyAdded = anyAdded || batchDirections.anyAdded();
       if (anyRemoved && anyAdded) {
