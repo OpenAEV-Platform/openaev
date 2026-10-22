@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -39,6 +40,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -1409,6 +1413,208 @@ class FindingApiTest extends IntegrationTest {
         mvc.perform(get(FINDING_URI + "/" + finding.getId()).with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.finding_value").value("text_value"));
+      }
+    }
+
+    @Nested
+    @DisplayName("When querying the value of a sensitive finding (#7893)")
+    class WhenQueryingTheValueOfASensitiveFinding {
+
+      private static final String SECRET_CREDENTIALS = "admin:motdepasse";
+      private static final String DISPLAYED_CREDENTIALS = "admin:mo" + MASK;
+
+      private Finding persistFinding(Finding finding) {
+        return findingComposer
+            .forFinding(finding)
+            .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+            .withInject(injectWrapper)
+            .persist()
+            .get();
+      }
+
+      private SearchPaginationInput textSearch(String text) {
+        SearchPaginationInput input = new SearchPaginationInput();
+        input.setTextSearch(text);
+        return input;
+      }
+
+      private SearchPaginationInput valueFilter(Filters.FilterOperator operator, String value) {
+        SearchPaginationInput input = new SearchPaginationInput();
+        Filters.FilterGroup group = new Filters.FilterGroup();
+        group.setMode(Filters.FilterMode.and);
+        group.setFilters(List.of(buildFilter("finding_value", operator, List.of(value))));
+        input.setFilterGroup(group);
+        return input;
+      }
+
+      private void flushAndClear() {
+        entityManager.flush();
+        entityManager.clear();
+      }
+
+      @Test
+      @DisplayName("Should not find a finding by the hidden part of its value")
+      void given_theHiddenSecret_should_notFindTheFindingByTextSearch() throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding(SECRET_CREDENTIALS));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search", textSearch("motdepasse"))
+            .andExpect(jsonPath("$.totalElements").value(0));
+      }
+
+      @ParameterizedTest(name = "searching \"{0}\"")
+      @ValueSource(strings = {"admin", "mo"})
+      @DisplayName("Should find a finding by a part of its value the platform displays")
+      void given_aDisplayedPart_should_findTheFindingByTextSearch(String displayedPart)
+          throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding(SECRET_CREDENTIALS));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search", textSearch(displayedPart))
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.content.[0].finding_value").value(DISPLAYED_CREDENTIALS));
+      }
+
+      @ParameterizedTest(name = "{0} \"{1}\"")
+      @CsvSource({"contains, motdepasse", "starts_with, admin:mot", "eq, admin:motdepasse"})
+      @DisplayName("Should match nothing with a filter on the hidden part of a value")
+      void given_aFilterOnTheHiddenSecret_should_matchNothing(
+          Filters.FilterOperator operator, String guess) throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding(SECRET_CREDENTIALS));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search", valueFilter(operator, guess))
+            .andExpect(jsonPath("$.totalElements").value(0));
+      }
+
+      @Test
+      @DisplayName("Should match the displayed value with an equality filter")
+      void given_anEqualityFilterOnTheDisplayedValue_should_matchTheFinding() throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding(SECRET_CREDENTIALS));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(
+                FINDING_URI + "/search",
+                valueFilter(Filters.FilterOperator.eq, DISPLAYED_CREDENTIALS))
+            .andExpect(jsonPath("$.totalElements").value(1));
+      }
+
+      @Test
+      @DisplayName("Should sort on the displayed value, so a planted value reveals nothing")
+      void given_aPlantedValue_should_notLandBetweenTwoSecretsDisplayedAlike() throws Exception {
+        // -------- Arrange --------
+        // Both secrets are displayed "admin:mo******". Sorted on the cleartext, the planted value
+        // would land between them (motdepasse < mou < mozzzzzz) and tell their hidden parts apart.
+        persistFinding(FindingFixture.createCredentialsFinding(SECRET_CREDENTIALS));
+        persistFinding(FindingFixture.createCredentialsFinding("admin:mozzzzzz"));
+        Finding planted = FindingFixture.createDefaultTextFinding();
+        planted.setValue("admin:mou");
+        persistFinding(planted);
+        flushAndClear();
+
+        SearchPaginationInput input = new SearchPaginationInput();
+        input.setSorts(
+            List.of(SortField.builder().property("finding_value").direction("asc").build()));
+
+        // -------- Act --------
+        String response =
+            performCallbackRequest(FINDING_URI + "/search", input)
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // -------- Assert --------
+        List<String> sortedValues = JsonPath.read(response, "$.content[*].finding_value");
+        assertThat(sortedValues)
+            .containsExactlyInAnyOrder(DISPLAYED_CREDENTIALS, DISPLAYED_CREDENTIALS, "admin:mou");
+        assertThat(sortedValues.indexOf("admin:mou")).isNotEqualTo(1);
+      }
+
+      @Test
+      @DisplayName("Should group two secrets displayed alike into one row in distinct mode")
+      void given_twoSecretsDisplayedAlike_should_formOneRowInDistinctMode() throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
+        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.content.[0].finding_value").value("jdoe:Su" + MASK));
+      }
+
+      @Test
+      @DisplayName(
+          "Should list every occurrence of a displayed value, as the Occurrences drawer does")
+      void given_theDisplayedValue_should_listEveryOccurrence() throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
+        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(
+                FINDING_URI + "/search", valueFilter(Filters.FilterOperator.eq, "jdoe:Su" + MASK))
+            .andExpect(jsonPath("$.totalElements").value(2));
+      }
+
+      @Test
+      @DisplayName("Should count the same occurrences in the summary as in the grouped row")
+      void given_twoSecretsDisplayedAlike_should_countBothInTheSummary() throws Exception {
+        // -------- Arrange --------
+        Finding finding = persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
+        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        mvc.perform(get(FINDING_URI + "/" + finding.getId() + "/summary").with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.finding_value").value("jdoe:Su" + MASK))
+            .andExpect(jsonPath("$.finding_occurrences").value(2));
+      }
+
+      @ParameterizedTest(name = "\"{0}\" searched with \"{1}\" -> {2}")
+      @CsvSource({
+        "bob:abc, ab, 0",
+        "bob:abc, bob, 1",
+        "alice:pa:ss:word, word, 0",
+        "alice:pa:ss:word, alice, 1",
+        "admin:motdepasse, ******, 1"
+      })
+      @DisplayName("Should only search what the platform displays, for unusual values too")
+      void given_anUnusualValue_should_onlyBeSearchableByItsDisplayedForm(
+          String secret, String search, int expectedMatches) throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding(secret));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search", textSearch(search))
+            .andExpect(jsonPath("$.totalElements").value(expectedMatches));
+      }
+
+      @Test
+      @DisplayName("Should keep a non sensitive value searchable and filterable as a whole")
+      void given_aNonSensitiveValue_should_stayQueryableOnItsFullValue() throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createDefaultTextFinding());
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search", textSearch("text_value"))
+            .andExpect(jsonPath("$.totalElements").value(1));
+        performCallbackRequest(
+                FINDING_URI + "/search", valueFilter(Filters.FilterOperator.eq, "text_value"))
+            .andExpect(jsonPath("$.totalElements").value(1));
       }
     }
 

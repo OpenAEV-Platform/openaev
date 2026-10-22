@@ -61,10 +61,12 @@ public class FindingSpecification {
       Root<Finding> other = newerSibling.from(Finding.class);
       newerSibling.select(other.get("id"));
 
+      // Grouped by the displayed value, not the cleartext: two secrets displayed the same way form
+      // one row, so the number of rows never tells that their hidden parts differ (ADR-017).
       Predicate sameGroup =
           cb.and(
               cb.equal(other.get("type"), candidate.get("type")),
-              cb.equal(other.get("value"), candidate.get("value")));
+              cb.equal(other.get("valueDisplay"), candidate.get("valueDisplay")));
       Predicate strictlyNewer =
           cb.or(
               cb.greaterThan(
@@ -103,15 +105,25 @@ public class FindingSpecification {
     };
   }
 
+  /**
+   * Every occurrence, with its assets, of the given (type, displayed value) groups.
+   *
+   * @param types the types of the groups
+   * @param displayValues the displayed values of the groups, as stored in {@code
+   *     finding_value_display}
+   * @param specification the scope the occurrences must belong to
+   */
   public static Specification<Finding> findAllWithAssetsByTypeValueIn(
-      List<ContractOutputType> types, List<String> values, Specification<Finding> specification) {
+      List<ContractOutputType> types,
+      List<String> displayValues,
+      Specification<Finding> specification) {
     return Specification.<Finding>unrestricted()
         .and(specification)
         .and(withAssets())
         .and(
             (root, query, cb) -> {
               Predicate typeIn = root.get("type").in(types);
-              Predicate valueIn = root.get("value").in(values);
+              Predicate valueIn = root.get("valueDisplay").in(displayValues);
               return cb.and(typeIn, valueIn);
             });
   }

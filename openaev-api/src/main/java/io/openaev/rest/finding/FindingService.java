@@ -71,7 +71,7 @@ public class FindingService {
     Finding finding = finding(id);
     String tenantId = TenantContext.getCurrentTenant();
     ContractOutputType type = finding.getType();
-    String value = finding.getValue();
+    String value = finding.getValueDisplay();
 
     FindingRepository.FindingSeenAggregate seen =
         this.findingRepository.findSeenAggregate(type, value, tenantId);

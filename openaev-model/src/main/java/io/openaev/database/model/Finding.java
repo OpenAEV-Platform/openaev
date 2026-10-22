@@ -12,6 +12,7 @@ import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
@@ -68,11 +69,21 @@ public class Finding implements TenantBase {
   @NotNull
   protected ContractOutputType type;
 
-  @Queryable(searchable = true, filterable = true, sortable = true)
+  // The cleartext value. Deduplication, correlation and the attack path compare real values, so the
+  // database keeps it. Users can never search, filter or sort on it, and it is never serialized: a
+  // query on it would let a user confirm a secret the platform does not display (see ADR-017).
   @Column(name = "finding_value", nullable = false)
-  @JsonProperty("finding_value")
+  @JsonIgnore
   @NotBlank
   protected String value;
+
+  // The value as the platform displays it, masked by SensitiveValueMaskingUtils. Search, filters,
+  // sorts, distinct grouping and notification triggers read this column instead of the cleartext,
+  // under the same "finding_value" key the front end and saved filters already use.
+  @Queryable(searchable = true, filterable = true, sortable = true)
+  @Column(name = "finding_value_display")
+  @JsonProperty("finding_value")
+  private String valueDisplay;
 
   @Deprecated
   @Type(StringArrayType.class)
@@ -172,6 +183,67 @@ public class Finding implements TenantBase {
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.SIMULATION;
+
+  // -- DISPLAYED VALUE --
+
+  /**
+   * Computes the displayed form of a finding value. It is the only place that turns a cleartext
+   * value into what {@code finding_value_display} holds, so every write path (JPA, the native
+   * upsert of {@code FindingWriter} and the backfill migration) stores exactly the same masked
+   * form.
+   *
+   * @param type the contract output type the value was extracted as
+   * @param value the cleartext value
+   * @return the value as the platform displays it
+   */
+  public static String displayValueOf(final ContractOutputType type, final String value) {
+    return SensitiveValueMaskingUtils.maskIfNeeded(type, value);
+  }
+
+  /**
+   * Same as {@link #displayValueOf(ContractOutputType, String)}, for the writes that only hold the
+   * type as text: the native upsert and the backfill migration. The type is matched on its enum
+   * name or its label. A type this version does not know cannot be checked for secrets, so its
+   * value is masked whole: an unknown case can only hide more, never reveal.
+   *
+   * @param type the enum name or the label of the contract output type
+   * @param value the cleartext value
+   * @return the value as the platform displays it
+   */
+  public static String displayValueOf(final String type, final String value) {
+    return Arrays.stream(ContractOutputType.values())
+        .filter(known -> known.name().equals(type) || known.getLabel().equalsIgnoreCase(type))
+        .findFirst()
+        .map(known -> displayValueOf(known, value))
+        .orElseGet(() -> SensitiveValueMaskingUtils.mask(value));
+  }
+
+  public void setValue(final String value) {
+    this.value = value;
+    this.valueDisplay = displayValueOf(this.type, value);
+  }
+
+  public void setType(final ContractOutputType type) {
+    this.type = type;
+    this.valueDisplay = displayValueOf(type, this.value);
+  }
+
+  /**
+   * The value as the platform displays it. When the column is not filled yet, for instance on a row
+   * written by a pod of the previous version during a rolling deploy, the mask is computed from the
+   * cleartext: a missing column can only hide more, never reveal the secret.
+   */
+  public String getValueDisplay() {
+    return valueDisplay != null ? valueDisplay : displayValueOf(type, value);
+  }
+
+  // The setters above already keep the displayed value in sync. This callback is the safety net for
+  // any write that sets the fields another way, so a row is never persisted without it.
+  @PrePersist
+  @PreUpdate
+  void refreshValueDisplay() {
+    this.valueDisplay = displayValueOf(this.type, this.value);
+  }
 
   @JsonProperty("finding_simulation")
   @Queryable(filterable = true, dynamicValues = true, path = "inject.exercise.id")

@@ -23,7 +23,10 @@ public interface FindingRepository
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
-  // -- GROUP-WIDE SUMMARY (findings deduplicated by (type, value) within a tenant) --
+  // -- GROUP-WIDE SUMMARY (findings deduplicated by (type, displayed value) within a tenant) --
+  //
+  // Grouped on the displayed value like the distinct list, so the summary of a row counts the same
+  // occurrences as the row itself, and never tells two secrets displayed alike apart (ADR-017).
 
   /**
    * First/last seen and occurrence count for a (type, value) finding group. A single {@code
@@ -34,42 +37,42 @@ public interface FindingRepository
   @Query(
       "SELECT MIN(f.creationDate) AS firstSeen, MAX(f.updateDate) AS lastSeen,"
           + " COUNT(f) AS occurrences FROM Finding f"
-          + " WHERE f.type = :type AND f.value = :value AND f.tenant.id = :tenantId")
+          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
   FindingSeenAggregate findSeenAggregate(
       @Param("type") ContractOutputType type,
-      @Param("value") String value,
+      @Param("displayValue") String displayValue,
       @Param("tenantId") String tenantId);
 
   @Query(
       "SELECT COUNT(DISTINCT a.id) FROM Finding f JOIN f.assets a"
-          + " WHERE f.type = :type AND f.value = :value AND f.tenant.id = :tenantId")
+          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
   long countDistinctAssets(
       @Param("type") ContractOutputType type,
-      @Param("value") String value,
+      @Param("displayValue") String displayValue,
       @Param("tenantId") String tenantId);
 
   @Query(
       "SELECT COUNT(DISTINCT t.id) FROM Finding f JOIN f.teams t"
-          + " WHERE f.type = :type AND f.value = :value AND f.tenant.id = :tenantId")
+          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
   long countDistinctTeams(
       @Param("type") ContractOutputType type,
-      @Param("value") String value,
+      @Param("displayValue") String displayValue,
       @Param("tenantId") String tenantId);
 
   @Query(
       "SELECT COUNT(DISTINCT u.id) FROM Finding f JOIN f.users u"
-          + " WHERE f.type = :type AND f.value = :value AND f.tenant.id = :tenantId")
+          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
   long countDistinctUsers(
       @Param("type") ContractOutputType type,
-      @Param("value") String value,
+      @Param("displayValue") String displayValue,
       @Param("tenantId") String tenantId);
 
   @Query(
       "SELECT COUNT(DISTINCT ag.id) FROM Finding f JOIN f.inject i JOIN i.assetGroups ag"
-          + " WHERE f.type = :type AND f.value = :value AND f.tenant.id = :tenantId")
+          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
   long countDistinctAssetGroups(
       @Param("type") ContractOutputType type,
-      @Param("value") String value,
+      @Param("displayValue") String displayValue,
       @Param("tenantId") String tenantId);
 
   /** Projection for {@link #findSeenAggregate}. */
@@ -167,18 +170,24 @@ public interface FindingRepository
   // cursor (findForIndexing), so a re-detected finding (same natural key, possibly a new asset
   // link added right after by insertFindingAsset) would otherwise never be re-indexed and its
   // ES document would keep a stale asset list forever.
+  //
+  // This native write skips the JPA callbacks of Finding, so the caller passes the displayed value
+  // computed by Finding.displayValueOf. The conflict branch writes it again, so a row written
+  // before the column existed gets it the next time the finding is detected.
 
   @Query(
       value =
           """
         INSERT INTO findings
-          (finding_id, finding_field, finding_type, finding_value,
+          (finding_id, finding_field, finding_type, finding_value, finding_value_display,
            finding_labels, finding_inject_id, finding_name, tenant_id)
         VALUES
-          (gen_random_uuid(), :findingField, :findingType, :findingValue,
+          (gen_random_uuid(), :findingField, :findingType, :findingValue, :findingValueDisplay,
            :findingLabels, :findingInjectId, :findingName, :tenantId)
         ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
-        DO UPDATE SET finding_name = EXCLUDED.finding_name, finding_updated_at = now()
+        DO UPDATE SET finding_name = EXCLUDED.finding_name,
+          finding_value_display = EXCLUDED.finding_value_display,
+          finding_updated_at = now()
         RETURNING finding_id
         """,
       nativeQuery = true)
@@ -186,6 +195,7 @@ public interface FindingRepository
       @Param("findingField") String findingField,
       @Param("findingType") String findingType,
       @Param("findingValue") String findingValue,
+      @Param("findingValueDisplay") String findingValueDisplay,
       @Param("findingLabels") String[] findingLabels,
       @Param("findingInjectId") String injectId,
       @Param("findingName") String name,
