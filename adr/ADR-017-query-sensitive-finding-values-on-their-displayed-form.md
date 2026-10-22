@@ -54,16 +54,7 @@ A `CASE` / `split_part` expression rebuilds the masked value inside each query.
 **Cons**: the masking rule is duplicated in SQL and drifts from the Java one; the expression cannot use
 an index. Rejected on drivers 4 and performance.
 
-### Option C: rewrite the predicates per segment
-
-The engine, or each endpoint, turns a predicate on `finding_value` into predicates on the visible
-segments only.
-
-**Pros**: no data model change.
-**Cons**: it touches the deprecated framework or misses notification triggers; sorting and grouping
-need separate work; behaviour differs from the search index. Rejected on drivers 1 and 3.
-
-### Option D: exclude sensitive types from value queries
+### Option C: exclude sensitive types from value queries
 
 Value search, filters and sorts skip every sensitive finding.
 
@@ -107,11 +98,7 @@ Concretely:
 
 ### Negative / trade-offs
 
-- A saved filter or a trigger written against a full cleartext value stops matching. Product accepted
-  this on 2026-10-21.
 - Two secrets with the same masked form are grouped into one row, with the assets of both.
-- The display no longer has a barrier independent of the column: a bug that stored the cleartext in the
-  column would show it. The single write helper and the tests reduce this risk.
 - Until the masking rule change is automated, it relies on a migration written by hand.
 
 ### Neutral
