@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.raw.RawIndexedAsset;
+import jakarta.persistence.LockModeType;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -26,6 +28,21 @@ public interface AssetRepository
    * when snapshotting a scope rule's asset display name.
    */
   Optional<Asset> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /**
+   * Pessimistically locked lookup ({@code SELECT ... FOR UPDATE}) for the bulk marking-replace
+   * write path ({@code AssetMarkingsService.bulkReplaceAssetMarkings}). The per-direction {@code
+   * ASSIGN_MARKING}/{@code DELETE_MARKING_ASSIGNMENT} capability check runs upfront, in its own
+   * short transaction, against a snapshot of these assets' markings that can be stale by the time a
+   * later chunk actually writes - a concurrent request can add or remove a marking on one of them
+   * in between. Locking the row here and re-checking the diff against this freshly-locked state
+   * (not the upfront snapshot) closes that window: a concurrent writer either already committed
+   * before this lock is taken, so this read observes its change, or blocks until this transaction
+   * commits, so it cannot slip a change in while this chunk's diff is computed.
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT a FROM Asset a WHERE a.id IN :ids")
+  List<Asset> findAllByIdForUpdate(@Param("ids") List<String> ids);
 
   /**
    * Feeds the {@code asset} search index with the whole asset inventory: every asset type except
