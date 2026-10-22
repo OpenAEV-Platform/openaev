@@ -4,7 +4,6 @@ import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -63,7 +62,11 @@ public class ScenarioToExerciseService {
       @Nullable final Instant start,
       final boolean isRunning,
       @Nullable final User launchedBy) {
+    // The simulation and its dashboard setting belong to the scenario's tenant, whatever the
+    // caller's ambient tenant.
+    String tenantId = scenario.getTenant().getId();
     Exercise exercise = new Exercise();
+    exercise.setTenant(scenario.getTenant());
     exercise.setScenario(scenario);
     exercise.setLaunchedBy(launchedBy);
     exercise.setName(scenario.getName());
@@ -90,9 +93,7 @@ public class ScenarioToExerciseService {
     // Custom Dashboard
     exercise.setCustomDashboard(
         this.tenantSettingsService
-            .findSetting(
-                TenantContext.getCurrentTenant(),
-                TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
+            .findSetting(tenantId, TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
             .map(Setting::getValue)
             .filter(v -> !v.isEmpty())
             .map(this.customDashboardService::customDashboard)

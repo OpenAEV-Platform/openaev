@@ -191,7 +191,8 @@ public class AutonomousRunApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceId = "#input.getScenarioId",
       isEnterpriseEdition = true)
-  public AutonomousRun create(TxCtx ctx, @Valid @RequestBody AutonomousRunCreateInput input) {
+  public AutonomousRun create(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody AutonomousRunCreateInput input) {
     return autonomousRunService.create(ctx, input);
   }
 

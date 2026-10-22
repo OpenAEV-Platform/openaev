@@ -374,7 +374,8 @@ public class AutonomousRunService {
     } else {
       // Autonomous default: provision a fresh attack-path scenario so the operator never has to
       // build one. The AI orchestrator populates and drives it after start().
-      scenario = provisionAutonomousScenario(objective, input.getName(), input.getDescription());
+      scenario =
+          provisionAutonomousScenario(ctx, objective, input.getName(), input.getDescription());
       scenarioId = scenario.getId();
     }
 
@@ -4142,10 +4143,13 @@ public class AutonomousRunService {
    * is strictly required by the model; {@link ScenarioService#createScenarioChaining} fills the
    * mandatory sender emails and attaches the (empty) TEMPLATE workflow the AI orchestrator then
    * builds upon. Kept intentionally minimal so launching a run never asks the operator for anything
-   * beyond the objective.
+   * beyond the objective. Like any create, the scenario is written in the single tenant of the
+   * request scope.
    */
-  private Scenario provisionAutonomousScenario(String objective, String name, String description) {
+  private Scenario provisionAutonomousScenario(
+      TxCtx ctx, String objective, String name, String description) {
     Scenario scenario = new Scenario();
+    scenario.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
     scenario.setName(hasText(name) ? name.trim() : defaultScenarioName());
     scenario.setDescription(
         hasText(description) ? description.trim() : defaultScenarioDescription(objective));

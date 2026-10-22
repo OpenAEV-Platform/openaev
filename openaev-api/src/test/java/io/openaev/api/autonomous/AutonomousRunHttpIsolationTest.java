@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
@@ -583,6 +584,38 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
 
     assertThat(rawCount("autonomous_runs", "autonomous_run_objective", "ambiguous-scope-objective"))
         .isEqualTo(0L);
+  }
+
+  @Test
+  @DisplayName("given_headerSelectingTenantA_should_createRunScenarioAndSimulationInTenantA")
+  void given_headerSelectingTenantA_should_createRunScenarioAndSimulationInTenantA()
+      throws Exception {
+    // Arrange: the header route carries no ambient tenant, so anything still stamped from it
+    // falls back to the default tenant, outside the selected scope.
+    TenantContext.clearCurrentTenant();
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+    // Act
+    String response =
+        mvc.perform(
+                post(PLAIN)
+                    .with(csrf())
+                    .header("X-Tenant-Ids", tenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"objective\": \"Header-selected run\", \"plan_mode\": true}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Assert: the provisioned scenario, its simulation and the run all land in the selected tenant.
+    String createdRunId = JsonPath.read(response, "$.autonomous_run_id");
+    String scenarioId = JsonPath.read(response, "$.autonomous_run_scenario_id");
+    String simulationId = JsonPath.read(response, "$.autonomous_run_simulation_id");
+    assertThat(rawTenantId("autonomous_runs", "autonomous_run_id", createdRunId))
+        .isEqualTo(tenantA);
+    assertThat(rawTenantId("scenarios", "scenario_id", scenarioId)).isEqualTo(tenantA);
+    assertThat(rawTenantId("exercises", "exercise_id", simulationId)).isEqualTo(tenantA);
   }
 
   @Test

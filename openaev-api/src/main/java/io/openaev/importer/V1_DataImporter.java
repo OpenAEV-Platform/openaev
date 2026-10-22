@@ -233,11 +233,11 @@ public class V1_DataImporter implements Importer {
       String suffix) {
     // Resolve the write tenant once. A bundle imported into an existing simulation or scenario is
     // written in the tenant of that parent, which must lie inside the request scope; a bundle with
-    // no parent takes the single tenant of the scope. Documents, tags, challenges and channels are
-    // attributed to it explicitly; the roots that are not tenant-active yet (exercise, scenario,
-    // injects, teams, payloads) are still stamped from the ambient tenant and matched against
-    // existing rows through it. Running the whole import with the ambient tenant aligned on the
-    // write tenant keeps the bundle in one tenant on every route.
+    // no parent takes the single tenant of the scope. Documents, tags, challenges, channels and the
+    // imported exercise or scenario are attributed to it explicitly; the roots that are not
+    // tenant-active yet (injects, teams, payloads) are still stamped from the ambient tenant and
+    // matched against existing rows through it. Running the whole import with the ambient tenant
+    // aligned on the write tenant keeps the bundle in one tenant on every route.
     String writeTenant =
         tenantWriteScopeResolver.tenantForWrite(ctx, parentTenantId(exercise, scenario));
     // The nested importers resolve the tenant of the rows they create (tags, challenges, channels,
@@ -354,9 +354,11 @@ public class V1_DataImporter implements Importer {
     // TenantBaseListener never has to stamp them, and the create/update decision is scoped to the
     // write tenant rather than the ambient filter.
     Exercise savedExercise =
-        Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
+        Optional.ofNullable(importExercise(importNode, baseIds, suffix, writeTenant))
+            .orElse(exercise);
     Scenario savedScenario =
-        Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
+        Optional.ofNullable(importScenario(importNode, baseIds, suffix, writeTenant))
+            .orElse(scenario);
     importDocuments(
         importNode, prefix, docReferences, writeTenant, savedExercise, savedScenario, baseIds);
     importDocument(
@@ -810,13 +812,15 @@ public class V1_DataImporter implements Importer {
 
   // -- EXERCISE --
 
-  private Exercise importExercise(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
+  private Exercise importExercise(
+      JsonNode importNode, Map<String, Base> baseIds, String suffix, String writeTenant) {
     JsonNode exerciseNode = importNode.get("exercise_information");
     if (exerciseNode == null) {
       return null;
     }
 
     Exercise exercise = new Exercise();
+    exercise.setTenant(new Tenant(writeTenant));
     exercise.setName(exerciseNode.get("exercise_name").textValue() + suffix);
     exercise.setDescription(exerciseNode.get("exercise_description").textValue());
     exercise.setSubtitle(exerciseNode.get("exercise_subtitle").textValue());
@@ -854,13 +858,15 @@ public class V1_DataImporter implements Importer {
 
   // -- SCENARIO --
 
-  private Scenario importScenario(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
+  private Scenario importScenario(
+      JsonNode importNode, Map<String, Base> baseIds, String suffix, String writeTenant) {
     JsonNode scenarioNode = importNode.get("scenario_information");
     if (scenarioNode == null) {
       return null;
     }
 
     Scenario scenario = new Scenario();
+    scenario.setTenant(new Tenant(writeTenant));
     scenario.setName(scenarioNode.get("scenario_name").textValue() + suffix);
     scenario.setDescription(scenarioNode.get("scenario_description").textValue());
     scenario.setSubtitle(scenarioNode.get("scenario_subtitle").textValue());

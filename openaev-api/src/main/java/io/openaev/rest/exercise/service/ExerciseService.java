@@ -372,6 +372,7 @@ public class ExerciseService {
 
   private Exercise copyExercise(Exercise exerciseOrigin) {
     Exercise exerciseDuplicate = new Exercise();
+    exerciseDuplicate.setTenant(exerciseOrigin.getTenant());
     exerciseDuplicate.setName(duplicateString(exerciseOrigin.getName()));
     exerciseDuplicate.setCategory(exerciseOrigin.getCategory());
     exerciseDuplicate.setDescription(exerciseOrigin.getDescription());
