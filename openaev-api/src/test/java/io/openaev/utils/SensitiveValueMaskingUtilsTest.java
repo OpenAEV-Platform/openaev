@@ -424,8 +424,8 @@ class SensitiveValueMaskingUtilsTest {
 
     /**
      * Every sample the rule changes, for every finding type, under {@code MASKING_VERSION} 1; every
-     * other one is handed out unchanged. The search index stores this form, so it may only change
-     * together with a version bump.
+     * other one is handed out unchanged. The findings table and the search index store this form,
+     * so it may only change together with a version bump.
      */
     private static final Map<String, String> MASKED_SAMPLES_V1 =
         // Literals, not MASK: a change to the mask itself is a rule change too
@@ -462,10 +462,12 @@ class SensitiveValueMaskingUtilsTest {
           .isEqualTo(1L);
       assertThat(masked)
           .as(
-              "The masked output changed, but the finding documents of the search index still"
-                  + " hold the previous one. Bump SensitiveValueMaskingUtils.MASKING_VERSION, add"
-                  + " a migration requesting a re-feed of the finding model (see the class"
-                  + " Javadoc), then pin the new outputs here")
+              "The masked output changed, but findings.finding_value_display and the finding"
+                  + " documents of the search index still hold the previous one, so search and"
+                  + " filters would match it. Bump SensitiveValueMaskingUtils.MASKING_VERSION,"
+                  + " add a migration that rewrites finding_value_display for every row, then a"
+                  + " migration requesting a re-feed of the finding model, in that order (see"
+                  + " the class Javadoc), then pin the new outputs here")
           .isEqualTo(MASKED_SAMPLES_V1);
     }
 
