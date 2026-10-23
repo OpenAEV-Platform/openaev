@@ -25,12 +25,12 @@ import org.springframework.stereotype.Component;
  * Calling application code from a migration is deliberate here, because the column must always hold
  * the current masking rule. A type this version does not know gets its whole value masked.
  *
- * <p>Execution is batched ({@value #BATCH_SIZE} rows) and runs OUTSIDE a wrapping Flyway
- * transaction, so each batch commits on its own and locks stay short on large tables. The batches
- * walk the table once, in primary key order: each one starts after the last id of the previous one,
- * so no batch scans again the rows already filled. It is idempotent: only rows whose column is
- * still empty are filled, so an interrupted run resumes safely. The tenant of a row is never
- * touched.
+ * <p>Execution is batched ({@value FindingValueDisplayBackfill#BATCH_SIZE} rows) and runs OUTSIDE a
+ * wrapping Flyway transaction, so each batch commits on its own and locks stay short on large
+ * tables. The batches walk the table once, in primary key order: each one starts after the last id
+ * of the previous one, so no batch scans again the rows already filled. It is idempotent: only rows
+ * whose column is still empty are filled, so an interrupted run resumes safely. The tenant of a row
+ * is never touched.
  *
  * <p>During a rolling deploy, pods of the previous version keep inserting findings without the
  * column after this migration has run, so the migration also asks for the same fill once more,
@@ -38,8 +38,6 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class V6_20261022151200000__Add_finding_value_display extends BaseJavaMigration {
-
-  private static final int BATCH_SIZE = 1000;
 
   /** No wrapping transaction: each batch commits on its own to keep locks bounded. */
   @Override
@@ -71,7 +69,7 @@ public class V6_20261022151200000__Add_finding_value_display extends BaseJavaMig
         "SELECT finding_id, finding_type, finding_value FROM findings"
             + " WHERE finding_id > ? AND finding_value_display IS NULL"
             + " ORDER BY finding_id LIMIT "
-            + BATCH_SIZE;
+            + FindingValueDisplayBackfill.BATCH_SIZE;
     String updateSql =
         "UPDATE findings SET finding_value_display = ?"
             + " WHERE finding_id = ? AND finding_value_display IS NULL";

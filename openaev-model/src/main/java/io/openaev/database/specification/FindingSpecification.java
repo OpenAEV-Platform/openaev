@@ -117,7 +117,7 @@ public class FindingSpecification {
    *     finding_value_display}
    * @param specification the scope the occurrences must belong to
    */
-  public static Specification<Finding> findAllWithAssetsByTypeValueIn(
+  public static Specification<Finding> findAllWithAssetsByTypeDisplayValueIn(
       List<ContractOutputType> types,
       List<String> displayValues,
       Specification<Finding> specification) {

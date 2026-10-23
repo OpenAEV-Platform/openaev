@@ -45,7 +45,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class FindingValueDisplayBackfill {
 
-  static final int BATCH_SIZE = 1000;
+  /** Rows per batch, for the migration and the delayed pass alike. */
+  public static final int BATCH_SIZE = 1000;
 
   /** Set by the migration during the startup in progress, read once the application is ready. */
   private static final AtomicBoolean DELAYED_FILL_REQUESTED = new AtomicBoolean();

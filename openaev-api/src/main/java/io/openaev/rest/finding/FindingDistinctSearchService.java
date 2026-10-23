@@ -118,28 +118,30 @@ public class FindingDistinctSearchService {
 
     // Step 1: Extract distinct (type, displayed value) keys. Grouping on the displayed value, never
     // on the cleartext, keeps two secrets that look the same in one row (ADR-017).
-    List<TypeValueKey> typeValueKeys =
+    List<TypeValueKey> displayValueKeys =
         page.getContent().stream()
             .map(f -> new TypeValueKey(f.getType(), f.getValueDisplay()))
             .distinct()
             .toList();
 
-    if (typeValueKeys.isEmpty()) {
+    if (displayValueKeys.isEmpty()) {
       return Page.empty(page.getPageable());
     }
 
     // Step 2: Fetch all findings with assets for those values/types
-    List<ContractOutputType> types = typeValueKeys.stream().map(TypeValueKey::getType).toList();
-    List<String> values = typeValueKeys.stream().map(TypeValueKey::getValue).toList();
+    List<ContractOutputType> types = displayValueKeys.stream().map(TypeValueKey::getType).toList();
+    List<String> displayValues = displayValueKeys.stream().map(TypeValueKey::getValue).toList();
 
     List<Finding> findingsWithAssets =
         findingRepository.findAll(
-            FindingSpecification.findAllWithAssetsByTypeValueIn(types, values, baseFilterSpec));
+            FindingSpecification.findAllWithAssetsByTypeDisplayValueIn(
+                types, displayValues, baseFilterSpec));
 
     // Step 3: Group assets by (type, value)
     Map<TypeValueKey, List<Asset>> groupedAssets =
         findingsWithAssets.stream()
-            .filter(f -> typeValueKeys.contains(new TypeValueKey(f.getType(), f.getValueDisplay())))
+            .filter(
+                f -> displayValueKeys.contains(new TypeValueKey(f.getType(), f.getValueDisplay())))
             .flatMap(
                 finding ->
                     finding.getAssets().stream()
@@ -163,7 +165,7 @@ public class FindingDistinctSearchService {
     Map<TypeValueKey, Instant> lastSeenByKey = new HashMap<>();
     for (Finding occurrence : findingsWithAssets) {
       TypeValueKey key = new TypeValueKey(occurrence.getType(), occurrence.getValueDisplay());
-      if (!typeValueKeys.contains(key)) {
+      if (!displayValueKeys.contains(key)) {
         continue;
       }
       firstSeenByKey.merge(key, occurrence.getCreationDate(), (a, b) -> a.isBefore(b) ? a : b);
