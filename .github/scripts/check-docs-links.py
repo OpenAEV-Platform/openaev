@@ -71,7 +71,7 @@ def anchors_of(page: Path) -> frozenset[str]:
 def version_path(url: str) -> str | None:
     """Path of a docs.openaev.io URL under /latest/, relative to the site root, or None when it is outside it."""
     parts = urlsplit(url)
-    if parts.netloc.lower() != "docs.openaev.io":
+    if parts.hostname != "docs.openaev.io":
         return None
     path = unquote(parts.path)
     if path.rstrip("/") == "/latest":
@@ -163,9 +163,9 @@ class ContentLinks(HTMLParser):
 
 
 def stays_on_docs_site(href: str) -> bool:
-    """False for a link to another site, or a mailto: one."""
+    """True for a relative link or one to docs.openaev.io, false for another site or scheme (mailto:, tel:...)."""
     parts = urlsplit(href)
-    return parts.netloc.lower() == "docs.openaev.io" or not (parts.scheme or parts.netloc)
+    return parts.hostname == "docs.openaev.io" or not (parts.scheme or parts.netloc)
 
 
 def check_page_link(site: Path, page: Path, href: str) -> str | None:
