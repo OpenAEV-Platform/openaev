@@ -18,18 +18,29 @@ import com.azure.core.exception.HttpResponseException;
 import com.azure.core.http.HttpResponse;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.secrets.provider.SecretConnectionResult;
+import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.concurrent.TimeoutException;
+import org.apache.hc.client5.http.ConnectTimeoutException;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -38,27 +49,28 @@ import reactor.core.publisher.Mono;
 /**
  * Unit tests for the Azure credential probe.
  *
- * <p>No test here reaches the network: {@code subscriptionId} is always null, which stops the probe
- * right after the token exchange. The ARM subscription branch is deliberately NOT unit tested —
- * covering it would mean either a real outbound HTTPS call or an in-test HTTP server, and both make
- * the suite slow and flaky for a branch whose only logic (the status-code mapping) is already
- * exercised through {@link ClientAuthenticationException} and {@link HttpResponseException} here.
+ * <p>No test here reaches the network: the token exchange is a stubbed credential, and the ARM
+ * subscription read goes through a mocked Apache client handed out by the mocked {@link
+ * HttpClientFactory}.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AzureCredentialValidator tests")
 class AzureCredentialConnectivityCheckTest {
 
   private static final String UNSUPPORTED_ENVIRONMENT = "AzureNotACloud";
+  private static final String SUBSCRIPTION_ID = "00000000-0000-0000-0000-000000000000";
   private static final int TIMEOUT_SECONDS = 1;
 
   @Mock private AzureCredentialConnectivityCheckFactory tokenCredentialFactory;
+  @Mock private HttpClientFactory httpClientFactory;
+  @Mock private CloseableHttpClient httpClient;
   @Mock private TokenCredential tokenCredential;
 
   private AzureCredentialConnectivityCheck validator;
 
   @BeforeEach
   void setUp() {
-    validator = new AzureCredentialConnectivityCheck(tokenCredentialFactory);
+    validator = new AzureCredentialConnectivityCheck(tokenCredentialFactory, httpClientFactory);
     // The timeout is a @Value field: without a Spring context it stays 0, which the validator
     // would clamp to 1s anyway — set it explicitly so the intent is visible.
     ReflectionTestUtils.setField(validator, "timeoutSeconds", TIMEOUT_SECONDS);
@@ -373,6 +385,151 @@ class AzureCredentialConnectivityCheckTest {
     private SecretConnectionResult validateServicePrincipal() {
       return validator.validateServicePrincipal(
           AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
+    }
+  }
+
+  @Nested
+  @DisplayName("Subscription probe")
+  class SubscriptionProbe {
+
+    @BeforeEach
+    void stubCredentialAndClient() {
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenIsGranted();
+      when(httpClientFactory.httpClientNoRetry(any(Timeout.class))).thenReturn(httpClient);
+    }
+
+    @ParameterizedTest(name = "status={0}")
+    @CsvSource({
+      "200, ACTIVE",
+      "401, AUTH_FAILED",
+      "403, PERMISSION_DENIED",
+      "404, PERMISSION_DENIED",
+      "429, NETWORK_ERROR",
+      "503, NETWORK_ERROR"
+    })
+    @DisplayName("The ARM status code is mapped to the credential status")
+    @SuppressWarnings("unchecked")
+    void given_armStatusCode_should_mapToStatus(int statusCode, String expected)
+        throws IOException {
+      // Arrange
+      when(httpClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
+          .thenReturn(statusCode);
+
+      // Act
+      SecretConnectionResult result = validateWithSubscription();
+
+      // Assert
+      assertThat(result.status().name()).isEqualTo(expected);
+      assertThat(result.wasChecked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("The subscription is read with the freshly obtained bearer token")
+    @SuppressWarnings("unchecked")
+    void given_subscriptionId_should_sendBearerTokenToTheSubscriptionEndpoint() throws IOException {
+      // Arrange
+      when(httpClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
+          .thenReturn(200);
+
+      // Act
+      validateWithSubscription();
+
+      // Assert
+      ArgumentCaptor<ClassicHttpRequest> request =
+          ArgumentCaptor.forClass(ClassicHttpRequest.class);
+      verify(httpClient).execute(request.capture(), any(HttpClientResponseHandler.class));
+      assertThat(request.getValue()).isInstanceOf(HttpGet.class);
+      assertThat(request.getValue().getRequestUri())
+          .contains("subscriptions/" + SUBSCRIPTION_ID)
+          .contains("api-version=");
+      assertThat(request.getValue().getFirstHeader("Authorization").getValue())
+          .isEqualTo("Bearer fake-access-token");
+    }
+
+    @Test
+    @DisplayName("The client built for the probe is always closed")
+    @SuppressWarnings("unchecked")
+    void given_probe_should_closeTheClient() throws IOException {
+      // Arrange
+      when(httpClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
+          .thenReturn(200);
+
+      // Act
+      validateWithSubscription();
+
+      // Assert
+      verify(httpClient).close();
+    }
+
+    @Test
+    @DisplayName("The client is bounded by the probe timeout")
+    @SuppressWarnings("unchecked")
+    void given_probe_should_boundTheClientByTheTimeout() throws IOException {
+      // Arrange
+      when(httpClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
+          .thenReturn(200);
+
+      // Act
+      validateWithSubscription();
+
+      // Assert
+      verify(httpClientFactory).httpClientNoRetry(Timeout.ofSeconds(TIMEOUT_SECONDS));
+    }
+
+    @Test
+    @DisplayName("A socket timeout is inconclusive, never a rejection")
+    @SuppressWarnings("unchecked")
+    void given_socketTimeout_should_returnTimeout() throws IOException {
+      // Arrange
+      when(httpClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
+          .thenThrow(new SocketTimeoutException("read timed out"));
+
+      // Act
+      SecretConnectionResult result = validateWithSubscription();
+
+      // Assert
+      assertThat(result.status()).isEqualTo(TIMEOUT);
+    }
+
+    @Test
+    @DisplayName("A connect timeout is inconclusive, never a rejection")
+    @SuppressWarnings("unchecked")
+    void given_connectTimeout_should_returnTimeout() throws IOException {
+      // Arrange
+      when(httpClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
+          .thenThrow(new ConnectTimeoutException("connect timed out"));
+
+      // Act
+      SecretConnectionResult result = validateWithSubscription();
+
+      // Assert
+      assertThat(result.status()).isEqualTo(TIMEOUT);
+    }
+
+    @Test
+    @DisplayName("Any other I/O failure is a network error")
+    @SuppressWarnings("unchecked")
+    void given_ioFailure_should_returnNetworkError() throws IOException {
+      // Arrange
+      when(httpClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
+          .thenThrow(new IOException("connection reset"));
+
+      // Act
+      SecretConnectionResult result = validateWithSubscription();
+
+      // Assert
+      assertThat(result.status()).isEqualTo(NETWORK_ERROR);
+    }
+
+    private SecretConnectionResult validateWithSubscription() {
+      return validator.validateServicePrincipal(
+          AZURE_ENVIRONMENT,
+          AZURE_TENANT_ID,
+          AZURE_CLIENT_ID,
+          AZURE_CLIENT_SECRET,
+          SUBSCRIPTION_ID);
     }
   }
 }

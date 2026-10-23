@@ -7,17 +7,20 @@ import com.azure.core.exception.ClientAuthenticationException;
 import com.azure.core.exception.HttpResponseException;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.AzureEnvironments;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -53,6 +56,7 @@ public class AzureCredentialConnectivityCheck {
   private static final String SUBSCRIPTION_API_VERSION = "2022-12-01";
 
   private final AzureCredentialConnectivityCheckFactory tokenCredentialFactory;
+  private final HttpClientFactory httpClientFactory;
 
   @Value("${openaev.credentials.status-validation.timeout-seconds:10}")
   private int timeoutSeconds;
@@ -152,22 +156,17 @@ public class AzureCredentialConnectivityCheck {
                 + "?api-version="
                 + SUBSCRIPTION_API_VERSION);
 
-    try (HttpClient httpClient = HttpClient.newBuilder().connectTimeout(timeout).build()) {
-      HttpRequest request =
-          HttpRequest.newBuilder(uri)
-              .GET()
-              .timeout(timeout)
-              .header("Authorization", "Bearer " + token)
-              .build();
-      HttpResponse<Void> response =
-          httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-      return mapStatusCode(response.statusCode());
-    } catch (java.net.http.HttpTimeoutException e) {
+    // Built by the platform's factory so the probe trusts the same extra certificates as the SDK.
+    try (CloseableHttpClient httpClient =
+        httpClientFactory.httpClientNoRetry(Timeout.of(timeout))) {
+      HttpGet request = new HttpGet(uri);
+      request.addHeader("Authorization", "Bearer " + token);
+      Integer statusCode = httpClient.execute(request, ClassicHttpResponse::getCode);
+      return mapStatusCode(statusCode);
+    } catch (SocketTimeoutException e) {
+      // Also covers Apache's ConnectTimeoutException, which extends it.
       return SecretConnectionResult.timeout();
     } catch (IOException e) {
-      return SecretConnectionResult.networkError();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
       return SecretConnectionResult.networkError();
     }
   }
