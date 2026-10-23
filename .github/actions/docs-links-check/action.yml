@@ -1,8 +1,9 @@
 name: Docs Links Check
 description: >
-  Every docs.openaev.io link in the API, model and front sources must resolve to a page of the
-  built MkDocs site, and its anchor must exist on that page. Builds the docs with the pinned
-  dependencies, so a docs move that breaks an in-app link fails here instead of on the site.
+  Every docs.openaev.io link in the API, model and front sources, and every link of a docs page
+  to another page of the docs, must resolve to a page of the built MkDocs site, and its anchor
+  must exist on that page. Builds the docs with the pinned dependencies, so a docs move that
+  breaks an in-app link or a link between pages fails here instead of on the site.
   The git-committers and git-revision-date-localized plugins are switched off: they only fill in
   contributors and dates, and git-committers calls the GitHub API for every page.
 
@@ -25,6 +26,6 @@ runs:
         DOCS_GIT_PLUGINS: 'false'
       run: mkdocs build --quiet
 
-    - name: Check in-app documentation links
+    - name: Check in-app and docs page links
       shell: bash
       run: python3 .github/scripts/check-docs-links.py

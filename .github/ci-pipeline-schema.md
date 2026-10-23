@@ -114,7 +114,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
 | 🎨 **FDS Conformity** | 5 min | Design-system token bridge and migrated zones stay conformant |
 | 🎨 **FDS MUI Regression** | 5 min | Pull requests only: no MUI component re-enters where the design system replaces it |
-| 🔎 **Docs Links Check** | 5 min | Every in-app `docs.openaev.io` link resolves to a page and anchor of the built MkDocs site |
+| 🔎 **Docs Links Check** | 5 min | Every in-app `docs.openaev.io` link, and every link between docs pages, resolves to a page and anchor of the built MkDocs site |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
 | 🔒 **Container Vulnerability Scan** | 25 min | CVE scan of both amd64 images, threshold `high` |
