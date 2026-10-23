@@ -8,6 +8,7 @@ import io.openaev.utils.fixtures.FindingFixture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * Guards the displayed value of a finding (#7893, ADR-017): the masked form that display, search,
@@ -62,8 +63,8 @@ class FindingValueDisplayTest {
   class WhenTheStoredMaskedValueIsMissing {
 
     @Test
-    @DisplayName("Should fall back to the mask, never to the cleartext")
-    void given_noStoredMaskedValue_should_fallBackToTheMask() {
+    @DisplayName("Should compute the mask from the value, never hand out the cleartext")
+    void given_noStoredMaskedValue_should_computeTheMask() {
       // Arrange
       // Like a row written by a pod of the previous version during a rolling deploy.
       Finding finding = FindingFixture.createCredentialsFinding("root:toor");
@@ -74,6 +75,25 @@ class FindingValueDisplayTest {
 
       // Assert
       assertThat(displayed).isEqualTo("root:" + MASK).doesNotContain("toor");
+    }
+  }
+
+  @Nested
+  @DisplayName("When the finding is saved")
+  class WhenTheFindingIsSaved {
+
+    @Test
+    @DisplayName("Should store the masked form in the column the SQL queries read")
+    void given_aSensitiveFinding_should_storeItsMaskedForm() {
+      // Arrange
+      Finding finding = FindingFixture.createCredentialsFinding("admin:motdepasse");
+
+      // Act
+      finding.refreshValueDisplay();
+
+      // Assert
+      assertThat(ReflectionTestUtils.getField(finding, "valueDisplay"))
+          .isEqualTo("admin:mo" + MASK);
     }
   }
 

@@ -62,8 +62,8 @@ public class FindingMapper {
 
   /**
    * Single finding output for the CRUD endpoints. This is the only representation of a finding the
-   * API returns. Its value is the stored displayed value ({@link Finding#getValueDisplay()}), never
-   * the cleartext, so a secret value never leaves the platform.
+   * API returns. Its value is the displayed value ({@link Finding#getValueDisplay()}), never the
+   * cleartext, so a secret value never leaves the platform.
    */
   public FindingOutput toFindingOutput(Finding finding) {
     return FindingOutput.builder()

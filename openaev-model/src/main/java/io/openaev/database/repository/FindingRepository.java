@@ -125,6 +125,45 @@ public interface FindingRepository
       @NotNull @Param("type") ContractOutputType type,
       @NotBlank @Param("key") String key);
 
+  // -- DISPLAYED VALUE CATCH-UP --
+  //
+  // During a rolling deploy, pods of the previous version insert findings without
+  // finding_value_display. FindingValueDisplayBackfill fills them once, after the old pods are
+  // gone, with these two queries, in TxCtx.allTenants().
+  //
+  // Native: a deliberate cross-tenant maintenance sweep on a column the entity never lets JPA write
+  // directly. No side effect is lost: the search index and the stream already carry this masked
+  // value, computed on the fly while the column was empty.
+
+  /** Findings without a displayed value, after a primary key cursor, so a pass reads each once. */
+  @Query(
+      value =
+          "SELECT f.finding_id AS id, f.finding_type AS type, f.finding_value AS value"
+              + " FROM findings f WHERE f.finding_id > :afterId AND f.finding_value_display IS NULL"
+              + " ORDER BY f.finding_id LIMIT :limit",
+      nativeQuery = true)
+  List<FindingWithoutValueDisplay> findWithoutValueDisplayAfter(
+      @Param("afterId") String afterId, @Param("limit") int limit);
+
+  /** Fills the displayed value of one finding, unless another writer filled it first. */
+  @Modifying
+  @Query(
+      value =
+          "UPDATE findings SET finding_value_display = :valueDisplay"
+              + " WHERE finding_id = :findingId AND finding_value_display IS NULL",
+      nativeQuery = true)
+  int fillValueDisplay(
+      @Param("findingId") String findingId, @Param("valueDisplay") String valueDisplay);
+
+  /** Projection for {@link #findWithoutValueDisplayAfter}. */
+  interface FindingWithoutValueDisplay {
+    String getId();
+
+    String getType();
+
+    String getValue();
+  }
+
   // -- INDEXING --
 
   // One row PER FINDING: assets are aggregated. The previous per-(finding, asset) rows shared the

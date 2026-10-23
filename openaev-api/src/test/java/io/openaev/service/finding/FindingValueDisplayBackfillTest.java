@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Verifies the delayed pass of {@link FindingValueDisplayBackfill}: the findings a pod of the
@@ -21,10 +22,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * {@code AddFindingValueDisplayMigrationTest}. The pass is called directly: the test configuration
  * disables its delayed scheduling.
  *
- * <p>Deliberately NOT {@code @Transactional}: the pass takes its own connection from the pool, so
- * it only sees rows that are committed. Rows are seeded, read and cleaned through auto-committed
- * JDBC.
+ * <p>Deliberately NOT {@code @Transactional}: the pass opens its own transactions through {@code
+ * TenantScopedTransaction}, whose {@code execute} refuses to run inside an active one. Rows are
+ * seeded, read and cleaned through auto-committed JDBC, so the statement inspector applies to the
+ * pass only, never to the assertions. {@code findings} is activated on v2 as in production, so the
+ * pass's queries go through the inspector.
  */
+@TestPropertySource(properties = "openaev.tenant.active-tables=findings")
 @DisplayName("Finding value display backfill")
 class FindingValueDisplayBackfillTest extends IntegrationTest {
 

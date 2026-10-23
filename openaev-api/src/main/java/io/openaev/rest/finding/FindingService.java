@@ -71,17 +71,17 @@ public class FindingService {
     Finding finding = finding(id);
     String tenantId = TenantContext.getCurrentTenant();
     ContractOutputType type = finding.getType();
-    String value = finding.getValueDisplay();
+    String displayValue = finding.getValueDisplay();
 
     FindingRepository.FindingSeenAggregate seen =
-        this.findingRepository.findSeenAggregate(type, value, tenantId);
+        this.findingRepository.findSeenAggregate(type, displayValue, tenantId);
 
     FindingMapper.FindingImpactCounts counts =
         new FindingMapper.FindingImpactCounts(
-            this.findingRepository.countDistinctAssets(type, value, tenantId),
-            this.findingRepository.countDistinctTeams(type, value, tenantId),
-            this.findingRepository.countDistinctUsers(type, value, tenantId),
-            this.findingRepository.countDistinctAssetGroups(type, value, tenantId));
+            this.findingRepository.countDistinctAssets(type, displayValue, tenantId),
+            this.findingRepository.countDistinctTeams(type, displayValue, tenantId),
+            this.findingRepository.countDistinctUsers(type, displayValue, tenantId),
+            this.findingRepository.countDistinctAssetGroups(type, displayValue, tenantId));
 
     return this.findingMapper.toFindingSummaryOutput(finding, seen, counts);
   }

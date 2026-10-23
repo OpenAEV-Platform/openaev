@@ -242,6 +242,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.service.expectation.ChallengeBehavior;
+import io.openaev.service.finding.FindingValueDisplayBackfill;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.service.notification.NotificationService;
@@ -1470,7 +1471,10 @@ class TenantActiveTableAccessArchTest {
               FindingHandler.class,
               VulnerableEndpointHandler.class,
               // Telemetry gauge, explicitly TxCtx.allTenants() (ProductInventoryTenantScopeTest).
-              ProductInventoryMetricCollector.class)
+              ProductInventoryMetricCollector.class,
+              // One pass after an upgrade over every tenant's findings, each batch in
+              // TxCtx.allTenants() (FindingValueDisplayBackfillTest).
+              FindingValueDisplayBackfill.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(FindingRepository.class)

@@ -186,39 +186,30 @@ public class Finding implements TenantBase {
 
   // -- DISPLAYED VALUE --
   // finding_value_display is computed by SensitiveValueMaskingUtils.maskIfNeededFailClosed, like on
-  // every other write path (the native upsert of FindingWriter, the backfill migration), so they
-  // all store exactly the same masked form.
-
-  public void setValue(final String value) {
-    this.value = value;
-    this.valueDisplay = SensitiveValueMaskingUtils.maskIfNeededFailClosed(this.type, value);
-  }
+  // every other write path (the native upsert of FindingWriter, the backfill migration and its
+  // delayed pass), so they all store exactly the same masked form.
 
   public void setType(final ContractOutputType type) {
     if (this.id != null && this.type != null && this.type != type) {
       throw new IllegalArgumentException("Finding type cannot be changed.");
     }
     this.type = type;
-    this.valueDisplay = SensitiveValueMaskingUtils.maskIfNeededFailClosed(type, this.value);
   }
 
   /**
-   * The value as the platform displays it. When the column is not filled yet, for instance on a row
-   * written by a pod of the previous version during a rolling deploy, the mask is computed from the
-   * cleartext: a missing column can only hide more, never reveal the secret.
+   * The value as the platform displays it, always computed from the current type and value, so it
+   * is right even before the finding is saved. The stored column only serves the SQL queries.
    */
   public String getValueDisplay() {
-    return valueDisplay != null
-        ? valueDisplay
-        : SensitiveValueMaskingUtils.maskIfNeededFailClosed(type, value);
+    return SensitiveValueMaskingUtils.maskIfNeededFailClosed(type, value);
   }
 
-  // The setters above already keep the displayed value in sync. This callback is the safety net for
-  // any write that sets the fields another way, so a row is never persisted without it.
+  // Stores the displayed value on every write, so search, filters, sorts and grouping, which run in
+  // SQL, always match what getValueDisplay() returns.
   @PrePersist
   @PreUpdate
   void refreshValueDisplay() {
-    this.valueDisplay = SensitiveValueMaskingUtils.maskIfNeededFailClosed(this.type, this.value);
+    this.valueDisplay = getValueDisplay();
   }
 
   @JsonProperty("finding_simulation")
