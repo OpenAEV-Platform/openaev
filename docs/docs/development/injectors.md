@@ -56,12 +56,13 @@ When an Inject carries Credentials, the message pushed to the Injector queue hol
 {
   "attachments": {
     "credential_references": ["<credential_id>"],
-    "authorisation_code": "<single-use code>"
+    "authorisation_code": "<execution-scoped code>"
   }
 }
 ```
 
-For each Credential, the Injector exchanges the code for the secret:
+For each Credential, the Injector exchanges the code for the secret. The same code is valid for every Credential of
+the Inject, for the whole execution:
 
 ```http
 POST /api/injects/{injectId}/attachment/secret
