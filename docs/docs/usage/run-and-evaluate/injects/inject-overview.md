@@ -48,6 +48,7 @@ Select an Inject type on the left. The right panel loads a form with a default t
 | **Targets** | [Endpoints and Asset groups](../../build/assets.md) or [Players and Teams](../../build/people.md) |
 | **Expectations** | [Expected outcomes](../expectations/expectations.md): prevention, detection, human response |
 | **Attachments** | Supporting documents or resources |
+| **Credentials** | [Credentials](../../build/credentials.md) the Injector authenticates with, for Inject types that declare a Credential field |
 | **Inject-specific fields** | Email subject/body, obfuscation options, channel pressure, etc. |
 
 ### In practice

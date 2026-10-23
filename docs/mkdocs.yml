@@ -204,6 +204,7 @@ nav:
       - Scenario generation from OpenCTI security coverage: usage/build/scenario/security-coverage.md
       - Importing injects into a Scenario: usage/build/scenario/scenario-import.md
       - Assets: usage/build/assets.md
+      - Credentials: usage/build/credentials.md
       - People: usage/build/people.md
       - Components:
         - Documents: usage/build/components/documents.md

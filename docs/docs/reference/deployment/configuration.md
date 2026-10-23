@@ -143,8 +143,8 @@ The inject execution engine runs the actions described in the Injector contracts
 
 #### Credential status validation
 
-A scheduled job re-checks the stored credentials against their cloud provider and records the result, so you see a
-revoked or expired credential *before* a Simulation fails on it.
+A scheduled job re-checks the stored [Credentials](../../usage/build/credentials.md) against their cloud provider and
+records the result, so you see a revoked or expired credential *before* a Simulation fails on it.
 
 The job runs per Tenant and only checks credentials whose status is stale, up to a per-run limit. Credential types with
 no remote counterpart (username/password, hash) are never checked and keep the `UNSET` status.

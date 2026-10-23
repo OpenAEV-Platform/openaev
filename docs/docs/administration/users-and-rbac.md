@@ -81,6 +81,8 @@ Platform settings, Tenants and the platform users, groups, roles and sessions ca
 | `Access teams & persons` | Access, Manage, Delete | Teams and Players |
 | `Access assets` | Access, Manage, Delete | Assets and asset groups |
 | `Access security platforms` | Access, Manage, Delete | Security platform integrations |
+| `Access credentials` | Access, Manage, Delete | [Credentials](../usage/build/credentials.md) (preview feature) |
+| `Resolve inject secret` | -- | Retrieve the secret of a Credential attached to a running Inject; grant it only to the account of your Injectors (preview feature) |
 | `Access documents` | Access, Manage, Delete | Documents |
 | `Access channels` | Access, Manage, Delete | Channels |
 | `Access phishing` | Access, Manage, Delete | Phishing landing pages and email templates |

@@ -10,6 +10,7 @@ From the Assets section, you can access the following pages:
 - `Asset groups`: Group of asset allowing you to organize endpoints into logical groups based on various filters applied
   by the user.
 - `Security platforms`
+- `Credentials`: Secrets your Injects use to authenticate against their targets. See [Credentials](credentials.md).
 
 ## Endpoints
 
@@ -126,3 +127,4 @@ security platform integration is not yet available, you can create it manually h
 - [Scenarios](scenario/scenario.md) -- Use your Assets in Scenarios
 - [Injects](../run-and-evaluate/injects/inject-overview.md) -- Target Assets with Injects
 - [People](people.md) -- Manage Players and Teams
+- [Credentials](credentials.md) -- Store the secrets your Injects authenticate with
