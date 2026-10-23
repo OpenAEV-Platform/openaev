@@ -56,7 +56,7 @@ interface Props {
  * identical, with no way to know which instance a card opens: suffix the title
  * of those homonyms with a short id so each one can be told apart.
  */
-export const disambiguateHomonymConnectors = (items: ConnectorItem[]): ConnectorItem[] => {
+const disambiguateHomonymConnectors = (items: ConnectorItem[]): ConnectorItem[] => {
   const keyOf = (item: ConnectorItem) => `${item.type}::${item.title}`;
   const counts = new Map<string, number>();
   items.forEach((item) => {
