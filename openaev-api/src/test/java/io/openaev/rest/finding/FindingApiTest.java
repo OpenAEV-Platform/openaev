@@ -1554,6 +1554,28 @@ class FindingApiTest extends IntegrationTest {
 
       @Test
       @DisplayName(
+          "Should leave out of distinct mode the findings without a displayed value, rather than"
+              + " list each one apart")
+      void given_findingsWithoutDisplayedValue_should_notBeListedInDistinctMode() throws Exception {
+        // -------- Arrange --------
+        Finding first = persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
+        Finding second = persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
+        entityManager.flush();
+        // What a pod of the previous version writes during a rolling deploy
+        entityManager
+            .createNativeQuery(
+                "UPDATE findings SET finding_value_display = NULL WHERE finding_id IN (:ids)")
+            .setParameter("ids", List.of(first.getId(), second.getId()))
+            .executeUpdate();
+        entityManager.clear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+            .andExpect(jsonPath("$.totalElements").value(0));
+      }
+
+      @Test
+      @DisplayName(
           "Should list every occurrence of a displayed value, as the Occurrences drawer does")
       void given_theDisplayedValue_should_listEveryOccurrence() throws Exception {
         // -------- Arrange --------

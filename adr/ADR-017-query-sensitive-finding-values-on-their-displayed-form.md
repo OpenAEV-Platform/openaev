@@ -86,7 +86,7 @@ Concretely:
   Findings page show the same form.
 - A missing value (for example a row inserted by a pod of the previous version during a rolling
   deploy) is displayed and indexed with the mask computed on the fly, never with the cleartext, and is
-  absent from value search until it is filled. The system fails closed. The migration asks
+  absent from value search and from distinct mode until it is filled. The system fails closed. The migration asks
   `FindingValueDisplayBackfill` to fill such rows once more with the same helper, after the delay
   the #7892 re-feed waits for the old pods to be gone (`engine.indexing-refeed-reassert-delay-seconds`).
   A row it misses is filled the next time its finding is detected.

@@ -83,7 +83,11 @@ public class FindingSpecification {
       }
       newerSibling.where(newerWhere);
 
-      Predicate candidateWhere = cb.not(cb.exists(newerSibling));
+      // A row written by a pod of the previous version has no displayed value until the delayed
+      // backfill fills it. NULL never equals NULL, so each such row would form its own group and
+      // tell two secrets displayed alike apart: it is left out, as it is from value search.
+      Predicate candidateWhere =
+          cb.and(cb.isNotNull(candidate.get("valueDisplay")), cb.not(cb.exists(newerSibling)));
       if (baseSpec != null) {
         Predicate candidateSpec = baseSpec.toPredicate(candidate, query, cb);
         if (candidateSpec != null) {
