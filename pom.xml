@@ -50,7 +50,7 @@
         <amqp-client.version>5.35.0</amqp-client.version>
         <rabbit-amqp-client.version>${amqp-client.version}</rabbit-amqp-client.version>
         <micrometer.version>1.17.1</micrometer.version>
-        <micrometer-tracing.version>1.7.1</micrometer-tracing.version>
+        <micrometer-tracing.version>1.7.2</micrometer-tracing.version>
         <freemarker.version>2.3.35</freemarker.version>
         <postgresql.version>42.7.14</postgresql.version>
     </properties>
