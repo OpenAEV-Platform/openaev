@@ -37,7 +37,7 @@ import org.springframework.stereotype.Component;
  * after the old pods are gone ({@link FindingValueDisplayBackfill#requestDelayedFill}).
  */
 @Component
-public class V6_20261022151200000__Add_finding_value_display extends BaseJavaMigration {
+public class V6_20261026151200000__Add_finding_value_display extends BaseJavaMigration {
 
   /** No wrapping transaction: each batch commits on its own to keep locks bounded. */
   @Override
