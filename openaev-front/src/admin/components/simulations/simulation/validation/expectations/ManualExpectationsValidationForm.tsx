@@ -137,8 +137,6 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
             />
           </Grid>
           <Grid size={{ xs: 6 }}>
-            {/* A real label, like the score field next to it, keeps both
-                controls on the same line. */}
             <div style={{
               display: 'flex',
               flexDirection: 'column',
