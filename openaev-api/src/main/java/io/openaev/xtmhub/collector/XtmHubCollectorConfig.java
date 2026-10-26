@@ -21,4 +21,9 @@ public class XtmHubCollectorConfig {
   @Value(
       "${openbas.xtm.hub.collector.connectivity-check-interval:${openaev.xtm.hub.collector.connectivity-check-interval:3600}}")
   private Integer connectivityCheckInterval;
+
+  // period between two news feed syncs, in seconds, default to 1 hour.
+  @Value(
+      "${openbas.xtm.hub.collector.news-feed-interval:${openaev.xtm.hub.collector.news-feed-interval:3600}}")
+  private Integer newsFeedInterval;
 }

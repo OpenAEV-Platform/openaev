@@ -1,5 +1,6 @@
 package io.openaev.xtmhub.collector;
 
+import io.openaev.service.NewsFeedItemService;
 import io.openaev.xtmhub.XtmHubService;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
@@ -14,6 +15,7 @@ public class XtmHubCollector {
   private final XtmHubCollectorConfig config;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final XtmHubService xtmHubService;
+  private final NewsFeedItemService newsFeedItemService;
 
   @PostConstruct
   public void init() {
@@ -23,6 +25,12 @@ public class XtmHubCollector {
 
       this.taskScheduler.scheduleAtFixedRate(
           service, Duration.ofSeconds(this.config.getConnectivityCheckInterval()));
+
+      XtmHubNewsFeedCollectorService newsFeedService =
+          new XtmHubNewsFeedCollectorService(this.xtmHubService, this.newsFeedItemService);
+
+      this.taskScheduler.scheduleAtFixedRate(
+          newsFeedService, Duration.ofSeconds(this.config.getNewsFeedInterval()));
     }
   }
 }

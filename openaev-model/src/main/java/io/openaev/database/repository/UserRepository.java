@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.User;
+import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.raw.RawUser;
 import io.openaev.database.raw.RawUserAuthFlat;
@@ -112,6 +113,15 @@ public interface UserRepository
       value = "select us.user_id, us.user_email, us.user_firstname, us.user_lastname from users us",
       nativeQuery = true)
   List<RawUserIdentity> rawAllIdentities();
+
+  /**
+   * Users who receive the XTM Hub news feed: every user of at least one tenant, as a projection
+   * rather than {@code User} entities (see {@link #rawIdentities}).
+   */
+  @Query(
+      "select u.id as id, u.unsubscribedNewsFeedTypes as unsubscribedTypes"
+          + " from User u where u.tenants is not empty")
+  List<RawNewsFeedRecipient> rawNewsFeedRecipients();
 
   @Query(
       value = "select ut.tenant_id from users_tenants ut where ut.user_id = :userId",
