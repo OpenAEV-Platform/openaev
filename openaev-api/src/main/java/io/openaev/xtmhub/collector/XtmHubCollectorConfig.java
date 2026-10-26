@@ -16,9 +16,9 @@ public class XtmHubCollectorConfig {
   @Value("${openbas.xtm.hub.collector.id:${openaev.xtm.hub.collector.id:#{null}}}")
   private String id;
 
-  // period between two connectivity checks, default to 1 hour in milliseconds.
+  // period between two connectivity checks, in seconds, default to 1 hour.
   @NotBlank
   @Value(
-      "${openbas.xtm.hub.collector.connectivity-check-interval:${openaev.xtm.hub.collector.connectivity-check-interval:3600000}}")
+      "${openbas.xtm.hub.collector.connectivity-check-interval:${openaev.xtm.hub.collector.connectivity-check-interval:3600}}")
   private Integer connectivityCheckInterval;
 }
