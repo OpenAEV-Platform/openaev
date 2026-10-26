@@ -183,6 +183,7 @@ nav:
         - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
         - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
         - Elasticsearch 9: deployment/breaking-changes/MigrationVersion-elasticsearch-9.md
+        - Windows agent token encrypted with DPAPI: deployment/breaking-changes/MigrationVersion-windows-agent-token-dpapi.md
         - Windows agents running under a named service account: deployment/breaking-changes/3.261016.0-windows-agent-config-permissions.md
     - Integration Manager:
       - Overview: deployment/integration-manager/overview.md

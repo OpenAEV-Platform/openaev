@@ -1,6 +1,6 @@
 # Install the OpenAEV agent on Windows
 
-This page lists the Windows requirements, the installation modes and how to uninstall the agent. Get the install command from the **Install simulation agents** page (see [OpenAEV agent](openaev-agent.md#installation)). "Best effort" support levels are explained in [Best effort support](openaev-agent.md#best-effort-support).
+This page lists the Windows requirements, the installation modes{% if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}, how the agent protects its token{% endif %} and how to uninstall the agent. Get the install command from the **Install simulation agents** page (see [OpenAEV agent](openaev-agent.md#installation)). "Best effort" support levels are explained in [Best effort support](openaev-agent.md#best-effort-support).
 
 ## Operating system & architecture
 
@@ -56,6 +56,75 @@ This page lists the Windows requirements, the installation modes and how to unin
 | **Advanced installation as User (service)**   | Enable the "Service Logon" policy (see above)<br/>Terminal with admin privileges, replace `-User USER -Password PASSWORD` in the<br/>PowerShell snippet by the username with domain and password wanted | Background, as soon as the machine powers on, with the user privilege and environment                          | `Get-Service -Name "OAEVAgent-Service-[UserSanitized]"`<br/>`Start-Service -Name "OAEVAgent-Service-[UserSanitized]"`<br/>`Stop-Service -Name "OAEVAgent-Service-[UserSanitized]"`                                                                                           | `$HOME\.openaev\OAEVAgent-Service-[UserSanitized]`                                                                             | `$HOME\.openaev\OAEVAgent-Service-[UserSanitized]\runtimes`                                                                                      |
 | **Advanced installation as System (service)** | Terminal with admin privileges for the authority system user                                                                                                                                                                 | Background, as soon as the machine powers on, with the SYSTEM privilege and environment                        | `Get-Service -Name "OAEVAgentService"`<br/>`Start-Service -Name "OAEVAgentService"`<br/>`Stop-Service -Name "OAEVAgentService"`                                                                                                                                              | `C:\Program Files (x86)\Filigran\OAEV Agent`                                                                                   | `C:\Program Files (x86)\Filigran\OAEV Agent\runtimes`                                                                                            |
 
+{% if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
+## Token storage
+
+The agent uses a token to authenticate to OpenAEV. On Windows, the agent does not keep this token in clear text: it
+encrypts it with **DPAPI (Data Protection API)**, the Windows service that encrypts data with a key that belongs to a
+Windows account. Only the account the agent runs as can decrypt the token.
+
+### How it works
+
+1. The installer writes the platform URL and the other settings to `openaev-agent-config.toml`. The token is **not**
+   in this file.
+2. The installer writes the token to a temporary file, `openaev-agent-token.bootstrap`, and creates an empty
+   `openaev-agent-token.dpapi` file. Both files are only readable by the accounts listed below.
+3. At its first start, the agent encrypts the token into `openaev-agent-token.dpapi`, checks that it can decrypt it
+   back, then deletes the bootstrap file.
+4. Each time the agent contacts OpenAEV, it decrypts the token, uses it, then wipes it from memory.
+
+If the agent cannot encrypt the token (step 3), it logs an error, keeps the bootstrap file and keeps working with it.
+It tries again at its next start.
+
+### Files in the installation folder
+
+| File                              | Content                            | Lifetime                         |
+|:----------------------------------|:-----------------------------------|:---------------------------------|
+| `openaev-agent-config.toml`       | Settings, without the token        | Permanent                        |
+| `openaev-agent-token.bootstrap`   | Token in clear text                | Deleted at the agent first start |
+| `openaev-agent-token.dpapi`       | Token encrypted with DPAPI         | Permanent                        |
+
+### Who can access the token files
+
+| Installation mode                             | Agent account     | Access to the token files                                                    |
+|:----------------------------------------------|:------------------|:-----------------------------------------------------------------------------|
+| **Standard installation (session)**           | Logged-in user    | SYSTEM, Administrators and the user                                          |
+| **Advanced installation as User (service)**   | Service account   | SYSTEM, Administrators, and the service account (read, write or delete only) |
+| **Advanced installation as System (service)** | SYSTEM            | SYSTEM and Administrators                                                    |
+
+To check that the token is protected, run in PowerShell as administrator:
+
+```powershell
+icacls "[FOLDER_PATH]\openaev-agent-token.dpapi"
+Test-Path "[FOLDER_PATH]\openaev-agent-token.bootstrap"
+Select-String "[FOLDER_PATH]\openaev-agent-config.toml" -Pattern '^\s*token\s*='
+```
+
+The expected result: only the accounts of the table above appear, with no `(I)` (inherited permissions), `Test-Path`
+returns `False`, and `Select-String` returns nothing.
+
+!!! warning "Limits of DPAPI"
+
+    * Administrators of the machine can still get the token, for example by running a program as SYSTEM.
+    * Any program that runs as the agent account can decrypt the token, including the Payloads the agent executes.
+    * A full copy of the disk can be decrypted offline. Encrypt the disk, for example with BitLocker.
+    * If an administrator **resets** the password of a local account used by an **Advanced installation as User
+      (service)**, the account loses its DPAPI key and the agent can no longer decrypt its token. Reinstall the agent.
+      Changing the password from the account itself keeps the key.
+
+### Token storage messages in the log
+
+| Message in `openaev-agent.log`                                    | Meaning                                                                                      | Action                                         |
+|:------------------------------------------------------------------|:---------------------------------------------------------------------------------------------|:-----------------------------------------------|
+| `Token moved to the OS secret store`                              | The token is encrypted and the clear-text copies are deleted                                 | None                                           |
+| `Could not move the token to the OS secret store: ...`            | The agent could not encrypt the token. It keeps using the clear-text copy                    | Check the cause in the message, then restart   |
+| `The token is still in clear text in ...openaev-agent-config.toml` | The token is encrypted, but the agent cannot remove it from the config file                  | Reinstall the agent                            |
+| `no token in ...openaev-agent-token.dpapi, reinstall the agent`    | No token was ever encrypted, and no bootstrap file is left                                   | Reinstall the agent                            |
+
+The agent also goes offline if `openaev-agent-token.dpapi` is damaged, or if the agent account can no longer decrypt
+it. In both cases, reinstall the agent.
+
+{% endif %}
 ## Uninstall the agent
 
 1. For a **Standard installation (session)**, stop the agent:
@@ -65,11 +134,15 @@ This page lists the Windows requirements, the installation modes and how to unin
     ```
 
 2. Run `uninstall.exe` from the installation folder (see the **Folder path** column above) and confirm.
-   It stops and removes the service or the startup task, then deletes the folder. For the service modes, run it as administrator.
+   It stops and removes the service or the startup task, then deletes the folder{% if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}, including the encrypted token file{% endif %}.
+   For the service modes, run it as administrator.
 3. For an **Advanced installation as User (service)**, disable the **Log on as a service** policy for the user if it no
    longer needs it.
 
 ## What's next?
 
 - [OpenAEV agent](openaev-agent.md) -- Features, proxy, security and troubleshooting
+{%- if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
+- [Windows agent token encrypted with DPAPI](../../deployment/breaking-changes/MigrationVersion-windows-agent-token-dpapi.md) -- What changes on upgrade
+{%- endif %}
 - [Remove the Endpoint from OpenAEV](openaev-agent.md#remove-the-endpoint-from-openaev) -- Clean up after uninstalling

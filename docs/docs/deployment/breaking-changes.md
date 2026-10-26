@@ -19,6 +19,9 @@ implemented.
 | [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
 | [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
 | [Elasticsearch 9](#elasticsearch-9)                            | -             | \[MigrationVersion\]        |
+{%- if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
+| [Windows agent token encrypted with DPAPI](#windows-agent-token-dpapi) | -             | \[MigrationVersion\]        |
+{%- endif %}
 | [Windows agent config file permissions](#windows-agent-config-permissions) | -             | 3.261016.0 |
 
 ## OpenAEV 2.2.0
@@ -136,6 +139,19 @@ tags its requests as `compatible-with=9`, which an 8.x server rejects, so every 
 Elasticsearch 8. OpenSearch deployments are unaffected.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-elasticsearch-9.md)
+
+{% if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
+<a id="windows-agent-token-dpapi"></a>
+
+#### Windows agent token encrypted with DPAPI
+
+Starting with **OpenAEV \[MigrationVersion\]**, the Windows agent encrypts its token with DPAPI (Data Protection API)
+instead of storing it in clear text in its config file. Hosts running the agent in **service-user** mode must
+reinstall the agent after upgrading: an upgrade only replaces the binary, and the clear-text token can stay in the
+config file.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-windows-agent-token-dpapi.md)
+{% endif %}
 
 ## OpenAEV 3.261016.0
 
