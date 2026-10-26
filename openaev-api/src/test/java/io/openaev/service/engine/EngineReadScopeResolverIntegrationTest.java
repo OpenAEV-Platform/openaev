@@ -57,6 +57,7 @@ import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.Pagination;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -651,6 +652,7 @@ class EngineReadScopeResolverIntegrationTest extends IntegrationTest {
                             .sourceName(platformId)
                             .result("detected")
                             .score(100.0)
+                            .date(Instant.now())
                             .build())
                 .collect(Collectors.toCollection(ArrayList::new)));
     injectComposer
