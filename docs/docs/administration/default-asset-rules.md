@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # Default Asset rules
 
 Default Asset rules automatically apply Asset groups to Injects based on a Scenario's tags. They prevent repetitive manual assignment when you consistently target the same Assets for specific types of Scenarios.

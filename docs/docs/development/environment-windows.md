@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Prerequisites Windows
 
 This page lists the tools and dependencies required to build and run OpenAEV from source on Windows.

@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Deploy Collectors
 
 This page explains how to deploy and configure Collectors. To learn what Collectors do, see [Collectors](collectors.md).

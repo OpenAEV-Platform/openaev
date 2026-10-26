@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # XTM One
 
 XTM One is the AI platform of the Filigran eXtended Threat Management (XTM) suite. When OpenAEV is registered with XTM One, it unlocks the AI features of OpenAEV. See the [XTM One documentation](https://docs.xtmone.io/) to deploy XTM One.

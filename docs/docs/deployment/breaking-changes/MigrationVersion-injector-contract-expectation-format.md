@@ -1,3 +1,7 @@
+---
+doc_status: release-managed
+---
+
 # Injector contract expectation field format change
 
 !!! info ""

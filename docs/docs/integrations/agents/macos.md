@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Install the OpenAEV agent on macOS
 
 This page lists the macOS requirements, the installation modes and how to uninstall the agent. Get the install command from the **Install simulation agents** page (see [OpenAEV agent](openaev-agent.md#installation)). "Best effort" support levels are explained in [Best effort support](openaev-agent.md#best-effort-support).

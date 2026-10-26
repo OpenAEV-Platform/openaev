@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Caldera Executor
 
 The Caldera Executor runs OpenAEV implants through Caldera agents. Use it if you already run Caldera, or deploy it next to OpenAEV.

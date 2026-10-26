@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Installation
 
 All components of OpenAEV are shipped both as [Docker images](https://hub.docker.com/u/openaev) and

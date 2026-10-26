@@ -1,4 +1,5 @@
 ---
+last_verified: 2026-10-14
 hide:
   - navigation
   - toc

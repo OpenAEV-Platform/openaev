@@ -1,3 +1,8 @@
+---
+doc_status: outdated
+doc_notes: "Report generation is barely described."
+---
+
 # Reporting
 
 Reports are customizable, template-based documents that summarize security posture results for a specific subject. Generate them on-demand or on a recurring schedule, export as PDF or HTML, and distribute them to internal users or external email recipients.

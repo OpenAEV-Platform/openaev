@@ -1,3 +1,7 @@
+---
+doc_status: release-managed
+---
+
 # Elasticsearch 9
 
 !!! info ""

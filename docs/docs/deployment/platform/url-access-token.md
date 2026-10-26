@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # URL access token
 
 This page explains how OpenAEV secures player email links with short-lived URL access tokens.

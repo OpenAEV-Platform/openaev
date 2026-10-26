@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-08
+---
+
 # Scope Definition
 
 The scope of a chained Scenario or Simulation defines which Assets the Chaining Engine is allowed to target, and the

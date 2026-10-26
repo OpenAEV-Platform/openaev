@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Integration Manager
 
 The Integration Manager (XTM Composer) deploys and manages **external** Collectors, Injectors and Executors from the OpenAEV UI. Built-in ones are part of the platform and do not need it.

@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Troubleshooting
 
 This page lists the troubleshooting sections spread across the documentation.

@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Bulk snapshot export
 
 The bulk snapshot export is a pair of REST API endpoints that return the current, verified state of

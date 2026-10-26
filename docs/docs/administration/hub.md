@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # XTM Hub
 
 This page explains how to connect your OpenAEV platform to the XTM Hub, and how to disconnect it. Once connected, you can deploy pre-built Threat Arsenal Actions and Scenarios from the XTM Hub in one click.

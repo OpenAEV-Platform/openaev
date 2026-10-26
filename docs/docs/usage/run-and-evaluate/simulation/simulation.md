@@ -1,3 +1,8 @@
+---
+doc_status: outdated
+doc_notes: "Lists Execution tabs that no longer exist (the UI has Overview, Mails, Validations, Simulation logs)."
+---
+
 # Simulation
 
 A Simulation is a concrete execution of a [Scenario](../../build/scenario/scenario.md) against your infrastructure. It produces measurable results across four axes: prevention, detection, vulnerability, and human response. Run Simulations once or schedule them for recurrence to track your security posture over time.

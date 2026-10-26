@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Prerequisites Ubuntu
 
 This page lists the tools to install on Ubuntu before you [build OpenAEV from source](build-from-source.md).
