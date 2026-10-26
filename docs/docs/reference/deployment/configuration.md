@@ -216,15 +216,19 @@ OpenAEV and XTM One sign their requests to each other with short-lived tokens:
 
 #### Engine
 
-OpenAEV stores and searches data in Elasticsearch or OpenSearch. The default selector `elk` targets Elasticsearch 8
-(8.19 or later). Elasticsearch 9 is also supported with `engine.engine-selector=elk9`.
+OpenAEV stores and searches data in Elasticsearch (8.19 or later, or 9) or OpenSearch. There is no engine to choose: at
+startup the platform calls `GET /` on `engine.url`, reads the version the server reports and uses the matching client.
+It refuses to start with an explicit message if the server is unreachable, rejects the credentials or is older than
+Elasticsearch 8. Elasticsearch Serverless always reports the same version for legacy clients: the platform recognises
+it by its `serverless` build flavor and uses the most recent Elasticsearch client. With AWS SigV4 authentication, the
+OpenSearch client is used without probing.
 
 With classic authentication, use Elasticsearch or OpenSearch:
 
 | Parameter              | Environment variable   | Default value         | Description                                                                                                                            |
 |:--------------------------|:--------------------------|:--------------------------|:---------------------------------------------------------------------------------------------------------------------------------------|
 | engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Classic authentication (no)                                                                                                            |
-| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use: `elk` (Elasticsearch 8, default), `elk9` (Elasticsearch 9) or `opensearch` (OpenSearch)                                  |
+| engine.client          | ENGINE_CLIENT          | auto                  | Engine client: `auto` detects it from the server. `elasticsearch8`, `elasticsearch9` or `opensearch` forces it and skips the detection, for a server that cannot be probed or misreports its version |
 | engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the engine                                                                                                                      |
 | engine.username        | ENGINE_USERNAME        |                       | Optional. Login for the engine                                                                                                         |
 | engine.password        | ENGINE_PASSWORD        |                       | Optional. Password for the engine                                                                                                      |
@@ -235,7 +239,7 @@ With AWS SigV4 authentication, use Amazon OpenSearch or Amazon OpenSearch Server
 | Parameter                    | Environment variable     | Default value         | Description                                                                                                |
 |:-----------------------------|:-------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------------------|
 | engine.engine-aws-mode       | ENGINE_ENGINE_AWS_MODE   |                       | Whether to use AWS SigV4 authentication Amazon OpenSearch or Amazon OpenSearch Serverless (`es` or `aoss`) |
-| engine.engine-selector       | ENGINE_ENGINE_SELECTOR   |                       | Engine to use for storage and search (`opensearch` for OpenSearch)                                         |
+| engine.client                | ENGINE_CLIENT            | auto                  | Leave to `auto` or set `opensearch`: AWS SigV4 authentication only works with the OpenSearch client         |
 | engine.engine-aws-host       | ENGINE_ENGINE_AWS_HOST   |                       | URL of the OpenSearch database, no http(s) prefix                                                          |
 | engine.engine-aws-region     | ENGINE_ENGINE_AWS_REGION |                       | Example: eu-west-3                                                                                         |
 
@@ -272,9 +276,12 @@ Tuning parameters applicable to both engines:
 
     A re-feed only rewrites the documents of existing Findings. A document left behind by a Finding whose deletion did not reach the search engine keeps the value it was indexed with. Only a full reindex removes such documents: during a maintenance window, with a single instance running, delete the `finding` row of the `indexing_status` table and restart.
 
-!!! warning "Switching engines"
+!!! warning "Switching clusters"
 
-    After you change `engine.engine-selector`, delete the `indexing_status` table in PostgreSQL to trigger a full reindex.
+    After you point `engine.url` at another cluster (a new empty one, or from Elasticsearch to OpenSearch), delete the
+    content of the `indexing_status` table in PostgreSQL to trigger a full reindex: it records how far each model was
+    already indexed, and left in place it makes the new cluster miss everything indexed before. Upgrading the same
+    cluster from Elasticsearch 8 to 9 keeps its indices and needs nothing.
 
 #### RabbitMQ
 

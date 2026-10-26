@@ -9,7 +9,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Optional.ofNullable;
 
-import io.openaev.config.EngineConfig;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.RunMode;
@@ -90,7 +89,6 @@ public class PlatformSettingsService {
   @Resource private OpenAEVConfig openAEVConfig;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   @Resource private RabbitmqService rabbitmqService;
-  @Resource private EngineConfig engineConfig;
   @Autowired private LicenseCacheManager licenseCacheManager;
 
   // -- PROVIDERS --
@@ -346,7 +344,7 @@ public class PlatformSettingsService {
       platformSettings.setPostgreVersion(settingRepository.getServerVersion());
       platformSettings.setJavaVersion(Runtime.version().toString());
       platformSettings.setRabbitMQVersion(rabbitmqService.getVersion());
-      platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
+      platformSettings.setAnalyticsEngineType(engineService.getEngineType().getKey());
       platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
     }
 

@@ -175,6 +175,16 @@ Shard patterns live in `.github/shards/api-<n>.txt`, balanced from measured per-
 runtimes. The `remaining` shard runs whatever no shard file claims, so a newly added
 package is never silently untested.
 
+The platform detects its engine client from the server, so a cell selects an engine through the
+server it starts, with `search_engine`. Each value maps to a service of
+`openaev-dev/docker-compose.yml`, which owns the image tags:
+
+| `search_engine`  | Compose service              | Client detected   |
+|------------------|------------------------------|-------------------|
+| `elasticsearch`  | `openaev-dev-elasticsearch`  | Elasticsearch 9   |
+| `elasticsearch8` | `openaev-dev-elasticsearch8` | Elasticsearch 8   |
+| `opensearch`     | `openaev-dev-opensearch`     | OpenSearch        |
+
 |                 | Core CI | Nightly CI             |
 |-----------------|---------|------------------------|
 | Elasticsearch 8 | 7 shards + `remaining` | 7 shards + `remaining` |
@@ -188,7 +198,7 @@ package is never silently untested.
 |-|--------------------------------------------------|--------------------------------------------------------|
 | Images | standard only (amd64 + arm64)                    | standard + ubi9, amd64 + arm64                         |
 | Browsers | chrome (amd64), chromium (arm64)                 | chrome, chromium, webkit, firefox, edge                |
-| Search engines | Elasticsearch 8 only                             | Elasticsearch 8 & 9 + OpenSearch                       |
+| Search engines | Elasticsearch 9 only                             | Elasticsearch 9 + OpenSearch                           |
 | Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites                                  |
 | Infra tests | 4 cells, `infra-chromium`                        | 7 cells across chrome, chromium, firefox, webkit, edge |
 | **Total cells** | **10**                                           | **25**                                                 |
