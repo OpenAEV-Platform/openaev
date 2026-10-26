@@ -222,22 +222,9 @@ public class ScenarioService {
     return scenarios.stream().map(ScenarioSimple::fromScenario).toList();
   }
 
-  /**
-   * Fills in the platform email defaults for the fields the caller left empty.
-   *
-   * <p>Each field is defaulted independently: the creation input carries no {@code from}, so gating
-   * the whole block on it used to overwrite the sender display name and the reply-to addresses the
-   * user had just typed in the creation form.
-   */
+  /** Fills in the platform email defaults for the fields the caller left empty. */
   public void computeEmails(@NotNull Scenario scenario) {
-    // getFromName() derives the display name from `from` when unset, so it must be evaluated
-    // before `from` is defaulted, otherwise the derived value hides the missing display name.
-    boolean hasFromName = hasText(scenario.getFromName());
-    if (!hasText(scenario.getFrom())) {
-      scenario.setFrom(
-          this.imapEnabled ? this.imapUsername : this.openAEVConfig.getDefaultMailer());
-    }
-    if (!hasFromName) {
+    if (!hasText(scenario.getFromName())) {
       scenario.setFromName(
           this.imapEnabled
               ? resolveFromName(null, this.imapUsername)
@@ -1270,7 +1257,6 @@ public class ScenarioService {
     scenarioDuplicate.setHeader(scenario.getHeader());
     scenarioDuplicate.setMainFocus(scenario.getMainFocus());
     scenarioDuplicate.setDefaultKillChain(scenario.getDefaultKillChain());
-    scenarioDuplicate.setFrom(scenario.getFrom());
     scenarioDuplicate.setFromName(scenario.getFromName());
     scenarioDuplicate.setExternalUrl(scenario.getExternalUrl());
     scenarioDuplicate.setLessonsEnabled(scenario.isLessonsEnabled());

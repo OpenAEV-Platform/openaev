@@ -106,7 +106,7 @@ public class PhishingExecutor extends Injector {
     String origin = resolveOrigin(landingPage, baseUrl);
 
     String subject = StringUtils.firstNonBlank(content.getSubject(), emailTemplate.getSubject());
-    String from = resolveFrom(content, emailTemplate, exercise);
+    String from = resolveFrom(content, emailTemplate);
     String fromName = resolveFromName(content, emailTemplate, exercise);
     List<String> replyTos =
         exercise != null
@@ -172,13 +172,9 @@ public class PhishingExecutor extends Injector {
     return new ExecutionProcess(false);
   }
 
-  private String resolveFrom(
-      PhishingContent content, PhishingEmailTemplate emailTemplate, Exercise exercise) {
+  private String resolveFrom(PhishingContent content, PhishingEmailTemplate emailTemplate) {
     return StringUtils.firstNonBlank(
-        content.getFromEmail(),
-        emailTemplate.getFromEmail(),
-        exercise != null ? exercise.getFrom() : null,
-        this.context.getOpenAEVConfig().getDefaultMailer());
+        content.getFromEmail(), emailTemplate.getFromEmail(), emailService.getPlatformSender());
   }
 
   private String resolveFromName(

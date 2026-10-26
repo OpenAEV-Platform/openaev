@@ -55,7 +55,7 @@ class PhishingExecutorTest {
     when(context.getOpenAEVConfig()).thenReturn(config);
     when(config.getBaseUrl()).thenReturn("https://app.test");
     when(config.getDefaultReplyTo()).thenReturn("noreply@app.test");
-    when(config.getDefaultMailer()).thenReturn("mailer@app.test");
+    when(emailService.getPlatformSender()).thenReturn("mailer@app.test");
     when(config.getDefaultMailerName()).thenReturn("Mailer");
 
     PhishingExecutor executor =

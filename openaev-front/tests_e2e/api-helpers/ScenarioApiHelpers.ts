@@ -19,7 +19,6 @@ class ScenarioApiHelpers {
         scenario_tags: [],
         scenario_external_reference: '',
         scenario_external_url: '',
-        scenario_mail_from: 'openaev-dev@test.io',
         scenario_mails_reply_to: ['openaev-dev@test.io'],
         scenario_message_header: 'SIMULATION HEADER',
         scenario_message_footer: 'SIMULATION FOOTER',

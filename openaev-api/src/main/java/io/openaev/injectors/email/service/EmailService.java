@@ -7,6 +7,7 @@ import static io.openaev.helper.TemplateHelper.buildContextualContent;
 import static java.util.stream.Collectors.joining;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.DataAttachment;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTraceAction;
@@ -32,9 +33,17 @@ public class EmailService {
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
 
+  @Value("${openaev.mail.imap.username}")
+  private String imapUsername;
+
+  private final OpenAEVConfig openAEVConfig;
   private final EmailPgp emailPgp;
   private final ImapService imapService;
   private final SmtpService smtpService;
+
+  public String getPlatformSender() {
+    return imapEnabled ? imapUsername : openAEVConfig.getDefaultMailer();
+  }
 
   public void sendEmail(
       Execution execution,
@@ -325,7 +334,7 @@ public class EmailService {
   }
 
   private void sendEmailWithRetry(Execution execution, MimeMessage mimeMessage)
-      throws InterruptedException {
+      throws InterruptedException, MessagingException {
     for (int i = 0; i < 3; i++) {
       try {
         this.smtpService.send(mimeMessage);
@@ -333,10 +342,14 @@ public class EmailService {
       } catch (Exception e) {
         execution.addTrace(
             getNewInfoTrace(
-                "Failed to send mail" + e.getMessage(), ExecutionTraceAction.EXECUTION));
+                "Failed to send mail: " + e.getMessage(), ExecutionTraceAction.EXECUTION));
         Thread.sleep(2000);
       }
     }
-    throw new InterruptedException("Failed to send mail after 3 attempts");
+    throw new InterruptedException(
+        "Failed to send mail from "
+            + InternetAddress.toString(mimeMessage.getFrom())
+            + " after 3 attempts. Check that the mail server accepts this sender in the"
+            + " platform mail settings.");
   }
 }

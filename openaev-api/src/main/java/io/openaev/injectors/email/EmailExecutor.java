@@ -140,8 +140,7 @@ public class EmailExecutor extends Injector {
       throw new UnsupportedOperationException("Email needs at least one user");
     }
     Exercise exercise = injection.getInjection().getExercise();
-    String from =
-        exercise != null ? exercise.getFrom() : this.context.getOpenAEVConfig().getDefaultMailer();
+    String from = emailService.getPlatformSender();
     String fromName =
         exercise != null
             ? exercise.getFromName()

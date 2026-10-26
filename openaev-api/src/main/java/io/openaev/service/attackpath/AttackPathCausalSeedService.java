@@ -1217,7 +1217,6 @@ public class AttackPathCausalSeedService {
       Tenant tenant, String label, PrimitiveType keyType, ConditionType operator, String value) {
     Exercise simulation = new Exercise();
     simulation.setName("Causal seed " + label);
-    simulation.setFrom("causal-seed@openaev.io");
     simulation.setTenant(tenant);
     exerciseRepository.save(simulation);
     Workflow workflow = workflowTemplate();
@@ -1243,7 +1242,6 @@ public class AttackPathCausalSeedService {
   private Workflow demoSimulationWorkflow(Tenant tenant, String name) {
     Exercise simulation = new Exercise();
     simulation.setName(name);
-    simulation.setFrom("causal-seed@openaev.io");
     simulation.setTenant(tenant);
     exerciseRepository.save(simulation);
     Workflow workflow = workflowTemplate();

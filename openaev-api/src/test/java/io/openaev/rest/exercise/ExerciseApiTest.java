@@ -1299,13 +1299,11 @@ public class ExerciseApiTest extends IntegrationTest {
       String exerciseId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
-                  + " exercise_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :status, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO exercises (exercise_id, exercise_name, exercise_status, tenant_id)"
+                  + " VALUES (:id, :name, :status, CAST(:tenant AS uuid))")
           .setParameter("id", exerciseId)
           .setParameter("name", name)
           .setParameter("status", ExerciseStatus.SCHEDULED.name())
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenant.getId())
           .executeUpdate();
       entityManager.flush();

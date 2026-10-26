@@ -181,16 +181,18 @@ public class ExerciseService {
   // -- CREATION --
   @Transactional(rollbackFor = Exception.class)
   public Exercise createExercise(@NotNull final Exercise exercise) {
-    if (!StringUtils.hasText(exercise.getFrom())) {
-      if (imapEnabled) {
-        exercise.setFrom(imapUsername);
-        exercise.setFromName(resolveFromName(null, this.imapUsername));
-        exercise.setReplyTos(List.of(imapUsername));
-      } else {
-        exercise.setFrom(openAEVConfig.getDefaultMailer());
-        exercise.setFromName(this.openAEVConfig.getDefaultMailerName());
-        exercise.setReplyTos(new ArrayList<>(List.of(openAEVConfig.getDefaultReplyTo())));
-      }
+    if (!StringUtils.hasText(exercise.getFromName())) {
+      exercise.setFromName(
+          imapEnabled
+              ? resolveFromName(null, this.imapUsername)
+              : this.openAEVConfig.getDefaultMailerName());
+    }
+    if (exercise.getReplyTos() == null || exercise.getReplyTos().isEmpty()) {
+      String defaultReplyTo = imapEnabled ? imapUsername : openAEVConfig.getDefaultReplyTo();
+      exercise.setReplyTos(
+          StringUtils.hasText(defaultReplyTo)
+              ? new ArrayList<>(List.of(defaultReplyTo))
+              : new ArrayList<>());
     }
 
     actionMetricCollector.addSimulationCreatedCount();
@@ -375,7 +377,6 @@ public class ExerciseService {
     exerciseDuplicate.setName(duplicateString(exerciseOrigin.getName()));
     exerciseDuplicate.setCategory(exerciseOrigin.getCategory());
     exerciseDuplicate.setDescription(exerciseOrigin.getDescription());
-    exerciseDuplicate.setFrom(exerciseOrigin.getFrom());
     exerciseDuplicate.setFromName(exerciseOrigin.getFromName());
     exerciseDuplicate.setFooter(exerciseOrigin.getFooter());
     exerciseDuplicate.setScenario(exerciseOrigin.getScenario());

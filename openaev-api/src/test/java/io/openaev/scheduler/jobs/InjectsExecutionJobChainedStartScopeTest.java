@@ -95,11 +95,10 @@ class InjectsExecutionJobChainedStartScopeTest extends IntegrationTest {
         "{\"fields\":[{\"key\":\"assets\",\"type\":\"asset\"}]}",
         tenantId);
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_status,"
-            + " exercise_start_date, tenant_id) VALUES (?, ?, ?, 'SCHEDULED', ?, ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+            + " exercise_start_date, tenant_id) VALUES (?, ?, 'SCHEDULED', ?, ?)",
         exerciseId,
         "chained-start-scope",
-        "chained-start@openaev.invalid",
         Timestamp.from(Instant.now().minus(1, ChronoUnit.HOURS)),
         tenantId);
     jdbc.update(

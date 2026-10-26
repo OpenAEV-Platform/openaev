@@ -34,7 +34,6 @@ public class ScenarioFixture {
     scenario.setName("Crisis simulation");
     scenario.setDescription("A crisis simulation for my enterprise");
     scenario.setSubtitle("A crisis simulation");
-    scenario.setFrom("simulation@mail.fr");
     if (scenarioTeams != null) {
       scenario.setTeams(scenarioTeams);
     }
@@ -50,7 +49,6 @@ public class ScenarioFixture {
     scenario.setName("Crisis scenario");
     scenario.setDescription("A crisis scenario for my enterprise");
     scenario.setSubtitle("A crisis scenario");
-    scenario.setFrom("scenario@mail.fr");
     scenario.setCategory("crisis-communication");
     scenario.setExercises(new ArrayList<>());
     return scenario;
@@ -61,7 +59,6 @@ public class ScenarioFixture {
     scenario.setName("Incident response scenario");
     scenario.setDescription("An incident response scenario for my enterprise");
     scenario.setSubtitle("An incident response scenario");
-    scenario.setFrom("scenario@mail.fr");
     scenario.setCategory("incident-response");
     scenario.setSeverity(critical);
     scenario.setExercises(new ArrayList<>());

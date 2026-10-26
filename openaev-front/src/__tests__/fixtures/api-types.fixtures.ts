@@ -35,7 +35,6 @@ export function createExercisesMap(numberTags: number): { [key: string]: Exercis
     exerciseMap[id] = {
       exercise_created_at: faker.date.recent().toISOString(),
       exercise_id: id,
-      exercise_mail_from: faker.internet.email(),
       exercise_name: faker.hacker.phrase(),
       exercise_status: 'SCHEDULED',
       exercise_updated_at: faker.date.soon().toISOString(),
@@ -51,7 +50,6 @@ export function createScenarioMap(numberTags: number): { [key: string]: Scenario
     scenarioMap[id] = {
       scenario_created_at: faker.date.recent().toISOString(),
       scenario_id: id,
-      scenario_mail_from: faker.internet.email(),
       scenario_name: faker.hacker.phrase(),
       scenario_updated_at: faker.date.soon().toISOString(),
     };

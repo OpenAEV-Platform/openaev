@@ -66,11 +66,10 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     String id = UUID.randomUUID().toString();
     entityManager
         .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                + " SELECT :id, :name, :mail, :tenant")
+            "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                + " SELECT :id, :name, :tenant")
         .setParameter("id", id)
         .setParameter("name", "nm-select-" + id)
-        .setParameter("mail", "a@b.io")
         .setParameter("tenant", DEFAULT_TENANT)
         .executeUpdate();
     assertFlagged("scenarios", Relation.DEFAULT);
@@ -84,12 +83,11 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     startScoped(tenantB);
     entityManager
         .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                + " VALUES (:id, :name, :mail, :inscope)"
+            "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                + " VALUES (:id, :name, :inscope)"
                 + " ON CONFLICT (scenario_id) DO UPDATE SET tenant_id = :outscope")
         .setParameter("id", id)
         .setParameter("name", "nm-upsert-" + id)
-        .setParameter("mail", "a@b.io")
         .setParameter("inscope", tenantB)
         .setParameter("outscope", DEFAULT_TENANT)
         .executeUpdate();
@@ -130,11 +128,10 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     String id = UUID.randomUUID().toString();
     entityManager
         .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                + " VALUES (:id, :name, :mail, NULL)")
+            "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                + " VALUES (:id, :name, NULL)")
         .setParameter("id", id)
         .setParameter("name", "nm-null-" + id)
-        .setParameter("mail", "a@b.io")
         .executeUpdate();
     assertFlagged("scenarios", Relation.NULL);
   }
@@ -213,11 +210,10 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     String id = UUID.randomUUID().toString();
     entityManager
         .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                + " VALUES (:id, :name, :mail, :tenant)")
+            "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                + " VALUES (:id, :name, :tenant)")
         .setParameter("id", id)
         .setParameter("name", "nm-seed-" + id)
-        .setParameter("mail", "a@b.io")
         .setParameter("tenant", tenantId)
         .executeUpdate();
     return id;

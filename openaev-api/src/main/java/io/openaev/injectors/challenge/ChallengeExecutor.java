@@ -86,7 +86,7 @@ public class ChallengeExecutor extends Injector {
         execution.addTrace(getNewSuccessTrace(publishedMessage, ExecutionTraceAction.COMPLETE));
         // Send the publication message.
         Exercise exercise = injection.getInjection().getExercise();
-        String from = exercise.getFrom();
+        String from = emailService.getPlatformSender();
         String fromName = exercise.getFromName();
         List<String> replyTos = exercise.getReplyTos();
         List<ExecutionContext> users = injection.getUsers();

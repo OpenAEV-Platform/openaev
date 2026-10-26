@@ -30,7 +30,6 @@ public class ExerciseFixture {
     Exercise exercise = createDefaultExerciseWithDefaultName();
     exercise.setDescription("A default test exercise");
     exercise.setSubtitle("Default test exercise");
-    exercise.setFrom("default_exercise@mail.fr");
     exercise.setCategory("crisis-communication");
     return exercise;
   }
@@ -39,7 +38,6 @@ public class ExerciseFixture {
     Exercise exercise = createDefaultExerciseWithName("Crisis exercise");
     exercise.setDescription("A crisis exercise for my enterprise");
     exercise.setSubtitle("A crisis exercise");
-    exercise.setFrom("exercise@mail.fr");
     exercise.setCategory("crisis-communication");
     return exercise;
   }
@@ -52,7 +50,6 @@ public class ExerciseFixture {
     Exercise exercise = createDefaultExerciseWithName("Incident response exercise");
     exercise.setDescription("An incident response exercise for my enterprise");
     exercise.setSubtitle("An incident response exercise");
-    exercise.setFrom("exercise@mail.fr");
     exercise.setCategory("incident-response");
     exercise.setStatus(ExerciseStatus.SCHEDULED);
     exercise.setStart(startTime);
@@ -63,7 +60,6 @@ public class ExerciseFixture {
     Exercise exercise = createDefaultExerciseWithName("Draft incident response exercise");
     exercise.setDescription("An incident response exercise for my enterprise");
     exercise.setSubtitle("An incident response exercise");
-    exercise.setFrom("exercise@mail.fr");
     exercise.setCategory("attack-scenario");
     exercise.setMainFocus("incident-response");
     exercise.setStatus(ExerciseStatus.SCHEDULED);
@@ -79,7 +75,6 @@ public class ExerciseFixture {
     Exercise exercise = createDefaultExerciseWithName("Draft incident response exercise");
     exercise.setDescription("An incident response exercise for my enterprise");
     exercise.setSubtitle("An incident response exercise");
-    exercise.setFrom("exercise@mail.fr");
     exercise.setCategory("attack-scenario");
     exercise.setMainFocus("incident-response");
     exercise.setStatus(ExerciseStatus.RUNNING);
@@ -91,7 +86,6 @@ public class ExerciseFixture {
     Exercise exercise = createDefaultExerciseWithName("Draft incident response exercise");
     exercise.setDescription("An incident response exercise for my enterprise");
     exercise.setSubtitle("An incident response exercise");
-    exercise.setFrom("exercise@mail.fr");
     exercise.setCategory("attack-scenario");
     exercise.setMainFocus("incident-response");
     exercise.setStatus(ExerciseStatus.CANCELED);
@@ -107,7 +101,6 @@ public class ExerciseFixture {
     Exercise exercise = createDefaultExerciseWithName("Draft incident response exercise");
     exercise.setDescription("An incident response exercise for my enterprise");
     exercise.setSubtitle("An incident response exercise");
-    exercise.setFrom("exercise@mail.fr");
     exercise.setCategory("attack-scenario");
     exercise.setMainFocus("incident-response");
     exercise.setStatus(ExerciseStatus.FINISHED);
@@ -124,7 +117,6 @@ public class ExerciseFixture {
     exercise.setCurrentPause(startTime.minus(1, MINUTES));
     exercise.setDescription("An incident response exercise for my enterprise");
     exercise.setSubtitle("An incident response exercise");
-    exercise.setFrom("exercise@mail.fr");
     exercise.setCategory("attack-scenario");
     exercise.setMainFocus("incident-response");
     exercise.setStatus(ExerciseStatus.PAUSED);
