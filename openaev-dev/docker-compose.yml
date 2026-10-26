@@ -288,6 +288,18 @@ services:
 #    ports:
 #      - "1010:9090"
 
+  linux-oaev-agent:
+    container_name: linux-oaev-agent
+    image: ubuntu:noble
+    network_mode: host # allow connecting to non docker local instance
+    environment:
+      - OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN}
+      - OPENAEV__URL=${OPENAEV_URL:-http://localhost:8080}
+    volumes:
+      - ./openaev-agent-install.sh:/openaev-agent-install.sh:ro
+    command: [ "bash", "/openaev-agent-install.sh" ]
+    restart: unless-stopped
+
 volumes:
   esdata:
     driver: local
