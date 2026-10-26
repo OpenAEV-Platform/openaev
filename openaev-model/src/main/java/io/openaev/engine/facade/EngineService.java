@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
-import io.openaev.database.raw.RawUserAuth;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.api.*;
 import io.openaev.engine.model.EsBase;
@@ -13,6 +12,7 @@ import io.openaev.engine.query.EsAvgs;
 import io.openaev.engine.query.EsCountInterval;
 import io.openaev.engine.query.EsEntities;
 import io.openaev.engine.query.EsSeries;
+import io.openaev.engine.security.EngineReadScope;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
@@ -89,28 +89,28 @@ public interface EngineService {
    * Count using parameters
    *
    * @param ctx the tenant scope of the request
-   * @param user the user to use
+   * @param scope what the reader may see (capabilities, grants, markings)
    * @param runtime the count runtime to use
    * @return a count object, including the current and previous interval count and the difference
    *     between the two
    */
-  EsCountInterval count(TxCtx ctx, RawUserAuth user, CountRuntime runtime);
+  EsCountInterval count(TxCtx ctx, EngineReadScope scope, CountRuntime runtime);
 
   /**
    * Calculates average using parameters
    *
    * @param ctx the tenant scope of the request
-   * @param user the user to use
+   * @param scope what the reader may see (capabilities, grants, markings)
    * @param averageRuntime the average runtime to use
    * @return an object label-average
    */
-  EsAvgs average(TxCtx ctx, RawUserAuth user, AverageRuntime averageRuntime);
+  EsAvgs average(TxCtx ctx, EngineReadScope scope, AverageRuntime averageRuntime);
 
   /**
    * Get the series in a Histogram model
    *
    * @param ctx the tenant scope of the request
-   * @param user the user to use
+   * @param scope what the reader may see (capabilities, grants, markings)
    * @param widgetConfig the config of the widget
    * @param config the config of the histogram series
    * @param parameters the parameters
@@ -119,7 +119,7 @@ public interface EngineService {
    */
   EsSeries termHistogram(
       TxCtx ctx,
-      RawUserAuth user,
+      EngineReadScope scope,
       StructuralHistogramWidget widgetConfig,
       WidgetConfigurationWithSeries.Series config,
       Map<String, String> parameters,
@@ -129,18 +129,18 @@ public interface EngineService {
    * Get a list of series in a Histogram model
    *
    * @param ctx the tenant scope of the request
-   * @param user the user to use
+   * @param scope what the reader may see (capabilities, grants, markings)
    * @param runtime the structural histogram runtime to use
    * @return a list of series
    */
   List<EsSeries> multiTermHistogram(
-      TxCtx ctx, RawUserAuth user, StructuralHistogramRuntime runtime);
+      TxCtx ctx, EngineReadScope scope, StructuralHistogramRuntime runtime);
 
   /**
    * Get the series in a date histogram model
    *
    * @param ctx the tenant scope of the request
-   * @param user the user to use
+   * @param scope what the reader may see (capabilities, grants, markings)
    * @param widgetConfig the config of the widget
    * @param config the config of the histogram series
    * @param parameters the parameters
@@ -149,7 +149,7 @@ public interface EngineService {
    */
   EsSeries dateHistogram(
       TxCtx ctx,
-      RawUserAuth user,
+      EngineReadScope scope,
       DateHistogramWidget widgetConfig,
       WidgetConfigurationWithSeries.Series config,
       Map<String, String> parameters,
@@ -159,21 +159,21 @@ public interface EngineService {
    * Get a list of series in a date histogram model
    *
    * @param ctx the tenant scope of the request
-   * @param user the user to use
+   * @param scope what the reader may see (capabilities, grants, markings)
    * @param runtime the structural histogram runtime to use
    * @return a list of series
    */
-  List<EsSeries> multiDateHistogram(TxCtx ctx, RawUserAuth user, DateHistogramRuntime runtime);
+  List<EsSeries> multiDateHistogram(TxCtx ctx, EngineReadScope scope, DateHistogramRuntime runtime);
 
   /**
    * Get a list of entities
    *
    * @param ctx the tenant scope of the request
-   * @param user the user to use
+   * @param scope what the reader may see (capabilities, grants, markings)
    * @param runtime the list runtime to use
    * @return entities result containing data and total count
    */
-  EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime);
+  EsEntities entities(TxCtx ctx, EngineReadScope scope, ListRuntime runtime);
 
   /**
    * Reads one page of a single model index in {@code (base_updated_at, base_id)} order, resuming
@@ -185,15 +185,13 @@ public interface EngineService {
    * carried by {@code query} is truncated to milliseconds by the implementation before the engine
    * query is built, so callers do not need to truncate themselves.
    *
-   * <p>Results are restricted to {@code query.tenantId()} and, when {@code user} is not null, to
-   * the grants of {@code user}; an admin {@code user} bypasses the grant filter entirely. Passing
-   * null skips the grant filter: the caller has already established that the user sees every
-   * grantable resource (admin, BYPASS, or the capability covering the resource type).
+   * <p>Results are restricted to {@code query.tenantId()} and to what {@code scope} lets the reader
+   * see (capabilities, grants, markings), like every other read.
    *
    * <p>There is no total: the page is exactly {@code query.size()} documents when more remain, so
    * {@code has_more} is for the caller to derive.
    *
-   * @param user the user whose grants filter the page, or null for no grant filter
+   * @param scope what the reader may see
    * @param model the model class to search; its handler bean must be registered
    * @param query the page bounds
    * @return the page of documents, in {@code (base_updated_at, base_id)} ascending order
@@ -201,7 +199,7 @@ public interface EngineService {
    *     CURSOR_PAGE_MAX_SIZE]}, or if {@code model} has no registered handler
    */
   <T extends EsBase> List<T> searchCursorPaged(
-      RawUserAuth user, Class<T> model, CursorPageQuery query);
+      EngineReadScope scope, Class<T> model, CursorPageQuery query);
 
   /**
    * Create the list configuration using entities and filters
@@ -217,12 +215,13 @@ public interface EngineService {
    * Global search on ES
    *
    * @param ctx the tenant scope of the request
-   * @param user the user to use
+   * @param scope what the reader may see (capabilities, grants, markings)
    * @param search the search string
    * @param filter a list of filters
    * @return the list of results
    */
-  List<EsSearch> search(TxCtx ctx, RawUserAuth user, String search, Filters.FilterGroup filter);
+  List<EsSearch> search(
+      TxCtx ctx, EngineReadScope scope, String search, Filters.FilterGroup filter);
 
   /**
    * Indexes a single document into the specified search engine index.

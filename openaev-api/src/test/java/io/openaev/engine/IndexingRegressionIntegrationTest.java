@@ -6,8 +6,6 @@ import static org.awaitility.Awaitility.await;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.IndexingStatus;
-import io.openaev.database.raw.RawGrant;
-import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
@@ -18,6 +16,7 @@ import io.openaev.engine.model.injectexpectation.EsInjectExpectation;
 import io.openaev.engine.model.scenario.EsScenario;
 import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
 import io.openaev.engine.query.EsEntities;
+import io.openaev.engine.security.EngineReadScope;
 import io.openaev.scheduler.jobs.engine_sync.EngineSyncExecutionJob;
 import io.openaev.service.EsIndexingUtils;
 import io.openaev.utils.CustomDashboardTimeRange;
@@ -31,7 +30,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,26 +81,10 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   private static final Instant PAST = FROM.minus(1, ChronoUnit.DAYS);
 
   /** Admin user for {@link EngineService#entities} queries. */
-  private static final String ADMIN_USER_ID = "test-admin-" + UUID.randomUUID();
+  private static final String ADMIN_SCOPE_ID = "test-admin-" + UUID.randomUUID();
 
-  /** Admin user for {@link EngineService#entities} queries. */
-  private static final RawUserAuth ADMIN_USER =
-      new RawUserAuth() {
-        @Override
-        public String getUser_id() {
-          return ADMIN_USER_ID;
-        }
-
-        @Override
-        public boolean getUser_admin() {
-          return true;
-        }
-
-        @Override
-        public Set<RawGrant> getUser_grants() {
-          return Set.of();
-        }
-      };
+  /** A reader with no per-user filter: these tests are about indexing and tenant scope. */
+  private static final EngineReadScope ADMIN_SCOPE = EngineReadScope.unrestricted(null);
 
   @BeforeEach
   void resetIndexAndComposers() throws IOException {
@@ -136,7 +118,7 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
     ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 5000));
     // Not a tenant-scope test: it only checks indexing/deletion counts across fixtures that may
     // span tenants, so it reads the platform-wide view rather than any one tenant's.
-    return engineService.entities(TxCtx.allTenants(), ADMIN_USER, runtime);
+    return engineService.entities(TxCtx.allTenants(), ADMIN_SCOPE, runtime);
   }
 
   /**

@@ -394,13 +394,19 @@ public class User implements Base {
    * access to tenant-scoped resources, not platform-only ones.
    */
   public boolean hasTenantBypass() {
-    String currentTenant = TenantContext.getCurrentTenant();
-    if (currentTenant == null) {
+    return hasTenantBypassIn(TenantContext.getCurrentTenant());
+  }
+
+  /**
+   * Same as {@link #hasTenantBypass()} for an explicit tenant instead of the ambient {@link
+   * TenantContext}: BYPASS through a group of {@code tenantId}.
+   */
+  public boolean hasTenantBypassIn(String tenantId) {
+    if (tenantId == null) {
       return false;
     }
-    return scopedGroups().stream()
-        .filter(
-            group -> group.getTenant() != null && currentTenant.equals(group.getTenant().getId()))
+    return groupsIn(tenantId).stream()
+        .filter(group -> group.getTenant() != null && tenantId.equals(group.getTenant().getId()))
         .flatMap(group -> group.getRoles().stream())
         .flatMap(role -> role.getCapabilities().stream())
         .anyMatch(Capability.BYPASS::equals);
@@ -423,19 +429,32 @@ public class User implements Base {
    * them with 403 (issues #6331 / #6332).
    */
   private List<Group> scopedGroups() {
-    String currentTenant = TenantContext.getCurrentTenant();
+    return groupsIn(TenantContext.getCurrentTenant());
+  }
+
+  /** The groups of {@code tenantId} plus platform-level groups (tenant IS NULL). */
+  private List<Group> groupsIn(String tenantId) {
     return getUnscopedGroups().stream()
         .filter(
             group ->
                 group.getTenant() == null
-                    || (currentTenant != null && currentTenant.equals(group.getTenant().getId())))
+                    || (tenantId != null && tenantId.equals(group.getTenant().getId())))
         .toList();
   }
 
   @JsonProperty("user_capabilities")
   @Enumerated(EnumType.STRING)
   public Set<Capability> getCapabilities() {
-    return capabilitiesOf(scopedGroups());
+    return getCapabilitiesIn(TenantContext.getCurrentTenant());
+  }
+
+  /**
+   * Same as {@link #getCapabilities()} for an explicit tenant instead of the ambient {@link
+   * TenantContext}: the capabilities of the groups of {@code tenantId} plus platform groups. Used
+   * when one request reads several tenants, each with its own rights.
+   */
+  public Set<Capability> getCapabilitiesIn(String tenantId) {
+    return capabilitiesOf(groupsIn(tenantId));
   }
 
   @JsonProperty("user_grants")

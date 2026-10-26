@@ -22,6 +22,7 @@ import io.openaev.engine.api.CursorPageQuery;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.finding.EsFinding;
 import io.openaev.engine.model.finding.FindingHandler;
+import io.openaev.engine.security.EngineReadScope;
 import io.openaev.migration.V6_20261022140626000__Request_finding_refeed_after_sensitive_value_masking;
 import io.openaev.service.EsIndexingUtils;
 import io.openaev.utils.fixtures.FindingFixture;
@@ -236,7 +237,7 @@ class FindingRefeedEndToEndTest extends IntegrationTest {
   private Map<String, EsFinding> indexedDocuments() {
     return engineService
         .searchCursorPaged(
-            null,
+            EngineReadScope.unrestricted(null),
             EsFinding.class,
             new CursorPageQuery(
                 Tenant.DEFAULT_TENANT_UUID,

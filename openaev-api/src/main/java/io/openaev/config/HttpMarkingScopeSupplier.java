@@ -50,32 +50,51 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
     if (currentUser == null) {
       return MarkingCtx.none();
     }
-    // AGENT_RUNTIME_ACCESS is the well-known capability of the per-tenant agent/implant service
-    // account (ServiceAccountPrivilegeService). That account has no group-marking grants of its
-    // own — it exists only to run the agent/implant API surface — so without this it would lose
-    // sight of its own host asset the moment that asset is marked. An agent must always see the
-    // asset it is installed on, independent of what markings are later applied to it.
-    //
-    // MANAGE_STIX_BUNDLE is the same kind of capability (hidden, held by the per-tenant OpenCTI
-    // connector user, which has no group-marking grants either): the security coverage it
-    // processes must build its scenario from every asset of the tenant, not from the unmarked
-    // subset a marking-less user would see. This is the READ clearance of the request only - the
-    // dispatch-time check (InjectService.resolveLaunchedByClearance) deliberately does not use it.
-    Set<Capability> capabilities = currentUser.getCapabilities();
-    boolean bypass =
-        currentUser.isAdminOrBypass()
-            || capabilities.contains(Capability.AGENT_RUNTIME_ACCESS)
-            || capabilities.contains(Capability.MANAGE_STIX_BUNDLE);
-
     // A marking definition belongs to exactly one tenant, so ids cannot collide across them and the
     // union is unambiguous: acting on N tenants means holding each one's clearance in that tenant.
+    // The bypass is decided per tenant too: a privilege held in one tenant clears nothing in
+    // another.
     Set<String> markingIds = new LinkedHashSet<>();
     for (String tenantId : restricted.tenantIds()) {
-      MarkingCtx perTenant = clearanceCache.findClearance(currentUser.getId(), tenantId, bypass);
+      MarkingCtx perTenant =
+          clearanceCache.findClearance(
+              currentUser.getId(), tenantId, bypassesMarkingsIn(currentUser, tenantId));
       if (perTenant instanceof MarkingCtx.Restricted granted) {
         markingIds.addAll(granted.markingIds());
       }
     }
     return markingIds.isEmpty() ? MarkingCtx.none() : MarkingCtx.forMarkings(markingIds);
+  }
+
+  /**
+   * Whether the user's READ clearance in {@code tenantId} is every marking of that tenant: a
+   * platform admin, or one of the service capabilities below held through a group of that tenant.
+   * Evaluated for an explicit tenant, never the ambient one, since one request can read several
+   * tenants: a privilege held in one tenant clears nothing in another. Within a tenant, the user's
+   * groups are merged, so one group holding the capability is enough.
+   *
+   * <p>AGENT_RUNTIME_ACCESS is the well-known capability of the per-tenant agent/implant service
+   * account (ServiceAccountPrivilegeService). That account has no group-marking grants of its own —
+   * it exists only to run the agent/implant API surface — so without this it would lose sight of
+   * its own host asset the moment that asset is marked. An agent must always see the asset it is
+   * installed on, independent of what markings are later applied to it.
+   *
+   * <p>MANAGE_STIX_BUNDLE is the same kind of capability (hidden, held by the per-tenant OpenCTI
+   * connector user, which has no group-marking grants either): the security coverage it processes
+   * must build its scenario from every asset of the tenant, not from the unmarked subset a
+   * marking-less user would see. This is the READ clearance of the request only - the dispatch-time
+   * check (InjectService.resolveLaunchedByClearance) deliberately does not use it.
+   *
+   * <p>Both capabilities are tenant-scoped. A tenant BYPASS expands into them, so it bypasses
+   * markings within its own tenant (whether it should is Chunk 2 of the Task 4 implementation
+   * plan); a platform BYPASS expands into platform-scoped capabilities only, so it does not.
+   */
+  static boolean bypassesMarkingsIn(User user, String tenantId) {
+    if (user.isAdmin()) {
+      return true;
+    }
+    Set<Capability> capabilities = user.getCapabilitiesIn(tenantId);
+    return capabilities.contains(Capability.AGENT_RUNTIME_ACCESS)
+        || capabilities.contains(Capability.MANAGE_STIX_BUNDLE);
   }
 }

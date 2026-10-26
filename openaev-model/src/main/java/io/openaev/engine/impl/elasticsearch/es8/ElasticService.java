@@ -31,6 +31,8 @@ import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
+import io.openaev.engine.security.EngineReadScope;
+import io.openaev.engine.security.EngineSecurityRegistry;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.schema.PropertySchema;
 import io.openaev.service.CommonSearchService;
@@ -45,6 +47,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
@@ -113,7 +116,8 @@ public class ElasticService implements EngineService {
   private Query queryFromBaseFilter(
       Filters.Filter filter,
       Map<String, String> parameters,
-      Map<String, CustomDashboardParameters> definitionParameters) {
+      Map<String, CustomDashboardParameters> definitionParameters,
+      Set<String> hiddenAssetIds) {
     Filters.FilterOperator operator = filter.getOperator();
     BoolQuery.Builder boolQuery = new BoolQuery.Builder();
     Filters.FilterMode filterMode = filter.getMode();
@@ -130,6 +134,11 @@ public class ElasticService implements EngineService {
                       || !parameter.getType().isInstance
                       || hasText(computeValue);
                 });
+    if (!hiddenAssetIds.isEmpty()
+        && EngineSecurityRegistry.ASSET_REFERENCE_FIELDS.contains(field)) {
+      return visibleReferencesQuery(
+          filter, elasticField, parameters, hasFilteringValues, hiddenAssetIds);
+    }
     switch (operator) {
       case eq:
         if (hasFilteringValues) {
@@ -279,16 +288,153 @@ public class ElasticService implements EngineService {
     return BoolQuery.of(b -> b.should(byText, byId).minimumShouldMatch("1"))._toQuery();
   }
 
+  /**
+   * A filter on a dependency field (an asset reference, {@link
+   * EngineSecurityRegistry#ASSET_REFERENCE_FIELDS}) evaluated on the visible references only: the
+   * stored document may still reference a hidden asset (a scenario targeting GREEN and RED stays
+   * readable), and a filter on that reference would reveal the hidden association. Values are
+   * compared after the dashboard parameters are resolved.
+   *
+   * <ul>
+   *   <li>{@code eq} / {@code not_eq}: the hidden ids are removed from the values. On a
+   *       multi-valued field, "a visible value equals v" and "a value equals v" only differ when v
+   *       is hidden. No value left: {@code eq} matches nothing, {@code not_eq} is dropped. In
+   *       {@code and} mode, {@code eq} with a hidden value matches nothing: no visible reference
+   *       can hold it.
+   *   <li>Other operators: {@link #VISIBLE_REFERENCES_SCRIPT}, over the values that are not hidden.
+   * </ul>
+   */
+  private Query visibleReferencesQuery(
+      Filters.Filter filter,
+      String elasticField,
+      Map<String, String> parameters,
+      boolean hasFilteringValues,
+      Set<String> hiddenAssetIds) {
+    Filters.FilterMode filterMode = filter.getMode();
+    List<String> values =
+        filter.getValues().stream()
+            .map(value -> ofNullable(parameters.getOrDefault(value, value)).orElse(""))
+            .toList();
+    List<String> visibleValues = values.stream().filter(v -> !hiddenAssetIds.contains(v)).toList();
+    BoolQuery.Builder boolQuery = new BoolQuery.Builder();
+    switch (filter.getOperator()) {
+      case eq -> {
+        if (!hasFilteringValues) {
+          break;
+        }
+        // In "and" mode a hidden value must be held too, which no visible reference can do.
+        if (visibleValues.isEmpty()
+            || (filterMode == Filters.FilterMode.and && visibleValues.size() < values.size())) {
+          return MatchNoneQuery.of(m -> m)._toQuery();
+        }
+        List<Query> queries =
+            visibleValues.stream()
+                .map(v -> TermQuery.of(t -> t.field(elasticField).value(v))._toQuery())
+                .toList();
+        if (filterMode == Filters.FilterMode.and) {
+          boolQuery.must(queries);
+        } else {
+          boolQuery.should(queries).minimumShouldMatch("1");
+        }
+      }
+      case not_eq -> {
+        if (hasFilteringValues && !visibleValues.isEmpty()) {
+          boolQuery.mustNot(
+              visibleValues.stream()
+                  .map(v -> TermQuery.of(t -> t.field(elasticField).value(v))._toQuery())
+                  .toList());
+        }
+      }
+      case empty ->
+          boolQuery.must(visibleReferencesScript(elasticField, "exists", "", true, hiddenAssetIds));
+      case not_empty ->
+          boolQuery.must(
+              visibleReferencesScript(elasticField, "exists", "", false, hiddenAssetIds));
+      case contains, gt, gte, lt, lte -> {
+        if (filter.getOperator() != Filters.FilterOperator.contains && !hasFilteringValues) {
+          break;
+        }
+        String op = filter.getOperator().name();
+        List<Query> queries =
+            values.stream()
+                .map(v -> visibleReferencesScript(elasticField, op, v, false, hiddenAssetIds))
+                .toList();
+        if (filterMode == Filters.FilterMode.and) {
+          boolQuery.must(queries);
+        } else {
+          boolQuery.should(queries).minimumShouldMatch("1");
+        }
+      }
+      case not_contains ->
+          boolQuery.must(
+              values.stream()
+                  .map(
+                      v ->
+                          visibleReferencesScript(
+                              elasticField, "contains", v, true, hiddenAssetIds))
+                  .toList());
+      default ->
+          throw new UnsupportedOperationException(
+              "Filter operator " + filter.getOperator() + " not supported");
+    }
+    return boolQuery.build()._toQuery();
+  }
+
+  private Query visibleReferencesScript(
+      String elasticField, String op, String value, boolean negate, Set<String> hiddenAssetIds) {
+    return ScriptQuery.of(
+            q ->
+                q.script(
+                    Script.of(
+                        s ->
+                            s.source(VISIBLE_REFERENCES_SCRIPT)
+                                .lang("painless")
+                                .params("field", JsonData.of(elasticField))
+                                .params("op", JsonData.of(op))
+                                .params("value", JsonData.of(value))
+                                .params("negate", JsonData.of(negate))
+                                .params("hidden", JsonData.of(List.copyOf(hiddenAssetIds))))))
+        ._toQuery();
+  }
+
+  /**
+   * Whether one value of {@code params.field} that is not a hidden asset satisfies {@code
+   * params.op} ({@code exists}, {@code contains}, {@code gt}, {@code gte}, {@code lt}, {@code lte}
+   * against {@code params.value}), negated by {@code params.negate}. A document without the field
+   * (another index of the pattern, or no value) has no visible value.
+   */
+  static final String VISIBLE_REFERENCES_SCRIPT =
+      """
+      boolean found = false;
+      if (doc.containsKey(params.field)) {
+        for (def v : doc[params.field]) {
+          if (params.hidden.contains(v)) { continue; }
+          String s = v.toString();
+          if (params.op == 'exists') { found = true; }
+          else if (params.op == 'contains') { found = s.contains(params.value); }
+          else if (params.op == 'gt') { found = s.compareTo(params.value) > 0; }
+          else if (params.op == 'gte') { found = s.compareTo(params.value) >= 0; }
+          else if (params.op == 'lt') { found = s.compareTo(params.value) < 0; }
+          else if (params.op == 'lte') { found = s.compareTo(params.value) <= 0; }
+          if (found) { break; }
+        }
+      }
+      return params.negate ? !found : found;
+      """;
+
   private Query queryFromFilter(
       Filters.FilterGroup groupFilter,
       Map<String, String> parameters,
-      Map<String, CustomDashboardParameters> definitionParameters) {
+      Map<String, CustomDashboardParameters> definitionParameters,
+      Set<String> hiddenAssetIds) {
     Filters.FilterMode filterMode = groupFilter.getMode();
     BoolQuery.Builder filterQuery = new BoolQuery.Builder();
     List<Query> filterQueries = new ArrayList<>();
     List<Filters.Filter> filters = groupFilter.getFilters();
     filters.forEach(
-        f -> filterQueries.add(queryFromBaseFilter(f, parameters, definitionParameters)));
+        f ->
+            filterQueries.add(
+                queryFromBaseFilter(f, parameters, definitionParameters, hiddenAssetIds)));
     if (filterMode == Filters.FilterMode.and) {
       filterQuery.must(filterQueries);
     } else {
@@ -300,19 +446,15 @@ public class ElasticService implements EngineService {
 
   private Query buildQuery(
       TxCtx ctx,
-      RawUserAuth user,
+      EngineReadScope scope,
       String search,
       Filters.FilterGroup groupFilter,
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters) {
     BoolQuery.Builder mainQuery = new BoolQuery.Builder();
     List<Query> mainMust = new ArrayList<>();
-    // TODO removing user specific restrictions -> issue/3768 will refactor this logic to have
-    // restriction based on markings
-    /*Query restrictionQuery = buildQueryRestrictions(user);
-    if (restrictionQuery != null) {
-      mainMust.add(restrictionQuery);
-    }*/
+    // Fail closed: without a scope the per-reader filter cannot be applied.
+    Objects.requireNonNull(scope, "an engine read needs an EngineReadScope");
     BoolQuery.Builder dataQueryBuilder = new BoolQuery.Builder();
     List<Query> shouldList = new ArrayList<>();
     if (search != null) {
@@ -321,7 +463,13 @@ public class ElasticService implements EngineService {
     }
     if (groupFilter != null && groupFilter.getFilters() != null) {
 
-      Query filterQuery = queryFromFilter(groupFilter, parameters, definitionParameters);
+      // The reader's hidden assets: a filter on a dependency field only sees visible references.
+      Query filterQuery =
+          queryFromFilter(
+              groupFilter,
+              parameters,
+              definitionParameters,
+              scope.unrestricted() ? Set.of() : scope.hiddenAssetIds());
       shouldList.add(filterQuery);
     }
     if (shouldList.isEmpty()) {
@@ -335,7 +483,151 @@ public class ElasticService implements EngineService {
     if (tenantFilter != null) {
       mainQuery.filter(tenantFilter);
     }
+    Query readerFilter = readerFilter(scope);
+    if (readerFilter != null) {
+      mainQuery.filter(readerFilter);
+    }
     return mainQuery.must(mainMust).build()._toQuery();
+  }
+
+  /**
+   * The per-reader side of every read, next to {@link #tenantFilter}: what {@code scope} lets this
+   * reader see. The decision was taken by the caller from the source of truth (capabilities,
+   * grants, clearance); this only turns it into id filters.
+   *
+   * <p>A request can read several tenants, and the reader's capabilities and grants differ per
+   * tenant, so each tenant's rules only apply to that tenant's documents ({@code
+   * base_tenant_side}). A document without a tenant gets what every tenant of the scope allows.
+   * Within a tenant, a document is kept when its {@code base_entity} is readable, it links to a
+   * granted resource (for a grant-managed type the reader holds no capability for), and it is not
+   * about one of that tenant's hidden assets. A type absent from {@link EngineSecurityRegistry} is
+   * never readable.
+   *
+   * @return the filter, or {@code null} for an unrestricted reader
+   */
+  private Query readerFilter(EngineReadScope scope) {
+    if (scope.unrestricted()) {
+      return null;
+    }
+    List<Query> perTenant = new ArrayList<>();
+    scope
+        .tenantRules()
+        .forEach(
+            (tenantId, rules) ->
+                perTenant.add(
+                    tenantClause(
+                        TermQuery.of(
+                                t ->
+                                    t.field("base_tenant_side.keyword")
+                                        .value(FieldValue.of(tenantId)))
+                            ._toQuery(),
+                        rules)));
+    perTenant.add(
+        tenantClause(
+            BoolQuery.of(
+                    b ->
+                        b.mustNot(
+                            ExistsQuery.of(e -> e.field("base_tenant_side.keyword"))._toQuery()))
+                ._toQuery(),
+            scope.sharedRules()));
+    return BoolQuery.of(b -> b.should(perTenant).minimumShouldMatch("1"))._toQuery();
+  }
+
+  /**
+   * The documents of one tenant ({@code tenantMatch}) that its {@code rules} let through. A
+   * document about one hidden asset ({@link EngineSecurityRegistry#ASSET_FIELDS}) is excluded; a
+   * document linked to several assets ({@link EngineSecurityRegistry#LINKED_ASSET_FIELDS}, a
+   * finding's endpoints) is excluded only when all of them are hidden, as in SQL.
+   */
+  private Query tenantClause(Query tenantMatch, EngineReadScope.TenantRules rules) {
+    BoolQuery.Builder clause = new BoolQuery.Builder().filter(tenantMatch, rulesQuery(rules));
+    if (!rules.hiddenAssetIds().isEmpty()) {
+      for (String assetField : EngineSecurityRegistry.ASSET_FIELDS) {
+        clause.mustNot(keywordTerms(assetField, rules.hiddenAssetIds()));
+      }
+      for (String linkedField : EngineSecurityRegistry.LINKED_ASSET_FIELDS) {
+        clause.mustNot(onlyHiddenAssets(linkedField + ".keyword", rules.hiddenAssetIds()));
+      }
+    }
+    return clause.build()._toQuery();
+  }
+
+  /** The field holds asset ids, and none of them is visible. */
+  private Query onlyHiddenAssets(String elasticField, Set<String> hiddenAssetIds) {
+    return BoolQuery.of(
+            b ->
+                b.filter(
+                    ExistsQuery.of(e -> e.field(elasticField))._toQuery(),
+                    visibleReferencesScript(elasticField, "exists", "", true, hiddenAssetIds)))
+        ._toQuery();
+  }
+
+  /** What one tenant's rules let through: every readable type, each with its grant filter. */
+  private Query rulesQuery(EngineReadScope.TenantRules rules) {
+    if (rules.unrestricted()) {
+      return MatchAllQuery.of(m -> m)._toQuery();
+    }
+    List<Query> readableEntities = new ArrayList<>();
+    for (String entity : rules.readableEntities()) {
+      if (EngineSecurityRegistry.get(entity) == null) {
+        continue;
+      }
+      List<Query> conditions = new ArrayList<>();
+      conditions.add(
+          TermQuery.of(t -> t.field("base_entity.keyword").value(FieldValue.of(entity)))
+              ._toQuery());
+      List<EngineReadScope.GrantKey> grantKeys = rules.grantFilters().get(entity);
+      if (grantKeys != null) {
+        conditions.add(
+            grantedQuery(grantKeys, EngineSecurityRegistry.get(entity).parentRequired()));
+      }
+      readableEntities.add(BoolQuery.of(b -> b.filter(conditions))._toQuery());
+    }
+    if (readableEntities.isEmpty()) {
+      return MatchNoneQuery.of(m -> m)._toQuery();
+    }
+    return BoolQuery.of(b -> b.should(readableEntities).minimumShouldMatch("1"))._toQuery();
+  }
+
+  /**
+   * The document's most specific owner is a resource the reader is granted on, or the document
+   * links to no grant-managed resource at all (none of the grant-key fields is set): like a row
+   * with no parent in SQL, a document attached to nothing grantable has no grant to check. When
+   * {@code parentRequired}, a document without any key has a parent it does not name (an atomic
+   * testing, a deleted simulation): no grant can be checked, so it is not readable here.
+   *
+   * <p>The keys come in precedence order ({@link EngineSecurityRegistry.EntitySecurity#grantKeys}):
+   * the first one set on the document names its owner, and only that owner's grant counts. A
+   * simulation's documents are therefore checked on the simulation, never on its scenario, as in
+   * the REST API.
+   */
+  private Query grantedQuery(List<EngineReadScope.GrantKey> grantKeys, boolean parentRequired) {
+    List<Query> granted = new ArrayList<>();
+    List<Query> morePreciseKeysUnset = new ArrayList<>();
+    for (EngineReadScope.GrantKey key : grantKeys) {
+      Query keySet = ExistsQuery.of(e -> e.field(key.field() + ".keyword"))._toQuery();
+      if (!key.ids().isEmpty()) {
+        List<Query> unset = List.copyOf(morePreciseKeysUnset);
+        Query ownerGranted = keywordTerms(key.field(), key.ids());
+        granted.add(BoolQuery.of(b -> b.filter(ownerGranted).mustNot(unset))._toQuery());
+      }
+      morePreciseKeysUnset.add(keySet);
+    }
+    if (!parentRequired) {
+      List<Query> noKeySet = List.copyOf(morePreciseKeysUnset);
+      granted.add(BoolQuery.of(b -> b.mustNot(noKeySet))._toQuery());
+    }
+    if (granted.isEmpty()) {
+      return MatchNoneQuery.of(m -> m)._toQuery();
+    }
+    return BoolQuery.of(b -> b.should(granted).minimumShouldMatch("1"))._toQuery();
+  }
+
+  private Query keywordTerms(String field, Collection<String> values) {
+    List<FieldValue> fieldValues = values.stream().map(FieldValue::of).toList();
+    return TermsQuery.of(
+            t -> t.field(field + ".keyword").terms(TermsQueryField.of(tq -> tq.value(fieldValues))))
+        ._toQuery();
   }
 
   /**
@@ -378,7 +670,7 @@ public class ElasticService implements EngineService {
   }
 
   private Map<String, String> resolveIdsRepresentative(
-      TxCtx ctx, RawUserAuth user, List<String> ids) {
+      TxCtx ctx, EngineReadScope scope, List<String> ids) {
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     Filters.Filter filter = new Filters.Filter();
     filter.setKey("base_id");
@@ -386,7 +678,7 @@ public class ElasticService implements EngineService {
     filter.setValues(ids);
     filter.setMode(Filters.FilterMode.or);
     filterGroup.setFilters(List.of(filter));
-    Query query = buildQuery(ctx, user, null, filterGroup, new HashMap<>(), new HashMap<>());
+    Query query = buildQuery(ctx, scope, null, filterGroup, new HashMap<>(), new HashMap<>());
     try {
       SearchResponse<EsBase> response =
           elasticClient.search(
@@ -736,14 +1028,14 @@ public class ElasticService implements EngineService {
   // endregion
 
   // region query
-  public EsCountInterval count(TxCtx ctx, RawUserAuth user, CountRuntime runtime) {
+  public EsCountInterval count(TxCtx ctx, EngineReadScope scope, CountRuntime runtime) {
     FlatConfiguration widgetConfig = runtime.getConfig();
 
     try {
       Query countQuery =
           buildQuery(
               ctx,
-              user,
+              scope,
               null,
               runtime
                   .getConfig()
@@ -802,14 +1094,14 @@ public class ElasticService implements EngineService {
     return new EsCountInterval(0L, 0L, 0L);
   }
 
-  public EsAvgs average(TxCtx ctx, RawUserAuth user, AverageRuntime averageRuntime) {
+  public EsAvgs average(TxCtx ctx, EngineReadScope scope, AverageRuntime averageRuntime) {
     AverageConfiguration widgetConfig = averageRuntime.getConfig();
 
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     Query filterQuery =
         buildQuery(
             ctx,
-            user,
+            scope,
             null,
             averageRuntime.getConfig().getSeries().getFirst().getFilter(),
             averageRuntime.getParameters(),
@@ -871,7 +1163,7 @@ public class ElasticService implements EngineService {
       Buckets<StringTermsBucket> domainBuckets =
           response.aggregations().get(domainAggregationKey).sterms().buckets();
 
-      return averageSTerms(ctx, domainBuckets, user, typeAggregationKey, statusAggregationKey);
+      return averageSTerms(ctx, domainBuckets, scope, typeAggregationKey, statusAggregationKey);
 
     } catch (Exception e) {
       log.error(String.format("Elastic client failed to aggregate data: %s", e.getMessage()), e);
@@ -882,7 +1174,7 @@ public class ElasticService implements EngineService {
   private EsAvgs averageSTerms(
       @NotNull final TxCtx ctx,
       @NotNull Buckets<StringTermsBucket> domainBuckets,
-      @NotNull final RawUserAuth user,
+      @NotNull final EngineReadScope scope,
       String typeAggregationKey,
       String statusAggregationKey) {
     Map<String, String> resolutions = new HashMap<>();
@@ -891,7 +1183,7 @@ public class ElasticService implements EngineService {
             .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
             .distinct()
             .toList();
-    resolutions.putAll(resolveIdsRepresentative(ctx, user, ids));
+    resolutions.putAll(resolveIdsRepresentative(ctx, scope, ids));
 
     List<EsDomainsAvgData> data =
         domainBuckets.array().stream()
@@ -930,7 +1222,7 @@ public class ElasticService implements EngineService {
 
   public EsSeries termHistogram(
       TxCtx ctx,
-      RawUserAuth user,
+      EngineReadScope scope,
       StructuralHistogramWidget widgetConfig,
       Series config,
       Map<String, String> parameters,
@@ -938,7 +1230,7 @@ public class ElasticService implements EngineService {
 
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     Query filterQuery =
-        buildQuery(ctx, user, null, config.getFilter(), parameters, definitionParameters);
+        buildQuery(ctx, scope, null, config.getFilter(), parameters, definitionParameters);
     Query query;
     if (isAllTime(widgetConfig, parameters, definitionParameters)) {
       query = queryBuilder.must(filterQuery).build()._toQuery();
@@ -963,11 +1255,16 @@ public class ElasticService implements EngineService {
       // co.elastic.clients.elasticsearch._types.ElasticsearchException: [es/search] failed:
       // [x_content_parse_exception] [1:82] [terms] failed to parse field [size]
       if (widgetConfig.getLimit() > 0) {
-        TermsAggregation termsAggregation =
-            new TermsAggregation.Builder()
-                .field(elasticField)
-                .size(widgetConfig.getLimit())
-                .build();
+        TermsAggregation.Builder termsBuilder =
+            new TermsAggregation.Builder().field(elasticField).size(widgetConfig.getLimit());
+        // A "by asset" breakdown of visible documents (an inject targeting a hidden asset among
+        // others) must not show a bucket for the hidden asset.
+        Set<String> hiddenAssetIds = scope.unrestricted() ? Set.of() : scope.hiddenAssetIds();
+        if (!hiddenAssetIds.isEmpty()
+            && EngineSecurityRegistry.ASSET_REFERENCE_FIELDS.contains(field)) {
+          termsBuilder.exclude(TermsExclude.of(e -> e.terms(List.copyOf(hiddenAssetIds))));
+        }
+        TermsAggregation termsAggregation = termsBuilder.build();
 
         searchBuilder.aggregations(
             aggregationKey, new Aggregation.Builder().terms(termsAggregation).build());
@@ -986,7 +1283,7 @@ public class ElasticService implements EngineService {
           || propertyField.getType() == Boolean.class) {
         return termHistogramLTerms(config, aggregate);
       } else {
-        return termHistogramSTerms(ctx, user, config, aggregate, field);
+        return termHistogramSTerms(ctx, scope, config, aggregate, field);
       }
     } catch (Exception e) {
       log.error(String.format("termHistogram exception: %s", e.getMessage()), e);
@@ -996,7 +1293,7 @@ public class ElasticService implements EngineService {
 
   private EsSeries termHistogramSTerms(
       @NotNull final TxCtx ctx,
-      @NotNull final RawUserAuth user,
+      @NotNull final EngineReadScope scope,
       @NotNull final Series config,
       @NotNull final Aggregate aggregate,
       @NotNull final String field) {
@@ -1009,7 +1306,7 @@ public class ElasticService implements EngineService {
               .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
               .distinct()
               .toList();
-      resolutions.putAll(resolveIdsRepresentative(ctx, user, ids));
+      resolutions.putAll(resolveIdsRepresentative(ctx, scope, ids));
     }
     List<EsSeriesData> data =
         buckets.array().stream()
@@ -1053,18 +1350,19 @@ public class ElasticService implements EngineService {
   }
 
   public List<EsSeries> multiTermHistogram(
-      TxCtx ctx, RawUserAuth user, StructuralHistogramRuntime runtime) {
+      TxCtx ctx, EngineReadScope scope, StructuralHistogramRuntime runtime) {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
         .map(
-            c -> termHistogram(ctx, user, runtime.getWidget(), c, parameters, definitionParameters))
+            c ->
+                termHistogram(ctx, scope, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
 
   public EsSeries dateHistogram(
       TxCtx ctx,
-      RawUserAuth user,
+      EngineReadScope scope,
       DateHistogramWidget widgetConfig,
       Series config,
       Map<String, String> parameters,
@@ -1072,7 +1370,7 @@ public class ElasticService implements EngineService {
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
 
     Query filterQuery =
-        buildQuery(ctx, user, null, config.getFilter(), parameters, definitionParameters);
+        buildQuery(ctx, scope, null, config.getFilter(), parameters, definitionParameters);
 
     Instant finalStart = calcStartDate(widgetConfig, parameters, definitionParameters);
     Instant finalEnd = calcEndDate(widgetConfig, parameters, definitionParameters);
@@ -1131,16 +1429,17 @@ public class ElasticService implements EngineService {
   }
 
   public List<EsSeries> multiDateHistogram(
-      TxCtx ctx, RawUserAuth user, DateHistogramRuntime runtime) {
+      TxCtx ctx, EngineReadScope scope, DateHistogramRuntime runtime) {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
         .map(
-            c -> dateHistogram(ctx, user, runtime.getWidget(), c, parameters, definitionParameters))
+            c ->
+                dateHistogram(ctx, scope, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
 
-  public EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime) {
+  public EsEntities entities(TxCtx ctx, EngineReadScope scope, ListRuntime runtime) {
     Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
     String entityName =
         searchFilters.getFilters().stream()
@@ -1179,7 +1478,7 @@ public class ElasticService implements EngineService {
     Query listQuery =
         buildQuery(
             ctx,
-            user,
+            scope,
             "",
             searchFilters,
             runtime.getParameters(),
@@ -1211,10 +1510,11 @@ public class ElasticService implements EngineService {
                       .trackTotalHits(tth -> tth.enabled(true)),
               getClassForEntity(entityName));
       long total = response.hits().total() != null ? response.hits().total().value() : 0;
+      UnaryOperator<EsBase> stripHiddenAssets = scope.assetStripper();
       return new EsEntities(
           response.hits().hits().stream()
               .filter(hit -> hit.source() != null)
-              .map(hit -> (EsBase) hit.source())
+              .map(hit -> stripHiddenAssets.apply((EsBase) hit.source()))
               .toList(),
           total,
           runtime.getPagination().getSize(),
@@ -1238,7 +1538,7 @@ public class ElasticService implements EngineService {
   @Override
   @SuppressWarnings("unchecked")
   public <T extends EsBase> List<T> searchCursorPaged(
-      RawUserAuth user, Class<T> model, CursorPageQuery query) {
+      EngineReadScope scope, Class<T> model, CursorPageQuery query) {
     if (query.size() <= 0 || query.size() > CURSOR_PAGE_MAX_SIZE) {
       throw new IllegalArgumentException(
           "size must be in [1, " + CURSOR_PAGE_MAX_SIZE + "], was " + query.size());
@@ -1279,10 +1579,18 @@ public class ElasticService implements EngineService {
       filters.add(
           buildKeysetPredicate("base_updated_at", toElasticField("base_id"), afterTs, after.id()));
     }
-    // issue/3768: buildQueryRestrictions is otherwise dead code (its call site in buildQuery is
-    // commented out); it is re-enabled here only, because an unfiltered export would leak across
-    // grants. A null user (the caller resolved a grant bypass) and an admin user both skip it.
-    Query restrictionQuery = user == null ? null : buildQueryRestrictions(user);
+    Objects.requireNonNull(scope, "an engine read needs an EngineReadScope");
+    Query readerFilter = readerFilter(scope);
+    if (readerFilter != null) {
+      filters.add(readerFilter);
+    }
+    // MARKING preview feature off: the former grant-only filter of the export (issue/3768), carried
+    // by an unrestricted scope. A null legacy user (the caller resolved a grant bypass) and an
+    // admin user both skip it.
+    Query restrictionQuery =
+        scope.unrestricted() && scope.legacyGrantUser() != null
+            ? buildQueryRestrictions(scope.legacyGrantUser())
+            : null;
     if (restrictionQuery != null) {
       filters.add(restrictionQuery);
     }
@@ -1316,7 +1624,11 @@ public class ElasticService implements EngineService {
                       .query(finalQuery)
                       .sort(sorts),
               model);
-      return response.hits().hits().stream().map(Hit::source).filter(Objects::nonNull).toList();
+      return response.hits().hits().stream()
+          .map(Hit::source)
+          .filter(Objects::nonNull)
+          .map(scope.<T>assetStripper())
+          .toList();
     } catch (IOException e) {
       log.error("searchCursorPaged exception: {}", e.getMessage(), e);
       throw new AnalyticsEngineException("searchCursorPaged failed", e);
@@ -1359,8 +1671,8 @@ public class ElasticService implements EngineService {
   }
 
   public List<EsSearch> search(
-      TxCtx ctx, RawUserAuth user, String search, Filters.FilterGroup filter) {
-    Query query = buildQuery(ctx, user, search, filter, new HashMap<>(), new HashMap<>());
+      TxCtx ctx, EngineReadScope scope, String search, Filters.FilterGroup filter) {
+    Query query = buildQuery(ctx, scope, search, filter, new HashMap<>(), new HashMap<>());
     try {
       SearchResponse<EsSearch> response =
           elasticClient.search(

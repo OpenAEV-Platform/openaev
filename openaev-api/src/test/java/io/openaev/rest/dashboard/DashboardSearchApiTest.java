@@ -28,9 +28,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * F408690-40: the dashboard free-text search, called over HTTP by a read-only (non-admin,
- * ACCESS_DASHBOARDS only) user. The caller is a member of both tenants, so an injected clause that
- * escaped the tenant {@code bool.filter} would surface tenant B's document under tenant A's path.
+ * F408690-40: the dashboard free-text search, called over HTTP by a read-only (non-admin) user. The
+ * caller is a member of both tenants, so an injected clause that escaped the tenant {@code
+ * bool.filter} would surface tenant B's document under tenant A's path. The role also holds
+ * ACCESS_ASSETS: the searched documents are endpoints, which the engine only returns to readers
+ * allowed to see assets (EngineReadScope).
  */
 @Transactional
 @WithMockUser(isAdmin = false)
@@ -58,7 +60,8 @@ class DashboardSearchApiTest extends IntegrationTest {
     tenantA =
         tenantHelper
             .createTenantWithCapabilities(
-                "dashboard-search-a", Set.of(Capability.ACCESS_DASHBOARDS))
+                "dashboard-search-a",
+                Set.of(Capability.ACCESS_DASHBOARDS, Capability.ACCESS_ASSETS))
             .getId();
     String tenantB = tenantHelper.createTenantWithCurrentUser("dashboard-search-b").getId();
     zorblaxId = persistEndpointForTenant(tenantA, "zorblax-server");

@@ -7,14 +7,13 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.raw.RawGrant;
-import io.openaev.database.raw.RawUserAuth;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.EsEntities;
+import io.openaev.engine.security.EngineReadScope;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
@@ -25,8 +24,6 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -54,24 +51,8 @@ class EngineServiceIntegrationTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
-  /** An admin RawUserAuth used to call engineService.entities() directly. */
-  private static final RawUserAuth ADMIN_USER =
-      new RawUserAuth() {
-        @Override
-        public String getUser_id() {
-          return "test-admin-" + UUID.randomUUID();
-        }
-
-        @Override
-        public boolean getUser_admin() {
-          return true;
-        }
-
-        @Override
-        public Set<RawGrant> getUser_grants() {
-          return Set.of();
-        }
-      };
+  /** A reader with no per-user filter: these tests are about indexing and tenant scope. */
+  private static final EngineReadScope ADMIN_SCOPE = EngineReadScope.unrestricted(null);
 
   @BeforeEach
   void resetIndex() throws IOException {
@@ -90,7 +71,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
     // ALL_TIME avoids the DEFAULT branch that requires a dashboard timeRange parameter
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
     ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 100));
-    return engineService.entities(ctx, ADMIN_USER, runtime);
+    return engineService.entities(ctx, ADMIN_SCOPE, runtime);
   }
 
   private String persistEndpointForTenant(String tenantId, String name) {
@@ -307,7 +288,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
     }
 
     private List<String> searchIds(String tenantId, String term) {
-      return engineService.search(TxCtx.forTenant(tenantId), ADMIN_USER, term, null).stream()
+      return engineService.search(TxCtx.forTenant(tenantId), ADMIN_SCOPE, term, null).stream()
           .map(EsSearch::getId)
           .toList();
     }
@@ -412,7 +393,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
       filter.setValues(List.of(value));
       config.getPerspective().getFilter().getFilters().add(filter);
       ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 100));
-      return engineService.entities(TxCtx.allTenants(), ADMIN_USER, runtime).getEsDatas().stream()
+      return engineService.entities(TxCtx.allTenants(), ADMIN_SCOPE, runtime).getEsDatas().stream()
           .map(EsBase::getBase_id)
           .toList();
     }

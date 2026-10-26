@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.autonomous.AutonomousRun;
@@ -212,12 +213,30 @@ public class PermissionService {
   }
 
   /**
-   * Checks admin/bypass/capability only, ignoring the open-resource shortcut. Used to decide
-   * whether sensitive fields of open resources (e.g. notifier configuration) can be exposed to the
-   * user, where the endpoint itself is open but the field is capability-gated.
+   * Checks admin/bypass/capability only, ignoring the open-resource shortcut, in the ambient tenant
+   * ({@link TenantContext}). Used to decide whether sensitive fields of open resources (e.g.
+   * notifier configuration) can be exposed to the user, where the endpoint itself is open but the
+   * field is capability-gated.
+   *
+   * <p>Only right when the data at stake belongs to the ambient tenant. When one request reads
+   * several tenants, use {@link #hasCapabilityPermissionInTenant} for each of them.
    */
   public boolean hasCapabilityPermission(
       @NotNull final User user,
+      @NotNull final ResourceType resourceType,
+      @NotNull final Action action) {
+    return hasCapabilityPermissionInTenant(
+        user, TenantContext.getCurrentTenant(), resourceType, action);
+  }
+
+  /**
+   * Checks admin/bypass/capability only, in an explicit tenant: admin, BYPASS (platform, or of that
+   * tenant) or the capability through the groups of that tenant plus platform groups. Used when one
+   * request reads several tenants (the engine reads of dashboards), each with its own rights.
+   */
+  public boolean hasCapabilityPermissionInTenant(
+      @NotNull final User user,
+      @NotNull final String tenantId,
       @NotNull final ResourceType resourceType,
       @NotNull final Action action) {
 
@@ -225,18 +244,22 @@ public class PermissionService {
       return true;
     }
 
-    if (isBypassGranted(user, resourceType, action)) {
+    if (isBypassGranted(user, user.hasTenantBypassIn(tenantId), resourceType, action)) {
       return true;
     }
 
     Capability requiredCapability = Capability.of(resourceType, action).orElse(Capability.BYPASS);
-    return user.getCapabilities().contains(requiredCapability);
+    return user.getCapabilitiesIn(tenantId).contains(requiredCapability);
   }
 
   /** Checks whether the user's BYPASS capability covers the requested resource scope. */
   private static boolean isBypassGranted(User user, ResourceType resourceType, Action action) {
+    return isBypassGranted(user, user.hasTenantBypass(), resourceType, action);
+  }
+
+  private static boolean isBypassGranted(
+      User user, boolean hasTenantBypass, ResourceType resourceType, Action action) {
     boolean hasPlatformBypass = user.hasPlatformBypass();
-    boolean hasTenantBypass = user.hasTenantBypass();
     if (!hasPlatformBypass && !hasTenantBypass) {
       return false;
     }

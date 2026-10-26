@@ -31,6 +31,7 @@ import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
+import io.openaev.engine.security.EngineReadScope;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.schema.PropertySchema;
 import io.openaev.service.CommonSearchService;
@@ -300,7 +301,7 @@ public class ElasticService implements EngineService {
 
   private Query buildQuery(
       TxCtx ctx,
-      RawUserAuth user,
+      EngineReadScope scope,
       String search,
       Filters.FilterGroup groupFilter,
       Map<String, String> parameters,
@@ -309,7 +310,7 @@ public class ElasticService implements EngineService {
     List<Query> mainMust = new ArrayList<>();
     // TODO removing user specific restrictions -> issue/3768 will refactor this logic to have
     // restriction based on markings
-    /*Query restrictionQuery = buildQueryRestrictions(user);
+    /*Query restrictionQuery = buildQueryRestrictions(scope);
     if (restrictionQuery != null) {
       mainMust.add(restrictionQuery);
     }*/
@@ -378,7 +379,7 @@ public class ElasticService implements EngineService {
   }
 
   private Map<String, String> resolveIdsRepresentative(
-      TxCtx ctx, RawUserAuth user, List<String> ids) {
+      TxCtx ctx, EngineReadScope scope, List<String> ids) {
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     Filters.Filter filter = new Filters.Filter();
     filter.setKey("base_id");
@@ -386,7 +387,7 @@ public class ElasticService implements EngineService {
     filter.setValues(ids);
     filter.setMode(Filters.FilterMode.or);
     filterGroup.setFilters(List.of(filter));
-    Query query = buildQuery(ctx, user, null, filterGroup, new HashMap<>(), new HashMap<>());
+    Query query = buildQuery(ctx, scope, null, filterGroup, new HashMap<>(), new HashMap<>());
     try {
       SearchResponse<EsBase> response =
           elasticClient.search(
@@ -736,14 +737,14 @@ public class ElasticService implements EngineService {
   // endregion
 
   // region query
-  public EsCountInterval count(TxCtx ctx, RawUserAuth user, CountRuntime runtime) {
+  public EsCountInterval count(TxCtx ctx, EngineReadScope scope, CountRuntime runtime) {
     FlatConfiguration widgetConfig = runtime.getConfig();
 
     try {
       Query countQuery =
           buildQuery(
               ctx,
-              user,
+              scope,
               null,
               runtime
                   .getConfig()
@@ -802,14 +803,14 @@ public class ElasticService implements EngineService {
     return new EsCountInterval(0L, 0L, 0L);
   }
 
-  public EsAvgs average(TxCtx ctx, RawUserAuth user, AverageRuntime averageRuntime) {
+  public EsAvgs average(TxCtx ctx, EngineReadScope scope, AverageRuntime averageRuntime) {
     AverageConfiguration widgetConfig = averageRuntime.getConfig();
 
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     Query filterQuery =
         buildQuery(
             ctx,
-            user,
+            scope,
             null,
             averageRuntime.getConfig().getSeries().getFirst().getFilter(),
             averageRuntime.getParameters(),
@@ -871,7 +872,7 @@ public class ElasticService implements EngineService {
       Buckets<StringTermsBucket> domainBuckets =
           response.aggregations().get(domainAggregationKey).sterms().buckets();
 
-      return averageSTerms(ctx, domainBuckets, user, typeAggregationKey, statusAggregationKey);
+      return averageSTerms(ctx, domainBuckets, scope, typeAggregationKey, statusAggregationKey);
 
     } catch (Exception e) {
       log.error(String.format("Elastic client failed to aggregate data: %s", e.getMessage()), e);
@@ -882,7 +883,7 @@ public class ElasticService implements EngineService {
   private EsAvgs averageSTerms(
       @NotNull final TxCtx ctx,
       @NotNull Buckets<StringTermsBucket> domainBuckets,
-      @NotNull final RawUserAuth user,
+      @NotNull final EngineReadScope scope,
       String typeAggregationKey,
       String statusAggregationKey) {
     Map<String, String> resolutions = new HashMap<>();
@@ -891,7 +892,7 @@ public class ElasticService implements EngineService {
             .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
             .distinct()
             .toList();
-    resolutions.putAll(resolveIdsRepresentative(ctx, user, ids));
+    resolutions.putAll(resolveIdsRepresentative(ctx, scope, ids));
 
     List<EsDomainsAvgData> data =
         domainBuckets.array().stream()
@@ -930,7 +931,7 @@ public class ElasticService implements EngineService {
 
   public EsSeries termHistogram(
       TxCtx ctx,
-      RawUserAuth user,
+      EngineReadScope scope,
       StructuralHistogramWidget widgetConfig,
       Series config,
       Map<String, String> parameters,
@@ -938,7 +939,7 @@ public class ElasticService implements EngineService {
 
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     Query filterQuery =
-        buildQuery(ctx, user, null, config.getFilter(), parameters, definitionParameters);
+        buildQuery(ctx, scope, null, config.getFilter(), parameters, definitionParameters);
     Query query;
     if (isAllTime(widgetConfig, parameters, definitionParameters)) {
       query = queryBuilder.must(filterQuery).build()._toQuery();
@@ -986,7 +987,7 @@ public class ElasticService implements EngineService {
           || propertyField.getType() == Boolean.class) {
         return termHistogramLTerms(config, aggregate);
       } else {
-        return termHistogramSTerms(ctx, user, config, aggregate, field);
+        return termHistogramSTerms(ctx, scope, config, aggregate, field);
       }
     } catch (Exception e) {
       log.error(String.format("termHistogram exception: %s", e.getMessage()), e);
@@ -996,7 +997,7 @@ public class ElasticService implements EngineService {
 
   private EsSeries termHistogramSTerms(
       @NotNull final TxCtx ctx,
-      @NotNull final RawUserAuth user,
+      @NotNull final EngineReadScope scope,
       @NotNull final Series config,
       @NotNull final Aggregate aggregate,
       @NotNull final String field) {
@@ -1009,7 +1010,7 @@ public class ElasticService implements EngineService {
               .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
               .distinct()
               .toList();
-      resolutions.putAll(resolveIdsRepresentative(ctx, user, ids));
+      resolutions.putAll(resolveIdsRepresentative(ctx, scope, ids));
     }
     List<EsSeriesData> data =
         buckets.array().stream()
@@ -1053,18 +1054,19 @@ public class ElasticService implements EngineService {
   }
 
   public List<EsSeries> multiTermHistogram(
-      TxCtx ctx, RawUserAuth user, StructuralHistogramRuntime runtime) {
+      TxCtx ctx, EngineReadScope scope, StructuralHistogramRuntime runtime) {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
         .map(
-            c -> termHistogram(ctx, user, runtime.getWidget(), c, parameters, definitionParameters))
+            c ->
+                termHistogram(ctx, scope, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
 
   public EsSeries dateHistogram(
       TxCtx ctx,
-      RawUserAuth user,
+      EngineReadScope scope,
       DateHistogramWidget widgetConfig,
       Series config,
       Map<String, String> parameters,
@@ -1072,7 +1074,7 @@ public class ElasticService implements EngineService {
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
 
     Query filterQuery =
-        buildQuery(ctx, user, null, config.getFilter(), parameters, definitionParameters);
+        buildQuery(ctx, scope, null, config.getFilter(), parameters, definitionParameters);
 
     Instant finalStart = calcStartDate(widgetConfig, parameters, definitionParameters);
     Instant finalEnd = calcEndDate(widgetConfig, parameters, definitionParameters);
@@ -1131,16 +1133,17 @@ public class ElasticService implements EngineService {
   }
 
   public List<EsSeries> multiDateHistogram(
-      TxCtx ctx, RawUserAuth user, DateHistogramRuntime runtime) {
+      TxCtx ctx, EngineReadScope scope, DateHistogramRuntime runtime) {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
         .map(
-            c -> dateHistogram(ctx, user, runtime.getWidget(), c, parameters, definitionParameters))
+            c ->
+                dateHistogram(ctx, scope, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
 
-  public EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime) {
+  public EsEntities entities(TxCtx ctx, EngineReadScope scope, ListRuntime runtime) {
     Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
     String entityName =
         searchFilters.getFilters().stream()
@@ -1179,7 +1182,7 @@ public class ElasticService implements EngineService {
     Query listQuery =
         buildQuery(
             ctx,
-            user,
+            scope,
             "",
             searchFilters,
             runtime.getParameters(),
@@ -1238,7 +1241,7 @@ public class ElasticService implements EngineService {
   @Override
   @SuppressWarnings("unchecked")
   public <T extends EsBase> List<T> searchCursorPaged(
-      RawUserAuth user, Class<T> model, CursorPageQuery query) {
+      EngineReadScope scope, Class<T> model, CursorPageQuery query) {
     if (query.size() <= 0 || query.size() > CURSOR_PAGE_MAX_SIZE) {
       throw new IllegalArgumentException(
           "size must be in [1, " + CURSOR_PAGE_MAX_SIZE + "], was " + query.size());
@@ -1282,7 +1285,12 @@ public class ElasticService implements EngineService {
     // issue/3768: buildQueryRestrictions is otherwise dead code (its call site in buildQuery is
     // commented out); it is re-enabled here only, because an unfiltered export would leak across
     // grants. A null user (the caller resolved a grant bypass) and an admin user both skip it.
-    Query restrictionQuery = user == null ? null : buildQueryRestrictions(user);
+    // Not ported to the engine read scope yet: keeps the former grant filter of the snapshot
+    // export, through the reader carried for that purpose.
+    Query restrictionQuery =
+        scope == null || scope.legacyGrantUser() == null
+            ? null
+            : buildQueryRestrictions(scope.legacyGrantUser());
     if (restrictionQuery != null) {
       filters.add(restrictionQuery);
     }
@@ -1359,8 +1367,8 @@ public class ElasticService implements EngineService {
   }
 
   public List<EsSearch> search(
-      TxCtx ctx, RawUserAuth user, String search, Filters.FilterGroup filter) {
-    Query query = buildQuery(ctx, user, search, filter, new HashMap<>(), new HashMap<>());
+      TxCtx ctx, EngineReadScope scope, String search, Filters.FilterGroup filter) {
+    Query query = buildQuery(ctx, scope, search, filter, new HashMap<>(), new HashMap<>());
     try {
       SearchResponse<EsSearch> response =
           elasticClient.search(

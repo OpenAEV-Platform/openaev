@@ -20,6 +20,7 @@ import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.snapshotobservation.EsAttackObservation;
 import io.openaev.engine.model.snapshotobservation.EsVulnerabilityObservation;
+import io.openaev.engine.security.EngineReadScope;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.FindingFixture;
@@ -41,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -49,6 +51,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
@@ -86,13 +89,13 @@ class CursorPagedSearchTest extends IntegrationTest {
   /** Comfortably in the future so no test data is ever excluded by the window bound. */
   private static final Instant WINDOW_END = Instant.now().plus(1, ChronoUnit.DAYS);
 
-  private static final RawUserAuth ADMIN_USER = adminUser();
+  private static final EngineReadScope ADMIN_SCOPE = EngineReadScope.unrestricted(null);
 
   /** The tenant every fixture lands in when the test sets none. */
   private static final String TENANT_ID = Tenant.DEFAULT_TENANT_UUID;
 
   /** A (assetId, findingId) pair identifying one vulnerability-observation grain. */
-  private record Grain(String assetId, String findingId) {}
+  private record Grain(String assetId, String findingId, String simulationId) {}
 
   @BeforeEach
   void resetIndex() throws IOException {
@@ -111,46 +114,50 @@ class CursorPagedSearchTest extends IntegrationTest {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  private static RawUserAuth adminUser() {
-    return new RawUserAuth() {
-      @Override
-      public String getUser_id() {
-        return "test-admin-" + UUID.randomUUID();
-      }
-
-      @Override
-      public boolean getUser_admin() {
-        return true;
-      }
-
-      @Override
-      public Set<RawGrant> getUser_grants() {
-        return Set.of();
-      }
-    };
+  /**
+   * A non-admin reader granted on the given simulations and scenarios: the observation types are
+   * readable, filtered on their most specific owner (the simulation, else the scenario), with the
+   * keys in the registry's precedence order.
+   */
+  private static EngineReadScope nonAdminScope(
+      Set<String> grantedSimulations, Set<String> grantedScenarios) {
+    List<EngineReadScope.GrantKey> keys =
+        List.of(
+            new EngineReadScope.GrantKey("base_simulation_side", grantedSimulations),
+            new EngineReadScope.GrantKey("base_scenario_side", grantedScenarios));
+    return EngineReadScope.forTenant(
+        TENANT_ID,
+        Set.of("snapshot-vulnerability-observation", "snapshot-attack-observation"),
+        Map.of("snapshot-vulnerability-observation", keys, "snapshot-attack-observation", keys),
+        Set.of());
   }
 
-  private static RawUserAuth nonAdminUser(String... grantedResourceIds) {
+  /**
+   * The reader of the former grant-only filter ({@code MARKING} preview feature off), carried by an
+   * unrestricted scope: an admin skips it, anyone else is filtered on its grants.
+   */
+  private static EngineReadScope legacyScope(boolean admin, String... grantedResourceIds) {
     Set<RawGrant> grants = new HashSet<>();
     for (String resourceId : grantedResourceIds) {
       grants.add(rawGrant(resourceId));
     }
-    return new RawUserAuth() {
-      @Override
-      public String getUser_id() {
-        return "test-user-" + UUID.randomUUID();
-      }
+    return EngineReadScope.unrestricted(
+        new RawUserAuth() {
+          @Override
+          public String getUser_id() {
+            return "test-user-" + UUID.randomUUID();
+          }
 
-      @Override
-      public boolean getUser_admin() {
-        return false;
-      }
+          @Override
+          public boolean getUser_admin() {
+            return admin;
+          }
 
-      @Override
-      public Set<RawGrant> getUser_grants() {
-        return grants;
-      }
-    };
+          @Override
+          public Set<RawGrant> getUser_grants() {
+            return grants;
+          }
+        });
   }
 
   private static RawGrant rawGrant(String resourceId) {
@@ -194,7 +201,7 @@ class CursorPagedSearchTest extends IntegrationTest {
         .forInject(InjectFixture.getDefaultInject())
         .withFinding(findingWrapper)
         .persist();
-    return new Grain(endpointWrapper.get().getId(), findingWrapper.get().getId());
+    return new Grain(endpointWrapper.get().getId(), findingWrapper.get().getId(), null);
   }
 
   /** Persists an endpoint + CVE finding through an inject wired to a scenario-linked simulation. */
@@ -209,8 +216,29 @@ class CursorPagedSearchTest extends IntegrationTest {
         injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
     Exercise exercise = ExerciseFixture.createDefaultIncidentResponseExercise(Instant.now());
     exercise.setScenario(scenario);
-    exerciseComposer.forExercise(exercise).withInject(injectWrapper).persist();
-    return new Grain(endpointWrapper.get().getId(), findingWrapper.get().getId());
+    String simulationId =
+        exerciseComposer.forExercise(exercise).withInject(injectWrapper).persist().get().getId();
+    return new Grain(endpointWrapper.get().getId(), findingWrapper.get().getId(), simulationId);
+  }
+
+  /** Persists an endpoint + CVE finding through an inject of a simulation with no scenario. */
+  private Grain newSimulationGrain() {
+    EndpointComposer.Composer endpointWrapper =
+        endpointComposer.forEndpoint(EndpointFixture.createEndpoint("ep-" + UUID.randomUUID()));
+    FindingComposer.Composer findingWrapper =
+        findingComposer
+            .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+            .withEndpoint(endpointWrapper);
+    InjectComposer.Composer injectWrapper =
+        injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
+    String simulationId =
+        exerciseComposer
+            .forExercise(ExerciseFixture.createDefaultIncidentResponseExercise(Instant.now()))
+            .withInject(injectWrapper)
+            .persist()
+            .get()
+            .getId();
+    return new Grain(endpointWrapper.get().getId(), findingWrapper.get().getId(), simulationId);
   }
 
   private Scenario persistScenario() {
@@ -240,9 +268,9 @@ class CursorPagedSearchTest extends IntegrationTest {
   }
 
   private List<EsVulnerabilityObservation> page(
-      RawUserAuth user, CursorPageQuery.Keyset after, int size) {
+      EngineReadScope scope, CursorPageQuery.Keyset after, int size) {
     return engineService.searchCursorPaged(
-        user,
+        scope,
         EsVulnerabilityObservation.class,
         new CursorPageQuery(TENANT_ID, null, after, WINDOW_END, size));
   }
@@ -295,11 +323,11 @@ class CursorPagedSearchTest extends IntegrationTest {
       }
       indexAll();
 
-      List<EsVulnerabilityObservation> page1 = page(ADMIN_USER, null, 4);
+      List<EsVulnerabilityObservation> page1 = page(ADMIN_SCOPE, null, 4);
       assertThat(page1).hasSize(4);
       assertOrdered(page1);
 
-      List<EsVulnerabilityObservation> page2 = page(ADMIN_USER, cursorAfter(page1), 4);
+      List<EsVulnerabilityObservation> page2 = page(ADMIN_SCOPE, cursorAfter(page1), 4);
       assertThat(page2).hasSize(4);
       assertOrdered(page2);
 
@@ -338,7 +366,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       int pageCount = 0;
       List<EsVulnerabilityObservation> lastPage;
       do {
-        lastPage = page(ADMIN_USER, cursor, 7);
+        lastPage = page(ADMIN_SCOPE, cursor, 7);
         pageCount++;
         for (EsVulnerabilityObservation doc : lastPage) {
           assertThat(seen.add(doc.getBase_id())).as("no duplicate id across pages").isTrue();
@@ -375,7 +403,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       indexAll();
 
       List<EsVulnerabilityObservation> both =
-          page(ADMIN_USER, null, 100).stream()
+          page(ADMIN_SCOPE, null, 100).stream()
               .filter(
                   d ->
                       d.getBase_asset_side().equals(a.assetId())
@@ -392,7 +420,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       assertThat(both.get(0).getBase_id().compareTo(both.get(1).getBase_id())).isLessThan(0);
 
       List<EsVulnerabilityObservation> resumed =
-          page(ADMIN_USER, cursorAfter(List.of(both.get(0))), 100).stream()
+          page(ADMIN_SCOPE, cursorAfter(List.of(both.get(0))), 100).stream()
               .filter(
                   d ->
                       d.getBase_asset_side().equals(a.assetId())
@@ -421,11 +449,11 @@ class CursorPagedSearchTest extends IntegrationTest {
       }
       indexAll();
 
-      List<EsVulnerabilityObservation> page1 = page(ADMIN_USER, null, 5);
-      List<EsVulnerabilityObservation> page2 = page(ADMIN_USER, cursorAfter(page1), 5);
-      List<EsVulnerabilityObservation> page3 = page(ADMIN_USER, cursorAfter(page2), 5);
+      List<EsVulnerabilityObservation> page1 = page(ADMIN_SCOPE, null, 5);
+      List<EsVulnerabilityObservation> page2 = page(ADMIN_SCOPE, cursorAfter(page1), 5);
+      List<EsVulnerabilityObservation> page3 = page(ADMIN_SCOPE, cursorAfter(page2), 5);
 
-      List<EsVulnerabilityObservation> continuation = page(ADMIN_USER, cursorAfter(page2), 100);
+      List<EsVulnerabilityObservation> continuation = page(ADMIN_SCOPE, cursorAfter(page2), 100);
 
       List<String> expectedFromPage3 =
           page3.stream().map(EsVulnerabilityObservation::getBase_id).toList();
@@ -456,7 +484,7 @@ class CursorPagedSearchTest extends IntegrationTest {
 
       List<EsVulnerabilityObservation> results =
           engineService.searchCursorPaged(
-              ADMIN_USER,
+              ADMIN_SCOPE,
               EsVulnerabilityObservation.class,
               new CursorPageQuery(TENANT_ID, null, null, windowEnd, 100));
 
@@ -486,7 +514,7 @@ class CursorPagedSearchTest extends IntegrationTest {
 
       List<EsVulnerabilityObservation> results =
           engineService.searchCursorPaged(
-              ADMIN_USER,
+              ADMIN_SCOPE,
               EsVulnerabilityObservation.class,
               new CursorPageQuery(TENANT_ID, since, null, WINDOW_END, 100));
 
@@ -500,7 +528,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       Grain grain = newGrain();
       indexAll();
 
-      List<EsVulnerabilityObservation> results = page(ADMIN_USER, null, 100);
+      List<EsVulnerabilityObservation> results = page(ADMIN_SCOPE, null, 100);
 
       assertThat(containsAsset(results, grain.assetId())).isTrue();
     }
@@ -527,7 +555,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       assertThatThrownBy(
               () ->
                   engineService.searchCursorPaged(
-                      ADMIN_USER,
+                      ADMIN_SCOPE,
                       EsVulnerabilityObservation.class,
                       new CursorPageQuery(TENANT_ID, null, null, WINDOW_END, 0)))
           .isInstanceOf(IllegalArgumentException.class);
@@ -539,7 +567,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       assertThatThrownBy(
               () ->
                   engineService.searchCursorPaged(
-                      ADMIN_USER,
+                      ADMIN_SCOPE,
                       EsVulnerabilityObservation.class,
                       new CursorPageQuery(TENANT_ID, null, null, WINDOW_END, -1)))
           .isInstanceOf(IllegalArgumentException.class);
@@ -551,7 +579,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       assertThatThrownBy(
               () ->
                   engineService.searchCursorPaged(
-                      ADMIN_USER,
+                      ADMIN_SCOPE,
                       EsVulnerabilityObservation.class,
                       new CursorPageQuery(
                           TENANT_ID,
@@ -568,7 +596,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       assertThatCode(
               () ->
                   engineService.searchCursorPaged(
-                      ADMIN_USER,
+                      ADMIN_SCOPE,
                       EsVulnerabilityObservation.class,
                       new CursorPageQuery(
                           TENANT_ID, null, null, WINDOW_END, EngineService.CURSOR_PAGE_MAX_SIZE)))
@@ -592,7 +620,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       Grain grain = newGrain();
       indexAll();
 
-      List<EsVulnerabilityObservation> results = page(ADMIN_USER, null, 100);
+      List<EsVulnerabilityObservation> results = page(ADMIN_SCOPE, null, 100);
 
       assertThat(containsAsset(results, grain.assetId())).isTrue();
     }
@@ -603,7 +631,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       assertThatThrownBy(
               () ->
                   engineService.searchCursorPaged(
-                      ADMIN_USER,
+                      ADMIN_SCOPE,
                       UnregisteredEsBase.class,
                       new CursorPageQuery(TENANT_ID, null, null, WINDOW_END, 10)))
           .isInstanceOf(IllegalArgumentException.class)
@@ -651,7 +679,7 @@ class CursorPagedSearchTest extends IntegrationTest {
 
       indexAll();
 
-      List<EsVulnerabilityObservation> results = page(ADMIN_USER, null, 100);
+      List<EsVulnerabilityObservation> results = page(ADMIN_SCOPE, null, 100);
 
       assertThat(containsAsset(results, otherAssetId)).isFalse();
       assertThat(containsAsset(results, ownTenantGrain.assetId())).isTrue();
@@ -669,7 +697,7 @@ class CursorPagedSearchTest extends IntegrationTest {
       // TenantContext is left unset here, so it reads as the default tenant of ownTenantGrain.
       List<EsVulnerabilityObservation> results =
           engineService.searchCursorPaged(
-              ADMIN_USER,
+              ADMIN_SCOPE,
               EsVulnerabilityObservation.class,
               new CursorPageQuery(otherTenant.getId(), null, null, WINDOW_END, 100));
 
@@ -684,6 +712,9 @@ class CursorPagedSearchTest extends IntegrationTest {
 
   @Nested
   @DisplayName("restrictions")
+  // es8 only until the reader filter is ported to es9 and OpenSearch (implementation-plan-dashboard
+  // steps 11-12): those engines ignore the scope. The legacy group below runs on every engine.
+  @DisabledIfEnvironmentVariable(named = "ENGINE_ENGINESELECTOR", matches = "elk9|opensearch")
   class Restrictions {
 
     @Test
@@ -694,35 +725,148 @@ class CursorPagedSearchTest extends IntegrationTest {
       Grain unrestricted = newGrain();
       indexAll();
 
-      List<EsVulnerabilityObservation> results = page(ADMIN_USER, null, 100);
+      List<EsVulnerabilityObservation> results = page(ADMIN_SCOPE, null, 100);
 
       assertThat(containsAsset(results, restricted.assetId())).isTrue();
       assertThat(containsAsset(results, unrestricted.assetId())).isTrue();
     }
 
     @Test
-    @DisplayName("a non-admin user with no grant only sees unrestricted documents")
-    void given_noGrant_should_onlySeeUnrestrictedDocuments() {
+    @DisplayName("a non-admin user with no grant sees no document")
+    void given_noGrant_should_seeNoDocument() {
+      Scenario scenario = persistScenario();
+      Grain ofSimulation = newScenarioLinkedGrain(scenario);
+      Grain ofAtomicTesting = newGrain();
+      indexAll();
+
+      List<EsVulnerabilityObservation> results = page(nonAdminScope(Set.of(), Set.of()), null, 100);
+
+      assertThat(containsAsset(results, ofSimulation.assetId())).isFalse();
+      assertThat(containsAsset(results, ofAtomicTesting.assetId())).isFalse();
+    }
+
+    @Test
+    @DisplayName("an observation from an atomic testing is not revealed by a simulation grant")
+    void given_observationOfAtomicTesting_should_onlyBeReadThroughTheBypass() {
+      // It names no simulation or scenario, and keeps no atomic testing key: no grant can be
+      // checked, so only the bypass (the admin here) reads it.
+      Grain ofAtomicTesting = newGrain();
+      Grain ofSimulation = newSimulationGrain();
+      indexAll();
+
+      List<EsVulnerabilityObservation> granted =
+          page(nonAdminScope(Set.of(ofSimulation.simulationId()), Set.of()), null, 100);
+
+      assertThat(containsAsset(granted, ofSimulation.assetId())).isTrue();
+      assertThat(containsAsset(granted, ofAtomicTesting.assetId())).isFalse();
+      assertThat(containsAsset(page(ADMIN_SCOPE, null, 100), ofAtomicTesting.assetId())).isTrue();
+    }
+
+    @Test
+    @DisplayName("deleting its simulation does not open the observation to everyone")
+    void given_simulationDeleted_should_keepTheObservationClosed() {
+      // The observation survives its simulation (not a dependency) but loses its simulation key.
+      Grain ofSimulation = newSimulationGrain();
+      indexAll();
+      assertThat(
+              containsAsset(
+                  page(nonAdminScope(Set.of(ofSimulation.simulationId()), Set.of()), null, 100),
+                  ofSimulation.assetId()))
+          .isTrue();
+
+      engineService.bulkDelete(List.of(ofSimulation.simulationId()));
+
+      assertThat(containsAsset(page(ADMIN_SCOPE, null, 100), ofSimulation.assetId())).isTrue();
+      assertThat(
+              containsAsset(
+                  page(nonAdminScope(Set.of(ofSimulation.simulationId()), Set.of()), null, 100),
+                  ofSimulation.assetId()))
+          .isFalse();
+      assertThat(
+              containsAsset(
+                  page(nonAdminScope(Set.of(), Set.of()), null, 100), ofSimulation.assetId()))
+          .isFalse();
+    }
+
+    @Test
+    @DisplayName("granting the simulation reveals its document")
+    void given_grantOnSimulation_should_revealItsDocument() {
+      Scenario scenario = persistScenario();
+      Grain restricted = newScenarioLinkedGrain(scenario);
+      indexAll();
+
+      List<EsVulnerabilityObservation> results =
+          page(nonAdminScope(Set.of(restricted.simulationId()), Set.of()), null, 100);
+
+      assertThat(containsAsset(results, restricted.assetId())).isTrue();
+    }
+
+    @Test
+    @DisplayName("granting only the scenario does not reveal its simulation's document")
+    void given_grantOnScenarioOnly_should_notRevealItsSimulationDocument() {
+      // As in the REST API: a simulation is read through its own grant, never its scenario's.
+      Scenario scenario = persistScenario();
+      Grain restricted = newScenarioLinkedGrain(scenario);
+      indexAll();
+
+      List<EsVulnerabilityObservation> results =
+          page(nonAdminScope(Set.of(), Set.of(scenario.getId())), null, 100);
+
+      assertThat(containsAsset(results, restricted.assetId())).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("restrictions, MARKING preview feature off (former grant-only filter)")
+  class LegacyRestrictions {
+
+    @Test
+    @DisplayName("admin sees every document regardless of restrictions")
+    void given_legacyAdmin_should_returnRestrictedAndUnrestrictedDocuments() {
+      // -- ARRANGE --
       Scenario scenario = persistScenario();
       Grain restricted = newScenarioLinkedGrain(scenario);
       Grain unrestricted = newGrain();
       indexAll();
 
-      List<EsVulnerabilityObservation> results = page(nonAdminUser(), null, 100);
+      // -- ACT --
+      List<EsVulnerabilityObservation> results = page(legacyScope(true), null, 100);
 
+      // -- ASSERT --
+      assertThat(containsAsset(results, restricted.assetId())).isTrue();
+      assertThat(containsAsset(results, unrestricted.assetId())).isTrue();
+    }
+
+    @Test
+    @DisplayName("a non-admin user with no grant only sees unrestricted documents")
+    void given_legacyUserWithoutGrant_should_onlySeeUnrestrictedDocuments() {
+      // -- ARRANGE --
+      Scenario scenario = persistScenario();
+      Grain restricted = newScenarioLinkedGrain(scenario);
+      Grain unrestricted = newGrain();
+      indexAll();
+
+      // -- ACT --
+      List<EsVulnerabilityObservation> results = page(legacyScope(false), null, 100);
+
+      // -- ASSERT --
       assertThat(containsAsset(results, restricted.assetId())).isFalse();
       assertThat(containsAsset(results, unrestricted.assetId())).isTrue();
     }
 
     @Test
     @DisplayName("granting the scenario reveals the restricted document")
-    void given_grantOnScenario_should_revealRestrictedDocument() {
+    void given_legacyUserGrantedOnScenario_should_revealRestrictedDocument() {
+      // -- ARRANGE --
       Scenario scenario = persistScenario();
       Grain restricted = newScenarioLinkedGrain(scenario);
       indexAll();
 
-      List<EsVulnerabilityObservation> results = page(nonAdminUser(scenario.getId()), null, 100);
+      // -- ACT --
+      List<EsVulnerabilityObservation> results =
+          page(legacyScope(false, scenario.getId()), null, 100);
 
+      // -- ASSERT --
       assertThat(containsAsset(results, restricted.assetId())).isTrue();
     }
   }
@@ -744,7 +888,7 @@ class CursorPagedSearchTest extends IntegrationTest {
 
       List<EsAttackObservation> results =
           engineService.searchCursorPaged(
-              ADMIN_USER,
+              ADMIN_SCOPE,
               EsAttackObservation.class,
               new CursorPageQuery(TENANT_ID, null, null, WINDOW_END, 100));
 

@@ -4,11 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.raw.RawGrant;
-import io.openaev.database.raw.RawUserAuth;
 import io.openaev.engine.api.CursorPageQuery;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.snapshotobservation.EsVulnerabilityObservation;
+import io.openaev.engine.security.EngineReadScope;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.FindingFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -68,23 +67,8 @@ class CursorPagedSearchResultWindowTest extends IntegrationTest {
 
   private static final String TENANT_ID = Tenant.DEFAULT_TENANT_UUID;
 
-  private static final RawUserAuth ADMIN_USER =
-      new RawUserAuth() {
-        @Override
-        public String getUser_id() {
-          return "test-admin-" + UUID.randomUUID();
-        }
-
-        @Override
-        public boolean getUser_admin() {
-          return true;
-        }
-
-        @Override
-        public Set<RawGrant> getUser_grants() {
-          return Set.of();
-        }
-      };
+  /** A reader with no per-user filter: these tests are about indexing and tenant scope. */
+  private static final EngineReadScope ADMIN_SCOPE = EngineReadScope.unrestricted(null);
 
   @BeforeEach
   void resetIndex() throws IOException {
@@ -133,7 +117,7 @@ class CursorPagedSearchResultWindowTest extends IntegrationTest {
     do {
       CursorPageQuery query = new CursorPageQuery(TENANT_ID, null, cursor, WINDOW_END, 5);
       lastPage =
-          engineService.searchCursorPaged(ADMIN_USER, EsVulnerabilityObservation.class, query);
+          engineService.searchCursorPaged(ADMIN_SCOPE, EsVulnerabilityObservation.class, query);
       for (EsVulnerabilityObservation doc : lastPage) {
         assertThat(seen.add(doc.getBase_id())).as("no duplicate id across pages").isTrue();
       }

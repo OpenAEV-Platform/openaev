@@ -1,6 +1,5 @@
 package io.openaev.rest.attack_pattern.service;
 
-import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -9,7 +8,6 @@ import io.openaev.api.attack_pattern.dto.AttackPatternCoverageOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.UserRepository;
@@ -20,8 +18,10 @@ import io.openaev.engine.api.WidgetConfigurationWithSeries;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.query.EsSeries;
 import io.openaev.engine.query.EsSeriesData;
+import io.openaev.engine.security.EngineReadScope;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.engine.EngineReadScopeResolver;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.SecurityCoverageUtils;
@@ -79,6 +79,7 @@ public class AttackPatternService {
   private final UserRepository userRepository;
   private final EngineService engineService;
   private final RawUserAuthMapper rawUserAuthMapper;
+  private final EngineReadScopeResolver scopeResolver;
   private final AiMetricCollector aiMetricCollector;
 
   /**
@@ -188,8 +189,7 @@ public class AttackPatternService {
       return List.of();
     }
 
-    RawUserAuth user =
-        rawUserAuthMapper.toRawUserAuth(userRepository.getUserWithAuth(currentUser().getId()));
+    EngineReadScope scope = scopeResolver.resolve(ctx);
 
     StructuralHistogramWidget widget = new StructuralHistogramWidget();
     widget.setField("base_attack_patterns_side");
@@ -221,7 +221,7 @@ public class AttackPatternService {
 
     List<EsSeries> series =
         engineService.multiTermHistogram(
-            ctx, user, new StructuralHistogramRuntime(widget, Map.of(), Map.of()));
+            ctx, scope, new StructuralHistogramRuntime(widget, Map.of(), Map.of()));
 
     // attackPatternId -> [preventionSuccess, preventionFailed, detectionSuccess, detectionFailed]
     Map<String, long[]> countsByAttackPattern = new HashMap<>();
