@@ -4,6 +4,7 @@ import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 
+import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
@@ -54,7 +55,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
   const ability = useAbility();
   const { permissions, inherited_context } = useContext(PermissionsContext);
 
-  const { onOpenEditInjectExpectationResultResult } = useContext(InjectExpectationContext);
+  const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult } = useContext(InjectExpectationContext);
 
   // Hooks must be called at top level - not in JSX or conditionally
   const isManuallyUpdatable = useIsManuallyUpdatable(injectExpectation);
@@ -103,6 +104,20 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
     : [];
 
   const showMissingSecurityPlatformMessage = injectExpectation.inject_expectation_collector_missing_at_init;
+
+  const firstResult = injectExpectation.inject_expectation_results?.[0] ?? null;
+  const entries = [{
+    label: t('Update'),
+    action: () => onOpenEditInjectExpectationResultResult(firstResult, injectExpectation),
+    disabled: false,
+    userRight: canManage,
+  },
+  {
+    label: t('Delete'),
+    action: () => onOpenDeleteInjectExpectationResult(firstResult, injectExpectation),
+    disabled: !firstResult,
+    userRight: canManage,
+  }];
 
   return (
     <Paper>
@@ -213,26 +228,29 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
           )}
         </div>
 
-        {/* Create expectation result. Manual expectations always get this same
-            button, even when they already have a score: phishing steps are
-            pre-scored as "resisted" when the email is sent, and they must look
-            like every other manual expectation. The dialog edits the score
-            either way. */}
+        {/* Create expectation result */}
         {isManuallyUpdatable && canManage && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <IconButton
-                icon={['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type)
-                  ? <AddModeratorOutlined color="primary" fontSize="medium" />
-                  : <InventoryOutlined color="primary" fontSize="medium" />}
-                aria-label={t('Add')}
-                onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
-                priority="tertiary"
-                size="sm"
-              />
-            </TooltipTrigger>
-            <TooltipContent>{t('Add a result')}</TooltipContent>
-          </Tooltip>
+          <>
+            {isManualExpectation(injectExpectation.inject_expectation_type)
+              && (injectExpectation.inject_expectation_score != null) ? (
+                  <ButtonPopover entries={entries} variant="icon" />
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <IconButton
+                        icon={['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type)
+                          ? <AddModeratorOutlined color="primary" fontSize="medium" />
+                          : <InventoryOutlined color="primary" fontSize="medium" />}
+                        aria-label={t('Add')}
+                        onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
+                        priority="tertiary"
+                        size="sm"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>{t('Add a result')}</TooltipContent>
+                  </Tooltip>
+                )}
+          </>
         )}
       </div>
       {(!isAgentExpectation(injectExpectation) && !isAssetExpectation(injectExpectation) && !isPlayerExpectation(injectExpectation))
