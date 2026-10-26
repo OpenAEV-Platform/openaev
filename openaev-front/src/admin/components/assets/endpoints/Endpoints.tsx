@@ -70,7 +70,7 @@ const Endpoints = () => {
   // used for the Marking Definitions menu.
   const markingEnabled = isFeatureEnabled('MARKING');
   const ability = useAbility();
-  const canAccessMarkings = markingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
+  const canAccessMarkings = markingEnabled
   // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
   // either gate is closed so the platform issues no marking-definitions request at all.
   const markingDefinitions = useMarkingDefinitions({
