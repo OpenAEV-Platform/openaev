@@ -1142,16 +1142,63 @@ class IndexingRegressionTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("A type this version does not know is masked whole, without failing the batch")
-    void given_unknownFindingType_should_indexFullyMaskedValue() {
+    @DisplayName("The indexed value is the stored displayed value, not a mask computed again")
+    void given_storedDisplayedValue_should_indexItAsIs() {
+      // Arrange
+      String findingId = persistFindingInSimulation(FindingFixture.createDefaultTextFinding());
+      String storedDisplay = "value as stored in finding_value_display";
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_value_display = :display WHERE finding_id = :id")
+          .setParameter("display", storedDisplay)
+          .setParameter("id", findingId)
+          .executeUpdate();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo(storedDisplay);
+      assertThat(indexed.getBase_representative()).isEqualTo(storedDisplay);
+    }
+
+    @Test
+    @DisplayName(
+        "A row without a displayed value is masked from the cleartext, never indexed as is")
+    void given_credentialsWithoutDisplayedValue_should_indexMaskedValue() {
+      // Arrange
+      String findingId =
+          persistFindingInSimulation(FindingFixture.createFindingCredentialsWithDistinctPassword());
+      // What a pod of the previous version writes during a rolling deploy
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_value_display = NULL WHERE finding_id = :id")
+          .setParameter("id", findingId)
+          .executeUpdate();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo("admin:mo******");
+      assertThat(indexed.getBase_representative()).isEqualTo("admin:mo******");
+    }
+
+    @Test
+    @DisplayName(
+        "A row without a displayed value and with a type this version does not know is masked"
+            + " whole, without failing the batch")
+    void given_unknownFindingTypeWithoutDisplayedValue_should_indexFullyMaskedValue() {
       // Arrange
       Finding finding = FindingFixture.createDefaultTextFinding();
       String findingId = persistFindingInSimulation(finding);
       String knownFindingId =
           persistFindingInSimulation(FindingFixture.createDefaultCveFindingWithRandomTitle());
-      // What a newer instance could have written: the enum cannot carry it through JPA
+      // The enum cannot carry an unknown type through JPA, and the column is left empty
       entityManager
-          .createNativeQuery("UPDATE findings SET finding_type = :type WHERE finding_id = :id")
+          .createNativeQuery(
+              "UPDATE findings SET finding_type = :type, finding_value_display = NULL"
+                  + " WHERE finding_id = :id")
           .setParameter("type", "SomeFutureSecretType")
           .setParameter("id", findingId)
           .executeUpdate();
