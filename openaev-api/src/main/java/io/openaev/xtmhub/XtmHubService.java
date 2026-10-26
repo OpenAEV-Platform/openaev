@@ -9,8 +9,10 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.rest.exception.TenantWriteScopeException;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.LicenseUtils;
@@ -19,6 +21,7 @@ import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +49,7 @@ public class XtmHubService {
   private final TenantRepository tenantRepository;
   private final TenantWriteScopeResolver tenantWriteScopeResolver;
   private final TenantScopedTransaction tenantTx;
+  private final PreviewFeatureService previewFeatureService;
 
   public Optional<TenantXtmHubRegistration> getRegistration(TxCtx ctx) {
     return tenantXtmHubRegistrationRepository.findByTenantId(
@@ -180,6 +184,57 @@ public class XtmHubService {
         });
 
     handleConnectivityLossNotification(settings, allCheckResults);
+  }
+
+  /**
+   * Consumes the news feed items XTM Hub provisioned for the platform, which is one call per run
+   * whatever the number of tenants. Registered tenants are tried in registration order until one
+   * token is accepted. The Hub removes the items it returns, so the caller must persist them.
+   *
+   * @return the items, or empty when the feature is off, no registered tenant has a valid token or
+   *     the Hub is unreachable
+   */
+  public Optional<ProvisionedNewsFeedItems> consumeProvisionedNewsFeedItems() {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED)) {
+      return Optional.empty();
+    }
+
+    List<TenantXtmHubRegistration> registrations =
+        tenantTx
+            .execute(
+                TxCtx.allTenants(),
+                () ->
+                    new ArrayList<>(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()))
+            .stream()
+            .filter(r -> r.getRegistrationStatus() == XtmHubRegistrationStatus.REGISTERED)
+            .sorted(
+                Comparator.comparing(
+                        TenantXtmHubRegistration::getRegistrationDate,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(r -> r.getTenant().getId()))
+            .toList();
+    if (registrations.isEmpty()) {
+      log.info("No tenant is registered on XTM Hub, the news feed items are not consumed");
+      return Optional.empty();
+    }
+
+    String platformId = platformSettingsService.findSettings().getPlatformId();
+    for (TenantXtmHubRegistration registration : registrations) {
+      switch (xtmHubClient.consumeProvisionedNewsFeedItems(registration.getToken(), platformId)) {
+        case NewsFeedFetchResult.Fetched fetched -> {
+          return Optional.of(fetched.payload());
+        }
+        case NewsFeedFetchResult.TokenRejected rejected ->
+            log.warn(
+                "XTM Hub rejected the registration token of tenant {}, trying the next tenant",
+                registration.getTenant().getId());
+        case NewsFeedFetchResult.Failed failed -> {
+          return Optional.empty();
+        }
+      }
+    }
+    log.error("XTM Hub rejected the registration token of every registered tenant");
+    return Optional.empty();
   }
 
   private TenantXtmHubRegistration findOrCreateRegistration(String tenantId) {

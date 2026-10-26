@@ -15,7 +15,9 @@ import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -47,6 +49,18 @@ public class XtmHubClient {
   private static final String PLATFORM_CONTRACT_UNKNOWN_FIELD_ERROR =
       "Field \"" + PLATFORM_CONTRACT_FIELD + "\" is not defined by type";
   private final AtomicBoolean isPlatformContractFallbackLogged = new AtomicBoolean(false);
+  private static final String CONSUME_NEWS_FEED_ITEMS_MUTATION =
+      "mutation ConsumeProvisionedNewsFeedItems { consumeProvisionedNewsFeedItems {"
+          + " news_feed_items { id title type tags metadata { key value } creation_date is_deleted }"
+          + " available_news_feed_types } }";
+  private static final String URL_PATH_METADATA_KEY = "url_path";
+  // What the Hub answers when the platform id and token headers do not match a registration.
+  private static final List<String> TOKEN_REJECTED_ERRORS =
+      List.of(
+          "Invalid token provided",
+          "Invalid platform token provided",
+          "PLATFORM_NOT_REGISTERED",
+          "INVALID_PLATFORM_ID");
 
   private record HubResponse(int code, String body) {}
 
@@ -68,6 +82,33 @@ public class XtmHubClient {
     } catch (Exception e) {
       log.error("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage(), e);
       return false;
+    }
+  }
+
+  /** Consumes the news feed items the Hub provisioned for this platform, which removes them. */
+  public NewsFeedFetchResult consumeProvisionedNewsFeedItems(String token, String platformId) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+      HttpPost httpPost = new HttpPost(this.graphqlEndpoint);
+      httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
+      httpPost.addHeader(ACCEPT, APPLICATION_JSON_VALUE);
+      httpPost.addHeader(XTMHUB_PLATFORM_TOKEN_HEADER, token);
+      httpPost.addHeader(XTMHUB_PLATFORM_ID_HEADER, platformId);
+      JsonObject body = new JsonObject();
+      body.addProperty("query", CONSUME_NEWS_FEED_ITEMS_MUTATION);
+      httpPost.setEntity(new StringEntity(body.toString()));
+      HubResponse response =
+          httpClient.execute(
+              httpPost,
+              httpResponse ->
+                  new HubResponse(
+                      httpResponse.getCode(),
+                      httpResponse.getEntity() == null
+                          ? ""
+                          : EntityUtils.toString(httpResponse.getEntity(), "UTF-8")));
+      return parseNewsFeedResponse(response);
+    } catch (Exception e) {
+      log.error("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage(), e);
+      return new NewsFeedFetchResult.Failed();
     }
   }
 
@@ -405,6 +446,71 @@ public class XtmHubClient {
           e);
       return Map.of();
     }
+  }
+
+  private NewsFeedFetchResult parseNewsFeedResponse(HubResponse response) {
+    if (response.code() == HttpStatus.SC_UNAUTHORIZED
+        || response.code() == HttpStatus.SC_FORBIDDEN) {
+      return new NewsFeedFetchResult.TokenRejected();
+    }
+    if (response.code() != HttpStatus.SC_OK) {
+      log.warn("XTM Hub answered {} to the news feed items request", response.code());
+      return new NewsFeedFetchResult.Failed();
+    }
+    try {
+      JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+      if (json.has("errors")) {
+        return parseNewsFeedErrors(json.getAsJsonArray("errors"));
+      }
+      JsonObject data =
+          json.getAsJsonObject("data").getAsJsonObject("consumeProvisionedNewsFeedItems");
+      List<ProvisionedNewsFeedItem> items =
+          data.getAsJsonArray("news_feed_items").asList().stream()
+              .map(item -> toProvisionedNewsFeedItem(item.getAsJsonObject()))
+              .toList();
+      return new NewsFeedFetchResult.Fetched(
+          new ProvisionedNewsFeedItems(
+              items, toStrings(data.getAsJsonArray("available_news_feed_types"))));
+    } catch (Exception e) {
+      log.warn("Error occurred while parsing XTM Hub news feed items response: {}", e.getMessage());
+      return new NewsFeedFetchResult.Failed();
+    }
+  }
+
+  private NewsFeedFetchResult parseNewsFeedErrors(JsonArray errors) {
+    boolean tokenRejected =
+        errors.asList().stream()
+            .map(error -> error.getAsJsonObject().get("message").getAsString())
+            .anyMatch(message -> TOKEN_REJECTED_ERRORS.stream().anyMatch(message::contains));
+    if (tokenRejected) {
+      return new NewsFeedFetchResult.TokenRejected();
+    }
+    log.warn("XTM Hub answered errors to the news feed items request: {}", errors);
+    return new NewsFeedFetchResult.Failed();
+  }
+
+  private ProvisionedNewsFeedItem toProvisionedNewsFeedItem(JsonObject item) {
+    String urlPath =
+        item.getAsJsonArray("metadata").asList().stream()
+            .map(JsonElement::getAsJsonObject)
+            .filter(metadata -> URL_PATH_METADATA_KEY.equals(metadata.get("key").getAsString()))
+            .map(metadata -> metadata.get("value"))
+            .filter(value -> !value.isJsonNull())
+            .map(JsonElement::getAsString)
+            .findFirst()
+            .orElse(null);
+    return new ProvisionedNewsFeedItem(
+        item.get("id").getAsString(),
+        item.get("title").getAsString(),
+        item.get("type").getAsString(),
+        toStrings(item.getAsJsonArray("tags")),
+        urlPath,
+        Instant.parse(item.get("creation_date").getAsString()),
+        item.get("is_deleted").getAsBoolean());
+  }
+
+  private List<String> toStrings(JsonArray array) {
+    return array.asList().stream().map(JsonElement::getAsString).toList();
   }
 
   private boolean parseResponseAsSuccess(ClassicHttpResponse response) {

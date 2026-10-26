@@ -28,11 +28,14 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.ee.License;
 import io.openaev.ee.LicenseTypeEnum;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.xtmhub.config.XtmHubConfig;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -75,6 +78,7 @@ class XtmHubServiceTest {
   @Mock private TenantRepository tenantRepository;
   @Mock private TenantWriteScopeResolver tenantWriteScopeResolver;
   @Mock private TenantScopedTransaction tenantTx;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   private XtmHubConfig xtmHubConfig;
   private XtmHubService xtmHubService;
@@ -168,7 +172,8 @@ class XtmHubServiceTest {
             tenantXtmHubRegistrationRepository,
             tenantRepository,
             tenantWriteScopeResolver,
-            tenantTx);
+            tenantTx,
+            previewFeatureService);
   }
 
   @AfterEach
@@ -1520,6 +1525,281 @@ class XtmHubServiceTest {
 
       // Then
       verify(tenantXtmHubRegistrationRepository).deleteByTenantId(Tenant.DEFAULT_TENANT_UUID);
+    }
+  }
+
+  @Nested
+  @DisplayName("consumeProvisionedNewsFeedItems")
+  class ConsumeProvisionedNewsFeedItems {
+
+    private static final String PLATFORM_ID = "platform-123";
+    private static final String FIRST_TOKEN = "first-token";
+    private static final String SECOND_TOKEN = "second-token";
+    private static final String ITEM =
+        """
+        {"id":"hub-1","title":"New scenario","type":"RESOURCE_SCENARIO","tags":["phishing"],
+         "metadata":[{"key":"document_id","value":"doc-1"},{"key":"url_path","value":"/scenarios/1"}],
+         "creation_date":"2026-10-20T10:15:30.000Z","is_deleted":false}
+        """;
+    private static final String ITEMS_RESPONSE =
+        """
+        {"data":{"consumeProvisionedNewsFeedItems":{"news_feed_items":[%s],
+         "available_news_feed_types":["RESOURCE_SCENARIO"]}}}
+        """
+            .formatted(ITEM);
+
+    @BeforeEach
+    void enableFeatureAndSetPlatformId() {
+      lenient()
+          .when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED))
+          .thenReturn(true);
+      mockSettings.setPlatformId(PLATFORM_ID);
+      lenient().when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      // the client closes the HTTP client after each call, so a fallback needs a fresh one
+      lenient()
+          .when(httpClientFactory.httpClientCustom())
+          .thenAnswer(inv -> HttpClients.createDefault());
+    }
+
+    private TenantXtmHubRegistration registered(
+        String tenantId, String token, LocalDateTime registeredAt) {
+      TenantXtmHubRegistration registration = buildRegistration(tenantId, token, now);
+      registration.setRegistrationDate(registeredAt);
+      registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
+      return registration;
+    }
+
+    private void givenRegistrations(TenantXtmHubRegistration... registrations) {
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
+          .thenReturn(Arrays.asList(registrations));
+    }
+
+    private void givenHubAnswers(String token, int statusCode, String body) {
+      mockServer
+          .when(graphqlPostRequestMatcherWithPlatformAuth(token, PLATFORM_ID))
+          .respond(
+              response()
+                  .withStatusCode(statusCode)
+                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+                  .withBody(body));
+    }
+
+    private static String errorResponse(String message) {
+      return "{\"errors\":[{\"message\":\"%s\"}],\"data\":null}".formatted(message);
+    }
+
+    private List<String> tokensSentToHub() {
+      return Arrays.stream(
+              mockServer.retrieveRecordedRequests(
+                  request().withMethod("POST").withPath(GRAPHQL_PATH)))
+          .map(recorded -> recorded.getFirstHeader(HEADER_XTM_PLATFORM_TOKEN))
+          .toList();
+    }
+
+    @Test
+    @DisplayName("Given the feature flag is off, should not call the Hub")
+    void given_featureFlagOff_should_notCallHub() {
+      // Arrange
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED))
+          .thenReturn(false);
+
+      // Act
+      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isEmpty();
+      verifyNoRequestSentToHub();
+      verifyNoInteractions(tenantXtmHubRegistrationRepository);
+    }
+
+    @Test
+    @DisplayName("Given no registration, should not call the Hub")
+    void given_noRegistration_should_notCallHub() {
+      // Arrange
+      givenRegistrations();
+
+      // Act
+      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isEmpty();
+      verifyNoRequestSentToHub();
+    }
+
+    @Test
+    @DisplayName("Given a registration that lost connectivity, should not use its token")
+    void given_registrationLostConnectivity_should_notUseItsToken() {
+      // Arrange
+      TenantXtmHubRegistration lost = registered("tenant-a", FIRST_TOKEN, now.minusDays(10));
+      lost.setRegistrationStatus(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      givenRegistrations(lost, registered("tenant-b", SECOND_TOKEN, now.minusDays(1)));
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isPresent();
+      assertThat(tokensSentToHub()).containsExactly(SECOND_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Given several valid tokens, should call the Hub once with the oldest one")
+    void given_severalValidTokens_should_callHubOnceWithOldestRegistration() {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)),
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)));
+      givenHubAnswers(FIRST_TOKEN, 200, ITEMS_RESPONSE);
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isPresent();
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
+      JsonObject body = verifySingleGraphqlPostRequestAndGetBody(graphqlPostRequestMatcher());
+      assertThat(body.get("query").getAsString()).contains("consumeProvisionedNewsFeedItems");
+    }
+
+    @Test
+    @DisplayName("Given the Hub payload, should map the items and available types")
+    void given_hubPayload_should_mapItemsAndAvailableTypes() {
+      // Arrange
+      givenRegistrations(registered("tenant-a", FIRST_TOKEN, now.minusDays(10)));
+      givenHubAnswers(FIRST_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      ProvisionedNewsFeedItems result =
+          xtmHubService.consumeProvisionedNewsFeedItems().orElseThrow();
+
+      // Assert
+      assertThat(result.availableTypes()).containsExactly("RESOURCE_SCENARIO");
+      assertThat(result.items())
+          .containsExactly(
+              new ProvisionedNewsFeedItem(
+                  "hub-1",
+                  "New scenario",
+                  "RESOURCE_SCENARIO",
+                  List.of("phishing"),
+                  "/scenarios/1",
+                  Instant.parse("2026-10-20T10:15:30Z"),
+                  false));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = {
+          "Invalid token provided",
+          "Invalid platform token provided",
+          "PLATFORM_NOT_REGISTERED"
+        })
+    @DisplayName("Given a rejected token, should fall back to the next tenant")
+    void given_rejectedToken_should_fallBackToNextTenant(String rejection) {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)),
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)));
+      givenHubAnswers(FIRST_TOKEN, 200, errorResponse(rejection));
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isPresent();
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN, SECOND_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Given an HTTP 403, should fall back to the next tenant")
+    void given_http403_should_fallBackToNextTenant() {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)),
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)));
+      givenHubAnswers(FIRST_TOKEN, 403, "");
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isPresent();
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN, SECOND_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Given every token rejected, should try each tenant once and return nothing")
+    void given_everyTokenRejected_should_tryEachTenantOnceAndReturnNothing() {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)),
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)));
+      givenHubAnswers(FIRST_TOKEN, 200, errorResponse("Invalid token provided"));
+      givenHubAnswers(SECOND_TOKEN, 200, errorResponse("Invalid token provided"));
+
+      // Act
+      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isEmpty();
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN, SECOND_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Given a Hub server error, should stop after one attempt")
+    void given_hubServerError_should_stopAfterOneAttempt() {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)),
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)));
+      givenHubAnswers(FIRST_TOKEN, 500, "");
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isEmpty();
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Given an error unrelated to the token, should stop after one attempt")
+    void given_errorUnrelatedToToken_should_stopAfterOneAttempt() {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)),
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)));
+      givenHubAnswers(FIRST_TOKEN, 200, errorResponse("Something went wrong"));
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isEmpty();
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Given an unreadable Hub response, should stop after one attempt")
+    void given_unreadableHubResponse_should_stopAfterOneAttempt() {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)),
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)));
+      givenHubAnswers(FIRST_TOKEN, 200, "not json");
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isEmpty();
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
     }
   }
 }
