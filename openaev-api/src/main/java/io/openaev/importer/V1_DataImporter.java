@@ -2824,10 +2824,18 @@ public class V1_DataImporter implements Importer {
 
       // Import steps and conditions
       List<SkippedWorkflowStep> skippedSteps = new ArrayList<>();
+      // Original step id -> created step, also read by the standalone conditions below: a
+      // DEPEND_ON value or a step_from among them names an imported step too.
+      Map<String, Step> stepIdMap = new LinkedHashMap<>();
       if (workflowNode.has("workflow_steps")) {
         skippedSteps =
             importWorkflowSteps(
-                ctx, workflowNode.get("workflow_steps"), workflow, resolvedContracts, baseIds);
+                ctx,
+                workflowNode.get("workflow_steps"),
+                workflow,
+                resolvedContracts,
+                baseIds,
+                stepIdMap);
       }
       if (!skippedSteps.isEmpty()) {
         // Unresolvable steps are surfaced to the caller (importData -> ImportResult) so the API can
@@ -2843,7 +2851,7 @@ public class V1_DataImporter implements Importer {
             workflowNode.get("workflow_standalone_conditions"),
             workflow,
             null,
-            Map.of(),
+            stepIdMap,
             new LinkedHashMap<>());
       }
       return skippedSteps;
@@ -3219,9 +3227,9 @@ public class V1_DataImporter implements Importer {
       JsonNode stepsNode,
       Workflow workflow,
       Map<String, String> resolvedContracts,
-      Map<String, Base> baseIds) {
-    // Map from original step ID to new Step
-    Map<String, Step> stepIdMap = new LinkedHashMap<>();
+      Map<String, Base> baseIds,
+      Map<String, Step> stepIdMap) {
+    // stepIdMap: original step ID -> new Step, filled here and read by the caller afterwards
     // resolvedContracts is shared with importInjects to avoid creating duplicate payloads
     // when exercise_injects and workflow_steps reference the same missing injector contract
 
@@ -3470,6 +3478,38 @@ public class V1_DataImporter implements Importer {
   }
 
   /**
+   * The value an imported condition must carry.
+   *
+   * <p>A {@code DEPEND_ON} condition stores its prerequisite as a <b>step template id in {@code
+   * condition_value}</b>, not as a foreign key, and {@code
+   * ConditionService.evaluateDependOnConditions} resolves it against the steps of the run. The
+   * export holds the id the step had on the source instance, so copying it verbatim leaves an id
+   * that never matches: the dependent step is never promoted to READY. The value is translated to
+   * the id of the step created by this import, as {@code condition_step_from_id} is, and as {@code
+   * StepService.remapConditionValue} does for a copy.
+   *
+   * <p>When the awaited step is not part of the import (skipped as unresolvable, or absent from the
+   * file), the value is left unset and a warning logged: the dependent step stays blocked, which is
+   * the accepted outcome of a skipped step, and no id of the source instance is kept, since it may
+   * name a step of another workflow here. Every other condition type stores a plain comparison
+   * value and is copied unchanged.
+   */
+  private static String importedConditionValue(
+      ConditionType conditionType, String value, Map<String, Step> stepIdMap) {
+    if (conditionType != ConditionType.DEPEND_ON || value == null || value.isBlank()) {
+      return value;
+    }
+    Step awaited = stepIdMap.get(value);
+    if (awaited == null) {
+      log.warn(
+          "DEPEND_ON condition references step {} which is not part of the import: left unset",
+          value);
+      return null;
+    }
+    return awaited.getId();
+  }
+
+  /**
    * Imports a list of condition nodes, optionally linking them to a step.
    *
    * <p>Pass {@code step = null} for standalone conditions (not linked to any step).
@@ -3585,9 +3625,12 @@ public class V1_DataImporter implements Importer {
                 .type(conditionType)
                 .mappingType(conditionMappingType)
                 .value(
-                    condNode.has("condition_value") && !condNode.get("condition_value").isNull()
-                        ? condNode.get("condition_value").asText()
-                        : null)
+                    importedConditionValue(
+                        conditionType,
+                        condNode.has("condition_value") && !condNode.get("condition_value").isNull()
+                            ? condNode.get("condition_value").asText()
+                            : null,
+                        stepIdMap))
                 .name(
                     condNode.has("condition_name") && !condNode.get("condition_name").isNull()
                         ? condNode.get("condition_name").asText()

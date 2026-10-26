@@ -629,6 +629,192 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(step1.getId(), conds2.getFirst().getStepFrom().getId());
   }
 
+  // In import-scenario-with-workflow.json, step-0001 runs at most 3 times and step-0002 once: the
+  // limits tell the two imported steps apart.
+  private static final int FIRST_STEP_LIMIT = 3;
+  private static final int SECOND_STEP_LIMIT = 1;
+
+  private JsonNode workflowImport() throws Exception {
+    return new ObjectMapper()
+        .readTree(
+            Files.readAllBytes(
+                Paths.get("src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+  }
+
+  /**
+   * Turns {@code condition} into a root DEPEND_ON on {@code awaitedStepId}, as an export holds it.
+   */
+  private static void dependOn(ObjectNode condition, String awaitedStepId) {
+    condition.put("condition_type", ConditionType.DEPEND_ON.name());
+    condition.put("condition_value", awaitedStepId);
+    condition.putNull("condition_key");
+    condition.putArray("condition_key_types");
+    condition.putNull("condition_step_from_id");
+    condition.remove("condition_parent_id");
+    condition.put("condition_is_root", true);
+  }
+
+  private static ObjectNode stepCondition(JsonNode workflowImport, int step) {
+    return (ObjectNode)
+        workflowImport
+            .get("scenario_workflow")
+            .get("workflow_steps")
+            .get(step)
+            .get("step_conditions")
+            .get(0);
+  }
+
+  private Workflow importWorkflow(JsonNode workflowImport) {
+    this.importer.importData(
+        txCtx(),
+        workflowImport,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Scenario scenario =
+        scenarioRepository.findAll().stream()
+            .filter(s -> expectedName.equals(s.getName()))
+            .findFirst()
+            .orElseThrow();
+    return workflowRepository
+        .findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE)
+        .getFirst();
+  }
+
+  private Optional<Step> importedStep(Workflow workflow, int limitExecution) {
+    return stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId()).stream()
+        .filter(s -> s.getLimitExecution() == limitExecution)
+        .findFirst();
+  }
+
+  private Condition rootConditionOf(Step step) {
+    List<Condition> conditions = conditionRepository.findAllLinkedToStepId(step.getId());
+    assertEquals(1, conditions.size());
+    return conditions.getFirst();
+  }
+
+  @Test
+  @Transactional
+  void given_dependOnConditionOnAnImportedStep_when_importing_should_pointAtTheNewStep()
+      throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport = workflowImport();
+    dependOn(stepCondition(workflowImport, 1), "step-0001");
+
+    // -- Act --
+    Workflow workflow = importWorkflow(workflowImport);
+
+    // -- Assert --
+    Step awaited = importedStep(workflow, FIRST_STEP_LIMIT).orElseThrow();
+    Condition dependOn = rootConditionOf(importedStep(workflow, SECOND_STEP_LIMIT).orElseThrow());
+    assertEquals(ConditionType.DEPEND_ON, dependOn.getType());
+    assertEquals(awaited.getId(), dependOn.getValue());
+    // What the run resolves the value against: a step template of this very workflow.
+    Step named = stepRepository.findById(dependOn.getValue()).orElseThrow();
+    assertEquals(workflow.getId(), named.getWorkflow().getId());
+    assertNull(named.getStepTemplate()); // a template, not a step of a run
+  }
+
+  @Test
+  @Transactional
+  void given_dependOnConditionDeclaredBeforeItsStep_when_importing_should_pointAtTheNewStep()
+      throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport = workflowImport();
+    ObjectNode first = stepCondition(workflowImport, 0);
+    dependOn(first, "step-0002");
+    ((ArrayNode)
+            workflowImport
+                .get("scenario_workflow")
+                .get("workflow_steps")
+                .get(0)
+                .get("step_conditions"))
+        .removeAll()
+        .add(first);
+    stepCondition(workflowImport, 1).putNull("condition_step_from_id");
+
+    // -- Act --
+    Workflow workflow = importWorkflow(workflowImport);
+
+    // -- Assert --
+    Step awaited = importedStep(workflow, SECOND_STEP_LIMIT).orElseThrow();
+    Condition dependOn = rootConditionOf(importedStep(workflow, FIRST_STEP_LIMIT).orElseThrow());
+    assertEquals(awaited.getId(), dependOn.getValue());
+  }
+
+  @Test
+  @Transactional
+  void given_dependOnConditionOnAStepNotInTheImport_when_importing_should_leaveItUnset()
+      throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport = workflowImport();
+    dependOn(stepCondition(workflowImport, 1), "step-not-in-the-import");
+
+    // -- Act --
+    Workflow workflow = importWorkflow(workflowImport);
+
+    // -- Assert --
+    Condition dependOn = rootConditionOf(importedStep(workflow, SECOND_STEP_LIMIT).orElseThrow());
+    assertEquals(ConditionType.DEPEND_ON, dependOn.getType());
+    assertNull(dependOn.getValue());
+  }
+
+  @Test
+  @Transactional
+  void given_dependOnConditionOnASkippedStep_when_importing_should_leaveItUnset() throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport = workflowImport();
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode stepData = om.createObjectNode();
+    stepData.put("inject_title", "unresolvable step");
+    stepData.set(
+        "inject_injector_contract",
+        om.createObjectNode().put("injector_contract_id", "no-such-contract"));
+    ((ObjectNode) workflowImport.get("scenario_workflow").get("workflow_steps").get(0))
+        .set("step_data", stepData);
+    dependOn(stepCondition(workflowImport, 1), "step-0001");
+
+    // -- Act --
+    Workflow workflow = importWorkflow(workflowImport);
+
+    // -- Assert --
+    assertTrue(importedStep(workflow, FIRST_STEP_LIMIT).isEmpty()); // skipped as unresolvable
+    Condition dependOn = rootConditionOf(importedStep(workflow, SECOND_STEP_LIMIT).orElseThrow());
+    assertNull(dependOn.getValue());
+  }
+
+  @Test
+  @Transactional
+  void given_standaloneDependOnCondition_when_importing_should_pointAtTheNewStep()
+      throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport = workflowImport();
+    ObjectNode standalone = new ObjectMapper().createObjectNode();
+    standalone.put("condition_id", "cond-standalone");
+    standalone.put("condition_name", "standalone");
+    dependOn(standalone, "step-0001");
+    ((ObjectNode) workflowImport.get("scenario_workflow"))
+        .putArray("workflow_standalone_conditions")
+        .add(standalone);
+
+    // -- Act --
+    Workflow workflow = importWorkflow(workflowImport);
+
+    // -- Assert --
+    Step awaited = importedStep(workflow, FIRST_STEP_LIMIT).orElseThrow();
+    Condition imported =
+        conditionRepository.findAll().stream()
+            .filter(c -> workflow.getId().equals(c.getWorkflowId()))
+            .filter(c -> "standalone".equals(c.getName()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(awaited.getId(), imported.getValue());
+  }
+
   @Test
   @Transactional
   void given_scenarioWithWorkflowContainingAssetScopeRules_should_importOnlyNonAssetScopeRules()

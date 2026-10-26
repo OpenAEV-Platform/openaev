@@ -152,32 +152,6 @@ class TenantStatementInspectorTest {
   }
 
   @Test
-  @DisplayName("the AI defense collector query passes with collectors active (regression #7007)")
-  void aiDefenseExpectationsQueryPassesWithCollectorsActive() throws Exception {
-    // #6751 activated collectors, which pulled findAgentlessExpectationsNotFilledForSource into
-    // rewriting; its jsonb_array_elements predicate was refused and the AI expectations endpoint
-    // returned 500 TENANT_FILTERING_REFUSED to every AI defense collector. Pin the real production
-    // SQL against an inspector with collectors active (dual-scope, tenant_id is nullable).
-    String sql =
-        io.openaev.database.repository.InjectExpectationRepository.class
-            .getMethod(
-                "findAgentlessExpectationsNotFilledForSource",
-                String.class,
-                String.class,
-                String.class,
-                int.class)
-            .getAnnotation(org.springframework.data.jpa.repository.Query.class)
-            .value();
-    TenantStatementInspector collectorsActive =
-        new TenantStatementInspector(new TenantTables(Set.of(), Set.of("collectors")));
-    String out = collectorsActive.inspect(sql).replaceAll("\\s+", " ").trim();
-    // The collectors read source is filtered (platform rows allowed: dual-scope read)...
-    assertTrue(out.contains("can_access_tenant(c.tenant_id, true)"), out);
-    // ...and the result predicate survives the rewrite instead of being refused.
-    assertTrue(out.contains("jsonb_array_elements"), out);
-  }
-
-  @Test
   @DisplayName("the expectation indexing query has its collectors joins tenant-filtered")
   void expectationIndexingQueryCollectorsJoinsAreFilteredWithCollectorsActive() throws Exception {
     // #6751 activated collectors, which pulled findForIndexing into rewriting: both collectors
@@ -199,8 +173,6 @@ class TenantStatementInspectorTest {
     assertTrue(out.contains("can_access_tenant(c.tenant_id)"), out);
     // ...and the agent_security_platforms join (agent-level children's results) are both filtered.
     assertTrue(out.contains("can_access_tenant(child_c.tenant_id)"), out);
-    // The lateral jsonb unnests survive the rewrite instead of being refused.
-    assertTrue(out.contains("jsonb_array_elements"), out);
   }
 
   @Test

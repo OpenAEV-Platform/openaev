@@ -6,6 +6,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.utils.ExpectationUtils;
@@ -18,16 +19,21 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 
 /** Shared behavior for table-top style expectations (manual/challenge/article). */
-@RequiredArgsConstructor
 public abstract class AbstractTableTopBehavior
-    implements ExpectationBehavior<TableTopInjectExpectation> {
+    extends ExpectationBehavior<TableTopInjectExpectation> {
 
   @Resource protected ExpectationPropertiesConfig expectationPropertiesConfig;
 
   protected final InjectExpectationRepository injectExpectationRepository;
+
+  protected AbstractTableTopBehavior(
+      InjectExpectationRepository injectExpectationRepository,
+      InjectExpectationResultRepository injectExpectationResultRepository) {
+    super(injectExpectationResultRepository);
+    this.injectExpectationRepository = injectExpectationRepository;
+  }
 
   /** Returns the default result entry for player-level expectations. */
   protected abstract InjectExpectationResult buildDefaultPlayerResult(Double expectedScore);
@@ -218,7 +224,7 @@ public abstract class AbstractTableTopBehavior
   @Override
   public void addResultToLeaf(
       BaseInjectExpectation leaf, ExpectationVerdict verdict, String resultLabel) {
-    leaf.setResults(new ArrayList<>());
+    leaf.clearResults();
     addResult(leaf, verdict, resultLabel);
   }
 
@@ -228,8 +234,9 @@ public abstract class AbstractTableTopBehavior
    * deleting it clears the leaf.
    */
   @Override
-  public void removeResultFromLeaf(BaseInjectExpectation leaf, String sourceId) {
-    leaf.setResults(new ArrayList<>());
+  public List<InjectExpectationResult> removeResultFromLeaf(
+      BaseInjectExpectation leaf, String sourceId) {
+    return leaf.clearResults();
   }
 
   /**

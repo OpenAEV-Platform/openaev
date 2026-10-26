@@ -4,6 +4,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.service.InjectExpectationUtils;
 import org.springframework.stereotype.Component;
@@ -12,8 +13,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class ManualBehavior extends AbstractTableTopBehavior {
 
-  public ManualBehavior(InjectExpectationRepository injectExpectationRepository) {
-    super(injectExpectationRepository);
+  public ManualBehavior(
+      InjectExpectationRepository injectExpectationRepository,
+      InjectExpectationResultRepository injectExpectationResultRepository) {
+    super(injectExpectationRepository, injectExpectationResultRepository);
   }
 
   @Override

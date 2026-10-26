@@ -46,7 +46,7 @@ const InjectExpectationAggregatedAgentsView = ({ inject, injectExpectation, expe
         if (!key) return;
         (map[key] ??= []).push({
           agentName,
-          result: result.result,
+          result: result.result || '',
           score: result.score,
           date: result.date,
         });

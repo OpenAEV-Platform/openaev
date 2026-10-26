@@ -35,7 +35,7 @@ public class ChallengeExpectationUtils {
         .result(NO_RESULT)
         .score(NO_SCORE)
         .sourceAssetId(NO_ASSET)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 }

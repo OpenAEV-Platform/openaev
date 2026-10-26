@@ -8,6 +8,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationSignature;
@@ -26,18 +27,27 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import lombok.RequiredArgsConstructor;
 
 /** Shared behavior for technical expectations (detection/prevention/vulnerability). */
-@RequiredArgsConstructor
 public abstract class AbstractTechnicalBehavior
-    implements ExpectationBehavior<TechnicalInjectExpectation> {
+    extends ExpectationBehavior<TechnicalInjectExpectation> {
 
   @Resource protected ExpectationPropertiesConfig expectationPropertiesConfig;
 
   protected final CollectorService collectorService;
   protected final InjectService injectService;
   protected final InjectExpectationRepository injectExpectationRepository;
+
+  protected AbstractTechnicalBehavior(
+      CollectorService collectorService,
+      InjectService injectService,
+      InjectExpectationRepository injectExpectationRepository,
+      InjectExpectationResultRepository injectExpectationResultRepository) {
+    super(injectExpectationResultRepository);
+    this.collectorService = collectorService;
+    this.injectService = injectService;
+    this.injectExpectationRepository = injectExpectationRepository;
+  }
 
   /** Builds the concrete technical expectation instance handled by this behavior. */
   protected abstract TechnicalInjectExpectation newTechnicalExpectation();

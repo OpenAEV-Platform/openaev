@@ -912,10 +912,10 @@ public class AttackPathExecutionIngestionService {
               row.setSourceName(result.getSourceName());
               row.setSourceAssetId(result.getSourceAssetId());
               row.setResultStatusLabel(statusLabel);
-              row.setDetectionTime(result.getDate());
+              row.setDetectionTime(result.getDate().toString());
               row.setAlerts(buildAlertsNode(expectation.getId(), result));
               row.setResultScore(result.getScore());
-              row.setResultDate(result.getDate());
+              row.setResultDate(result.getDate().toString());
               rows.add(row);
             }
           }

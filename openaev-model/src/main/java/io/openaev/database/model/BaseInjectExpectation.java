@@ -6,12 +6,12 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -21,10 +21,7 @@ import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.*;
 
 @Getter
 @Entity(name = "InjectExpectation")
@@ -47,11 +44,22 @@ public class BaseInjectExpectation implements Base, Cloneable {
   public BaseInjectExpectation clone() {
     try {
       BaseInjectExpectation clone = (BaseInjectExpectation) super.clone();
-      clone.results = this.results != null ? new ArrayList<>(this.results) : new ArrayList<>();
+      clone.setId(null);
+      clone.replaceResultsCollection();
+      clone.setResults(cloneResults());
       return clone;
     } catch (CloneNotSupportedException e) {
       throw new AssertionError("Clone should be supported for Cloneable objects", e);
     }
+  }
+
+  private void replaceResultsCollection() {
+    this.results = new ArrayList<>();
+  }
+
+  private List<InjectExpectationResult> cloneResults() {
+    if (this.results == null) return new ArrayList<>();
+    return new ArrayList<>(this.results.stream().map(InjectExpectationResult::clone).toList());
   }
 
   public enum EXPECTATION_TYPE {
@@ -124,11 +132,46 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @JsonProperty("inject_expectation_description")
   private String description;
 
-  @Setter
-  @Type(JsonType.class)
-  @Column(name = "inject_expectation_results")
+  @OneToMany(
+      mappedBy = "injectExpectation",
+      cascade = CascadeType.ALL,
+      fetch = FetchType.EAGER,
+      orphanRemoval = true)
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("inject_expectation_results")
   private List<InjectExpectationResult> results = new ArrayList<>();
+
+  public void addResult(InjectExpectationResult result) {
+    result.setInjectExpectation(this);
+    this.results.add(result);
+    this.setUpdatedAt(now());
+  }
+
+  public void setResults(List<InjectExpectationResult> results) {
+    this.clearResults();
+    if (results == null) {
+      return;
+    }
+    for (InjectExpectationResult result : results) {
+      result.setInjectExpectation(this);
+    }
+    this.results.addAll(results);
+  }
+
+  public List<InjectExpectationResult> clearResults() {
+    List<InjectExpectationResult> toRemove = new ArrayList<>(this.results);
+    this.results.clear();
+    this.setUpdatedAt(now());
+    return toRemove;
+  }
+
+  public List<InjectExpectationResult> clearResultsFromSource(String sourceId) {
+    List<InjectExpectationResult> toRemove =
+        this.results.stream().filter(result -> sourceId.equals(result.getSourceId())).toList();
+    this.results.removeAll(toRemove);
+    this.setUpdatedAt(now());
+    return toRemove;
+  }
 
   @Setter
   @Column(name = "inject_expectation_score")

@@ -570,6 +570,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test collector")
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -579,6 +580,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceAssetId("security platform asset id")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         List<InjectExpectationResult> resultSet2 =
@@ -591,6 +593,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -600,6 +603,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         EndpointComposer.Composer endpointWrapper =
@@ -657,6 +661,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -666,6 +671,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -675,10 +681,16 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         assertThatJson(response)
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths(
+                "[*].inject_expectation_results[*].date",
+                "[*].inject_expectation_results[*].inject_expectation_result_created_at",
+                "[*].inject_expectation_results[*].inject_expectation_result_updated_at",
+                "[*].inject_expectation_results[*].inject_expectation_id")
             .node("[0].inject_expectation_results")
             .isEqualTo(mapper.writeValueAsString(expectedSuperset));
         assertThatJson(response).node("[0].inject_expectation_score").isEqualTo("100.0");
@@ -699,6 +711,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -708,6 +721,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         List<InjectExpectationResult> detectionResultSet2 =
@@ -720,6 +734,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -729,6 +744,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         BaseInjectExpectation detection1 =
@@ -756,6 +772,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -765,6 +782,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         List<InjectExpectationResult> preventionResultSet2 =
@@ -777,6 +795,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -786,6 +805,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         BaseInjectExpectation prevention1 =
@@ -854,6 +874,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -863,6 +884,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -872,6 +894,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         List<InjectExpectationResult> expectedPreventionSuperset =
@@ -884,6 +907,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -893,6 +917,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -902,6 +927,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         List<List<Object>> detectionResultsByType =
@@ -911,6 +937,11 @@ public class AtomicTestingApiTest extends IntegrationTest {
         assertFalse(detectionResultsByType.isEmpty());
         assertThatJson(mapper.writeValueAsString(detectionResultsByType.getFirst()))
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths(
+                "[*].date",
+                "[*].inject_expectation_result_created_at",
+                "[*].inject_expectation_result_updated_at",
+                "[*].inject_expectation_id")
             .isEqualTo(mapper.writeValueAsString(expectedDetectionSuperset));
 
         List<Double> detectionScoresByType =
@@ -927,6 +958,11 @@ public class AtomicTestingApiTest extends IntegrationTest {
         assertFalse(preventionResultsByType.isEmpty());
         assertThatJson(mapper.writeValueAsString(preventionResultsByType.getFirst()))
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths(
+                "[*].date",
+                "[*].inject_expectation_result_created_at",
+                "[*].inject_expectation_result_updated_at",
+                "[*].inject_expectation_id")
             .isEqualTo(mapper.writeValueAsString(expectedPreventionSuperset));
       }
 
@@ -944,6 +980,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test collector")
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -952,6 +989,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test SIEM")
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         BaseInjectExpectation detection1 =
@@ -971,6 +1009,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test collector")
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -979,6 +1018,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test SIEM")
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         BaseInjectExpectation prevention1 =
@@ -1040,6 +1080,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test collector")
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -1048,10 +1089,16 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test SIEM")
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         assertThatJson(responseDetection)
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths(
+                "[*].inject_expectation_results[*].date",
+                "[*].inject_expectation_results[*].inject_expectation_result_created_at",
+                "[*].inject_expectation_results[*].inject_expectation_result_updated_at",
+                "[*].inject_expectation_results[*].inject_expectation_id")
             .node("[0].inject_expectation_results")
             .isEqualTo(mapper.writeValueAsString(expectedDetectionSuperset));
         assertThatJson(responseDetection)
@@ -1084,6 +1131,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test collector")
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -1092,10 +1140,16 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test SIEM")
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         assertThatJson(responsePrevention)
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths(
+                "[*].inject_expectation_results[*].date",
+                "[*].inject_expectation_results[*].inject_expectation_result_created_at",
+                "[*].inject_expectation_results[*].inject_expectation_result_updated_at",
+                "[*].inject_expectation_results[*].inject_expectation_id")
             .node("[0].inject_expectation_results")
             .isEqualTo(mapper.writeValueAsString(expectedPreventionSuperset));
         assertThatJson(responsePrevention)
