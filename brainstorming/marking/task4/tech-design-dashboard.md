@@ -585,8 +585,9 @@ sequenceDiagram
 > **Same as the REST API, tracked in Task 4** ([`implementation-plan.md`](./implementation-plan.md)):
 > - An asset-group expectation (`base_asset_group_side`, no asset) rolls up every member, RED
 >   included: Chunk 3b.
-> - An expectation's results (`inject_expectation_results`) still name a hidden security platform,
->   and an observation's platform types (`EDR`, `SIEM`) count its contribution: Chunk 15.
+> - An expectation's results still name a hidden security platform in the REST API (dashboards no
+>   longer index them since #5150), and an observation's platform types (`EDR`, `SIEM`) count its
+>   contribution: Chunk 15.
 
 ## 4.4 The grant dimension in detail: generic, not scenario-only
 

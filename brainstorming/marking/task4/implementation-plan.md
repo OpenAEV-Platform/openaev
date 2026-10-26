@@ -662,21 +662,20 @@ expectation of `GREEN`. A `TLP:GREEN` user opens the atomic testing / simulation
 | an attack observation's platform types (`EDR`, `SIEM`) | count `EDR-RED`'s contribution | to decide |
 
 Dashboards already drop `EDR-RED` from the platform id fields (`base_security_platforms_side`,
-`attack_observation_platforms_succeeded`, dashboard step 7d), but the indexed results JSON has the same gap
-as the REST API.
+`attack_observation_platforms_succeeded`, dashboard step 7d), and no longer index the results JSON (#5150):
+the gap is in the REST API, plus the platform types of an observation.
 
 Questions to settle first:
 - **Identity or outcome?** Hide only the platform's identity, or also its result (score, verdict, types)?
   Same question as Chunk 3b.
 - **Strip or anonymise?** Remove the hidden sources from the results at read time, or show them as "a
   security platform".
-- **Where:** every reader of the results JSON (expectation outputs, the results UI, the indexed
-  `inject_expectation_results`), and whether `sourceAssetId` can also name a hidden asset.
+- **Where:** every reader of the results (expectation outputs, the results UI and the expectation
+  results table of #5150), and whether `sourceAssetId` can also name a hidden asset.
 
 ### Steps
 
-- **15.1** Failing tests first: the use case above through the REST API (expectation results) and a
-  dashboard list of expectations.
+- **15.1** Failing tests first: the use case above through the REST API (expectation results).
 - **15.2** Inventory of the results JSON readers and the fields naming a source.
-- **15.3** Implement the chosen option, REST and index alike.
+- **15.3** Implement the chosen option.
 - **15.4** Check the admin still sees every source and the true verdict.
