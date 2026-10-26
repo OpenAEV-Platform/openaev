@@ -166,7 +166,7 @@ and make it executable. Then:
    value. `--execute` checks every issue with a silent dry run before writing anything.
 2. Replace the example issues at the bottom with one `epic` call, then for each user story one `story "USn …"`
    call followed by its `task "USn.m …"` calls. A task goes under the story declared just before it, and the
-   script stops when a task does not follow its own story.
+   script stops when a task does not follow its own story. Keep the block after *End of the issues*.
 3. Keep the bodies in quoted heredocs (`<<'BODY'`): backticks, `$` and Mermaid arrows stay verbatim.
 4. Save the script with LF line endings, also on Windows: bash cannot run a CRLF copy, and the repository's
    `eol=lf` rule only applies once the file is committed.
@@ -179,7 +179,7 @@ Do not touch the helpers: they hold the project, issue type and field settings, 
 | Labels | epic: `feature`, `epic` — others: `feature` — plus `feature-flag` on every issue when `FEATURE_FLAG=true` (existing labels, never created or recoloured) |
 | Issue type | `Feature` |
 | Project | #2 *OpenAEV - Product Backlog* |
-| Status | *Tech refinement* |
+| Status | *Ready for sizing*, then *Ready for dev* once **Feature Size** is set (see *Re-running*) |
 | VERTICALES | The vertical chosen in Step 1, no default |
 
 ## Step 6 — Dry run and hand over
@@ -226,8 +226,15 @@ When the user stories, tech design or plan change, update `task-splitting.md` an
 - renamed task → a **new** issue; rename the existing one on GitHub first so the script finds it
 - removed task → nothing happens; close the issue by hand
 
-Status and VERTICALES are only set when empty: a re-run fills in a field an interrupted run left blank, and
-never moves an issue back to *Tech refinement*.
+VERTICALES is only set when empty: a re-run fills in a value an interrupted run left blank, and never
+overwrites one the team has changed.
+
+Status follows **Feature Size**: *Ready for dev* when it is set, *Ready for sizing* otherwise. The script
+only replaces an empty status, the *Todo* the project's *Item added to project* automation sets, or
+*Ready for sizing* (so a re-run promotes an issue once it is sized). Any other status was set by the team
+and is never touched. That automation runs a few seconds after an issue enters the project and can write
+*Todo* over the status the script just set, so `--execute` waits and checks the new issues again at the
+end. A re-run fixes any issue still left on *Todo*.
 
 ## Boundaries
 

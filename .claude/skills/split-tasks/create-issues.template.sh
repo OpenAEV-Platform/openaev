@@ -10,9 +10,10 @@
 #   ./create-issues.sh --execute    # creates or updates the issues on GitHub
 #
 # Re-runnable: an issue is matched by its exact title and updated in place.
-# Sub-issue links are only added when missing, and project fields are only set
-# when empty: a re-run completes an interrupted run, and never resets a status
-# the team has moved since.
+# Sub-issue links are only added when missing, and VERTICALES only set when
+# empty. Status follows the size (Ready for sizing, then Ready for dev once
+# Feature Size is set) but only replaces an empty status, Todo or Ready for
+# sizing: a re-run never resets a status the team has moved since.
 #
 # Prerequisites:
 #   - gh CLI, authenticated with the project scope: gh auth refresh -s project
@@ -38,7 +39,10 @@ OWNER="OpenAEV-Platform"
 REPO_NAME="openaev"
 REPO="${OWNER}/${REPO_NAME}"
 PROJECT_NUMBER="2" # OpenAEV - Product Backlog
-PROJECT_STATUS="Tech refinement"
+STATUS_UNSIZED="Ready for sizing" # Status while Feature Size is empty
+STATUS_SIZED="Ready for dev"      # Status once Feature Size is set
+STATUS_AUTOMATION="Todo"          # Status the project's "Item added to project" automation sets
+SIZE_FIELD="Feature Size"
 ISSUE_TYPE="Feature"
 EPIC_LABELS="feature,epic"
 TASK_LABELS="feature"
@@ -122,6 +126,11 @@ find_issue_number() {
     --json number,title | jq -r --arg t "$1" 'map(select(.title == $t)) | first | .number // empty'
 }
 
+# Reads the project JSON on stdin, prints the id of the named Status option.
+status_option_id() {
+  jq -r --arg o "$1" '.data.organization.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == $o) | .id'
+}
+
 # Resolves once the ids of the issue type and of the project fields.
 resolve_ids() {
   ISSUE_TYPE_ID="$(gh api graphql -F owner="$OWNER" -F repo="$REPO_NAME" -f query='
@@ -143,14 +152,20 @@ resolve_ids() {
     }')"
   PROJECT_ID="$(jq -r '.data.organization.projectV2.id' <<<"$project")"
   STATUS_FIELD_ID="$(jq -r '.data.organization.projectV2.fields.nodes[] | select(.name == "Status") | .id' <<<"$project")"
-  STATUS_OPTION_ID="$(jq -r --arg o "$PROJECT_STATUS" '.data.organization.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == $o) | .id' <<<"$project")"
+  UNSIZED_OPTION_ID="$(status_option_id "$STATUS_UNSIZED" <<<"$project")"
+  SIZED_OPTION_ID="$(status_option_id "$STATUS_SIZED" <<<"$project")"
+  AUTOMATION_OPTION_ID="$(status_option_id "$STATUS_AUTOMATION" <<<"$project")"
+  SIZE_FIELD_ID="$(jq -r --arg f "$SIZE_FIELD" '.data.organization.projectV2.fields.nodes[] | select(.name == $f) | .id' <<<"$project")"
   VERTICALE_FIELD_ID="$(jq -r '.data.organization.projectV2.fields.nodes[] | select(.name == "VERTICALES") | .id' <<<"$project")"
   VERTICALE_OPTION_ID="$(jq -r --arg o "$PROJECT_VERTICALE" '.data.organization.projectV2.fields.nodes[] | select(.name == "VERTICALES") | .options[] | select(.name == $o) | .id' <<<"$project")"
 
   local missing=""
   [[ -n "$ISSUE_TYPE_ID" ]] || missing+=" issue-type:'$ISSUE_TYPE'"
   [[ -n "$PROJECT_ID" && "$PROJECT_ID" != "null" ]] || missing+=" project:#$PROJECT_NUMBER"
-  [[ -n "$STATUS_OPTION_ID" ]] || missing+=" status:'$PROJECT_STATUS'"
+  [[ -n "$UNSIZED_OPTION_ID" ]] || missing+=" status:'$STATUS_UNSIZED'"
+  [[ -n "$SIZED_OPTION_ID" ]] || missing+=" status:'$STATUS_SIZED'"
+  [[ -n "$AUTOMATION_OPTION_ID" ]] || missing+=" status:'$STATUS_AUTOMATION'"
+  [[ -n "$SIZE_FIELD_ID" ]] || missing+=" field:'$SIZE_FIELD'"
   [[ -n "$VERTICALE_OPTION_ID" ]] || missing+=" verticale:'$PROJECT_VERTICALE'"
   if [[ -n "$missing" ]]; then
     echo "Cannot resolve on GitHub:$missing" >&2
@@ -175,11 +190,14 @@ set_project_field() {
     }' >/dev/null
 }
 
-# Adds the issue to the project, then sets Status and VERTICALES only where they are empty:
-# a re-run repairs a run interrupted before the fields were set, and never overwrites a value
-# the team has changed since.
+# Items the project automation may still be writing to: issues created, or added to the project,
+# during this run. Space-separated (an empty array trips `set -u` in bash 3.2).
+RECENT_ITEMS=""
+
+# Adds the issue to the project, sets VERTICALES only when empty (a re-run repairs an interrupted run
+# and never overwrites a value the team changed), then applies the status rule.
 add_to_project() {
-  local issue_node_id="$1" item item_id
+  local issue_node_id="$1" issue_created="$2" item item_id
   item="$(gh api graphql -f issueId="$issue_node_id" -f query='
     query($issueId: ID!) {
       node(id: $issueId) {
@@ -188,9 +206,6 @@ add_to_project() {
             nodes {
               id
               project { id }
-              status: fieldValueByName(name: "Status") {
-                ... on ProjectV2ItemFieldSingleSelectValue { optionId }
-              }
               verticale: fieldValueByName(name: "VERTICALES") {
                 ... on ProjectV2ItemFieldSingleSelectValue { optionId }
               }
@@ -210,13 +225,46 @@ add_to_project() {
         addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) { item { id } }
       }')"
   fi
-
-  if [[ -z "$(jq -r '.status.optionId // empty' <<<"$item")" ]]; then
-    set_project_field "$item_id" "$STATUS_FIELD_ID" "$STATUS_OPTION_ID"
+  if [[ -z "$(jq -r '.id // empty' <<<"$item")" || "$issue_created" == true ]]; then
+    RECENT_ITEMS+=" $item_id"
   fi
+
   if [[ -z "$(jq -r '.verticale.optionId // empty' <<<"$item")" ]]; then
     set_project_field "$item_id" "$VERTICALE_FIELD_ID" "$VERTICALE_OPTION_ID"
   fi
+  sync_status "$item_id"
+}
+
+# Status follows the size: Ready for dev once Feature Size is set, Ready for sizing until then.
+# It only replaces an empty status, the Todo the project automation sets, or Ready for sizing (to
+# promote it once the issue is sized): a status the team has set is never touched.
+sync_status() {
+  local item_id="$1" item current target
+  item="$(gh api graphql -f itemId="$item_id" -f query='
+    query($itemId: ID!) {
+      node(id: $itemId) {
+        ... on ProjectV2Item {
+          status: fieldValueByName(name: "Status") {
+            ... on ProjectV2ItemFieldSingleSelectValue { optionId }
+          }
+          size: fieldValueByName(name: "'"$SIZE_FIELD"'") {
+            ... on ProjectV2ItemFieldSingleSelectValue { optionId }
+          }
+        }
+      }
+    }')"
+  current="$(jq -r '.data.node.status.optionId // empty' <<<"$item")"
+  target="$UNSIZED_OPTION_ID"
+  if [[ -n "$(jq -r '.data.node.size.optionId // empty' <<<"$item")" ]]; then
+    target="$SIZED_OPTION_ID"
+  fi
+  case "$current" in
+    "" | "$AUTOMATION_OPTION_ID" | "$UNSIZED_OPTION_ID")
+      if [[ "$current" != "$target" ]]; then
+        set_project_field "$item_id" "$STATUS_FIELD_ID" "$target"
+      fi
+      ;;
+  esac
 }
 
 # Makes the issue a sub-issue of the given parent (the epic for a story, the story for a task).
@@ -290,7 +338,7 @@ upsert_issue() {
   fi
   ISSUE_NODE_ID="$(gh issue view "$ISSUE_NUMBER" -R "$REPO" --json id -q .id)"
   set_issue_type "$ISSUE_NODE_ID"
-  add_to_project "$ISSUE_NODE_ID"
+  add_to_project "$ISSUE_NODE_ID" "$([[ -n "$existing" ]] && echo false || echo true)"
 }
 
 # Writes stdin to a body file, after the tech design link and an optional extra line.
@@ -394,6 +442,20 @@ sequenceDiagram
 - [ ] Unit tests cover <behaviour>
 - [ ] <how to check it works: endpoint, screen or scenario to try>
 BODY
+
+# =============================================================================
+# End of the issues: keep everything below.
+# =============================================================================
+
+# The project's "Item added to project" automation runs after an issue enters the project and can set
+# Todo over the status just set: give it time, then apply the status rule again.
+if ! $DRY_RUN && [[ -n "$RECENT_ITEMS" ]]; then
+  echo "Waiting for the project automation before checking the statuses again…"
+  sleep "${STATUS_SETTLE_SECONDS:-15}"
+  for item_id in $RECENT_ITEMS; do
+    sync_status "$item_id"
+  done
+fi
 
 echo ""
 if $DRY_RUN; then
