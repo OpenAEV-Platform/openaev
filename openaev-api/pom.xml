@@ -28,7 +28,7 @@
         <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
         <datasource-proxy.version>1.11.1</datasource-proxy.version>
         <!-- Server-side report rendering (headless Chromium). Apache-2.0. -->
-        <playwright.version>1.63.0</playwright.version>
+        <playwright.version>1.64.0</playwright.version>
         <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
         <azure-identity.version>1.18.7</azure-identity.version>
         <!-- GCP credential status validation: signs the service account RS256 JWT and exchanges
@@ -36,7 +36,7 @@
              HttpClient for the resource probe. BSD-3-Clause. -->
         <google-auth-library.version>1.54.0</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
-        <aws-sts.version>2.56.0</aws-sts.version>
+        <aws-sts.version>2.57.2</aws-sts.version>
     </properties>
 
     <profiles>
@@ -378,7 +378,7 @@
         <dependency>
             <groupId>net.javacrumbs.json-unit</groupId>
             <artifactId>json-unit-assertj</artifactId>
-            <version>6.3.0</version>
+            <version>6.4.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

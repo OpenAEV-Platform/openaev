@@ -140,7 +140,7 @@ class ArticleBehaviorTest extends IntegrationTest {
       assertThat(result.getSourceName()).isEqualTo(MEDIA_PRESSURE_SOURCE_NAME);
       assertThat(result.getResult()).isNull();
       assertThat(result.getScore()).isNull();
-      assertThat(result.getDate()).isNotBlank();
+      assertThat(result.getDate()).isNotNull();
 
       // Team-level expectation should have no results
       TableTopInjectExpectation teamExpectation =

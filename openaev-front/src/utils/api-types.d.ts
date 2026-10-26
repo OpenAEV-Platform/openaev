@@ -5246,7 +5246,6 @@ export interface EsInjectExpectation {
   inject_expectation_expiration_time?: number;
   inject_expectation_group?: boolean;
   inject_expectation_name?: string;
-  inject_expectation_results?: string;
   /** @format double */
   inject_expectation_score?: number;
   inject_expectation_status?: string;
@@ -6825,10 +6824,17 @@ export interface InjectExpectationOutput {
 }
 
 export interface InjectExpectationResult {
+  /** @format date-time */
   date?: string;
-  metadata?: Record<string, string>;
   /** @minLength 1 */
-  result: string;
+  inject_expectation_id: string;
+  /** @format date-time */
+  inject_expectation_result_created_at?: string;
+  /** @format date-time */
+  inject_expectation_result_updated_at?: string;
+  listened?: boolean;
+  metadata?: Record<string, string>;
+  result?: string;
   /** @format double */
   score?: number;
   sourceAssetId?: string;

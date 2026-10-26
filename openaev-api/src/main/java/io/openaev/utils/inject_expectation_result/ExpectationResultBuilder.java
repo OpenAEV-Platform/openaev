@@ -17,11 +17,9 @@ import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Utility class for building and managing InjectExpectationResult objects.
@@ -150,21 +148,6 @@ public final class ExpectationResultBuilder {
     return scores.isEmpty() ? null : Collections.max(scores);
   }
 
-  /**
-   * Ensures the expectation's results list is a mutable {@link java.util.ArrayList}. JSON
-   * deserialization can produce an immutable list and a persisted row can have a null column,
-   * either of which breaks a subsequent {@code add} (the null case NPEs inside the copy
-   * constructor).
-   */
-  private static void ensureMutableResults(@NotNull final BaseInjectExpectation expectation) {
-    List<InjectExpectationResult> current = expectation.getResults();
-    if (current == null) {
-      expectation.setResults(new java.util.ArrayList<>());
-    } else if (!(current instanceof java.util.ArrayList)) {
-      expectation.setResults(new java.util.ArrayList<>(current));
-    }
-  }
-
   // -- SETUP --
 
   private static InjectExpectationResult setUp(
@@ -178,7 +161,7 @@ public final class ExpectationResultBuilder {
         .sourceName(sourceName)
         .sourcePlatform(sourcePlatform)
         .sourceAssetId(sourceAssetId)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
@@ -203,8 +186,6 @@ public final class ExpectationResultBuilder {
       @NotNull final BaseInjectExpectation baseInjectExpectation,
       @NotNull final ExpectationVerdict verdict,
       @NotNull final String resultMsg) {
-    ensureMutableResults(baseInjectExpectation);
-
     InjectExpectationResult existing =
         findResultBySourceId(baseInjectExpectation.getResults(), verdict.sourceId());
     if (existing != null) {
@@ -223,11 +204,11 @@ public final class ExpectationResultBuilder {
               .sourcePlatform(verdict.sourcePlatform())
               .sourceAssetId(verdict.sourceAssetId())
               .result(resultMsg)
-              .date(now().toString())
+              .date(now())
               .score(verdict.score())
               .metadata(verdict.metadata())
               .build();
-      baseInjectExpectation.getResults().add(existing);
+      baseInjectExpectation.addResult(existing);
     }
   }
 
@@ -242,8 +223,6 @@ public final class ExpectationResultBuilder {
       @NotNull final SecurityPlatform securityPlatform) {
     final double score =
         InjectExpectationUtils.computeScore(baseInjectExpectation, input.getIsSuccess());
-
-    ensureMutableResults(baseInjectExpectation);
 
     InjectExpectationResult existing =
         findResultBySourceId(baseInjectExpectation.getResults(), securityPlatform.getId());
@@ -264,11 +243,11 @@ public final class ExpectationResultBuilder {
                       : null)
               .sourceAssetId(securityPlatform.getId())
               .result(input.getResult())
-              .date(Instant.now().toString())
+              .date(Instant.now())
               .score(score)
               .metadata(input.getMetadata())
               .build();
-      baseInjectExpectation.getResults().add(existing);
+      baseInjectExpectation.addResult(existing);
     }
   }
 
@@ -276,12 +255,9 @@ public final class ExpectationResultBuilder {
    * Removes the result of a source from the expectation. The score is left untouched: it is the
    * caller's job to recompute it.
    */
-  public static void removeResult(
+  public static List<InjectExpectationResult> removeResultsFromSource(
       @NotNull final BaseInjectExpectation expectation, @NotBlank final String sourceId) {
-    expectation.setResults(
-        expectation.getResults().stream()
-            .filter(r -> !sourceId.equals(r.getSourceId()))
-            .collect(Collectors.toCollection(ArrayList::new)));
+    return expectation.clearResultsFromSource(sourceId);
   }
 
   private static InjectExpectationResult buildForMediaPressure(
@@ -293,7 +269,7 @@ public final class ExpectationResultBuilder {
         .sourcePlatform(NOT_APPLICABLE)
         .sourceAssetId(NO_ASSET)
         .result(result)
-        .date(Instant.now().toString())
+        .date(Instant.now())
         .score(score)
         .build();
   }
@@ -334,7 +310,7 @@ public final class ExpectationResultBuilder {
         .sourceAssetId(NO_ASSET)
         .score(score)
         .result(result)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
@@ -356,7 +332,7 @@ public final class ExpectationResultBuilder {
         .sourceAssetId(NO_ASSET)
         .result(result)
         .score(score)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
@@ -370,7 +346,7 @@ public final class ExpectationResultBuilder {
         .sourceAssetId(NO_ASSET)
         .result(result)
         .score(score)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 

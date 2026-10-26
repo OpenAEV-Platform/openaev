@@ -28,6 +28,14 @@ public class InjectExpectationFixture {
     return expectation;
   }
 
+  public static BaseInjectExpectation createExpectationForTypeAndScoreAndExpectedScore(
+      BaseInjectExpectation.EXPECTATION_TYPE type, Double score, Double expectedScore) {
+    BaseInjectExpectation expectation = createExpectationForType(type);
+    expectation.setScore(score);
+    expectation.setExpectedScore(expectedScore);
+    return expectation;
+  }
+
   public static ChallengeInjectExpectation createChallengeInjectExpectation(
       Challenge challenge, User user, Exercise exercise) {
     ChallengeInjectExpectation expectation = new ChallengeInjectExpectation();

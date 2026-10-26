@@ -21,7 +21,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <minio.version>8.6.0</minio.version>
-        <minio.okhttp3.version>5.5.0</minio.okhttp3.version>
+        <minio.okhttp3.version>5.5.1</minio.okhttp3.version>
         <snappy-java.version>1.1.10.12</snappy-java.version>
         <gson.version>2.14.0</gson.version>
         <commons-io.version>2.22.0</commons-io.version>
@@ -50,7 +50,7 @@
         <amqp-client.version>5.35.0</amqp-client.version>
         <rabbit-amqp-client.version>${amqp-client.version}</rabbit-amqp-client.version>
         <micrometer.version>1.17.1</micrometer.version>
-        <micrometer-tracing.version>1.7.1</micrometer-tracing.version>
+        <micrometer-tracing.version>1.7.2</micrometer-tracing.version>
         <freemarker.version>2.3.35</freemarker.version>
         <postgresql.version>42.7.14</postgresql.version>
     </properties>

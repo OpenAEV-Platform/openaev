@@ -35,10 +35,8 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -491,15 +489,17 @@ class ExpectationApiTest extends IntegrationTest {
       injectExpectations
           .getFirst()
           .setResults(
-              List.of(
-                  InjectExpectationResult.builder()
-                      .sourceId(savedEDRCollector.getId())
-                      .sourceName(savedEDRCollector.getName())
-                      .sourceType(savedEDRCollector.getType())
-                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                      .sourceAssetId(UUID.randomUUID().toString())
-                      .score(50.0)
-                      .build()));
+              new ArrayList<>(
+                  List.of(
+                      InjectExpectationResult.builder()
+                          .sourceId(savedEDRCollector.getId())
+                          .sourceName(savedEDRCollector.getName())
+                          .sourceType(savedEDRCollector.getType())
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
+                          .score(50.0)
+                          .date(Instant.now())
+                          .build())));
 
       injectExpectationRepository.save(injectExpectations.getFirst());
 
@@ -653,16 +653,18 @@ class ExpectationApiTest extends IntegrationTest {
       injectExpectations
           .get(0)
           .setResults(
-              List.of(
-                  InjectExpectationResult.builder()
-                      .sourceId(savedEDRCollector.getId())
-                      .sourceName(savedEDRCollector.getName())
-                      .sourceType(savedEDRCollector.getType())
-                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                      .sourceAssetId(UUID.randomUUID().toString())
-                      .result("result")
-                      .score(80.0)
-                      .build()));
+              new ArrayList<>(
+                  List.of(
+                      InjectExpectationResult.builder()
+                          .sourceId(savedEDRCollector.getId())
+                          .sourceName(savedEDRCollector.getName())
+                          .sourceType(savedEDRCollector.getType())
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
+                          .result("result")
+                          .score(80.0)
+                          .date(Instant.now())
+                          .build())));
 
       injectExpectationRepository.save(injectExpectations.get(0));
 
@@ -741,16 +743,18 @@ class ExpectationApiTest extends IntegrationTest {
       injectExpectations
           .get(0)
           .setResults(
-              List.of(
-                  InjectExpectationResult.builder()
-                      .sourceId(savedEDRCollector.getId())
-                      .sourceName(savedEDRCollector.getName())
-                      .sourceType(savedEDRCollector.getType())
-                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                      .sourceAssetId(UUID.randomUUID().toString())
-                      .result("result")
-                      .score(90.0)
-                      .build()));
+              new ArrayList<>(
+                  List.of(
+                      InjectExpectationResult.builder()
+                          .sourceId(savedEDRCollector.getId())
+                          .sourceName(savedEDRCollector.getName())
+                          .sourceType(savedEDRCollector.getType())
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
+                          .result("result")
+                          .score(90.0)
+                          .date(Instant.now())
+                          .build())));
 
       injectExpectationRepository.save(injectExpectations.get(0));
 

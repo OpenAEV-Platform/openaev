@@ -41,6 +41,7 @@ import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -379,7 +380,7 @@ class AttackPathExecutionSnapshotIsolationTest extends IntegrationTest {
     InjectExpectationResult result = new InjectExpectationResult();
     result.setSourceName("EDR platform " + suffix);
     result.setResult("Prevented");
-    result.setDate("2026-09-01T10:00:00Z");
+    result.setDate(Instant.parse("2026-09-01T10:00:00Z"));
     prevention.setResults(List.of(result));
     runAsTheExecutorWould(
         () -> ingestionService.upsertExecutionCollectors(inject, List.of(prevention)));
