@@ -39,6 +39,7 @@ import {
   fetchScenarioExpectationsDrift,
   fetchScenarioTeams,
   realignScenarioExpectations,
+  searchScenarioHealthcheks,
   updateScenarioRecurrence,
 } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -56,6 +57,8 @@ import {
   type Article,
   type Challenge,
   type Exercise,
+  type ExpectationsDriftOutput,
+  type HealthCheck,
   type Inject,
   type Scenario,
   type Team,
@@ -78,7 +81,6 @@ import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/
 import { DEFAULT_TIMEOUT_HOURS } from '../../autonomous/useAutonomousRunConfig';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
-import { useReadinessContext } from '../../common/healthchecks/readiness';
 import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -135,7 +137,8 @@ const ScenarioHeader = ({
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [configurationInitialTab, setConfigurationInitialTab] = useState<ScenarioConfigurationTab>(ScenarioConfigurationTab.TEAMS);
   const [openScheduling, setOpenScheduling] = useState(false);
-  const { healthchecks, expectationsDrift, setExpectationsDrift } = useReadinessContext();
+  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+  const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
   // Number of authored attack-path steps on the scenario's chaining workflow. A chained scenario
   // builds its attack path as workflow step templates, not classic scenario injects, so this is the
   // meaningful "how big is the attack path" stat for the hero.
@@ -177,12 +180,13 @@ const ScenarioHeader = ({
 
   // Challenges are authored inside injects (no configuration tab): as soon as
   // at least one inject uses a challenge, expose the player-facing preview
-  // right in the hero. Injects (lightweight view, loaded by useScenarioReadiness), teams and
-  // articles feed the usage-aware hero stats: the GET /scenarios/{id} ScenarioOutput DTO carries
+  // right in the hero. Injects (lightweight view), teams and articles feed the
+  // usage-aware hero stats: the GET /scenarios/{id} ScenarioOutput DTO carries
   // no scenario_injects / scenario_teams / scenario_articles relations, so
   // counting those entity fields would always render 0 after a reload.
   useDataLoader(() => {
     dispatch(fetchScenarioChallenges(scenarioId));
+    dispatch(fetchScenarioInjectsSimple(scenarioId));
     dispatch(fetchScenarioTeams(scenarioId));
     dispatch(fetchScenarioArticles(scenarioId));
   });
@@ -376,6 +380,10 @@ const ScenarioHeader = ({
       filterValuesMap,
     );
 
+  useEffect(() => {
+    searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+  }, [scenarioId, scenario, workflowConfiguration]);
+
   // Count the attack-path steps that back the hero stat, read from the scenario's chaining workflow
   // (its authored step templates).
   useEffect(() => {
@@ -393,6 +401,23 @@ const ScenarioHeader = ({
       stale = true;
     };
   }, [scenarioWorkflowId]);
+
+  // Expectation drift between the injector contract templates and the inject
+  // content - recomputed when the scenario or its inject set changes.
+  useEffect(() => {
+    // The header survives scenario switches (no remount): a stale response from
+    // the previous scenario must not overwrite the current one. simpleCall has
+    // already notified the user on failure, hence the deliberately empty catch.
+    let stale = false;
+    fetchScenarioExpectationsDrift(scenarioId)
+      .then((result: { data: ExpectationsDriftOutput }) => {
+        if (!stale) setExpectationsDrift(result.data);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [scenarioId, scenario, injectsCount]);
 
   const onRealignExpectations = async () => {
     await realignScenarioExpectations(scenarioId);

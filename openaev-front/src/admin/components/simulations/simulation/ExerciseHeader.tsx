@@ -23,6 +23,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
+import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
 import { fetchExerciseArticles } from '../../../../actions/channels/article-action';
 import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
@@ -31,6 +32,7 @@ import {
   fetchExerciseExpectationsDrift,
   fetchExerciseTeams,
   realignExerciseExpectations,
+  searchExerciseHealthchecks,
   updateExerciseStatus,
 } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
@@ -53,6 +55,8 @@ import {
   type Challenge,
   type Exercise,
   type Exercise as ExerciseType,
+  type ExpectationsDriftOutput,
+  type HealthCheck,
   type Inject,
   type SimulationDetails,
   type Team,
@@ -64,7 +68,6 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
-import { useReadinessContext } from '../../common/healthchecks/readiness';
 import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -275,10 +278,14 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
 
   // Challenges are authored inside injects (no configuration tab): as soon as
   // at least one inject uses a challenge, expose the player-facing preview
-  // right in the hero. Injects (lightweight view, loaded by useSimulationReadiness) feed the
-  // usage-aware hero stats: which assets and asset groups the simulation actually targets.
+  // right in the hero. Injects (lightweight view) feed the usage-aware hero
+  // stats: which assets and asset groups the simulation actually targets.
   useDataLoader(() => {
     dispatch(fetchExerciseChallenges(exerciseId));
+    // Reconcile (not just fetch): injects can be deleted server-side out of band - deleting a
+    // phishing landing page cascade-deletes the injects built on its contract - and the
+    // merge-only store would otherwise keep counting the ghosts in the hero until a full reload.
+    dispatch(reconcileExerciseInjects(exerciseId, fetchExerciseInjectsSimple));
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchExerciseArticles(exerciseId));
     // Resolve the parent scenario name for the hero pivot button (it is not embedded in the
@@ -292,7 +299,16 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
   const isSimulationChaining = !!exerciseWorkflowId;
 
-  const { healthchecks, expectationsDrift, setExpectationsDrift } = useReadinessContext();
+  const { workflowConfiguration } = useHelper(
+    (helper: WorkflowConfigurationHelper) => ({
+      workflowConfiguration: exerciseWorkflowId
+        ? helper.getWorkflowConfiguration(exerciseWorkflowId)
+        : undefined,
+    }),
+  );
+
+  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+  const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [configurationInitialTab, setConfigurationInitialTab] = useState<SimulationConfigurationTab>(SimulationConfigurationTab.TEAMS);
   const [openDateDialog, setOpenDateDialog] = useState(false);
@@ -331,6 +347,28 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
       setOpenConfiguration(true);
     }
   }, [canOpenConfiguration, clearConfigurationQueryParam, location.search]);
+
+  useEffect(() => {
+    searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+  }, [exerciseId, exercise, workflowConfiguration]);
+
+  // Expectation drift between the injector contract templates and the inject
+  // content - recomputed when the simulation or its inject set changes.
+  useEffect(() => {
+    // The header survives simulation switches (no remount): a stale response from
+    // the previous simulation must not overwrite the current one. simpleCall has
+    // already notified the user on failure, hence the deliberately empty catch.
+    let stale = false;
+    fetchExerciseExpectationsDrift(exerciseId)
+      .then((result: { data: ExpectationsDriftOutput }) => {
+        if (!stale) setExpectationsDrift(result.data);
+      })
+      .catch(() => {
+      });
+    return () => {
+      stale = true;
+    };
+  }, [exerciseId, exercise, injects?.length]);
 
   const onRealignExpectations = async () => {
     await realignExerciseExpectations(exerciseId);

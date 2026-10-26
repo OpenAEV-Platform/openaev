@@ -1,12 +1,14 @@
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 
+import type { WorkflowConfigurationHelper } from '../../../../../actions/chaining/workflow-helper';
+import { searchExerciseHealthchecks } from '../../../../../actions/Exercise';
 import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { useHelper } from '../../../../../store';
-import { type Exercise } from '../../../../../utils/api-types';
+import { type Exercise, type HealthCheck } from '../../../../../utils/api-types';
 import useSimulationPermissions from '../../../../../utils/permissions/useSimulationPermissions';
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
-import { useReadinessContext } from '../../../common/healthchecks/readiness';
 
 interface Props {
   /** Read-only inspection mode: the scope belongs to an autonomous (AI-driven) run. */
@@ -20,7 +22,21 @@ const SimulationScope = ({ readOnly = false, autonomousTimeoutSeconds }: Props) 
 
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   const permissions = useSimulationPermissions(exerciseId, exercise);
-  const { healthchecks } = useReadinessContext();
+  const { workflowConfiguration } = useHelper(
+    (helper: WorkflowConfigurationHelper) => ({
+      workflowConfiguration: exercise?.exercise_workflow_id
+        ? helper.getWorkflowConfiguration(exercise.exercise_workflow_id)
+        : undefined,
+    }),
+  );
+
+  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+
+  useEffect(() => {
+    if (exercise?.exercise_workflow_id) {
+      searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+    }
+  }, [exerciseId, exercise, workflowConfiguration]);
 
   if (!exercise?.exercise_workflow_id) return null;
 

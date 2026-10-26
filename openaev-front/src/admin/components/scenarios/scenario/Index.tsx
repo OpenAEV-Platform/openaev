@@ -25,11 +25,9 @@ import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
 import { useAutonomousRunForScenario } from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
-import { ReadinessProvider } from '../../common/healthchecks/readiness';
 import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
 import buildScenarioTabs from './scenarioTabs';
-import useScenarioReadiness from './useScenarioReadiness';
 
 const ScenarioComponent = lazy(() => import('./Scenario'));
 const Injects = lazy(() => import('./injects/ScenarioInjects'));
@@ -97,7 +95,6 @@ const IndexScenarioComponent: FunctionComponent<{
   const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
   const contentPaddingRight = hasCockpit ? `${panelWidth}px` : undefined;
   const permissions = useScenarioPermissions(scenario.scenario_id);
-  const readiness = useScenarioReadiness(scenario.scenario_id);
   // Stable context identities: these providers wrap the whole scenario subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
   const permissionsContext: PermissionsContextType = useMemo(() => ({
@@ -166,7 +163,7 @@ const IndexScenarioComponent: FunctionComponent<{
   return (
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
-        <ReadinessProvider value={readiness}>
+        <>
           <Box sx={{
             paddingRight: contentPaddingRight,
             transition: 'padding-right 200ms ease',
@@ -252,7 +249,7 @@ const IndexScenarioComponent: FunctionComponent<{
               onWidthChange={setPanelWidth}
             />
           )}
-        </ReadinessProvider>
+        </>
       </DocumentContext.Provider>
     </PermissionsContext.Provider>
   );

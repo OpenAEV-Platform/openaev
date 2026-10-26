@@ -170,16 +170,16 @@ export const searchScenarioExercises = (scenarioId: Scenario['scenario_id'], pag
 
 // -- HEALTHCHEKS --
 
-export const searchScenarioHealthcheks = (scenarioId: Scenario['scenario_id'], notifyOnError = true) => {
+export const searchScenarioHealthcheks = (scenarioId: Scenario['scenario_id']) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/healthchecks`;
-  return simpleCall(uri, undefined, notifyOnError);
+  return simpleCall(uri);
 };
 
 // -- EXPECTATIONS DRIFT --
 
-export const fetchScenarioExpectationsDrift = (scenarioId: Scenario['scenario_id'], notifyOnError = true) => {
+export const fetchScenarioExpectationsDrift = (scenarioId: Scenario['scenario_id']) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/expectations-drift`;
-  return simpleCall(uri, undefined, notifyOnError);
+  return simpleCall(uri);
 };
 
 export const realignScenarioExpectations = (scenarioId: Scenario['scenario_id']) => {
