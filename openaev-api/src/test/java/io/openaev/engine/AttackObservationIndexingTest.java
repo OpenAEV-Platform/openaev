@@ -795,6 +795,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
                   .sourceName(collector.getName())
                   .result("detected")
                   .score(100.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer expectationWrapper =
           injectExpectationComposer.forExpectation(expectation).withEndpoint(endpointWrapper);
@@ -854,6 +855,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
                   .sourceName(collector.getName())
                   .result("not detected")
                   .score(0.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer expectationWrapper =
           injectExpectationComposer.forExpectation(expectation).withEndpoint(endpointWrapper);
@@ -931,6 +933,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
                   .sourceName(collector.getName())
                   .result("detected")
                   .score(100.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer childWrapper =
           injectExpectationComposer.forExpectation(childExpectation);
@@ -1006,6 +1009,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
                   .sourceName(collectorA.getName())
                   .result("detected")
                   .score(100.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer parentWrapper =
           injectExpectationComposer.forExpectation(parentExpectation).withEndpoint(endpointWrapper);
@@ -1030,6 +1034,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
                   .sourceName(collectorB.getName())
                   .result("not detected")
                   .score(0.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer childWrapper =
           injectExpectationComposer.forExpectation(childExpectation);
@@ -1086,6 +1091,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
                   .sourcePlatform("EDR")
                   .result("detected")
                   .score(100.0)
+                  .date(Instant.now())
                   .build(),
               InjectExpectationResult.builder()
                   .sourceId(UUID.randomUUID().toString())
@@ -1093,6 +1099,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
                   .sourceName("untyped")
                   .result("detected")
                   .score(100.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer parentWrapper =
           injectExpectationComposer.forExpectation(parentExpectation).withEndpoint(endpointWrapper);
@@ -1116,6 +1123,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
                   .sourcePlatform("SIEM")
                   .result("not detected")
                   .score(0.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer childWrapper =
           injectExpectationComposer.forExpectation(childExpectation);

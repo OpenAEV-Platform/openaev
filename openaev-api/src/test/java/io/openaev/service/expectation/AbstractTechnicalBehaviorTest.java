@@ -19,8 +19,10 @@ import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1192,6 +1194,10 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
                 List.of(
                     InjectExpectationResult.builder()
                         .sourceId(SOURCE_ID)
+                        .sourceType("unit-test")
+                        .sourcePlatform("test-harness")
+                        .sourceName("unit tests")
+                        .date(Instant.now())
                         .result(null)
                         .score(null)
                         .build())));
@@ -1745,7 +1751,15 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
                   Stream.of(sources)
                       .map(
                           source ->
-                              InjectExpectationResult.builder().sourceId(source.getId()).build())
+                              InjectExpectationResult.builder()
+                                  .sourceId(source.getId())
+                                  .sourceName(source.getName())
+                                  .sourcePlatform(
+                                      Optional.ofNullable(source.getSecurityPlatform())
+                                          .map(Asset::getType)
+                                          .orElse(null))
+                                  .date(Instant.now())
+                                  .build())
                       .toList()));
         }
         return expectation;

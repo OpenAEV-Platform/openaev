@@ -491,6 +491,10 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
               List.of(
                   InjectExpectationResult.builder()
                       .sourceId(MEDIA_PRESSURE_SOURCE_ID)
+                      .sourceType("unit-test")
+                      .sourcePlatform("test-harness")
+                      .sourceName("Unit tests")
+                      .date(Instant.now())
                       .result(null)
                       .score(null)
                       .build())));
@@ -574,6 +578,10 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
               List.of(
                   InjectExpectationResult.builder()
                       .sourceId(MEDIA_PRESSURE_SOURCE_ID)
+                      .sourceType("unit-test")
+                      .sourcePlatform("test-harness")
+                      .sourceName("Unit tests")
+                      .date(Instant.now())
                       .result(null)
                       .score(null)
                       .build())));
@@ -586,6 +594,10 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
               List.of(
                   InjectExpectationResult.builder()
                       .sourceId(MEDIA_PRESSURE_SOURCE_ID)
+                      .sourceType("unit-test")
+                      .sourcePlatform("test-harness")
+                      .sourceName("Unit tests")
+                      .date(Instant.now())
                       .result(null)
                       .score(null)
                       .build())));
@@ -764,6 +776,10 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
               List.of(
                   InjectExpectationResult.builder()
                       .sourceId(MEDIA_PRESSURE_SOURCE_ID)
+                      .sourceType("unit-test")
+                      .sourcePlatform("test-harness")
+                      .sourceName("Unit tests")
+                      .date(Instant.now())
                       .result(null)
                       .score(null)
                       .build())));
@@ -992,6 +1008,10 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
               List.of(
                   InjectExpectationResult.builder()
                       .sourceId(UI_SOURCE_ID)
+                      .sourceType("unit-test")
+                      .sourcePlatform("test-harness")
+                      .sourceName("Unit tests")
+                      .date(Instant.now())
                       .result("Success")
                       .score(100.0)
                       .build())));

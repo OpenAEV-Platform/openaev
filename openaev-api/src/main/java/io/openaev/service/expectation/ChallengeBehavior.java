@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.model.inject.form.Expectation;
@@ -26,8 +27,9 @@ public class ChallengeBehavior extends AbstractTableTopBehavior {
   public ChallengeBehavior(
       InjectExpectationRepository injectExpectationRepository,
       ChallengeRepository challengeRepository,
-      ObjectMapper mapper) {
-    super(injectExpectationRepository);
+      ObjectMapper mapper,
+      InjectExpectationResultRepository injectExpectationResultRepository) {
+    super(injectExpectationRepository, injectExpectationResultRepository);
     this.challengeRepository = challengeRepository;
     this.mapper = mapper;
   }

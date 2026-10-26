@@ -131,7 +131,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         -- population counted for the attempts and mined for security-platform attribution.
         SELECT
           l.tenant_id, l.asset_id, l.attack_pattern_external_id, l.inject_expectation_type, l.scenario_id,
-          ie.inject_expectation_id, ie.inject_id, ie.inject_expectation_results,
+          ie.inject_expectation_id, ie.inject_id,
           ie.inject_expectation_score, ie.inject_expectation_expected_score, ie.inject_expectation_updated_at
         FROM latest l
         JOIN injects_expectations ie
@@ -175,19 +175,19 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
             || COALESCE(array_agg(DISTINCT a.asset_id::text) FILTER (WHERE a.asset_id IS NOT NULL), ARRAY[]::text[]) AS ids,
           COALESCE(array_agg(DISTINCT c.collector_security_platform::text) FILTER (
               WHERE c.collector_security_platform IS NOT NULL
-                AND (r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[])
+                AND ier.inject_expectation_result_score::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[])
             || COALESCE(array_agg(DISTINCT a.asset_id::text) FILTER (
               WHERE a.asset_id IS NOT NULL
-                AND (r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_ids,
-          COALESCE(array_agg(DISTINCT btrim(r.elem->>'sourcePlatform')) FILTER (
-              WHERE length(btrim(r.elem->>'sourcePlatform')) > 0), ARRAY[]::text[]) AS types,
-          COALESCE(array_agg(DISTINCT btrim(r.elem->>'sourcePlatform')) FILTER (
-              WHERE length(btrim(r.elem->>'sourcePlatform')) > 0
-                AND (r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_types
+                AND ier.inject_expectation_result_score::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_ids,
+          COALESCE(array_agg(DISTINCT btrim(ier.inject_expectation_result_source_platform)) FILTER (
+              WHERE length(btrim(ier.inject_expectation_result_source_platform)) > 0), ARRAY[]::text[]) AS types,
+          COALESCE(array_agg(DISTINCT btrim(ier.inject_expectation_result_source_platform)) FILTER (
+              WHERE length(btrim(ier.inject_expectation_result_source_platform)) > 0
+                AND ier.inject_expectation_result_score::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_types
         FROM matched m
-        LEFT JOIN LATERAL jsonb_array_elements(m.inject_expectation_results::jsonb) AS r(elem) ON true
-        LEFT JOIN collectors c ON r.elem->>'sourceId' = c.collector_id::text AND c.tenant_id = m.tenant_id
-        LEFT JOIN assets a ON r.elem->>'sourceId' = a.asset_id::text
+        LEFT JOIN inject_expectation_results ier on m.inject_expectation_id = ier.inject_expectation_result_inject_expectation_id
+        LEFT JOIN collectors c ON ier.inject_expectation_result_source_id = c.collector_id::text AND c.tenant_id = m.tenant_id
+        LEFT JOIN assets a ON ier.inject_expectation_result_source_id = a.asset_id::text
         GROUP BY m.tenant_id, m.asset_id, m.attack_pattern_external_id, m.inject_expectation_type, m.scenario_id
     ),
     agent_security_platforms AS (
@@ -199,24 +199,24 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
             || COALESCE(array_agg(DISTINCT child_a.asset_id::text) FILTER (WHERE child_a.asset_id IS NOT NULL), ARRAY[]::text[]) AS ids,
           COALESCE(array_agg(DISTINCT child_c.collector_security_platform::text) FILTER (
               WHERE child_c.collector_security_platform IS NOT NULL
-                AND (child_r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[])
+                AND child_ier.inject_expectation_result_score::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[])
             || COALESCE(array_agg(DISTINCT child_a.asset_id::text) FILTER (
               WHERE child_a.asset_id IS NOT NULL
-                AND (child_r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_ids,
-          COALESCE(array_agg(DISTINCT btrim(child_r.elem->>'sourcePlatform')) FILTER (
-              WHERE length(btrim(child_r.elem->>'sourcePlatform')) > 0), ARRAY[]::text[]) AS types,
-          COALESCE(array_agg(DISTINCT btrim(child_r.elem->>'sourcePlatform')) FILTER (
-              WHERE length(btrim(child_r.elem->>'sourcePlatform')) > 0
-                AND (child_r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_types
+                AND child_ier.inject_expectation_result_score::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_ids,
+          COALESCE(array_agg(DISTINCT btrim(child_ier.inject_expectation_result_source_platform)) FILTER (
+              WHERE length(btrim(child_ier.inject_expectation_result_source_platform)) > 0), ARRAY[]::text[]) AS types,
+          COALESCE(array_agg(DISTINCT btrim(child_ier.inject_expectation_result_source_platform)) FILTER (
+              WHERE length(btrim(child_ier.inject_expectation_result_source_platform)) > 0
+                AND child_ier.inject_expectation_result_score::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_types
         FROM matched m
         JOIN injects_expectations child_ie
           ON child_ie.inject_id = m.inject_id
          AND child_ie.agent_id IS NOT NULL
          AND child_ie.inject_expectation_type = m.inject_expectation_type
          AND child_ie.asset_id = m.asset_id
-        LEFT JOIN LATERAL jsonb_array_elements(child_ie.inject_expectation_results::jsonb) AS child_r(elem) ON true
-        LEFT JOIN collectors child_c ON child_r.elem->>'sourceId' = child_c.collector_id::text AND child_c.tenant_id = m.tenant_id
-        LEFT JOIN assets child_a ON child_r.elem->>'sourceId' = child_a.asset_id::text
+        LEFT JOIN inject_expectation_results child_ier on child_ie.inject_expectation_id = child_ier.inject_expectation_result_inject_expectation_id
+        LEFT JOIN collectors child_c ON child_ier.inject_expectation_result_source_id = child_c.collector_id::text AND child_c.tenant_id = m.tenant_id
+        LEFT JOIN assets child_a ON child_ier.inject_expectation_result_source_id = child_a.asset_id::text
         GROUP BY m.tenant_id, m.asset_id, m.attack_pattern_external_id, m.inject_expectation_type, m.scenario_id
     )
     SELECT

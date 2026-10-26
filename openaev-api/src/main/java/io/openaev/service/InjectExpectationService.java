@@ -1064,7 +1064,9 @@ public class InjectExpectationService {
                                   r.getSourceId()));
                 }
               }
-              clone.setResults(new ArrayList<>(bySource.values()));
+              clone.setResults(
+                  new ArrayList<>(
+                      bySource.values().stream().map(InjectExpectationResult::clone).toList()));
               return clone;
             })
         .toList();
@@ -1358,14 +1360,15 @@ public class InjectExpectationService {
         merged.add(elected);
         continue;
       }
+      // also clones the results entities so the getResults() call below returns copies
       BaseInjectExpectation clone = elected.clone();
-      List<InjectExpectationResult> combinedResults = new ArrayList<>(elected.getResults());
+      List<InjectExpectationResult> combinedResults = new ArrayList<>(clone.getResults());
       for (BaseInjectExpectation other : sameType.subList(1, sameType.size())) {
         for (InjectExpectationResult expectationResult : other.getResults()) {
           if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())
               && expectationResult.getResult() != null
               && expectationResult.getScore() != null) {
-            combinedResults.add(expectationResult);
+            combinedResults.add(expectationResult.clone());
           }
         }
       }
@@ -1699,7 +1702,10 @@ public class InjectExpectationService {
           String sourceType =
               optionalSourceResult.map(InjectExpectationResult::getSourceType).orElse(null);
           String detectionTimestamp =
-              optionalSourceResult.map(InjectExpectationResult::getDate).orElse(null);
+              optionalSourceResult
+                  .map(InjectExpectationResult::getDate)
+                  .map(Instant::toString)
+                  .orElse(null);
 
           Map<String, Object> contextData = new LinkedHashMap<>();
           contextData.put("inject_id", injectId);
@@ -1753,7 +1759,7 @@ public class InjectExpectationService {
               .sourceId(sourceId)
               .sourceName(sourceName)
               .sourceType(sourceType)
-              .date(Instant.now().toString())
+              .date(Instant.now())
               .build();
     }
     logExpectationResultEvent(expectation, sourceResult);
