@@ -3,11 +3,6 @@
 A Credential stores the secret an Inject needs to authenticate against its target, for example the access to a cloud
 account. This page explains how to create Credentials and how to use them in your Injects.
 
-!!! note "Preview feature"
-
-    Credentials are a preview feature. They are only available when `CREDENTIAL_ASSET` is listed in
-    `openaev.enabled-dev-features`. See [Configuration](../../reference/deployment/configuration.md).
-
 ## Why use Credentials?
 
 Many Injects act on a target that requires authentication, such as a cloud attack technique that needs access to the
