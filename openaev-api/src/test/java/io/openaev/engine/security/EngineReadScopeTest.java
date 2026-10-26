@@ -162,7 +162,9 @@ class EngineReadScopeTest {
           HIDING.stripHiddenAssets(document);
 
           // -- ASSERT --
-          assertThat((Collection<?>) field.get(document))
+          @SuppressWarnings("unchecked")
+          Collection<Object> references = (Collection<Object>) field.get(document);
+          assertThat(references)
               .as(indexed.getKey() + "." + field.getName())
               .containsExactly(VISIBLE);
         }

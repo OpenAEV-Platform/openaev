@@ -12,7 +12,7 @@
 **Status** (2026-10-23):
 - **Steps 1–6:** done on es8. **Step 7** (everything behind `MARKING`): done.
 - **Step 8 (e2e matrix):** API tests partly done.
-- **Steps 7a–7d:** done; **steps 7e, 7f:** in progress; **step 7g:** to decide (PR review); **steps 9–21:** not started (21 optional).
+- **Steps 7a–7f:** done; **step 7g:** to decide (PR review); **steps 9–21:** not started (21 optional).
 - **es9 and OpenSearch:** they accept the scope but ignore it until steps 11–12 (today's behaviour, unfiltered).
 - **Branch `task4-poc-dashboard`:** rebased on `main` (2026-10-19) and compiles. The dashboard, engine, snapshot and coverage tests pass.
 
@@ -379,7 +379,7 @@ asset" (real markings): the expectation listed with `EDR-X` only, no `EDR-RED` b
 observation fields stripped, nothing stripped for an unrestricted reader; 5 of them fail without the
 fix. Matrix row M17 (step 8).
 
-#### Step 7e — Observations whose run is not named: fail closed (review fix) 🟡 in progress
+#### Step 7e — Observations whose run is not named: fail closed (review fix) ✅ done (2026-10-23)
 
 **Use case.** Bob has the snapshot observation capability, no `ACCESS_ASSESSMENT`, and a grant on
 simulation `S` only.
@@ -410,9 +410,9 @@ with a re-feed, so an atomic testing grant opens them.
 **Tests.** `CursorPagedSearchTest`, group "restrictions": a reader with no grant sees neither
 observation; a simulation grant does not open the atomic testing observation, the admin reads it; once
 its simulation is deleted (`bulkDelete`), the observation is closed to the reader granted on it and to
-a reader with no grant, and stays readable by the admin.
+a reader with no grant, and stays readable by the admin. All three fail without the fix.
 
-#### Step 7f — Quick fixes from the PR review 🟡 in progress
+#### Step 7f — Quick fixes from the PR review ✅ done (2026-10-23)
 
 From the review of 2026-10-23 (code, security, multi-tenancy and performance reviewers).
 - **A finding's `base_dependencies` holds its hidden endpoints.** A finding on `GREEN` + `RED` is
@@ -424,6 +424,11 @@ From the review of 2026-10-23 (code, security, multi-tenancy and performance rev
   compute the union once.
 - **Keep `ASSET_REFERENCE_FIELDS` and `stripHiddenAssets` in sync:** a reflection test (every field
   exists, every model holding one gets it stripped), so a 7d-like gap fails a test.
+
+**Tests.** `EngineReadScopeTest` (findings group, dependencies, the guard), the `and`-mode case in
+`EngineReadScopeIntegrationTest`, no hidden id in the returned JSON in
+`EngineReadScopeResolverIntegrationTest`. Each fix reverted alone fails its own test; the guard
+catches a strip case removed (`EsScenario`).
 
 #### Step 7g — To decide from the PR review 🔴 not started
 
