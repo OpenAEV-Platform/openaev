@@ -67,6 +67,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [review-security](.claude/skills/review-security/SKILL.md) | Auditing security of a PR or module |
 | [review-chaining-engine](.claude/skills/review-chaining-engine/SKILL.md) | Reviewing or modifying the Chaining Engine |
 | [review-docs](.claude/skills/review-docs/SKILL.md) | Detecting missing documentation updates in a PR |
+| [split-tasks](.claude/skills/split-tasks/SKILL.md) | Splitting a feature's user stories and tech design into GitHub issues |
 
 ## Specialized Agents
 
@@ -83,6 +84,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [Test Specialist](.github/agents/test-specialist.agent.md) | Write/improve tests, check coverage | `AGENTS.md` → `copilot-instructions.md` → `testing.instructions.md` | `add-test` skill |
 | [Chaining Engine Reviewer](.github/agents/chaining-engine-reviewer.agent.md) | Audit chaining engine: steps, conditions, queues, state, scope, timeout | `AGENTS.md` → `chaining-engine.instructions.md` | `review-chaining-engine` skill |
 | [Docs Reviewer](.github/agents/docs-reviewer.agent.md) | Detect functional changes missing documentation updates in `docs/` | `AGENTS.md` → `copilot-instructions.md` | `review-docs` skill |
+| [Task Splitter](.github/agents/task-splitter.agent.md) | Turn user stories and tech design into an epic and independent sub-tasks on GitHub, through a dry-run script | `AGENTS.md` → `.github/LABELS.md` | `split-tasks` skill |
 
 ## When to Use Which Agent
 
@@ -98,6 +100,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | PR adds a new feature without tests, or coverage is below threshold | **Test Specialist** |
 | PR touches chaining (steps, conditions, workflows, queues, scope, WorkflowState) | **Chaining Engine Reviewer** |
 | PR has functional changes but no `docs/` updates | **Docs Reviewer** (auto-triggered on PR open via `/review docs` command) |
+| A feature's user stories and tech design are ready, before development | **Task Splitter** |
 | Critical PR (new entities, migrations, auth changes) | **Code Reviewer** + all relevant specialists |
 
 ### Composition Rules
