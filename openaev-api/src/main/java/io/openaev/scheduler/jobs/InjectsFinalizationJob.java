@@ -242,8 +242,7 @@ public class InjectsFinalizationJob implements Job {
       // inject with no reason. Add a clear agentless timeout trace instead, unless a terminal
       // COMPLETE trace was already recorded (e.g. the injector reported the timeout itself).
       boolean hasCompleteTrace =
-          status.getTraces().stream()
-              .anyMatch(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()));
+          ExecutionTraceUtils.completeTraces(status.getTraces()).findAny().isPresent();
       if (!hasCompleteTrace) {
         ExecutionTraceUtils.addAgentlessTimeoutTrace(status, this.injectExecutionThreshold);
       }
@@ -255,7 +254,7 @@ public class InjectsFinalizationJob implements Job {
         }
       }
     }
-    injectStatusService.updateFinalInjectStatus(status);
+    injectStatusService.updateFinalInjectStatus(status, null);
     // Save + stream one by one: the timeout finalization must reach the execution screens in
     // real time (an inject stuck PENDING would otherwise stay "in flight" until a reload).
     injectStatusService.saveAndStreamInject(status);

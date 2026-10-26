@@ -5,6 +5,7 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Utility class for execution trace conversions.
@@ -41,10 +42,23 @@ public class ExecutionTraceUtils {
 
   // -- QUERY --
 
+  /** Returns the COMPLETE traces, which close the execution of an agent or of the inject. */
+  public static Stream<ExecutionTrace> completeTraces(List<ExecutionTrace> traces) {
+    return traces.stream().filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()));
+  }
+
+  /** Returns the traces of the given agent, agent-less traces excluded. */
+  public static Stream<ExecutionTrace> agentTraces(List<ExecutionTrace> traces, String agentId) {
+    return traces.stream().filter(t -> isAgentTrace(t, agentId));
+  }
+
+  public static boolean isAgentTrace(ExecutionTrace trace, String agentId) {
+    return trace.getAgent() != null && agentId.equals(trace.getAgent().getId());
+  }
+
   /** Returns the IDs of agents that already have a COMPLETE trace. */
   public static Set<String> getCompletedAgentIds(List<ExecutionTrace> traces) {
-    return traces.stream()
-        .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
+    return completeTraces(traces)
         .filter(t -> t.getAgent() != null)
         .map(t -> t.getAgent().getId())
         .collect(Collectors.toSet());

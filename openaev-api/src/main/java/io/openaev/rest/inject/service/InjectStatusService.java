@@ -1,6 +1,9 @@
 package io.openaev.rest.inject.service;
 
+import static io.openaev.utils.ExecutionTraceUtils.agentTraces;
+import static io.openaev.utils.ExecutionTraceUtils.completeTraces;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
+import static io.openaev.utils.ExecutionTraceUtils.isAgentTrace;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,6 +65,8 @@ public class InjectStatusService {
   private final EntityManager entityManager;
 
   private static final String NO_STATUS = "NONE";
+  static final String LATE_TRACE_AFTER_TIMEOUT = "Received after timeout";
+  static final String LATE_TRACE_AFTER_COMPLETION = "Received after completion";
 
   /**
    * Streams the parent inject (with its embedded status) to the SSE consumers.
@@ -106,9 +111,7 @@ public class InjectStatusService {
     inject.setStatus(injectStatus);
     Inject saved = injectRepository.save(inject);
     deleteInjectAuthorisationIfExecutionEnded(injectStatus);
-    if (previousStatus != newStatus) {
-      logInjectStatusTransition(inject, previousStatus, newStatus, null);
-    }
+    logInjectStatusTransition(inject, previousStatus, newStatus, null);
     return saved;
   }
 
@@ -143,43 +146,41 @@ public class InjectStatusService {
     }
   }
 
-  private int getCompleteTrace(Inject inject) {
+  private int countCompletedAgents(Inject inject) {
     return inject
         .getStatus()
         .map(s -> ExecutionTraceUtils.getCompletedAgentIds(s.getTraces()).size())
         .orElse(0);
   }
 
-  public boolean isAllInjectAgentsExecuted(Inject inject) {
-    int totalCompleteTrace = getCompleteTrace(inject);
+  private boolean isAllInjectAgentsExecuted(Inject inject) {
+    int completedAgentCount = countCompletedAgents(inject);
     // Use the agent count persisted at launch when available: it avoids re-resolving the full
     // asset/agent graph (incl. dynamic asset-group filters) on every COMPLETE callback
     Integer expectedAgentCount =
         inject.getStatus().map(InjectStatus::getExpectedAgentCount).orElse(null);
     if (expectedAgentCount != null) {
-      return totalCompleteTrace >= expectedAgentCount;
+      return completedAgentCount >= expectedAgentCount;
     }
     // Fallback for injects launched before the expected count was persisted
     List<Agent> agents = this.injectAgentResolverService.getAgentsByInject(inject);
-    return agents.size() == totalCompleteTrace;
+    return agents.size() == completedAgentCount;
   }
 
-  public void updateFinalInjectStatus(InjectStatus injectStatus) {
+  /**
+   * Computes the final status of the inject from its COMPLETE traces and logs the transition.
+   *
+   * @param agent the agent whose trace completed the inject, null when not driven by an agent
+   */
+  public void updateFinalInjectStatus(InjectStatus injectStatus, @Nullable Agent agent) {
     ExecutionStatus previousStatus = injectStatus.getName();
     ExecutionStatus finalStatus =
-        InjectStatusUtils.computeStatus(
-            injectStatus.getTraces().stream()
-                .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
-                .toList());
+        InjectStatusUtils.computeStatus(completeTraces(injectStatus.getTraces()).toList());
     injectStatus.setTrackingEndDate(Instant.now());
     injectStatus.setName(finalStatus);
     injectStatus.getInject().setUpdatedAt(Instant.now());
     deleteInjectAuthorisationIfExecutionEnded(injectStatus);
-
-    // Audit log: final inject status
-    if (previousStatus != finalStatus) {
-      logInjectStatusTransition(injectStatus.getInject(), previousStatus, finalStatus, null);
-    }
+    logInjectStatusTransition(injectStatus.getInject(), previousStatus, finalStatus, agent);
   }
 
   /**
@@ -193,13 +194,9 @@ public class InjectStatusService {
    */
   public Instant getExecutionTimeFromStartTraceTimeAndDurationByAgentId(
       InjectStatus injectStatus, String agentId, int durationInMilis) {
-    return injectStatus.getTraces().stream()
-        .filter(
-            trace ->
-                trace.getAction() == ExecutionTraceAction.START
-                    // Agent-less START traces exist (global distribution trace): skip them
-                    && trace.getAgent() != null
-                    && agentId.equals(trace.getAgent().getId()))
+    // Agent-less START traces exist (global distribution trace): agentTraces skips them
+    return agentTraces(injectStatus.getTraces(), agentId)
+        .filter(trace -> trace.getAction() == ExecutionTraceAction.START)
         .findFirst()
         .map(startTrace -> startTrace.getTime().plusMillis(durationInMilis))
         .orElse(Instant.now());
@@ -252,95 +249,78 @@ public class InjectStatusService {
       Inject inject, Agent agent, InjectExecutionInput input, ObjectNode structuredOutput) {
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
 
-    // Capture previous status for audit diff logging
-    ExecutionStatus previousStatus = injectStatus.getName();
-
-    // Creating the Execution Trace
-    ExecutionTrace executionTrace =
-        createExecutionTrace(injectStatus, input, agent, structuredOutput);
-    // Resolve the placeholder status of the COMPLETE trace
-    resolveCompleteTraceStatus(injectStatus, executionTrace, agent);
-    // Once an inject is finished its status never changes: a late trace is only recorded
-    if (previousStatus != null && previousStatus.isClosed()) {
-      recordLateTrace(inject, injectStatus, executionTrace, agent);
-      return;
+    ExecutionTrace trace = createExecutionTrace(injectStatus, input, agent, structuredOutput);
+    if (isLateTrace(injectStatus, agent)) {
+      // The first COMPLETE trace of an agent is authoritative: a later one never changes the status
+      markAsLateTrace(injectStatus, trace, agent);
+    } else {
+      resolveCompleteTraceStatus(injectStatus, trace, agent);
     }
-    injectStatus.addTrace(executionTrace);
-    // Save the trace using a low level call to the database
-    String executionTraceId = executionTraceRepositoryHelper.saveExecutionTrace(executionTrace);
-    executionTrace.setId(executionTraceId);
-    entityManager.merge(injectStatus);
-    logAgentTraceStep(injectStatus, executionTrace);
+    saveTrace(injectStatus, trace);
+    logAgentTraceStep(injectStatus, trace);
 
-    // If the trace is complete
-    if (executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)
-        && (agent == null || isAllInjectAgentsExecuted(inject))) {
-      // We update the status of the inject
-      updateFinalInjectStatus(injectStatus);
+    if (isCompletingInject(inject, trace, agent)) {
+      updateFinalInjectStatus(injectStatus, agent);
       injectRepository.updateUpdatedAt(
           injectStatus.getInject().getId(), injectStatus.getInject().getUpdatedAt());
       executionTraceRepositoryHelper.updateInjectStatus(
           injectStatus.getId(), injectStatus.getName().name(), injectStatus.getTrackingEndDate());
-      // updateUpdatedAt is a bulk JPQL update: it bypasses the entity listeners, so no SSE event
-      // is emitted. Stream the terminal transition explicitly so the execution board moves the
-      // inject from "in flight" to "completed" without a page reload.
+      // The final status is persisted by bulk updates, which bypass the entity listeners: stream
+      // it explicitly so the execution board moves the inject to "completed" without a reload.
       publishInjectStatusUpdate(inject);
-      log.debug("Successfully updated inject final status: {}", inject.getId());
     }
-
-    // Audit log: inject status transition
-    ExecutionStatus newStatus = injectStatus.getName();
-    if (previousStatus != newStatus) {
-      logInjectStatusTransition(inject, previousStatus, newStatus, agent);
-    }
-
     log.debug("Successfully updated inject: {}", inject.getId());
   }
 
+  /** A trace is late once the inject is closed, or once its agent already has a COMPLETE trace. */
+  private boolean isLateTrace(InjectStatus injectStatus, @Nullable Agent agent) {
+    ExecutionStatus status = injectStatus.getName();
+    boolean injectClosed = status != null && status.isClosed();
+    return injectClosed
+        || (agent != null
+            && ExecutionTraceUtils.getCompletedAgentIds(injectStatus.getTraces())
+                .contains(agent.getId()));
+  }
+
   /**
-   * Records a trace received after the inject is finished, without recomputing its status. The
-   * COMPLETE report of an agent that already timed out is appended to its TIMEOUT trace; any other
-   * late trace is saved as is.
+   * Turns a late trace into an informative one: its message is prefixed to flag it as late, and a
+   * late COMPLETE is stored as an EXECUTION so that the agent is never completed twice.
    */
-  private void recordLateTrace(
-      Inject inject, InjectStatus injectStatus, ExecutionTrace lateTrace, @Nullable Agent agent) {
-    Optional<ExecutionTrace> timeoutTrace =
-        ExecutionTraceAction.COMPLETE.equals(lateTrace.getAction())
-            ? findAgentTimeoutTrace(injectStatus, agent)
-            : Optional.empty();
-    if (timeoutTrace.isPresent()) {
-      ExecutionTrace timeout = timeoutTrace.get();
-      timeout.setMessage(
-          "%s It finally reported %s after the timeout: %s"
-              .formatted(timeout.getMessage(), lateTrace.getStatus(), lateTrace.getMessage()));
-    } else {
-      injectStatus.addTrace(lateTrace);
-      lateTrace.setId(executionTraceRepositoryHelper.saveExecutionTrace(lateTrace));
-      logAgentTraceStep(injectStatus, lateTrace);
+  private void markAsLateTrace(
+      InjectStatus injectStatus, ExecutionTrace lateTrace, @Nullable Agent agent) {
+    String prefix =
+        hasTimedOut(injectStatus, agent) ? LATE_TRACE_AFTER_TIMEOUT : LATE_TRACE_AFTER_COMPLETION;
+    lateTrace.setMessage("[%s]: %s".formatted(prefix, lateTrace.getMessage()));
+    if (ExecutionTraceAction.COMPLETE.equals(lateTrace.getAction())) {
+      lateTrace.setAction(ExecutionTraceAction.EXECUTION);
     }
+  }
+
+  private void saveTrace(InjectStatus injectStatus, ExecutionTrace trace) {
+    injectStatus.addTrace(trace);
+    // Save the trace using a low level call to the database
+    trace.setId(executionTraceRepositoryHelper.saveExecutionTrace(trace));
     entityManager.merge(injectStatus);
-    publishInjectStatusUpdate(inject);
   }
 
-  private Optional<ExecutionTrace> findAgentTimeoutTrace(
-      InjectStatus injectStatus, @Nullable Agent agent) {
-    if (agent == null) {
-      return Optional.empty();
-    }
-    return injectStatus.getTraces().stream()
-        .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
+  private boolean isCompletingInject(Inject inject, ExecutionTrace trace, @Nullable Agent agent) {
+    return ExecutionTraceAction.COMPLETE.equals(trace.getAction())
+        && (agent == null || isAllInjectAgentsExecuted(inject));
+  }
+
+  /** Whether the agent, or the whole inject (agent-less trace), was closed by a timeout. */
+  private boolean hasTimedOut(InjectStatus injectStatus, @Nullable Agent agent) {
+    return completeTraces(injectStatus.getTraces())
         .filter(t -> ExecutionTraceStatus.TIMEOUT.equals(t.getStatus()))
-        .filter(t -> t.getAgent() != null && agent.getId().equals(t.getAgent().getId()))
-        .findFirst();
+        .anyMatch(t -> t.getAgent() == null || (agent != null && isAgentTrace(t, agent.getId())));
   }
 
   /**
-   * Resolves the status of a COMPLETE trace when the implant sent the default INFO placeholder. The
-   * real status is computed from the agent's previous traces (prerequisite, execution, cleanup),
-   * ignoring COMPLETE traces so that a late report is not turned into the TIMEOUT that closed the
-   * agent. If the implant sent an explicit status (not INFO), it is kept as-is.
+   * Resolves the status of the first COMPLETE trace of an agent when the implant sent the default
+   * INFO placeholder. The real status is computed from the agent's previous traces (prerequisite,
+   * execution, cleanup). If the implant sent an explicit status (not INFO), it is kept as-is.
    */
-  protected void resolveCompleteTraceStatus(
+  private void resolveCompleteTraceStatus(
       InjectStatus injectStatus, ExecutionTrace executionTrace, Agent agent) {
 
     if (agent == null
@@ -351,11 +331,7 @@ public class InjectStatusService {
 
     ExecutionTraceStatus computedStatus =
         ExecutionTraceUtils.computeAgentTraceStatus(
-            injectStatus.getTraces().stream()
-                .filter(t -> !ExecutionTraceAction.COMPLETE.equals(t.getAction()))
-                .filter(t -> t.getAgent() != null)
-                .filter(t -> t.getAgent().getId().equals(agent.getId()))
-                .toList());
+            agentTraces(injectStatus.getTraces(), agent.getId()).toList());
 
     if (computedStatus != null) {
       executionTrace.setStatus(computedStatus);
@@ -375,7 +351,7 @@ public class InjectStatusService {
       logInjectStatusTransition(
           injectStatus.getInject(), previousStatus, ExecutionStatus.PENDING, null);
     } else {
-      updateFinalInjectStatus(injectStatus);
+      updateFinalInjectStatus(injectStatus, null);
     }
     return injectStatus;
   }
@@ -414,9 +390,7 @@ public class InjectStatusService {
     // Stream the ERROR transition so the execution board moves the inject to "completed" live.
     inject.setStatus(saved);
     publishInjectStatusUpdate(inject);
-    if (previousStatus != ExecutionStatus.ERROR) {
-      logInjectStatusTransition(inject, previousStatus, ExecutionStatus.ERROR, null);
-    }
+    logInjectStatusTransition(inject, previousStatus, ExecutionStatus.ERROR, null);
     return saved;
   }
 
@@ -441,9 +415,7 @@ public class InjectStatusService {
     // from "up next" to "in flight" without a page reload.
     inject.setStatus(saved);
     publishInjectStatusUpdate(inject);
-    if (previousStatus != status) {
-      logInjectStatusTransition(inject, previousStatus, status, null);
-    }
+    logInjectStatusTransition(inject, previousStatus, status, null);
     return saved;
   }
 
@@ -531,8 +503,12 @@ public class InjectStatusService {
 
   // -- AUDIT LOGGING --
 
+  /** Logs the transition of the inject status, if the status actually changed. */
   private void logInjectStatusTransition(
       Inject inject, ExecutionStatus previousStatus, ExecutionStatus newStatus, Agent agent) {
+    if (previousStatus == newStatus) {
+      return;
+    }
     String previousName = previousStatus != null ? previousStatus.name() : NO_STATUS;
     String newName = newStatus != null ? newStatus.name() : NO_STATUS;
     auditLogger.ifPresent(
