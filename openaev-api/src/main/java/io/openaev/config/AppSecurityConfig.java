@@ -29,6 +29,7 @@ import jakarta.servlet.http.HttpSession;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -52,9 +53,11 @@ import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
@@ -78,6 +81,8 @@ public class AppSecurityConfig {
   private static final String TENANT_IMPLANT_URI = "/api/tenants/*/implant/**";
   private static final String TENANT_PLAYER_URI = "/api/tenants/*/player/**";
   private static final String BEARER_PREFIX = "Bearer ";
+  private static final Set<String> USER_INFO_SCOPES =
+      Set.of(OidcScopes.PROFILE, OidcScopes.EMAIL, OidcScopes.ADDRESS, OidcScopes.PHONE);
 
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
@@ -293,8 +298,21 @@ public class AppSecurityConfig {
   @Bean
   public OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {
     OidcUserService delegate = new OidcUserService();
+    delegate.setRetrieveUserInfo(AppSecurityConfig::shouldRetrieveUserInfo);
     return request ->
         oidcUserManagement(request.getClientRegistration(), delegate.loadUser(request));
+  }
+
+  // Spring Security 7 calls UserInfo whatever the granted scopes; keep the 6.x rule.
+  private static boolean shouldRetrieveUserInfo(OidcUserRequest request) {
+    ClientRegistration registration = request.getClientRegistration();
+    if (isBlank(registration.getProviderDetails().getUserInfoEndpoint().getUri())
+        || !AuthorizationGrantType.AUTHORIZATION_CODE.equals(
+            registration.getAuthorizationGrantType())) {
+      return false;
+    }
+    Set<String> grantedScopes = request.getAccessToken().getScopes();
+    return grantedScopes.isEmpty() || grantedScopes.stream().anyMatch(USER_INFO_SCOPES::contains);
   }
 
   @Bean
