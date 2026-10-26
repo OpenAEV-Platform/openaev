@@ -580,6 +580,23 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       // Assert
       assertThat(itemsOf(user)).isEmpty();
     }
+
+    @Test
+    @DisplayName(
+        "Given an unexpected error while consuming the Hub, should create nothing and not fail")
+    void given_unexpectedErrorWhileConsuming_should_createNothingAndNotFail() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User user = createUser(firstTenant);
+      when(xtmHubClient.consumeProvisionedNewsFeedItems(any(), any()))
+          .thenThrow(new IllegalStateException("unexpected"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      assertThat(itemsOf(user)).isEmpty();
+    }
   }
 
   // -- Helpers --
