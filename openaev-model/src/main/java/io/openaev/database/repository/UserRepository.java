@@ -115,12 +115,18 @@ public interface UserRepository
   List<RawUserIdentity> rawAllIdentities();
 
   /**
-   * Users who receive the XTM Hub news feed: every user of at least one of the given tenants, as a
-   * projection rather than {@code User} entities (see {@link #rawIdentities}).
+   * Users who receive the XTM Hub news feed: the platform users of at least one of the given
+   * tenants, that is admins and members of a group of these tenants or of the platform. Players
+   * (users only known through their teams, who never log in) and reserved service/connector
+   * accounts are left out. A projection rather than {@code User} entities (see {@link
+   * #rawIdentities}).
    */
   @Query(
       "select u.id as id, u.unsubscribedNewsFeedTypes as unsubscribedTypes from User u"
-          + " where exists (select t.id from u.tenants t where t.id in :tenantIds)")
+          + " where exists (select t.id from u.tenants t where t.id in :tenantIds)"
+          + " and lower(u.email) not like '%@openaev.invalid'"
+          + " and (u.admin = true or exists (select g.id from u.groups g"
+          + " where g.tenant is null or g.tenant.id in :tenantIds))")
   List<RawNewsFeedRecipient> rawNewsFeedRecipients(
       @Param("tenantIds") Collection<String> tenantIds);
 

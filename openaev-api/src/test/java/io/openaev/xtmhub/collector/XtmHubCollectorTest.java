@@ -3,18 +3,13 @@ package io.openaev.xtmhub.collector;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import io.openaev.service.NewsFeedItemService;
-import io.openaev.xtmhub.XtmHubService;
 import java.time.Duration;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -24,8 +19,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 class XtmHubCollectorTest {
 
   @Mock private ThreadPoolTaskScheduler taskScheduler;
-  @Mock private XtmHubService xtmHubService;
-  @Mock private NewsFeedItemService newsFeedItemService;
+  @Mock private XtmHubConnectivityCollectorService connectivityCollectorService;
+  @Mock private XtmHubNewsFeedCollectorService newsFeedCollectorService;
 
   private XtmHubCollectorConfig config;
   private XtmHubCollector collector;
@@ -35,13 +30,9 @@ class XtmHubCollectorTest {
     config = new XtmHubCollectorConfig();
     config.setConnectivityCheckInterval(7200);
     config.setNewsFeedInterval(1800);
-    collector = new XtmHubCollector(config, taskScheduler, xtmHubService, newsFeedItemService);
-  }
-
-  private List<Duration> scheduledPeriods() {
-    ArgumentCaptor<Duration> periods = ArgumentCaptor.forClass(Duration.class);
-    verify(taskScheduler, times(2)).scheduleAtFixedRate(any(Runnable.class), periods.capture());
-    return periods.getAllValues();
+    collector =
+        new XtmHubCollector(
+            config, taskScheduler, connectivityCollectorService, newsFeedCollectorService);
   }
 
   @Test
@@ -55,6 +46,7 @@ class XtmHubCollectorTest {
 
     // Assert
     verify(taskScheduler, never()).scheduleAtFixedRate(any(Runnable.class), any(Duration.class));
+    verify(taskScheduler, never()).scheduleWithFixedDelay(any(Runnable.class), any(Duration.class));
   }
 
   @Test
@@ -67,35 +59,40 @@ class XtmHubCollectorTest {
     collector.init();
 
     // Assert
-    assertThat(scheduledPeriods())
-        .containsExactly(Duration.ofSeconds(7200), Duration.ofSeconds(1800));
+    verify(taskScheduler)
+        .scheduleAtFixedRate(connectivityCollectorService, Duration.ofSeconds(7200));
+    verify(taskScheduler)
+        .scheduleWithFixedDelay(newsFeedCollectorService, Duration.ofSeconds(1800));
   }
 
   @Test
-  @DisplayName("Given a non-positive news feed interval, should schedule it with the default")
-  void given_nonPositiveNewsFeedInterval_should_useDefault() {
+  @DisplayName("Given non-positive intervals, should schedule the tasks with the default")
+  void given_nonPositiveIntervals_should_useDefault() {
     // Arrange
     config.setEnable(true);
+    config.setConnectivityCheckInterval(-5);
     config.setNewsFeedInterval(0);
+    Duration defaultInterval = Duration.ofSeconds(XtmHubCollectorConfig.DEFAULT_INTERVAL);
 
     // Act
     collector.init();
 
     // Assert
-    assertThat(scheduledPeriods())
-        .containsExactly(
-            Duration.ofSeconds(7200),
-            Duration.ofSeconds(XtmHubCollectorConfig.DEFAULT_NEWS_FEED_INTERVAL));
+    verify(taskScheduler).scheduleAtFixedRate(connectivityCollectorService, defaultInterval);
+    verify(taskScheduler).scheduleWithFixedDelay(newsFeedCollectorService, defaultInterval);
   }
 
   @Test
-  @DisplayName("Given a negative news feed interval, should use the default")
-  void given_negativeNewsFeedInterval_should_useDefault() {
+  @DisplayName("Given a missing or non-positive interval, should resolve the default")
+  void given_invalidInterval_should_resolveDefault() {
     // Arrange
-    config.setNewsFeedInterval(-5);
+    config.setConnectivityCheckInterval(null);
+    config.setNewsFeedInterval(-1);
 
     // Act & Assert
+    assertThat(config.getEffectiveConnectivityCheckInterval())
+        .isEqualTo(XtmHubCollectorConfig.DEFAULT_INTERVAL);
     assertThat(config.getEffectiveNewsFeedInterval())
-        .isEqualTo(XtmHubCollectorConfig.DEFAULT_NEWS_FEED_INTERVAL);
+        .isEqualTo(XtmHubCollectorConfig.DEFAULT_INTERVAL);
   }
 }

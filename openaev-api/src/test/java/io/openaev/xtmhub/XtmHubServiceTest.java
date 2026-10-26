@@ -1910,6 +1910,42 @@ class XtmHubServiceTest {
     }
 
     @Test
+    @DisplayName("Given every token rejected at every run, should log the error once")
+    void given_everyTokenRejectedAtEveryRun_should_logTheErrorOnce() {
+      // Arrange
+      givenRegistrations(registered("tenant-a", FIRST_TOKEN, now.minusDays(10)));
+      givenHubAnswers(FIRST_TOKEN, 200, errorResponse("Invalid token provided"));
+      Logger serviceLogger = (Logger) LoggerFactory.getLogger(XtmHubService.class);
+      Level originalLevel = serviceLogger.getLevel();
+      serviceLogger.setLevel(Level.ERROR);
+      ListAppender<ILoggingEvent> logs = new ListAppender<>();
+      logs.start();
+      serviceLogger.addAppender(logs);
+      try {
+        // Act
+        xtmHubService.consumeProvisionedNewsFeedItems();
+        xtmHubService.consumeProvisionedNewsFeedItems();
+        mockServer.reset();
+        givenHubAnswers(FIRST_TOKEN, 200, ITEMS_RESPONSE);
+        xtmHubService.consumeProvisionedNewsFeedItems();
+        mockServer.reset();
+        givenHubAnswers(FIRST_TOKEN, 200, errorResponse("Invalid token provided"));
+        xtmHubService.consumeProvisionedNewsFeedItems();
+
+        // Assert: once per rejection streak, a success resets it
+        assertThat(logs.list)
+            .extracting(ILoggingEvent::getFormattedMessage)
+            .containsExactly(
+                "XTM Hub rejected the registration token of every registered tenant",
+                "XTM Hub rejected the registration token of every registered tenant");
+      } finally {
+        serviceLogger.detachAppender(logs);
+        logs.stop();
+        serviceLogger.setLevel(originalLevel);
+      }
+    }
+
+    @Test
     @DisplayName("Given a Hub server error, should stop after one attempt")
     void given_hubServerError_should_stopAfterOneAttempt() {
       // Arrange

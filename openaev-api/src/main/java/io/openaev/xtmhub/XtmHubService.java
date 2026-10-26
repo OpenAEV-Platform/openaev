@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +52,8 @@ public class XtmHubService {
   private final TenantWriteScopeResolver tenantWriteScopeResolver;
   private final TenantScopedTransaction tenantTx;
   private final PreviewFeatureService previewFeatureService;
+  // Logged once per state change rather than at every run, as long as the tokens stay rejected.
+  private final AtomicBoolean newsFeedTokensRejectedLogged = new AtomicBoolean(false);
 
   public Optional<TenantXtmHubRegistration> getRegistration(TxCtx ctx) {
     return tenantXtmHubRegistrationRepository.findByTenantId(
@@ -225,6 +228,7 @@ public class XtmHubService {
     for (TenantXtmHubRegistration registration : registrations) {
       switch (xtmHubClient.consumeProvisionedNewsFeedItems(registration.getToken(), platformId)) {
         case NewsFeedFetchResult.Fetched fetched -> {
+          newsFeedTokensRejectedLogged.set(false);
           return Optional.of(new NewsFeedConsumption(fetched.payload(), registeredTenantIds));
         }
         case NewsFeedFetchResult.TokenRejected rejected ->
@@ -236,7 +240,9 @@ public class XtmHubService {
         }
       }
     }
-    log.error("XTM Hub rejected the registration token of every registered tenant");
+    if (newsFeedTokensRejectedLogged.compareAndSet(false, true)) {
+      log.error("XTM Hub rejected the registration token of every registered tenant");
+    }
     return Optional.empty();
   }
 

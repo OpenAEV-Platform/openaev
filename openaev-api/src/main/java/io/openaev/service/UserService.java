@@ -132,8 +132,8 @@ public class UserService {
   }
 
   /**
-   * Returns the users of the given tenants, with the XTM Hub news feed types they unsubscribed
-   * from.
+   * Returns the platform users of the given tenants (players and reserved accounts excluded), with
+   * the XTM Hub news feed types they unsubscribed from.
    */
   public List<RawNewsFeedRecipient> newsFeedRecipients(Collection<String> tenantIds) {
     return userRepository.rawNewsFeedRecipients(tenantIds);

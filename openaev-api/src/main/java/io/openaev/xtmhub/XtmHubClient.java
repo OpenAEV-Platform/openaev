@@ -4,6 +4,10 @@ import static org.apache.hc.core5.http.HttpHeaders.ACCEPT;
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -20,8 +24,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
@@ -54,6 +60,7 @@ public class XtmHubClient {
       "mutation ConsumeProvisionedNewsFeedItems { consumeProvisionedNewsFeedItems {"
           + " news_feed_items { id title type tags metadata { key value } creation_date is_deleted }"
           + " available_news_feed_types } }";
+  private static final ObjectMapper NEWS_FEED_MAPPER = new ObjectMapper();
   private static final String URL_PATH_METADATA_KEY = "url_path";
   // What the Hub answers when the platform id and token headers do not match a registration: the
   // error code when it sends one, else (older Hubs) a message containing one of these values.
@@ -67,6 +74,21 @@ public class XtmHubClient {
           "INVALID_PLATFORM_ID");
 
   private record HubResponse(int code, String body) {}
+
+  // What the Hub sends for a news feed item. The fields are not validated by Jackson: a missing
+  // or malformed one only skips this item, see parseNewsFeedResponse.
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private record HubNewsFeedItem(
+      String id,
+      String title,
+      String type,
+      List<String> tags,
+      List<HubNewsFeedMetadata> metadata,
+      @JsonProperty("creation_date") String creationDate,
+      @JsonProperty("is_deleted") boolean deleted) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private record HubNewsFeedMetadata(String key, String value) {}
 
   @PostConstruct
   void init() {
@@ -462,35 +484,42 @@ public class XtmHubClient {
       return new NewsFeedFetchResult.Failed();
     }
     try {
-      JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+      JsonNode json = NEWS_FEED_MAPPER.readTree(response.body());
       if (json.has("errors")) {
-        return parseNewsFeedErrors(json.getAsJsonArray("errors"));
+        return parseNewsFeedErrors(json.get("errors"));
       }
-      JsonObject data =
-          json.getAsJsonObject("data").getAsJsonObject("consumeProvisionedNewsFeedItems");
+      JsonNode data = json.path("data").path("consumeProvisionedNewsFeedItems");
+      JsonNode hubItems = data.path("news_feed_items");
+      if (!hubItems.isArray()) {
+        throw new IllegalArgumentException("missing news_feed_items");
+      }
       // The Hub removes the items it answers: a malformed one is skipped, not the whole answer.
       List<ProvisionedNewsFeedItem> items = new ArrayList<>();
-      for (JsonElement element : data.getAsJsonArray("news_feed_items")) {
+      for (JsonNode hubItem : hubItems) {
         try {
-          items.add(toProvisionedNewsFeedItem(element.getAsJsonObject()));
+          items.add(
+              toProvisionedNewsFeedItem(
+                  NEWS_FEED_MAPPER.treeToValue(hubItem, HubNewsFeedItem.class)));
         } catch (Exception e) {
           log.warn(
               "Skipping the malformed XTM Hub news feed item {}: {}",
-              describeNewsFeedItem(element),
+              describeNewsFeedItem(hubItem),
               e.getMessage());
         }
       }
       return new NewsFeedFetchResult.Fetched(
-          new ProvisionedNewsFeedItems(items, stringsOf(data, "available_news_feed_types")));
+          new ProvisionedNewsFeedItems(items, stringsOf(data.path("available_news_feed_types"))));
     } catch (Exception e) {
       log.warn("Error occurred while parsing XTM Hub news feed items response: {}", e.getMessage());
       return new NewsFeedFetchResult.Failed();
     }
   }
 
-  private NewsFeedFetchResult parseNewsFeedErrors(JsonArray errors) {
+  private NewsFeedFetchResult parseNewsFeedErrors(JsonNode errors) {
     boolean tokenRejected =
-        errors.asList().stream().anyMatch(error -> isTokenRejectedError(error.getAsJsonObject()));
+        errors.isArray()
+            && StreamSupport.stream(errors.spliterator(), false)
+                .anyMatch(this::isTokenRejectedError);
     if (tokenRejected) {
       return new NewsFeedFetchResult.TokenRejected();
     }
@@ -498,66 +527,59 @@ public class XtmHubClient {
     return new NewsFeedFetchResult.Failed();
   }
 
-  private boolean isTokenRejectedError(JsonObject error) {
-    String code =
-        error.has("extensions") && error.get("extensions").isJsonObject()
-            ? optionalString(error.getAsJsonObject("extensions"), "code")
-            : null;
+  private boolean isTokenRejectedError(JsonNode error) {
+    String code = textOrNull(error.path("extensions").path("code"));
     if (code != null && TOKEN_REJECTED_CODES.contains(code)) {
       return true;
     }
-    String message = optionalString(error, "message");
+    String message = textOrNull(error.path("message"));
     return message != null && TOKEN_REJECTED_MESSAGES.stream().anyMatch(message::contains);
   }
 
-  private ProvisionedNewsFeedItem toProvisionedNewsFeedItem(JsonObject item) {
-    String urlPath = null;
-    if (item.has("metadata") && item.get("metadata").isJsonArray()) {
-      for (JsonElement element : item.getAsJsonArray("metadata")) {
-        if (element.isJsonObject()
-            && URL_PATH_METADATA_KEY.equals(optionalString(element.getAsJsonObject(), "key"))) {
-          urlPath = optionalString(element.getAsJsonObject(), "value");
-          break;
-        }
-      }
-    }
-    JsonElement deleted = item.get("is_deleted");
+  private ProvisionedNewsFeedItem toProvisionedNewsFeedItem(HubNewsFeedItem item) {
+    String urlPath =
+        item.metadata() == null
+            ? null
+            : item.metadata().stream()
+                .filter(
+                    metadata -> metadata != null && URL_PATH_METADATA_KEY.equals(metadata.key()))
+                .findFirst()
+                .map(HubNewsFeedMetadata::value)
+                .orElse(null);
     return new ProvisionedNewsFeedItem(
-        requiredString(item, "id"),
-        requiredString(item, "title"),
-        requiredString(item, "type"),
-        stringsOf(item, "tags"),
+        required(item.id(), "id"),
+        required(item.title(), "title"),
+        required(item.type(), "type"),
+        item.tags() == null ? List.of() : item.tags().stream().filter(Objects::nonNull).toList(),
         urlPath,
-        Instant.parse(requiredString(item, "creation_date")),
-        deleted != null && deleted.isJsonPrimitive() && deleted.getAsBoolean());
+        Instant.parse(required(item.creationDate(), "creation_date")),
+        item.deleted());
   }
 
-  private String describeNewsFeedItem(JsonElement element) {
-    String id = element.isJsonObject() ? optionalString(element.getAsJsonObject(), "id") : null;
+  private String describeNewsFeedItem(JsonNode hubItem) {
+    String id = textOrNull(hubItem.path("id"));
     return id != null ? id : "(without id)";
   }
 
-  private String requiredString(JsonObject object, String field) {
-    String value = optionalString(object, field);
+  private String required(String value, String field) {
     if (value == null || value.isBlank()) {
       throw new IllegalArgumentException("missing field " + field);
     }
     return value;
   }
 
-  private String optionalString(JsonObject object, String field) {
-    JsonElement value = object.get(field);
-    return value != null && value.isJsonPrimitive() ? value.getAsString() : null;
+  private String textOrNull(JsonNode node) {
+    return node.isValueNode() && !node.isNull() ? node.asText() : null;
   }
 
-  private List<String> stringsOf(JsonObject object, String field) {
-    JsonElement value = object.get(field);
-    if (value == null || !value.isJsonArray()) {
+  private List<String> stringsOf(JsonNode node) {
+    if (!node.isArray()) {
       return List.of();
     }
-    return value.getAsJsonArray().asList().stream()
-        .filter(JsonElement::isJsonPrimitive)
-        .map(JsonElement::getAsString)
+    return StreamSupport.stream(node.spliterator(), false)
+        .filter(JsonNode::isValueNode)
+        .filter(element -> !element.isNull())
+        .map(JsonNode::asText)
         .toList();
   }
 

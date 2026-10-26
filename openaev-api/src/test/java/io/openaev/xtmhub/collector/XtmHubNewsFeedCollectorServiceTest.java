@@ -9,18 +9,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Group;
 import io.openaev.database.model.NewsFeedItem;
 import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.NewsFeedItemRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.NewsFeedItemService;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -36,6 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,6 +68,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
   @Autowired private XtmHubNewsFeedCollectorService collectorService;
   @Autowired private NewsFeedItemRepository newsFeedItemRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private GroupRepository groupRepository;
   @Autowired private TenantXtmHubRegistrationRepository registrationRepository;
   @Autowired private TenantComposer tenantComposer;
 
@@ -70,6 +76,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
   @MockitoBean private PreviewFeatureService previewFeatureService;
 
   private final List<User> createdUsers = new ArrayList<>();
+  private final List<Group> createdGroups = new ArrayList<>();
   private final List<String> createdTenantIds = new ArrayList<>();
   private Tenant firstTenant;
   private Tenant secondTenant;
@@ -84,7 +91,18 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
   @AfterEach
   void cleanup() {
     newsFeedItemRepository.deleteAll();
-    userRepository.deleteAll(createdUsers);
+    // By id, members first: the detached entities still reference each other and would be
+    // re-persisted.
+    List<String> groupIds = createdGroups.stream().map(Group::getId).toList();
+    groupRepository
+        .findAllById(groupIds)
+        .forEach(
+            group -> {
+              group.setUsers(new ArrayList<>());
+              groupRepository.save(group);
+            });
+    userRepository.deleteAllById(createdUsers.stream().map(User::getId).toList());
+    groupRepository.deleteAllById(groupIds);
     createdTenantIds.forEach(registrationRepository::deleteByTenantId);
     createdTenantIds.forEach(tenantRepository::deleteById);
   }
@@ -163,6 +181,32 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
           .filteredOn(userIds::contains)
           .hasSize(users.size())
           .doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("Given more items than a chunk, should create every item for every user")
+    void given_moreItemsThanAChunk_should_createEveryItem() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User first = createUser(firstTenant);
+      User second = createUser(firstTenant);
+      int itemCount = NewsFeedItemService.ITEM_CHUNK_SIZE + 1;
+      givenHubReturns(
+          FIRST_TOKEN,
+          IntStream.range(0, itemCount)
+              .mapToObj(i -> scenario("hub-" + i))
+              .toArray(ProvisionedNewsFeedItem[]::new));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      for (User user : List.of(first, second)) {
+        assertThat(itemsOf(user))
+            .extracting(NewsFeedItem::getHubItemId)
+            .hasSize(itemCount)
+            .doesNotHaveDuplicates();
+      }
     }
 
     @Test
@@ -258,6 +302,73 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       // Assert
       assertThat(itemsOf(registeredUser)).hasSize(1);
       assertThat(itemsOf(unregisteredUser)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Given a player who belongs to no group, should create no item for them")
+    void given_playerWithoutGroup_should_createNoItemForThem() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User admin = createUser(firstTenant);
+      User player = createPlayer(firstTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      assertThat(itemsOf(admin)).hasSize(1);
+      assertThat(itemsOf(player)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Given members of a tenant group and of a platform group, should create items")
+    void given_groupMembers_should_createItems() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User tenantGroupMember = createGroupMember(createGroup(firstTenant), firstTenant);
+      User platformGroupMember = createGroupMember(createGroup(null), firstTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      assertThat(itemsOf(tenantGroupMember)).hasSize(1);
+      assertThat(itemsOf(platformGroupMember)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Given a member of a group of an unregistered tenant only, should create no item")
+    void given_memberOfGroupOfUnregisteredTenant_should_createNoItem() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User member = createGroupMember(createGroup(secondTenant), firstTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      assertThat(itemsOf(member)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Given a reserved service account, should create no item for it")
+    void given_reservedServiceAccount_should_createNoItemForIt() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User serviceAccount = UserFixture.getUserWithDefaultEmail();
+      serviceAccount.setAdmin(true);
+      serviceAccount.setEmail("service-news-feed-test@openaev.invalid");
+      serviceAccount = saveUsers(List.of(serviceAccount), firstTenant).getFirst();
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      assertThat(itemsOf(serviceAccount)).isEmpty();
     }
 
     @Test
@@ -484,13 +595,46 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
     return createUsers(1, tenants).getFirst();
   }
 
+  /** Platform users: admins, who receive the news feed. */
   private List<User> createUsers(int count, Tenant... tenants) {
     List<User> users = new ArrayList<>();
     for (int i = 0; i < count; i++) {
       User user = UserFixture.getUserWithDefaultEmail();
-      user.setTenants(new ArrayList<>(List.of(tenants)));
+      user.setAdmin(true);
       users.add(user);
     }
+    return saveUsers(users, tenants);
+  }
+
+  /** A player: neither admin nor member of a group, only known through its teams. */
+  private User createPlayer(Tenant... tenants) {
+    User player = UserFixture.getUserWithDefaultEmail();
+    player.setAdmin(false);
+    return saveUsers(List.of(player), tenants).getFirst();
+  }
+
+  private User createGroupMember(Group group, Tenant... tenants) {
+    User member = UserFixture.getUserWithDefaultEmail();
+    member.setAdmin(false);
+    User saved = saveUsers(List.of(member), tenants).getFirst();
+    group.setUsers(new ArrayList<>(List.of(saved)));
+    groupRepository.save(group);
+    return saved;
+  }
+
+  private Group createGroup(Tenant tenant) {
+    Group group =
+        tenant == null
+            ? PlatformGroupFixture.getPlatformGroup("News feed platform group")
+            : TenantGroupFixture.getGroup("News feed tenant group");
+    group.setTenant(tenant);
+    Group saved = groupRepository.save(group);
+    createdGroups.add(saved);
+    return saved;
+  }
+
+  private List<User> saveUsers(List<User> users, Tenant... tenants) {
+    users.forEach(user -> user.setTenants(new ArrayList<>(List.of(tenants))));
     List<User> saved = userRepository.saveAll(users);
     createdUsers.addAll(saved);
     return saved;

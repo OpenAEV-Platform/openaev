@@ -1,7 +1,5 @@
 package io.openaev.xtmhub.collector;
 
-import io.openaev.service.NewsFeedItemService;
-import io.openaev.xtmhub.XtmHubService;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.Objects;
@@ -17,29 +15,38 @@ public class XtmHubCollector {
 
   private final XtmHubCollectorConfig config;
   private final ThreadPoolTaskScheduler taskScheduler;
-  private final XtmHubService xtmHubService;
-  private final NewsFeedItemService newsFeedItemService;
+  private final XtmHubConnectivityCollectorService connectivityCollectorService;
+  private final XtmHubNewsFeedCollectorService newsFeedCollectorService;
 
   @PostConstruct
   public void init() {
     if (this.config.isEnable()) {
-      XtmHubConnectivityCollectorService service =
-          new XtmHubConnectivityCollectorService(this.xtmHubService);
-
       this.taskScheduler.scheduleAtFixedRate(
-          service, Duration.ofSeconds(this.config.getConnectivityCheckInterval()));
+          this.connectivityCollectorService,
+          interval(
+              "connectivity-check-interval",
+              this.config.getConnectivityCheckInterval(),
+              this.config.getEffectiveConnectivityCheckInterval()));
 
-      XtmHubNewsFeedCollectorService newsFeedService =
-          new XtmHubNewsFeedCollectorService(this.xtmHubService, this.newsFeedItemService);
-
-      int newsFeedInterval = this.config.getEffectiveNewsFeedInterval();
-      if (!Objects.equals(this.config.getNewsFeedInterval(), newsFeedInterval)) {
-        log.warn(
-            "Invalid openaev.xtm.hub.collector.news-feed-interval {}, using {} seconds",
-            this.config.getNewsFeedInterval(),
-            XtmHubCollectorConfig.DEFAULT_NEWS_FEED_INTERVAL);
-      }
-      this.taskScheduler.scheduleAtFixedRate(newsFeedService, Duration.ofSeconds(newsFeedInterval));
+      // Fixed delay: a run lasts as long as the number of users and items, so the next one starts
+      // an interval after the end of the previous one rather than catching up.
+      this.taskScheduler.scheduleWithFixedDelay(
+          this.newsFeedCollectorService,
+          interval(
+              "news-feed-interval",
+              this.config.getNewsFeedInterval(),
+              this.config.getEffectiveNewsFeedInterval()));
     }
+  }
+
+  private Duration interval(String property, Integer configured, int effective) {
+    if (!Objects.equals(configured, effective)) {
+      log.warn(
+          "Invalid openaev.xtm.hub.collector.{} {}, using {} seconds",
+          property,
+          configured,
+          effective);
+    }
+    return Duration.ofSeconds(effective);
   }
 }

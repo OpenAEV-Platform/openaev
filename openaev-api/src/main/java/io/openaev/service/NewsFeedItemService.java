@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,9 +27,14 @@ import org.springframework.stereotype.Service;
 public class NewsFeedItemService {
 
   /**
-   * Users handled per transaction: bounds the entities held in memory and the work lost on error.
+   * Users handled per transaction. Together with {@link #ITEM_CHUNK_SIZE} it bounds the entities
+   * held in memory (at most their product) and the work lost on error, whatever the number of users
+   * or of items the Hub accumulated.
    */
   public static final int USER_CHUNK_SIZE = 500;
+
+  /** Hub items handled per transaction, see {@link #USER_CHUNK_SIZE}. */
+  public static final int ITEM_CHUNK_SIZE = 50;
 
   private final NewsFeedItemRepository newsFeedItemRepository;
   private final UserService userService;
@@ -46,8 +52,8 @@ public class NewsFeedItemService {
    * their type and does not have them yet. Deleted items and items of a type OpenAEV does not know
    * are ignored, and an item the Hub sent several times is created once.
    *
-   * <p>The users are handled by chunks, each in its own transaction: the Hub no longer holds the
-   * items, so a failing chunk is logged and the others are still created.
+   * <p>The users and the items are handled by chunks, each in its own transaction: the Hub no
+   * longer holds the items, so a failing chunk is logged and the others are still created.
    *
    * @param provisionedItems the items consumed from XTM Hub
    * @param recipientTenantIds the tenants registered on XTM Hub, whose users receive the items
@@ -81,46 +87,71 @@ public class NewsFeedItemService {
         tenantTx.execute(
             TxCtx.allTenants(), () -> userService.newsFeedRecipients(recipientTenantIds));
 
+    List<TypedItem> items = List.copyOf(typedItems.values());
     int created = 0;
-    for (int from = 0; from < recipients.size(); from += USER_CHUNK_SIZE) {
-      List<RawNewsFeedRecipient> chunk =
-          recipients.subList(from, Math.min(from + USER_CHUNK_SIZE, recipients.size()));
-      try {
-        created += createMissingItemsForUsers(chunk, typedItems);
-      } catch (Exception e) {
-        log.error(
-            "Could not create the news feed items of {} users: {}",
-            chunk.size(),
-            e.getMessage(),
-            e);
+    for (List<RawNewsFeedRecipient> userChunk : chunks(recipients, USER_CHUNK_SIZE)) {
+      for (List<TypedItem> itemChunk : chunks(items, ITEM_CHUNK_SIZE)) {
+        try {
+          created += createMissingItemsWithRetry(userChunk, itemChunk);
+        } catch (Exception e) {
+          log.error(
+              "Could not create {} news feed items for {} users: {}",
+              itemChunk.size(),
+              userChunk.size(),
+              e.getMessage(),
+              e);
+        }
       }
     }
     log.info("Created {} news feed items from XTM Hub", created);
   }
 
-  private int createMissingItemsForUsers(
-      List<RawNewsFeedRecipient> users, Map<String, TypedItem> typedItems) {
+  private static <T> List<List<T>> chunks(List<T> list, int size) {
+    List<List<T>> chunks = new ArrayList<>();
+    for (int from = 0; from < list.size(); from += size) {
+      chunks.add(list.subList(from, Math.min(from + size, list.size())));
+    }
+    return chunks;
+  }
+
+  /**
+   * A concurrent creation of the same items (another run, another node) makes the unique constraint
+   * reject the chunk. The retry finds the items created meanwhile and only creates the missing
+   * ones.
+   */
+  private int createMissingItemsWithRetry(List<RawNewsFeedRecipient> users, List<TypedItem> items) {
+    try {
+      return createMissingItemsForUsers(users, items);
+    } catch (DataIntegrityViolationException e) {
+      log.warn("News feed items created concurrently, retrying the chunk: {}", e.getMessage());
+      return createMissingItemsForUsers(users, items);
+    }
+  }
+
+  private int createMissingItemsForUsers(List<RawNewsFeedRecipient> users, List<TypedItem> items) {
     return tenantTx.execute(
         TxCtx.allTenants(),
         () -> {
           Set<UserItem> existing =
               newsFeedItemRepository
                   .rawKeys(
-                      users.stream().map(RawNewsFeedRecipient::getId).toList(), typedItems.keySet())
+                      users.stream().map(RawNewsFeedRecipient::getId).toList(),
+                      items.stream().map(typed -> typed.item().id()).toList())
                   .stream()
                   .map(key -> new UserItem(key.getUserId(), key.getHubItemId()))
                   .collect(Collectors.toSet());
 
           List<NewsFeedItem> created = new ArrayList<>();
           for (RawNewsFeedRecipient user : users) {
-            for (TypedItem typed : typedItems.values()) {
+            for (TypedItem typed : items) {
               if (!typed.type().isUnsubscribed(user.getUnsubscribedTypes())
                   && !existing.contains(new UserItem(user.getId(), typed.item().id()))) {
                 created.add(toNewsFeedItem(typed, user.getId()));
               }
             }
           }
-          newsFeedItemRepository.saveAll(created);
+          // Flushed here, not at commit, so that a constraint violation surfaces to the retry.
+          newsFeedItemRepository.saveAllAndFlush(created);
           return created.size();
         });
   }

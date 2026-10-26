@@ -35,6 +35,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("NewsFeedItemService tests")
@@ -86,10 +87,16 @@ class NewsFeedItemServiceTest {
     return new ProvisionedNewsFeedItem(id, title, type, List.of(), null, CREATION_DATE, false);
   }
 
+  private static List<ProvisionedNewsFeedItem> items(int count) {
+    return IntStream.range(0, count)
+        .mapToObj(i -> item("hub-" + i, "Title " + i, "RESOURCE_SCENARIO"))
+        .toList();
+  }
+
   @SuppressWarnings("unchecked")
   private List<List<NewsFeedItem>> savedBatches(int expectedBatches) {
     ArgumentCaptor<List<NewsFeedItem>> captor = ArgumentCaptor.forClass(List.class);
-    verify(newsFeedItemRepository, times(expectedBatches)).saveAll(captor.capture());
+    verify(newsFeedItemRepository, times(expectedBatches)).saveAllAndFlush(captor.capture());
     return captor.getAllValues();
   }
 
@@ -101,7 +108,7 @@ class NewsFeedItemServiceTest {
 
     // Assert
     verifyNoInteractions(userService);
-    verify(newsFeedItemRepository, never()).saveAll(anyCollection());
+    verify(newsFeedItemRepository, never()).saveAllAndFlush(anyCollection());
   }
 
   @Test
@@ -139,7 +146,7 @@ class NewsFeedItemServiceTest {
     // Arrange
     when(userService.newsFeedRecipients(TENANTS))
         .thenReturn(recipients(NewsFeedItemService.USER_CHUNK_SIZE + 1));
-    when(newsFeedItemRepository.saveAll(anyCollection()))
+    when(newsFeedItemRepository.saveAllAndFlush(anyCollection()))
         .thenThrow(new IllegalStateException("boom"))
         .thenAnswer(invocation -> new ArrayList<>(invocation.<List<NewsFeedItem>>getArgument(0)));
 
@@ -150,6 +157,53 @@ class NewsFeedItemServiceTest {
     assertThat(savedBatches(2))
         .extracting(List::size)
         .containsExactly(NewsFeedItemService.USER_CHUNK_SIZE, 1);
+  }
+
+  @Test
+  @DisplayName("Given more items than a chunk, should save them by chunk")
+  void given_moreItemsThanAChunk_should_saveByChunk() {
+    // Arrange
+    when(userService.newsFeedRecipients(TENANTS)).thenReturn(recipients(1));
+
+    // Act
+    service.createMissingItems(items(NewsFeedItemService.ITEM_CHUNK_SIZE + 1), TENANTS);
+
+    // Assert
+    assertThat(savedBatches(2))
+        .extracting(List::size)
+        .containsExactly(NewsFeedItemService.ITEM_CHUNK_SIZE, 1);
+  }
+
+  @Test
+  @DisplayName("Given items created concurrently, should retry the chunk once")
+  void given_itemsCreatedConcurrently_should_retryTheChunkOnce() {
+    // Arrange
+    when(userService.newsFeedRecipients(TENANTS)).thenReturn(recipients(2));
+    when(newsFeedItemRepository.saveAllAndFlush(anyCollection()))
+        .thenThrow(new DataIntegrityViolationException("duplicate key"))
+        .thenAnswer(invocation -> new ArrayList<>(invocation.<List<NewsFeedItem>>getArgument(0)));
+
+    // Act
+    service.createMissingItems(List.of(item("hub-1", "Title", "RESOURCE_SCENARIO")), TENANTS);
+
+    // Assert: the retry looks the existing items up again
+    assertThat(savedBatches(2)).extracting(List::size).containsExactly(2, 2);
+    verify(newsFeedItemRepository, times(2)).rawKeys(anyCollection(), anyCollection());
+  }
+
+  @Test
+  @DisplayName("Given a chunk that keeps being rejected, should not retry it more than once")
+  void given_chunkKeepsBeingRejected_should_notRetryMoreThanOnce() {
+    // Arrange
+    when(userService.newsFeedRecipients(TENANTS)).thenReturn(recipients(1));
+    when(newsFeedItemRepository.saveAllAndFlush(anyCollection()))
+        .thenThrow(new DataIntegrityViolationException("duplicate key"));
+
+    // Act
+    service.createMissingItems(List.of(item("hub-1", "Title", "RESOURCE_SCENARIO")), TENANTS);
+
+    // Assert
+    savedBatches(2);
   }
 
   @Test
@@ -224,6 +278,6 @@ class NewsFeedItemServiceTest {
 
     // Assert
     verifyNoInteractions(userService);
-    verify(newsFeedItemRepository, never()).saveAll(anyCollection());
+    verify(newsFeedItemRepository, never()).saveAllAndFlush(anyCollection());
   }
 }
