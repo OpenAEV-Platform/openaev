@@ -131,9 +131,12 @@ public class UserService {
     return userRepository.globalCount();
   }
 
-  /** Returns the users who receive the XTM Hub news feed, with the types they unsubscribed from. */
-  public List<RawNewsFeedRecipient> newsFeedRecipients() {
-    return userRepository.rawNewsFeedRecipients();
+  /**
+   * Returns the users of the given tenants, with the XTM Hub news feed types they unsubscribed
+   * from.
+   */
+  public List<RawNewsFeedRecipient> newsFeedRecipients(Collection<String> tenantIds) {
+    return userRepository.rawNewsFeedRecipients(tenantIds);
   }
 
   // -- CREATE --

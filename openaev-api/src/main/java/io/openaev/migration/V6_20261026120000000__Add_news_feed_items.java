@@ -32,6 +32,13 @@ public class V6_20261026120000000__Add_news_feed_items extends BaseJavaMigration
           );
           """);
 
+      // The unique constraint leads with user_id, so it cannot serve the lookup by Hub item.
+      statement.execute(
+          """
+          CREATE INDEX IF NOT EXISTS idx_news_feed_items_hub_id
+            ON news_feed_items (news_feed_item_hub_id);
+          """);
+
       statement.execute(
           """
           ALTER TABLE users

@@ -3,6 +3,7 @@ package io.openaev.xtmhub;
 import static org.apache.hc.core5.http.HttpHeaders.ACCEPT;
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockserver.model.HttpRequest.request;
@@ -1604,7 +1605,7 @@ class XtmHubServiceTest {
           .thenReturn(false);
 
       // Act
-      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
 
       // Assert
       assertThat(result).isEmpty();
@@ -1619,7 +1620,7 @@ class XtmHubServiceTest {
       givenRegistrations();
 
       // Act
-      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
 
       // Assert
       assertThat(result).isEmpty();
@@ -1636,7 +1637,7 @@ class XtmHubServiceTest {
       givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
 
       // Act
-      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
 
       // Assert
       assertThat(result).isPresent();
@@ -1654,7 +1655,7 @@ class XtmHubServiceTest {
       givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
 
       // Act
-      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
 
       // Assert
       assertThat(result).isPresent();
@@ -1672,7 +1673,7 @@ class XtmHubServiceTest {
 
       // Act
       ProvisionedNewsFeedItems result =
-          xtmHubService.consumeProvisionedNewsFeedItems().orElseThrow();
+          xtmHubService.consumeProvisionedNewsFeedItems().orElseThrow().provisioned();
 
       // Assert
       assertThat(result.availableTypes()).containsExactly("RESOURCE_SCENARIO");
@@ -1705,11 +1706,171 @@ class XtmHubServiceTest {
       givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
 
       // Act
-      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
 
       // Assert
       assertThat(result).isPresent();
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN, SECOND_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Given registrations, should return the registered tenants as recipients")
+    void given_registrations_should_returnRegisteredTenants() {
+      // Arrange
+      TenantXtmHubRegistration lost = registered("tenant-c", "third-token", now.minusDays(20));
+      lost.setRegistrationStatus(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      givenRegistrations(
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)),
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)),
+          lost);
+      givenHubAnswers(FIRST_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      NewsFeedConsumption result = xtmHubService.consumeProvisionedNewsFeedItems().orElseThrow();
+
+      // Assert
+      assertThat(result.registeredTenantIds()).containsExactlyInAnyOrder("tenant-a", "tenant-b");
+    }
+
+    @Test
+    @DisplayName("Given a registration without date, should try it after the dated ones")
+    void given_registrationWithoutDate_should_tryItLast() {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-b", SECOND_TOKEN, null),
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(1)));
+      givenHubAnswers(FIRST_TOKEN, 200, ITEMS_RESPONSE);
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Given registrations of the same date, should try the lowest tenant id first")
+    void given_sameRegistrationDate_should_tryLowestTenantIdFirst() {
+      // Arrange
+      LocalDateTime sameDate = now.minusDays(3);
+      givenRegistrations(
+          registered("tenant-b", SECOND_TOKEN, sameDate),
+          registered("tenant-a", FIRST_TOKEN, sameDate));
+      givenHubAnswers(FIRST_TOKEN, 200, ITEMS_RESPONSE);
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Given a malformed item among valid ones, should skip it and keep the others")
+    void given_malformedItem_should_skipItAndKeepOthers() {
+      // Arrange
+      givenRegistrations(registered("tenant-a", FIRST_TOKEN, now.minusDays(10)));
+      givenHubAnswers(
+          FIRST_TOKEN,
+          200,
+          """
+          {"data":{"consumeProvisionedNewsFeedItems":{"news_feed_items":[
+           {"id":"hub-no-title","title":null,"type":"RESOURCE_SCENARIO","tags":[],"metadata":[],
+            "creation_date":"2026-10-20T10:15:30.000Z","is_deleted":false},
+           {"id":"hub-bad-date","title":"Bad date","type":"RESOURCE_SCENARIO","tags":[],
+            "metadata":[],"creation_date":"yesterday","is_deleted":false},
+           {"title":"No id","type":"RESOURCE_SCENARIO","creation_date":"2026-10-20T10:15:30Z"},
+           "not-an-object",
+           %s],"available_news_feed_types":["RESOURCE_SCENARIO"]}}}
+          """
+              .formatted(ITEM));
+
+      // Act
+      ProvisionedNewsFeedItems result =
+          xtmHubService.consumeProvisionedNewsFeedItems().orElseThrow().provisioned();
+
+      // Assert
+      assertThat(result.items()).extracting(ProvisionedNewsFeedItem::id).containsExactly("hub-1");
+    }
+
+    @Test
+    @DisplayName("Given an item without optional fields, should map it with defaults")
+    void given_itemWithoutOptionalFields_should_mapItWithDefaults() {
+      // Arrange
+      givenRegistrations(registered("tenant-a", FIRST_TOKEN, now.minusDays(10)));
+      givenHubAnswers(
+          FIRST_TOKEN,
+          200,
+          """
+          {"data":{"consumeProvisionedNewsFeedItems":{"news_feed_items":[
+           {"id":"hub-bare","title":"Bare","type":"RESOURCE_SCENARIO",
+            "creation_date":"2026-10-20T10:15:30Z"},
+           {"id":"hub-other-metadata","title":"Other","type":"RESOURCE_SCENARIO","tags":null,
+            "metadata":[{"key":"document_id","value":"doc-1"},{"key":"url_path","value":null}],
+            "creation_date":"2026-10-20T10:15:30Z","is_deleted":null}]}}}
+          """);
+
+      // Act
+      ProvisionedNewsFeedItems result =
+          xtmHubService.consumeProvisionedNewsFeedItems().orElseThrow().provisioned();
+
+      // Assert
+      assertThat(result.availableTypes()).isEmpty();
+      assertThat(result.items())
+          .extracting(ProvisionedNewsFeedItem::id, ProvisionedNewsFeedItem::urlPath)
+          .containsExactly(tuple("hub-bare", null), tuple("hub-other-metadata", null));
+      assertThat(result.items())
+          .allSatisfy(
+              item -> {
+                assertThat(item.tags()).isEmpty();
+                assertThat(item.deleted()).isFalse();
+              });
+    }
+
+    @Test
+    @DisplayName("Given a rejection sent as an error code, should fall back to the next tenant")
+    void given_rejectionAsErrorCode_should_fallBackToNextTenant() {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)),
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)));
+      givenHubAnswers(
+          FIRST_TOKEN,
+          200,
+          "{\"errors\":[{\"message\":\"Forbidden\","
+              + "\"extensions\":{\"code\":\"PLATFORM_NOT_REGISTERED\"}}],\"data\":null}");
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isPresent();
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN, SECOND_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Given an error with an unrelated code, should stop after one attempt")
+    void given_errorWithUnrelatedCode_should_stopAfterOneAttempt() {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)),
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)));
+      givenHubAnswers(
+          FIRST_TOKEN,
+          200,
+          "{\"errors\":[{\"message\":\"Boom\","
+              + "\"extensions\":{\"code\":\"INTERNAL_SERVER_ERROR\"}}],\"data\":null}");
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
+
+      // Assert
+      assertThat(result).isEmpty();
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
     }
 
     @Test
@@ -1723,7 +1884,7 @@ class XtmHubServiceTest {
       givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
 
       // Act
-      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
 
       // Assert
       assertThat(result).isPresent();
@@ -1741,7 +1902,7 @@ class XtmHubServiceTest {
       givenHubAnswers(SECOND_TOKEN, 200, errorResponse("Invalid token provided"));
 
       // Act
-      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
 
       // Assert
       assertThat(result).isEmpty();
@@ -1759,7 +1920,7 @@ class XtmHubServiceTest {
       givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
 
       // Act
-      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
 
       // Assert
       assertThat(result).isEmpty();
@@ -1777,7 +1938,7 @@ class XtmHubServiceTest {
       givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
 
       // Act
-      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
 
       // Assert
       assertThat(result).isEmpty();
@@ -1795,7 +1956,7 @@ class XtmHubServiceTest {
       givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
 
       // Act
-      Optional<ProvisionedNewsFeedItems> result = xtmHubService.consumeProvisionedNewsFeedItems();
+      Optional<NewsFeedConsumption> result = xtmHubService.consumeProvisionedNewsFeedItems();
 
       // Assert
       assertThat(result).isEmpty();

@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /** Kind of resource an XTM Hub news feed item announces. */
@@ -17,7 +18,10 @@ public enum NewsFeedType {
 
   /** Whether a user who unsubscribed from {@code unsubscribedTypes} must not receive this type. */
   public boolean isUnsubscribed(String[] unsubscribedTypes) {
-    return Arrays.asList(unsubscribedTypes).contains(ALL_TYPES)
-        || Arrays.asList(unsubscribedTypes).contains(name());
+    if (unsubscribedTypes == null) {
+      return false;
+    }
+    List<String> unsubscribed = Arrays.asList(unsubscribedTypes);
+    return unsubscribed.contains(ALL_TYPES) || unsubscribed.contains(name());
   }
 }

@@ -15,6 +15,8 @@ public interface NewsFeedItemRepository extends JpaRepository<NewsFeedItem, Stri
   /** Projection rather than entities: loading an item also loads its user (EAGER). */
   @Query(
       "select n.user.id as userId, n.hubItemId as hubItemId"
-          + " from NewsFeedItem n where n.hubItemId in :hubItemIds")
-  List<RawNewsFeedItemKey> rawKeys(@Param("hubItemIds") Collection<String> hubItemIds);
+          + " from NewsFeedItem n where n.user.id in :userIds and n.hubItemId in :hubItemIds")
+  List<RawNewsFeedItemKey> rawKeys(
+      @Param("userIds") Collection<String> userIds,
+      @Param("hubItemIds") Collection<String> hubItemIds);
 }

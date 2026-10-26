@@ -11,6 +11,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Type;
@@ -49,9 +50,8 @@ public class NewsFeedItem implements Base, UserScoped {
 
   @Column(name = "news_feed_item_type")
   @JsonProperty("news_feed_item_type")
-  @NotNull
-  @Enumerated(EnumType.STRING)
-  private NewsFeedType type;
+  @NotBlank
+  private String type;
 
   @Type(StringArrayType.class)
   @Column(name = "news_feed_item_tags", columnDefinition = "text[]")
@@ -79,6 +79,18 @@ public class NewsFeedItem implements Base, UserScoped {
   @Schema(type = "string")
   @NotNull
   private User user;
+
+  // Stored as a plain string: removing a {@link NewsFeedType} must not break loading old rows.
+  public void setType(NewsFeedType type) {
+    this.type = type.name();
+  }
+
+  /**
+   * The known type of this item, empty when its stored value is no longer a {@link NewsFeedType}.
+   */
+  public Optional<NewsFeedType> resolveType() {
+    return NewsFeedType.fromHubValue(type);
+  }
 
   @Override
   @JsonIgnore

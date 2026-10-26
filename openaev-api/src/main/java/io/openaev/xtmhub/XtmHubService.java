@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -191,10 +192,10 @@ public class XtmHubService {
    * whatever the number of tenants. Registered tenants are tried in registration order until one
    * token is accepted. The Hub removes the items it returns, so the caller must persist them.
    *
-   * @return the items, or empty when the feature is off, no registered tenant has a valid token or
-   *     the Hub is unreachable
+   * @return the items with the registered tenants, or empty when the feature is off, no registered
+   *     tenant has a valid token or the Hub is unreachable
    */
-  public Optional<ProvisionedNewsFeedItems> consumeProvisionedNewsFeedItems() {
+  public Optional<NewsFeedConsumption> consumeProvisionedNewsFeedItems() {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED)) {
       return Optional.empty();
     }
@@ -218,11 +219,13 @@ public class XtmHubService {
       return Optional.empty();
     }
 
+    Set<String> registeredTenantIds =
+        registrations.stream().map(r -> r.getTenant().getId()).collect(Collectors.toSet());
     String platformId = platformSettingsService.findSettings().getPlatformId();
     for (TenantXtmHubRegistration registration : registrations) {
       switch (xtmHubClient.consumeProvisionedNewsFeedItems(registration.getToken(), platformId)) {
         case NewsFeedFetchResult.Fetched fetched -> {
-          return Optional.of(fetched.payload());
+          return Optional.of(new NewsFeedConsumption(fetched.payload(), registeredTenantIds));
         }
         case NewsFeedFetchResult.TokenRejected rejected ->
             log.warn(

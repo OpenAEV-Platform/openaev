@@ -18,7 +18,10 @@ public class XtmHubNewsFeedCollectorService implements Runnable {
     try {
       xtmHubService
           .consumeProvisionedNewsFeedItems()
-          .ifPresent(provisioned -> newsFeedItemService.createMissingItems(provisioned.items()));
+          .ifPresent(
+              consumption ->
+                  newsFeedItemService.createMissingItems(
+                      consumption.provisioned().items(), consumption.registeredTenantIds()));
     } catch (Exception e) {
       // The Hub removes the items it returns: those of a failed run are not delivered again.
       log.error("The XTM Hub news feed items could not be created: {}", e.getMessage(), e);

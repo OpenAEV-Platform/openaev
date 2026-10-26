@@ -8,6 +8,7 @@ import io.openaev.database.repository.NewsFeedItemRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.utils.fixtures.NewsFeedItemFixture;
 import io.openaev.utils.fixtures.UserFixture;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -52,7 +53,8 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
       // Assert
       assertThat(reloaded.getHubItemId()).isEqualTo(item.getHubItemId());
       assertThat(reloaded.getTitle()).isEqualTo(item.getTitle());
-      assertThat(reloaded.getType()).isEqualTo(NewsFeedType.RESOURCE_SCENARIO);
+      assertThat(reloaded.getType()).isEqualTo("RESOURCE_SCENARIO");
+      assertThat(reloaded.resolveType()).contains(NewsFeedType.RESOURCE_SCENARIO);
       assertThat(reloaded.getTags()).containsExactly("phishing", "ransomware");
       assertThat(reloaded.getUrlPath()).isEqualTo("/scenarios/" + item.getHubItemId());
       assertThat(reloaded.getCreationDate()).isEqualTo(item.getCreationDate());
@@ -73,6 +75,76 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
       // Assert
       assertThat(item.getOwnerUserId()).isEqualTo(user.getId());
       assertThat(item.getResourceType()).isEqualTo(ResourceType.NEWS_FEED);
+    }
+  }
+
+  @Nested
+  @DisplayName("Type")
+  class Type {
+
+    @Test
+    @DisplayName("Given a stored type OpenAEV no longer knows, should still load the item")
+    void given_obsoleteStoredType_should_loadItemWithoutKnownType() {
+      // Arrange
+      NewsFeedItem item =
+          newsFeedItemRepository.saveAndFlush(
+              NewsFeedItemFixture.createDefaultNewsFeedItem(createUser()));
+      entityManager
+          .createNativeQuery(
+              "update news_feed_items set news_feed_item_type = 'RESOURCE_OBSOLETE'"
+                  + " where news_feed_item_id = :id")
+          .setParameter("id", item.getId())
+          .executeUpdate();
+      entityManager.clear();
+
+      // Act
+      NewsFeedItem reloaded = newsFeedItemRepository.findById(item.getId()).orElseThrow();
+
+      // Assert
+      assertThat(reloaded.getType()).isEqualTo("RESOURCE_OBSOLETE");
+      assertThat(reloaded.resolveType()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Keys lookup")
+  class KeysLookup {
+
+    @Test
+    @DisplayName("Given items of several users, should return only the keys of the given users")
+    void given_itemsOfSeveralUsers_should_returnKeysOfGivenUsersOnly() {
+      // Arrange
+      User first = createUser();
+      User second = createUser();
+      newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(first, "hub-1"));
+      newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(first, "hub-2"));
+      newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(first, "hub-3"));
+      newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(second, "hub-1"));
+      entityManager.flush();
+
+      // Act
+      var keys = newsFeedItemRepository.rawKeys(List.of(first.getId()), List.of("hub-1", "hub-2"));
+
+      // Assert
+      assertThat(keys)
+          .extracting(key -> key.getUserId() + "/" + key.getHubItemId())
+          .containsExactlyInAnyOrder(first.getId() + "/hub-1", first.getId() + "/hub-2");
+    }
+
+    @Test
+    @DisplayName("Given the schema, should index the news feed items by Hub item")
+    void given_schema_should_indexItemsByHubItem() {
+      // Act
+      Number indexes =
+          (Number)
+              entityManager
+                  .createNativeQuery(
+                      "select count(*) from pg_indexes where tablename = 'news_feed_items'"
+                          + " and indexname = 'idx_news_feed_items_hub_id'")
+                  .getSingleResult();
+
+      // Assert
+      assertThat(indexes.intValue()).isEqualTo(1);
     }
   }
 

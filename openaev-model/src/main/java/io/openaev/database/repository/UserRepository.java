@@ -115,13 +115,14 @@ public interface UserRepository
   List<RawUserIdentity> rawAllIdentities();
 
   /**
-   * Users who receive the XTM Hub news feed: every user of at least one tenant, as a projection
-   * rather than {@code User} entities (see {@link #rawIdentities}).
+   * Users who receive the XTM Hub news feed: every user of at least one of the given tenants, as a
+   * projection rather than {@code User} entities (see {@link #rawIdentities}).
    */
   @Query(
-      "select u.id as id, u.unsubscribedNewsFeedTypes as unsubscribedTypes"
-          + " from User u where u.tenants is not empty")
-  List<RawNewsFeedRecipient> rawNewsFeedRecipients();
+      "select u.id as id, u.unsubscribedNewsFeedTypes as unsubscribedTypes from User u"
+          + " where exists (select t.id from u.tenants t where t.id in :tenantIds)")
+  List<RawNewsFeedRecipient> rawNewsFeedRecipients(
+      @Param("tenantIds") Collection<String> tenantIds);
 
   @Query(
       value = "select ut.tenant_id from users_tenants ut where ut.user_id = :userId",

@@ -1,6 +1,7 @@
 package io.openaev.xtmhub.collector;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -17,6 +18,7 @@ import io.openaev.database.repository.NewsFeedItemRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.NewsFeedItemService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
@@ -32,6 +34,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -95,7 +99,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       // Arrange
       saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
       User first = createUser(firstTenant);
-      User second = createUser(secondTenant);
+      User second = createUser(firstTenant);
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
@@ -109,13 +113,56 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
                 item -> {
                   assertThat(item.getHubItemId()).isEqualTo("hub-1");
                   assertThat(item.getTitle()).isEqualTo("Scenario hub-1");
-                  assertThat(item.getType()).isEqualTo(NewsFeedType.RESOURCE_SCENARIO);
+                  assertThat(item.getType()).isEqualTo(NewsFeedType.RESOURCE_SCENARIO.name());
                   assertThat(item.getTags()).containsExactly("phishing");
                   assertThat(item.getUrlPath()).isEqualTo("/scenarios/hub-1");
                   assertThat(item.getCreationDate()).isEqualTo(CREATION_DATE);
                   assertThat(item.isRead()).isFalse();
                 });
       }
+    }
+
+    @Test
+    @DisplayName("Given the same item twice in a payload, should create it once per user")
+    void given_sameItemTwiceInPayload_should_createItOncePerUser() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User user = createUser(firstTenant);
+      givenHubReturns(
+          FIRST_TOKEN,
+          scenario("hub-1"),
+          new ProvisionedNewsFeedItem(
+              "hub-1", "Updated title", "RESOURCE_SCENARIO", List.of(), null, CREATION_DATE, false),
+          scenario("hub-2"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      assertThat(itemsOf(user))
+          .extracting(NewsFeedItem::getHubItemId, NewsFeedItem::getTitle)
+          .containsExactlyInAnyOrder(
+              tuple("hub-1", "Scenario hub-1"), tuple("hub-2", "Scenario hub-2"));
+    }
+
+    @Test
+    @DisplayName("Given more users than a chunk, should create the items of every user")
+    void given_moreUsersThanAChunk_should_createItemsOfEveryUser() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      List<User> users = createUsers(NewsFeedItemService.USER_CHUNK_SIZE + 1, firstTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      Set<String> userIds = users.stream().map(User::getId).collect(Collectors.toSet());
+      assertThat(newsFeedItemRepository.findAll())
+          .extracting(NewsFeedItem::getOwnerUserId)
+          .filteredOn(userIds::contains)
+          .hasSize(users.size())
+          .doesNotHaveDuplicates();
     }
 
     @Test
@@ -189,6 +236,83 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
 
       // Assert
       assertThat(itemsOf(unsubscribed)).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Recipients")
+  class Recipients {
+
+    @Test
+    @DisplayName("Given a user of a tenant not registered on the Hub, should create no item")
+    void given_userOfUnregisteredTenant_should_createNoItem() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User registeredUser = createUser(firstTenant);
+      User unregisteredUser = createUser(secondTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      assertThat(itemsOf(registeredUser)).hasSize(1);
+      assertThat(itemsOf(unregisteredUser)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Given a user of a registered and an unregistered tenant, should create one item")
+    void given_userOfRegisteredAndUnregisteredTenants_should_createOneItem() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User user = createUser(firstTenant, secondTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      assertThat(itemsOf(user)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Given users of several registered tenants, should create items for all of them")
+    void given_severalRegisteredTenants_should_createItemsForAllTheirUsers() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      saveRegistration(SECOND_TOKEN, secondTenant, LocalDateTime.now().minusDays(1));
+      User first = createUser(firstTenant);
+      User second = createUser(secondTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      assertThat(itemsOf(first)).hasSize(1);
+      assertThat(itemsOf(second)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Given a tenant that lost connectivity, should create no item for its users")
+    void given_tenantLostConnectivity_should_createNoItemForItsUsers() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      saveRegistration(
+          SECOND_TOKEN,
+          secondTenant,
+          LocalDateTime.now().minusDays(1),
+          XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      User first = createUser(firstTenant);
+      User second = createUser(secondTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+
+      // Act
+      collectorService.run();
+
+      // Assert
+      assertThat(itemsOf(first)).hasSize(1);
+      assertThat(itemsOf(second)).isEmpty();
     }
   }
 
@@ -357,17 +481,33 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
   }
 
   private User createUser(Tenant... tenants) {
-    User user = UserFixture.getUserWithDefaultEmail();
-    user.setTenants(new ArrayList<>(List.of(tenants)));
-    User saved = userRepository.save(user);
-    createdUsers.add(saved);
+    return createUsers(1, tenants).getFirst();
+  }
+
+  private List<User> createUsers(int count, Tenant... tenants) {
+    List<User> users = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      User user = UserFixture.getUserWithDefaultEmail();
+      user.setTenants(new ArrayList<>(List.of(tenants)));
+      users.add(user);
+    }
+    List<User> saved = userRepository.saveAll(users);
+    createdUsers.addAll(saved);
     return saved;
   }
 
   private void saveRegistration(String token, Tenant tenant, LocalDateTime registrationDate) {
+    saveRegistration(token, tenant, registrationDate, XtmHubRegistrationStatus.REGISTERED);
+  }
+
+  private void saveRegistration(
+      String token,
+      Tenant tenant,
+      LocalDateTime registrationDate,
+      XtmHubRegistrationStatus status) {
     TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
     registration.setToken(token);
-    registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
+    registration.setRegistrationStatus(status);
     registration.setRegistrationDate(registrationDate);
     registration.setConnectivityEmailEligible(true);
     registration.setTenant(tenant);

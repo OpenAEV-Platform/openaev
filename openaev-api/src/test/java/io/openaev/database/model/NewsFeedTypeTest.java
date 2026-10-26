@@ -72,6 +72,13 @@ class NewsFeedTypeTest {
     }
 
     @Test
+    @DisplayName("Given a null unsubscribed list, should not be unsubscribed")
+    void given_nullUnsubscribedList_should_notBeUnsubscribed() {
+      // Act & Assert
+      assertThat(NewsFeedType.RESOURCE_SCENARIO.isUnsubscribed(null)).isFalse();
+    }
+
+    @Test
     @DisplayName("Given the all-types marker, should be unsubscribed")
     void given_allTypesMarker_should_beUnsubscribed() {
       // Act & Assert
