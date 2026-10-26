@@ -182,10 +182,6 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 
 #### XTM Suite: XTM Hub
 
-!!! note "Preview feature"
-
-    The XTM Hub news feed is fetched only when `openaev.xtm.hub.collector.enable` is `true` and `XTM_HUB_NEWS_FEED` is listed in `openaev.enabled-dev-features`. The users of the tenants registered on XTM Hub receive the news feed items.
-
 | Parameter                                             | Environment variable             | Default value | Description                                                         |
 |:--------------------------------------------------------|:--------------------------------------------------------|:---------------------------------------|:----------------------------------------------------------------------|
 | openaev.xtm.hub.enable                                | OPENAEV_XTM_HUB_ENABLE                                | true                                 | Enables integration with XTM Hub                                     |
@@ -194,7 +190,6 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 | openaev.xtm.hub.collector.enable                      | OPENAEV_XTM_HUB_COLLECTOR_ENABLE                      | false                                | Enables the XTM Hub connectivity collector                          |
 | openaev.xtm.hub.collector.id                          | OPENAEV_XTM_HUB_COLLECTOR_ID                          | b402f1f5-29ba-4ee3-b366-f0467754cf4e | Identifier of the XTM Hub connectivity collector                    |
 | openaev.xtm.hub.collector.connectivity-check-interval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 3600 (1 hour)                        | Interval in seconds at which the connectivity with XTM Hub is checked |
-| openaev.xtm.hub.collector.news-feed-interval          | OPENAEV_XTM_HUB_COLLECTOR_NEWS_FEED_INTERVAL          | 3600 (1 hour)                        | Interval in seconds at which the news feed items of XTM Hub are fetched. A non-positive value falls back to the default |
 
 #### XTM Suite: XTM One
 
