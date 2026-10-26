@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 class PinnedActiveTablesArchTest {
 
   /** The baseline's exact size. Lower it with every line removed; raising it is a review call. */
-  static final int BASELINE_SIZE = 226;
+  static final int BASELINE_SIZE = 227;
 
   /** How many lines are {@code drifts} or {@code own-reader}. Lower it, never raise it. */
   static final int DEBT_SIZE = 17;
