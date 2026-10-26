@@ -3,7 +3,13 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
@@ -22,7 +28,9 @@ import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
@@ -34,6 +42,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -68,6 +77,7 @@ class QueueChainingJobTest extends IntegrationTest {
   @Autowired private CweRepository cweRepository;
   @Autowired private TenantScopedTransaction tenantTx;
   @MockitoSpyBean private StepService stepService;
+  @MockitoSpyBean private WorkflowService workflowService;
 
   private final List<String> committedCweIds = new ArrayList<>();
   private final List<String> committedTenantIds = new ArrayList<>();
@@ -152,6 +162,69 @@ class QueueChainingJobTest extends IntegrationTest {
     // ... which rolls back the DELETE...RETURNING pop: the entry is not lost, it stays queued for
     // the next tick, exactly as before the job was moved onto TenantScopedTransaction.
     assertThat(stepDelayQueueRepository.findById(dueEntry.getId())).isPresent();
+  }
+
+  @Test
+  @DisplayName(
+      "an entry popped without a ready step evaluates its workflow run once the pop is committed")
+  void given_entryPoppedWithoutReadyStep_should_evaluateItsRunAfterCommit() throws Exception {
+    // Arrange: a step that depends on the entry's template (DEPEND_ON) waits while the entry is
+    // queued; once it is gone without a step, nothing else would evaluate the run again
+    Workflow scenarioBackedRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    StepDelayQueue dueEntry = persistDueDelayQueueEntry(scenarioBackedRun);
+    String runId = dueEntry.getWorkflowRun().getId();
+    doReturn(List.of()).when(stepService).createReadySteps(any(), any(), any(), anyInt());
+    AtomicBoolean entryGoneWhenEvaluated = new AtomicBoolean();
+    doAnswer(
+            invocation -> {
+              entryGoneWhenEvaluated.set(!stepDelayQueueRepository.existsById(dueEntry.getId()));
+              return invocation.getArgument(0);
+            })
+        .when(workflowService)
+        .evaluateWorkflowProgress(any());
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    verify(workflowService).evaluateWorkflowProgress(argThat(run -> runId.equals(run.getId())));
+    assertThat(entryGoneWhenEvaluated).isTrue();
+  }
+
+  @Test
+  @DisplayName("an entry whose ready step cannot be published evaluates its run after commit")
+  void given_readyStepNotPublished_should_evaluateItsRunAfterCommit() throws Exception {
+    // Arrange: publishing ends the step and throws; no READY event follows to wake its dependents
+    Workflow scenarioBackedRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    StepDelayQueue dueEntry = persistDueDelayQueueEntry(scenarioBackedRun);
+    String runId = dueEntry.getWorkflowRun().getId();
+    doReturn(List.of(new Step())).when(stepService).createReadySteps(any(), any(), any(), anyInt());
+    doThrow(new ChainingException("broker down")).when(stepService).enqueueReadySteps(any(), any());
+    doAnswer(invocation -> invocation.getArgument(0))
+        .when(workflowService)
+        .evaluateWorkflowProgress(any());
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    verify(workflowService).evaluateWorkflowProgress(argThat(run -> runId.equals(run.getId())));
+  }
+
+  @Test
+  @DisplayName("an entry popped with ready steps leaves the evaluation to their events")
+  void given_entryPoppedWithReadySteps_should_notEvaluate() throws Exception {
+    // Arrange
+    Workflow scenarioBackedRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    persistDueDelayQueueEntry(scenarioBackedRun);
+    doReturn(List.of(new Step())).when(stepService).createReadySteps(any(), any(), any(), anyInt());
+    doNothing().when(stepService).enqueueReadySteps(any(), any());
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    verify(workflowService, never()).evaluateWorkflowProgress(any());
   }
 
   @Test
