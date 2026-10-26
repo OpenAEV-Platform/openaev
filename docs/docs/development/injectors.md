@@ -22,10 +22,6 @@ An Injector that must authenticate against its target (a cloud account, a remote
 [Credential](../usage/build/credentials.md) instead of a plain contract field. The secret never travels in the Inject
 itself: the Injector fetches it from OpenAEV while the Inject runs.
 
-!!! note "Preview feature"
-
-    Credentials are only available when `CREDENTIAL_ASSET` is listed in `openaev.enabled-dev-features`.
-
 ### Declare a Credential field
 
 Add a field of type `credential-reference` to the contract. The UI then shows a Credential selector in the Inject form.
