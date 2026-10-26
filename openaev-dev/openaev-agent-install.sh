@@ -15,12 +15,13 @@ if [ ! -x "$DIR/openaev-agent" ]; then
   curl -fsSL -H "Authorization: Bearer $TOKEN" \
     "$URL/api/tenants/$TENANT_ID/agent/executable/openaev/linux/$(uname -m)" \
     -o "$DIR/openaev-agent"
-  chmod +x "$DIR/openaev-agent"
   curl -fsSL https://raw.githubusercontent.com/OpenAEV-Platform/agent/main/config/default.toml \
     | sed -e "s|^url = .*|url = \"$URL\"|" \
           -e "s|^token = .*|token = \"$TOKEN\"|" \
           -e "s|^tenant_id = .*|tenant_id = \"$TENANT_ID\"|" \
     > "$DIR/openaev-agent-config.toml"
+  # Mark install complete last, so a failed run is retried on restart
+  chmod +x "$DIR/openaev-agent"
 fi
 
 [ -s /etc/machine-id ] || tr -d '-' < /proc/sys/kernel/random/uuid > /etc/machine-id
