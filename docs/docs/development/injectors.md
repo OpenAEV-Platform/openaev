@@ -99,7 +99,7 @@ and its fields in `value`:
 | `GCP_SERVICE_ACCOUNT`     | `gcp_scope`, `gcp_project_id`, `gcp_private_key_json` (Base64-encoded key file)                                                        |
 | `GCP_OAUTH2`              | `gcp_scope`, `gcp_project_id`, `gcp_oauth_client_id`, `gcp_oauth_client_secret`, `gcp_oauth_refresh_token`                            |
 
-Optional fields left empty are omitted from `value`.
+An optional field left empty is either missing from `value` or present as an empty string: handle both cases.
 
 The code is valid only while the Inject execution is in progress: OpenAEV revokes it as soon as the execution ends. The
 request fails with:
