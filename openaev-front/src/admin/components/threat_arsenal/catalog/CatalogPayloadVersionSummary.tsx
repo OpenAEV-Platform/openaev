@@ -1,5 +1,4 @@
-import { Button, Chip } from '@filigran/design-system';
-import { Typography } from '@mui/material';
+import { Button, Chip, Text } from '@filigran/design-system';
 import { type FunctionComponent, type ReactNode } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -19,7 +18,7 @@ const CatalogPayloadVersionSummary: FunctionComponent<Props> = ({ item, canInsta
 
   const field = (label: string, value: ReactNode) => (
     <div>
-      <Typography variant="h3" gutterBottom>{label}</Typography>
+      <Text variant="title-xs" as="h3" className="mb-1 block">{label}</Text>
       {value}
     </div>
   );

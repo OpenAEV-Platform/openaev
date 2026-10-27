@@ -7,7 +7,7 @@ import {
   CardTitle,
   Text,
 } from '@filigran/design-system';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode } from 'react';
 import { useHref, useNavigate } from 'react-router';
@@ -272,9 +272,9 @@ const MarketplaceCard: FunctionComponent<Props> = ({
                 <PlatformIcon key={platform} width={16} platform={platform} tooltip />
               ))}
               {platforms.length > 4 && (
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                <Text variant="content-caption" className="text-default-secondary">
                   {`+${platforms.length - 4}`}
-                </Typography>
+                </Text>
               )}
             </div>
           </Box>

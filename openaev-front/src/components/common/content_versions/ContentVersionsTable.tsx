@@ -4,8 +4,28 @@ import { Skeleton, Table, TableBody, TableCell, TableHead, TableRow } from '@mui
 import { Fragment, type FunctionComponent, type ReactNode, useState } from 'react';
 import { Link } from 'react-router';
 
-import { type ContentHistoryChange, type ContentHistoryOutput } from '../../../utils/api-types';
+import { type ContentHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
+
+// Shape of content_history_details, a free JSON object on the API side.
+interface HistoryChange {
+  field: string;
+  before?: unknown;
+  after?: unknown;
+}
+
+interface HistoryDetails {
+  changes?: HistoryChange[];
+  choices?: Record<string, string>;
+  reason?: string;
+  repository?: string;
+  changelog?: string;
+  compared_to?: string;
+  source?: string;
+  list_serial?: number;
+}
+
+const historyDetails = (entry: ContentHistoryOutput) => entry.content_history_details as HistoryDetails | undefined;
 
 // Placeholder rows while a table loads, as the paginated lists show.
 export const SkeletonRows: FunctionComponent<{
@@ -141,7 +161,7 @@ const valueText = (value: unknown) => {
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 };
 
-const ChangesTable: FunctionComponent<{ changes: ContentHistoryChange[] }> = ({ changes }) => {
+const ChangesTable: FunctionComponent<{ changes: HistoryChange[] }> = ({ changes }) => {
   const { t } = useFormatter();
   const cell = {
     whiteSpace: 'pre-wrap' as const,
@@ -196,7 +216,7 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
   };
   // One line on what the entry changed; the field by field detail opens below it.
   const summary = (entry: ContentHistoryOutput) => {
-    const details = entry.content_history_details;
+    const details = historyDetails(entry);
     const parts: string[] = [];
     if (details?.changelog) {
       parts.push(details.changelog);
@@ -265,7 +285,7 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
           </TableRow>
         )}
         {history.map((entry) => {
-          const changes = entry.content_history_details?.changes ?? [];
+          const changes = historyDetails(entry)?.changes ?? [];
           const open = opened === entry.content_history_id;
           return (
             <Fragment key={entry.content_history_id}>

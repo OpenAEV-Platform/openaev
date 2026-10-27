@@ -1,5 +1,5 @@
 import { Text } from '@filigran/design-system';
-import { Box, Skeleton, Typography } from '@mui/material';
+import { Box, Skeleton } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -76,33 +76,30 @@ export const MarketplaceListHeader: FunctionComponent<{ overlineLabel: string }>
       borderBottom: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
     }}
     >
-      <Typography
-        component="div"
+      <Box
         sx={{
           ...headerSx,
           flex: 1,
         }}
       >
         {t('Name')}
-      </Typography>
-      <Typography
-        component="div"
+      </Box>
+      <Box
         sx={{
           ...headerSx,
           ...cellSx('overline'),
         }}
       >
         {t(overlineLabel)}
-      </Typography>
-      <Typography
-        component="div"
+      </Box>
+      <Box
         sx={{
           ...headerSx,
           ...cellSx('description'),
         }}
       >
         {t('Description')}
-      </Typography>
+      </Box>
       <Box sx={cellSx('details')} />
       <Box sx={cellSx('action')} />
     </Box>
@@ -273,9 +270,9 @@ const MarketplaceListRow: FunctionComponent<Props> = ({
           <PlatformIcon key={platform} width={16} platform={platform} tooltip />
         ))}
         {platforms.length > 4 && (
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          <Text variant="content-caption" className="text-default-secondary">
             {`+${platforms.length - 4}`}
-          </Typography>
+          </Text>
         )}
       </Box>
       <Box
