@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -104,6 +105,8 @@ class InjectsExecutionJobTenantScopeTest {
         .runInTenant(anyString(), any(Runnable.class));
 
     // Every sweep around the execution is a no-op here: this test is about the execution scope.
+    when(tenantScopedJobRunner.supplyAcrossTenants(any()))
+        .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(0).get());
     when(exerciseRepository.findAllShouldBeInRunningState(any())).thenReturn(List.of());
     doReturn(List.of()).when(exerciseRepository).saveAll(any());
     when(injectService.resolveAllAssetsToExecute(any(Inject.class))).thenReturn(List.of());
