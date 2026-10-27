@@ -1205,9 +1205,13 @@ public class InjectService {
    * separate, independent resolution of the same inject's targets).
    */
   public AgentsAndAssetsAgentless getAgentsAndAgentlessAssetsByInject(Inject inject) {
+    return agentsAndAgentlessAssets(inject, launchableUnderClearance(inject));
+  }
+
+  private AgentsAndAssetsAgentless agentsAndAgentlessAssets(
+      Inject inject, java.util.function.Predicate<Asset> launchable) {
     Set<Agent> agents = new HashSet<>();
     Set<Asset> assetsAgentless = new HashSet<>();
-    java.util.function.Predicate<Asset> launchable = launchableUnderClearance(inject);
 
     for (Asset asset : inject.getAssets()) {
       if (launchable.test(asset)) {
@@ -1632,9 +1636,11 @@ public class InjectService {
             imapService.isServiceAvailable(),
             HealthCheck.Type.IMAP,
             HealthCheck.Status.WARNING));
+    // Every target, not only those a launch would execute: a health check describes the inject's
+    // configuration, before any launch, so there is no launcher whose clearance would apply.
     healthChecks.addAll(
         healthCheckUtils.runExecutorChecks(
-            inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
+            inject, agentsAndAgentlessAssets(inject, asset -> true)));
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));

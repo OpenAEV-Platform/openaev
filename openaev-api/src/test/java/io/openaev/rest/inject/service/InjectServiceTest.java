@@ -1069,6 +1069,40 @@ class InjectServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "given MARKING on and a marked target with a live agent, should not report a missing agent")
+  void given_markedTargetWithALiveAgent_should_notReportAMissingAgent()
+      throws JsonProcessingException {
+    // -- ARRANGE --
+    // A health check describes the inject before any launch: no launcher, so no launch clearance.
+    lenient().when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)).thenReturn(true);
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
+    inject.getInjectorContract().get().setNeedsExecutor(true);
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setMarkingIds(new String[] {"m-green"});
+    Agent agent = AgentFixture.createAgent(endpoint, "agent-green");
+    agent.setExecutor(new Executor());
+    endpoint.setAgents(List.of(agent));
+    inject.setAssets(new ArrayList<>(List.of(endpoint)));
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
+
+    // -- ACT --
+    List<HealthCheck> healthChecks = injectService.runChecks(inject);
+
+    // -- ASSERT --
+    assertThat(healthChecks)
+        .extracting(HealthCheck::getType)
+        .doesNotContain(HealthCheck.Type.AGENT_OR_EXECUTOR);
+    verifyNoInteractions(markingClearanceCacheManager);
+    verify(injectRepository, never()).findLauncherId(any());
+  }
+
+  @Test
   public void testRunChecksForCollectorIssue() throws JsonProcessingException {
     // PREPARE
     Inject inject =
