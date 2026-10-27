@@ -126,16 +126,15 @@ const InjectContractPicker: FunctionComponent<Props> = ({
   // the latest request clears the loading state, so a slow stale response
   // never hides the skeletons while a newer search is still in flight.
   const [contracts, setContracts] = useState<InjectorContractFullOutput[]>([]);
-  const [allVersions, setAllVersions] = useState(false);
   const [loading, setLoading] = useState(true);
   const fetchSeqRef = useRef(0);
   const fetchContracts = (input: InjectorContractSearchPaginationInput) => {
     const seq = ++fetchSeqRef.current;
     setLoading(true);
-    // F11: the latest version of each payload by default, every version on demand, never a revoked one.
+    // One card per payload, in its latest version; the version is chosen in the inject form.
     return searchInjectorContracts({
       ...input,
-      latest_versions_only: !allVersions,
+      latest_versions_only: true,
       exclude_revoked_payloads: true,
     }).finally(() => {
       if (seq === fetchSeqRef.current) {
@@ -264,8 +263,6 @@ const InjectContractPicker: FunctionComponent<Props> = ({
           domainElements={iconBarOrderedDomains}
           searchPaginationInput={searchPaginationInput}
           filterHelpers={queryableHelpers.filterHelpers}
-          allVersions={allVersions}
-          onToggleAllVersions={() => setAllVersions(previous => !previous)}
         />
         <Box sx={{
           'flex': 1,
@@ -284,7 +281,6 @@ const InjectContractPicker: FunctionComponent<Props> = ({
             availableFilterNames={availableFilterNames}
             queryableHelpers={queryableHelpers}
             attackPatterns={attackPatterns}
-            contextId={allVersions ? 'all-versions' : 'latest-versions'}
             topBarButtons={(
               <ButtonGroup
                 size="md"

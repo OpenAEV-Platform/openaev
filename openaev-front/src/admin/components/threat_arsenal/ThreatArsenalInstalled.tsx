@@ -1,10 +1,12 @@
 import { Box } from '@mui/material';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import DialogDelete from '../../../components/common/DialogDelete';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
+import MarketplaceLoadMore from '../../../components/common/marketplace/MarketplaceLoadMore';
 import MarketplaceSortSelect from '../../../components/common/marketplace/MarketplaceSortSelect';
+import MarketplaceViewToggle from '../../../components/common/marketplace/MarketplaceViewToggle';
 import useMarketplaceView from '../../../components/common/marketplace/useMarketplaceView';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../components/i18n';
@@ -23,7 +25,9 @@ import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
 import useInstalledActions, { INSTALLED_FILTER_NAMES } from './useInstalledActions';
 
-const ThreatArsenalInstalled = () => {
+interface Props { tabs?: ReactNode }
+
+const ThreatArsenalInstalled = ({ tabs }: Props) => {
   const { t } = useFormatter();
   const canDelete = useAbility().can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
   const [openedAction, setOpenedAction] = useState<ThreatArsenalAction | null>(null);
@@ -36,7 +40,8 @@ const ThreatArsenalInstalled = () => {
 
   const items: ThreatArsenalItemsProps = {
     actions: installed.threatArsenalActions,
-    loading: installed.loading,
+    // Later pages load under the list, which stays in place.
+    loading: installed.loading && installed.searchPaginationInput.page === 0,
     emptyState: <ThreatArsenalEmptyState hasFilters={installed.hasActiveFilters} onResetFilters={installed.handleResetFilters} />,
     isChecked: selection.isSelectedAction,
     onSelect: setOpenedAction,
@@ -60,16 +65,13 @@ const ThreatArsenalInstalled = () => {
     }}
     >
       <MarketplaceBrowser
+        tabs={tabs}
         hero={(
           <MarketplaceHero
             title={t('Threat Arsenal')}
-            totalLabel={t('total actions')}
-            totalElements={installed.totalElements}
-            stats={[]}
+            subtitle={t('Browse, install and version the actions your simulations run.')}
             rightSlot={(
               <ThreatArsenalHeaderActions
-                viewMode={viewMode}
-                onViewModeChange={handleViewModeChange}
                 totalElements={installed.totalElements}
                 actions={installed.threatArsenalActions}
                 searchPaginationInput={installed.searchPaginationInput}
@@ -89,6 +91,9 @@ const ThreatArsenalInstalled = () => {
         )}
         toolbar={(
           <PaginationComponentV2
+            resultsCount
+            infiniteScroll
+            topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
             fetch={installed.fetchActions}
             searchPaginationInput={installed.searchPaginationInput}
             setContent={installed.setThreatArsenalActions}
@@ -100,7 +105,8 @@ const ThreatArsenalInstalled = () => {
             filtersEndSlot={viewMode === 'grid'
               ? <MarketplaceSortSelect sortHelpers={installed.queryableHelpers.sortHelpers} options={THREAT_ARSENAL_SORT_OPTIONS} descendingFields={['action_updated_at']} />
               : null}
-            leftSlot={(
+            // Selection is a list view feature.
+            leftSlot={viewMode === 'list' ? (
               <ThreatArsenalSelectAll
                 label={selection.selectAllLabel}
                 checked={partiallySelected ? 'indeterminate' : selection.selectAll}
@@ -108,13 +114,19 @@ const ThreatArsenalInstalled = () => {
                 onToggle={selection.handleToggleSelectAll}
                 onSelectOrphans={canDelete ? installed.handleSelectOrphaned : undefined}
               />
-            )}
+            ) : null}
           />
         )}
       >
         {viewMode === 'grid'
-          ? <ThreatArsenalCardGrid {...items} selectedActionId={openedAction?.injector_contract_id} anySelected={selectionCount > 0} />
+          ? <ThreatArsenalCardGrid {...items} selectedActionId={openedAction?.injector_contract_id} />
           : <ThreatArsenalList {...items} sortHelpers={installed.queryableHelpers.sortHelpers} />}
+        <MarketplaceLoadMore
+          hasMore={installed.threatArsenalActions.length < installed.totalElements}
+          loading={installed.loading && installed.searchPaginationInput.page > 0}
+          paused={installed.loading && installed.searchPaginationInput.page === 0}
+          onLoadMore={() => installed.queryableHelpers.paginationHelpers.handleChangePage(installed.searchPaginationInput.page + 1)}
+        />
       </MarketplaceBrowser>
 
       {openedAction !== null && (

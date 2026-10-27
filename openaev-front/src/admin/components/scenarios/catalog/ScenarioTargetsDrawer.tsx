@@ -146,6 +146,16 @@ const injectIcon = (fields: string[]) => {
   return <span />;
 };
 
+// A catalogue prerequisite the platform lacks; an injector comes with the integration to enable.
+export interface MissingPrerequisite {
+  requirement_kind: 'OPENAEV' | 'EDITION' | 'INJECTOR' | 'EXECUTOR';
+  requirement_key: string;
+  requirement_label: string;
+  requirement_catalog_connector_id?: string;
+  requirement_catalog_connector_title?: string;
+  requirement_status?: 'NOT_DEPLOYED' | 'NOT_RUNNING';
+}
+
 interface Props {
   title: string;
   mode: 'install' | 'launch';
@@ -154,7 +164,7 @@ interface Props {
   load: () => Promise<{
     injects: InjectPreview[];
     previousVersion?: string;
-    missingRequirements?: string[];
+    missingPrerequisites?: MissingPrerequisite[];
   }>;
   onSubmit: (input: CatalogInstallInput) => Promise<unknown>;
   onClose: () => void;
@@ -166,19 +176,25 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
   const theme = useTheme();
   const [injects, setInjects] = useState<InjectPreview[] | null>(null);
   const [previousVersion, setPreviousVersion] = useState<string | undefined>();
-  const [missingRequirements, setMissingRequirements] = useState<string[]>([]);
+  const [missingPrerequisites, setMissingPrerequisites] = useState<MissingPrerequisite[]>([]);
+  const [checking, setChecking] = useState(false);
   const [endpointsAndGroups, setEndpointsAndGroups] = useState<Option[]>([]);
   const [teams, setTeams] = useState<Option[]>([]);
   const [manual, setManual] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const loadPreview = () => load().then((loaded) => {
+    setInjects(loaded.injects);
+    setPreviousVersion(loaded.previousVersion);
+    setMissingPrerequisites(loaded.missingPrerequisites ?? []);
+  });
   useEffect(() => {
-    load().then((loaded) => {
-      setInjects(loaded.injects);
-      setPreviousVersion(loaded.previousVersion);
-      setMissingRequirements(loaded.missingRequirements ?? []);
-    });
+    loadPreview();
   }, []);
+  const checkAgain = () => {
+    setChecking(true);
+    loadPreview().finally(() => setChecking(false));
+  };
 
   const manualTargets = manual.split(/[\s,;]+/).map(target => target.trim()).filter(target => target.length > 0);
   const chosen: Record<string, TargetLabel[]> = {
@@ -224,7 +240,7 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
   const all = injects ?? [];
   const takes = (kind: string) => all.some(inject => inject.target_fields.includes(kind));
   const missing = all.filter(inject => inject.target_fields.length > 0 && !inject.is_targeted && addedTo(inject).length === 0);
-  const blocked = missing.length > 0 || missingRequirements.length > 0;
+  const blocked = missing.length > 0 || missingPrerequisites.length > 0;
 
   const submit = () => {
     setSubmitting(true);
@@ -251,12 +267,51 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
               gap: 24,
             }}
             >
-              {missingRequirements.length > 0 && (
-                <Alert
-                  severity="error"
-                  title={t('This platform lacks what the scenario needs')}
-                  description={missingRequirements.join(', ')}
-                />
+              {missingPrerequisites.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+                >
+                  <Alert
+                    severity="error"
+                    title={t('This platform lacks what the scenario needs')}
+                    description={t('Enable the missing integrations, then check again.')}
+                  />
+                  {missingPrerequisites.map(prerequisite => (
+                    <div
+                      key={`${prerequisite.requirement_kind}:${prerequisite.requirement_key}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <Text variant="content-base" style={{ flex: 1 }}>
+                        {prerequisite.requirement_catalog_connector_title ?? prerequisite.requirement_label}
+                      </Text>
+                      {prerequisite.requirement_status && (
+                        <Chip
+                          label={t(prerequisite.requirement_status === 'NOT_RUNNING' ? 'Not running' : 'Not deployed')}
+                          severity="high"
+                        />
+                      )}
+                      {prerequisite.requirement_kind === 'INJECTOR' && prerequisite.requirement_catalog_connector_id && (
+                        <Button asChild size="sm" priority="secondary">
+                          <Link to={`/admin/integrations/catalog/${prerequisite.requirement_catalog_connector_id}`} target="_blank">
+                            {t('Enable integration')}
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <div>
+                    <Button size="sm" priority="secondary" disabled={checking} onClick={checkAgain}>
+                      {checking ? <Spinner size="sm" /> : t('Check again')}
+                    </Button>
+                  </div>
+                </div>
               )}
               <Text variant="content-base">{intro}</Text>
               {previousVersion && (

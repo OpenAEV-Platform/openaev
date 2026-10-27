@@ -9,7 +9,7 @@ export interface CatalogFacetFilters {
   deployment: string[];
 }
 
-export type CatalogSort = 'name_asc' | 'name_desc' | 'deployed_desc';
+export type CatalogSort = 'name_asc' | 'name_desc' | 'deployed_asc' | 'deployed_desc';
 
 export const EMPTY_FACET_FILTERS: CatalogFacetFilters = {
   types: [],
@@ -37,6 +37,8 @@ export interface ConnectorItem {
   /** Number of deployed instances (used by the deployed-count chip and sorting). */
   deployedCount: number;
   logoSrc?: string;
+  version?: string;
+  lastVerifiedAt?: string;
   /** Card link target; a card without a detail page is not clickable. */
   detailUrl?: string;
 }
@@ -56,6 +58,8 @@ export const fromCatalogConnector = (connector: CatalogConnectorOutput): Connect
   logoSrc: connector.catalog_connector_logo_url
     ? `/api/images/catalog/connectors/logos/${connector.catalog_connector_logo_url}`
     : undefined,
+  version: connector.catalog_connector_container_version,
+  lastVerifiedAt: connector.catalog_connector_last_verified_date,
   detailUrl: `/admin/integrations/catalog/${connector.catalog_connector_id}`,
 });
 
@@ -159,6 +163,9 @@ export const sortConnectors = (
       break;
     case 'deployed_desc':
       sorted.sort((a, b) => b.deployedCount - a.deployedCount || a.title.localeCompare(b.title));
+      break;
+    case 'deployed_asc':
+      sorted.sort((a, b) => a.deployedCount - b.deployedCount || a.title.localeCompare(b.title));
       break;
     default:
       sorted.sort((a, b) => a.title.localeCompare(b.title));

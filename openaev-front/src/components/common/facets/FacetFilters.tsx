@@ -1,3 +1,4 @@
+import { Text } from '@filigran/design-system';
 import { Box, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactElement } from 'react';
@@ -104,14 +105,17 @@ export const FacetRowItem = ({ row }: { row: FacetRow }) => {
   );
 };
 
-interface FacetSidebarProps { sections: FacetSection[] }
+interface FacetSidebarProps {
+  sections: FacetSection[];
+  title?: string;
+}
 
 // The sticky faceted sidebar shell (mirrors the integrations marketplace
 // CatalogSidebar): a fixed-width sticky <aside> with one titled section of
 // FacetRowItems per facet. Clearing is handled by the toolbar's "Clear
 // filters" button (the facets are regular backend filters), so the sidebar
 // carries no clear action of its own.
-export const FacetSidebar = ({ sections }: FacetSidebarProps) => {
+export const FacetSidebar = ({ sections, title }: FacetSidebarProps) => {
   const theme = useTheme();
   return (
     <aside
@@ -136,6 +140,7 @@ export const FacetSidebar = ({ sections }: FacetSidebarProps) => {
         backgroundColor: theme.palette.background.paper,
       }}
       >
+        {title && <Text variant="title-xs">{title}</Text>}
         {sections.map((section, sectionIndex) => (
           <section
             key={section.id}

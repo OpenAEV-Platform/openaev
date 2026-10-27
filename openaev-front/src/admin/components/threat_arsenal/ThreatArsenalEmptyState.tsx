@@ -9,10 +9,13 @@ import { useFormatter } from '../../../components/i18n';
 interface Props {
   hasFilters: boolean;
   onResetFilters: () => void;
+  // The Available tab: empty means everything in the catalogue is installed.
+  catalog?: boolean;
 }
 
 const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
   hasFilters,
+  catalog = false,
   onResetFilters,
 }) => {
   const { t } = useFormatter();
@@ -60,7 +63,8 @@ const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
           marginBottom: 1,
         }}
       >
-        {hasFilters ? t('No actions match your filters') : t('Your threat arsenal is empty')}
+        {hasFilters && t('No actions match your filters')}
+        {!hasFilters && (catalog ? t('Every action of the catalog is installed') : t('Your threat arsenal is empty'))}
       </Typography>
       <Typography
         variant="body2"
@@ -70,9 +74,10 @@ const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
           marginBottom: 3,
         }}
       >
-        {hasFilters
-          ? t('Try adjusting filters or clearing them to see more actions.')
-          : t('Create your first action or import an existing arsenal to get started.')}
+        {hasFilters && t('Try adjusting filters or clearing them to see more actions.')}
+        {!hasFilters && (catalog
+          ? t('New actions show here when the catalog receives them.')
+          : t('Create your first action or import an existing arsenal to get started.'))}
       </Typography>
       {hasFilters && (
         <Button type="button" priority="secondary" onClick={onResetFilters}>

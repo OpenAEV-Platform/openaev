@@ -25,4 +25,6 @@ const builtinConnectorDescription = (type: string | undefined): string | undefin
   type ? BUILTIN_CONNECTOR_DESCRIPTIONS[type] : undefined
 );
 
+export const isBuiltinConnector = (type: string | undefined): boolean => !!builtinConnectorDescription(type);
+
 export default builtinConnectorDescription;

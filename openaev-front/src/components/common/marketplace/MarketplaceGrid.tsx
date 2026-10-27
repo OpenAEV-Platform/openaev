@@ -2,11 +2,18 @@ import { Box, Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 
+import { MarketplaceListHeader, MarketplaceListRowSkeleton } from './MarketplaceListRow';
+import { MarketplaceViewContext } from './MarketplaceViewContext';
+import { type ViewMode } from './useMarketplaceView';
+
 interface Props {
   loading: boolean;
   isEmpty: boolean;
   emptyState: ReactNode;
   children: ReactNode;
+  view?: ViewMode;
+  // Header of the column showing the card overline, in list view.
+  overlineLabel?: string;
 }
 
 const GRID_SX = {
@@ -16,8 +23,25 @@ const GRID_SX = {
 };
 
 // Card grid of a marketplace, with a skeleton shaped like MarketplaceCard while loading.
-const MarketplaceGrid: FunctionComponent<Props> = ({ loading, isEmpty, emptyState, children }) => {
+const MarketplaceGrid: FunctionComponent<Props> = ({ loading, isEmpty, emptyState, children, view = 'grid', overlineLabel = 'Category' }) => {
   const theme = useTheme();
+  if (view === 'list' && (loading || !isEmpty)) {
+    return (
+      <Box sx={{
+        'borderRadius': 1,
+        'border': `1px solid ${theme.palette.divider}`,
+        'backgroundColor': 'var(--bg-elevation-default-layer-1)',
+        'overflow': 'hidden',
+        '& > * + *': { borderTop: `1px solid ${theme.palette.divider}` },
+      }}
+      >
+        <MarketplaceListHeader overlineLabel={overlineLabel} />
+        {loading
+          ? Array.from({ length: 10 }).map((_, idx) => <MarketplaceListRowSkeleton key={idx} />)
+          : <MarketplaceViewContext.Provider value="list">{children}</MarketplaceViewContext.Provider>}
+      </Box>
+    );
+  }
   if (loading) {
     return (
       <Box sx={GRID_SX}>

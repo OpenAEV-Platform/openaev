@@ -28,6 +28,13 @@ export const STATUS_LABEL_MAP: Record<PayloadStatus, string> = {
   REVOKED: 'Revoked',
 };
 
+export const STATUS_CHIP_SEVERITY: Record<PayloadStatus, 'low' | 'medium' | 'neutral' | 'high'> = {
+  VERIFIED: 'low',
+  UNVERIFIED: 'medium',
+  DEPRECATED: 'neutral',
+  REVOKED: 'high',
+};
+
 export const getStatusLabel = (status: PayloadStatus | string | undefined | null): string | null => {
   if (!status) return null;
   return STATUS_LABEL_MAP[status as PayloadStatus] ?? null;

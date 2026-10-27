@@ -311,6 +311,7 @@ export interface AiAttack {
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
   payload_version?: string;
@@ -2201,6 +2202,7 @@ interface BasePayload {
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
   payload_version?: string;
@@ -2584,6 +2586,10 @@ export interface CatalogItemOutput {
   catalog_item_versions?: string[];
 }
 
+export interface CatalogPayloadInstallOutput {
+  installed: string[];
+}
+
 export interface CatalogScenarioVersionsOutput {
   /** @minLength 1 */
   catalog_id: string;
@@ -2591,6 +2597,14 @@ export interface CatalogScenarioVersionsOutput {
   current_version: string;
   history: ContentHistoryOutput[];
   versions: Version[];
+}
+
+export interface CatalogSettingsInput {
+  payload_auto_install?: boolean;
+}
+
+export interface CatalogSettingsOutput {
+  payload_auto_install?: boolean;
 }
 
 export interface CatalogSyncOutput {
@@ -2941,6 +2955,7 @@ export interface Command {
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
   payload_version?: string;
@@ -3219,6 +3234,23 @@ export interface ConsumedFindingKeyDTO {
   value?: string;
 }
 
+export interface ContentHistoryChange {
+  field: string;
+  before?: unknown;
+  after?: unknown;
+}
+
+export interface ContentHistoryDetails {
+  changes?: ContentHistoryChange[];
+  choices?: Record<string, string>;
+  reason?: string;
+  repository?: string;
+  changelog?: string;
+  compared_to?: string;
+  source?: string;
+  list_serial?: number;
+}
+
 export interface ContentHistoryOutput {
   content_history_action?:
     | "INSTALL"
@@ -3228,8 +3260,16 @@ export interface ContentHistoryOutput {
     | "VERSION_CHANGE"
     | "UNINSTALL"
     | "REVOKE"
-    | "LIFT_REVOCATION";
+    | "LIFT_REVOCATION"
+    | "CUSTOMIZE"
+    | "OVERRIDE"
+    | "REBASE"
+    | "CONFLICT";
+  content_history_automatic?: boolean;
   /** @format date-time */
+  /** @format int32 */
+  content_history_count?: number;
+  content_history_details?: ContentHistoryDetails;
   content_history_created_at?: string;
   content_history_from_version?: string;
   /** @minLength 1 */
@@ -4046,6 +4086,7 @@ export interface DnsResolution {
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
   payload_version?: string;
@@ -5664,6 +5705,7 @@ export interface Executable {
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
   payload_version?: string;
@@ -6126,6 +6168,7 @@ export interface FileDrop {
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
   payload_version?: string;
@@ -7613,6 +7656,8 @@ export interface InjectorContractFullOutput {
   /** Labels */
   injector_contract_labels?: Record<string, string>;
   /** Payload type */
+  /** Where the contract's payload comes from; empty without payload */
+  injector_contract_payload_origin?: "CATALOG" | "CUSTOMIZED" | "LOCAL";
   injector_contract_payload_type?: string;
   /** Version of the contract's payload; empty for a local copy or no payload */
   injector_contract_payload_version?: string;
@@ -7668,6 +7713,8 @@ export interface InjectorContractSearchPaginationInput {
   exclude_revoked_payloads?: boolean;
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  /** Sort by primary domain first, to show the results in domain sections */
+  group_by_primary_domain?: boolean;
   /** Include the injector contract content on the returned object if set to true */
   include_content_details?: boolean;
   /** Allow the return of a full object if true, partial object if false */
@@ -8429,6 +8476,7 @@ export interface NetworkTraffic {
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
   payload_version?: string;
@@ -9924,6 +9972,13 @@ export interface PayloadOutput {
    */
   payload_output_parsers?: OutputParser[];
   /** Supported endpoint platforms for this payload */
+  /** Version this save replaced as the latest one, when it created a version */
+  payload_previous_version_id?: string;
+  /**
+   * Injects and chained steps still on the previous version
+   * @format int32
+   */
+  payload_previous_version_usages?: number;
   payload_platforms?: (
     | "Linux"
     | "Windows"
@@ -9985,8 +10040,17 @@ export interface PayloadRevocationOutput {
 
 export interface PayloadSimple {
   payload_collector_type?: string;
+  payload_description?: string;
   payload_id?: string;
   /** @format int64 */
+  payload_installed_versions?: number;
+  /** @format int64 */
+  payload_managed?: boolean;
+  payload_identity_id?: string;
+  payload_variant?: boolean;
+  payload_base_version?: string;
+  payload_newer_base_version?: string;
+  payload_conflict?: boolean;
   payload_older_versions_in_use?: number;
   payload_revoked?: boolean;
   payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
@@ -10156,14 +10220,21 @@ export interface PayloadVersionChangeOutput {
 }
 
 export interface PayloadVersionOutput {
+  payload_action_id?: string;
+  payload_changelog?: string;
   /** @format date-time */
   payload_created_at?: string;
   payload_current?: boolean;
-  /** @minLength 1 */
-  payload_id: string;
+  payload_external_id?: string;
+  payload_id?: string;
+  payload_installed?: boolean;
   payload_is_latest?: boolean;
+  /** @format date-time */
+  payload_published_at?: string;
   payload_revoked?: boolean;
   payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
+  /** @format int32 */
+  payload_usage_count: number;
   payload_version?: string;
 }
 
@@ -10814,6 +10885,8 @@ export interface RawPaginationScenario {
   scenario_category?: string;
   scenario_description?: string;
   scenario_id?: string;
+  /** @format date-time */
+  scenario_last_run_at?: string;
   scenario_name?: string;
   /** @uniqueItems true */
   scenario_platforms?: string[];
@@ -13092,6 +13165,15 @@ export interface ThreatArsenalAction {
    * Tags Ids
    * @uniqueItems true
    */
+  /** Whether the action targets teams (players) rather than assets */
+  action_targets_teams?: boolean;
+  /** Action of the version this save replaced, when it created a version */
+  action_previous_version_id?: string;
+  /**
+   * Injects and chained steps still on the previous version
+   * @format int32
+   */
+  action_previous_version_usages?: number;
   action_tags_ids?: string[];
   /** Injector contract external Id */
   injector_contract_external_id?: string;
@@ -13838,6 +13920,8 @@ export interface Version {
   /** @format date-time */
   published_at?: string;
   scenario_id?: string;
+  /** @format int32 */
+  simulation_count?: number;
   status?: string;
   /** @minLength 1 */
   version: string;

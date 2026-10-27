@@ -1,24 +1,30 @@
-import { RouteOutlined } from '@mui/icons-material';
-import { useEffect, useState } from 'react';
+import { CategoryOutlined, RouteOutlined } from '@mui/icons-material';
+import { type ReactNode, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import {
   fetchCatalogScenarioFacets,
-  fetchCatalogScenarios,
   SCENARIO_AUTHOR_FILTER,
   SCENARIO_CATEGORY_FILTER,
+  SCENARIO_INSTALLATION_FILTER,
+  SCENARIO_INSTALLED,
+  SCENARIO_NOT_INSTALLED,
   SCENARIO_PLATFORM_FILTER,
   SCENARIO_SEVERITY_FILTER,
   SCENARIO_TYPE_FILTER,
+  scenarioCatalogFilterSchemas,
   searchCatalogScenarios,
 } from '../../../../actions/catalog/scenario-catalog-actions';
 import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
 import MarketplaceBrowser from '../../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/MarketplaceFacetSidebar';
-import MarketplaceGrid from '../../../../components/common/marketplace/MarketplaceGrid';
 import MarketplaceHero from '../../../../components/common/marketplace/MarketplaceHero';
+import MarketplaceLoadMore from '../../../../components/common/marketplace/MarketplaceLoadMore';
+import MarketplaceSections from '../../../../components/common/marketplace/MarketplaceSections';
 import MarketplaceSortSelect from '../../../../components/common/marketplace/MarketplaceSortSelect';
+import MarketplaceViewToggle from '../../../../components/common/marketplace/MarketplaceViewToggle';
 import useMarketplaceCatalog from '../../../../components/common/marketplace/useMarketplaceCatalog';
+import useMarketplaceView from '../../../../components/common/marketplace/useMarketplaceView';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
@@ -41,18 +47,14 @@ const SORT_OPTIONS = [
   },
 ];
 
-const ScenariosAvailable = () => {
+interface Props { tabs?: ReactNode }
+
+const ScenariosAvailable = ({ tabs }: Props) => {
   const { t } = useFormatter();
   const navigate = useNavigate();
   const [installing, setInstalling] = useState<CatalogItemOutput | null>(null);
-  const [catalog, setCatalog] = useState<CatalogItemOutput[]>([]);
-  useEffect(() => {
-    fetchCatalogScenarios().then(setCatalog);
-  }, []);
-  const installedCount = catalog.filter(item => (item.catalog_item_installed_versions ?? []).length > 0).length;
-  const updateCount = catalog.filter(item => (item.catalog_item_installed_versions ?? []).length > 0
-    && !(item.catalog_item_installed_versions ?? []).includes(item.catalog_item_version)).length;
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios-catalog-view');
   const {
     items,
     setItems,
@@ -73,15 +75,21 @@ const ScenariosAvailable = () => {
 
   const facets: MarketplaceFacet[] = [
     {
+      filterKey: SCENARIO_CATEGORY_FILTER,
+      label: 'Category',
+      valueLabel: value => t(scenarioCategories.get(value) ?? value),
+    },
+    {
+      filterKey: SCENARIO_INSTALLATION_FILTER,
+      label: 'Installation',
+      values: [SCENARIO_INSTALLED, SCENARIO_NOT_INSTALLED],
+      valueLabel: value => t(value === SCENARIO_INSTALLED ? 'Installed' : 'Not installed'),
+    },
+    {
       filterKey: SCENARIO_SEVERITY_FILTER,
       label: 'Severity',
       values: SCENARIO_SEVERITIES,
       valueLabel: value => t(severityLabelKey(value)),
-    },
-    {
-      filterKey: SCENARIO_CATEGORY_FILTER,
-      label: 'Category',
-      valueLabel: value => t(scenarioCategories.get(value) ?? value),
     },
     {
       filterKey: SCENARIO_TYPE_FILTER,
@@ -102,23 +110,11 @@ const ScenariosAvailable = () => {
 
   return (
     <MarketplaceBrowser
+      tabs={tabs}
       hero={(
         <MarketplaceHero
-          title={t('Catalog')}
-          totalLabel={t('scenarios in the catalog')}
-          totalElements={catalog.length}
-          stats={[
-            {
-              id: 'installed',
-              label: t('Installed'),
-              value: installedCount,
-            },
-            {
-              id: 'updates',
-              label: t('Update available'),
-              value: updateCount,
-            },
-          ]}
+          title={t('Scenarios')}
+          subtitle={t('Browse, install and version ready-to-run scenarios.')}
         />
       )}
       sidebar={(
@@ -131,10 +127,13 @@ const ScenariosAvailable = () => {
       )}
       toolbar={(
         <PaginationComponentV2
+          resultsCount
+          infiniteScroll
           fetch={fetchItems}
           searchPaginationInput={searchPaginationInput}
           setContent={setItems}
-          disableFilters
+          propertySchemas={scenarioCatalogFilterSchemas(facetCounts)}
+          topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
           queryableHelpers={queryableHelpers}
           filtersEndSlot={(
             <MarketplaceSortSelect
@@ -146,20 +145,29 @@ const ScenariosAvailable = () => {
         />
       )}
     >
-      <MarketplaceGrid
-        loading={loading}
-        isEmpty={items.length === 0}
+      <MarketplaceSections
+        items={items}
+        sectionKey={item => item.catalog_item_category}
+        sectionLabel={category => (category ? t(scenarioCategories.get(category) ?? category) : t('Other'))}
+        sectionIcon={<CategoryOutlined />}
+        view={viewMode}
+        loading={loading && searchPaginationInput.page === 0}
         emptyState={<EmptyPlaceholder icon={<RouteOutlined />} title={t('No scenario matches these filters.')} />}
-      >
-        {items.map(item => (
+        renderItem={item => (
           <ScenarioCatalogCard
             key={item.catalog_item_external_id}
             item={item}
             canInstall={canInstall}
             onInstall={() => setInstalling(item)}
           />
-        ))}
-      </MarketplaceGrid>
+        )}
+      />
+      <MarketplaceLoadMore
+        hasMore={items.length < queryableHelpers.paginationHelpers.getTotalElements()}
+        loading={loading && searchPaginationInput.page > 0}
+        paused={loading && searchPaginationInput.page === 0}
+        onLoadMore={() => queryableHelpers.paginationHelpers.handleChangePage(searchPaginationInput.page + 1)}
+      />
       {installing && (
         <CatalogScenarioInstallDrawer
           externalId={installing.catalog_item_external_id}
