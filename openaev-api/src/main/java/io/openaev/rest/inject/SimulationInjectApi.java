@@ -29,6 +29,7 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.SimulationInjectService;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.service.BulkInjectService;
+import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.InjectSearchService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.mapper.InjectMapper;
@@ -76,6 +77,7 @@ public class SimulationInjectApi extends RestBehavior {
   private final InjectMapper injectMapper;
   private final InjectUtils injectUtils;
   private final BulkInjectService bulkInjectService;
+  private final FaithfulCopyTransaction faithfulCopy;
 
   // -- READ --
 
@@ -289,9 +291,16 @@ public class SimulationInjectApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
-    Inject persistedInject =
-        injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
-            exerciseId, injectId);
+    // A faithful copy keeps the targets the user is not cleared for; the response is read back
+    // under their clearance.
+    String duplicateId =
+        faithfulCopy.execute(
+            ctx,
+            () ->
+                injectDuplicateService
+                    .duplicateInjectForExerciseWithDuplicateWordInTitle(exerciseId, injectId)
+                    .getId());
+    Inject persistedInject = injectService.inject(duplicateId);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 

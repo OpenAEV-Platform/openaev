@@ -49,7 +49,8 @@ import org.springframework.stereotype.Service;
             + " tenant-active table, so both queries bind tenant_id explicitly and are read-only;"
             + " they return marking ids and ordering metadata only, never row payloads. The"
             + " explicit bind is what replaces the inspector here and is pinned by"
-            + " MarkingClearanceCacheManagerTest.")
+            + " MarkingClearanceCacheManagerTest. The system clearance reads the same tenant-bound"
+            + " scale inside the background primitive's transaction, while it sets the scope.")
 public class MarkingClearanceCacheManager {
 
   static final String MARKING_CLEARANCE_CACHE = "markingClearance";
@@ -85,15 +86,7 @@ public class MarkingClearanceCacheManager {
   public MarkingCtx findClearance(String userId, String tenantId, boolean bypass) {
     // Intentionally JDBC here: this code runs during argument resolution (before @Transactional),
     // so ORM reads may hold the pooled connection until request end (open-in-view).
-    List<MarkingRef> definitions =
-        jdbcTemplate.query(
-            TENANT_MARKINGS_SQL,
-            (rs, rowNum) ->
-                new MarkingRef(
-                    rs.getString("marking_definition_id"),
-                    rs.getString("marking_definition_type"),
-                    rs.getInt("marking_definition_order")),
-            tenantId);
+    List<MarkingRef> definitions = tenantDefinitions(tenantId);
 
     // Skipped for a bypassing caller: the grants cannot change the answer, so the query is waste.
     Set<String> granted =
@@ -103,6 +96,35 @@ public class MarkingClearanceCacheManager {
                 jdbcTemplate.queryForList(GRANTED_MARKING_IDS_SQL, String.class, userId, tenantId));
 
     return resolver.resolve(granted, definitions, bypass);
+  }
+
+  /**
+   * Returns the system clearance in the tenant: every marking it defines, what a bypassing caller
+   * holds. The background primitive runs at it, and so does a faithful copy.
+   *
+   * <p><b>Never cached</b>, unlike {@link #findClearance}. It has no user to key on, and a stale
+   * entry would be shared by every job of the tenant: a definition created a moment ago would stay
+   * out of the clearance, hiding the rows marked with it from executions until the entry expired.
+   * One indexed read per transaction is the price of always being exact.
+   *
+   * <p>Same query and same bypass rule as {@link #findClearance}, so "every marking of a tenant"
+   * has one definition. It runs inside the caller's transaction, on its connection: a definition
+   * the transaction wrote is seen once flushed.
+   */
+  public MarkingCtx findSystemClearance(String tenantId) {
+    return resolver.resolve(Set.of(), tenantDefinitions(tenantId), true);
+  }
+
+  /** The tenant's marking scale: every definition, with the type and order clearance expands on. */
+  private List<MarkingRef> tenantDefinitions(String tenantId) {
+    return jdbcTemplate.query(
+        TENANT_MARKINGS_SQL,
+        (rs, rowNum) ->
+            new MarkingRef(
+                rs.getString("marking_definition_id"),
+                rs.getString("marking_definition_type"),
+                rs.getInt("marking_definition_order")),
+        tenantId);
   }
 
   /**

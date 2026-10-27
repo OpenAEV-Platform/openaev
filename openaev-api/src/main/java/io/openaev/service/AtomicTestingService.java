@@ -239,11 +239,6 @@ public class AtomicTestingService {
     return injectService.launch(id);
   }
 
-  @Transactional
-  public InjectResultOverviewOutput relaunch(String id) {
-    return doRelaunch(id, true);
-  }
-
   /**
    * Relaunch an atomic testing (duplicate + queue new + delete old) and migrate its grants to the
    * new inject. Scheduled relaunches pass {@code checkLaunchable = false} to skip the Enterprise
@@ -251,13 +246,6 @@ public class AtomicTestingService {
    */
   @Transactional
   public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
-    return doRelaunch(id, checkLaunchable);
-  }
-
-  // Non-transactional body shared by both @Transactional entry points: an intra-class call to a
-  // @Transactional method bypasses the Spring proxy (self-invocation), so the overloads never call
-  // each other directly.
-  private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     findInject(id);
     // Relaunching an atomic testing is considered as creating a new one.
     // Therefore, any grants created on the current atomic testing will have to be updated with the
@@ -266,6 +254,30 @@ public class AtomicTestingService {
     grantService.updateGrantsForNewResource(
         id, relaunched.getId(), Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
     return relaunched;
+  }
+
+  /**
+   * The Enterprise executor gate of a user relaunch, checked on what the user can see: the targets
+   * they are not cleared for will not be executed, so their executors must not block the launch.
+   */
+  public void throwIfNotLaunchable(String id) {
+    injectService.throwIfInjectNotLaunchable(findInject(id));
+  }
+
+  /**
+   * A user relaunch, once {@link #throwIfNotLaunchable} passed: duplicates the atomic testing for
+   * the current user and migrates its grants to the new inject. Meant to run in a faithful copy, so
+   * the duplicate keeps every target.
+   *
+   * @return the id of the relaunched atomic testing
+   */
+  @Transactional
+  public String relaunchAsCurrentUser(String id) {
+    findInject(id);
+    String relaunchedId = injectService.relaunchAsCurrentUser(id);
+    grantService.updateGrantsForNewResource(
+        id, relaunchedId, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
+    return relaunchedId;
   }
 
   /** Bulk update used by the recurring atomic testing job to self-clear outdated recurrences. */

@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import io.openaev.config.CachingConfig;
 import io.openaev.config.MarkingScopeResolver;
 import io.openaev.config.MarkingScopeResolver.MarkingRef;
@@ -280,6 +281,64 @@ class MarkingClearanceCacheManagerCachingTest {
       // -- ASSERT --
       verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
       verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), eq(TENANT_B));
+    }
+  }
+
+  @Nested
+  @DisplayName("system clearance")
+  class SystemClearance {
+
+    @Test
+    @DisplayName("given every marking of the tenant, should match the bypass clearance")
+    void given_tenantScale_should_matchTheBypassClearance() {
+      // -- ARRANGE --
+      givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of());
+
+      // -- ACT --
+      MarkingCtx system = clearanceCache.findSystemClearance(TENANT_A);
+      MarkingCtx bypass = clearanceCache.findClearance(USER, TENANT_A, true);
+
+      // -- ASSERT --
+      // One resolution of "every marking of a tenant", for a job and for a bypassing caller.
+      assertThat(system.toGuc()).isEqualTo("tlp-green,tlp-red");
+      assertThat(system).isEqualTo(bypass);
+    }
+
+    @Test
+    @DisplayName("given a definition created without eviction, should include it at once")
+    void given_newDefinitionNotEvicted_should_readItFresh() {
+      // -- ARRANGE --
+      // Warm the bypass entry of the same tenant, then add RED to the database, evicting nothing.
+      givenGrants(TENANT_A, List.of(TLP_GREEN), List.of());
+      clearanceCache.findClearance(USER, TENANT_A, true);
+      clearanceCache.findSystemClearance(TENANT_A);
+      givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of());
+
+      // -- ACT --
+      MarkingCtx system = clearanceCache.findSystemClearance(TENANT_A);
+      MarkingCtx cachedBypass = clearanceCache.findClearance(USER, TENANT_A, true);
+
+      // -- ASSERT --
+      // A cached system clearance would hide the rows marked RED from every job of the tenant.
+      assertThat(system.toGuc()).isEqualTo("tlp-green,tlp-red");
+      // The bypass entry is still the cached one: the system read neither used nor refreshed it.
+      assertThat(cachedBypass.toGuc()).isEqualTo("tlp-green");
+      verify(jdbcTemplate, times(3)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
+    }
+
+    @Test
+    @DisplayName("given a system read, should leave nothing in the cache")
+    void given_systemRead_should_notPopulateTheCache() {
+      // -- ARRANGE --
+      givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of());
+
+      // -- ACT --
+      clearanceCache.findSystemClearance(TENANT_A);
+
+      // -- ASSERT --
+      Cache<?, ?> entries =
+          (Cache<?, ?>) cacheManager.getCache("markingClearance").getNativeCache();
+      assertThat(entries.asMap()).isEmpty();
     }
   }
 

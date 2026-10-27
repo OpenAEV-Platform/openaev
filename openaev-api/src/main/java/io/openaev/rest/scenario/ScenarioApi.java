@@ -38,6 +38,7 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.scenario.form.*;
@@ -102,6 +103,8 @@ public class ScenarioApi extends RestBehavior {
   private final EnterpriseEditionService enterpriseEditionService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final LicenseCacheManager licenseCacheManager;
+  private final FaithfulCopyTransaction faithfulCopy;
+  private final ExerciseService exerciseService;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -195,7 +198,11 @@ public class ScenarioApi extends RestBehavior {
           "Duplicates a scenario's authored content. A chained scenario also gets a copy of its logic map (workflow, steps and conditions); execution artefacts are never copied. Requires an Enterprise Edition license when the scenario is chained.")
   public Scenario duplicateScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId)
       throws ChainingException {
-    return hydrateForResponse(scenarioService.duplicateScenario(scenarioId));
+    // A faithful copy keeps the targets the user is not cleared for; the response is read back
+    // under their clearance.
+    String duplicateId =
+        faithfulCopy.execute(ctx, () -> scenarioService.duplicateScenario(scenarioId).getId());
+    return hydrateForResponse(scenarioService.scenario(duplicateId));
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
@@ -677,31 +684,42 @@ public class ScenarioApi extends RestBehavior {
   public Exercise createRunningExerciseFromScenario(
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    Exercise simulation;
-    User launchedBy =
-        this.userRepository
-            .findById(currentUser().getId())
-            .orElseThrow(ElementNotFoundException::new);
+    String launchedById = currentUser().getId();
+    boolean chaining = workflowService.isScenarioChaining(scenarioId);
 
-    if (workflowService.isScenarioChaining(scenarioId)) {
+    if (chaining) {
       // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
       // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
       // plan or run outcome is no longer the latest activity). No-op when the scenario carries no
       // run or the feature is off, and never tears down a still-active run.
       autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
-      simulation =
-          scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, launchedBy);
-      workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
-
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
-      simulation =
-          scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, launchedBy);
     }
 
-    return simulation;
+    // The simulation is a faithful copy of the scenario: it keeps the targets the user is not
+    // cleared for, which the dispatch will not execute. The scenario and the launcher are reloaded
+    // in the copy's own transaction, and the response is read back under the user's clearance.
+    String simulationId =
+        faithfulCopy.execute(
+            ctx,
+            () -> {
+              User launchedBy =
+                  this.userRepository
+                      .findById(launchedById)
+                      .orElseThrow(ElementNotFoundException::new);
+              Exercise simulation =
+                  scenarioToExerciseService.toExercise(
+                      this.scenarioService.scenario(scenarioId),
+                      now().truncatedTo(MINUTES).plus(1, MINUTES),
+                      true,
+                      launchedBy);
+              if (chaining) {
+                workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
+              }
+              return simulation.getId();
+            });
+    return exerciseService.exercise(simulationId);
   }
 
   @PostMapping({

@@ -43,7 +43,9 @@ class TenantScopeTransactionAspectTest {
   private static TenantScopeTransactionAspect aspect(
       EntityManager entityManager, MarkingCtx clearance) {
     ObjectProvider<MarkingScopeSupplier> provider = mock(ObjectProvider.class);
-    when(provider.getIfAvailable()).thenReturn(ctx -> clearance);
+    MarkingScopeSupplier supplier = mock(MarkingScopeSupplier.class);
+    when(supplier.clearanceFor(any())).thenReturn(clearance);
+    when(provider.getIfAvailable()).thenReturn(supplier);
     return new TenantScopeTransactionAspect(entityManager, provider);
   }
 

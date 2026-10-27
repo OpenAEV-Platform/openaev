@@ -678,11 +678,31 @@ public class InjectService {
     if (checkLaunchable) {
       this.throwIfInjectNotLaunchable(duplicatedInject);
     }
-    duplicatedInject.setLaunchedBy(
-        checkLaunchable ? userService.currentUser() : duplicatedInject.getScheduledBy());
-    Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
-    deleteForRelaunch(id, savedInject.getId());
+    Inject savedInject =
+        relaunchCopy(
+            id,
+            duplicatedInject,
+            checkLaunchable ? userService.currentUser() : duplicatedInject.getScheduledBy());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
+  }
+
+  /**
+   * Relaunches an inject for the current user, whose launch was already checked ({@link
+   * #throwIfInjectNotLaunchable}) on what they can see: run in a faithful copy, the duplicate also
+   * carries the targets they are not cleared for, which the dispatch will not execute.
+   *
+   * @return the id of the relaunched inject
+   */
+  @Transactional
+  public String relaunchAsCurrentUser(String id) {
+    return relaunchCopy(id, findAndDuplicateInject(id), userService.currentUser()).getId();
+  }
+
+  private Inject relaunchCopy(String originId, Inject duplicatedInject, User launchedBy) {
+    duplicatedInject.setLaunchedBy(launchedBy);
+    Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
+    deleteForRelaunch(originId, savedInject.getId());
+    return savedInject;
   }
 
   @Transactional
