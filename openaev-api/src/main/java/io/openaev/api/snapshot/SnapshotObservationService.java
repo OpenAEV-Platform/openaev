@@ -9,6 +9,7 @@ import io.openaev.api.snapshot.form.SnapshotSearchInput;
 import io.openaev.api.snapshot.form.SnapshotSearchOutput;
 import io.openaev.api.snapshot.form.VulnerabilityObservationOutput;
 import io.openaev.config.EngineConfig;
+import io.openaev.database.helper.QueryPlanHelper;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.model.User;
@@ -68,6 +69,7 @@ public class SnapshotObservationService {
   private final RawUserAuthMapper rawUserAuthMapper;
   private final SnapshotCursorCodec cursorCodec;
   private final SnapshotObservationMapper mapper;
+  private final QueryPlanHelper queryPlanHelper;
 
   public SnapshotSearchOutput<AttackObservationOutput> searchAttackObservations(
       String tenantId, SnapshotSearchInput input) {
@@ -200,6 +202,7 @@ public class SnapshotObservationService {
     if (!cursor.isBefore(now.minusSeconds(lag).plusMillis(1))) {
       return fallback;
     }
+    queryPlanHelper.forceCustomPlan();
     return probe.test(tenantId, cursor, cursorId, fallback) ? cursor : fallback;
   }
 

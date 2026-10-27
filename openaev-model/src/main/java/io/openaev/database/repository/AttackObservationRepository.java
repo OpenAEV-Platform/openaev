@@ -158,7 +158,9 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         FROM matched
         GROUP BY tenant_id, asset_id, attack_pattern_external_id, inject_expectation_type, scenario_id
     ),
-    sp_self AS (
+    sp_self AS MATERIALIZED (
+        -- MATERIALIZED, like agent_security_platforms below: inlined, the aggregate is computed
+        -- again for every key of the batch (nested loop), a cost quadratic in the batch size.
         -- Collectors / assets referenced in the own results of the parent. The collectors join is
         -- tenant-correlated exactly like InjectExpectationRepository.sp_self: the indexing sweep
         -- runs under an all-tenant scope and built-in collectors share collector_id across
@@ -190,9 +192,9 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         LEFT JOIN assets a ON ier.inject_expectation_result_source_id = a.asset_id::text
         GROUP BY m.tenant_id, m.asset_id, m.attack_pattern_external_id, m.inject_expectation_type, m.scenario_id
     ),
-    agent_security_platforms AS (
+    agent_security_platforms AS MATERIALIZED (
         -- Security platforms contributed by agent-level children of the SAME inject/asset, same
-        -- tenant-correlated collectors join as sp_self.
+        -- tenant-correlated collectors join and same MATERIALIZED as sp_self.
         SELECT
           m.tenant_id, m.asset_id, m.attack_pattern_external_id, m.inject_expectation_type, m.scenario_id,
           COALESCE(array_agg(DISTINCT child_c.collector_security_platform::text) FILTER (WHERE child_c.collector_security_platform IS NOT NULL), ARRAY[]::text[])

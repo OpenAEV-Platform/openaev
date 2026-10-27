@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -17,6 +18,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.openaev.api.snapshot.form.SnapshotSearchInput;
 import io.openaev.api.snapshot.form.SnapshotSearchOutput;
 import io.openaev.config.EngineConfig;
+import io.openaev.database.helper.QueryPlanHelper;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.model.User;
@@ -43,6 +45,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -65,6 +68,7 @@ class SnapshotObservationServiceTest {
   @Mock private UserService userService;
   @Mock private User currentUser;
   @Mock private RawUserAuthMapper rawUserAuthMapper;
+  @Mock private QueryPlanHelper queryPlanHelper;
 
   private SnapshotObservationService service;
   private SnapshotCursorCodec cursorCodec;
@@ -84,7 +88,8 @@ class SnapshotObservationServiceTest {
             userService,
             rawUserAuthMapper,
             cursorCodec,
-            new SnapshotObservationMapper());
+            new SnapshotObservationMapper(),
+            queryPlanHelper);
     // Lenient: the validation test throws before this is ever reached.
     lenient().when(rawUserAuthMapper.toRawUserAuth(any())).thenReturn(mock(RawUserAuth.class));
     lenient().when(userService.currentUser()).thenReturn(currentUser);
@@ -336,6 +341,27 @@ class SnapshotObservationServiceTest {
 
       // -- ASSERT --
       verify(attackObservationRepository).existsPendingIndexing(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("the probe runs on a custom plan")
+    void given_cursor_outside_safety_lag_should_forceCustomPlanBeforeProbing() {
+      // -- ARRANGE --
+      when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
+      Instant cursor = Instant.now().minusSeconds(300);
+      when(indexingStatusRepository.findByType(any()))
+          .thenReturn(Optional.of(indexingStatus(cursor)));
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any(), any()))
+          .thenReturn(false);
+      givenDocuments(List.of());
+
+      // -- ACT --
+      search(input(null, null, null, null));
+
+      // -- ASSERT --
+      InOrder order = inOrder(queryPlanHelper, attackObservationRepository);
+      order.verify(queryPlanHelper).forceCustomPlan();
+      order.verify(attackObservationRepository).existsPendingIndexing(any(), any(), any(), any());
     }
   }
 
