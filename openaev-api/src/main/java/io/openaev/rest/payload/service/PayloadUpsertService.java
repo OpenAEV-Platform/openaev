@@ -11,6 +11,7 @@ import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
@@ -26,12 +27,15 @@ import io.openaev.service.payload.PayloadVersionNumbering;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.SemanticVersion;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
@@ -128,9 +132,7 @@ public class PayloadUpsertService {
     payload.setTenant(new Tenant(tenantId));
     payloadUtils.copyProperties(input, payload, false);
     PayloadImportService.asCatalogVersion(payload, identity, version);
-    List<AttackPattern> attackPatterns =
-        attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-            input.getAttackPatternsExternalIds(), tenantId);
+    List<AttackPattern> attackPatterns = attackPatternsOrPlaceholders(input, tenantId);
     payload.setContentHash(payloadContentHashService.hash(payload, attackPatterns));
     Payload saved =
         payloadVersionService.addVersion(
@@ -141,6 +143,33 @@ public class PayloadUpsertService {
         domainService.upserts(input.getDomains(), tenantId),
         new HashSet<>());
     return saved;
+  }
+
+  // A technique the platform lacks is created from its ID alone; the MITRE collector, which upserts
+  // by external ID, completes it later.
+  private List<AttackPattern> attackPatternsOrPlaceholders(
+      PayloadUpsertInput input, String tenantId) {
+    List<AttackPattern> found =
+        new ArrayList<>(
+            attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+                input.getAttackPatternsExternalIds(), tenantId));
+    Set<String> known =
+        found.stream()
+            .map(p -> p.getExternalId().toUpperCase(Locale.ROOT))
+            .collect(Collectors.toSet());
+    List<AttackPattern> placeholders =
+        input.getAttackPatternsExternalIds().stream()
+            .filter(id -> known.add(id.toUpperCase(Locale.ROOT)))
+            .map(
+                id -> {
+                  AttackPatternCreateInput placeholder = new AttackPatternCreateInput();
+                  placeholder.setExternalId(id);
+                  placeholder.setName(id);
+                  return placeholder.toAttackPattern(tenantId);
+                })
+            .toList();
+    attackPatternRepository.saveAll(placeholders).forEach(found::add);
+    return found;
   }
 
   // One local identity per collector and external ID (unique index); without a collector, the one
