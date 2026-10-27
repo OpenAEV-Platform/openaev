@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261026120000000__Drop_scenario_and_simulation_sender_email
+public class V6_20261027090000000__Drop_scenario_and_simulation_sender_email
     extends BaseJavaMigration {
 
   @Override
