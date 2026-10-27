@@ -69,7 +69,8 @@ public class ScenarioApplyService {
       List<String> payloadsToInstall,
       List<String> revokedPayloads) {}
 
-  private record Applied(ObjectNode content, ObjectNode base, String version) {}
+  private record Applied(
+      ObjectNode content, ObjectNode base, String version, Set<String> referencing) {}
 
   private final ScenarioRepository scenarioRepository;
   private final InjectRepository injectRepository;
@@ -105,6 +106,7 @@ public class ScenarioApplyService {
     Applied applied = applied(scenario, target);
     ScenarioMerge.Result merge =
         ScenarioMerge.merge(base, applied.content(), local, choices, edits);
+    refuseUnwritable(merge, local, applied);
     List<String> toInstall = new ArrayList<>();
     List<String> revoked = new ArrayList<>();
     payloadContracts(merge.merged())
@@ -221,7 +223,8 @@ public class ScenarioApplyService {
       return new Applied(
           (ObjectNode) snapshot.get(ScenarioRevisionService.CONTENT),
           (ObjectNode) snapshot.get(ScenarioRevisionService.BASE),
-          revision.getCatalogVersion());
+          revision.getCatalogVersion(),
+          Set.of());
     }
     CatalogItem item =
         catalogService
@@ -236,7 +239,7 @@ public class ScenarioApplyService {
       throw new BadRequestException(CatalogRequirementsService.CHAINED_NOT_SUPPORTED);
     }
     ObjectNode content = reader.fromPackage(root, payloadVersions(item));
-    return new Applied(content, content, item.getVersion());
+    return new Applied(content, content, item.getVersion(), reader.keysWithReferences(root));
   }
 
   /** Refused while the steps of a chained scenario are not part of its content. */
@@ -252,6 +255,29 @@ public class ScenarioApplyService {
     } catch (ChainingException e) {
       throw new BadRequestException(CatalogRequirementsService.CHAINED_NOT_SUPPORTED);
     }
+  }
+
+  // Not written by an update yet: refused rather than reported as done.
+  private static void refuseUnwritable(
+      ScenarioMerge.Result merge, ObjectNode local, Applied applied) {
+    JsonNode materials = merge.merged().get(MATERIALS);
+    if (materials != null && !materials.equals(local.path(MATERIALS))) {
+      throw new BadRequestException(
+          "This version changes articles, objectives or lessons: not supported yet");
+    }
+    merge
+        .merged()
+        .path(INJECTS)
+        .properties()
+        .forEach(
+            e -> {
+              if (applied.referencing().contains(e.getKey())
+                  && !e.getValue().equals(local.path(INJECTS).get(e.getKey()))) {
+                throw new BadRequestException(
+                    "This version changes an inject that uses a challenge, an article or a"
+                        + " document: not supported yet");
+              }
+            });
   }
 
   private static boolean hasWorkflow(JsonNode root) {
@@ -492,7 +518,9 @@ public class ScenarioApplyService {
         (key, inject) -> {
           List<InjectDependency> dependencies = new ArrayList<>();
           for (JsonNode dependency : wanted.path(key).path(TIMING).path(DEPENDS_ON)) {
-            Inject parent = written.get(dependency.path(PARENT).asText());
+            String parentKey = dependency.path(PARENT).asText();
+            // A parent the client kept after the catalogue removed it is written as a local one.
+            Inject parent = written.getOrDefault(parentKey, written.get(LOCAL_PREFIX + parentKey));
             if (parent == null) {
               continue;
             }

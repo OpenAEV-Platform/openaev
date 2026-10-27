@@ -96,6 +96,35 @@ public class ScenarioContentReader {
     return canonical(content);
   }
 
+  /**
+   * Package keys of the injects that point to challenges, channel articles or documents by the
+   * package's own IDs, which only an import remaps.
+   */
+  public Set<String> keysWithReferences(JsonNode root) {
+    Set<String> keys = new HashSet<>();
+    for (JsonNode node : root.path("scenario_injects")) {
+      JsonNode content = node.path("inject_content");
+      boolean documentArgument = false;
+      for (JsonNode argument :
+          node.path("inject_injector_contract")
+              .path("injector_contract_payload")
+              .path("payload_arguments")) {
+        String key = text(argument, "key");
+        documentArgument |=
+            "document".equals(text(argument, "type"))
+                && key != null
+                && !content.path(key).asText("").isEmpty();
+      }
+      if (!content.path("challenges").isEmpty()
+          || !content.path("articles").isEmpty()
+          || !node.path("inject_documents").isEmpty()
+          || documentArgument) {
+        keys.add(packageKey(node));
+      }
+    }
+    return keys;
+  }
+
   private static String packageKey(JsonNode inject) {
     String catalogId = text(inject, "inject_catalog_id");
     return catalogId != null ? catalogId : text(inject, "inject_id");
