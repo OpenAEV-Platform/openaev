@@ -4017,6 +4017,7 @@
   "Switch to preview mode": "プレビューモードに切り替える",
   "Switch view": "ビューを切り替える",
   "Switching the theme resets the colors to the platform defaults of that theme.": "テーマを切り替えると、色は当該テーマのプラットフォームのデフォルト設定にリセットされます。",
+  "SYNC_CATALOG": "コンテンツカタログを同期",
   "System prompt": "システムプロンプト",
   "System prompt (optional)": "システムプロンプト（任意）",
   "Table": "テーブル",
