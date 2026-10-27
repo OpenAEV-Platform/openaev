@@ -12,8 +12,16 @@ public interface CatalogItemRepository extends JpaRepository<CatalogItem, String
 
   List<CatalogItem> findAllByType(ContentType type);
 
+  List<CatalogItem> findAllByRepository(String repository);
+
   List<CatalogItem> findAllByTypeAndExternalId(ContentType type, String externalId);
 
-  Optional<CatalogItem> findByTypeAndExternalIdAndVersion(
+  List<CatalogItem> findAllByTypeAndExternalIdAndVersion(
       ContentType type, String externalId, String version);
+
+  Optional<CatalogItem> findByTypeAndRepositoryAndExternalIdAndVersion(
+      ContentType type, String repository, String externalId, String version);
+
+  List<CatalogItem> findAllByTypeAndRepositoryAndExternalId(
+      ContentType type, String repository, String externalId);
 }

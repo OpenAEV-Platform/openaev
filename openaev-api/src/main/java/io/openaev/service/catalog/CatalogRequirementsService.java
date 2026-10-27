@@ -2,13 +2,18 @@ package io.openaev.service.catalog;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.catalog.CatalogManifest.Requires;
+import io.openaev.api.catalog.CatalogMissingRequirement;
+import io.openaev.api.catalog.CatalogMissingRequirement.Kind;
+import io.openaev.api.catalog.CatalogMissingRequirement.Status;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogItem;
 import io.openaev.database.model.Executor;
 import io.openaev.database.model.Injector;
 import io.openaev.executors.ExecutorService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,6 +34,7 @@ public class CatalogRequirementsService {
   private final ExecutorService executorService;
   private final LicenseCacheManager licenseCacheManager;
   private final PlatformSettingsService platformSettingsService;
+  private final CatalogConnectorService catalogConnectorService;
   private final ObjectMapper mapper;
 
   /** One checker per request: the platform's injectors and executors are read once. */
@@ -61,24 +67,46 @@ public class CatalogRequirementsService {
     }
 
     public List<String> missing(CatalogItem item) {
+      return missingPrerequisites(item).stream().map(CatalogMissingRequirement::label).toList();
+    }
+
+    public List<CatalogMissingRequirement> missingPrerequisites(CatalogItem item) {
       Requires requires = read(item);
       if (requires == null) {
         return List.of();
       }
-      List<String> missing = new ArrayList<>();
+      List<CatalogMissingRequirement> missing = new ArrayList<>();
       if (requires.openaev() != null && !versionMatches(requires.openaev(), version)) {
-        missing.add("OpenAEV " + requires.openaev());
+        missing.add(other(Kind.OPENAEV, requires.openaev(), "OpenAEV " + requires.openaev()));
       }
       if ("EE".equalsIgnoreCase(requires.edition()) && !enterprise) {
-        missing.add("Enterprise Edition");
+        missing.add(other(Kind.EDITION, "EE", "Enterprise Edition"));
       }
       Optional.ofNullable(requires.injectors()).orElse(List.of()).stream()
           .filter(type -> !injectors.contains(type))
-          .forEach(type -> missing.add("Injector " + type));
+          .forEach(type -> missing.add(injector(type)));
       Optional.ofNullable(requires.executors()).orElse(List.of()).stream()
           .filter(type -> !executors.contains(type))
-          .forEach(type -> missing.add("Executor " + type));
+          .forEach(type -> missing.add(other(Kind.EXECUTOR, type, "Executor " + type)));
       return missing;
+    }
+
+    // An injector not registered yet is deployed from its catalogue connector, when one exists.
+    private CatalogMissingRequirement injector(String type) {
+      Optional<CatalogConnector> connector = catalogConnectorService.findBySlug(type);
+      return new CatalogMissingRequirement(
+          Kind.INJECTOR,
+          type,
+          "Injector " + type,
+          connector.map(CatalogConnector::getId).orElse(null),
+          connector.map(CatalogConnector::getTitle).orElse(null),
+          connector
+              .map(c -> c.getInstances().isEmpty() ? Status.NOT_DEPLOYED : Status.NOT_RUNNING)
+              .orElse(Status.NOT_DEPLOYED));
+    }
+
+    private static CatalogMissingRequirement other(Kind kind, String key, String label) {
+      return new CatalogMissingRequirement(kind, key, label, null, null, null);
     }
   }
 

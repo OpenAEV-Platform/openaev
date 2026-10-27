@@ -2,13 +2,16 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
@@ -150,6 +153,12 @@ public class CatalogConnector implements Base {
   @JsonProperty("catalog_connector_properties_migrated")
   @Schema(description = "Whether the legacy properties configuration has already been migrated")
   private boolean propertiesMigrated;
+
+  @Type(JsonType.class)
+  @Column(name = "catalog_connector_injector_contracts", columnDefinition = "jsonb")
+  @JsonProperty("catalog_connector_injector_contracts")
+  @Schema(description = "Contracts the injector registers once it runs")
+  private List<CatalogConnectorInjectorContract> injectorContracts = new ArrayList<>();
 
   @OneToMany(
       mappedBy = "catalogConnector",

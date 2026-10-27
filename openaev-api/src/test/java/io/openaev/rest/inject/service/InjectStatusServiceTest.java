@@ -148,6 +148,9 @@ class InjectStatusServiceTest {
                 agentRepository,
                 injectAgentResolverService,
                 injectUtils,
+                new io.openaev.service.payload.PayloadExecutionSnapshotService(
+                    org.mockito.Mockito.mock(
+                        io.openaev.service.payload.PayloadContentHashService.class)),
                 injectAuthorisationRepository,
                 injectStatusRepository,
                 executionTraceRepositoryHelper,

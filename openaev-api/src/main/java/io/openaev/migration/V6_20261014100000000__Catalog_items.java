@@ -33,14 +33,15 @@ public class V6_20261014100000000__Catalog_items extends BaseJavaMigration {
             catalog_item_payload_refs TEXT,
             catalog_item_archive_name VARCHAR(255),
             catalog_item_archive_hash VARCHAR(64),
-            catalog_item_repository VARCHAR(255),
+            catalog_item_repository VARCHAR(255) NOT NULL,
             catalog_item_release VARCHAR(255),
             catalog_item_published_at TIMESTAMP WITH TIME ZONE,
             catalog_item_created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
             catalog_item_updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
             tenant_id VARCHAR(255) NOT NULL REFERENCES tenants (tenant_id) ON DELETE CASCADE,
             CONSTRAINT catalog_items_item_version_tenant_unique
-              UNIQUE (catalog_item_type, catalog_item_external_id, catalog_item_version, tenant_id)
+              UNIQUE (catalog_item_type, catalog_item_repository, catalog_item_external_id,
+                catalog_item_version, tenant_id)
           );
           """);
       statement.execute(

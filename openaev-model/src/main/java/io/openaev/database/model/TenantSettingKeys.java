@@ -14,7 +14,9 @@ public enum TenantSettingKeys {
   // Autonomous attack: JSON object mapping an agent id to its default discovery mode
   // (EXISTING_ONLY / SCOPED / EXPANSIVE) - how much latitude the agent has to create new
   // assets / findings / persons from recon on the fly.
-  AUTONOMOUS_ADDITIONAL_AGENT_MODES("platform_autonomous_additional_agent_modes", "", false);
+  AUTONOMOUS_ADDITIONAL_AGENT_MODES("platform_autonomous_additional_agent_modes", "", false),
+  // Catalogue: install new payloads as they arrive, like before versions (F3); off by default
+  CATALOG_PAYLOAD_AUTO_INSTALL("catalog_payload_auto_install", "false", false);
 
   private final String key;
   private final String defaultValue;

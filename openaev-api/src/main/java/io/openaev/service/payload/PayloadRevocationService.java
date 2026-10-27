@@ -8,6 +8,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.rest.exception.AlreadyExistingException;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.UserService;
 import io.openaev.service.content.ContentHistoryService;
@@ -35,7 +36,11 @@ public class PayloadRevocationService {
   /** The only revocation check: execution, launch and pickers go through it. */
   @Transactional(readOnly = true)
   public boolean isRevoked(Payload payload) {
-    return !revokedIds(List.of(payload)).isEmpty();
+    return revoked(payload);
+  }
+
+  private boolean revoked(Payload payload) {
+    return !payloadVersionService.revokedIds(List.of(payload)).isEmpty();
   }
 
   /** Why the inject cannot run when its payload is revoked; empty when it may run. */
@@ -43,11 +48,11 @@ public class PayloadRevocationService {
   public Optional<String> revocationMessage(Inject inject) {
     return inject
         .getPayload()
-        .filter(this::isRevoked)
+        .filter(this::revoked)
         .map(
             payload ->
                 "Payload revoked: "
-                    + findActive(payload.getId())
+                    + activeRevocation(payload)
                         .map(ContentRevocation::getReason)
                         .orElse("no reason given"));
   }
@@ -62,33 +67,39 @@ public class PayloadRevocationService {
     if (payloadIds.isEmpty()) {
       return Set.of();
     }
-    return revokedIds(payloadVersionService.findAllById(payloadIds));
+    return payloadVersionService.revokedIds(payloadVersionService.findAllById(payloadIds));
   }
 
   /** The active revocation of a payload: its tenant's first, else the revocation list's. */
   @Transactional(readOnly = true)
   public Optional<ContentRevocation> findActive(String payloadId) {
-    Payload payload = payload(payloadId);
-    Optional<ContentRevocation> tenantRevocation =
-        contentRevocationRepository.findActiveByPayload(
-            payload.getId(), payload.getTenant().getId());
-    if (tenantRevocation.isPresent() || !PayloadVersionService.isManaged(payload)) {
-      return tenantRevocation;
+    return activeRevocation(payload(payloadId));
+  }
+
+  private Optional<ContentRevocation> activeRevocation(Payload payload) {
+    Optional<ContentRevocation> own = payloadVersionService.findActiveRevocation(payload);
+    if (own.isPresent() || !payload.getIdentity().isVariant() || payload.getOriginId() == null) {
+      return own;
     }
-    return contentRevocationRepository
-        .findAllByTypeAndExternalIdAndTenantIsNullAndLiftedAtIsNull(
-            ContentType.PAYLOAD, payload.getExternalId())
-        .stream()
-        .filter(r -> payload.getVersion().equals(r.getVersion()))
-        .findFirst();
+    // A variant version that is revoked without a revocation of its own inherits its base's.
+    return revoked(payload)
+        ? payloadVersionService.findActiveRevocation(payload(payload.getOriginId()))
+        : Optional.empty();
   }
 
   // -- CREATE --
 
+  /** What a repository's revocation lists did to this payload, lifted entries included. */
+  @Transactional(readOnly = true)
+  public List<ContentRevocation> findRepositoryRevocations(String repository, String externalId) {
+    return contentRevocationRepository.findAllByTypeAndRepositoryAndExternalIdAndTenantIsNull(
+        ContentType.PAYLOAD, repository, externalId);
+  }
+
   /** Revokes a payload in its tenant; any payload, managed version or local one. */
   public ContentRevocation revoke(String payloadId, String reason) {
     Payload payload = payload(payloadId);
-    if (isRevoked(payload)) {
+    if (revoked(payload)) {
       throw new AlreadyExistingException("Payload already revoked: " + payloadId);
     }
     ContentRevocation revocation = new ContentRevocation();
@@ -100,9 +111,45 @@ public class PayloadRevocationService {
     revocation.setPayloadPreviousStatus(payload.getStatus());
     revocation = contentRevocationRepository.save(revocation);
     payloadVersionService.setStatus(payload, Payload.PAYLOAD_STATUS.REVOKED);
-    payloadVersionService.refreshLatest(payload);
-    contentHistoryService.payloadRevoked(payload);
+    refreshLatestWithVariants(payload);
+    contentHistoryService.payloadRevoked(payload, reason);
     return revocation;
+  }
+
+  /**
+   * Frees one variant version from the revocation it inherits from its base, with a reason. The
+   * lift is tied to that base revocation: a later revocation of the base applies again.
+   */
+  public ContentRevocation liftInherited(String variantPayloadId, String reason) {
+    Payload variant = payload(variantPayloadId);
+    if (!variant.getIdentity().isVariant() || variant.getOriginId() == null) {
+      throw new BadRequestException("Only a customized payload inherits a revocation");
+    }
+    ContentRevocation baseRevocation =
+        payloadVersionService
+            .findActiveRevocation(payload(variant.getOriginId()))
+            .orElseThrow(() -> new BadRequestException("Its catalogue base is not revoked"));
+    ContentRevocation lift = new ContentRevocation();
+    lift.setType(ContentType.PAYLOAD);
+    lift.setPayload(variant);
+    lift.setReason(reason);
+    lift.setRevokedBy(userService.currentUser());
+    lift.setTenant(variant.getTenant());
+    lift.setLiftsRevocationId(baseRevocation.getId());
+    lift = contentRevocationRepository.save(lift);
+    payloadVersionService.refreshLatest(variant);
+    contentHistoryService.payloadRevocationLifted(variant, reason);
+    return lift;
+  }
+
+  // Variants inherit the revocation of their base: their latest pointer moves with it.
+  private void refreshLatestWithVariants(Payload payload) {
+    payloadVersionService.refreshLatest(payload);
+    if (payload.isManaged()) {
+      payloadVersionService
+          .findVariantsOf(payload.getIdentity())
+          .forEach(payloadVersionService::refreshLatest);
+    }
   }
 
   // -- DELETE --
@@ -120,7 +167,7 @@ public class PayloadRevocationService {
         payload,
         Optional.ofNullable(revocation.getPayloadPreviousStatus())
             .orElse(Payload.PAYLOAD_STATUS.UNVERIFIED));
-    payloadVersionService.refreshLatest(payload);
+    refreshLatestWithVariants(payload);
     contentHistoryService.payloadRevocationLifted(payload);
   }
 

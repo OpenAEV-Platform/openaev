@@ -61,6 +61,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   private static Document EXECUTABLE_FILE;
 
   @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
+  @Autowired private io.openaev.utils.helpers.PayloadVersionTestHelper payloadVersionTestHelper;
   @Autowired private MockMvc mvc;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private PayloadRepository payloadRepository;
@@ -2007,15 +2008,20 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
     }
 
+    // A version makes it a catalogue version; without one it stays a local payload.
     private InjectorContractComposer.Composer payloadContract(String version) {
-      Payload payload = PayloadFixture.createDefaultCommand();
-      payload.setVersion(version);
-      return injectorContractComposer
-          .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-          .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
-          .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
-          .withPayload(payloadComposer.forPayload(payload))
-          .persist();
+      InjectorContractComposer.Composer contract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+              .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))
+              .persist();
+      if (version != null) {
+        payloadVersionTestHelper.asManagedVersion(
+            contract.get().getPayload(), UUID.randomUUID().toString(), version);
+      }
+      return contract;
     }
 
     @Test

@@ -41,7 +41,7 @@ public class DomainService implements DependenciesManager {
   private final DomainRepository domainRepository;
 
   /** Default domain name for uncategorized contracts. */
-  private static final String TO_CLASSIFY = "To classify";
+  public static final String TO_CLASSIFY = "To classify";
 
   /** Default color for new domains. */
   private static final String DEFAULT_DOMAIN_COLOR = "#FFFFFF";

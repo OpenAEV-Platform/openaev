@@ -70,6 +70,13 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_catalog_id")
   private String catalogId;
 
+  // Base value of each content block and argument, normalized (ADR-011): what an update merges.
+  @Getter
+  @Type(io.hypersistence.utils.hibernate.type.json.JsonType.class)
+  @Column(name = "inject_base_content", columnDefinition = "jsonb")
+  @JsonIgnore
+  private com.fasterxml.jackson.databind.JsonNode baseContent;
+
   @Getter
   @Column(name = "inject_country")
   @JsonProperty("inject_country")

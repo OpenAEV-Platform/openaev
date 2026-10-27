@@ -2107,8 +2107,8 @@ public class V1_DataImporter implements Importer {
     }
     if (hasText(externalId)) {
       // Rows written before content hashes existed get theirs on first use.
-      payloadVersionService.findAllByExternalId(externalId).stream()
-          .filter(p -> !PayloadVersionService.isManaged(p) && p.getContentHash() == null)
+      payloadVersionService.findLocalVersionsClaiming(externalId).stream()
+          .filter(p -> p.getContentHash() == null)
           .forEach(p -> p.setContentHash(payloadContentHashService.hash(p, attackPatternsOf(p))));
     }
     Payload imported = payloadCreationService.toPayload(ctx, writeTenant, input);

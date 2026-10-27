@@ -21,5 +21,6 @@ public record CatalogScenarioVersionsOutput(
       @JsonProperty("published_at") Instant publishedAt,
       @JsonProperty("scenario_id") String scenarioId,
       @JsonProperty("is_current") boolean isCurrent,
-      @JsonProperty("is_latest") boolean isLatest) {}
+      @JsonProperty("is_latest") boolean isLatest,
+      @JsonProperty("simulation_count") int simulationCount) {}
 }

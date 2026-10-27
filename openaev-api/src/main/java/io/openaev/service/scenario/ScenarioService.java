@@ -564,11 +564,46 @@ public class ScenarioService {
                   return scenario;
                 })
             .toList();
+    setLastRuns(scenarios);
 
     // -- Count Query --
     Long total = countQuery(cb, this.entityManager, Scenario.class, specificationCount);
 
     return new PageImpl<>(scenarios, pageable, total);
+  }
+
+  /** Start of the latest simulation of each scenario, shown on the cards. */
+  private void setLastRuns(List<RawPaginationScenario> scenarios) {
+    if (scenarios.isEmpty()) {
+      return;
+    }
+    @SuppressWarnings("unchecked")
+    List<Object[]> rows =
+        this.entityManager
+            .createNativeQuery(
+                "SELECT se.scenario_id, MAX(e.exercise_start_date) FROM scenarios_exercises se"
+                    + " JOIN exercises e ON e.exercise_id = se.exercise_id"
+                    + " WHERE se.scenario_id IN (:ids) AND e.exercise_start_date IS NOT NULL"
+                    + " GROUP BY se.scenario_id")
+            .setParameter(
+                "ids", scenarios.stream().map(RawPaginationScenario::getScenario_id).toList())
+            .getResultList();
+    Map<String, Instant> lastRuns = new HashMap<>();
+    rows.forEach(row -> lastRuns.put((String) row[0], toInstant(row[1])));
+    scenarios.forEach(s -> s.setScenario_last_run_at(lastRuns.get(s.getScenario_id())));
+  }
+
+  private static Instant toInstant(Object value) {
+    if (value instanceof Instant instant) {
+      return instant;
+    }
+    if (value instanceof java.sql.Timestamp timestamp) {
+      return timestamp.toInstant();
+    }
+    if (value instanceof java.time.OffsetDateTime offset) {
+      return offset.toInstant();
+    }
+    return null;
   }
 
   private Subquery<String[]> buildWorkflowPlatformsSubquery(
@@ -655,6 +690,11 @@ public class ScenarioService {
   @Transactional(readOnly = true)
   public List<Scenario> findAllByCatalogId(@NotBlank final String catalogId) {
     return scenarioRepository.findAllByCatalogId(catalogId);
+  }
+
+  /** The one instance of a catalogue scenario in this tenant, installed or not. */
+  public Optional<Scenario> findCatalogInstance(String repository, String catalogId) {
+    return scenarioRepository.findByCatalogRepositoryAndCatalogId(repository, catalogId);
   }
 
   public Scenario scenario(@NotBlank final String scenarioId) {

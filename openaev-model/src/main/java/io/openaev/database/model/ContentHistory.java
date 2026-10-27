@@ -2,7 +2,9 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.Auditable;
 import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.audit.ModelBaseListener;
@@ -14,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
 /** One install, update, rollback, copy, version change, uninstall or revocation of content. */
@@ -32,7 +35,11 @@ public class ContentHistory implements TenantBase, Auditable {
     VERSION_CHANGE,
     UNINSTALL,
     REVOKE,
-    LIFT_REVOCATION
+    LIFT_REVOCATION,
+    CUSTOMIZE,
+    OVERRIDE,
+    REBASE,
+    CONFLICT
   }
 
   @Id
@@ -72,9 +79,18 @@ public class ContentHistory implements TenantBase, Auditable {
   @JsonProperty("content_history_from_version")
   private String fromVersion;
 
+  @Column(name = "content_history_count", updatable = false)
+  @JsonProperty("content_history_count")
+  private Integer count;
+
   @Column(name = "content_history_automatic", updatable = false)
   @JsonProperty("content_history_automatic")
   private boolean automatic;
+
+  @Type(JsonType.class)
+  @Column(name = "content_history_details", columnDefinition = "jsonb", updatable = false)
+  @JsonProperty("content_history_details")
+  private JsonNode details;
 
   // No foreign key: an uninstall can delete the entity, its history stays.
   @Column(name = "content_history_entity_id", updatable = false)

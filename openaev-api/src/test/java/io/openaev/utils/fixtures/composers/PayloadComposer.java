@@ -4,6 +4,7 @@ import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.fixtures.composers.payload_composers.OutputParserComposer;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 public class PayloadComposer extends ComposerBase<Payload> {
 
   @Autowired PayloadRepository payloadRepository;
+  @Autowired PayloadVersionService payloadVersionService;
 
   public class Composer extends InnerComposerBase<Payload> {
 
@@ -65,6 +67,8 @@ public class PayloadComposer extends ComposerBase<Payload> {
         payload.setTenant(new Tenant(TenantContext.getCurrentTenant()));
       }
       payloadRepository.save(payload);
+      // Saved directly, not through PayloadVersionService: point its identity to it.
+      payloadVersionService.refreshLatest(payload.getIdentity());
       return this;
     }
 
