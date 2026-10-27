@@ -91,7 +91,8 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // -- ARRANGE ---
     String object =
-        "[{\"idpGroup\": \"observer\",\"userGroup\": \"observerUserGroup\",\"autoCreate\": \"false\"}]";
+        "[{\"tenantId\": \"%s\",\"idpGroup\": \"observer\",\"userGroup\": \"observerUserGroup\",\"autoCreate\": \"false\"}]"
+            .formatted(TenantContext.getCurrentTenant());
     Group specificGroup = TenantGroupFixture.getGroup("observerUserGroup");
     specificGroup.setId(tenantScopedGroupId());
     specificGroup.setDescription("a description");
@@ -215,7 +216,8 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // -- ARRANGE ---
     String object =
-        "[{\"idpGroup\": \"observer1\",\"userGroup\": \"observerOAEV1\",\"autoCreate\": \"true\"},{\"idpGroup\": \"observer2\",\"userGroup\": \"observerOAEV2\",\"autoCreate\": \"true\"}]";
+        "[{\"tenantId\": \"%1$s\",\"idpGroup\": \"observer1\",\"userGroup\": \"observerOAEV1\",\"autoCreate\": \"true\"},{\"tenantId\": \"%1$s\",\"idpGroup\": \"observer2\",\"userGroup\": \"observerOAEV2\",\"autoCreate\": \"true\"}]"
+            .formatted(TenantContext.getCurrentTenant());
     Group specificGroup1 = TenantGroupFixture.getGroup("observerOAEV1");
     specificGroup1.setId(tenantScopedGroupId());
     specificGroup1.setDescription("a description");
@@ -241,6 +243,34 @@ public class UserMappingServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
     assertThat(user.getUnscopedGroups().getFirst().getName()).isEqualTo("observerOAEV1");
+  }
+
+  @Test
+  @DisplayName("With a tenant ID the group is a tenant group, without it a platform group")
+  public void whenTenantIdIsSet_useTenantGroup_otherwisePlatformGroup() {
+
+    // -- ARRANGE ---
+    String tenantId = TenantContext.getCurrentTenant();
+    String object =
+        "[{\"idpGroup\": \"observer\",\"userGroup\": \"SOC\",\"autoCreate\": \"true\"},{\"tenantId\": \"%s\",\"idpGroup\": \"observer\",\"userGroup\": \"SOC\",\"autoCreate\": \"true\"}]"
+            .formatted(tenantId);
+    User user = UserFixture.getUser();
+    userComposer.forUser(user).persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    // ---- ACT ----
+    userMappingService.mapCurrentUserWithGroup(object, user, List.of("observer"));
+
+    // -- ASSERT --
+    List<Group> groups = user.getUnscopedGroups();
+    assertThat(groups.size()).isEqualTo(2);
+    assertTrue(groups.stream().anyMatch(group -> group.getTenant() == null));
+    assertTrue(
+        groups.stream()
+            .anyMatch(
+                group -> group.getTenant() != null && tenantId.equals(group.getTenant().getId())));
+    assertTrue(user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId)));
   }
 
   @Nested
