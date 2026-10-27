@@ -1527,6 +1527,90 @@ class InjectServiceTest {
     }
   }
 
+  /**
+   * The launcher as the dispatch reads it (#8730): its id from the inject, by query, then the user
+   * reloaded in the session; never through the inject's own associations.
+   */
+  private void stubLauncher(User launchedBy) {
+    lenient()
+        .when(injectRepository.findLauncherId(INJECT_ID))
+        .thenReturn(Optional.ofNullable(launchedBy).map(User::getId));
+    if (launchedBy != null) {
+      lenient().when(userService.find(List.of(launchedBy.getId()))).thenReturn(List.of(launchedBy));
+    }
+  }
+
+  @Nested
+  @DisplayName("dispatch with a launcher loaded by an earlier, closed transaction")
+  class LauncherOutsideItsSessionTests {
+
+    @BeforeEach
+    void markingEnabled() {
+      lenient()
+          .when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING))
+          .thenReturn(true);
+    }
+
+    @Test
+    @DisplayName("given MARKING on, should resolve the launcher by id, not through the inject")
+    void given_launcherOutsideItsSession_should_resolveTheClearanceById() {
+      // -- ARRANGE --
+      Asset assetGreen = new Asset();
+      assetGreen.setId("asset-green");
+      assetGreen.setMarkingIds(new String[] {"m-green"});
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      assetRed.setMarkingIds(new String[] {"m-red"});
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assetGreen, assetRed));
+      inject.setAssetGroups(List.of());
+
+      inject.setLaunchedBy(
+          mock(
+              User.class,
+              invocation -> {
+                throw new LazyInitializationException("Could not initialize proxy - no session");
+              }));
+      User reloaded = new User();
+      reloaded.setId("user-green");
+      when(injectRepository.findLauncherId(INJECT_ID)).thenReturn(Optional.of("user-green"));
+      when(userService.find(List.of("user-green"))).thenReturn(List.of(reloaded));
+      doReturn(MarkingCtx.forMarkings(List.of("m-green")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-green", "tenant-1", false);
+
+      // -- ACT --
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      // -- ASSERT --
+      assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetGreen);
+    }
+
+    @Test
+    @DisplayName("given no launcher, should resolve zero clearance and skip the marked target")
+    void given_noLauncher_should_skipTheMarkedTarget() {
+      // -- ARRANGE --
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      assetRed.setMarkingIds(new String[] {"m-red"});
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assetRed));
+      inject.setAssetGroups(List.of());
+      when(injectRepository.findLauncherId(INJECT_ID)).thenReturn(Optional.empty());
+
+      // -- ACT --
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      // -- ASSERT --
+      assertThat(resolved).isEmpty();
+      verifyNoInteractions(markingClearanceCacheManager);
+    }
+  }
+
   @Nested
   @DisplayName("dispatch with the MARKING preview feature off")
   class MarkingFeatureOffTests {
@@ -1621,6 +1705,7 @@ class InjectServiceTest {
       inject.setAssets(List.of(assets));
       inject.setAssetGroups(List.of());
       inject.setLaunchedBy(launchedBy);
+      stubLauncher(launchedBy);
       return inject;
     }
 
@@ -1783,6 +1868,7 @@ class InjectServiceTest {
       inject.setAssets(List.of(endpoints));
       inject.setAssetGroups(List.of());
       inject.setLaunchedBy(launchedBy);
+      stubLauncher(launchedBy);
       return inject;
     }
 

@@ -530,9 +530,7 @@ public class InjectService {
         .toList();
   }
 
-  /**
-   * Resolve feature flag MARKING
-   */
+  /** Resolve feature flag MARKING */
   private java.util.function.Predicate<Asset> launchableUnderClearance(Inject inject) {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
       return asset -> true;
@@ -558,16 +556,18 @@ public class InjectService {
    * implemented once, not reinvented per call site.
    */
   private MarkingCtx resolveLaunchedByClearance(Inject inject) {
-    User launchedBy =
-        inject.getExercise() != null
-            ? inject.getExercise().getLaunchedBy()
-            : inject.getLaunchedBy();
-    if (launchedBy == null) {
+    // The dispatch may hold an inject loaded in another session, always load user by its id, do
+    // not rely on User associated to Inject by lazy loading association.
+    Optional<User> launchedBy =
+        injectRepository
+            .findLauncherId(inject.getId())
+            .flatMap(launcherId -> userService.find(List.of(launcherId)).stream().findFirst());
+    if (launchedBy.isEmpty()) {
       return MarkingCtx.none();
     }
-    boolean bypass = launchedBy.isAdminOrBypass();
+    User launcher = launchedBy.get();
     return markingClearanceCacheManager.findClearance(
-        launchedBy.getId(), inject.getTenant().getId(), bypass);
+        launcher.getId(), inject.getTenant().getId(), launcher.isAdminOrBypass());
   }
 
   /**
