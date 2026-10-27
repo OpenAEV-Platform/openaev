@@ -11,7 +11,7 @@
     "@types/node": "24.19.2",
     "@typescript-eslint/rule-tester": "8.72.0",
     "eslint": "10.13.0",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   },
   "peerDependencies": {
     "eslint": ">=9",
