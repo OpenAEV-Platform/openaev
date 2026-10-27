@@ -1,5 +1,6 @@
 package io.openaev.service.catalog;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.catalog.CatalogItemOutput;
 import io.openaev.api.catalog.CatalogManifest;
@@ -12,6 +13,8 @@ import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.CatalogSyncStateRepository;
+import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.scenario.ScenarioService;
@@ -85,21 +88,104 @@ public class CatalogService {
                       .filter(scenarioIds::containsKey)
                       .map(v -> new CatalogItemOutput.InstalledScenario(v, scenarioIds.get(v)))
                       .toList(),
-                  requirements.missing(latest));
+                  requirements.missingPrerequisites(latest));
             })
         .sorted(
             Comparator.comparing(CatalogItemOutput::name, Comparator.nullsLast(String::compareTo)))
         .toList();
   }
 
+  /** Every catalogue version of one payload, newest first. */
   @Transactional(readOnly = true)
+  public List<CatalogItemOutput> listPayloadVersions(String externalId) {
+    List<CatalogItem> sorted =
+        catalogItemRepository.findAllByTypeAndExternalId(ContentType.PAYLOAD, externalId).stream()
+            .sorted(Comparator.comparing(CatalogItem::getVersion, SemanticVersion.ORDER).reversed())
+            .toList();
+    List<String> versions = sorted.stream().map(CatalogItem::getVersion).toList();
+    Set<String> installed =
+        payloadVersionService.findInstalledManagedVersions().getOrDefault(externalId, Set.of());
+    List<String> installedVersions = versions.stream().filter(installed::contains).toList();
+    CatalogRequirementsService.Checker requirements = catalogRequirementsService.checker();
+    return sorted.stream()
+        .map(
+            item ->
+                CatalogItemOutput.of(
+                    item,
+                    versions,
+                    installedVersions,
+                    List.of(),
+                    requirements.missingPrerequisites(item)))
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
+  /**
+   * A released version. Without a repository, the one repository that has it: several are
+   * ambiguous, since an external ID is only unique within its repository.
+   */
+  public Optional<CatalogItem> find(
+      ContentType type, String repository, String externalId, String version) {
+    return findItem(type, repository, externalId, version);
+  }
+
+  private Optional<CatalogItem> findItem(
+      ContentType type, String repository, String externalId, String version) {
+    if (repository != null) {
+      return catalogItemRepository.findByTypeAndRepositoryAndExternalIdAndVersion(
+          type, repository, externalId, version);
+    }
+    List<CatalogItem> items =
+        catalogItemRepository.findAllByTypeAndExternalIdAndVersion(type, externalId, version);
+    if (items.size() > 1) {
+      throw new BadRequestException(
+          "Several repositories release " + externalId + " " + version + ": name the repository");
+    }
+    return items.stream().findFirst();
+  }
+
   public Optional<CatalogItem> find(ContentType type, String externalId, String version) {
-    return catalogItemRepository.findByTypeAndExternalIdAndVersion(type, externalId, version);
+    return findItem(type, null, externalId, version);
+  }
+
+  @Transactional(readOnly = true)
+  public List<CatalogItem> findAll(ContentType type) {
+    return catalogItemRepository.findAllByType(type);
   }
 
   @Transactional(readOnly = true)
   public List<CatalogItem> findVersions(ContentType type, String externalId) {
     return catalogItemRepository.findAllByTypeAndExternalId(type, externalId);
+  }
+
+  @Transactional(readOnly = true)
+  public List<CatalogItem> findVersions(ContentType type, String repository, String externalId) {
+    return catalogItemRepository.findAllByTypeAndRepositoryAndExternalId(
+        type, repository, externalId);
+  }
+
+  /** The stored package, refused unless it still has the hash its release gave. */
+  public byte[] readVerifiedPackage(CatalogItem item) {
+    byte[] archive =
+        readPackage(item)
+            .orElseThrow(() -> new ElementNotFoundException("Catalogue package not found"));
+    if (!CatalogArchiveChecks.sha256(archive).equalsIgnoreCase(item.getArchiveHash())) {
+      throw new BadRequestException("The stored package does not match its release");
+    }
+    return archive;
+  }
+
+  /** The payload versions an item names, with their content hash. */
+  public List<CatalogManifest.PayloadRef> payloadRefs(CatalogItem item) {
+    if (item.getPayloadRefs() == null) {
+      return List.of();
+    }
+    try {
+      return mapper.readValue(
+          item.getPayloadRefs(), new TypeReference<List<CatalogManifest.PayloadRef>>() {});
+    } catch (Exception e) {
+      throw new IllegalStateException("Unreadable payload references", e);
+    }
   }
 
   /** The stored package of a catalogue item, as released. */
@@ -171,8 +257,8 @@ public class CatalogService {
       }
       ContentType type = item.contentType();
       Optional<CatalogItem> existing =
-          catalogItemRepository.findByTypeAndExternalIdAndVersion(
-              type, item.externalId(), item.version());
+          catalogItemRepository.findByTypeAndRepositoryAndExternalIdAndVersion(
+              type, manifest.repository(), item.externalId(), item.version());
       if (existing.isPresent()
           && !existing.get().getArchiveHash().equalsIgnoreCase(item.archive().sha256())) {
         refused.add(
@@ -196,6 +282,13 @@ public class CatalogService {
       fill(catalogItem, item, manifest);
       catalogItemRepository.save(catalogItem);
     }
+    Set<String> released =
+        items(manifest).stream()
+            .map(item -> key(item.externalId(), item.version()))
+            .collect(Collectors.toSet());
+    catalogItemRepository.findAllByRepository(manifest.repository()).stream()
+        .filter(item -> !released.contains(key(item.getExternalId(), item.getVersion())))
+        .forEach(catalogItemRepository::delete);
     if (state == null) {
       state = new CatalogSyncState();
       state.setRepository(manifest.repository());

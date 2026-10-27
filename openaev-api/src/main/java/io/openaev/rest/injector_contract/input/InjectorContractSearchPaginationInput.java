@@ -34,6 +34,10 @@ public class InjectorContractSearchPaginationInput extends SearchPaginationInput
   @JsonProperty("exclude_revoked_payloads")
   private boolean excludeRevokedPayloads = false;
 
+  @Schema(description = "Sort by primary domain first, to show the results in domain sections")
+  @JsonProperty("group_by_primary_domain")
+  private boolean groupByPrimaryDomain = false;
+
   @Schema(description = "List of all the ids to include on the search")
   @JsonProperty("injector_contract_ids_to_process")
   private List<String> injectorContractIdsToProcess;

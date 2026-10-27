@@ -15,6 +15,15 @@ import lombok.Data;
 @Builder
 public class PayloadOutput {
 
+  // Set by a save that created a new version (ADR-011).
+  @Schema(description = "Version this save replaced as the latest one, when it created a version")
+  @JsonProperty("payload_previous_version_id")
+  private String previousVersionId;
+
+  @Schema(description = "Injects and chained steps still on the previous version")
+  @JsonProperty("payload_previous_version_usages")
+  private Integer previousVersionUsages;
+
   @Schema(description = "Payload unique identifier")
   @NotBlank
   @JsonProperty("payload_id")

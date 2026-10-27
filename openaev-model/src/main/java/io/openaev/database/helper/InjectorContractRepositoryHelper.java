@@ -47,10 +47,11 @@ public class InjectorContractRepositoryHelper {
         new StringBuilder(
             "SELECT ic.* FROM injectors_contracts ic "
                 + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
+                + "JOIN payload_identities pi ON pi.identity_id = p.identity_id "
                 + "JOIN injectors_contracts_attack_patterns injectorAttack ON ic.injector_contract_id = injectorAttack.injector_contract_id "
                 + "JOIN attack_patterns a ON injectorAttack.attack_pattern_id = a.attack_pattern_id "
                 + "WHERE ic.tenant_id = :tenantId "
-                + "AND p.payload_is_latest "
+                + "AND p.payload_id = pi.latest_payload_id AND NOT pi.uninstalled "
                 + "AND a.attack_pattern_external_id LIKE :attackPatternExternalId");
 
     // Build parameterized query to prevent SQL injection

@@ -29,19 +29,19 @@ public interface PayloadRepository
   Optional<Payload> findByIdAndTenantId(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
-  /** Several versions can share an external ID: resolve through PayloadVersionService. */
-  List<Payload> findAllByExternalId(@NotNull String externalId);
+  /** Every version of a payload: resolve through PayloadVersionService. */
+  @Query("SELECT p FROM Payload p WHERE p.identity.id = :identityId")
+  List<Payload> findAllByIdentityId(@Param("identityId") @NotNull String identityId);
 
-  Optional<Payload> findByExternalIdAndLatestTrue(@NotNull String externalId);
-
+  // The versions of one payload share its name.
   @Query(
       "SELECT COUNT(p) > 0 FROM Payload p WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(:name))"
           + " AND (:payloadId IS NULL OR p.id <> :payloadId)"
-          + " AND (:externalId IS NULL OR p.externalId IS NULL OR p.externalId <> :externalId)")
+          + " AND (:identityId IS NULL OR p.identity.id <> :identityId)")
   boolean existsOtherPayloadWithName(
       @Param("name") String name,
       @Param("payloadId") String payloadId,
-      @Param("externalId") String externalId);
+      @Param("identityId") String identityId);
 
   @Query("SELECT p FROM Payload p WHERE p.contentHash = :hash AND p.tenant.id = :tenantId")
   List<Payload> findAllByContentHash(
@@ -63,7 +63,7 @@ public interface PayloadRepository
   @Query(
       "SELECT c.compositeId.id FROM InjectorContract c JOIN c.payload p"
           + " WHERE c.compositeId.id IN :contractIds"
-          + " AND (p.version IS NOT NULL"
+          + " AND (p.identity.managed = true"
           + " OR EXISTS (SELECT 1 FROM Inject i WHERE i.injectorContract = c))")
   Set<String> findNotDeletableContractIds(@Param("contractIds") Collection<String> contractIds);
 
@@ -74,13 +74,14 @@ public interface PayloadRepository
    * icon (the collector logo, e.g. netexec / atomic-red-team) instead of the generic agent icon.
    */
   @Query(
-      "SELECT p.id, p.type, ct.name FROM Payload p LEFT JOIN p.collectorType ct WHERE p.id IN :ids")
+      "SELECT p.id, p.type, ct.name FROM Payload p JOIN p.identity pi"
+          + " LEFT JOIN pi.collectorType ct WHERE p.id IN :ids")
   List<Object[]> findIconMetadataByIds(@Param("ids") Set<String> ids);
 
   @Query(
       value =
-          "SELECT p.payload_external_id FROM payloads p"
-              + " JOIN collectors c ON c.collector_type_id = p.payload_collector_type"
+          "SELECT pi.payload_external_id FROM payload_identities pi"
+              + " JOIN collectors c ON c.collector_type_id = pi.payload_collector_type"
               + " WHERE c.collector_id = :collectorId",
       nativeQuery = true)
   List<String> findAllExternalIdsByCollectorId(@NotNull @Param("collectorId") String collectorId);
@@ -88,7 +89,9 @@ public interface PayloadRepository
   @Modifying
   @Query(
       value =
-          "UPDATE payloads SET payload_status = :payloadStatus WHERE payload_external_id IN :payloadExternalIds AND payload_version IS NULL AND tenant_id = :#{#tenantContext.currentTenant}",
+          "UPDATE payloads p SET payload_status = :payloadStatus FROM payload_identities pi"
+              + " WHERE pi.identity_id = p.identity_id AND pi.payload_external_id IN :payloadExternalIds"
+              + " AND NOT pi.managed AND p.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   void setPayloadStatusByExternalIds(
       @Param("payloadStatus") String payloadStatus,
@@ -122,9 +125,20 @@ public interface PayloadRepository
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
 
+  @Query(
+      "SELECT DISTINCT p.identity FROM Payload p WHERE p.identity.overrides IS NOT NULL"
+          + " AND p.originId IN (SELECT b.id FROM Payload b WHERE b.identity.id = :identityId)")
+  List<io.openaev.database.model.PayloadIdentity> findVariantIdentitiesOf(
+      @Param("identityId") String catalogIdentityId);
+
   /** Installed managed payload versions, as {external id, version} pairs (F5). */
   @Query(
-      "SELECT p.externalId, p.version FROM Payload p WHERE p.externalId IS NOT NULL"
-          + " AND p.version IS NOT NULL")
+      "SELECT pi.externalId, p.version FROM Payload p JOIN p.identity pi"
+          + " WHERE pi.managed = true AND pi.uninstalled = false")
   List<Object[]> findInstalledManagedVersions();
+
+  @Query(
+      "SELECT pi.id, COUNT(p) FROM Payload p JOIN p.identity pi WHERE pi.id IN :identityIds"
+          + " AND pi.uninstalled = false GROUP BY pi.id")
+  List<Object[]> countInstalledVersions(@Param("identityIds") Collection<String> identityIds);
 }

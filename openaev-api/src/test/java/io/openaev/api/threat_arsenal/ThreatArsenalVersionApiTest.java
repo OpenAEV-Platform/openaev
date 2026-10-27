@@ -20,6 +20,7 @@ import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utils.helpers.PayloadVersionTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -43,17 +44,18 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ContentRevocationRepository contentRevocationRepository;
+  @Autowired private PayloadVersionTestHelper payloadVersionTestHelper;
 
+  // The highest version is the latest: the pointer is computed, never set by a test.
   private InjectorContract contractOf(String externalId, String version, boolean latest) {
-    Payload payload = PayloadFixture.createDefaultCommand();
-    payload.setExternalId(externalId);
-    payload.setVersion(version);
-    payload.setLatest(latest);
-    return injectorContractComposer
-        .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-        .withPayload(payloadComposer.forPayload(payload))
-        .persist()
-        .get();
+    InjectorContract contract =
+        injectorContractComposer
+            .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+            .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))
+            .persist()
+            .get();
+    payloadVersionTestHelper.asManagedVersion(contract.getPayload(), externalId, version);
+    return contract;
   }
 
   private Inject atomicTestingOn(InjectorContract contract) {

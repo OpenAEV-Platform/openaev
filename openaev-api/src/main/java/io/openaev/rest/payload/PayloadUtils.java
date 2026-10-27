@@ -161,6 +161,12 @@ public class PayloadUtils {
     }
   }
 
+  /** Remediations are part of a version's content, whatever the licence. */
+  public void copyDetectionRemediations(Payload origin, Payload target) {
+    target.setDetectionRemediations(new ArrayList<>());
+    detectionRemediationUtils.copy(origin.getDetectionRemediations(), target, false);
+  }
+
   public <T extends Payload> void duplicateCommonProperties(
       @NotNull final T origin, @NotNull T duplicate) {
     BeanUtils.copyProperties(
@@ -174,22 +180,25 @@ public class PayloadUtils {
         "prerequisites",
         "detectionRemediations",
         "grants",
-        "latest");
+        "identity",
+        "externalId",
+        "source",
+        "collectorType",
+        "createdAt",
+        "updatedAt");
     duplicate.setId(null);
     duplicate.setName(duplicateString(origin.getName()));
-    duplicate.setExternalId(null);
-    // A duplicate is a local copy: unmanaged, linked to the version it comes from.
-    duplicate.setVersion(null);
+    // A duplicate is a new local payload, linked to the version it comes from.
+    duplicate.setIdentity(null);
+    duplicate.setVersion(Payload.FIRST_VERSION);
     duplicate.setContentHash(null);
     duplicate.setOriginId(origin.getId());
-    duplicate.setLatest(true);
     duplicate.setArguments(
         Optional.ofNullable(origin.getArguments()).map(ArrayList::new).orElseGet(ArrayList::new));
     duplicate.setPrerequisites(
         Optional.ofNullable(origin.getPrerequisites())
             .map(ArrayList::new)
             .orElseGet(ArrayList::new));
-    duplicate.setCollectorType(null);
     duplicate.setSource(Payload.PAYLOAD_SOURCE.MANUAL);
     duplicate.setStatus(Payload.PAYLOAD_STATUS.UNVERIFIED);
     outputParserService.copyOutputParsersFromEntity(origin.getOutputParsers(), duplicate);

@@ -27,7 +27,9 @@ public record CatalogItemOutput(
     @JsonProperty("catalog_item_versions") List<String> versions,
     @JsonProperty("catalog_item_installed_versions") List<String> installedVersions,
     @JsonProperty("catalog_item_installed_scenarios") List<InstalledScenario> installedScenarios,
-    @JsonProperty("catalog_item_missing_requirements") List<String> missingRequirements) {
+    @JsonProperty("catalog_item_missing_requirements") List<String> missingRequirements,
+    @JsonProperty("catalog_item_missing_prerequisites")
+        List<CatalogMissingRequirement> missingPrerequisites) {
 
   public record InstalledScenario(
       @JsonProperty("version") @NotBlank String version,
@@ -38,7 +40,7 @@ public record CatalogItemOutput(
       List<String> versions,
       List<String> installedVersions,
       List<InstalledScenario> installedScenarios,
-      List<String> missingRequirements) {
+      List<CatalogMissingRequirement> missingPrerequisites) {
     return new CatalogItemOutput(
         latest.getType(),
         latest.getExternalId(),
@@ -58,6 +60,7 @@ public record CatalogItemOutput(
         versions,
         installedVersions,
         installedScenarios,
-        missingRequirements);
+        missingPrerequisites.stream().map(CatalogMissingRequirement::label).toList(),
+        missingPrerequisites);
   }
 }

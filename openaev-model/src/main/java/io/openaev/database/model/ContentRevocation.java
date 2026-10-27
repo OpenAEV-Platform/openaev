@@ -43,6 +43,16 @@ public class ContentRevocation implements DualScopeBase, Auditable {
   @NotNull
   private ContentType type;
 
+  // Repository whose revocation list issued it: an external ID is unique within one repository.
+  @Column(name = "content_revocation_repository")
+  @JsonProperty("content_revocation_repository")
+  private String repository;
+
+  // A lift of the revocation a variant version inherits from its base: names the base revocation.
+  @Column(name = "content_revocation_lifts")
+  @JsonProperty("content_revocation_lifts")
+  private String liftsRevocationId;
+
   @Column(name = "content_revocation_external_id")
   @JsonProperty("content_revocation_external_id")
   private String externalId;

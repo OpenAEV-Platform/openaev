@@ -662,14 +662,16 @@ public interface InjectRepository
   List<Inject> findTemplateInjectsByPayloadId(@Param("payloadId") String payloadId);
 
   /**
-   * Per external ID, scenario and atomic testing injects still on a version that is not the latest.
+   * Per payload identity, scenario and atomic testing injects still on a version that is not the
+   * default one.
    */
   @Query(
-      "SELECT p.externalId, COUNT(i) FROM Inject i JOIN i.injectorContract c JOIN c.payload p"
-          + " WHERE p.externalId IN :externalIds AND p.latest = false AND i.exercise IS NULL"
-          + " GROUP BY p.externalId")
+      "SELECT pi.id, COUNT(i) FROM Inject i JOIN i.injectorContract c JOIN c.payload p"
+          + " JOIN p.identity pi WHERE pi.id IN :identityIds"
+          + " AND (pi.latestPayloadId IS NULL OR pi.latestPayloadId <> p.id)"
+          + " AND i.exercise IS NULL GROUP BY pi.id")
   List<Object[]> countTemplateInjectsOnOlderVersions(
-      @Param("externalIds") Collection<String> externalIds);
+      @Param("identityIds") Collection<String> identityIds);
 
   // Bulk update on a row the importer has just inserted natively, by its fresh UUID.
   @Modifying

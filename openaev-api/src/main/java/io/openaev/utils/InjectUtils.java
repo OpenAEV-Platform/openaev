@@ -217,6 +217,31 @@ public class InjectUtils {
           emptyList(),
           null);
     }
+    if (AiAttack.AI_ATTACK_TYPE.equals(injectorContract.getPayload().getType())) {
+      AiAttack attack = (AiAttack) Hibernate.unproxy(payload);
+      StatusPayload snapshot =
+          new StatusPayload(
+              attack.getName(),
+              attack.getDescription(),
+              AiAttack.AI_ATTACK_TYPE,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              attack.getExternalId(),
+              attack.getPrerequisites(),
+              attack.getArguments(),
+              emptyList(),
+              attack.getCleanupExecutor());
+      snapshot.setAiAttackEngine(attack.getEngine() == null ? null : attack.getEngine().name());
+      snapshot.setAiAttackCategory(attack.getCategory());
+      snapshot.setAiAttackContent(attack.getContent());
+      return snapshot;
+    }
     if (NETWORK_TRAFFIC_TYPE.equals(injectorContract.getPayload().getType())) {
       // Inject has a command payload
       NetworkTraffic payloadNetworkTraffic = (NetworkTraffic) Hibernate.unproxy(payload);

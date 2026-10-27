@@ -11,6 +11,7 @@ import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utils.helpers.PayloadVersionTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -27,19 +28,21 @@ class PayloadNameTest extends IntegrationTest {
   @Autowired private PayloadService payloadService;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private PayloadVersionTestHelper payloadVersionTestHelper;
 
   private Payload persist(String name, String externalId, String version) {
     Payload payload = PayloadFixture.createDefaultCommand();
     payload.setName(name);
-    payload.setExternalId(externalId);
-    payload.setVersion(version);
-    payload.setLatest(version == null || "2.0.0".equals(version));
-    return injectorContractComposer
-        .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-        .withPayload(payloadComposer.forPayload(payload))
-        .persist()
-        .get()
-        .getPayload();
+    Payload persisted =
+        injectorContractComposer
+            .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+            .withPayload(payloadComposer.forPayload(payload))
+            .persist()
+            .get()
+            .getPayload();
+    return version == null
+        ? persisted
+        : payloadVersionTestHelper.asManagedVersion(persisted, externalId, version);
   }
 
   @Test

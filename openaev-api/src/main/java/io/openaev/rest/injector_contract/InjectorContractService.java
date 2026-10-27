@@ -208,7 +208,8 @@ public class InjectorContractService implements DependenciesManager {
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
       @NotNull final Pageable pageable,
-      @NotNull TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector) {
+      @NotNull TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector,
+      boolean byPrimaryDomain) {
     CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
@@ -231,7 +232,11 @@ public class InjectorContractService implements DependenciesManager {
     }
 
     // -- Sorting --
-    List<Order> orders = toSortCriteriaBuilder(cb, injectorContractRoot, pageable.getSort());
+    List<Order> orders = new ArrayList<>();
+    if (byPrimaryDomain) {
+      orders.add(cb.asc(primaryDomainName(cb, cq, injectorContractRoot)));
+    }
+    orders.addAll(toSortCriteriaBuilder(cb, injectorContractRoot, pageable.getSort()));
     cq.orderBy(orders);
 
     // Type Query
@@ -719,6 +724,28 @@ public class InjectorContractService implements DependenciesManager {
           new OutputModeConfig(
               this::selectForInjectorContractThreatArsenalContent, this::mapThreatArsenalContent));
 
+  /** First domain name in alphabetical order, "To classify" left out: the section of the card. */
+  private static Expression<String> primaryDomainName(
+      CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<InjectorContract> root) {
+    Subquery<String> subquery = cq.subquery(String.class);
+    Root<InjectorContract> correlated = subquery.correlate(root);
+    Join<InjectorContract, Domain> domain = correlated.join("domains");
+    return subquery
+        .select(cb.least(domain.<String>get("name")))
+        .where(cb.notEqual(domain.get("name"), DomainService.TO_CLASSIFY));
+  }
+
+  public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
+      Specification<InjectorContract> specification,
+      Specification<InjectorContract> specificationCount,
+      Pageable pageable,
+      OutputMode mode,
+      List<String> idsToIgnore,
+      List<String> idsToProcess) {
+    return getSinglePage(
+        specification, specificationCount, pageable, mode, idsToIgnore, idsToProcess, false);
+  }
+
   /**
    * Returns a page of injector contracts using the requested output mode.
    *
@@ -728,6 +755,7 @@ public class InjectorContractService implements DependenciesManager {
    * @param mode output mode (defaults to FULL when null)
    * @param idsToIgnore ids to exclude from research
    * @param idsToProcess ids to include on research
+   * @param byPrimaryDomain sort by primary domain first, so the page can show domain sections
    * @return page of contracts mapped to the selected output format
    */
   public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
@@ -736,7 +764,8 @@ public class InjectorContractService implements DependenciesManager {
       Pageable pageable,
       OutputMode mode,
       List<String> idsToIgnore,
-      List<String> idsToProcess) {
+      List<String> idsToProcess,
+      boolean byPrimaryDomain) {
     OutputMode safeMode = (mode == null) ? OutputMode.FULL : mode;
     OutputModeConfig config = CONFIGS.get(safeMode);
 
@@ -758,7 +787,8 @@ public class InjectorContractService implements DependenciesManager {
                       .in(idsToProcess));
     }
 
-    QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
+    QuerySetup qs =
+        setupQuery(specification, specificationCount, pageable, config.selector(), byPrimaryDomain);
 
     List<? extends InjectorContractBaseOutput> results =
         qs.query.getResultList().stream().map(config.mapper()).toList();
@@ -768,6 +798,7 @@ public class InjectorContractService implements DependenciesManager {
 
   private record InjectorContractQueryContext(
       Join<InjectorContract, Payload> payloadJoin,
+      Join<Payload, PayloadIdentity> payloadIdentityJoin,
       Join<Payload, CollectorType> payloadCollectorTypeJoin,
       Join<?, Injector> injectorJoin,
       Expression<String[]> injectorIdsExpression,
@@ -779,8 +810,10 @@ public class InjectorContractService implements DependenciesManager {
   private InjectorContractQueryContext buildCommonInjectorContractContext(
       CriteriaBuilder cb, Root<InjectorContract> injectorContractRoot) {
     Join<InjectorContract, Payload> payloadJoin = createLeftJoin(injectorContractRoot, "payload");
+    Join<Payload, PayloadIdentity> payloadIdentityJoin =
+        payloadJoin.join("identity", JoinType.LEFT);
     Join<Payload, CollectorType> payloadCollectorTypeJoin =
-        payloadJoin.join("collectorType", JoinType.LEFT);
+        payloadIdentityJoin.join("collectorType", JoinType.LEFT);
     Join<?, Injector> injectorContractInjectorJoin =
         injectorContractRoot.join("injectorLinks", JoinType.LEFT).join("injector", JoinType.LEFT);
 
@@ -807,6 +840,7 @@ public class InjectorContractService implements DependenciesManager {
 
     return new InjectorContractQueryContext(
         payloadJoin,
+        payloadIdentityJoin,
         payloadCollectorTypeJoin,
         injectorContractInjectorJoin,
         injectorIdsExpression,
@@ -840,11 +874,18 @@ public class InjectorContractService implements DependenciesManager {
         ctx.payloadJoin().get("executionArch").alias("payload_execution_arch"),
         ctx.injectorIdsExpression().alias("injector_contract_injector_ids"),
         ctx.injectorNamesExpression().alias("injector_contract_injector_names"),
-        ctx.payloadJoin().get("version").alias("payload_version"));
+        ctx.payloadJoin().get("version").alias("payload_version"),
+        ctx.payloadIdentityJoin().get("managed").alias("payload_managed"),
+        cb.<Boolean>selectCase()
+            .when(cb.isNotNull(ctx.payloadIdentityJoin().get("overrides")), true)
+            .otherwise(false)
+            .alias("payload_variant"));
 
     // GROUP BY
     List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
     groupBy.add(ctx.payloadJoin().get("version"));
+    groupBy.add(ctx.payloadIdentityJoin().get("managed"));
+    groupBy.add(ctx.payloadIdentityJoin().get("overrides"));
     cq.groupBy(groupBy);
   }
 
@@ -869,6 +910,16 @@ public class InjectorContractService implements DependenciesManager {
             tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class),
             injectorNames);
     output.setPayloadVersion(tuple.get("payload_version", String.class));
+    if (tuple.get("payload_type", String.class) != null) {
+      InjectorContractFullOutput.PayloadOrigin origin =
+          InjectorContractFullOutput.PayloadOrigin.LOCAL;
+      if (Boolean.TRUE.equals(tuple.get("payload_managed", Boolean.class))) {
+        origin = InjectorContractFullOutput.PayloadOrigin.CATALOG;
+      } else if (Boolean.TRUE.equals(tuple.get("payload_variant", Boolean.class))) {
+        origin = InjectorContractFullOutput.PayloadOrigin.CUSTOMIZED;
+      }
+      output.setPayloadOrigin(origin);
+    }
     return output;
   }
 

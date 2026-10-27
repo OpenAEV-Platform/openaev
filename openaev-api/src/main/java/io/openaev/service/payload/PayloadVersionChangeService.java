@@ -20,7 +20,11 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
+import io.openaev.service.catalog.CatalogService;
 import io.openaev.service.content.ContentHistoryService;
+import io.openaev.service.content.PayloadFieldChanges;
+import io.openaev.service.scenario.revision.ScenarioRevisionService;
+import io.openaev.utils.SemanticVersion;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +44,7 @@ public class PayloadVersionChangeService {
   private static final String STEP_CONTRACT_FIELD = "inject_injector_contract";
 
   private final InjectorContractService injectorContractService;
+  private final CatalogService catalogService;
   private final PayloadVersionService payloadVersionService;
   private final PayloadRevocationService payloadRevocationService;
   private final InjectService injectService;
@@ -48,40 +53,73 @@ public class PayloadVersionChangeService {
   private final PermissionService permissionService;
   private final UserService userService;
   private final ContentHistoryService contentHistoryService;
+  private final ScenarioRevisionService scenarioRevisionService;
   private final ObjectMapper mapper;
 
   // -- LIST --
 
-  /** Every version of the action's payload, newest first. */
+  /** Every version of the action's payload, newest first: local payloads are versioned too. */
   @Transactional(readOnly = true)
   public List<PayloadVersionOutput> versions(String actionId) {
     Payload current = payloadOf(actionId);
-    List<Payload> versions =
+    PayloadIdentity identity = current.getIdentity();
+    Map<String, Payload> installed =
+        payloadVersionService.findVersions(identity).stream()
+            .collect(Collectors.toMap(Payload::getVersion, p -> p, (x, y) -> x));
+    Map<String, CatalogItem> released =
         isManaged(current)
-            ? payloadVersionService.findAllByExternalId(current.getExternalId()).stream()
-                .filter(PayloadVersionService::isManaged)
-                .toList()
-            : List.of(current);
-    Set<String> revoked = payloadRevocationService.revokedIds(versions);
+            ? catalogService
+                .findVersions(
+                    ContentType.PAYLOAD, identity.getRepository(), identity.getExternalId())
+                .stream()
+                .collect(Collectors.toMap(CatalogItem::getVersion, i -> i, (x, y) -> x))
+            : Map.of();
+    Set<String> revoked = payloadRevocationService.revokedIds(installed.values());
+    Set<String> versions = new HashSet<>(installed.keySet());
+    versions.addAll(released.keySet());
     return versions.stream()
-        .sorted(Comparator.comparing(Payload::getCreatedAt).reversed())
-        .map(
-            p ->
-                new PayloadVersionOutput(
-                    p.getId(),
-                    p.getVersion(),
-                    p.getStatus(),
-                    p.isLatest(),
-                    revoked.contains(p.getId()),
-                    p.getId().equals(current.getId()),
-                    p.getCreatedAt()))
+        .sorted(SemanticVersion.ORDER.reversed())
+        .map(v -> output(installed.get(v), released.get(v), current, revoked, v))
         .toList();
+  }
+
+  // A row is an installed version, a catalogue version not installed, or both.
+  private PayloadVersionOutput output(
+      Payload payload, CatalogItem item, Payload current, Set<String> revoked, String version) {
+    String contractId =
+        payload == null ? null : injectorContractService.findByPayload(payload).getId();
+    return new PayloadVersionOutput(
+        payload == null ? null : payload.getId(),
+        contractId,
+        payload != null ? payload.getExternalId() : item.getExternalId(),
+        version,
+        payload != null ? payload.getStatus() : catalogStatus(item),
+        payload != null && payload.isLatest(),
+        payload != null ? revoked.contains(payload.getId()) : "REVOKED".equals(item.getStatus()),
+        payload != null && payload.getId().equals(current.getId()),
+        payload != null && !payload.isUninstalled(),
+        item == null ? null : item.getChangelog(),
+        item == null ? null : item.getPublishedAt(),
+        contractId == null
+            ? 0
+            : usagesOf(injectorContractService.injectorContract(contractId)).size(),
+        payload == null ? null : payload.getCreatedAt());
+  }
+
+  private static Payload.PAYLOAD_STATUS catalogStatus(CatalogItem item) {
+    return Arrays.stream(Payload.PAYLOAD_STATUS.values())
+        .filter(s -> s.name().equals(item.getStatus()))
+        .findFirst()
+        .orElse(Payload.PAYLOAD_STATUS.VERIFIED);
   }
 
   /** Scenario injects, atomic tests and chained steps running the action's payload. */
   @Transactional(readOnly = true)
   public List<PayloadUsageOutput> usages(String actionId) {
-    InjectorContract contract = injectorContractService.injectorContract(actionId);
+    return usagesOf(injectorContractService.injectorContract(actionId));
+  }
+
+  private List<PayloadUsageOutput> usagesOf(InjectorContract contract) {
     Payload payload = payloadOf(contract);
     List<PayloadUsageOutput> usages = new ArrayList<>();
     for (Inject inject : injectService.findTemplateInjectsByPayloadId(payload.getId())) {
@@ -113,13 +151,109 @@ public class PayloadVersionChangeService {
   @Transactional(readOnly = true)
   public List<ContentHistoryOutput> history(String actionId) {
     Payload payload = payloadOf(actionId);
-    if (!isManaged(payload)) {
-      return List.of();
+    PageRequest page = PageRequest.of(0, 100);
+    if (isManaged(payload)) {
+      PayloadIdentity identity = payload.getIdentity();
+      List<Payload> versions = payloadVersionService.findVersions(identity);
+      List<ContentHistoryOutput> rows =
+          new ArrayList<>(
+              contentHistoryService
+                  .findHistory(ContentType.PAYLOAD, payload.getExternalId(), page)
+                  .map(
+                      history ->
+                          history.getAction() == ContentHistory.ACTION.INSTALL
+                              ? withRelease(history, identity, versions)
+                              : ContentHistoryOutput.of(history))
+                  .getContent());
+      rows.addAll(repositoryRevocations(identity, payload.getExternalId()));
+      rows.sort(
+          Comparator.comparing(
+              ContentHistoryOutput::createdAt, Comparator.nullsLast(Comparator.reverseOrder())));
+      return rows;
     }
+    List<String> versionIds =
+        payloadVersionService.findVersions(payload.getIdentity()).stream()
+            .map(Payload::getId)
+            .toList();
     return contentHistoryService
-        .findHistory(ContentType.PAYLOAD, payload.getExternalId(), PageRequest.of(0, 100))
+        .findHistoryOfVersions(ContentType.PAYLOAD, versionIds, page)
         .map(ContentHistoryOutput::of)
         .getContent();
+  }
+
+  // An install row also tells what the release changed since the previous installed version.
+  private ContentHistoryOutput withRelease(
+      ContentHistory history, PayloadIdentity identity, List<Payload> versions) {
+    ObjectNode details =
+        history.getDetails() instanceof ObjectNode node
+            ? node.deepCopy()
+            : mapper.createObjectNode();
+    catalogService
+        .find(
+            ContentType.PAYLOAD,
+            identity.getRepository(),
+            history.getExternalId(),
+            history.getVersion())
+        .map(CatalogItem::getChangelog)
+        .ifPresent(changelog -> details.put("changelog", changelog));
+    versions.stream()
+        .filter(version -> version.getVersion().equals(history.getVersion()))
+        .findFirst()
+        .ifPresent(
+            installed ->
+                versions.stream()
+                    .filter(
+                        version ->
+                            SemanticVersion.ORDER.compare(
+                                    version.getVersion(), installed.getVersion())
+                                < 0)
+                    .max(Comparator.comparing(Payload::getVersion, SemanticVersion.ORDER))
+                    .ifPresent(
+                        previous -> {
+                          details.put("compared_to", previous.getVersion());
+                          details.set(
+                              "changes", PayloadFieldChanges.between(mapper, previous, installed));
+                        }));
+    return ContentHistoryOutput.of(history, details);
+  }
+
+  // Revocation lists are shared by every tenant, so their effect is read here, not filed per
+  // tenant.
+  private List<ContentHistoryOutput> repositoryRevocations(
+      PayloadIdentity identity, String externalId) {
+    List<ContentHistoryOutput> rows = new ArrayList<>();
+    for (ContentRevocation revocation :
+        payloadRevocationService.findRepositoryRevocations(identity.getRepository(), externalId)) {
+      ObjectNode source =
+          mapper
+              .createObjectNode()
+              .put("source", "repository")
+              .put("repository", revocation.getRepository());
+      ObjectNode revoked = source.deepCopy();
+      if (revocation.getListSerial() != null) {
+        revoked.put("list_serial", revocation.getListSerial());
+      }
+      if (revocation.getReason() != null) {
+        revoked.put("reason", revocation.getReason());
+      }
+      rows.add(
+          ContentHistoryOutput.fromRepository(
+              "revocation-" + revocation.getId(),
+              ContentHistory.ACTION.REVOKE,
+              revocation.getVersion(),
+              revoked,
+              revocation.getCreatedAt()));
+      if (revocation.getLiftedAt() != null) {
+        rows.add(
+            ContentHistoryOutput.fromRepository(
+                "lift-" + revocation.getId(),
+                ContentHistory.ACTION.LIFT_REVOCATION,
+                revocation.getVersion(),
+                source,
+                revocation.getLiftedAt()));
+      }
+    }
+    return rows;
   }
 
   // -- UPDATE --
@@ -133,9 +267,7 @@ public class PayloadVersionChangeService {
     InjectorContract sourceContract = injectorContractService.injectorContract(actionId);
     Payload source = payloadOf(sourceContract);
     Payload target = payloadVersionService.findById(input.targetPayloadId());
-    if (!isManaged(source)
-        || !isManaged(target)
-        || !source.getExternalId().equals(target.getExternalId())) {
+    if (!source.getIdentity().getId().equals(target.getIdentity().getId())) {
       throw new BadRequestException("The target is not another version of this payload");
     }
     if (source.getId().equals(target.getId())) {
@@ -146,6 +278,8 @@ public class PayloadVersionChangeService {
     }
     InjectorContract targetContract = injectorContractService.findByPayload(target);
     User user = userService.currentUser();
+    scenarioRevisionService.takeIfCatalog(
+        scenariosOf(input), ScenarioRevision.Reason.PAYLOAD_VERSION_CHANGE);
 
     List<String> moved = new ArrayList<>();
     List<Refusal> refused = new ArrayList<>();
@@ -160,9 +294,69 @@ public class PayloadVersionChangeService {
           reason -> refused.add(new Refusal(stepId, reason)), () -> moved.add(stepId));
     }
     if (!moved.isEmpty()) {
-      contentHistoryService.payloadVersionChanged(source, target);
+      contentHistoryService.payloadVersionChanged(source, target, moved.size());
     }
     return new PayloadVersionChangeOutput(moved, refused);
+  }
+
+  /**
+   * Moves every scenario inject, atomic test and chained step of a local copy to the catalogue
+   * version with the same content, when the copy cannot become that version (RFC 0005 §4.5). Done
+   * by the platform: no user right applies, an incompatible usage stays where it is.
+   */
+  public int repointAllUsages(Payload source, Payload target) {
+    InjectorContract sourceContract = injectorContractService.findByPayload(source);
+    InjectorContract targetContract = injectorContractService.findByPayload(target);
+    if (sourceContract == null || targetContract == null) {
+      return 0;
+    }
+    int moved = 0;
+    List<Inject> injects = injectService.findTemplateInjectsByPayloadId(source.getId());
+    List<Step> steps = scenarioTemplateSteps(sourceContract);
+    List<Scenario> scenarios = new ArrayList<>();
+    injects.stream().map(Inject::getScenario).filter(Objects::nonNull).forEach(scenarios::add);
+    steps.forEach(step -> scenarios.add(step.getWorkflow().getScenario()));
+    scenarioRevisionService.takeIfCatalog(
+        scenarios, ScenarioRevision.Reason.PAYLOAD_VERSION_CHANGE);
+    for (Inject inject : injects) {
+      Set<String> after = contentErrors(targetContract, inject);
+      after.removeAll(contentErrors(sourceContract, inject));
+      if (after.isEmpty()) {
+        inject.setInjectorContract(targetContract);
+        injectService.save(inject);
+        moved++;
+      }
+    }
+    for (Step step : steps) {
+      if (repointStep(step, target, targetContract)) {
+        moved++;
+      }
+    }
+    if (moved > 0) {
+      contentHistoryService.payloadVersionChanged(source, target, moved);
+    }
+    return moved;
+  }
+
+  // Catalogue scenarios keep a revision of their content before their injects move (ADR-011).
+  private List<Scenario> scenariosOf(PayloadVersionChangeInput input) {
+    List<Scenario> scenarios = new ArrayList<>();
+    input
+        .injectIdsOrEmpty()
+        .forEach(
+            id ->
+                Optional.ofNullable(injectService.findInjectOrNull(id))
+                    .map(Inject::getScenario)
+                    .ifPresent(scenarios::add));
+    input
+        .stepIdsOrEmpty()
+        .forEach(
+            id ->
+                stepRepository
+                    .findById(id)
+                    .map(step -> step.getWorkflow().getScenario())
+                    .ifPresent(scenarios::add));
+    return scenarios;
   }
 
   private Optional<String> moveInject(
@@ -224,17 +418,35 @@ public class PayloadVersionChangeService {
       if (!missing.isEmpty()) {
         return Optional.of("Not compatible with this version: " + String.join(", ", missing));
       }
-      if (data.get(STEP_CONTRACT_FIELD) instanceof ObjectNode contractNode) {
-        contractNode.put("injector_contract_id", targetContract.getId());
-      } else {
-        data.put(STEP_CONTRACT_FIELD, targetContract.getId());
-      }
-      step.setData(mapper.writeValueAsString(data));
-      stepRepository.save(step);
+      writeStepContract(step, data, targetContract);
       return Optional.empty();
     } catch (Exception e) {
       return Optional.of("Unreadable step data");
     }
+  }
+
+  private boolean repointStep(Step step, Payload target, InjectorContract targetContract) {
+    try {
+      ObjectNode data = (ObjectNode) mapper.readTree(step.getData());
+      if (!missingArguments(target, data.path("inject_content")).isEmpty()) {
+        return false;
+      }
+      writeStepContract(step, data, targetContract);
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  private void writeStepContract(Step step, ObjectNode data, InjectorContract targetContract)
+      throws Exception {
+    if (data.get(STEP_CONTRACT_FIELD) instanceof ObjectNode contractNode) {
+      contractNode.put("injector_contract_id", targetContract.getId());
+    } else {
+      data.put(STEP_CONTRACT_FIELD, targetContract.getId());
+    }
+    step.setData(mapper.writeValueAsString(data));
+    stepRepository.save(step);
   }
 
   private List<Step> scenarioTemplateSteps(InjectorContract contract) {

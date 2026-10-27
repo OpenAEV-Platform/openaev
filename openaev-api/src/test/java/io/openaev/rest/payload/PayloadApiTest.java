@@ -43,6 +43,7 @@ import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
+import io.openaev.utils.helpers.PayloadVersionTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -69,6 +70,7 @@ class PayloadApiTest extends IntegrationTest {
   @Autowired private DocumentRepository documentRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadRepository payloadRepository;
+  @Autowired private PayloadVersionTestHelper payloadVersionTestHelper;
   @Autowired private ContentHistoryRepository contentHistoryRepository;
   @Autowired private CollectorRepository collectorRepository;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
@@ -1292,8 +1294,11 @@ class PayloadApiTest extends IntegrationTest {
           io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
           () -> {
             Payload payload = payloadRepository.findById(payloadId).orElseThrow();
-            payload.setVersion(version);
-            return payloadRepository.save(payload);
+            String externalId =
+                payload.getExternalId() != null
+                    ? payload.getExternalId()
+                    : UUID.randomUUID().toString();
+            return payloadVersionTestHelper.asManagedVersion(payload, externalId, version);
           });
     }
 
@@ -1346,7 +1351,7 @@ class PayloadApiTest extends IntegrationTest {
       // Act & Assert
       mvc.perform(post(PAYLOAD_URI + "/" + payloadId + "/duplicate").with(csrf()))
           .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.payload_version").doesNotExist())
+          .andExpect(jsonPath("$.payload_version").value("1.0.0"))
           .andExpect(jsonPath("$.payload_origin_id").value(payloadId));
     }
 
@@ -1432,10 +1437,10 @@ class PayloadApiTest extends IntegrationTest {
         TenantContext.clearCurrentTenant();
       }
 
-      // Assert
+      // Assert: installed as a catalogue version, it stays verified.
       mvc.perform(get(PAYLOAD_URI + "/" + payloadId).with(csrf()))
           .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.payload_status").value("UNVERIFIED"));
+          .andExpect(jsonPath("$.payload_status").value("VERIFIED"));
     }
 
     @Nested
@@ -1462,13 +1467,9 @@ class PayloadApiTest extends IntegrationTest {
       private void setVersion(String payloadId, String externalId, String version, boolean latest) {
         tenantScopedTransaction.execute(
             io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-            () -> {
-              Payload payload = payloadRepository.findById(payloadId).orElseThrow();
-              payload.setExternalId(externalId);
-              payload.setVersion(version);
-              payload.setLatest(latest);
-              return payloadRepository.save(payload);
-            });
+            () ->
+                payloadVersionTestHelper.asManagedVersion(
+                    payloadRepository.findById(payloadId).orElseThrow(), externalId, version));
       }
 
       private boolean isLatest(String payloadId) {
@@ -1573,8 +1574,15 @@ class PayloadApiTest extends IntegrationTest {
       String payloadId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO payloads (payload_id, payload_type, payload_name, payload_status, payload_source, tenant_id, payload_created_at, payload_updated_at) "
-                  + "VALUES (:id, 'Command', :name, 'VERIFIED', 'MANUAL', :tenantId, now(), now())")
+              "INSERT INTO payload_identities (identity_id, tenant_id, payload_source, latest_payload_id) "
+                  + "VALUES (:id, :tenantId, 'MANUAL', :id)")
+          .setParameter("id", payloadId)
+          .setParameter("tenantId", tenant.getId())
+          .executeUpdate();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payloads (payload_id, identity_id, payload_version, payload_type, payload_name, payload_status, tenant_id, payload_created_at, payload_updated_at) "
+                  + "VALUES (:id, :id, '1.0.0', 'Command', :name, 'VERIFIED', :tenantId, now(), now())")
           .setParameter("id", payloadId)
           .setParameter("name", name)
           .setParameter("tenantId", tenant.getId())

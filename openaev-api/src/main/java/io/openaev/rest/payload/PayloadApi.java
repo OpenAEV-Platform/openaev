@@ -92,9 +92,15 @@ public class PayloadApi extends RestBehavior {
       TxCtx ctx,
       @NotBlank @PathVariable final String payloadId,
       @Valid @RequestBody PayloadUpdateInput input) {
-    PayloadCreationService.PayloadInjectorContractCreationResult result =
+    PayloadUpdateService.PayloadSaveResult result =
         this.payloadUpdateService.updatePayload(payloadId, input);
-    return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
+    PayloadOutput output =
+        payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result.creation());
+    if (result.newVersion()) {
+      output.setPreviousVersionId(result.previous().getId());
+      output.setPreviousVersionUsages(result.previousUsages());
+    }
+    return output;
   }
 
   @PostMapping({

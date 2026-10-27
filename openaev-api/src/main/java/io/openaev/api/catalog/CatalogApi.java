@@ -12,8 +12,10 @@ import io.openaev.database.model.ContentType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.catalog.CatalogInstallService;
+import io.openaev.service.catalog.CatalogPayloadService;
 import io.openaev.service.catalog.CatalogService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,7 @@ public class CatalogApi {
 
   private final CatalogService catalogService;
   private final CatalogInstallService catalogInstallService;
+  private final CatalogPayloadService catalogPayloadService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final ObjectMapper mapper;
 
@@ -54,6 +57,18 @@ public class CatalogApi {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public List<CatalogItemOutput> payloads(TxCtx ctx) {
     return catalogService.list(ContentType.PAYLOAD);
+  }
+
+  @LogExecutionTime
+  @Operation(summary = "Every catalogue version of a payload, newest first")
+  @GetMapping({
+    CATALOG_URI + "/payloads/{externalId}/versions",
+    TENANT_CATALOG_URI + "/payloads/{externalId}/versions"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public List<CatalogItemOutput> payloadVersions(TxCtx ctx, @PathVariable String externalId) {
+    return catalogService.listPayloadVersions(externalId);
   }
 
   @LogExecutionTime
@@ -99,7 +114,54 @@ public class CatalogApi {
     return catalogInstallService.targets(scenarioId);
   }
 
+  @LogExecutionTime
+  @Operation(summary = "Catalogue settings of the tenant")
+  @GetMapping({CATALOG_URI + "/settings", TENANT_CATALOG_URI + "/settings"})
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public CatalogSettingsOutput settings(TxCtx ctx) {
+    return new CatalogSettingsOutput(
+        catalogPayloadService.isAutoInstall(writeScopeResolver.tenantForWrite(ctx, null)));
+  }
+
   // -- CREATE --
+
+  @LogExecutionTime
+  @Operation(
+      summary = "Install a catalogue payload version",
+      description =
+          "A single identical local copy claiming the external ID becomes the version; otherwise"
+              + " the package is imported, refused unless its content has the release hash. The"
+              + " repository is needed only when several repositories release the external ID.")
+  @PostMapping({
+    CATALOG_URI + "/payloads/{externalId}/versions/{version}/install",
+    TENANT_CATALOG_URI + "/payloads/{externalId}/versions/{version}/install"
+  })
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
+  @Transactional(rollbackFor = Exception.class)
+  public CatalogPayloadInstallOutput installPayload(
+      TxCtx ctx,
+      @PathVariable String externalId,
+      @PathVariable String version,
+      @RequestParam(required = false) String repository)
+      throws Exception {
+    catalogPayloadService.install(
+        ctx, writeScopeResolver.tenantForWrite(ctx, null), repository, externalId, version);
+    return new CatalogPayloadInstallOutput(List.of(externalId));
+  }
+
+  @LogExecutionTime
+  @Operation(summary = "Install the latest version of every catalogue payload not installed yet")
+  @PostMapping({
+    CATALOG_URI + "/payloads/install-all",
+    TENANT_CATALOG_URI + "/payloads/install-all"
+  })
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
+  @Transactional(rollbackFor = Exception.class)
+  public CatalogPayloadInstallOutput installAllPayloads(TxCtx ctx) throws Exception {
+    return new CatalogPayloadInstallOutput(
+        catalogPayloadService.installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null)));
+  }
 
   @LogExecutionTime
   @Operation(
@@ -126,6 +188,18 @@ public class CatalogApi {
   // -- UPDATE --
 
   @LogExecutionTime
+  @Operation(summary = "Turn the automatic install of new catalogue payloads on or off")
+  @PutMapping({CATALOG_URI + "/settings", TENANT_CATALOG_URI + "/settings"})
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
+  @Transactional(rollbackFor = Exception.class)
+  public CatalogSettingsOutput updateSettings(
+      TxCtx ctx, @Valid @RequestBody CatalogSettingsInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    catalogPayloadService.setAutoInstall(tenantId, input.payloadAutoInstall());
+    return new CatalogSettingsOutput(catalogPayloadService.isAutoInstall(tenantId));
+  }
+
+  @LogExecutionTime
   @Operation(
       summary = "Give targets to the injects that have none",
       description = "Refused while an inject would stay without a target.")
@@ -144,6 +218,22 @@ public class CatalogApi {
   }
 
   // -- DELETE --
+
+  @LogExecutionTime
+  @Operation(
+      summary = "Uninstall a catalogue payload",
+      description =
+          "Refused while a scenario, atomic test or chained step uses one of its versions. Its"
+              + " versions are hidden, not deleted, and new ones no longer install themselves.")
+  @DeleteMapping({
+    CATALOG_URI + "/installed-payloads/{payloadId}",
+    TENANT_CATALOG_URI + "/installed-payloads/{payloadId}"
+  })
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.THREAT_ARSENAL)
+  @Transactional(rollbackFor = Exception.class)
+  public void uninstallPayload(TxCtx ctx, @PathVariable String payloadId) {
+    catalogPayloadService.uninstallByPayload(payloadId);
+  }
 
   @LogExecutionTime
   @Operation(summary = "Uninstall a catalogue scenario version; its payload versions stay")
@@ -195,6 +285,10 @@ public class CatalogApi {
       archives.put(file.getOriginalFilename(), file.getBytes());
     }
     Map<String, String> refusals = catalogService.verifyAndStore(manifest, archives);
-    return catalogService.apply(ctx, tenantId, manifest, refusals);
+    CatalogSyncOutput output = catalogService.apply(ctx, tenantId, manifest, refusals);
+    if (output.applied()) {
+      catalogPayloadService.afterSync(ctx, tenantId, manifest);
+    }
+    return output;
   }
 }

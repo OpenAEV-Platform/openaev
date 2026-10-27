@@ -12,7 +12,6 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
-import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
@@ -38,7 +37,6 @@ public class PayloadCreationService {
   private final LicenseCacheManager licenseCacheManager;
 
   private final AttackPatternRepository attackPatternRepository;
-  private final PayloadRepository payloadRepository;
   private final TagRepository tagRepository;
   private final DomainService domainService;
   private final DocumentService documentService;
@@ -114,7 +112,7 @@ public class PayloadCreationService {
       payload.setAuthorUser(userService.currentUser());
     }
 
-    Payload payloadSaved = payloadRepository.save(payload);
+    Payload payloadSaved = payloadService.createFirstVersion(payload);
     // The id collections default to empty lists on the input, but callers that build the
     // input via BeanUtils.copyProperties (e.g. threat arsenal action creation) can overwrite
     // those defaults with null. Spring Data's findAllById throws IllegalArgumentException

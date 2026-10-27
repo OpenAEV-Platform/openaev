@@ -380,19 +380,23 @@ public class PayloadService {
    */
   @Transactional(readOnly = true)
   public boolean isNameAvailable(String name, @Nullable String payloadId) {
+    return nameAvailable(name, payloadId);
+  }
+
+  private boolean nameAvailable(String name, @Nullable String payloadId) {
     if (name == null || name.isBlank()) {
       return true;
     }
-    String externalId =
+    String identityId =
         payloadId == null
             ? null
-            : payloadRepository.findById(payloadId).map(Payload::getExternalId).orElse(null);
-    return !payloadRepository.existsOtherPayloadWithName(name, payloadId, externalId);
+            : payloadRepository.findById(payloadId).map(p -> p.getIdentity().getId()).orElse(null);
+    return !payloadRepository.existsOtherPayloadWithName(name, payloadId, identityId);
   }
 
   /** Refuses a name another payload of the tenant already uses (#3399). */
   public void assertNameAvailable(String name, @Nullable String payloadId) {
-    if (!isNameAvailable(name, payloadId)) {
+    if (!nameAvailable(name, payloadId)) {
       throw new BadRequestException(PAYLOAD_NAME_TAKEN);
     }
   }
@@ -422,7 +426,7 @@ public class PayloadService {
       duplicatedPayload.setAuthorTeam(null);
       duplicatedPayload.setAuthorOrganization(null);
     }
-    Payload duplicated = payloadRepository.save(duplicatedPayload);
+    Payload duplicated = createFirstVersion(duplicatedPayload);
     InjectorContract injectorContract =
         this.synchroniseInjectorContractBasedOnPayload(
             duplicated,
@@ -436,6 +440,31 @@ public class PayloadService {
     contentHistoryService.payloadDuplicated(origin, duplicated);
     return new PayloadCreationService.PayloadInjectorContractCreationResult(
         duplicated, injectorContract);
+  }
+
+  /** A new payload: its own local identity and first version (ADR-011). */
+  public <T extends Payload> T createFirstVersion(T payload) {
+    @SuppressWarnings("unchecked")
+    T saved =
+        (T)
+            payloadVersionService.addVersion(
+                payload.identityOrNew(),
+                payload,
+                PayloadVersionService.Numbering.fixed(Payload.FIRST_VERSION));
+    return saved;
+  }
+
+  /** A row with the content of this version, to change and add as the next one (ADR-011). */
+  public Payload copyForNewVersion(Payload current) {
+    Payload copy = generateDuplicatedPayload(current);
+    copy.setName(current.getName());
+    copy.setOriginId(current.getOriginId());
+    copy.setStatus(current.getStatus());
+    copy.setAuthorUser(current.getAuthorUser());
+    copy.setAuthorTeam(current.getAuthorTeam());
+    copy.setAuthorOrganization(current.getAuthorOrganization());
+    payloadUtils.copyDetectionRemediations(current, copy);
+    return copy;
   }
 
   public Payload generateDuplicatedPayload(Payload originalPayload) {
@@ -587,7 +616,7 @@ public class PayloadService {
         });
     fileDrop.setTenant(new Tenant(writeTenant));
 
-    FileDrop saved = payloadRepository.save(fileDrop);
+    FileDrop saved = createFirstVersion(fileDrop);
     synchroniseInjectorContractBasedOnPayload(
         saved,
         List.of(),
@@ -666,7 +695,7 @@ public class PayloadService {
           BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
         });
 
-    DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);
+    DnsResolution saved = createFirstVersion(dynamicDnsResolutionPayload);
     synchroniseInjectorContractBasedOnPayload(
         saved,
         List.of(),
@@ -703,7 +732,9 @@ public class PayloadService {
         injectorContractService.findContractIdsByPayloadIdPerTenant(payloadId);
     List<String> cascadeDeletedInjectIds =
         injectIndexCleanupService.injectIdsByPayloadId(payloadId, tenantId);
+    PayloadIdentity identity = payload.getIdentity();
     payloadRepository.deleteById(payloadId);
+    payloadVersionService.afterVersionDeleted(identity);
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
     cascadeDeletedContractIdsPerTenant.forEach(
         (contractTenantId, contractIds) ->

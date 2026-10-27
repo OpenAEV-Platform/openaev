@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -46,6 +48,28 @@ public class StatusPayload implements Serializable {
 
   @JsonProperty("payload_external_id")
   private String externalId;
+
+  // ADR-011: the version that ran and the hash of the content computed when it ran.
+  @JsonProperty("payload_id")
+  private String payloadId;
+
+  @JsonProperty("payload_version")
+  private String version;
+
+  @JsonProperty("payload_content_hash")
+  private String contentHash;
+
+  @JsonProperty("payload_argument_values")
+  private Map<String, String> argumentValues = new LinkedHashMap<>();
+
+  @JsonProperty("ai_attack_engine")
+  private String aiAttackEngine;
+
+  @JsonProperty("ai_attack_category")
+  private String aiAttackCategory;
+
+  @JsonProperty("ai_attack_content")
+  private String aiAttackContent;
 
   @JsonProperty("executable_file")
   private StatusPayloadDocument executableFile;
