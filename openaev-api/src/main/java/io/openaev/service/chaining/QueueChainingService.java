@@ -126,11 +126,23 @@ public class QueueChainingService {
    */
   public void updateStep(String stepRunId) throws IOException {
     log.info("[Chaining] PUBLISH STEP UPDATE : {}", stepRunId);
+    updateQueueService.publish(newUpdateEvent(stepRunId));
+  }
+
+  /**
+   * Build the external update event {@link #updateStep} publishes for a given step, without
+   * publishing it, so that an event the queue refused can be sent again later with the tenant it
+   * was built with, whatever the scope of the caller that resends it.
+   *
+   * @param stepRunId the step execution to update
+   * @return the event, stamped with the step's tenant read in the current scope
+   */
+  public ExternalUpdateEvent newUpdateEvent(String stepRunId) {
     ExternalUpdateEvent event = new ExternalUpdateEvent();
     event.setStepId(stepRunId);
     event.setTenantId(tenantIdOfStep(stepRunId));
     event.setEmissionDate(Instant.now().toEpochMilli());
-    updateQueueService.publish(event);
+    return event;
   }
 
   /**
