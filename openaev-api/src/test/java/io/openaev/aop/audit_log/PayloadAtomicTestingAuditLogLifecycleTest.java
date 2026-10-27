@@ -201,7 +201,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
                   "mutation".equals(event.getEventType())
                       && "create".equals(event.getEventScope())
                       && contextEntityType(event).contains("Payload")
-                      && contextInputValue(event, "payload_name")
+                      && contextOutputValue(event, "payload_name")
                           .filter(payloadName::equals)
                           .isPresent(),
               "payload create event");
@@ -213,30 +213,27 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
               event ->
                   "mutation".equals(event.getEventType())
                       && "create".equals(event.getEventScope())
-                      && contextInputValue(event, "inject_title")
+                      && contextOutputValue(event, "inject_title")
                           .filter(injectTitle::equals)
                           .isPresent(),
               "atomic testing create event");
 
-      // Validate add-assets update event by checking inject_assets contains the created asset id.
-      LogEvent addAssetEvent =
-          findRequiredEvent(
-              events,
-              event ->
-                  "mutation".equals(event.getEventType())
-                      && "update".equals(event.getEventScope())
-                      && contextInputList(event, "inject_assets").contains(assetId),
-              "atomic testing add assets event");
+      // Validate both asset updates: two update events on the atomic testing.
+      List<LogEvent> assetUpdateEvents =
+          events.stream()
+              .filter(Objects::nonNull)
+              .filter(
+                  event ->
+                      "mutation".equals(event.getEventType())
+                          && "update".equals(event.getEventScope())
+                          && atomicTestingId.equals(resolveParentLink(event)))
+              .toList();
+      assertThat(assetUpdateEvents).hasSizeGreaterThanOrEqualTo(2);
+      LogEvent addAssetEvent = assetUpdateEvents.get(0);
+      LogEvent removeAssetEvent = assetUpdateEvents.get(1);
 
-      // Validate remove-assets update event by checking inject_assets becomes empty.
-      LogEvent removeAssetEvent =
-          findRequiredEvent(
-              events,
-              event ->
-                  "mutation".equals(event.getEventType())
-                      && "update".equals(event.getEventScope())
-                      && contextInputList(event, "inject_assets").isEmpty(),
-              "atomic testing remove assets event");
+      // The request input is not logged.
+      assertThat(events).allSatisfy(event -> assertThat(contextValue(event, "input")).isNull());
 
       // Validate launch event emits a mutation with status_change scope.
       LogEvent launchEvent =
@@ -312,29 +309,13 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
   }
 
   @SuppressWarnings("unchecked")
-  // Reads a single key from context_data.input as Optional<String>.
-  private Optional<String> contextInputValue(LogEvent event, String key) {
-    Object input = contextValue(event, "input");
-    if (!(input instanceof Map<?, ?> inputMap)) {
+  // Reads a single key from context_data.output as Optional<String>.
+  private Optional<String> contextOutputValue(LogEvent event, String key) {
+    Object output = contextValue(event, "output");
+    if (!(output instanceof Map<?, ?> outputMap)) {
       return Optional.empty();
     }
-    Object value = ((Map<String, Object>) inputMap).get(key);
+    Object value = ((Map<String, Object>) outputMap).get(key);
     return value != null ? Optional.of(value.toString()) : Optional.empty();
-  }
-
-  @SuppressWarnings("unchecked")
-  // Reads a list key from context_data.input and normalizes all entries to String.
-  private List<String> contextInputList(LogEvent event, String key) {
-    Object input = contextValue(event, "input");
-    if (!(input instanceof Map<?, ?> inputMap)) {
-      return List.of();
-    }
-
-    Object value = ((Map<String, Object>) inputMap).get(key);
-    if (!(value instanceof List<?> values)) {
-      return List.of();
-    }
-
-    return values.stream().map(String::valueOf).toList();
   }
 }

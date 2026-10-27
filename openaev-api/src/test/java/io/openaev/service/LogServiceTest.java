@@ -418,21 +418,10 @@ class LogServiceTest {
 
       // Assert
       @SuppressWarnings("unchecked")
-      Map<String, Object> loggedInput =
-          (Map<String, Object>) captureEvent().getContextData().get("input");
-      @SuppressWarnings("unchecked")
       Map<String, Object> loggedOutput =
           (Map<String, Object>) captureEvent().getContextData().get("output");
 
-      assertThat(loggedInput)
-          .containsEntry("credential_id", "cred-1")
-          .containsEntry("credential_name", "AD - Tier 0")
-          .containsEntry("credential_type", "IDENTITY")
-          .containsEntry("credential_description", "Domain admin account")
-          .containsEntry("credential_auth_method", "USERNAME_PASSWORD")
-          .containsEntry("credential_username", REDACTED)
-          .containsEntry("credential_password", REDACTED);
-
+      assertThat(captureEvent().getContextData()).doesNotContainKey("input");
       assertThat(loggedOutput)
           .containsEntry("credential_id", "cred-1")
           .containsEntry("credential_name", "AD - Tier 0")

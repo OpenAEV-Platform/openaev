@@ -203,14 +203,6 @@ public class LogService {
 
       ctx.put("entity_type", entityTypeName);
 
-      if (input != null) {
-        // Redact before normalizing: the normalization size-cap fallback serializes the tree into
-        // a scalar "preview" that field-name-based redaction cannot scrub afterwards.
-        input = ObjectRedactionUtils.redact(input, resourceType);
-        input = objectNormalizationUtils.normalize(input);
-        ctx.put("input", toContextValue(input));
-      }
-
       if (output != null) {
         output = ObjectRedactionUtils.redact(output, resourceType);
         output = objectNormalizationUtils.normalize(output);
@@ -276,9 +268,9 @@ public class LogService {
       Map<String, Object> ctx =
           new LinkedHashMap<>(event.getContextData() != null ? event.getContextData() : Map.of());
 
-      // Capture raw JsonNode input BEFORE processMutationContext converts it to Map
+      // The request input only feeds the message, it is not logged
       JsonNode rawInputNode =
-          (event.getEventType() == EventType.MUTATION && ctx.get("input") instanceof JsonNode jn)
+          (event.getEventType() == EventType.MUTATION && ctx.remove("input") instanceof JsonNode jn)
               ? jn
               : null;
 
@@ -334,7 +326,7 @@ public class LogService {
   }
 
   /**
-   * Processes MUTATION-specific contextData entries: redacts and normalizes input/output JsonNodes,
+   * Processes MUTATION-specific contextData entries: redacts and normalizes the output JsonNode,
    * and extracts the signature into request metadata.
    *
    * <p>Redaction always runs before normalization: when a tree is still oversized after truncation,
@@ -344,14 +336,6 @@ public class LogService {
    */
   private void processMutationContext(
       Map<String, Object> ctx, ResourceType resourceType, String eventScope, LogEvent doc) {
-    // Redact and normalize input
-    Object inputObj = ctx.get("input");
-    if (inputObj instanceof JsonNode inputNode && !inputNode.isNull()) {
-      inputNode = ObjectRedactionUtils.redact(inputNode, resourceType);
-      inputNode = objectNormalizationUtils.normalize(inputNode);
-      ctx.put("input", toContextValue(inputNode));
-    }
-
     // Redact and normalize output
     Object outputObj = ctx.get("output");
     if (outputObj instanceof JsonNode outputNode && !outputNode.isNull()) {
