@@ -34,10 +34,10 @@ public class RevocationListApi {
 
   @LogExecutionTime
   @Operation(summary = "Apply the revocation list of a content repository")
-  @PostMapping({CATALOG_URI + PATH, TENANT_CATALOG_URI + PATH})
+  @PostMapping(CATALOG_URI + PATH)
   @Transactional(rollbackFor = Exception.class)
-  // Same right as the catalogue sync the collector uses.
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
+  // A list applies to every tenant: platform administrators only.
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   public RevocationListOutput apply(TxCtx ctx, @RequestBody RevocationList list) {
     return revocationListService.apply(list);
   }
