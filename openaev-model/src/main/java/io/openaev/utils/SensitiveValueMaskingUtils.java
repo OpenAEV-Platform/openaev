@@ -36,21 +36,29 @@ import java.util.stream.Collectors;
  * <p>The database always keeps the cleartext value: deduplication, correlation and attack path
  * computation rely on it. Only the representation handed out is masked.
  *
- * <p><b>The masked form is stored in the search index.</b> Unlike every other caller, indexing
- * persists its output: {@code FindingHandler} writes the masked value into the {@code finding}
- * documents, so dashboards, widgets, reports and their filters only ever see - and only ever match
- * - the displayed form. A document therefore keeps the masking it was indexed with until it is
- * re-indexed. Any change to {@link #TYPE_TO_MASK}, {@link #VALUE_COMPOSITIONS}, {@link
- * #NEVER_SENSITIVE} or to the way a part is masked ({@link #MASK}, the visible fragment) MUST:
+ * <p><b>The masked form is stored twice.</b> Every write of a finding stores its displayed form in
+ * {@code findings.finding_value_display} (see {@link #maskIfNeededFailClosed}), which search,
+ * filters, sorts, distinct grouping and notification triggers read (ADR-017). {@code
+ * FindingHandler} copies that column into the {@code finding} search documents, so dashboards,
+ * widgets, reports and their filters only ever see - and only ever match - the displayed form too.
+ * Both keep the masking they were written with. Any change to {@link #TYPE_TO_MASK}, {@link
+ * #VALUE_COMPOSITIONS}, {@link #NEVER_SENSITIVE} or to the way a part is masked ({@link #MASK}, the
+ * visible fragment) MUST:
  *
  * <ul>
  *   <li>bump {@link #MASKING_VERSION};
- *   <li>AND ship a migration requesting an in-place re-feed of the {@code finding} model, following
- *       {@code V6_20261022140626000__Request_finding_refeed_after_sensitive_value_masking}.
+ *   <li>ship a migration that rewrites {@code finding_value_display} from the cleartext for every
+ *       row, batched like {@code V6_20261022151200000__Add_finding_value_display} (which only fills
+ *       empty rows);
+ *   <li>AND, after it, ship a migration requesting an in-place re-feed of the {@code finding}
+ *       model, following {@code
+ *       V6_20261022140626000__Request_finding_refeed_after_sensitive_value_masking}. The order
+ *       matters: the index copies the column, so a re-feed before the rewrite copies the old
+ *       masking again.
  * </ul>
  *
- * <p>Nothing re-masks an indexed document on its own: the incremental indexing only revisits a
- * finding whose row changed, so without the re-feed every document keeps the previous masking.
+ * <p>Nothing re-masks a stored value on its own: the incremental indexing only revisits a finding
+ * whose row changed, and the column is only written when the finding is.
  */
 public final class SensitiveValueMaskingUtils {
 
@@ -323,6 +331,43 @@ public final class SensitiveValueMaskingUtils {
   }
 
   /**
+   * Masks a value about to be <b>stored</b> in its displayed form, from a type held as text, and
+   * fails closed: a type that resolves to nothing masks the whole value.
+   *
+   * <p>This is what fills {@code finding_value_display}, the column that search, filters, sorts,
+   * notification triggers and the search index read. Its writers only hold the type as text: the
+   * native upsert and the backfill migration get the enum <em>name</em>, as the database stores it,
+   * and some callers pass the label. Both are accepted.
+   *
+   * <p>The difference with {@link #maskIfNeeded(String, String)} is deliberate. The attack path
+   * graph keeps an unknown label readable, because its curated categories have no enum counterpart.
+   * Here an unknown type - written by a newer instance, or missing - cannot be checked for secrets,
+   * and the stored form is what every query matches: over-masking a harmless value is recoverable,
+   * storing a secret in the clear is not.
+   *
+   * @param type the enum name or the label (case insensitive) of the contract output type
+   * @param value the cleartext value
+   * @return the value as the platform displays it, or the whole value masked when the type is
+   *     unknown
+   */
+  public static String maskIfNeededFailClosed(final String type, final String value) {
+    return maskIfNeededFailClosed(fromNameOrLabel(type), value);
+  }
+
+  /**
+   * Same as {@link #maskIfNeededFailClosed(String, String)}, for a writer that holds the type
+   * itself: the {@code Finding} entity. A missing type masks the whole value.
+   *
+   * @param type the contract output type of the value, or {@code null} when not known yet
+   * @param value the cleartext value
+   * @return the value as the platform displays it, or the whole value masked when the type is
+   *     missing
+   */
+  public static String maskIfNeededFailClosed(final ContractOutputType type, final String value) {
+    return type == null ? mask(value) : maskIfNeeded(type, value);
+  }
+
+  /**
    * Whether findings carrying this type <em>label</em> hold secret material. Same label resolution
    * as {@link #maskIfNeeded(String, String)}: an unknown label is not sensitive.
    *
@@ -339,6 +384,18 @@ public final class SensitiveValueMaskingUtils {
       return null;
     }
     return LABEL_TO_TYPE.get(typeLabel.toLowerCase(Locale.ROOT));
+  }
+
+  /** The contract output type with this enum name or label, or {@code null} when none has it. */
+  private static ContractOutputType fromNameOrLabel(final String type) {
+    if (type == null || type.isBlank()) {
+      return null;
+    }
+    try {
+      return ContractOutputType.valueOf(type);
+    } catch (IllegalArgumentException notAName) {
+      return fromLabel(type);
+    }
   }
 
   /**

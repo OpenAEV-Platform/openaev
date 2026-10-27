@@ -4,6 +4,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -27,14 +28,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @ExtendWith(MockitoExtension.class)
 public class OpenCTIClientTest extends IntegrationTest {
 
-  @MockitoBean private HttpClientFactory mockHttpClientFactory;
+  @MockitoSpyBean private HttpClientFactory mockHttpClientFactory;
   @Mock private CloseableHttpClient mockHttpClient;
   @Autowired private OpenCTIClient client;
 
@@ -44,7 +45,7 @@ public class OpenCTIClientTest extends IntegrationTest {
 
   @BeforeEach
   public void setup() throws JsonProcessingException {
-    when(mockHttpClientFactory.httpClientCustom()).thenReturn(mockHttpClient);
+    doReturn(mockHttpClient).when(mockHttpClientFactory).httpClientCustom();
   }
 
   private OpenCTIClient.ExtractedData getMockResponse(int statusCode, String responseBody) {

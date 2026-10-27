@@ -12,19 +12,15 @@ import org.springframework.stereotype.Component;
  * tuning parameters for the underlying search engine. Properties are loaded from the application
  * configuration with the {@code engine.*} prefix.
  *
- * <p>Supported engines:
- *
- * <ul>
- *   <li>{@code elk} - Elasticsearch (default)
- *   <li>{@code opensearch} - OpenSearch
- * </ul>
+ * <p>The engine itself is not configured: Elasticsearch 8, Elasticsearch 9 and OpenSearch are
+ * detected from the server behind {@code url} at startup (see {@link
+ * io.openaev.engine.EngineComponent}).
  *
  * <p>Example configuration:
  *
  * <pre>{@code
  * engine:
  *   url: http://localhost:9200
- *   engine-selector: elk
  *   index-prefix: openaev
  *   username: elastic
  *   password: changeme
@@ -37,8 +33,8 @@ public class EngineConfig {
 
   /** Default configuration values for the search engine. */
   public static class Defaults {
-    /** Default engine selector (Elasticsearch). */
-    public static final String ENGINE_SELECTOR = "elk";
+    /** Default engine client: detected from the server behind {@code url}. */
+    public static final String CLIENT = "auto";
 
     /** Default AWS mode (disabled). */
     public static final String ENGINE_AWS_MODE = "no";
@@ -153,7 +149,11 @@ public class EngineConfig {
     public static final long INDEXING_REFEED_REASSERT_DELAY_SECONDS = 1800;
   }
 
-  private String engineSelector = Defaults.ENGINE_SELECTOR;
+  /**
+   * Engine client to use: {@code auto} detects it from the server, {@code elasticsearch8}, {@code
+   * elasticsearch9} or {@code opensearch} forces it when the detection cannot decide.
+   */
+  private String client = Defaults.CLIENT;
 
   private String engineAwsMode = Defaults.ENGINE_AWS_MODE;
 

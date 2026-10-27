@@ -8,10 +8,13 @@ import io.openaev.database.model.StepDelayQueue;
 import io.openaev.database.model.Workflow;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepDelayQueueService;
+import io.openaev.service.chaining.StepEventService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowService;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.DisallowConcurrentExecution;
@@ -29,6 +32,7 @@ public class QueueChainingJob implements Job {
   private final StepService stepService;
   private final WorkflowService workflowService;
   private final TenantScopedTransaction tenantTx;
+  private final StepEventService stepEventService;
 
   /** Periodically processes the next eligible step from the delay queue. */
   @Override
@@ -54,6 +58,11 @@ public class QueueChainingJob implements Job {
     // primitive rather than a raw TransactionTemplate, which is what background jobs are required
     // to use, and it starts at allTenants() because popNextPerWorkflowRun legitimately spans
     // tenants. Each entry then narrows the scope to its own tenant below.
+    // The runs of the entries popped without a ready step, with their tenant: evaluated once the
+    // pop is committed, since a step that depends on the entry's template (DEPEND_ON) waits while
+    // it
+    // is queued, and no step event would come to evaluate the run again.
+    List<Map.Entry<Workflow, String>> toEvaluate = new ArrayList<>();
     tenantTx.execute(
         TxCtx.allTenants(),
         () -> {
@@ -121,11 +130,23 @@ public class QueueChainingJob implements Job {
                       0);
 
               stepService.enqueueReadySteps(readySteps, stepDelayQueue.getWorkflowRun());
+              if (readySteps.isEmpty() && tenantId != null) {
+                toEvaluate.add(Map.entry(stepDelayQueue.getWorkflowRun(), tenantId));
+              }
             } catch (ChainingException e) {
               log.error("[Chaining] Delay consume failed : {}", e.getMessage(), e);
+              // A ready step that could not be published was ended: nothing else will wake the
+              // steps that depend on its template.
+              if (tenantId != null) {
+                toEvaluate.add(Map.entry(stepDelayQueue.getWorkflowRun(), tenantId));
+              }
             }
           }
         });
+    for (Map.Entry<Workflow, String> run : toEvaluate) {
+      TenantContext.setCurrentTenant(run.getValue());
+      stepEventService.evaluateAfterCommit(run.getKey(), run.getValue(), "a delayed step");
+    }
   }
 
   /**

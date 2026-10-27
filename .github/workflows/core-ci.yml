@@ -23,18 +23,19 @@ jobs:
     with:
       # ── API Tests: 9 shards + catch-all ──
       # Shard patterns live in .github/shards; the catch-all covers unassigned tests.
+      # The engine client is detected from the server: elasticsearch8 starts an Elasticsearch 8.
       api-matrix: >
         [
-          {"shard":"1","shard_name":"elk8-1","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"2","shard_name":"elk8-2","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"3","shard_name":"elk8-3","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"4","shard_name":"elk8-4","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"5","shard_name":"elk8-5","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"6","shard_name":"elk8-6","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"7","shard_name":"elk8-7","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"8","shard_name":"elk8-8","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"9","shard_name":"elk8-9","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"10","shard_name":"elk8-remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""}
+          {"shard":"1","shard_name":"elk8-1","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"2","shard_name":"elk8-2","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"3","shard_name":"elk8-3","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"4","shard_name":"elk8-4","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"5","shard_name":"elk8-5","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"6","shard_name":"elk8-6","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"7","shard_name":"elk8-7","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"8","shard_name":"elk8-8","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"9","shard_name":"elk8-9","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"10","shard_name":"elk8-remaining","search_engine":"elasticsearch8","artifact_suffix":"","includes":"catchall","excludes":""}
         ]
       # ── E2E Tests ──
       # PRs shard Chromium on AMD64; main and tags also cover supported browser/architecture combinations.

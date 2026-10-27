@@ -2,6 +2,7 @@ package io.openaev.api.detection_remediation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -37,6 +38,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,7 +50,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   @MockitoBean private EnterpriseEditionService enterpriseEdition;
   @MockitoBean private CloseableHttpClient httpClient;
-  @MockitoBean private HttpClientFactory httpClientFactory;
+  @MockitoSpyBean private HttpClientFactory httpClientFactory;
   @Autowired private MockMvc mockMvc;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -91,7 +93,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     PayloadInput input = payloadComposer.forPayloadInput(payload, List.of(), List.of());
 
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(enterpriseEdition.getEncodedCertificate()).thenCallRealMethod();
 
     // -- EXECUTE --
@@ -182,7 +184,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse = getBadDetectionRemediationAIResponse();
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -213,7 +215,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(
@@ -254,7 +256,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIBadResponse = getBadDetectionRemediationAIResponse();
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(
@@ -297,7 +299,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     String detectionRemediationAIGoodResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(
@@ -374,7 +376,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -447,7 +449,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -517,7 +519,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -567,7 +569,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -640,7 +642,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -813,7 +815,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- PREPARE -
     Inject inject = getInjectCommandWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(enterpriseEdition.getEncodedCertificate()).thenCallRealMethod();
 
     // -- EXECUTE ASSERT --
@@ -902,7 +904,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -933,7 +935,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -997,7 +999,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -1046,7 +1048,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -1112,7 +1114,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -1160,7 +1162,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -1192,7 +1194,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -1225,7 +1227,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);
@@ -1257,7 +1259,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
         getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    doReturn(httpClient).when(httpClientFactory).httpClientCustom();
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
         .thenAnswer(inv -> detectionRemediationAIResponse);

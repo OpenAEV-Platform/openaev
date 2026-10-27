@@ -23,6 +23,7 @@ import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.EngineContext;
+import io.openaev.engine.EngineType;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.Handler;
 import io.openaev.engine.api.*;
@@ -1387,6 +1388,11 @@ public class ElasticService implements EngineService {
       log.error(String.format("query exception: %s", e.getMessage()), e);
     }
     return List.of();
+  }
+
+  @Override
+  public EngineType getEngineType() {
+    return EngineType.ELASTICSEARCH_9;
   }
 
   @Override

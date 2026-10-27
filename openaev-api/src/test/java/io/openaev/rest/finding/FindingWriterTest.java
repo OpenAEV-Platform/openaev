@@ -1,5 +1,6 @@
 package io.openaev.rest.finding;
 
+import static io.openaev.utils.SensitiveValueMaskingUtils.MASK;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -155,6 +156,56 @@ class FindingWriterTest extends IntegrationTest {
         jdbc.queryForObject(
             "SELECT count(*) FROM findings_assets WHERE asset_id = ?", Long.class, assetId),
         "the asset link must be written with the resolved finding id");
+  }
+
+  @Test
+  @DisplayName("an agent finding is stored with the value the platform displays (#7893)")
+  void given_aSensitiveAgentFinding_should_storeItsDisplayedValue() {
+    // The native upsert skips the JPA callbacks, so the writer must pass the displayed value
+    // itself: search, filters and sorts read it, never the cleartext.
+    findingWriter.saveCompleteFinding(
+        TxCtx.forTenant(ownerTenant),
+        "credentials",
+        "Credentials",
+        "admin:motdepasse",
+        new String[0],
+        injectId,
+        "writer probe",
+        assetId,
+        new String[0]);
+
+    assertEquals(
+        "admin:mo" + MASK,
+        jdbc.queryForObject(
+            "SELECT finding_value_display FROM findings WHERE tenant_id = ? AND finding_value = ?",
+            String.class,
+            ownerTenant,
+            "admin:motdepasse"));
+  }
+
+  @Test
+  @DisplayName("a row written before the displayed value existed gets it on its next detection")
+  void given_aRowWithoutDisplayedValue_should_getItWhenDetectedAgain() {
+    // The seeded row was inserted without finding_value_display, like a row written by a pod of
+    // the previous version during a rolling deploy. The conflict branch must fill it.
+    findingWriter.saveCompleteFinding(
+        TxCtx.forTenant(ownerTenant),
+        field,
+        type,
+        value,
+        new String[0],
+        injectId,
+        "writer probe",
+        assetId,
+        new String[0]);
+
+    assertEquals(
+        value,
+        jdbc.queryForObject(
+            "SELECT finding_value_display FROM findings WHERE tenant_id = ? AND finding_value = ?",
+            String.class,
+            ownerTenant,
+            value));
   }
 
   @Test

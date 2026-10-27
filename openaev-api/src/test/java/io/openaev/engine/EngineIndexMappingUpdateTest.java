@@ -42,7 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>the boot-time setup is private to the drivers and runs when one builds its client: {@link
- *       #runBootSetup} calls the driver matching {@code engine.engine-selector};
+ *       #runBootSetup} calls the driver matching the detected engine type;
  *   <li>creating an index with a legacy mapping, writing a raw document into it and reading its
  *       mapping go through raw HTTP ({@link #engineRequest}): these calls are the same REST API on
  *       Elasticsearch 8, Elasticsearch 9 and OpenSearch.
@@ -110,13 +110,13 @@ class EngineIndexMappingUpdateTest extends IntegrationTest {
    * client, which is closed right away.
    */
   private void runBootSetup() throws Exception {
-    switch (engineConfig.getEngineSelector().toLowerCase()) {
-      case "elk" -> es8Driver.elasticClient()._transport().close();
-      case "elk9" -> es9Driver.elasticClient()._transport().close();
-      case "opensearch" -> openSearchDriver.opensearchClient()._transport().close();
+    switch (engineService.getEngineType()) {
+      case ELASTICSEARCH_8 -> es8Driver.elasticClient()._transport().close();
+      case ELASTICSEARCH_9 -> es9Driver.elasticClient()._transport().close();
+      case OPENSEARCH -> openSearchDriver.opensearchClient()._transport().close();
       default ->
           throw new IllegalStateException(
-              "Unsupported engine selector: " + engineConfig.getEngineSelector());
+              "Unsupported engine type: " + engineService.getEngineType());
     }
   }
 
