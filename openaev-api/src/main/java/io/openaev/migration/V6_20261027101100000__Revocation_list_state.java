@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
  * older one is refused), when it was issued and downloaded, and when it expires.
  */
 @Component
-public class V6_20261021020000000__Revocation_list_state extends BaseJavaMigration {
+public class V6_20261027101100000__Revocation_list_state extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

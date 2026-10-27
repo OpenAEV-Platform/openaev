@@ -24,7 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Payload versions (ADR-011). Every version is created here, under a lock on its identity, and this
+ * Payload versions (ADR-018). Every version is created here, under a lock on its identity, and this
  * is the only writer of the identity's latest pointer.
  */
 @Service

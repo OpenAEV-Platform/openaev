@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** Tenant revocations (F34): a tenant admin revokes one of its payloads. */
 @Component
-public class V6_20261012100000000__Tenant_content_revocations extends BaseJavaMigration {
+public class V6_20261027100400000__Tenant_content_revocations extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

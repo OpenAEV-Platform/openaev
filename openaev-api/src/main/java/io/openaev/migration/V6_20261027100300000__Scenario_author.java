@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** Scenario author (F33): the user who made it, or the organization that published it. */
 @Component
-public class V6_20261009160000000__Scenario_author extends BaseJavaMigration {
+public class V6_20261027100300000__Scenario_author extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

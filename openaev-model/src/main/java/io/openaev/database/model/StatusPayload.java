@@ -49,7 +49,7 @@ public class StatusPayload implements Serializable {
   @JsonProperty("payload_external_id")
   private String externalId;
 
-  // ADR-011: the version that ran and the hash of the content computed when it ran.
+  // ADR-018: the version that ran and the hash of the content computed when it ran.
   @JsonProperty("payload_id")
   private String payloadId;
 

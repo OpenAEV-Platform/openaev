@@ -63,7 +63,7 @@ public class PayloadUpsertService {
   /**
    * Legacy collector upsert. A catalogue payload with this external ID wins and is not touched.
    * Otherwise it writes to the one local identity of this collector and ID: a new version only when
-   * the hashed content changes, the version row itself never changes (ADR-011).
+   * the hashed content changes, the version row itself never changes (ADR-018).
    */
   @Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(TxCtx ctx, PayloadUpsertInput input) {

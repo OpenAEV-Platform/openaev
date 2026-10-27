@@ -8,7 +8,7 @@ import java.util.Set;
 
 /**
  * The client's configuration of a catalogue scenario: never written by an update or a rollback,
- * never in a revision. Everything else the catalogue manages is content (ADR-011, section 3).
+ * never in a revision. Everything else the catalogue manages is content (ADR-018, section 3).
  */
 public final class ScenarioConfigFields {
 

@@ -442,7 +442,7 @@ public class PayloadService {
         duplicated, injectorContract);
   }
 
-  /** A new payload: its own local identity and first version (ADR-011). */
+  /** A new payload: its own local identity and first version (ADR-018). */
   public <T extends Payload> T createFirstVersion(T payload) {
     @SuppressWarnings("unchecked")
     T saved =
@@ -454,7 +454,7 @@ public class PayloadService {
     return saved;
   }
 
-  /** A row with the content of this version, to change and add as the next one (ADR-011). */
+  /** A row with the content of this version, to change and add as the next one (ADR-018). */
   public Payload copyForNewVersion(Payload current) {
     Payload copy = generateDuplicatedPayload(current);
     copy.setName(current.getName());
