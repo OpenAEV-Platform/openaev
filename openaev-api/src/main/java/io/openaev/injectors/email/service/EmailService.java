@@ -7,7 +7,6 @@ import static io.openaev.helper.TemplateHelper.buildContextualContent;
 import static java.util.stream.Collectors.joining;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.DataAttachment;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTraceAction;
@@ -33,17 +32,9 @@ public class EmailService {
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
 
-  @Value("${openaev.mail.imap.username}")
-  private String imapUsername;
-
-  private final OpenAEVConfig openAEVConfig;
   private final EmailPgp emailPgp;
   private final ImapService imapService;
   private final SmtpService smtpService;
-
-  public String getPlatformSender() {
-    return imapEnabled ? imapUsername : openAEVConfig.getDefaultMailer();
-  }
 
   public void sendEmail(
       Execution execution,

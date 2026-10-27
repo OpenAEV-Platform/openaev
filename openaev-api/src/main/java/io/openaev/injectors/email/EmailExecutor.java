@@ -10,6 +10,7 @@ import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.model.ExecutionProcess;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
@@ -140,15 +141,13 @@ public class EmailExecutor extends Injector {
       throw new UnsupportedOperationException("Email needs at least one user");
     }
     Exercise exercise = injection.getInjection().getExercise();
-    String from = emailService.getPlatformSender();
-    String fromName =
-        exercise != null
-            ? exercise.getFromName()
-            : this.context.getOpenAEVConfig().getDefaultMailerName();
+    PlatformMailSender platformMailSender = this.context.getPlatformMailSender();
+    String from = platformMailSender.getEmail();
+    String fromName = exercise != null ? exercise.getFromName() : platformMailSender.getName();
     List<String> replyTos =
         exercise != null
             ? exercise.getReplyTos()
-            : new ArrayList<>(List.of(this.context.getOpenAEVConfig().getDefaultReplyTo()));
+            : new ArrayList<>(List.of(platformMailSender.getReplyTo()));
     //noinspection SwitchStatementWithTooFewBranches
     switch (inject
         .getInjectorContract()

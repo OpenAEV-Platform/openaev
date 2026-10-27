@@ -5,7 +5,6 @@ import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.database.specification.TeamSpecification.fromScenario;
-import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
@@ -26,7 +25,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -46,6 +44,7 @@ import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
@@ -104,7 +103,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.function.TriFunction;
 import org.hibernate.Hibernate;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -122,13 +120,7 @@ import org.springframework.validation.annotation.Validated;
 public class ScenarioService {
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
-
-  @Value("${openaev.mail.imap.username}")
-  private String imapUsername;
-
-  @Resource private OpenAEVConfig openAEVConfig;
+  @Resource private PlatformMailSender platformMailSender;
   @Resource private OrganizationService organizationService;
 
   @PersistenceContext private EntityManager entityManager;
@@ -225,14 +217,10 @@ public class ScenarioService {
   /** Fills in the platform email defaults for the fields the caller left empty. */
   public void computeEmails(@NotNull Scenario scenario) {
     if (!hasText(scenario.getFromName())) {
-      scenario.setFromName(
-          this.imapEnabled
-              ? resolveFromName(null, this.imapUsername)
-              : this.openAEVConfig.getDefaultMailerName());
+      scenario.setFromName(platformMailSender.getName());
     }
     if (scenario.getReplyTos() == null || scenario.getReplyTos().isEmpty()) {
-      String defaultReplyTo =
-          this.imapEnabled ? this.imapUsername : this.openAEVConfig.getDefaultReplyTo();
+      String defaultReplyTo = platformMailSender.getReplyTo();
       scenario.setReplyTos(
           hasText(defaultReplyTo) ? new ArrayList<>(List.of(defaultReplyTo)) : new ArrayList<>());
     }

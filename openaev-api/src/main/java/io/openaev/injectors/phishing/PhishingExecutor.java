@@ -111,7 +111,7 @@ public class PhishingExecutor extends Injector {
     List<String> replyTos =
         exercise != null
             ? exercise.getReplyTos()
-            : List.of(this.context.getOpenAEVConfig().getDefaultReplyTo());
+            : List.of(this.context.getPlatformMailSender().getReplyTo());
 
     // Persist the expectations before any trackable link is published: createResult commits each
     // per-recipient tracking token before its email is sent, so an early recipient can open/click
@@ -174,7 +174,9 @@ public class PhishingExecutor extends Injector {
 
   private String resolveFrom(PhishingContent content, PhishingEmailTemplate emailTemplate) {
     return StringUtils.firstNonBlank(
-        content.getFromEmail(), emailTemplate.getFromEmail(), emailService.getPlatformSender());
+        content.getFromEmail(),
+        emailTemplate.getFromEmail(),
+        this.context.getPlatformMailSender().getEmail());
   }
 
   private String resolveFromName(
@@ -183,7 +185,7 @@ public class PhishingExecutor extends Injector {
         content.getFromName(),
         emailTemplate.getFromName(),
         exercise != null ? exercise.getFromName() : null,
-        this.context.getOpenAEVConfig().getDefaultMailerName());
+        this.context.getPlatformMailSender().getName());
   }
 
   /**

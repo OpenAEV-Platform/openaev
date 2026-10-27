@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.scenario.ScenarioService;
@@ -58,14 +58,14 @@ class ScenarioServiceUnitTest {
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
   @Mock private HealthCheckUtils healthCheckUtils;
-  @Mock private OpenAEVConfig openAEVConfig;
+  @Mock private PlatformMailSender platformMailSender;
   @InjectMocks private ScenarioService scenarioService;
 
   @BeforeEach
   void injectResourceFields() {
-    // openAEVConfig is a @Resource field, not a constructor argument: @InjectMocks only performs
-    // constructor injection here, so it has to be wired explicitly.
-    ReflectionTestUtils.setField(scenarioService, "openAEVConfig", openAEVConfig);
+    // platformMailSender is a @Resource field, not a constructor argument: @InjectMocks only
+    // performs constructor injection here, so it has to be wired explicitly.
+    ReflectionTestUtils.setField(scenarioService, "platformMailSender", platformMailSender);
   }
 
   @Test
@@ -205,8 +205,8 @@ class ScenarioServiceUnitTest {
     void given_a_scenario_without_emails_should_apply_the_platform_defaults() {
       // -- PREPARE --
       Scenario scenario = new Scenario();
-      when(openAEVConfig.getDefaultMailerName()).thenReturn("Default sender");
-      when(openAEVConfig.getDefaultReplyTo()).thenReturn("reply@mail.com");
+      when(platformMailSender.getName()).thenReturn("Default sender");
+      when(platformMailSender.getReplyTo()).thenReturn("reply@mail.com");
 
       // -- EXECUTE --
       scenarioService.computeEmails(scenario);
@@ -221,7 +221,7 @@ class ScenarioServiceUnitTest {
       // -- PREPARE --
       Scenario scenario = new Scenario();
       scenario.setReplyTos(null);
-      when(openAEVConfig.getDefaultReplyTo()).thenReturn("reply@mail.com");
+      when(platformMailSender.getReplyTo()).thenReturn("reply@mail.com");
 
       // -- EXECUTE --
       scenarioService.computeEmails(scenario);

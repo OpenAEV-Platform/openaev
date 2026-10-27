@@ -23,6 +23,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.form.*;
@@ -80,13 +81,8 @@ public class PlatformSettingsService {
   @Value("${server.servlet.session.timeout:1440m}")
   private java.time.Duration sessionTimeout;
 
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
-
-  @Value("${openaev.mail.imap.username}")
-  private String imapUsername;
-
   @Resource private OpenAEVConfig openAEVConfig;
+  @Resource private PlatformMailSender platformMailSender;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   @Resource private RabbitmqService rabbitmqService;
   @Autowired private LicenseCacheManager licenseCacheManager;
@@ -286,14 +282,9 @@ public class PlatformSettingsService {
 
     // Authenticated-only fields
     platformSettings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
-    if (this.imapEnabled) {
-      platformSettings.setDefaultMailer(this.imapUsername);
-      platformSettings.setDefaultReplyTo(this.imapUsername);
-    } else {
-      platformSettings.setDefaultMailer(openAEVConfig.getDefaultMailer());
-      platformSettings.setDefaultReplyTo(openAEVConfig.getDefaultReplyTo());
-    }
-    platformSettings.setDefaultMailerName(openAEVConfig.getDefaultMailerName());
+    platformSettings.setDefaultMailer(platformMailSender.getEmail());
+    platformSettings.setDefaultReplyTo(platformMailSender.getReplyTo());
+    platformSettings.setDefaultMailerName(platformMailSender.getName());
     platformSettings.setSmtpServiceAvailable(
         ofNullable(dbSettings.get(SMTP_SERVICE_AVAILABLE.key()))
             .map(Setting::getValue)

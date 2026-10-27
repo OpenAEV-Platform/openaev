@@ -25,6 +25,7 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.injectors.phishing.model.PhishingContent;
 import io.openaev.injectors.phishing.service.PhishingTrackingService;
 import io.openaev.service.InjectExpectationService;
@@ -54,9 +55,11 @@ class PhishingExecutorTest {
     OpenAEVConfig config = mock(OpenAEVConfig.class);
     when(context.getOpenAEVConfig()).thenReturn(config);
     when(config.getBaseUrl()).thenReturn("https://app.test");
-    when(config.getDefaultReplyTo()).thenReturn("noreply@app.test");
-    when(emailService.getPlatformSender()).thenReturn("mailer@app.test");
-    when(config.getDefaultMailerName()).thenReturn("Mailer");
+    PlatformMailSender platformMailSender = mock(PlatformMailSender.class);
+    when(context.getPlatformMailSender()).thenReturn(platformMailSender);
+    when(platformMailSender.getEmail()).thenReturn("mailer@app.test");
+    when(platformMailSender.getName()).thenReturn("Mailer");
+    when(platformMailSender.getReplyTo()).thenReturn("noreply@app.test");
 
     PhishingExecutor executor =
         new PhishingExecutor(
