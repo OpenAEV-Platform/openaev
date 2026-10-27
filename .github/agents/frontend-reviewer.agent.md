@@ -62,6 +62,11 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 | **Mutable export** | `export let` / `export var` instead of a `const` or a getter/setter function; lint enforces it (`custom-rules/no-mutable-exports`), so flag a new `eslint-disable` of that rule | 🟡 MEDIUM |
 | **Main component export** | A module's main component exported only by name (helpers, constants and hooks modules may use named exports) | 🟢 LOW |
 | **Button convention** | Affirmative confirm not `priority="primary"`, Cancel not `priority="secondary"`, or irreversible delete confirm not `variant="destructive"` (per `frontend.instructions.md`) | 🟡 MEDIUM |
+| **Query cache written by hand** | `setQueryData`, `removeQueries`, an optimistic update or a direct `invalidateQueries` in feature code — describe the change through `useLiveMutation` / `applyChanges` instead (`frontend.instructions.md` → Data Loading & State) | 🟠 HIGH |
+| **Mixed data sources** | A screen migrated to TanStack Query that still reads the same server data from Redux (`useHelper`) or `useDataLoader` | 🟠 HIGH |
+| **Live query without `meta.live`** | A query on a screen meant to refresh live that declares no `meta.live`, or builds it without `liveMeta` (untyped `refs`, type names outside `STREAM_TYPES`) | 🟡 MEDIUM |
+| **Second stream** | A new `EventSource` outside `utils/stream/streamClient.ts` | 🟠 HIGH |
+| **Stream payload read** | A new caller of `onStreamMessage` (or any read of the event `instance`) outside the Redux adapter `useDataLoader.js` — consume `EntityChange` through live queries | 🟠 HIGH |
 | **Props count** | Component with >8 props → suggest decomposition or context | 🟢 LOW |
 
 ## What NOT to Flag

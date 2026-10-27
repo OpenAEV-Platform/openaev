@@ -10,6 +10,11 @@ export const fetchExecutors = (isNextIncluded = false) => (dispatch: Dispatch) =
   return getReferential(schema.arrayOfExecutors, uri)(dispatch);
 };
 
+// Plain read (no store dispatch) backing the query cache.
+export const listExecutors = (isNextIncluded = false, notifyError = true) => {
+  return simpleCall(`${EXECUTOR_URI}?include_next=${isNextIncluded}`, undefined, notifyError);
+};
+
 export const fetchExecutor = (executorId: string) => (dispatch: Dispatch) => {
   const uri = `${EXECUTOR_URI}/${executorId}`;
   return getReferential(schema.executor, uri)(dispatch);

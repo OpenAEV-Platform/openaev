@@ -30,6 +30,8 @@ import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import useRefreshMe from './utils/hooks/useRefreshMe';
 import useTenant, { pickDefaultTenantId } from './utils/hooks/useTenant';
 import PermissionsProvider from './utils/permissions/PermissionsProvider';
+import AppQueryProvider from './utils/query/AppQueryProvider';
+import PublicQueryProvider from './utils/query/PublicQueryProvider';
 import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
@@ -46,6 +48,20 @@ const PhishingPage = lazy(() => import('./public/components/phishing/PhishingPag
 const SimulationChallengesPreview = lazy(() => import('./admin/components/simulations/simulation/challenges/SimulationChallengesPreview'));
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
 const ReportingRender = lazy(() => import('./admin/components/reporting/render/ReportingRender'));
+
+// The cache belongs to one user in one tenant: a change of either drops it.
+const sessionCacheKey = (me: { user_id: string }) => `${me.user_id}|${extractTenantFromUrl() ?? ''}`;
+
+// A change of rights refetches every query, without dropping the cache nor remounting the tree.
+const rightsKey = (me: {
+  user_admin?: boolean;
+  user_capabilities?: string[];
+  user_grants?: unknown;
+}) => [
+  me.user_admin ? 'admin' : '',
+  [...(me.user_capabilities ?? [])].sort().join(','),
+  JSON.stringify(me.user_grants ?? null),
+].join('|');
 
 const Root = () => {
   const { logged, me, settings, tenantAccessDenied } = useHelper((helper: LoggedHelper) => {
@@ -114,7 +130,9 @@ const Root = () => {
   if (!logged || !me || !settings || isReachable === undefined) {
     return (
       <Suspense fallback={<Loader />}>
-        <RootPublic />
+        <PublicQueryProvider>
+          <RootPublic />
+        </PublicQueryProvider>
       </Suspense>
     );
   }
@@ -155,55 +173,57 @@ const Root = () => {
   }
 
   return (
-    <PermissionsProvider capabilities={me.user_capabilities} grants={me.user_grants} isAdmin={me.user_admin}>
-      <UserContext.Provider value={userContextValue}>
-        <StyledEngineProvider injectFirst>
-          <ConnectedIntlProvider>
-            <ConnectedThemeProvider>
-              <EnterpriseEditionProvider>
-                <CssBaseline />
-                <Message />
-                <ErrorHandler />
-                <EnterpriseEditionAgreementDialog />
-                {(settings.platform_session_idle_timeout ?? 0) > 0 && <TimeoutLock />}
-                <SystemBanners settings={settings} />
-                <LicenseBanner settings={settings} />
-                <StartTrialBanner settings={settings} />
-                <Suspense fallback={<Loader />}>
-                  <Routes>
-                    <Route
-                      path=""
-                      element={logged.isOnlyPlayer ? <Navigate to="private" replace={true} />
-                        : <Navigate to="admin" replace={true} />}
-                    />
-                    <Route path="private/*" element={errorWrapper(IndexPrivate)()} />
-                    {/* Add challenge preview routes here to ensure they are rendered without the top & left bar */}
-                    <Route path="admin/simulations/:exerciseId/challenges" element={errorWrapper(SimulationChallengesPreview)()} />
-                    <Route path="admin/scenarios/:scenarioId/challenges" element={errorWrapper(ScenarioChallengesPreview)()} />
-                    {/* Standalone print-ready report render (headless PDF capture + in-app preview) */}
-                    <Route path="reporting/:reportingId/render" element={errorWrapper(ReportingRender)()} />
-                    <Route path="redirect/*" element={errorWrapper(XtmHubRedirect)()} />
-                    <Route path="admin/*" element={errorWrapper(IndexAdmin)()} />
-                    {/* Routes from /public/Index that need to be accessible for logged user are duplicated here */}
-                    <Route path="comcheck/:statusId" element={errorWrapper(Comcheck)()} />
-                    <Route path="channels/:exerciseId/:channelId" element={errorWrapper(Channel)()} />
-                    <Route path="challenges/:exerciseId" element={errorWrapper(Challenges)()} />
-                    <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
-                    <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
-                    <Route path="url/access" element={errorWrapper(UrlAccess)()} />
-                    {/* Benign, tenant-less phishing landing route (tenant resolved server-side from token) */}
-                    <Route path="auth/:token" element={errorWrapper(PhishingPage)()} />
-                    <Route path="phishing/:tenantId/:token" element={errorWrapper(PhishingPage)()} />
-                    {/* Not found */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
-              </EnterpriseEditionProvider>
-            </ConnectedThemeProvider>
-          </ConnectedIntlProvider>
-        </StyledEngineProvider>
-      </UserContext.Provider>
-    </PermissionsProvider>
+    <AppQueryProvider key={sessionCacheKey(me)} rightsKey={rightsKey(me)}>
+      <PermissionsProvider capabilities={me.user_capabilities} grants={me.user_grants} isAdmin={me.user_admin}>
+        <UserContext.Provider value={userContextValue}>
+          <StyledEngineProvider injectFirst>
+            <ConnectedIntlProvider>
+              <ConnectedThemeProvider>
+                <EnterpriseEditionProvider>
+                  <CssBaseline />
+                  <Message />
+                  <ErrorHandler />
+                  <EnterpriseEditionAgreementDialog />
+                  {(settings.platform_session_idle_timeout ?? 0) > 0 && <TimeoutLock />}
+                  <SystemBanners settings={settings} />
+                  <LicenseBanner settings={settings} />
+                  <StartTrialBanner settings={settings} />
+                  <Suspense fallback={<Loader />}>
+                    <Routes>
+                      <Route
+                        path=""
+                        element={logged.isOnlyPlayer ? <Navigate to="private" replace={true} />
+                          : <Navigate to="admin" replace={true} />}
+                      />
+                      <Route path="private/*" element={errorWrapper(IndexPrivate)()} />
+                      {/* Add challenge preview routes here to ensure they are rendered without the top & left bar */}
+                      <Route path="admin/simulations/:exerciseId/challenges" element={errorWrapper(SimulationChallengesPreview)()} />
+                      <Route path="admin/scenarios/:scenarioId/challenges" element={errorWrapper(ScenarioChallengesPreview)()} />
+                      {/* Standalone print-ready report render (headless PDF capture + in-app preview) */}
+                      <Route path="reporting/:reportingId/render" element={errorWrapper(ReportingRender)()} />
+                      <Route path="redirect/*" element={errorWrapper(XtmHubRedirect)()} />
+                      <Route path="admin/*" element={errorWrapper(IndexAdmin)()} />
+                      {/* Routes from /public/Index that need to be accessible for logged user are duplicated here */}
+                      <Route path="comcheck/:statusId" element={errorWrapper(Comcheck)()} />
+                      <Route path="channels/:exerciseId/:channelId" element={errorWrapper(Channel)()} />
+                      <Route path="challenges/:exerciseId" element={errorWrapper(Challenges)()} />
+                      <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
+                      <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
+                      <Route path="url/access" element={errorWrapper(UrlAccess)()} />
+                      {/* Benign, tenant-less phishing landing route (tenant resolved server-side from token) */}
+                      <Route path="auth/:token" element={errorWrapper(PhishingPage)()} />
+                      <Route path="phishing/:tenantId/:token" element={errorWrapper(PhishingPage)()} />
+                      {/* Not found */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </EnterpriseEditionProvider>
+              </ConnectedThemeProvider>
+            </ConnectedIntlProvider>
+          </StyledEngineProvider>
+        </UserContext.Provider>
+      </PermissionsProvider>
+    </AppQueryProvider>
 
   );
 };

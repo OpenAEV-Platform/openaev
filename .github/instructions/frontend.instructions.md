@@ -1,6 +1,6 @@
 ---
 applyTo: "openaev-front/**/*.ts,openaev-front/**/*.tsx,openaev-front/**/*.js,openaev-front/**/*.jsx"
-description: "Frontend React/TypeScript conventions: components, Filigran Design System, MUI, forms, permissions, i18n, Redux"
+description: "Frontend React/TypeScript conventions: components, Filigran Design System, MUI, forms, permissions, i18n, data loading (TanStack Query, legacy Redux)"
 ---
 
 # Frontend Conventions
@@ -88,6 +88,18 @@ Docs: <https://silver-doodle-mnyv84e.pages.github.io> (machine-readable: `/llms-
 
 ## Data Loading & State
 
+- **Server data** (new pattern): TanStack Query. Redux (`useDataLoader` + `useHelper`) stays for existing screens only; a migrated screen reads its server data from queries alone, never from both
+- **Query options**: one `actions/{feature}/{feature}-queries.ts` per feature, with a key factory (`{feature}Keys`) and `queryOptions` (`{feature}Queries.list()`, `.detail(id)`). Reference: `actions/executors/executor-queries.ts`, used by `admin/components/agents/Agents.tsx`
+- **Live queries**: a query shown on a live screen sets `meta: liveMeta<TData>({ refs, collections, throttleMs })` (`utils/query/live.ts`): `refs(data)` lists the entities it shows (a change on one refetches it), `collections` the stream types it lists (a create or delete of that type refetches it), `throttleMs` the minimum delay between two refetches (1 s by default). Type names come from `STREAM_TYPES` (`utils/stream/streamTypes.ts`). A query without `meta.live` is never refreshed by the stream
+- **Invalidation only**: never write to the cache (`setQueryData`, `removeQueries`, optimistic updates) and never call `invalidateQueries` directly: `utils/query/liveRouter.ts` is its only caller. A mutation uses `useLiveMutation({ mutationFn, changes })` and describes what changed; the router refetches the matching queries, the same way it does for stream events, before the mutation resolves:
+  ```ts
+  useLiveMutation({ mutationFn: createTag, changes: tag => [{ type: STREAM_TYPES.TAGS, id: tag.tag_id, action: 'create' }] });
+  useLiveMutation({ mutationFn: deleteTag, changes: (_result, tagId) => [{ type: STREAM_TYPES.TAGS, id: tagId, action: 'delete' }] });
+  ```
+  `useApplyChanges()` does the same outside a mutation (e.g. after an import that changed many entities)
+- **Errors**: a `queryFn` calls its action with error notification off (`simpleCall(uri, undefined, false)`): the query cache notifies a failure once, only when the query has no data and it is not a 404. A 404 on a detail is the deleted state (`isNotFoundError(error)` from `utils/query/httpErrors.ts`). A `mutationFn` keeps the default toast of its action
+- **Paginated lists stay on `PaginationComponentV2`** for now: it owns its fetching (`fetch` / `setContent`), so a paginated screen moves to queries only once the component can be driven by a query
+- **Stream**: `utils/stream/streamClient.ts` owns the one platform stream, kept open by the admin and private layouts (`useLiveStream`). Never open another `EventSource`. Consume entity changes through live queries, or `subscribeStreamEvent` for a named event; only the Redux adapter (`useDataLoader.js`) reads raw messages (`onStreamMessage`)
 - **Paginated lists** (new pattern): `useQueryableWithLocalStorage` + `PaginationComponentV2` + `SortHeadersComponentV2`
 - **Feature hook**: `use{Feature}s.ts` with `useState` + `useCallback` for local state (add/update/remove)
 - **Actions**: simple API calls in `actions/{feature}/{feature}-actions.ts` using `simpleCall` / `simplePostCall`
