@@ -216,6 +216,19 @@ public interface FindingRepository
   // computed by SensitiveValueMaskingUtils.maskIfNeededFailClosed. The conflict branch writes it
   // again, so a row written before the column existed gets it the next time the finding is
   // detected.
+  //
+  // Being native, the upsert and the asset link skip ModelBaseListener: FindingWriter publishes
+  // the lifecycle event itself, which notification triggers and the stream depend on. "inserted"
+  // tells a create from an update: xmax is 0 only on a row version this statement inserted, the
+  // conflict branch stamps it with its own transaction id. insertFindingAsset returns 0 when the
+  // link already existed, which tells a new asset from a repeated report.
+
+  /** Projection for {@link #upsertFinding}. */
+  interface UpsertedFinding {
+    String getId();
+
+    boolean getInserted();
+  }
 
   @Query(
       value =
@@ -230,10 +243,10 @@ public interface FindingRepository
         DO UPDATE SET finding_name = EXCLUDED.finding_name,
           finding_value_display = EXCLUDED.finding_value_display,
           finding_updated_at = now()
-        RETURNING finding_id
+        RETURNING finding_id AS id, (xmax = 0) AS inserted
         """,
       nativeQuery = true)
-  String upsertFinding(
+  UpsertedFinding upsertFinding(
       @Param("findingField") String findingField,
       @Param("findingType") String findingType,
       @Param("findingValue") String findingValue,
@@ -249,7 +262,7 @@ public interface FindingRepository
           "INSERT INTO findings_assets (finding_id, asset_id) VALUES (:findingId, :assetId)"
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
-  void insertFindingAsset(@Param("findingId") String findingId, @Param("assetId") String assetId);
+  int insertFindingAsset(@Param("findingId") String findingId, @Param("assetId") String assetId);
 
   @Modifying
   @Query(
