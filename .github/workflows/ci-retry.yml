@@ -1,7 +1,12 @@
 name: "[Core] Auto-Retry Failed CI"
 
-# Triggers when core-ci or nightly-ci completes with failure.
+# Triggers when core-ci or nightly-ci completes unsuccessfully.
 # Retries failed jobs up to twice, so back-to-back infra flakes are still covered.
+#
+# A job killed by its timeout-minutes limit does not make the run "failure": GitHub
+# reports the run as "cancelled", exactly like a manual cancel or a superseded run.
+# Cancelled runs are therefore retried only when one of their jobs hit the timeout,
+# which is told apart from the other cancellations by its check-run annotation.
 
 on:
   workflow_run:
@@ -12,25 +17,46 @@ on:
 
 permissions:
   actions: write
+  checks: read
 
 jobs:
   retry:
     name: "🔄 Retry Failed Jobs"
     if: >-
       ${{
-        github.event.workflow_run.conclusion == 'failure' &&
+        (github.event.workflow_run.conclusion == 'failure' ||
+         github.event.workflow_run.conclusion == 'cancelled') &&
         github.event.workflow_run.run_attempt <= 2
       }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 1
+    timeout-minutes: 5
     steps:
       - name: Re-run failed jobs
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_NAME: ${{ github.event.workflow_run.name }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
-          RUN_ID="${{ github.event.workflow_run.id }}"
-          ATTEMPT="${{ github.event.workflow_run.run_attempt }}"
-          echo "🔄 [Core] CI run #${RUN_ID} failed on attempt ${ATTEMPT} — retrying failed jobs..."
-          gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/rerun-failed-jobs" \
-            --method POST
+          if [ "${CONCLUSION}" = "cancelled" ]; then
+            timed_out=false
+            for job_id in $(gh api --paginate \
+              "repos/${REPO}/actions/runs/${RUN_ID}/attempts/${ATTEMPT}/jobs" \
+              --jq '.jobs[] | select(.conclusion == "cancelled") | .id'); do
+              if gh api "repos/${REPO}/check-runs/${job_id}/annotations" --jq '.[].message' \
+                | grep -q 'exceeded the maximum execution time'; then
+                timed_out=true
+                break
+              fi
+            done
+            if [ "${timed_out}" != "true" ]; then
+              echo "⏭️ ${RUN_NAME} run #${RUN_ID} was cancelled without a job timeout — not retrying."
+              exit 0
+            fi
+            echo "⏱️ ${RUN_NAME} run #${RUN_ID} had a job time out."
+          fi
+          echo "🔄 ${RUN_NAME} run #${RUN_ID} failed on attempt ${ATTEMPT} — retrying failed jobs..."
+          gh api "repos/${REPO}/actions/runs/${RUN_ID}/rerun-failed-jobs" --method POST
           echo "✅ Re-run triggered (attempt $((ATTEMPT + 1)))"
