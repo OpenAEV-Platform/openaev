@@ -23,6 +23,7 @@ import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
 import io.openaev.utils.SemanticVersion;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -166,7 +167,7 @@ public class CatalogPayloadService {
     boolean autoInstall = autoInstall(tenantId);
     Set<String> uninstalled = payloadVersionService.findUninstalledExternalIds();
     Map<String, Set<String>> installed = payloadVersionService.findInstalledManagedVersions();
-    for (CatalogManifest.Item released : payloadItems(manifest)) {
+    for (Released released : releasedPayloads(manifest)) {
       String externalId = released.externalId();
       if (uninstalled.contains(externalId)
           || installed.getOrDefault(externalId, Set.of()).contains(released.version())) {
@@ -275,17 +276,36 @@ public class CatalogPayloadService {
         .toList();
   }
 
-  private static List<CatalogManifest.Item> payloadItems(CatalogManifest manifest) {
-    return Optional.ofNullable(manifest.items()).orElse(List.of()).stream()
-        .filter(item -> item.type() != null && "payload".equalsIgnoreCase(item.type()))
-        .sorted(Comparator.comparing(CatalogManifest.Item::version, SemanticVersion.ORDER))
+  private record Released(String externalId, String version) {}
+
+  // Payload items of older manifests, then the payload versions a release lists apart.
+  private static List<Released> releasedPayloads(CatalogManifest manifest) {
+    Stream<Released> items =
+        Optional.ofNullable(manifest.items()).orElse(List.of()).stream()
+            .filter(item -> item.type() != null && "payload".equalsIgnoreCase(item.type()))
+            .map(item -> new Released(item.externalId(), item.version()));
+    Stream<Released> versions =
+        Optional.ofNullable(manifest.payloads()).orElse(List.of()).stream()
+            .map(version -> new Released(version.openaevId(), version.version()));
+    return Stream.concat(items, versions)
+        .filter(released -> released.externalId() != null && isVersion(released.version()))
+        .sorted(Comparator.comparing(Released::version, SemanticVersion.ORDER))
         .toList();
   }
 
-  private static boolean isLatest(CatalogManifest.Item item, CatalogManifest manifest) {
-    return payloadItems(manifest).stream()
+  private static boolean isVersion(String version) {
+    try {
+      SemanticVersion.parse(version);
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  private static boolean isLatest(Released item, CatalogManifest manifest) {
+    return releasedPayloads(manifest).stream()
         .filter(other -> other.externalId().equals(item.externalId()))
-        .map(CatalogManifest.Item::version)
+        .map(Released::version)
         .max(SemanticVersion.ORDER)
         .map(item.version()::equals)
         .orElse(true);

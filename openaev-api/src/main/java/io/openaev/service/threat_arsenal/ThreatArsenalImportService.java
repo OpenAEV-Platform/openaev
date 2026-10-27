@@ -61,6 +61,9 @@ public class ThreatArsenalImportService {
       @NotNull PayloadIdentity identity,
       @NotNull String version)
       throws Exception {
+    if (isVersionFile(archive)) {
+      return payloadImportService.importCatalogVersionFile(ctx, archive, identity, version);
+    }
     if (!isInjectorContractExport(archive)) {
       PayloadImportService.PayloadImportResult result =
           payloadImportService.importCatalogPayload(ctx, archive, identity, version);
@@ -153,6 +156,16 @@ public class ThreatArsenalImportService {
    */
   private boolean isInjectorContractExport(MultipartFile file) throws Exception {
     return isInjectorContractExport(file.getBytes());
+  }
+
+  // A release sends a payload version as a plain JSON file, not a zip.
+  private static boolean isVersionFile(byte[] archive) {
+    for (byte b : archive) {
+      if (!Character.isWhitespace(b)) {
+        return b == '{';
+      }
+    }
+    return false;
   }
 
   private boolean isInjectorContractExport(byte[] archive) throws Exception {
