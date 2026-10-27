@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 import { fetchCatalogScenarios } from '../../../actions/catalog/scenario-catalog-actions';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../components/common/marketplace/MarketplaceFacetSidebar';
 import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
+import MarketplaceLoadMore from '../../../components/common/marketplace/MarketplaceLoadMore';
 import MarketplaceSortSelect from '../../../components/common/marketplace/MarketplaceSortSelect';
+import MarketplaceViewToggle from '../../../components/common/marketplace/MarketplaceViewToggle';
 import useAuthorFacetSection from '../../../components/common/marketplace/useAuthorFacetSection';
 import useMarketplaceView from '../../../components/common/marketplace/useMarketplaceView';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -32,7 +34,9 @@ const SORT_OPTIONS = [
   },
 ];
 
-const ScenariosActive = () => {
+interface Props { tabs?: ReactNode }
+
+const ScenariosActive = ({ tabs }: Props) => {
   const { t } = useFormatter();
   const canManage = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios:view-mode');
@@ -46,16 +50,16 @@ const ScenariosActive = () => {
 
   const facets: MarketplaceFacet[] = [
     {
-      filterKey: 'scenario_severity',
-      label: 'Severity',
-      values: SCENARIO_SEVERITIES,
-      valueLabel: value => t(severityLabelKey(value)),
-    },
-    {
       filterKey: 'scenario_category',
       label: 'Category',
       values: [...scenarioCategories.keys()],
       valueLabel: value => t(scenarioCategories.get(value) ?? value),
+    },
+    {
+      filterKey: 'scenario_severity',
+      label: 'Severity',
+      values: SCENARIO_SEVERITIES,
+      valueLabel: value => t(severityLabelKey(value)),
     },
     {
       filterKey: 'scenario_type',
@@ -72,7 +76,7 @@ const ScenariosActive = () => {
 
   const items = {
     scenarios: active.scenarios,
-    loading: active.loading,
+    loading: active.loading && active.searchPaginationInput.page === 0,
     canManage,
     numberOfSelectedElements: selection.numberOfSelectedElements,
     isSelected: selection.isSelected,
@@ -84,28 +88,13 @@ const ScenariosActive = () => {
 
   return (
     <MarketplaceBrowser
+      tabs={tabs}
       hero={(
         <MarketplaceHero
           title={t('Scenarios')}
-          totalLabel={t('total scenarios')}
-          totalElements={active.totalElements}
-          stats={[
-            {
-              id: 'catalog',
-              label: t('From the catalog'),
-              value: [...catalogItems.values()].filter(item => (item.catalog_item_installed_versions ?? []).length > 0).length,
-            },
-            {
-              id: 'updates',
-              label: t('Update available'),
-              value: [...catalogItems.values()].filter(item => (item.catalog_item_installed_versions ?? []).length > 0
-                && !(item.catalog_item_installed_versions ?? []).includes(item.catalog_item_version)).length,
-            },
-          ]}
+          subtitle={t('Browse, install and version ready-to-run scenarios.')}
           rightSlot={(
             <ScenariosHeaderActions
-              viewMode={viewMode}
-              onViewModeChange={handleViewModeChange}
               totalElements={active.totalElements}
               scenarios={active.scenarios}
               onImported={active.reload}
@@ -125,6 +114,9 @@ const ScenariosActive = () => {
       )}
       toolbar={(
         <PaginationComponentV2
+          resultsCount
+          infiniteScroll
+          topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
           fetch={active.search}
           reloadContentCount={active.reloadCount}
           searchPaginationInput={active.searchPaginationInput}
@@ -139,7 +131,7 @@ const ScenariosActive = () => {
       )}
     >
       {viewMode === 'grid'
-        ? <ScenarioCardGrid {...items} catalogItems={catalogItems} />
+        ? <ScenarioCardGrid scenarios={items.scenarios} loading={items.loading} onDelete={items.onDelete} catalogItems={catalogItems} />
         : (
             <ScenariosActiveList
               {...items}
@@ -148,6 +140,12 @@ const ScenariosActive = () => {
               onToggleSelectAll={selection.handleToggleSelectAll}
             />
           )}
+      <MarketplaceLoadMore
+        hasMore={active.scenarios.length < active.totalElements}
+        loading={active.loading && active.searchPaginationInput.page > 0}
+        paused={active.loading && active.searchPaginationInput.page === 0}
+        onLoadMore={() => active.queryableHelpers.paginationHelpers.handleChangePage(active.searchPaginationInput.page + 1)}
+      />
     </MarketplaceBrowser>
   );
 };

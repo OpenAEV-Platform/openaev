@@ -34,7 +34,22 @@ const useActiveScenarios = () => {
 
   const search = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchScenarios(input).finally(() => setLoading(false));
+    // Loading ends with the results (below): ending it before shows the empty state for a frame.
+    // Category first: the page shows one section per category.
+    return searchScenarios({
+      ...input,
+      sorts: [{
+        property: 'scenario_category',
+        direction: 'ASC',
+      }, ...(input.sorts ?? []).filter(sort => sort.property !== 'scenario_category')],
+    }).catch((error) => {
+      setLoading(false);
+      throw error;
+    });
+  };
+  const setLoadedScenarios = (loaded: Scenario[]) => {
+    setScenarios(loaded);
+    setLoading(false);
   };
 
   const totalElements = queryableHelpers.paginationHelpers.getTotalElements();
@@ -77,7 +92,7 @@ const useActiveScenarios = () => {
 
   return {
     scenarios,
-    setScenarios,
+    setScenarios: setLoadedScenarios,
     loading,
     search,
     reload: () => setReloadCount(count => count + 1),

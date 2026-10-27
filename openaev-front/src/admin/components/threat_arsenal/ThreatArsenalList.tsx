@@ -1,11 +1,16 @@
 import { Box, List, ListItem, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent } from 'react';
+import { Fragment, type FunctionComponent } from 'react';
 
+import { type DomainHelper } from '../../../actions/domains/domain-helper';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { type SortHelpers } from '../../../components/common/queryable/sort/SortHelpers';
+import { useHelper } from '../../../store';
+import { type Domain } from '../../../utils/api-types';
 import computeActionFlags from './threatArsenalActionFlags';
 import { type ThreatArsenalItemsProps } from './ThreatArsenalCardGrid';
+import ThreatArsenalDomainSectionHeader from './ThreatArsenalDomainSectionHeader';
+import { groupByPrimaryDomain } from './threatArsenalDomainSections';
 import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 import ThreatArsenalListRow from './ThreatArsenalListRow';
 
@@ -24,6 +29,7 @@ const ThreatArsenalList: FunctionComponent<Props> = ({
   onDelete,
 }) => {
   const theme = useTheme();
+  const allDomains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
   if (!loading && actions.length === 0) {
     return <>{emptyState}</>;
   }
@@ -86,18 +92,29 @@ const ThreatArsenalList: FunctionComponent<Props> = ({
           </Box>
         </Box>
       ))}
-      {!loading && actions.map(action => (
-        <ThreatArsenalListRow
-          key={action.injector_contract_id}
-          action={action}
-          checked={isChecked(action)}
-          onSelect={() => onSelect(action)}
-          onToggleEntity={event => onToggle(action, event)}
-          onUpdate={onUpdate}
-          onDuplicate={onDuplicate}
-          onDelete={() => onDelete(action.injector_contract_id)}
-          {...computeActionFlags(action)}
-        />
+      {!loading && groupByPrimaryDomain(actions, allDomains).map(section => (
+        <Fragment key={section.domain?.domain_id ?? 'other'}>
+          <Box sx={{
+            paddingTop: 2,
+            paddingBottom: 1,
+          }}
+          >
+            <ThreatArsenalDomainSectionHeader section={section} />
+          </Box>
+          {section.actions.map(action => (
+            <ThreatArsenalListRow
+              key={action.action_payload?.payload_identity_id ?? action.injector_contract_id}
+              action={action}
+              checked={isChecked(action)}
+              onSelect={() => onSelect(action)}
+              onToggleEntity={event => onToggle(action, event)}
+              onUpdate={onUpdate}
+              onDuplicate={onDuplicate}
+              onDelete={() => onDelete(action.injector_contract_id)}
+              {...computeActionFlags(action)}
+            />
+          ))}
+        </Fragment>
       ))}
     </List>
   );
