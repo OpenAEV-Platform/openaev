@@ -69,6 +69,8 @@ Rules: `frontend.instructions.md` → *Design System & Layout*.
 
 ### Step 6 — Check data loading patterns
 
+- **Server data**: TanStack Query with `queryOptions` in `actions/{feature}/{feature}-queries.ts`; a migrated screen never also reads that data from Redux
+- **Live refresh**: invalidation only (`meta.live` on queries, `useLiveMutation` for mutations), no `setQueryData` / direct `invalidateQueries`, no new `EventSource`
 - **Paginated lists**: `useQueryableWithLocalStorage` + `PaginationComponentV2`
 - **Actions**: simple calls in `actions/{feature}/{feature}-actions.ts`
 - **Hooks**: custom hook per feature (e.g., `useOrganizations.ts`) for local state

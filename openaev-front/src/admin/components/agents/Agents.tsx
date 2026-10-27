@@ -1,17 +1,15 @@
 import { Alert, Dialog, DialogContent, DialogTitle, Grid, Step, StepButton, Stepper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { fetchExecutors } from '../../../actions/executors/executor-action';
-import { type ExecutorHelper } from '../../../actions/executors/executor-helper';
+import { executorQueries } from '../../../actions/executors/executor-queries';
 import { type LoggedHelper } from '../../../actions/helper';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type ExecutorOutput } from '../../../utils/api-types';
-import { useAppDispatch } from '../../../utils/hooks';
-import useDataLoader from '../../../utils/hooks/useDataLoader';
 import ExecutorDocumentationLink from './ExecutorDocumentationLink';
 import ExecutorSelector from './ExecutorSelector';
 import InstructionSelector from './InstructionSelector';
@@ -20,6 +18,21 @@ import PlatformSelector from './PlatformSelector';
 const OPENAEV_CALDERA = 'openaev_caldera_executor';
 const OPENAEV_AGENT = 'openaev_agent';
 
+const EXECUTOR_ORDER = {
+  openaev_agent: 0,
+  openaev_caldera: 1,
+  openaev_tanium: 2,
+  openaev_crowdstrike: 3,
+  openaev_sentinelone: 4,
+  openaev_paloaltocortex: 5,
+};
+
+const NO_EXECUTORS: ExecutorOutput[] = [];
+
+const sortExistingExecutors = (executors: ExecutorOutput[]) => executors
+  .filter(executor => executor.existing_executor === true)
+  .sort((a, b) => EXECUTOR_ORDER[a.executor_type as keyof typeof EXECUTOR_ORDER] - EXECUTOR_ORDER[b.executor_type as keyof typeof EXECUTOR_ORDER]);
+
 const Executors = () => {
   // Standard hooks
   const theme = useTheme();
@@ -27,27 +40,14 @@ const Executors = () => {
   const [platform, setPlatform] = useState<null | string>(null);
   const [selectedExecutor, setSelectedExecutor] = useState<null | ExecutorOutput>(null);
   const [activeStep, setActiveStep] = useState(0);
-  const dispatch = useAppDispatch();
 
   // Fetching data
-  const { settings, executors } = useHelper((helper: ExecutorHelper & LoggedHelper) => ({
-    settings: helper.getPlatformSettings(),
-    executors: helper.getExistingExecutors(),
-  }));
-  useDataLoader(() => {
-    dispatch(fetchExecutors());
+  const { settings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  // Live: an executor registered, updated or removed elsewhere shows without reloading the page.
+  const { data: sortedExecutors = NO_EXECUTORS } = useQuery({
+    ...executorQueries.list(),
+    select: sortExistingExecutors,
   });
-
-  const order = {
-    openaev_agent: 0,
-    openaev_caldera: 1,
-    openaev_tanium: 2,
-    openaev_crowdstrike: 3,
-    openaev_sentinelone: 4,
-    openaev_paloaltocortex: 5,
-  };
-
-  const sortedExecutors = executors.sort((a: ExecutorOutput, b: ExecutorOutput) => order[a.executor_type as keyof typeof order] - order[b.executor_type as keyof typeof order]);
   const needInformationStepper = (selectedExecutor?.executor_type === OPENAEV_AGENT || selectedExecutor?.executor_type === OPENAEV_CALDERA);
   const showEEChip = (executor: ExecutorOutput) => !settings.platform_license?.license_is_validated
     && executor.executor_enterprise;
