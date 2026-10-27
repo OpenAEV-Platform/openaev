@@ -13,7 +13,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Three-way merge of a catalogue scenario (ADR-011, section 5)")
+@DisplayName("Three-way merge of a catalogue scenario (ADR-018, section 5)")
 class ScenarioMergeTest {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();

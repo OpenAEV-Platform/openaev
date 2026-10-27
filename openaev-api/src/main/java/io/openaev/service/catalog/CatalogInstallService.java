@@ -57,7 +57,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Installs a catalogue scenario, one instance per scenario (ADR-011), with its targets (F12). Every
+ * Installs a catalogue scenario, one instance per scenario (ADR-018), with its targets (F12). Every
  * payload it runs must be a version its release names, never revoked. Updates and rollbacks go
  * through {@link ScenarioApplyService}.
  */

@@ -175,7 +175,7 @@ class PayloadHttpIsolationTest extends IntegrationTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
-    // A save adds a version (ADR-011): the new row carries the change.
+    // A save adds a version (ADR-018): the new row carries the change.
     String saved = com.jayway.jsonpath.JsonPath.read(response, "$.payload_id");
     assertEquals("Updated Command line payload", rawName(saved), "A's own payload must be updated");
   }

@@ -24,7 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Variants of catalogue payloads (ADR-011, point 3): a local identity that keeps only the fields
+ * Variants of catalogue payloads (ADR-018, point 3): a local identity that keeps only the fields
  * changed on its base. Each version is computed once, base then overrides, and runs like any other
  * row. A new base is merged by a rebase the user previews first; the comparison is per block.
  */

@@ -17,7 +17,7 @@ import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
- * What every version of a payload shares (ADR-011): its namespace and external ID, source,
+ * What every version of a payload shares (ADR-018): its namespace and external ID, source,
  * collector, default version and uninstall flag. The versions are the {@code payloads} rows.
  */
 @Getter

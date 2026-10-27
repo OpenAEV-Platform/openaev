@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** Lookup of payloads by content hash (zip import, migration, sync). */
 @Component
-public class V6_20261009090000000__Payload_content_hash_index extends BaseJavaMigration {
+public class V6_20261027100200000__Payload_content_hash_index extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

@@ -32,7 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Saves a local payload (ADR-011): a change of its hashed content adds a new version, the previous
+ * Saves a local payload (ADR-018): a change of its hashed content adds a new version, the previous
  * row never changes; tags and domains are metadata, saved on the version as it is.
  */
 @RequiredArgsConstructor

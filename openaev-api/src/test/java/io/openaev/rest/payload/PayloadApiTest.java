@@ -1268,7 +1268,7 @@ class PayloadApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Managed payload versions (ADR-011)")
+  @DisplayName("Managed payload versions (ADR-018)")
   class ManagedVersions {
 
     private String createCommandPayload() throws Exception {

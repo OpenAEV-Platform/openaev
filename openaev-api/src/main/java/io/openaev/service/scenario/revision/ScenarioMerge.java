@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.*;
 
 /**
- * Three-way merge of a catalogue scenario (ADR-011, section 5): the base the catalogue last wrote,
+ * Three-way merge of a catalogue scenario (ADR-018, section 5): the base the catalogue last wrote,
  * the applied content (a release, or a revision for a rollback) and the local state, all in the
  * normalized format of {@link ScenarioContentReader}. Pure: no database, no entity.
  */

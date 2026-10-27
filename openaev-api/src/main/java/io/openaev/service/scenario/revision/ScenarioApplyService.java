@@ -40,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Applies content to an installed catalogue scenario (ADR-011, section 6): a release for an update,
+ * Applies content to an installed catalogue scenario (ADR-018, section 6): a release for an update,
  * a revision for a rollback, both through the same three-way merge. The configuration is never
  * written; a revision of the current state is taken first.
  */

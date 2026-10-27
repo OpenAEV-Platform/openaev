@@ -7,11 +7,11 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * One instance per installed catalogue scenario (ADR-011): the base content each update merges
+ * One instance per installed catalogue scenario (ADR-018): the base content each update merges
  * against, a soft uninstall, and the revisions that keep past contents.
  */
 @Component
-public class V6_20261021030000000__Scenario_revisions extends BaseJavaMigration {
+public class V6_20261027101200000__Scenario_revisions extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

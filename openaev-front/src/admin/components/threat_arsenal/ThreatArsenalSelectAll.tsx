@@ -11,10 +11,11 @@ interface Props {
   disabled: boolean;
   onToggle: () => void;
   onSelectOrphans?: () => void;
+  orphansActive?: boolean;
 }
 
 // Toolbar select-all control, shared by the grid and list views, with the orphan purge shortcut.
-const ThreatArsenalSelectAll: FunctionComponent<Props> = ({ label, checked, disabled, onToggle, onSelectOrphans }) => {
+const ThreatArsenalSelectAll: FunctionComponent<Props> = ({ label, checked, disabled, onToggle, onSelectOrphans, orphansActive = false }) => {
   const { t } = useFormatter();
   return (
     <Box sx={{
@@ -41,12 +42,18 @@ const ThreatArsenalSelectAll: FunctionComponent<Props> = ({ label, checked, disa
             <IconButton
               icon={<LinkOffOutlined fontSize="small" />}
               aria-label={t('Select orphaned actions')}
+              aria-pressed={orphansActive}
+              active={orphansActive}
               onClick={onSelectOrphans}
               priority="tertiary"
               size="sm"
             />
           </TooltipTrigger>
-          <TooltipContent>{t('Select orphaned actions (no injector, no payload) to purge them at once')}</TooltipContent>
+          <TooltipContent>
+            {orphansActive
+              ? t('Show all actions again')
+              : t('Select orphaned actions (no injector, no payload) to purge them at once')}
+          </TooltipContent>
         </Tooltip>
       )}
     </Box>
