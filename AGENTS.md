@@ -14,7 +14,7 @@ Java / Spring Boot / React / TypeScript / PostgreSQL. See `pom.xml` and `package
 | `openaev-model/` | JPA entities, repositories | Active |
 | `openaev-framework/` | Shared abstractions | ⚠️ Deprecated ([details](/.github/copilot-instructions.md#architecture)) |
 | `openaev-api/` | REST API, services, migrations | Active |
-| `openaev-front/` | React SPA (Redux, CASL, Filigran Design System, MUI, Zod) | Active |
+| `openaev-front/` | React SPA (TanStack Query, legacy Redux, CASL, Filigran Design System, MUI, Zod) | Active |
 
 ## Key Commands
 
