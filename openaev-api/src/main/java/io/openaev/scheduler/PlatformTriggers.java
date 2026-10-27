@@ -36,7 +36,12 @@ public class PlatformTriggers {
   @Value("${openaev.cron.config.agent.inactivity.monitor.interval:5}")
   private int agentInactivityMonitorIntervalMinutes;
 
-  @Value("${openaev.credentials.status-validation.cron:0 */6 * * * ?}")
+  static final String CREDENTIALS_STATUS_VALIDATION_DEFAULT_CRON = "0 0 */6 * * ?";
+
+  @Value(
+      "${openaev.credentials.status-validation.cron:"
+          + CREDENTIALS_STATUS_VALIDATION_DEFAULT_CRON
+          + "}")
   private String credentialsConnectivityCheckCron;
 
   @Autowired
