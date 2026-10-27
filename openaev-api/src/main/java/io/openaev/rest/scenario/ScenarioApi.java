@@ -698,8 +698,9 @@ public class ScenarioApi extends RestBehavior {
     }
 
     // The simulation is a faithful copy of the scenario: it keeps the targets the user is not
-    // cleared for, which the dispatch will not execute. The scenario and the launcher are reloaded
-    // in the copy's own transaction, and the response is read back under the user's clearance.
+    // cleared for, which the dispatch will not execute. The copy starts from a cleared persistence
+    // context, so the scenario and the launcher are reloaded inside it; the simulation is then read
+    // back under the user's clearance for the response.
     String simulationId =
         faithfulCopy.execute(
             ctx,
