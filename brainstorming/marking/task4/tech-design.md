@@ -213,6 +213,7 @@ sequenceDiagram
     actor U as Live user
     participant SCHED as AtomicTestingExecutionJob<br/>(cron, no live user)
     participant API as AtomicTestingApi
+    participant FC as FaithfulCopyTransaction<br/>→ TenantScopedTransaction.withSystemClearance
     participant SVC as AtomicTestingService
     participant DUP as InjectUtils.duplicateInject()
     participant INJ as Inject (DB)
@@ -225,13 +226,19 @@ sequenceDiagram
         end
     else Manual relaunch
         U->>API: POST /atomic-testings/{id}/relaunch
-        API->>SVC: relaunch(id, checkLaunchable=true)
-        SVC->>DUP: duplicateInject(original)
-        DUP-->>SVC: new Inject<br/>(content + inject_user copied forward, as today)
+        API->>SVC: throwIfNotLaunchable(id)<br/>(checked on what the user sees)
         rect rgba(255, 0, 0, 0.15)
+            API->>FC: execute(ctx, relaunch)<br/>*** NEW (#8726) — every marking of the tenant ***
+            FC->>SVC: relaunchAsCurrentUser(id)
+            SVC->>DUP: duplicateInject(original)
+            DUP-->>SVC: new Inject<br/>(content + inject_user + every target, RED included)
             SVC->>INJ: newInject.setLaunchedBy(currentUser())<br/>*** NEW — do not copy old launched_by forward ***
+            SVC-->>FC: id of the new inject
+            FC-->>API: id, with the user's clearance back
         end
+        API->>SVC: findById(newId)<br/>(response under the user's clearance: RED hidden)
     else Scheduled relaunch
+        Note over SCHED,SVC: background transaction (TenantScopedTransaction.execute),<br/>already at system clearance: the copy keeps RED
         SCHED->>SVC: relaunch(id, checkLaunchable=false)
         SVC->>DUP: duplicateInject(original)
         DUP-->>SVC: new Inject
@@ -240,6 +247,12 @@ sequenceDiagram
         end
     end
 ```
+
+The manual relaunch is a **faithful copy** (#8726): the new inject keeps every target of the original,
+including the ones the user is not cleared for, because a relaunch deletes the original and would
+otherwise lose them for everyone. What the user may do is unchanged (`@AccessControl` on the original,
+the launchable check on what they see), and the dispatch below still runs only the targets the
+launcher is cleared for. See "Copying an inject" in the marking-filter section for the mechanism.
 
 What happens to this `launched_by` value once dispatch actually starts — and why reaching
 `resolveAllAssetsToExecute` turned out not to be the whole story — is covered next, since it's shared
@@ -469,11 +482,17 @@ classDiagram
     class MarkingScopeSupplier {
         <<interface>>
         +clearanceFor(TxCtx) MarkingCtx
+        +systemClearanceFor(TxCtx.Restricted) MarkingCtx
     }
     class HttpMarkingScopeSupplier {
         -MarkingClearanceCacheManager clearanceCache
         -UserService userService
         +clearanceFor(TxCtx) MarkingCtx
+        +systemClearanceFor(TxCtx.Restricted) MarkingCtx
+    }
+    class TenantScopedTransaction {
+        -systemClearance(TxCtx) MarkingCtx
+        +withSystemClearance(TxCtx, work)
     }
     class TenantScopeTransactionAspect {
         -markingScopeFor(TxCtx) String
@@ -482,6 +501,7 @@ classDiagram
     class MarkingClearanceCacheManager {
         -MarkingScopeResolver resolver
         +findClearance(userId, tenantId, bypass) MarkingCtx
+        +findSystemClearance(tenantId) MarkingCtx
     }
     class MarkingScopeResolver {
         +resolve(grantedIds, tenantDefinitions, bypass) MarkingCtx
@@ -493,6 +513,7 @@ classDiagram
     class Capability {
         <<enumeration>>
         AGENT_RUNTIME_ACCESS
+        MANAGE_STIX_BUNDLE
         BYPASS
     }
 
@@ -501,6 +522,8 @@ classDiagram
     HttpMarkingScopeSupplier --> User : isAdminOrBypass()\n+ getCapabilities()
     HttpMarkingScopeSupplier --> MarkingClearanceCacheManager : findClearance(userId, tenantId, bypass)
     MarkingClearanceCacheManager --> MarkingScopeResolver : resolve(granted, tenantDefinitions, bypass)
+    TenantScopedTransaction --> MarkingScopeSupplier : systemClearanceFor(ctx)\nevery background transaction
+    HttpMarkingScopeSupplier --> MarkingClearanceCacheManager : findSystemClearance(tenantId)\nnever cached
 ```
 
 **Runtime flow, both branches:**
@@ -521,7 +544,7 @@ sequenceDiagram
         SUP-->>ASP: MarkingCtx.none()
         Note right of SUP: Fail-closed but admits unmarked rows —<br/>narrower result, never wider.
     else user present
-        SUP->>SUP: bypass = isAdminOrBypass() OR has(AGENT_RUNTIME_ACCESS)
+        SUP->>SUP: bypass = isAdminOrBypass() OR has(AGENT_RUNTIME_ACCESS)<br/>OR has(MANAGE_STIX_BUNDLE)
         loop per tenantId in scope
             SUP->>CACHE: findClearance(userId, tenantId, bypass)
             alt bypass == true
@@ -567,6 +590,22 @@ sequenceDiagram
   as the resolved-clearance **snapshot on the entity** that this document rules out elsewhere — nothing
   would ever evict a value baked into an `Exercise`/`Inject` column when the actor's groups change,
   which is exactly why that approach isn't safe and this one is.
+
+**The system clearance shares the bypass resolution (#8726).** Background transactions
+(`TenantScopedTransaction`) and faithful copies (`withSystemClearance`) run at the system clearance:
+every marking of the tenants in scope. It used to come from its own query
+(`MarkingDefinitionRepository.findAllIdsByTenantIds`). It now comes from
+`MarkingScopeSupplier.systemClearanceFor`, which `HttpMarkingScopeSupplier` implements with the same
+tenant query and the same `MarkingScopeResolver` bypass branch as `findClearance(…, bypass = true)`:
+"every marking of a tenant" has one definition, for a bypassing user and for a job.
+
+Unlike `findClearance`, `findSystemClearance` is **never cached**. It has no user to key on, so one
+entry would be shared by every job of the tenant, and a stale one would hide the rows marked with a
+just-created definition from executions until it expired. One indexed read per transaction is the
+price of always being exact (pinned by `TenantScopedTransactionMarkingScopeTest` and
+`MarkingClearanceCacheManagerCachingTest`). The supplier is mandatory there: unlike the aspect, which
+falls back to `none()`, a background transaction without it fails rather than silently skipping
+marked targets.
 
 ## Clearance resolution at dispatch time (launchedBy)
 
@@ -743,8 +782,35 @@ DELETE FROM injects_assets WHERE inject_id = ?
 
 The RED link is out of reach, so it survives; statement 2 re-inserts GREEN and NEW, with no
 conflict. Static asset groups (`AssetGroup.assets`, also a `List`) behave the same way, fixed by (5).
-Reading `inject.getAssets()` is unchanged (the joined `assets` already hides RED), so launch,
-duplication and the scenario → simulation copy behave exactly as before.
+Reading `inject.getAssets()` is unchanged (the joined `assets` already hides RED), so a launch behaves
+exactly as before: the dispatch resolves the targets with the launcher's clearance on its own.
+
+**Copying an inject.** The `TLP:GREEN` user duplicates or relaunches an atomic testing that targets
+`ASSET_GREEN` and `ASSET_RED`. Built from what the user reads, the copy only sees `[GREEN]` and
+inserts a single link: **the copy silently dropped a target the user could not see**, and a relaunch,
+which deletes the original, lost it for everyone (#8726). The same held for every copy: duplicating
+a scenario, a simulation or an inject, and launching a scenario (scenario → simulation).
+
+A copy is therefore a **faithful copy**: it keeps the RED target, which the dispatch will not execute
+for a `TLP:GREEN` launcher. The seven copy endpoints (atomic testing duplicate and relaunch; scenario
+duplicate and launch; simulation duplicate; scenario and simulation inject duplicate) run the copy
+through `FaithfulCopyTransaction`, which calls `TenantScopedTransaction.withSystemClearance`:
+
+1. The copy joins the request's transaction; the tenant scope is unchanged (refused if it differs).
+2. The persistence context is flushed and cleared, then `app.current_markings` is set to the system
+   clearance: every marking of the request's tenants.
+3. The copy reloads the original by id, sees `[GREEN, RED]` and writes both links. It returns only
+   the id of the copy.
+4. The persistence context is flushed and cleared again, and the user's clearance is restored.
+5. The controller reads the copy back under the user's clearance: the response shows `[GREEN]`.
+
+What the user may do is unchanged: `@AccessControl` is checked on the original, and the relaunch's
+launchable check runs on what the user sees, before the copy. Two rules keep the faithful copy from
+becoming a way to read hidden data: only the id comes out, and nothing loaded under one clearance is
+reused under the other. `FaithfulCopyCallersArchTest` limits its callers to the five copy controllers;
+`FaithfulCopyIntegrationTest` covers the seven copies (stored targets keep RED, responses hide it).
+Background copies (the scheduled relaunch, the scheduled scenario → simulation) already run at system
+clearance through `TenantScopedTransaction`, so they needed no change.
 
 **Loading a finding's asset list.** For `finding.getAssets()` Hibernate emits:
 
