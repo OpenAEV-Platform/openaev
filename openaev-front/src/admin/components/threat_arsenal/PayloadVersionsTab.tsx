@@ -1,6 +1,6 @@
-import { Button, Checkbox, Chip, Spinner } from '@filigran/design-system';
+import { Button, Checkbox, Chip, Spinner, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Alert, Box, Collapse, Pagination, Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, Typography } from '@mui/material';
+import { Alert, Box, Collapse, Pagination, Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
 import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 
 import { installCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
@@ -123,29 +123,23 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
         }}
       >
         {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-        <Typography variant="body1" sx={{ fontWeight: 600 }}>{`v${source.payload_version ?? '-'}`}</Typography>
+        <Text variant="content-base-bold">{`v${source.payload_version ?? '-'}`}</Text>
         {!source.payload_installed && <Chip label={t('Not installed')} />}
         {source.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
         <Box sx={{ flex: 1 }} />
         {source.payload_installed
           ? (
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              <Text variant="content-compact" className="text-default-secondary">
                 {t('{count} injects', { count: String(loading ? usageCount : usages.length) })}
-              </Typography>
+              </Text>
             )
           : <span onClick={event => event.stopPropagation()}>{installAction}</span>}
       </Box>
       <Collapse in={expanded} unmountOnExit>
         {source.payload_changelog && (
-          <Typography
-            variant="body2"
-            sx={{
-              ...sectionSx,
-              color: 'text.secondary',
-            }}
-          >
-            {source.payload_changelog}
-          </Typography>
+          <Box sx={sectionSx}>
+            <Text variant="content-compact" className="text-default-secondary">{source.payload_changelog}</Text>
+          </Box>
         )}
         {source.payload_revoked && (
           <Alert severity="warning" sx={{ borderRadius: 0 }}>{t('These injects are skipped at execution: migrate them to another version.')}</Alert>
@@ -159,15 +153,9 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
           </Alert>
         )}
         {source.payload_installed && !loading && usages.length === 0 && (
-          <Typography
-            variant="body2"
-            sx={{
-              ...sectionSx,
-              color: 'text.secondary',
-            }}
-          >
-            {t('No inject uses this version')}
-          </Typography>
+          <Box sx={sectionSx}>
+            <Text variant="content-compact" className="text-default-secondary">{t('No inject uses this version')}</Text>
+          </Box>
         )}
         {source.payload_installed && ((loading && usageCount > 0) || usages.length > 0) && (
           <Table size="small" aria-label={t('Injects on v{version}', { version: source.payload_version ?? '-' })}>
@@ -240,19 +228,13 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
           }}
           >
             {targets.length === 0
-              ? <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('No other version to migrate to')}</Typography>
+              ? <Text variant="content-compact" className="text-default-secondary">{t('No other version to migrate to')}</Text>
               : (
                   <>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: 'text.secondary',
-                        marginRight: 'auto',
-                      }}
-                    >
+                    <Text variant="content-compact" className="text-default-secondary" style={{ marginRight: 'auto' }}>
                       {t('{count} selected', { count: String(selected.size) })}
-                    </Typography>
-                    <Typography variant="body2">{t('Migrate to')}</Typography>
+                    </Text>
+                    <Text variant="content-compact">{t('Migrate to')}</Text>
                     <PayloadVersionSelect
                       value={target}
                       options={targets.map(v => ({

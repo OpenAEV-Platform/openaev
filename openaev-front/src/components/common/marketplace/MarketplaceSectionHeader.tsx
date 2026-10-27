@@ -1,4 +1,3 @@
-import { Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 
@@ -33,17 +32,15 @@ const MarketplaceSectionHeader: FunctionComponent<Props> = ({ icon, label, count
       >
         {icon}
       </div>
-      <Typography
-        component="h2"
-        sx={{
-          fontFamily: theme.typography.h1.fontFamily,
-          fontSize: 16,
-          fontWeight: 600,
-          margin: 0,
-        }}
+      <h2 style={{
+        fontFamily: theme.typography.h1.fontFamily,
+        fontSize: 16,
+        fontWeight: 600,
+        margin: 0,
+      }}
       >
         {label}
-      </Typography>
+      </h2>
       <span style={{
         padding: '1px 6px',
         borderRadius: 2,

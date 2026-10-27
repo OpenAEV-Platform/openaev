@@ -1,4 +1,4 @@
-import { Typography } from '@mui/material';
+import { Text } from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchCatalogPayloadVersions, installCatalogPayload } from '../../../../actions/catalog/payload-catalog-actions';
@@ -63,7 +63,7 @@ const ThreatArsenalCatalogDrawer: FunctionComponent<Props> = ({ item, canInstall
             gap: 16,
           }}
           >
-            <Typography variant="h6" style={{ margin: 0 }}>{shown?.catalog_item_name ?? item.catalog_item_name}</Typography>
+            <Text variant="title-sm" as="h2" style={{ margin: 0 }}>{shown?.catalog_item_name ?? item.catalog_item_name}</Text>
             <PayloadVersionSelect
               value={shownVersion}
               options={versions.map((version, index) => ({
