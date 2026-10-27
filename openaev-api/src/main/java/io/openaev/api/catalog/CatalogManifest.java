@@ -15,7 +15,8 @@ public record CatalogManifest(
     @JsonProperty("channel") String channel,
     @JsonProperty("release") String release,
     @JsonProperty("issued_at") Instant issuedAt,
-    @JsonProperty("items") List<Item> items) {
+    @JsonProperty("items") List<Item> items,
+    @JsonProperty("payloads") List<PayloadVersion> payloads) {
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record Item(
@@ -72,4 +73,19 @@ public record CatalogManifest(
       @JsonProperty("external_id") @JsonAlias("id") String externalId,
       @JsonProperty("version") String version,
       @JsonProperty("sha256") String sha256) {}
+
+  /** A payload version of the release, sent as a JSON file next to the archives. */
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record PayloadVersion(
+      @JsonProperty("payload") String payload,
+      @JsonProperty("version") String version,
+      @JsonProperty("sha256") String sha256,
+      @JsonProperty("openaev_id") String openaevId,
+      @JsonProperty("file") VersionFile file) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record VersionFile(
+      @JsonProperty("name") String name,
+      @JsonProperty("sha256") String sha256,
+      @JsonProperty("size") Long size) {}
 }

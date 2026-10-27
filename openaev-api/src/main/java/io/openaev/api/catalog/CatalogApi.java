@@ -285,7 +285,7 @@ public class CatalogApi {
       archives.put(file.getOriginalFilename(), file.getBytes());
     }
     Map<String, String> refusals = catalogService.verifyAndStore(manifest, archives);
-    CatalogSyncOutput output = catalogService.apply(ctx, tenantId, manifest, refusals);
+    CatalogSyncOutput output = catalogService.apply(ctx, tenantId, manifest, archives, refusals);
     if (output.applied()) {
       catalogPayloadService.afterSync(ctx, tenantId, manifest);
     }
