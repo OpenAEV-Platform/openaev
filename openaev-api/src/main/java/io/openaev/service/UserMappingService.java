@@ -55,34 +55,15 @@ public class UserMappingService {
     boolean groupsChanged = false;
 
     for (GroupMapping mapping : groupMappings) {
-      String userGroup = mapping.getUserGroup();
       String tenantId = hasText(mapping.getTenantId()) ? mapping.getTenantId() : null;
       if (tenantId != null && !tenantRepository.existsById(tenantId)) {
         log.warn("Group mapping tenant ID '{}' configured but not found in database", tenantId);
         continue;
       }
-      List<Group> userGroups = user.getUnscopedGroups();
-      boolean alreadyAssigned =
-          userGroups.stream().anyMatch(group -> isMappedGroup(group, userGroup, tenantId));
-
-      if (groupsFromToken.contains(mapping.getIdpGroup())) {
-        if (!alreadyAssigned) {
-          Optional<Group> group = findOrCreateGroup(mapping, tenantId);
-          if (group.isPresent()) {
-            userGroups.add(group.get());
-            user.setGroups(userGroups);
-            groupsChanged = true;
-          }
-        }
-        if (tenantId != null) {
-          attachTenant(tenantId, user);
-        }
-      } else if (alreadyAssigned) {
-        // The user was removed from the group in the identity provider
-        userGroups.removeIf(group -> isMappedGroup(group, userGroup, tenantId));
-        user.setGroups(userGroups);
-        groupsChanged = true;
-      }
+      groupsChanged |=
+          groupsFromToken.contains(mapping.getIdpGroup())
+              ? grantGroup(user, mapping, tenantId)
+              : revokeGroup(user, mapping.getUserGroup(), tenantId);
     }
 
     if (groupsChanged) {
@@ -111,6 +92,24 @@ public class UserMappingService {
       log.error("Failed to parse group mappings: {}", e.getMessage(), e);
       return List.of();
     }
+  }
+
+  private boolean grantGroup(User user, GroupMapping mapping, String tenantId) {
+    if (tenantId != null) {
+      attachTenant(tenantId, user);
+    }
+    List<Group> userGroups = user.getUnscopedGroups();
+    if (userGroups.stream().anyMatch(g -> isMappedGroup(g, mapping.getUserGroup(), tenantId))) {
+      return false;
+    }
+    Optional<Group> group = findOrCreateGroup(mapping, tenantId);
+    group.ifPresent(userGroups::add);
+    return group.isPresent();
+  }
+
+  /** The user left the group in the identity provider. */
+  private static boolean revokeGroup(User user, String userGroup, String tenantId) {
+    return user.getUnscopedGroups().removeIf(g -> isMappedGroup(g, userGroup, tenantId));
   }
 
   /** A mapping with a tenant ID targets a group of that tenant, otherwise a platform group. */
