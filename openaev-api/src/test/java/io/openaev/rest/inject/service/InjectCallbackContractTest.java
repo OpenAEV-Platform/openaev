@@ -69,6 +69,9 @@ class InjectCallbackContractTest {
   void setUp() throws Exception {
     lenient().when(injectService.getValueTargetedAssetMap(any())).thenReturn(Map.of());
     lenient()
+        .when(injectStatusService.updateInjectStatus(any(), any(), any(), any()))
+        .thenReturn(ExecutionTrace.getNewInfoTrace("trace", ExecutionTraceAction.EXECUTION));
+    lenient()
         .doReturn(Optional.empty())
         .when(agentExecutionProcessingHandler)
         .processContext(any());

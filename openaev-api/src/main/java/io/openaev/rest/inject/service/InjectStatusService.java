@@ -65,8 +65,7 @@ public class InjectStatusService {
   private final EntityManager entityManager;
 
   private static final String NO_STATUS = "NONE";
-  static final String LATE_TRACE_AFTER_TIMEOUT = "Received after timeout";
-  static final String LATE_TRACE_AFTER_COMPLETION = "Received after completion";
+  static final String LATE_REPORT_SUFFIX = "It reported later, see the next traces.";
 
   /**
    * Streams the parent inject (with its embedded status) to the SSE consumers.
@@ -245,7 +244,14 @@ public class InjectStatusService {
     return ExecutionTrace.from(base, structuredOutput);
   }
 
-  public void updateInjectStatus(
+  /**
+   * Records the trace reported by an agent or an injector and, when it completes the inject,
+   * computes the final inject status.
+   *
+   * @return the stored trace: a late COMPLETE is stored as an EXECUTION, so callers must check this
+   *     trace rather than the reported action
+   */
+  public ExecutionTrace updateInjectStatus(
       Inject inject, Agent agent, InjectExecutionInput input, ObjectNode structuredOutput) {
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
 
@@ -270,6 +276,7 @@ public class InjectStatusService {
       publishInjectStatusUpdate(inject);
     }
     log.debug("Successfully updated inject: {}", inject.getId());
+    return trace;
   }
 
   /** A trace is late once the inject is closed, or once its agent already has a COMPLETE trace. */
@@ -283,14 +290,13 @@ public class InjectStatusService {
   }
 
   /**
-   * Turns a late trace into an informative one: its message is prefixed to flag it as late, and a
-   * late COMPLETE is stored as an EXECUTION so that the agent is never completed twice.
+   * Turns a late trace into an informative one. Its message is kept as reported (it can be the
+   * implant's JSON output), the TIMEOUT it follows says that a report came later, and a late
+   * COMPLETE is stored as an EXECUTION so that the agent is never completed twice.
    */
   private void markAsLateTrace(
       InjectStatus injectStatus, ExecutionTrace lateTrace, @Nullable Agent agent) {
-    String prefix =
-        hasTimedOut(injectStatus, agent) ? LATE_TRACE_AFTER_TIMEOUT : LATE_TRACE_AFTER_COMPLETION;
-    lateTrace.setMessage("[%s]: %s".formatted(prefix, lateTrace.getMessage()));
+    findTimeoutTrace(injectStatus, agent).ifPresent(InjectStatusService::flagLateReport);
     if (ExecutionTraceAction.COMPLETE.equals(lateTrace.getAction())) {
       lateTrace.setAction(ExecutionTraceAction.EXECUTION);
     }
@@ -308,11 +314,26 @@ public class InjectStatusService {
         && (agent == null || isAllInjectAgentsExecuted(inject));
   }
 
-  /** Whether the agent, or the whole inject (agent-less trace), was closed by a timeout. */
-  private boolean hasTimedOut(InjectStatus injectStatus, @Nullable Agent agent) {
+  /**
+   * The TIMEOUT trace of the reporter: the agent's own one, or the inject's one for an agent-less
+   * trace. A TIMEOUT of another reporter is never returned, its message would not be true.
+   */
+  private Optional<ExecutionTrace> findTimeoutTrace(
+      InjectStatus injectStatus, @Nullable Agent agent) {
     return completeTraces(injectStatus.getTraces())
         .filter(t -> ExecutionTraceStatus.TIMEOUT.equals(t.getStatus()))
-        .anyMatch(t -> t.getAgent() == null || (agent != null && isAgentTrace(t, agent.getId())));
+        .filter(t -> agent == null ? t.getAgent() == null : isAgentTrace(t, agent.getId()))
+        .findFirst();
+  }
+
+  /**
+   * Completes the TIMEOUT message once, whatever the number of late traces. The TIMEOUT trace is
+   * one of the status traces: the merge of the status saves it.
+   */
+  private static void flagLateReport(ExecutionTrace timeout) {
+    if (!timeout.getMessage().endsWith(LATE_REPORT_SUFFIX)) {
+      timeout.setMessage("%s %s".formatted(timeout.getMessage(), LATE_REPORT_SUFFIX));
+    }
   }
 
   /**
