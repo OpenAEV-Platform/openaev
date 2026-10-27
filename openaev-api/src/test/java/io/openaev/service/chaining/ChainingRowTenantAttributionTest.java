@@ -34,9 +34,12 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +52,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Every chaining row takes its tenant from its parent row, never from the tenant thread-local. The
  * thread-local is set to a third tenant throughout, so neither it nor the default-tenant fallback
- * can pass for the right answer.
+ * can pass for the right answer. Each test runs in the tenant scope of the caller that writes those
+ * rows in production (the owner's tenant), never in the thread-local's.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
@@ -103,6 +107,9 @@ class ChainingRowTenantAttributionTest extends IntegrationTest {
     @Test
     @DisplayName("A simulation workflow takes the simulation's tenant")
     void given_simulation_should_attributeWorkflowToSimulationTenant() {
+      // Arrange
+      inScopeOf(simulationTenant);
+
       // Act
       workflowService.creationWorkflow(simulation);
 
@@ -113,6 +120,9 @@ class ChainingRowTenantAttributionTest extends IntegrationTest {
     @Test
     @DisplayName("A scenario workflow takes the scenario's tenant")
     void given_scenario_should_attributeWorkflowToScenarioTenant() {
+      // Arrange
+      inScopeOf(scenarioTenant);
+
       // Act
       workflowService.creationWorkflow(scenario);
 
@@ -130,6 +140,7 @@ class ChainingRowTenantAttributionTest extends IntegrationTest {
     @DisplayName("A run, its scope rules and its scope variables take the simulation's tenant")
     void given_launchedTemplate_should_attributeRunAndItsCopiesToSimulationTenant() {
       // Arrange
+      inScopeOf(simulationTenant);
       Workflow template = simulationTemplate();
       template
           .getWorkflowScopeRules()
@@ -241,7 +252,8 @@ class ChainingRowTenantAttributionTest extends IntegrationTest {
     @Test
     @DisplayName("A copied workflow's steps and conditions take the target workflow's tenant")
     void given_copiedTemplate_should_attributeCopiesToTheTargetTenant() {
-      // Arrange
+      // Arrange: the source and the target are in two tenants on purpose, so the scope spans both
+      inScopeOf(scenarioTenant, simulationTenant);
       Workflow source = scenarioTemplate();
       Step sourceStep = persistStep(source);
       Condition sourceRoot =
@@ -283,6 +295,7 @@ class ChainingRowTenantAttributionTest extends IntegrationTest {
     @DisplayName("Global and local states take their run's tenant")
     void given_scenarioRun_should_attributeStatesToScenarioTenant() {
       // Arrange
+      inScopeOf(scenarioTenant);
       Workflow run = scenarioRun();
       Step stepTemplate = persistStep(run);
 
@@ -301,6 +314,7 @@ class ChainingRowTenantAttributionTest extends IntegrationTest {
     @DisplayName("A delayed step takes its run's tenant")
     void given_scenarioRun_should_attributeDelayedStepToScenarioTenant() {
       // Arrange
+      inScopeOf(scenarioTenant);
       Workflow run = scenarioRun();
       Step stepTemplate = persistStep(run);
 
@@ -348,6 +362,12 @@ class ChainingRowTenantAttributionTest extends IntegrationTest {
   }
 
   // -- helpers --
+
+  /** Narrows the test transaction to the given tenants, as a request or a job in them would. */
+  private void inScopeOf(Tenant... tenants) {
+    DefaultTenantScopeTestListener.setAmbientScope(
+        entityManager, Arrays.stream(tenants).map(Tenant::getId).collect(Collectors.joining(",")));
+  }
 
   private Tenant persistTenant(String name) {
     return tenantRepository.save(

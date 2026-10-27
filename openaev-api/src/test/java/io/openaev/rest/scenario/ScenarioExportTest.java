@@ -362,7 +362,9 @@ public class ScenarioExportTest extends IntegrationTest {
   class ScenarioChainingExport {
 
     @Test
-    @WithMockUser(isAdmin = true)
+    // A member of the scenario's tenant, as every real caller is: the export reads its workflow in
+    // the caller's tenant scope.
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("given_chainingScenario_should_not_export_scenarioInjects")
     void given_chainingScenario_should_not_export_scenarioInjects() throws Exception {
       // Arrange

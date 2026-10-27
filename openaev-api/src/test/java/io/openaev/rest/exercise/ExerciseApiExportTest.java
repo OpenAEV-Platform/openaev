@@ -738,7 +738,9 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a chaining simulation, exported injects are empty")
   @Test
-  @WithMockUser(isAdmin = true)
+  // A member of the simulation's tenant, as every real caller is: the export reads its workflow in
+  // the caller's tenant scope.
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_a_chaining_simulation_exported_injects_are_empty() throws Exception {
     // Arrange
     Exercise exercise = getExercise();

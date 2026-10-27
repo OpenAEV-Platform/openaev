@@ -9,6 +9,7 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Assertions;
@@ -383,7 +384,9 @@ class StepRepositoryTest extends IntegrationTest {
         matchedIds.contains(otherTenantTemplate.getId()),
         "another tenant's TEMPLATE step on the same contract id must be out of scope");
 
-    // AND: the same sweep scoped to the other tenant only sees that tenant's own step.
+    // AND: the same sweep scoped to the other tenant only sees that tenant's own step. It runs in
+    // that tenant's scope, as the contract deletion that triggers it does.
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, otherTenant.getId());
     Set<String> otherTenantMatchedIds =
         stepRepository
             .findTemplateStepsByInjectorContractIds(
