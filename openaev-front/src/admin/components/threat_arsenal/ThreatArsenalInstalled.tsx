@@ -112,7 +112,8 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
                 checked={partiallySelected ? 'indeterminate' : selection.selectAll}
                 disabled={installed.threatArsenalActions.length === 0}
                 onToggle={selection.handleToggleSelectAll}
-                onSelectOrphans={canDelete ? installed.handleSelectOrphaned : undefined}
+                onSelectOrphans={canDelete ? installed.handleToggleOrphaned : undefined}
+                orphansActive={installed.isOrphanedScopeActive}
               />
             ) : null}
           />

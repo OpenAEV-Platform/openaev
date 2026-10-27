@@ -14,7 +14,7 @@ import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
-/** A photo of the content of a catalogue scenario, never of its configuration (ADR-011). */
+/** A photo of the content of a catalogue scenario, never of its configuration (ADR-018). */
 @Getter
 @Setter
 @Entity

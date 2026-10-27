@@ -189,7 +189,7 @@ public class Payload implements GrantableBase, TenantBase, Auditable, JsonApiExt
 
   // -- IDENTITY --
 
-  // ADR-011: what every version shares. EAGER for the same reason as the collector type it holds:
+  // ADR-018: what every version shares. EAGER for the same reason as the collector type it holds:
   // it is serialized after the controller's transaction and tenant scope have closed.
   @ManyToOne(
       fetch = FetchType.EAGER,
@@ -267,7 +267,7 @@ public class Payload implements GrantableBase, TenantBase, Auditable, JsonApiExt
   private List<Grant> grants = new ArrayList<>();
 
   // -- VERSIONING --
-  // ADR-011: a version row never changes once created; every payload has a version.
+  // ADR-018: a version row never changes once created; every payload has a version.
 
   public static final String FIRST_VERSION = "1.0.0";
 

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** What a catalogue item needs to run: OpenAEV version, edition, injectors and executors. */
 @Component
-public class V6_20261015100000000__Catalog_items_requires extends BaseJavaMigration {
+public class V6_20261027100600000__Catalog_items_requires extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

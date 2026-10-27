@@ -16,7 +16,7 @@ import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
 /**
- * What an execution records about its payload (ADR-011): the version that ran, the hash of the
+ * What an execution records about its payload (ADR-018): the version that ran, the hash of the
  * content computed when it ran, and the argument values the inject gave it.
  */
 @Slf4j

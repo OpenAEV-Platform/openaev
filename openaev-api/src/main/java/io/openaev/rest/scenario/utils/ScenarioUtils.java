@@ -41,7 +41,7 @@ public class ScenarioUtils {
             recurrenceSpecification(searchPaginationInput),
             typeSpecification(searchPaginationInput),
             searchPaginationInput);
-    // An uninstalled catalogue scenario leaves the lists and the counters (ADR-011).
+    // An uninstalled catalogue scenario leaves the lists and the counters (ADR-018).
     Specification<Scenario> installed = (root, query, cb) -> cb.isFalse(root.get("uninstalled"));
     if (customSpecification == null) {
       return (Specification<Scenario> specification) -> installed.and(specification);

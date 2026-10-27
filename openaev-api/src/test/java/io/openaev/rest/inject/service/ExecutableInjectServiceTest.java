@@ -135,7 +135,7 @@ class ExecutableInjectServiceTest {
     DocumentService documentService = mock(DocumentService.class);
     when(documentService.document("document-id")).thenReturn(legacyDocument);
     ExecutableInjectService serviceWithDocuments =
-        new ExecutableInjectService(null, documentService, null, null, null);
+        new ExecutableInjectService(null, documentService, null, null, null, null);
 
     PayloadArgument fileArgument = payloadArgument("file", "document-id");
     fileArgument.setType(PrimitiveType.Document);

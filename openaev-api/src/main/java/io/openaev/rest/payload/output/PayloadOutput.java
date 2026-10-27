@@ -15,7 +15,7 @@ import lombok.Data;
 @Builder
 public class PayloadOutput {
 
-  // Set by a save that created a new version (ADR-011).
+  // Set by a save that created a new version (ADR-018).
   @Schema(description = "Version this save replaced as the latest one, when it created a version")
   @JsonProperty("payload_previous_version_id")
   private String previousVersionId;

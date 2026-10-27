@@ -15,7 +15,7 @@ import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
 /**
- * Reads a scenario in the normalized format the merge compares (ADR-011, section 4): from a
+ * Reads a scenario in the normalized format the merge compares (ADR-018, section 4): from a
  * catalogue package or from the tenant's entities. Configuration is left out; a payload contract
  * becomes its (repository, external ID, version), a local one keeps its contract ID.
  */

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** Content catalogue synced from the repositories (F16), and catalogue identity of scenarios. */
 @Component
-public class V6_20261014100000000__Catalog_items extends BaseJavaMigration {
+public class V6_20261027100500000__Catalog_items extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

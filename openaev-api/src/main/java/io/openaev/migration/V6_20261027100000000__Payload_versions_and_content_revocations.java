@@ -5,9 +5,9 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/** Versioned payloads (ADR-011): version columns and platform-level revocations. */
+/** Versioned payloads (ADR-018): version columns and platform-level revocations. */
 @Component
-public class V6_20261008100000000__Payload_versions_and_content_revocations
+public class V6_20261027100000000__Payload_versions_and_content_revocations
     extends BaseJavaMigration {
 
   @Override

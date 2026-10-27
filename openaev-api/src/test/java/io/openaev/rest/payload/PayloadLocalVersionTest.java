@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@DisplayName("Saving a local payload creates a version (ADR-011, point 4)")
+@DisplayName("Saving a local payload creates a version (ADR-018, point 4)")
 class PayloadLocalVersionTest extends IntegrationTest {
 
   @Autowired private PayloadUpdateService payloadUpdateService;

@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("Payload snapshot taken when an inject runs (ADR-011, point 2)")
+@DisplayName("Payload snapshot taken when an inject runs (ADR-018, point 2)")
 class PayloadExecutionSnapshotTest {
 
   private final InjectUtils injectUtils =

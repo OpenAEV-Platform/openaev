@@ -48,7 +48,7 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
   @JsonProperty("action_tags_ids")
   private Set<String> tags;
 
-  // Set by a save that created a new version (ADR-011).
+  // Set by a save that created a new version (ADR-018).
   @Schema(description = "Action of the version this save replaced, when it created a version")
   @JsonProperty("action_previous_version_id")
   private String previousVersionActionId;

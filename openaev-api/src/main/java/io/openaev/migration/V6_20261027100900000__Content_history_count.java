@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** Number of injects a version change moved. */
 @Component
-public class V6_20261020230000000__Content_history_count extends BaseJavaMigration {
+public class V6_20261027100900000__Content_history_count extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

@@ -33,7 +33,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-/** Customized catalogue payloads (ADR-011, point 3): create, change, rebase with a preview. */
+/** Customized catalogue payloads (ADR-018, point 3): create, change, rebase with a preview. */
 @RestController
 @RequiredArgsConstructor
 public class PayloadVariantApi {

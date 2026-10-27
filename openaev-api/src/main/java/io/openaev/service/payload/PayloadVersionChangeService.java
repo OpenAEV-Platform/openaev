@@ -338,7 +338,7 @@ public class PayloadVersionChangeService {
     return moved;
   }
 
-  // Catalogue scenarios keep a revision of their content before their injects move (ADR-011).
+  // Catalogue scenarios keep a revision of their content before their injects move (ADR-018).
   private List<Scenario> scenariosOf(PayloadVersionChangeInput input) {
     List<Scenario> scenarios = new ArrayList<>();
     input
@@ -466,7 +466,8 @@ public class PayloadVersionChangeService {
             inject.isAllTeams(),
             inject.getTeams().stream().map(Team::getId).toList(),
             inject.getAssets().stream().map(Asset::getId).toList(),
-            inject.getAssetGroups().stream().map(AssetGroup::getId).toList())
+            inject.getAssetGroups().stream().map(AssetGroup::getId).toList(),
+            inject.getSecretReferences().stream().map(SecretReference::getId).toList())
         .stream()
         .filter(check -> check.getStatus() == HealthCheck.Status.ERROR)
         .map(check -> check.getType() + " " + check.getDetail())

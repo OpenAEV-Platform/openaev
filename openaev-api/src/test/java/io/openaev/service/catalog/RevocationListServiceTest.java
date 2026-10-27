@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@DisplayName("Revocation list of a content repository (ADR-011, point 5)")
+@DisplayName("Revocation list of a content repository (ADR-018, point 5)")
 class RevocationListServiceTest extends IntegrationTest {
 
   private static final String REPOSITORY = "filigran/openaev-payloads";
