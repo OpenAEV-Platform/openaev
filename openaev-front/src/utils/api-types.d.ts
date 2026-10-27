@@ -8293,6 +8293,31 @@ export interface NetworkTraffic {
     | "AI_ATTACK";
 }
 
+export interface NewsFeedItemOutput {
+  /**
+   * Creation date of the item
+   * @format date-time
+   */
+  news_feed_item_creation_date?: string;
+  /** ID of the item in XTM Hub */
+  news_feed_item_hub_id?: string;
+  /**
+   * ID of the news feed item
+   * @minLength 1
+   */
+  news_feed_item_id: string;
+  /** Whether the item was read */
+  news_feed_item_is_read?: boolean;
+  /** Tags of the item */
+  news_feed_item_tags?: string[];
+  /** Title of the item */
+  news_feed_item_title?: string;
+  /** Type of the item, absent when OpenAEV no longer knows its type */
+  news_feed_item_type?: "RESOURCE_SCENARIO";
+  /** Path of the item in XTM Hub, to append to the XTM Hub URL */
+  news_feed_item_url_path?: string;
+}
+
 export interface NotificationBulkProcessingInput {
   /** Ids excluded from the select-all scope */
   notification_ids_to_ignore?: string[];
@@ -9099,6 +9124,25 @@ export interface PageMarkingDefinitionOutput {
 
 export interface PageMitigation {
   content?: Mitigation[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageNewsFeedItemOutput {
+  content?: NewsFeedItemOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
