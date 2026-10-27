@@ -33,6 +33,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
@@ -56,6 +57,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.util.*;
 import java.util.stream.Stream;
+import org.hibernate.LazyInitializationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1526,8 +1528,82 @@ class InjectServiceTest {
   }
 
   @Nested
+  @DisplayName("dispatch with the MARKING preview feature off")
+  class MarkingFeatureOffTests {
+
+    /**
+     * Stands for the launcher of #8730: a lazy {@code User} reached outside its session, which
+     * throws on any access ("Could not initialize proxy ... no session").
+     */
+    private User launcherOutsideItsSession() {
+      return mock(
+          User.class,
+          invocation -> {
+            throw new LazyInitializationException("Could not initialize proxy - no session");
+          });
+    }
+
+    private Inject injectTargeting(Asset... assets) {
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assets));
+      inject.setAssetGroups(List.of());
+      inject.setLaunchedBy(launcherOutsideItsSession());
+      return inject;
+    }
+
+    @Test
+    @DisplayName("given MARKING off, should resolve every target without loading the launcher")
+    void given_markingOff_should_resolveEveryTargetWithoutTheLauncher() {
+      // -- ARRANGE --
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      assetRed.setMarkingIds(new String[] {"m-red"});
+      Asset assetPlain = new Asset();
+      assetPlain.setId("asset-plain");
+      Inject inject = injectTargeting(assetRed, assetPlain);
+
+      // -- ACT --
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      // -- ASSERT --
+      assertThat(resolved)
+          .extracting(AssetToExecute::asset)
+          .containsExactlyInAnyOrder(assetRed, assetPlain);
+      verifyNoInteractions(markingClearanceCacheManager);
+    }
+
+    @Test
+    @DisplayName("given MARKING off, should dispatch to every agentless target")
+    void given_markingOff_should_dispatchToEveryAgentlessTarget() {
+      // -- ARRANGE --
+      Endpoint endpointRed = new Endpoint();
+      endpointRed.setId("endpoint-red");
+      endpointRed.setMarkingIds(new String[] {"m-red"});
+      endpointRed.setAgents(List.of());
+      Inject inject = injectTargeting(endpointRed);
+
+      // -- ACT --
+      AgentsAndAssetsAgentless dispatched =
+          injectService.getAgentsAndAgentlessAssetsByInject(inject);
+
+      // -- ASSERT --
+      assertThat(dispatched.assetsAgentless()).containsExactly(endpointRed);
+      verifyNoInteractions(markingClearanceCacheManager);
+    }
+  }
+
+  @Nested
   @DisplayName("dispatch-time marking clearance enforcement")
   class MarkingClearanceFilterTests {
+
+    @BeforeEach
+    void markingEnabled() {
+      lenient()
+          .when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING))
+          .thenReturn(true);
+    }
 
     private Asset assetWithMarking(String id, String... markingIds) {
       Asset asset = new Asset();
@@ -1680,6 +1756,13 @@ class InjectServiceTest {
       "Agent-routing dispatch marking clearance enforcement "
           + "(getAgentsAndAgentlessAssetsByInject, the real dispatch decision)")
   class AgentRoutingDispatchFilterTests {
+
+    @BeforeEach
+    void markingEnabled() {
+      lenient()
+          .when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING))
+          .thenReturn(true);
+    }
 
     private Endpoint endpointWithAgent(
         String assetId, String agentExternalRef, String... markingIds) {

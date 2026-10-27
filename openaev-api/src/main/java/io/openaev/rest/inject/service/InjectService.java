@@ -62,6 +62,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
@@ -121,6 +122,7 @@ public class InjectService {
   // never through HttpMarkingScopeSupplier, which folds in the unrelated AGENT_RUNTIME_ACCESS
   // agent-callback bypass.
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final PreviewFeatureService previewFeatureService;
   private final AiTargetRepository aiTargetRepository;
   private final CollectorService collectorService;
   private final EnterpriseEditionService enterpriseEditionService;
@@ -522,10 +524,21 @@ public class InjectService {
    */
   private List<AssetToExecute> filterByMarkingClearance(
       Inject inject, List<AssetToExecute> assetToExecutes) {
-    MarkingCtx clearance = resolveLaunchedByClearance(inject);
+    java.util.function.Predicate<Asset> launchable = launchableUnderClearance(inject);
     return assetToExecutes.stream()
-        .filter(assetToExecute -> isVisibleUnderClearance(assetToExecute.asset(), clearance))
+        .filter(assetToExecute -> launchable.test(assetToExecute.asset()))
         .toList();
+  }
+
+  /**
+   * Resolve feature flag MARKING
+   */
+  private java.util.function.Predicate<Asset> launchableUnderClearance(Inject inject) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
+      return asset -> true;
+    }
+    MarkingCtx clearance = resolveLaunchedByClearance(inject);
+    return asset -> isVisibleUnderClearance(asset, clearance);
   }
 
   /**
@@ -1194,17 +1207,17 @@ public class InjectService {
   public AgentsAndAssetsAgentless getAgentsAndAgentlessAssetsByInject(Inject inject) {
     Set<Agent> agents = new HashSet<>();
     Set<Asset> assetsAgentless = new HashSet<>();
-    MarkingCtx clearance = resolveLaunchedByClearance(inject);
+    java.util.function.Predicate<Asset> launchable = launchableUnderClearance(inject);
 
     for (Asset asset : inject.getAssets()) {
-      if (isVisibleUnderClearance(asset, clearance)) {
+      if (launchable.test(asset)) {
         extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
       }
     }
 
     for (AssetGroup assetGroup : inject.getAssetGroups()) {
       for (Asset asset : assetGroupService.assetsFromAssetGroup(assetGroup.getId())) {
-        if (isVisibleUnderClearance(asset, clearance)) {
+        if (launchable.test(asset)) {
           extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
         }
       }
