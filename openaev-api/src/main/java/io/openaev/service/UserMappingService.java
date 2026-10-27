@@ -9,8 +9,8 @@ import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.service.platform.groups.PlatformGroupService;
-import io.openaev.service.tenants.TenantService;
 import io.openaev.sso.GroupMapping;
 import jakarta.annotation.Nonnull;
 import jakarta.validation.constraints.NotBlank;
@@ -37,7 +37,7 @@ public class UserMappingService {
 
   private final PlatformGroupService platformGroupService;
   private final TenantGroupService tenantGroupService;
-  private final TenantService tenantService;
+  private final TenantRepository tenantRepository;
   private final Environment env;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   public static final String ROLES_PATH_SUFFIX = "roles_path";
@@ -60,7 +60,7 @@ public class UserMappingService {
       String tenantId = mapping.getTenantId();
       Tenant tenant = null;
       if (hasText(tenantId)) {
-        tenant = tenantService.find(tenantId).orElse(null);
+        tenant = tenantRepository.findById(tenantId).orElse(null);
         if (tenant == null) {
           log.warn("Group mapping tenant ID '{}' configured but not found in database", tenantId);
           continue;
