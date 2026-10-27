@@ -2632,7 +2632,12 @@ export interface CatalogMissingRequirement {
   requirement_catalog_connector_title?: string;
   /** @minLength 1 */
   requirement_key: string;
-  requirement_kind: "OPENAEV" | "EDITION" | "INJECTOR" | "EXECUTOR";
+  requirement_kind:
+    | "OPENAEV"
+    | "EDITION"
+    | "INJECTOR"
+    | "EXECUTOR"
+    | "CHAINING";
   /** @minLength 1 */
   requirement_label: string;
   requirement_status?: "NOT_DEPLOYED" | "NOT_RUNNING";
