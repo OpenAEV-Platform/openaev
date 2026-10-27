@@ -20,6 +20,7 @@ description: "Frontend React/TypeScript conventions: components, Filigran Design
 - Props defined via explicit `interface Props` (not inline)
 - Prefer a default export for a module's main component; helpers, constants and hooks modules may use named exports
 - Never export a mutable binding (`export let` / `export var`): export a `const`, or a getter/setter function (enforced by `custom-rules/no-mutable-exports`)
+- No Ramda: write native JavaScript (array methods, spread, optional chaining). Ramda is being removed; the files that still import it are listed in `legacyRamdaFiles` in `eslint.config.js`. Never add a file to that list: a cleaned file leaves it
 
 ## Design System & Layout
 
