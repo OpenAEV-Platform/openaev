@@ -7,6 +7,8 @@ name: "[Core] Auto-Retry Failed CI"
 # reports the run as "cancelled", exactly like a manual cancel or a superseded run.
 # Cancelled runs are therefore retried only when one of their jobs hit the timeout,
 # which is told apart from the other cancellations by its check-run annotation.
+# A run is never retried once a newer run of the same workflow exists for its branch: the
+# CI concurrency group cancels in progress, so the re-run would cancel the newer run.
 
 on:
   workflow_run:
@@ -39,14 +41,29 @@ jobs:
           RUN_NAME: ${{ github.event.workflow_run.name }}
           ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
           CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          EVENT: ${{ github.event.workflow_run.event }}
         run: |
+          set -euo pipefail
+          latest_run_id=$(gh api --method GET "repos/${REPO}/actions/workflows/${WORKFLOW_ID}/runs" \
+            -f branch="${HEAD_BRANCH}" -f event="${EVENT}" -F per_page=1 \
+            --jq '.workflow_runs[0].id')
+          if [ "${latest_run_id}" != "${RUN_ID}" ]; then
+            echo "⏭️ ${RUN_NAME} run #${RUN_ID} was superseded by run #${latest_run_id} — not retrying."
+            exit 0
+          fi
           if [ "${CONCLUSION}" = "cancelled" ]; then
             timed_out=false
-            for job_id in $(gh api --paginate \
+            # Fetched into variables first so an API error fails the step instead of
+            # reading as "no timeout".
+            job_ids=$(gh api --paginate \
               "repos/${REPO}/actions/runs/${RUN_ID}/attempts/${ATTEMPT}/jobs" \
-              --jq '.jobs[] | select(.conclusion == "cancelled") | .id'); do
-              if gh api "repos/${REPO}/check-runs/${job_id}/annotations" --jq '.[].message' \
-                | grep -q 'exceeded the maximum execution time'; then
+              --jq '.jobs[] | select(.conclusion == "cancelled") | .id')
+            for job_id in ${job_ids}; do
+              messages=$(gh api --paginate "repos/${REPO}/check-runs/${job_id}/annotations" \
+                --jq '.[].message')
+              if grep -q 'exceeded the maximum execution time' <<< "${messages}"; then
                 timed_out=true
                 break
               fi
