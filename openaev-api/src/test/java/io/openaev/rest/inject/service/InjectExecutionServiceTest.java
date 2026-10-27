@@ -132,14 +132,12 @@ class InjectExecutionServiceTest {
     }
 
     @Test
-    @DisplayName(
-        "Given a late COMPLETE stored as EXECUTION, should not add the end date signature")
+    @DisplayName("Given a late COMPLETE stored as EXECUTION, should not add the end date signature")
     void given_lateCompleteStoredAsExecution_should_notAddEndDateSignature() {
       // Arrange
       when(injectStatusService.updateInjectStatus(inject, agent, completeInput, null))
           .thenReturn(
-              ExecutionTrace.getNewInfoTrace(
-                  "Payload completed", ExecutionTraceAction.EXECUTION));
+              ExecutionTrace.getNewInfoTrace("Payload completed", ExecutionTraceAction.EXECUTION));
 
       // Act
       service.processInjectExecutionWithAgent(inject, agent, completeInput);
