@@ -9,7 +9,9 @@ public record CatalogInstallPreviewOutput(
     @JsonProperty("previous_version") String previousVersion,
     @JsonProperty("previous_scenario_id") String previousScenarioId,
     @JsonProperty("injects") @NotNull List<InjectPreview> injects,
-    @JsonProperty("missing_requirements") @NotNull List<String> missingRequirements) {
+    @JsonProperty("missing_requirements") @NotNull List<String> missingRequirements,
+    @JsonProperty("missing_prerequisites") @NotNull
+        List<CatalogMissingRequirement> missingPrerequisites) {
 
   public record InjectPreview(
       @JsonProperty("inject_catalog_id") String catalogId,

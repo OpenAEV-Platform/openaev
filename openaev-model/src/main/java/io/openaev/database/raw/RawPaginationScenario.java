@@ -25,6 +25,7 @@ public class RawPaginationScenario {
   private String scenario_author_type;
   private String scenario_catalog_id;
   private String scenario_version;
+  private Instant scenario_last_run_at;
 
   public RawPaginationScenario(
       String id,

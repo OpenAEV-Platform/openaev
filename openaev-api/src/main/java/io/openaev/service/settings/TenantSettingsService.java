@@ -1,5 +1,6 @@
 package io.openaev.service.settings;
 
+import static io.openaev.database.model.TenantSettingKeys.CATALOG_PAYLOAD_AUTO_INSTALL;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
@@ -94,6 +95,11 @@ public class TenantSettingsService {
     upsert(tenant, TENANT_SCENARIO_DASHBOARD.key(), input.platformScenarioDashboard());
     upsert(tenant, TENANT_SIMULATION_DASHBOARD.key(), input.platformSimulationDashboard());
     return findSettings(tenantId);
+  }
+
+  /** Whether new catalogue payloads install themselves for this tenant (F3). */
+  public void updateCatalogPayloadAutoInstall(@NotBlank String tenantId, boolean enabled) {
+    upsert(new Tenant(tenantId), CATALOG_PAYLOAD_AUTO_INSTALL.key(), String.valueOf(enabled));
   }
 
   /** Update theme settings for a tenant. */

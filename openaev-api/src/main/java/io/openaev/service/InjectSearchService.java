@@ -661,7 +661,8 @@ public class InjectSearchService {
     Join<Base, Base> payloadJoin = injectorContractJoin.join("payload", JoinType.LEFT);
     joinMap.put("payload", payloadJoin);
 
-    Join<Base, Base> collectorTypeJoin = payloadJoin.join("collectorType", JoinType.LEFT);
+    Join<Base, Base> collectorTypeJoin =
+        payloadJoin.join("identity", JoinType.LEFT).join("collectorType", JoinType.LEFT);
     joinMap.put("collectorType", collectorTypeJoin);
 
     Join<Base, Base> statusJoin = injectRoot.join("status", JoinType.LEFT);

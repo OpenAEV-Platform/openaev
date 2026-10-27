@@ -23,17 +23,28 @@ public interface ContentRevocationRepository extends JpaRepository<ContentRevoca
   List<ContentRevocation> findAllByTypeAndExternalIdInAndTenantIsNullAndLiftedAtIsNull(
       ContentType type, Collection<String> externalIds);
 
+  List<ContentRevocation> findAllByRepositoryAndTenantIsNullAndLiftedAtIsNull(String repository);
+
+  List<ContentRevocation> findAllByTypeAndRepositoryAndExternalIdAndTenantIsNull(
+      ContentType type, String repository, String externalId);
+
   // -- TENANT REVOCATIONS --
 
   @Query(
       "SELECT r FROM ContentRevocation r WHERE r.payload.id = :payloadId"
-          + " AND r.tenant.id = :tenantId AND r.liftedAt IS NULL")
+          + " AND r.tenant.id = :tenantId AND r.liftedAt IS NULL AND r.liftsRevocationId IS NULL")
   Optional<ContentRevocation> findActiveByPayload(
       @Param("payloadId") String payloadId, @Param("tenantId") String tenantId);
 
   @Query(
       "SELECT r.payload.id FROM ContentRevocation r WHERE r.payload.id IN :payloadIds"
-          + " AND r.tenant.id = :tenantId AND r.liftedAt IS NULL")
+          + " AND r.tenant.id = :tenantId AND r.liftedAt IS NULL AND r.liftsRevocationId IS NULL")
   List<String> findActivePayloadIds(
       @Param("payloadIds") Collection<String> payloadIds, @Param("tenantId") String tenantId);
+
+  /** Lifts of an inherited revocation, on these variant versions. */
+  @Query(
+      "SELECT r FROM ContentRevocation r WHERE r.payload.id IN :payloadIds"
+          + " AND r.liftsRevocationId IS NOT NULL AND r.liftedAt IS NULL")
+  List<ContentRevocation> findActiveLifts(@Param("payloadIds") Collection<String> payloadIds);
 }

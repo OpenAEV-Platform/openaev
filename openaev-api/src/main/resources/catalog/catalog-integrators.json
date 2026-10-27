@@ -1428,7 +1428,33 @@
                     "CENSYS_API_SECRET"
                 ],
                 "additionalProperties": true
-            }
+            },
+            "injector_contracts": [
+                {
+                    "contract_id": "9c5d4e7f-3d44-4f51-8e60-4b5c6d7e8f90",
+                    "labels": {
+                        "en": "Censys - Host search",
+                        "fr": "Censys - Recherche d'h\u00f4tes"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "9c5d4e7f-3d44-4f51-8e60-4b5c6d7e8f91",
+                    "labels": {
+                        "en": "Censys - Certificate search",
+                        "fr": "Censys - Recherche de certificats"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                }
+            ]
         },
         {
             "title": "Nmap: The network mapper",
@@ -1505,7 +1531,45 @@
                     "INJECTOR_ID"
                 ],
                 "additionalProperties": true
-            }
+            },
+            "injector_contracts": [
+                {
+                    "contract_id": "0b7f3674-ac5d-4b95-b749-6665e74a211f",
+                    "labels": {
+                        "en": "Nmap - SYN Scan",
+                        "fr": "Nmap - Scan SYN"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "93d27459-68d0-43b1-ad65-eacc3cfa5cf7",
+                    "labels": {
+                        "en": "Nmap - TCP Connect Scan",
+                        "fr": "Nmap - Scan TCP Connect"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "6f4d7e18-c730-484a-bb09-c9c321820c0a",
+                    "labels": {
+                        "en": "Nmap - FIN Scan",
+                        "fr": "Nmap - Scan FIN"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                }
+            ]
         },
         {
             "title": "Nuclei",
@@ -1647,7 +1711,111 @@
                     "INJECTOR_ID"
                 ],
                 "additionalProperties": true
-            }
+            },
+            "injector_contracts": [
+                {
+                    "contract_id": "c01fa03a-ea7e-43a3-9b1a-44b2f41a8c5f",
+                    "labels": {
+                        "en": "Nuclei - Cloud Templates",
+                        "fr": "Nuclei - Cloud Templates"
+                    },
+                    "domains": [
+                        "Network",
+                        "Cloud"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "a4eb02bd-3c9f-4a97-b9a1-54a9b7a7f21e",
+                    "labels": {
+                        "en": "Nuclei - Misconfigurations",
+                        "fr": "Nuclei - Mauvaises configurations"
+                    },
+                    "domains": [
+                        "Network",
+                        "Web App"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "9c4b2f29-61f6-4ae3-80e7-928fe4a2fc0b",
+                    "labels": {
+                        "en": "Nuclei - Exposures",
+                        "fr": "Nuclei - Expositions"
+                    },
+                    "domains": [
+                        "Network",
+                        "Web App"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "2e7fc079-4444-4531-4444-928fe4a1fc0b",
+                    "labels": {
+                        "en": "Nuclei - CVE Scan",
+                        "fr": "Nuclei - Scan CVE"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "3cf1b7a6-39d2-4531-8c8e-2b7c67470d1e",
+                    "labels": {
+                        "en": "Nuclei - Panel Scan",
+                        "fr": "Nuclei - Scan Panel"
+                    },
+                    "domains": [
+                        "Network",
+                        "Web App"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "2e7fc079-9ebf-4adf-8d94-79d8f7bb32f4",
+                    "labels": {
+                        "en": "Nuclei - XSS Scan",
+                        "fr": "Nuclei - Scan XSS"
+                    },
+                    "domains": [
+                        "Network",
+                        "Web App"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "2e7fc079-4531-4444-4444-44b2f41a8c5f",
+                    "labels": {
+                        "en": "Nuclei - Wordpress Scan",
+                        "fr": "Nuclei - Scan Wordpress"
+                    },
+                    "domains": [
+                        "Network",
+                        "Web App"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "2e7fc079-4531-4444-4444-928fe4a2fc0b",
+                    "labels": {
+                        "en": "Nuclei - TEMPLATES Scan",
+                        "fr": "Nuclei - Scan TEMPLATES"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                }
+            ]
         },
         {
             "title": "HTTP query",
@@ -1724,7 +1892,69 @@
                     "INJECTOR_ID"
                 ],
                 "additionalProperties": true
-            }
+            },
+            "injector_contracts": [
+                {
+                    "contract_id": "611f223d-0e95-4f5b-ad89-a09ec2be50ae",
+                    "labels": {
+                        "en": "HTTP Request - GET",
+                        "fr": "Requ\u00eate HTTP - GET"
+                    },
+                    "domains": [
+                        "Web App"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "a4794081-ccb5-41ef-9855-304ad5fdf4a9",
+                    "labels": {
+                        "en": "HTTP Request - POST (key/value)",
+                        "fr": "Requ\u00eate HTTP - POST (cl\u00e9/valeur)"
+                    },
+                    "domains": [
+                        "Web App"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "5948c96c-4064-4c0d-b079-51ec33f31b91",
+                    "labels": {
+                        "en": "HTTP Request - POST (raw body)",
+                        "fr": "Requ\u00eate HTTP - POST (corps brut)"
+                    },
+                    "domains": [
+                        "Web App"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "d11d7694-29d1-4c1a-b1d7-9fc4251f0466",
+                    "labels": {
+                        "en": "HTTP Request - PUT (key/value)",
+                        "fr": "Requ\u00eate HTTP - PUT (cl\u00e9/valeur)"
+                    },
+                    "domains": [
+                        "Web App"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "bb503f7c-1f17-49e1-ac31-f4c2e99fd704",
+                    "labels": {
+                        "en": "HTTP Request - PUT (raw body)",
+                        "fr": "Requ\u00eate HTTP - PUT (corps brut)"
+                    },
+                    "domains": [
+                        "Web App"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                }
+            ]
         },
         {
             "title": "Amazon Web Service",
@@ -2258,7 +2488,93 @@
                     "SHODAN_API_KEY"
                 ],
                 "additionalProperties": true
-            }
+            },
+            "injector_contracts": [
+                {
+                    "contract_id": "1887b988-1553-4e46-bac1-ceeee0483f3a",
+                    "labels": {
+                        "en": "Shodan - Cloud Provider Asset Discovery",
+                        "fr": "Shodan - Cloud Provider Asset Discovery"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "5349febd-ec73-408b-aa61-24a86a1ba0a7",
+                    "labels": {
+                        "en": "Shodan - Critical ports and exposed admin interface",
+                        "fr": "Shodan - Critical ports and exposed admin interface"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "c7640b4c-8a12-458a-b761-6a1287501a58",
+                    "labels": {
+                        "en": "Shodan - Custom query",
+                        "fr": "Shodan - Custom query"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "8cdccd58-78ed-4e17-be2e-7683ec611569",
+                    "labels": {
+                        "en": "Shodan - CVE Enumeration",
+                        "fr": "Shodan - \u00c9num\u00e9ration des CVE"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "462087b4-8012-4e21-9575-b9c854ef5811",
+                    "labels": {
+                        "en": "Shodan - CVE specific watchlist",
+                        "fr": "Shodan - CVE specific watchlist"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "faf73809-1128-4192-aa90-a08828f8ace5",
+                    "labels": {
+                        "en": "Shodan - Domain discovery",
+                        "fr": "Shodan - Domain discovery"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                },
+                {
+                    "contract_id": "dc6b8b73-09dd-4388-b7cc-108bf16d26cd",
+                    "labels": {
+                        "en": "Shodan - IP Enumeration",
+                        "fr": "Shodan - IP Enumeration"
+                    },
+                    "domains": [
+                        "Network"
+                    ],
+                    "platforms": [],
+                    "attack_patterns": []
+                }
+            ]
         },
         {
             "title": "Microsoft Teams",

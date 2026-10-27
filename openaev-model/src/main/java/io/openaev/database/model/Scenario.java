@@ -8,8 +8,10 @@ import static java.time.Instant.now;
 import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.*;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.OnDeleteAction;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
@@ -278,6 +280,26 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @Column(name = "scenario_version")
   @JsonProperty("scenario_version")
   private String version;
+
+  @Column(name = "scenario_catalog_repository")
+  @JsonProperty("scenario_catalog_repository")
+  private String catalogRepository;
+
+  // Soft uninstall: the instance, its revisions and simulations stay; read-only and hidden.
+  @Column(name = "scenario_uninstalled")
+  @JsonProperty("scenario_uninstalled")
+  private boolean uninstalled;
+
+  // Installed on main before revisions: no update until the base is computed from its package.
+  @Column(name = "scenario_base_pending")
+  @JsonProperty("scenario_base_pending")
+  private boolean basePending;
+
+  // The content the catalogue last wrote, normalized: what each update merges against.
+  @Type(JsonType.class)
+  @Column(name = "scenario_base_content", columnDefinition = "jsonb")
+  @JsonIgnore
+  private JsonNode baseContent;
 
   // Single author filter over both author FKs (the facet and the filter bar use it).
   @Queryable(

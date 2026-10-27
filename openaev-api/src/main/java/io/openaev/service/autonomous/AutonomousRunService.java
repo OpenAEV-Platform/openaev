@@ -625,6 +625,7 @@ public class AutonomousRunService {
    */
   private AutonomousRun rebuildScenarioPlan(
       TxCtx ctx, String scenarioId, Scenario scenario, AutonomousRunCreateInput effective) {
+    refuseCatalogRewrite(scenario);
     // Supersede the previous settled run (if any) so the fresh plan run can bind, then wipe the
     // whole logic map (steps + events/triggers) so the orchestrator starts fresh.
     supersedePriorRun(scenarioId, "plan rebuilt by operator");
@@ -1486,6 +1487,7 @@ public class AutonomousRunService {
     }
     // Fresh simulation from the SAME scenario - no new scenario is ever provisioned on restart.
     Scenario scenario = scenarioService.scenario(run.getScenarioId());
+    refuseCatalogRewrite(scenario);
     // Clear EVERY step on the scenario workflow (the seed the fresh simulation is copied from), not
     // just the ones tracked in the run's best-effort stepMirror. An un-mirrored step (a swallowed
     // mirror failure or a lost update on the run row) would otherwise survive and re-seed the
@@ -1722,6 +1724,40 @@ public class AutonomousRunService {
    * (created / planning / running / paused / waiting-input) is refused with 409: the operator must
    * stop it first, mirroring the UI's disabled Delete entry.
    */
+  // Rebuild and restart delete and recreate the steps: a catalogue scenario would lose its base.
+  private static void refuseCatalogRewrite(Scenario scenario) {
+    if (scenario != null && scenario.getCatalogId() != null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "A catalogue scenario cannot be rebuilt by the orchestrator: refine it instead");
+    }
+  }
+
+  /** An active run rewrites the scenario: no update or rollback of its content meanwhile. */
+  @Transactional(readOnly = true)
+  public boolean hasActiveRun(String scenarioId) {
+    return runRepository.findByScenarioId(scenarioId).map(this::isActiveRun).orElse(false);
+  }
+
+  /** The active run of a scenario, for an uninstall to cancel it and keep it as history. */
+  @Transactional(rollbackFor = Exception.class)
+  public Optional<String> activeRunId(String scenarioId) {
+    return runRepository
+        .findByScenarioId(scenarioId)
+        .map(this::reconcileWithSimulation)
+        .filter(this::isActiveRun)
+        .map(AutonomousRun::getId);
+  }
+
+  private boolean isActiveRun(AutonomousRun run) {
+    AutonomousRunStatus status = run.getStatus();
+    return status == AutonomousRunStatus.CREATED
+        || status == AutonomousRunStatus.PLANNING
+        || status == AutonomousRunStatus.RUNNING
+        || status == AutonomousRunStatus.PAUSED
+        || status == AutonomousRunStatus.WAITING_INPUT;
+  }
+
   @Transactional(rollbackFor = Exception.class)
   public void deleteForScenario(String scenarioId) {
     AutonomousRun run = runRepository.findByScenarioId(scenarioId).orElse(null);

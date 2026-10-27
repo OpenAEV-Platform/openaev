@@ -97,6 +97,17 @@ public class GrantService {
     return grantRepository.save(Grant.of(name, group, resourceId, resourceType));
   }
 
+  /** The grants of a resource, given again on another one (a new payload version's contract). */
+  public List<Grant> copyGrants(
+      @NotBlank String sourceResourceId,
+      @NotBlank String targetResourceId,
+      @NotNull GRANT_RESOURCE_TYPE resourceType) {
+    return duplicateGrants(
+        grantRepository.findAllByResourceIdAndGrantResourceType(sourceResourceId, resourceType),
+        targetResourceId,
+        resourceType);
+  }
+
   public List<Grant> duplicateGrants(
       @NotNull List<Grant> sourceGrants,
       @NotBlank String targetResourceId,

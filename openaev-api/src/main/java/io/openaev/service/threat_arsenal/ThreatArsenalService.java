@@ -37,6 +37,8 @@ import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Join;
 import java.util.HashSet;
 import java.util.List;
@@ -50,6 +52,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.ListUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,6 +72,8 @@ public class ThreatArsenalService {
   private final ThreatArsenalMapper threatArsenalMapper;
   private final DetectionRemediationService detectionRemediationService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+
+  @PersistenceContext private EntityManager entityManager;
   private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
   private final PayloadVersionService payloadVersionService;
 
@@ -317,11 +322,27 @@ public class ThreatArsenalService {
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
     // update payload using the resolved payload ID
-    PayloadCreationService.PayloadInjectorContractCreationResult result =
+    PayloadUpdateService.PayloadSaveResult result =
         this.payloadUpdateService.updatePayload(
             injectorContract.getPayload().getId(), payloadInput);
-    // convert to ThreatArsenalAction
-    return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
+    ThreatArsenalAction action =
+        describeAction(threatArsenalMapper.toThreatArsenalAction(result.injectorContract()));
+    if (result.newVersion()) {
+      action.setPreviousVersionActionId(injectorContract.getId());
+      action.setPreviousVersionUsages(result.previousUsages());
+    }
+    return action;
+  }
+
+  /** An action as the cards show it: version, description, origin, revocation. */
+  @Transactional(readOnly = true)
+  public ThreatArsenalAction describe(ThreatArsenalAction action) {
+    return describeAction(action);
+  }
+
+  private ThreatArsenalAction describeAction(ThreatArsenalAction action) {
+    markRevoked(new PageImpl<>(List.of(action)));
+    return action;
   }
 
   private ThreatArsenalAction updateActionNotPayloadBased(
@@ -331,7 +352,7 @@ public class ThreatArsenalService {
     InjectorContract injectorContractUpdated =
         injectorContractService.updateInjectorContractTTPDomainsAndTags(
             injectorContract, injectorContractInput);
-    return threatArsenalMapper.toThreatArsenalAction(injectorContractUpdated);
+    return describeAction(threatArsenalMapper.toThreatArsenalAction(injectorContractUpdated));
   }
 
   private InjectorContractUpdateMappingInput getInjectorContractUpdateMappingInputFromActionInput(
@@ -400,7 +421,8 @@ public class ThreatArsenalService {
                     pageable,
                     mode,
                     input.getInjectorContractIdsToIgnore(),
-                    input.getInjectorContractIdsToProcess()),
+                    input.getInjectorContractIdsToProcess(),
+                    input.isGroupByPrimaryDomain()),
             providingFilterContext.searchInput(),
             InjectorContract.class));
   }
@@ -444,7 +466,8 @@ public class ThreatArsenalService {
                     pageable,
                     mode,
                     input.getInjectorContractIdsToIgnore(),
-                    input.getInjectorContractIdsToProcess()),
+                    input.getInjectorContractIdsToProcess(),
+                    input.isGroupByPrimaryDomain()),
             providingFilterContext.searchInput(),
             InjectorContract.class));
   }
@@ -471,14 +494,16 @@ public class ThreatArsenalService {
                         && f.getValues() != null
                         && f.getValues().contains(Payload.PAYLOAD_STATUS.REVOKED.name()));
     if (allVersions || revokedAsked) {
-      return Specification.unrestricted();
+      return InjectorContractSpecification.withoutUninstalledPayload();
     }
-    return InjectorContractSpecification.withLatestPayload();
+    return InjectorContractSpecification.withLatestPayload()
+        .and(InjectorContractSpecification.withoutUninstalledPayload());
   }
 
   /** Adds what the cards show about a payload: revoked, version, older versions still used. */
   private Page<? extends InjectorContractBaseOutput> markRevoked(
       Page<? extends InjectorContractBaseOutput> page) {
+    markTeamTargets(page);
     List<PayloadSimple> payloads =
         page.getContent().stream()
             .filter(ThreatArsenalAction.class::isInstance)
@@ -496,21 +521,77 @@ public class ThreatArsenalService {
     Map<String, Long> olderInUse =
         payloadVersionService.countTemplateInjectsOnOlderVersions(
             entities.stream()
-                .filter(p -> p.getVersion() != null && p.isLatest())
-                .map(Payload::getExternalId)
+                .filter(Payload::isLatest)
+                .map(p -> p.getIdentity().getId())
                 .collect(Collectors.toSet()));
+    Map<String, Long> installedVersions =
+        payloadVersionService.countInstalledVersions(
+            entities.stream().map(p -> p.getIdentity().getId()).collect(Collectors.toSet()));
     payloads.forEach(
         payload -> {
           Payload entity = byId.get(payload.getId());
           payload.setRevoked(revoked.contains(payload.getId()));
           if (entity != null) {
             payload.setVersion(entity.getVersion());
-            if (entity.isLatest() && entity.getExternalId() != null) {
-              payload.setOlderVersionsInUse(olderInUse.getOrDefault(entity.getExternalId(), 0L));
+            payload.setDescription(entity.getDescription());
+            payload.setManaged(entity.isManaged());
+            payload.setIdentityId(entity.getIdentity().getId());
+            if (entity.getIdentity().isVariant()) {
+              describeVariant(payload, entity);
+            }
+            String identityId = entity.getIdentity().getId();
+            payload.setInstalledVersions(installedVersions.getOrDefault(identityId, 0L));
+            if (entity.isLatest()) {
+              payload.setOlderVersionsInUse(olderInUse.getOrDefault(identityId, 0L));
             }
           }
         });
     return page;
+  }
+
+  private void describeVariant(PayloadSimple output, Payload variant) {
+    output.setVariant(true);
+    output.setConflict(variant.getIdentity().getConflictTargetPayloadId() != null);
+    if (variant.getOriginId() == null) {
+      return;
+    }
+    Payload base = payloadVersionService.findById(variant.getOriginId());
+    output.setBaseVersion(base.getVersion());
+    if (base.getIdentity().isUninstalled()) {
+      return;
+    }
+    Set<String> revoked =
+        payloadRevocationService.revokedIds(payloadVersionService.findVersions(base.getIdentity()));
+    payloadVersionService.findVersions(base.getIdentity()).stream()
+        .filter(v -> !revoked.contains(v.getId()))
+        .map(Payload::getVersion)
+        .filter(v -> io.openaev.utils.SemanticVersion.ORDER.compare(v, base.getVersion()) > 0)
+        .max(io.openaev.utils.SemanticVersion.ORDER)
+        .ifPresent(output::setNewerBaseVersion);
+  }
+
+  /** Flags the actions whose contract has a team field: the cards show a team target. */
+  @SuppressWarnings("unchecked")
+  private void markTeamTargets(Page<? extends InjectorContractBaseOutput> page) {
+    List<ThreatArsenalAction> actions =
+        page.getContent().stream()
+            .filter(ThreatArsenalAction.class::isInstance)
+            .map(ThreatArsenalAction.class::cast)
+            .toList();
+    if (actions.isEmpty()) {
+      return;
+    }
+    Set<String> targetingTeams =
+        new HashSet<>(
+            entityManager
+                .createNativeQuery(
+                    "SELECT injector_contract_id FROM injectors_contracts"
+                        + " WHERE injector_contract_id IN (:ids)"
+                        + " AND (injector_contract_content::jsonb -> 'fields')"
+                        + " @> '[{\"type\":\"team\"}]'::jsonb")
+                .setParameter("ids", actions.stream().map(ThreatArsenalAction::getId).toList())
+                .getResultList());
+    actions.forEach(action -> action.setTargetsTeams(targetingTeams.contains(action.getId())));
   }
 
   private Specification<InjectorContract> combineWithProvidingSpec(

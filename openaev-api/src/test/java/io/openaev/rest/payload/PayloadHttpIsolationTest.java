@@ -165,14 +165,19 @@ class PayloadHttpIsolationTest extends IntegrationTest {
   void updateUnderTenantAUpdatesOwnPayload() throws Exception {
     PayloadUpdateInput input =
         PayloadInputFixture.getDefaultCommandPayloadUpdateInput(Collections.emptyList());
-    mvc.perform(
-            put(PAYLOAD_BY_ID, tenantA, payloadA)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(input))
-                .with(csrf()))
-        .andExpect(status().isOk());
-    assertEquals(
-        "Updated Command line payload", rawName(payloadA), "A's own payload must be updated");
+    String response =
+        mvc.perform(
+                put(PAYLOAD_BY_ID, tenantA, payloadA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    // A save adds a version (ADR-011): the new row carries the change.
+    String saved = com.jayway.jsonpath.JsonPath.read(response, "$.payload_id");
+    assertEquals("Updated Command line payload", rawName(saved), "A's own payload must be updated");
   }
 
   @Test

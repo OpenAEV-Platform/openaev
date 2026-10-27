@@ -54,6 +54,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName("InjectorContractApi/ThreatArsenalApi search with collector_types active")
 class InjectorContractCollectorTypeGroupByTest extends IntegrationTest {
 
+  @Autowired private io.openaev.utils.helpers.PayloadVersionTestHelper payloadVersionTestHelper;
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -123,7 +124,7 @@ class InjectorContractCollectorTypeGroupByTest extends IntegrationTest {
               .executeUpdate();
           injectorContractRepository.deleteById(
               new InjectorContractId(injectorContractId, tenantId));
-          payloadRepository.deleteById(payloadId);
+          payloadVersionTestHelper.delete(payloadId);
           injectorRepository.deleteByInjectorId(injectorId);
           collectorTypeRepository.deleteById(collectorTypeId);
         });

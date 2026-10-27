@@ -5,7 +5,6 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TEAMS;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -15,6 +14,7 @@ import io.openaev.api.catalog.CatalogInstallPreviewOutput;
 import io.openaev.api.catalog.CatalogInstallPreviewOutput.InjectPreview;
 import io.openaev.api.catalog.CatalogInstallPreviewOutput.TargetLabel;
 import io.openaev.api.catalog.CatalogManifest.PayloadRef;
+import io.openaev.api.catalog.CatalogMissingRequirement;
 import io.openaev.api.catalog.CatalogScenarioVersionsOutput;
 import io.openaev.api.catalog.ScenarioTargetsOutput;
 import io.openaev.api.threat_arsenal.ContentHistoryOutput;
@@ -33,6 +33,7 @@ import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.scenario.revision.ScenarioApplyService;
 import io.openaev.utils.SemanticVersion;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.io.ByteArrayInputStream;
@@ -56,8 +57,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Installs a catalogue scenario version next to the ones already installed (F11), with its targets
- * (F12). Every payload it runs must be a version its release names, never revoked.
+ * Installs a catalogue scenario, one instance per scenario (ADR-011), with its targets (F12). Every
+ * payload it runs must be a version its release names, never revoked. Updates and rollbacks go
+ * through {@link ScenarioApplyService}.
  */
 @Service
 @RequiredArgsConstructor
@@ -83,6 +85,7 @@ public class CatalogInstallService {
   private final CatalogService catalogService;
   private final CatalogRequirementsService catalogRequirementsService;
   private final ImportService importService;
+  private final ScenarioApplyService scenarioApplyService;
   private final ScenarioService scenarioService;
   private final InjectService injectService;
   private final PayloadVersionService payloadVersionService;
@@ -128,11 +131,14 @@ public class CatalogInstallService {
                   : null,
               labels));
     }
+    List<CatalogMissingRequirement> missing =
+        catalogRequirementsService.checker().missingPrerequisites(item);
     return new CatalogInstallPreviewOutput(
         previous.map(Scenario::getVersion).orElse(null),
         previous.map(Scenario::getId).orElse(null),
         injects,
-        catalogRequirementsService.checker().missing(item));
+        missing.stream().map(CatalogMissingRequirement::label).toList(),
+        missing);
   }
 
   /** Every release of an installed scenario, which ones are installed, and its history (F7). */
@@ -158,7 +164,13 @@ public class CatalogInstallService {
                         i.getPublishedAt(),
                         installed.get(i.getVersion()),
                         i.getVersion().equals(scenario.getVersion()),
-                        i.getVersion().equals(latest)))
+                        i.getVersion().equals(latest),
+                        installed.containsKey(i.getVersion())
+                            ? scenarioService
+                                .scenario(installed.get(i.getVersion()))
+                                .getExercises()
+                                .size()
+                            : 0))
             .toList();
     List<ContentHistoryOutput> history =
         contentHistoryService
@@ -171,6 +183,10 @@ public class CatalogInstallService {
   /** Target state of each inject, for the drawer a launch opens when one is missing (F12). */
   @Transactional(readOnly = true)
   public ScenarioTargetsOutput targets(String scenarioId) {
+    return targetsOf(scenarioId);
+  }
+
+  private ScenarioTargetsOutput targetsOf(String scenarioId) {
     List<InjectPreview> injects =
         injectService.findByScenarioId(scenarioService.scenario(scenarioId).getId()).stream()
             .sorted(Comparator.comparing(Inject::getTitle, Comparator.nullsLast(String::compareTo)))
@@ -204,7 +220,11 @@ public class CatalogInstallService {
     if (!missing.isEmpty()) {
       throw new BadRequestException("Missing to run this scenario: " + String.join(", ", missing));
     }
-    Optional<Scenario> previous = previousInstall(externalId, version);
+    Optional<Scenario> instance = instance(item);
+    if (instance.isPresent()) {
+      return reinstall(ctx, instance.get(), version);
+    }
+    Optional<Scenario> previous = Optional.empty();
     byte[] archive = readPackage(item);
 
     Instant start = Instant.now();
@@ -217,9 +237,10 @@ public class CatalogInstallService {
     Scenario scenario = scenarioService.scenario(result.scenarioId());
     Set<Inject> injects = injectService.findByScenarioId(scenario.getId());
 
-    bindPayloads(injects, payloadRefs(item), start);
+    bindPayloads(injects, item, tenantId, start);
 
     scenario.setCatalogId(externalId);
+    scenario.setCatalogRepository(item.getRepository());
     scenario.setVersion(version);
     copyMetadata(item, scenario);
     if (item.getAuthor() != null && !item.getAuthor().isBlank()) {
@@ -228,9 +249,38 @@ public class CatalogInstallService {
     }
     setTargets(
         injects, previousInjects(previous), input == null ? CatalogInstallInput.empty() : input);
+    scenarioApplyService.recordInstall(scenario, item);
     contentHistoryService.scenarioInstalled(
         scenario, previous.map(Scenario::getVersion).orElse(null));
     return new CatalogInstallOutput(scenario.getId(), version);
+  }
+
+  /**
+   * Reinstall finds the same instance, then updates it to the chosen version when that merges
+   * without a choice; otherwise the scenario offers the update.
+   */
+  private CatalogInstallOutput reinstall(TxCtx ctx, Scenario scenario, String version)
+      throws Exception {
+    if (!scenario.isUninstalled()) {
+      throw new BadRequestException("This scenario is already installed: update it instead");
+    }
+    scenario.setUninstalled(false);
+    scenarioService.updateScenario(scenario);
+    contentHistoryService.scenarioInstalled(scenario, scenario.getVersion());
+    if (!version.equals(scenario.getVersion())) {
+      ScenarioApplyService.Target target = new ScenarioApplyService.Target(version, null);
+      if (scenarioApplyService
+          .preview(scenario.getId(), target, Map.of(), Map.of())
+          .merge()
+          .resolved()) {
+        scenarioApplyService.apply(ctx, scenario.getId(), target, Map.of(), Map.of(), null);
+      }
+    }
+    return new CatalogInstallOutput(scenario.getId(), scenario.getVersion());
+  }
+
+  private Optional<Scenario> instance(CatalogItem item) {
+    return scenarioService.findCatalogInstance(item.getRepository(), item.getExternalId());
   }
 
   // -- UPDATE --
@@ -242,17 +292,24 @@ public class CatalogInstallService {
         injectService.findByScenarioId(scenario.getId()),
         Map.of(),
         input == null ? CatalogInstallInput.empty() : input);
-    return targets(scenarioId);
+    return targetsOf(scenarioId);
   }
 
   // -- DELETE --
 
-  /** Removes an installed version; the payload versions it used stay installed (F11). */
+  /**
+   * Soft uninstall: the instance, its revisions and simulations stay; its schedule and active
+   * autonomous run stop; it becomes read-only and hidden from the Active screen.
+   */
   public void uninstall(String scenarioId) {
     Scenario scenario = installedScenario(scenarioId);
+    autonomousRunService.activeRunId(scenarioId).ifPresent(autonomousRunService::cancel);
+    scenario.setUninstalled(true);
+    scenario.setRecurrence(null);
+    scenario.setRecurrenceStart(null);
+    scenario.setRecurrenceEnd(null);
+    scenarioService.updateScenario(scenario);
     contentHistoryService.scenarioUninstalled(scenario);
-    autonomousRunService.deleteForScenario(scenarioId);
-    scenarioService.deleteScenario(scenarioId);
   }
 
   private Scenario installedScenario(String scenarioId) {
@@ -280,7 +337,8 @@ public class CatalogInstallService {
 
   // -- PAYLOADS --
 
-  private void bindPayloads(Set<Inject> injects, List<PayloadRef> refs, Instant start) {
+  private void bindPayloads(Set<Inject> injects, CatalogItem item, String tenantId, Instant start) {
+    List<PayloadRef> refs = payloadRefs(item);
     Map<String, PayloadRef> byVersion =
         refs.stream()
             .collect(
@@ -311,8 +369,11 @@ public class CatalogInstallService {
           throw new BadRequestException(
               "Payload " + payload.getName() + " does not match the release");
         }
+        PayloadIdentity identity =
+            payloadVersionService.findOrCreateManagedIdentity(
+                tenantId, payloadRepository(ref, item), ref.externalId());
         boolean versionExists =
-            payloadVersionService.findAllByExternalId(ref.externalId()).stream()
+            payloadVersionService.findVersions(identity).stream()
                 .anyMatch(p -> ref.version().equals(p.getVersion()));
         // Only a copy this install made may become the version: never an existing local payload.
         if (versionExists || payload.getCreatedAt().isBefore(start)) {
@@ -323,7 +384,7 @@ public class CatalogInstallService {
                   + ref.version()
                   + " conflicts with a payload already installed");
         }
-        payloadVersionService.promoteToVersion(payload, ref.externalId(), ref.version());
+        payloadVersionService.moveToIdentity(payload, identity, ref.version());
       }
       managed.put(payload.getId(), payload);
     }
@@ -333,14 +394,11 @@ public class CatalogInstallService {
   }
 
   private List<PayloadRef> payloadRefs(CatalogItem item) {
-    if (item.getPayloadRefs() == null) {
-      return List.of();
-    }
-    try {
-      return mapper.readValue(item.getPayloadRefs(), new TypeReference<List<PayloadRef>>() {});
-    } catch (Exception e) {
-      throw new IllegalStateException("Unreadable payload references", e);
-    }
+    return catalogService.payloadRefs(item);
+  }
+
+  private String payloadRepository(PayloadRef ref, CatalogItem scenarioItem) {
+    return scenarioApplyService.payloadRepository(ref, scenarioItem);
   }
 
   // -- TARGETS --
@@ -579,18 +637,9 @@ public class CatalogInstallService {
   // -- PACKAGE --
 
   private CatalogItem findInstallable(String externalId, String version) {
-    CatalogItem item =
-        catalogService
-            .find(ContentType.SCENARIO, externalId, version)
-            .orElseThrow(() -> new ElementNotFoundException("Catalogue scenario not found"));
-    if ("REVOKED".equals(item.getStatus())) {
-      throw new BadRequestException("This version is revoked");
-    }
-    if (scenarioService.findAllByCatalogId(externalId).stream()
-        .anyMatch(s -> version.equals(s.getVersion()))) {
-      throw new BadRequestException("This version is already installed");
-    }
-    return item;
+    return catalogService
+        .find(ContentType.SCENARIO, externalId, version)
+        .orElseThrow(() -> new ElementNotFoundException("Catalogue scenario not found"));
   }
 
   private Optional<Scenario> previousInstall(String externalId, String version) {
@@ -609,14 +658,7 @@ public class CatalogInstallService {
   }
 
   private byte[] readPackage(CatalogItem item) {
-    byte[] archive =
-        catalogService
-            .readPackage(item)
-            .orElseThrow(() -> new ElementNotFoundException("Catalogue package not found"));
-    if (!CatalogArchiveChecks.sha256(archive).equalsIgnoreCase(item.getArchiveHash())) {
-      throw new BadRequestException("The stored package does not match its release");
-    }
-    return archive;
+    return catalogService.readVerifiedPackage(item);
   }
 
   // A repository keeps each inject's ID across versions; the import gives injects new IDs.

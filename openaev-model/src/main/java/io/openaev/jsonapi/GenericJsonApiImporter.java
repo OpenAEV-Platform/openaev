@@ -326,6 +326,9 @@ public class GenericJsonApiImporter<T extends Base> {
       setField(entity, f, cast);
       this.addToRemapping(entitiesNeedingRemapping, cast);
     }
+    if (entity instanceof JsonApiExtraAttributes extra) {
+      extra.applyExtraAttributes(attributes);
+    }
   }
 
   private void applyRelationships(

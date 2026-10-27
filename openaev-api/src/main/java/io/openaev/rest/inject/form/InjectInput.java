@@ -69,10 +69,6 @@ public class InjectInput implements DataInputStep {
   @JsonProperty("inject_enabled")
   private boolean enabled = true;
 
-  // Stable ID of the inject (or chaining step) across versions of a catalogue scenario.
-  @JsonProperty("inject_catalog_id")
-  private String catalogId;
-
   public Inject toInject(
       @NotNull final InjectorContract injectorContract, @NotNull final Injector injector) {
     Inject inject = new Inject();
@@ -86,7 +82,6 @@ public class InjectInput implements DataInputStep {
     inject.setCountry(getCountry());
     inject.setCity(getCity());
     inject.setEnabled(isEnabled());
-    inject.setCatalogId(getCatalogId());
     return inject;
   }
 }
