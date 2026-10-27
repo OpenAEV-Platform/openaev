@@ -1,40 +1,23 @@
-import { RouteOutlined } from '@mui/icons-material';
-import { type FunctionComponent, type MouseEvent } from 'react';
+import { CategoryOutlined, RouteOutlined } from '@mui/icons-material';
+import { type FunctionComponent } from 'react';
 
 import EmptyPlaceholder from '../../../components/common/EmptyPlaceholder';
-import MarketplaceGrid from '../../../components/common/marketplace/MarketplaceGrid';
+import MarketplaceSections from '../../../components/common/marketplace/MarketplaceSections';
 import { useFormatter } from '../../../components/i18n';
 import { type CatalogItemOutput, type Scenario } from '../../../utils/api-types';
-import ToolBar from '../common/ToolBar';
+import { scenarioCategories } from './constants';
 import ScenarioCard from './ScenarioCard';
 
 interface Props {
   scenarios: Scenario[];
   catalogItems: Map<string, CatalogItemOutput>;
   loading: boolean;
-  canManage: boolean;
-  numberOfSelectedElements: number;
-  isSelected: (scenario: Scenario) => boolean;
-  onToggleEntity: (scenario: Scenario, event: MouseEvent<HTMLElement>) => void;
-  onClearSelectedElements: () => void;
-  onBulkDelete: () => void;
   onDelete: (scenarioId: string) => void;
 }
 
-const ScenarioCardGrid: FunctionComponent<Props> = ({
-  scenarios,
-  catalogItems,
-  loading,
-  canManage,
-  numberOfSelectedElements,
-  isSelected,
-  onToggleEntity,
-  onClearSelectedElements,
-  onBulkDelete,
-  onDelete,
-}) => {
+const ScenarioCardGrid: FunctionComponent<Props> = ({ scenarios, catalogItems, loading, onDelete }) => {
   const { t } = useFormatter();
-  // One card per catalogue scenario: its highest installed version, the others in its picker.
+  // One card per catalogue scenario: its highest installed version.
   const isShownVersion = (scenario: Scenario) => {
     const item = scenario.scenario_catalog_id ? catalogItems.get(scenario.scenario_catalog_id) : undefined;
     if (!item) return true;
@@ -44,34 +27,22 @@ const ScenarioCardGrid: FunctionComponent<Props> = ({
   const shown = scenarios.filter(isShownVersion);
   return (
     <>
-      {numberOfSelectedElements > 0 && (
-        <ToolBar
-          numberOfSelectedElements={numberOfSelectedElements}
-          handleClearSelectedElements={onClearSelectedElements}
-          handleBulkDelete={onBulkDelete}
-          canManage={canManage}
-          deleteConfirmationSingular={t('Do you want to delete this scenario?')}
-          deleteConfirmationPlural={t('Do you want to delete these {count} scenarios?', { count: String(numberOfSelectedElements) })}
-        />
-      )}
-      <MarketplaceGrid
+      <MarketplaceSections
+        items={shown}
+        sectionKey={scenario => scenario.scenario_category}
+        sectionLabel={category => (category ? t(scenarioCategories.get(category) ?? category) : t('Other'))}
+        sectionIcon={<CategoryOutlined />}
         loading={loading}
-        isEmpty={shown.length === 0}
         emptyState={<EmptyPlaceholder icon={<RouteOutlined />} title={t('No scenario matches these filters.')} />}
-      >
-        {shown.map(scenario => (
+        renderItem={scenario => (
           <ScenarioCard
             key={scenario.scenario_id}
             scenario={scenario}
             catalogItem={scenario.scenario_catalog_id ? catalogItems.get(scenario.scenario_catalog_id) : undefined}
-            checked={isSelected(scenario)}
-            anySelected={numberOfSelectedElements > 0}
-            canManage={canManage}
-            onToggleEntity={event => onToggleEntity(scenario, event)}
             onDelete={onDelete}
           />
-        ))}
-      </MarketplaceGrid>
+        )}
+      />
     </>
   );
 };

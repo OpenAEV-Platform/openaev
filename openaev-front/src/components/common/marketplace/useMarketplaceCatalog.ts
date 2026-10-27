@@ -26,7 +26,7 @@ const useMarketplaceCatalog = <T>({
   installAll = NOTHING_INSTALLED,
 }: Options<T>) => {
   const [items, setItems] = useState<T[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [facetCounts, setFacetCounts] = useState<Record<string, Record<string, number>> | null>(null);
   const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
 
@@ -37,7 +37,15 @@ const useMarketplaceCatalog = <T>({
 
   const fetchItems = (input: SearchPaginationInput) => {
     setLoading(true);
-    return search(input).finally(() => setLoading(false));
+    // Loading ends with the results (below): ending it before shows the empty state for a frame.
+    return search(input).catch((error) => {
+      setLoading(false);
+      throw error;
+    });
+  };
+  const setLoadedItems = (loaded: T[]) => {
+    setItems(loaded);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -55,7 +63,7 @@ const useMarketplaceCatalog = <T>({
 
   return {
     items,
-    setItems,
+    setItems: setLoadedItems,
     loading,
     fetchItems,
     queryableHelpers,
@@ -64,6 +72,7 @@ const useMarketplaceCatalog = <T>({
     hasActiveFilters,
     handleResetFilters,
     isInstalled: (id: string) => installedIds.has(id),
+    markInstalled,
     install: (id: string) => installOne(id).then(markInstalled),
     installAll: () => installAll().then(markInstalled),
   };

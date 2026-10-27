@@ -1,27 +1,26 @@
-import { Checkbox, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box } from '@mui/material';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { GroupsOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
+import { type FunctionComponent, useMemo } from 'react';
 
+import type { AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../components/common/marketplace/MarketplaceCard';
+import usePlatformVersion from '../../../components/common/marketplace/usePlatformVersion';
 import { useFormatter } from '../../../components/i18n';
-import ItemTags from '../../../components/ItemTags';
 import { useHelper } from '../../../store';
-import { type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
-import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
-import { tint } from '../../../utils/tint';
+import { type AttackPattern, type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
+import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescriptions';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
-import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
+import { actionDomains } from './threatArsenalDomainSections';
+import { getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
+import PayloadVariantBadges from './variants/PayloadVariantBadges';
 
 interface Props {
   action: ThreatArsenalAction;
   selected: boolean;
-  checked: boolean;
-  anySelected: boolean;
   onSelect: () => void;
-  onToggleEntity: (event: MouseEvent<HTMLElement>) => void;
   onUpdate: (result: ThreatArsenalAction) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: () => void;
@@ -34,10 +33,7 @@ interface Props {
 const ThreatArsenalCard: FunctionComponent<Props> = ({
   action,
   selected,
-  checked,
-  anySelected,
   onSelect,
-  onToggleEntity,
   onUpdate,
   onDuplicate,
   onDelete,
@@ -46,29 +42,29 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   disableJsonExport,
   disableDelete,
 }) => {
-  const { t, tPick, nsdt } = useFormatter();
+  const { t, tPick, nsd } = useFormatter();
   const theme = useTheme();
+  const version = action.action_payload?.payload_version;
+  const platformVersion = usePlatformVersion();
+  // Contracts of injectors shipped with the platform: no integration to deploy.
+  const builtIn = !action.action_payload && isBuiltinConnector(action.action_injector_type);
 
   const allDomains: Domain[] = useHelper(
     (helper: DomainHelper) => helper.getDomains(),
   );
+  const attackPatternsMap: Record<string, AttackPattern> = useHelper((helper: AttackPatternHelper) => helper.getAttackPatternsMap());
+  const techniques = (action.action_attack_patterns_ids ?? [])
+    .map(id => attackPatternsMap[id]?.attack_pattern_external_id)
+    .filter((id): id is string => !!id)
+    .sort();
 
-  const domains = useMemo(() => {
-    if (!action.action_domains_ids) return [] as Domain[];
-    return allDomains.filter(
-      d => action.action_domains_ids?.includes(d.domain_id) && d.domain_name !== TO_CLASSIFY,
-    );
-  }, [action.action_domains_ids, allDomains]);
+  const domains = useMemo(() => actionDomains(action, allDomains), [action, allDomains]);
 
   const primaryDomain = domains[0];
-  const secondaryDomainsLabel = domains.slice(1).map(d => t(d.domain_name)).join(', ');
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
   const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status;
-  const statusColor = getStatusColor(theme, status);
   const statusLabel = getStatusLabel(status);
   const name = tPick(action.action_labels);
-
-  const showCheckbox = anySelected || selected || checked;
 
   return (
     <MarketplaceCard
@@ -86,61 +82,11 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         />
       )}
       title={name}
+      overline={primaryDomain ? t(primaryDomain.domain_name) : undefined}
       subtitle={action.action_author_name ? `${t('by')} ${action.action_author_name}` : undefined}
+      description={action.action_payload?.payload_description ?? undefined}
       selected={selected}
       onClick={onSelect}
-      badge={statusLabel && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 12,
-                right: 48,
-                paddingInline: 1,
-                paddingBlock: 0.25,
-                borderRadius: 999,
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                backgroundColor: tint(statusColor, 20),
-                color: statusColor,
-                border: `1px solid ${tint(statusColor, 45)}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                backdropFilter: 'blur(4px)',
-              }}
-            >
-              <Box
-                aria-hidden
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  backgroundColor: statusColor,
-                  boxShadow: `0 0 6px ${tint(statusColor, 80)}`,
-                }}
-              />
-              {t(statusLabel)}
-            </Box>
-          </TooltipTrigger>
-          <TooltipContent>{t(statusLabel)}</TooltipContent>
-        </Tooltip>
-      )}
-      topLeft={(
-        <span
-          className="inline-flex"
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleEntity(event);
-          }}
-        >
-          <Checkbox checked={checked} aria-label={name} />
-        </span>
-      )}
-      topLeftVisible={showCheckbox}
       topRight={(
         <ThreatArsenalActionPopover
           actionId={action.injector_contract_id}
@@ -154,6 +100,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           disableJsonExport={disableJsonExport}
           disableDelete={disableDelete}
           revoked={action.action_payload?.payload_revoked}
+          managed={!!action.action_payload?.payload_managed}
+          variantIdentityId={action.action_payload?.payload_variant ? action.action_payload.payload_identity_id : undefined}
           onRevocationChange={(revoked, status) => action.action_payload && onUpdate({
             ...action,
             action_payload: {
@@ -166,31 +114,48 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       )}
       chips={(
         <>
-          {action.action_payload?.payload_version && <Chip label={`v${action.action_payload.payload_version}`} />}
-          {(action.action_payload?.payload_older_versions_in_use ?? 0) > 0 && (
+          <PayloadVariantBadges payload={action.action_payload} />
+          {techniques.length > 0 && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Chip label={t('Older version in use')} severity="medium" />
+                <span className="inline-flex">
+                  <Chip label={techniques.length > 1 ? `${techniques[0]} +${techniques.length - 1}` : techniques[0]} />
+                </span>
               </TooltipTrigger>
-              <TooltipContent>
-                {`${action.action_payload?.payload_older_versions_in_use} inject(s) · ${t('Change version')}`}
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {primaryDomain && <Chip label={t(primaryDomain.domain_name)} color={accent} />}
-          {domains.length > 1 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Chip label={`+${domains.length - 1}`} />
-              </TooltipTrigger>
-              {secondaryDomainsLabel && <TooltipContent>{secondaryDomainsLabel}</TooltipContent>}
+              <TooltipContent>{techniques.join(', ')}</TooltipContent>
             </Tooltip>
           )}
         </>
       )}
-      platforms={action.action_platforms ?? []}
-      footerRight={<ItemTags variant="reduced-view" tags={action.action_tags_ids} />}
-      caption={`${t('Updated')} ${nsdt(action.injector_contract_updated_at)}`}
+      // A team target says more than the Internal / Service platforms of these contracts.
+      platforms={action.action_targets_teams ? [] : action.action_platforms ?? []}
+      target={action.action_targets_teams && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <GroupsOutlined sx={{
+              fontSize: 18,
+              color: 'text.secondary',
+            }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Targets teams')}</TooltipContent>
+        </Tooltip>
+      )}
+      footerRight={(
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+        >
+          {statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
+        </div>
+      )}
+      caption={[
+        version ? `v${version}` : null,
+        builtIn ? `${t('Built-in')}${platformVersion ? ` · v${platformVersion}` : ''}` : null,
+        `${t('Updated')} ${nsd(action.injector_contract_updated_at)}`,
+      ].filter(Boolean).join(' · ')}
     />
   );
 };

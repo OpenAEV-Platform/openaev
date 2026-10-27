@@ -249,6 +249,35 @@ const InjectForm = ({
 
   const { handleSubmit, reset, subscribe, getValues, setError, clearErrors, trigger, watch, formState: { isSubmitting } } = methods;
 
+  // Another version of the same payload: the values typed so far are kept, key by key.
+  const keepTypedValues = (initialValues: Record<string, FieldValue>) => {
+    const typed = getValues() as unknown as Record<string, FieldValue>;
+    if (!typed?.inject_injector_contract) {
+      return initialValues;
+    }
+    const keys = new Set(injectorContractContent?.fields.map(field => field.key) ?? []);
+    const content = { ...(initialValues.inject_content as Record<string, FieldValue>) };
+    Object.entries((typed.inject_content ?? {}) as Record<string, FieldValue>).forEach(([key, value]) => {
+      if (keys.has(key) && value !== undefined && value !== '') {
+        content[key] = value;
+      }
+    });
+    return {
+      ...initialValues,
+      inject_title: typed.inject_title ?? initialValues.inject_title,
+      inject_description: typed.inject_description ?? initialValues.inject_description,
+      inject_tags: typed.inject_tags ?? initialValues.inject_tags,
+      inject_teams: typed.inject_teams ?? initialValues.inject_teams,
+      inject_all_teams: typed.inject_all_teams ?? initialValues.inject_all_teams,
+      inject_assets: typed.inject_assets ?? initialValues.inject_assets,
+      inject_asset_groups: typed.inject_asset_groups ?? initialValues.inject_asset_groups,
+      inject_depends_duration_days: typed.inject_depends_duration_days ?? initialValues.inject_depends_duration_days,
+      inject_depends_duration_hours: typed.inject_depends_duration_hours ?? initialValues.inject_depends_duration_hours,
+      inject_depends_duration_minutes: typed.inject_depends_duration_minutes ?? initialValues.inject_depends_duration_minutes,
+      inject_content: content,
+    };
+  };
+
   // Notify parent when the selected injector changes
   const selectedInjectorId = watch('inject_injector');
   useEffect(() => {
@@ -470,7 +499,7 @@ const InjectForm = ({
   // This ensures the form is pre-filled according to the selected contract.
   useEffect(() => {
     if (isCreation) {
-      const initialValues = getInitialValues();
+      const initialValues = keepTypedValues(getInitialValues());
       reset(initialValues);
       setDefaultValues(initialValues);
     }

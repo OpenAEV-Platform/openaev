@@ -42,10 +42,29 @@ const useInstalledActions = () => {
     }),
   );
 
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const fetchActions = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
+    // Loading ends with the results (below): ending it before shows the empty state for a frame.
+    // Versions are picked on each card: drop an "all versions" filter a browser may still hold.
+    const filterGroup = input.filterGroup
+      ? {
+          ...input.filterGroup,
+          filters: (input.filterGroup.filters ?? []).filter(f => f.key !== 'action_all_versions'),
+        }
+      : input.filterGroup;
+    return searchThreatArsenalActions({
+      ...input,
+      filterGroup,
+      group_by_primary_domain: true,
+    }).catch((error) => {
+      setLoading(false);
+      throw error;
+    });
+  };
+  const setLoadedActions = (actions: ThreatArsenalAction[]) => {
+    setThreatArsenalActions(actions);
+    setLoading(false);
   };
 
   // Massive operations (bulk delete) run detached from this screen: reload the page
@@ -162,15 +181,19 @@ const useInstalledActions = () => {
     return String(t('{count} actions selected', { count: numberOfSelectedElements }));
   })();
 
+  // A save that created a version returns the new action: it takes the place of the previous one.
   const replaceAction = (result: ThreatArsenalAction) =>
-    setThreatArsenalActions(prev => prev.map(a => (a.injector_contract_id === result.injector_contract_id ? result : a)));
+    setThreatArsenalActions(prev => prev.map(a => (a.injector_contract_id === result.injector_contract_id
+      || a.injector_contract_id === result.action_previous_version_id
+      ? result
+      : a)));
   const prependActions = (results: ThreatArsenalAction[]) => setThreatArsenalActions(prev => [...results, ...prev]);
   const removeAction = (actionId: string) =>
     setThreatArsenalActions(prev => prev.filter(a => a.injector_contract_id !== actionId));
 
   return {
     threatArsenalActions,
-    setThreatArsenalActions,
+    setThreatArsenalActions: setLoadedActions,
     replaceAction,
     prependActions,
     removeAction,

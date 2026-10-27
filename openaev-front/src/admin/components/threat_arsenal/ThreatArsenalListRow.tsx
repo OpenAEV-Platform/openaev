@@ -65,6 +65,8 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
           disableJsonExport={disableJsonExport}
           disableDelete={disableDelete}
           revoked={action.action_payload?.payload_revoked}
+          managed={!!action.action_payload?.payload_managed}
+          variantIdentityId={action.action_payload?.payload_variant ? action.action_payload.payload_identity_id : undefined}
           onRevocationChange={(revoked, status) => action.action_payload && onUpdate({
             ...action,
             action_payload: {

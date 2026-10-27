@@ -12,7 +12,7 @@ import {
   STATUS_FILIGRAN,
 } from './catalog-facets';
 
-const SORT_VALUES: CatalogSort[] = ['name_asc', 'name_desc', 'deployed_desc'];
+const SORT_VALUES: CatalogSort[] = ['name_asc', 'name_desc', 'deployed_asc', 'deployed_desc'];
 const DEFAULT_SORT: CatalogSort = 'name_asc';
 const STATUS_VALUES: string[] = [STATUS_FILIGRAN, STATUS_COMMUNITY];
 const DEPLOYMENT_VALUES: string[] = [DEPLOYMENT_EXTERNAL, DEPLOYMENT_BUILT_IN];

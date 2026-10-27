@@ -6,7 +6,7 @@ import { Link, Navigate, useParams } from 'react-router';
 
 import { fetchCatalogConnectors, isXtmComposerIsReachable } from '../../../actions/catalog/catalog-actions';
 import { type CatalogConnectorsHelper } from '../../../actions/catalog/catalog-helper';
-import Breadcrumbs from '../../../components/Breadcrumbs';
+import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { useHelper } from '../../../store';
@@ -14,7 +14,6 @@ import { type CatalogConnectorOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import CatalogHero from './catalog_connectors/CatalogHero';
 
 const Catalog = lazy(() => import('./catalog_connectors/Catalog'));
 const DeployedConnectors = lazy(() => import('./deployed/DeployedConnectors'));
@@ -75,13 +74,6 @@ const Integrations = () => {
       gap: theme.spacing(3),
     }}
     >
-      <Breadcrumbs
-        variant="list"
-        elements={[{
-          label: t('Integrations'),
-          current: true,
-        }]}
-      />
       {isEnterpriseEdition && isXtmComposerUp === false && !warningDismissed
         && (
           <Alert severity="warning" onClose={dismissWarning}>
@@ -96,7 +88,7 @@ const Integrations = () => {
             </a>
           </Alert>
         )}
-      <CatalogHero
+      <MarketplaceHero
         title={t('Integrations')}
         subtitle={t('Browse, filter and deploy collectors, injectors and executors from the XTM ecosystem.')}
       />
@@ -104,7 +96,7 @@ const Integrations = () => {
         <TabsList>
           <TabsTrigger value="deployed" asChild>
             <Link to="/admin/integrations/deployed" aria-current={activeTab === 'deployed' ? 'page' : undefined}>
-              {t('Deployed')}
+              {t('Active')}
             </Link>
           </TabsTrigger>
           <TabsTrigger value="available" asChild>

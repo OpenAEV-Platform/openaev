@@ -2,7 +2,7 @@ import { type FunctionComponent } from 'react';
 
 import { fetchCatalogScenarioInstallPreview, installCatalogScenario } from '../../../../actions/catalog/scenario-catalog-actions';
 import { useFormatter } from '../../../../components/i18n';
-import ScenarioTargetsDrawer from './ScenarioTargetsDrawer';
+import ScenarioTargetsDrawer, { type MissingPrerequisite } from './ScenarioTargetsDrawer';
 
 interface Props {
   externalId: string;
@@ -22,7 +22,8 @@ const CatalogScenarioInstallDrawer: FunctionComponent<Props> = ({ externalId, na
       load={() => fetchCatalogScenarioInstallPreview(externalId, version).then(({ data }) => ({
         injects: data.injects,
         previousVersion: data.previous_version,
-        missingRequirements: data.missing_requirements,
+        // Declared locally until the API types are regenerated.
+        missingPrerequisites: (data as { missing_prerequisites?: MissingPrerequisite[] }).missing_prerequisites ?? [],
       }))}
       onSubmit={input => installCatalogScenario(externalId, version, input).then(({ data }) => onInstalled(data.scenario_id))}
       onClose={onClose}

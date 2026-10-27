@@ -47,7 +47,7 @@ const MarketplaceFacetSidebar: FunctionComponent<Props> = ({ facets, facetCounts
     };
   }).filter(section => section.rows.length > 0), [facets, facetCounts, valuesOf, toggleValue, t]);
 
-  return <FacetSidebar sections={[...sections, ...extraSections.filter(section => section.rows.length > 0)]} />;
+  return <FacetSidebar title={t('Filters')} sections={[...sections, ...extraSections.filter(section => section.rows.length > 0)]} />;
 };
 
 export default MarketplaceFacetSidebar;

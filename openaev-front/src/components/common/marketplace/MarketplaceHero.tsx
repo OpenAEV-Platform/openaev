@@ -1,8 +1,6 @@
-import { Box, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Chip, Hero, HeroBody, HeroHeader, Text } from '@filigran/design-system';
+import { Box } from '@mui/material';
 import { type FunctionComponent, type ReactNode } from 'react';
-
-import { useFormatter } from '../../i18n';
 
 interface Stat {
   id: string;
@@ -13,192 +11,60 @@ interface Stat {
 
 interface Props {
   title: string;
-  totalLabel: string;
-  totalElements: number;
-  stats: Stat[];
+  subtitle?: string;
+  /** Counters beside the title; left out on pages that show none (integrations). */
+  totalLabel?: string;
+  totalElements?: number;
+  stats?: Stat[];
   rightSlot?: ReactNode;
   bottomSlot?: ReactNode;
 }
 
+// Page header shared by the marketplaces (integrations, threat arsenal, scenarios), on the design system Hero.
 const MarketplaceHero: FunctionComponent<Props> = ({
   title,
+  subtitle,
   totalLabel,
   totalElements,
-  stats,
+  stats = [],
   rightSlot,
   bottomSlot,
-}) => {
-  const { t } = useFormatter();
-  const theme = useTheme();
-
-  const primary = theme.palette.primary.main;
-
-  return (
-    <Box
-      component="section"
-      aria-label={title}
-      sx={{
-        // Same hero surface as the Integrations marketplace (shared visual language).
-        position: 'relative',
-        borderRadius: 1,
-        padding: {
-          xs: 2,
-          md: 3,
-        },
-        overflow: 'hidden',
-        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-        backgroundColor: theme.palette.background.paper,
-      }}
-    >
-      <Box
-        aria-hidden
-        sx={{
-          position: 'absolute',
-          top: -100,
-          right: -60,
-          width: 260,
-          height: 260,
-          borderRadius: '50%',
-          background: alpha(primary, 0.08),
-          filter: 'blur(60px)',
-          pointerEvents: 'none',
-        }}
-      />
-
+}) => (
+  <Hero aria-label={title}>
+    <HeroHeader action={rightSlot}>
       <Box sx={{
-        position: 'relative',
         display: 'flex',
-        flexDirection: {
-          xs: 'column',
-          md: 'row',
-        },
-        gap: 1.5,
-        alignItems: {
-          xs: 'stretch',
-          md: 'center',
-        },
-        justifyContent: 'space-between',
+        flexDirection: 'column',
+        gap: 0.5,
+        minWidth: 0,
       }}
       >
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 1.25,
+          gap: 1.5,
           minWidth: 0,
         }}
         >
-          <Typography
-            variant="h1"
-            sx={{
-              fontWeight: 700,
-              margin: 0,
-              fontSize: 22,
-              whiteSpace: 'nowrap',
+          <Text as="h1" variant="title-md" style={{ margin: 0 }}>{title}</Text>
+          {(totalLabel || stats.length > 0) && (
+            <Box sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 0.75,
             }}
-          >
-            {title}
-          </Typography>
-
-          <Box sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 0.75,
-          }}
-          >
-            {/* Same stat pill design as the Integrations marketplace hero. */}
-            <Box
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.75,
-                paddingBlock: 0.5,
-                paddingInline: 1.25,
-                borderRadius: 1,
-                border: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
-                backgroundColor: alpha(theme.palette.text.primary, 0.04),
-              }}
             >
-              <Typography sx={{
-                fontWeight: 600,
-                fontSize: 13,
-                fontVariantNumeric: 'tabular-nums',
-              }}
-              >
-                {totalElements}
-              </Typography>
-              <Typography sx={{
-                color: 'text.secondary',
-                fontSize: 13,
-              }}
-              >
-                {totalLabel}
-              </Typography>
+              {totalLabel && <Chip label={`${totalElements ?? 0} ${totalLabel}`} />}
+              {stats.map(stat => <Chip key={stat.id} label={`${stat.value} ${stat.label}`} />)}
             </Box>
-            {stats.map(stat => (
-              <Box
-                key={stat.id}
-                sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  paddingBlock: 0.5,
-                  paddingInline: 1.25,
-                  borderRadius: 1,
-                  border: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
-                  backgroundColor: alpha(theme.palette.text.primary, 0.04),
-                }}
-              >
-                <Typography sx={{
-                  fontWeight: 600,
-                  fontSize: 13,
-                  color: stat.color ?? 'text.primary',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-                >
-                  {stat.value}
-                </Typography>
-                <Typography sx={{
-                  color: 'text.secondary',
-                  fontSize: 13,
-                }}
-                >
-                  {t(stat.label)}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
+          )}
         </Box>
-
-        {rightSlot && (
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            flexWrap: 'wrap',
-            justifyContent: {
-              xs: 'flex-start',
-              md: 'flex-end',
-            },
-            flexShrink: 0,
-          }}
-          >
-            {rightSlot}
-          </Box>
-        )}
+        {subtitle && <Text variant="content-base" className="text-default-secondary">{subtitle}</Text>}
       </Box>
-
-      {bottomSlot && (
-        <Box sx={{
-          position: 'relative',
-          marginTop: 1.25,
-        }}
-        >
-          {bottomSlot}
-        </Box>
-      )}
-    </Box>
-  );
-};
+    </HeroHeader>
+    {bottomSlot && <HeroBody>{bottomSlot}</HeroBody>}
+  </Hero>
+);
 
 export default MarketplaceHero;
