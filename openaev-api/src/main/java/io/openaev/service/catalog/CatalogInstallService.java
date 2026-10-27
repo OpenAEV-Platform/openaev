@@ -220,6 +220,9 @@ public class CatalogInstallService {
     if (!missing.isEmpty()) {
       throw new BadRequestException("Missing to run this scenario: " + String.join(", ", missing));
     }
+    if (scenarioApplyService.isChained(item)) {
+      throw new BadRequestException(CatalogRequirementsService.CHAINED_NOT_SUPPORTED);
+    }
     Optional<Scenario> instance = instance(item);
     if (instance.isPresent()) {
       return reinstall(ctx, instance.get(), version);

@@ -8,6 +8,7 @@ import io.openaev.api.catalog.CatalogMissingRequirement.Status;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogItem;
+import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Executor;
 import io.openaev.database.model.Injector;
 import io.openaev.executors.ExecutorService;
@@ -27,6 +28,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class CatalogRequirementsService {
+
+  // The steps of a chained scenario are not bound to the release yet: their payloads would escape
+  // its checks and revocations, and an update would not write them.
+  public static final String CHAINED_NOT_SUPPORTED = "Chained scenarios are not supported yet";
+  private static final String CHAINED = "chained";
 
   private static final Pattern CONSTRAINT = Pattern.compile("^(>=|>|==|~=)([0-9]+(\\.[0-9]+)*)$");
 
@@ -71,11 +77,14 @@ public class CatalogRequirementsService {
     }
 
     public List<CatalogMissingRequirement> missingPrerequisites(CatalogItem item) {
+      List<CatalogMissingRequirement> missing = new ArrayList<>();
+      if (isChained(item)) {
+        missing.add(other(Kind.CHAINING, CHAINED, CHAINED_NOT_SUPPORTED));
+      }
       Requires requires = read(item);
       if (requires == null) {
-        return List.of();
+        return missing;
       }
-      List<CatalogMissingRequirement> missing = new ArrayList<>();
       if (requires.openaev() != null && !versionMatches(requires.openaev(), version)) {
         missing.add(other(Kind.OPENAEV, requires.openaev(), "OpenAEV " + requires.openaev()));
       }
@@ -108,6 +117,11 @@ public class CatalogRequirementsService {
     private static CatalogMissingRequirement other(Kind kind, String key, String label) {
       return new CatalogMissingRequirement(kind, key, label, null, null, null);
     }
+  }
+
+  public static boolean isChained(CatalogItem item) {
+    return item.getType() == ContentType.SCENARIO
+        && CHAINED.equalsIgnoreCase(item.getScenarioType());
   }
 
   private Requires read(CatalogItem item) {

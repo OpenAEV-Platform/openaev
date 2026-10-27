@@ -148,7 +148,7 @@ const injectIcon = (fields: string[]) => {
 
 // A catalogue prerequisite the platform lacks; an injector comes with the integration to enable.
 export interface MissingPrerequisite {
-  requirement_kind: 'OPENAEV' | 'EDITION' | 'INJECTOR' | 'EXECUTOR';
+  requirement_kind: 'OPENAEV' | 'EDITION' | 'INJECTOR' | 'EXECUTOR' | 'CHAINING';
   requirement_key: string;
   requirement_label: string;
   requirement_catalog_connector_id?: string;

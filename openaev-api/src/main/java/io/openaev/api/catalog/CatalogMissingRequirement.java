@@ -18,6 +18,7 @@ public record CatalogMissingRequirement(
     EDITION,
     INJECTOR,
     EXECUTOR,
+    CHAINING,
   }
 
   public enum Status {
