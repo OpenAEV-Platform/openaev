@@ -62,6 +62,17 @@ public class XtmHubService {
         singleTenantScope(ctx, "Reading the XTM Hub registration"));
   }
 
+  /**
+   * Whether at least one tenant in the scope of the request is, or was, registered on XTM Hub. A
+   * tenant that lost its connectivity keeps the items it already retrieved.
+   */
+  public boolean isAnyTenantRegistered(TxCtx ctx) {
+    return TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx).stream()
+        .map(tenantXtmHubRegistrationRepository::findByTenantId)
+        .flatMap(Optional::stream)
+        .anyMatch(r -> r.getRegistrationStatus() != XtmHubRegistrationStatus.UNREGISTERED);
+  }
+
   public TenantXtmHubRegistration register(TxCtx ctx, @NotBlank final String token) {
     String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     User currentUser = userService.currentUser();

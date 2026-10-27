@@ -18,9 +18,13 @@ import io.openaev.database.model.User;
 import io.openaev.database.raw.RawNewsFeedItemKey;
 import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.NewsFeedItemRepository;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.ReferenceResolver;
+import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.xtmhub.ProvisionedNewsFeedItem;
+import io.openaev.xtmhub.XtmHubService;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,13 +52,21 @@ class NewsFeedItemServiceTest {
   @Mock private UserService userService;
   @Mock private ReferenceResolver referenceResolver;
   @Mock private TenantScopedTransaction tenantTx;
+  @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private XtmHubService xtmHubService;
 
   private NewsFeedItemService service;
 
   @BeforeEach
   void setUp() {
     service =
-        new NewsFeedItemService(newsFeedItemRepository, userService, referenceResolver, tenantTx);
+        new NewsFeedItemService(
+            newsFeedItemRepository,
+            userService,
+            referenceResolver,
+            tenantTx,
+            previewFeatureService,
+            xtmHubService);
     // runs the work inline: the transaction itself is covered by the integration tests
     lenient()
         .doAnswer(invocation -> invocation.<Supplier<Object>>getArgument(1).get())
@@ -279,5 +291,34 @@ class NewsFeedItemServiceTest {
     // Assert
     verifyNoInteractions(userService);
     verify(newsFeedItemRepository, never()).saveAllAndFlush(anyCollection());
+  }
+
+  @Test
+  @DisplayName("Given the feature flag, should tell whether the news feed is enabled")
+  void given_featureFlag_should_tellWhetherEnabled() {
+    // Arrange
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED))
+        .thenReturn(true, false);
+
+    // Act & Assert
+    assertThat(service.isFeatureEnabled()).isTrue();
+    assertThat(service.isFeatureEnabled()).isFalse();
+  }
+
+  @Test
+  @DisplayName("Given an unregistered tenant, should return an empty page without any query")
+  void given_unregisteredTenant_should_returnEmptyPage() {
+    // Arrange
+    TxCtx ctx = TxCtx.forTenant("tenant-a");
+    when(xtmHubService.isAnyTenantRegistered(ctx)).thenReturn(false);
+    SearchPaginationInput input = PaginationFixture.getDefault().build();
+
+    // Act
+    var page = service.searchMyItems(ctx, input);
+
+    // Assert
+    assertThat(page.getContent()).isEmpty();
+    assertThat(page.getTotalElements()).isZero();
+    verifyNoInteractions(newsFeedItemRepository, userService);
   }
 }

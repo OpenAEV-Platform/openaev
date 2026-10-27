@@ -1,5 +1,7 @@
 package io.openaev.service;
 
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.NewsFeedItem;
@@ -7,9 +9,13 @@ import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.NewsFeedItemRepository;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.ReferenceResolver;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.xtmhub.ProvisionedNewsFeedItem;
+import io.openaev.xtmhub.XtmHubService;
+import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -20,6 +26,10 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -41,10 +51,41 @@ public class NewsFeedItemService {
   private final UserService userService;
   private final ReferenceResolver referenceResolver;
   private final TenantScopedTransaction tenantTx;
+  private final PreviewFeatureService previewFeatureService;
+  private final XtmHubService xtmHubService;
 
   private record UserItem(String userId, String hubItemId) {}
 
   private record TypedItem(ProvisionedNewsFeedItem item, NewsFeedType type) {}
+
+  // -- READ --
+
+  public boolean isFeatureEnabled() {
+    return previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED);
+  }
+
+  /**
+   * Searches the news feed items of the current user. The items carry no tenant, so the page is
+   * empty when no tenant in the scope of the request is registered on XTM Hub (a tenant that lost
+   * its connectivity still shows the items it retrieved).
+   */
+  public Page<NewsFeedItem> searchMyItems(
+      TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
+    if (!xtmHubService.isAnyTenantRegistered(ctx)) {
+      return new PageImpl<>(
+          List.of(),
+          PageRequest.of(searchPaginationInput.getPage(), searchPaginationInput.getSize()),
+          0);
+    }
+    String userId = userService.currentUser().getId();
+    Specification<NewsFeedItem> ownerSpec =
+        (root, query, cb) -> cb.equal(root.get("user").get("id"), userId);
+    return buildPaginationJPA(
+        (specification, pageable) ->
+            newsFeedItemRepository.findAll(ownerSpec.and(specification), pageable),
+        searchPaginationInput,
+        NewsFeedItem.class);
+  }
 
   // -- CREATE --
 
