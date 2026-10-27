@@ -17,13 +17,16 @@ import io.openaev.database.repository.InjectDependenciesRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.VariableService;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.catalog.CatalogPayloadService;
+import io.openaev.service.catalog.CatalogRequirementsService;
 import io.openaev.service.catalog.CatalogService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.payload.PayloadVersionService;
 import java.io.ByteArrayInputStream;
@@ -81,6 +84,7 @@ public class ScenarioApplyService {
   private final ContentHistoryService contentHistoryService;
   private final ScenarioRevisionService scenarioRevisionService;
   private final ScenarioContentReader reader;
+  private final WorkflowService workflowService;
   private final ObjectMapper mapper;
 
   // -- PREVIEW --
@@ -94,6 +98,7 @@ public class ScenarioApplyService {
 
   private Preview previewOf(
       Scenario scenario, Target target, Map<String, Choice> choices, Map<String, JsonNode> edits) {
+    refuseChained(scenario);
     Collection<Inject> injects = injectService.findByScenarioId(scenario.getId());
     ObjectNode local = scenarioRevisionService.local(scenario, injects);
     ObjectNode base = scenarioRevisionService.base(scenario, injects);
@@ -226,8 +231,32 @@ public class ScenarioApplyService {
                 scenario.getCatalogId(),
                 target.version())
             .orElseThrow(() -> new ElementNotFoundException("Catalogue scenario not found"));
-    ObjectNode content = reader.fromPackage(packageRoot(item), payloadVersions(item));
+    JsonNode root = packageRoot(item);
+    if (CatalogRequirementsService.isChained(item) || hasWorkflow(root)) {
+      throw new BadRequestException(CatalogRequirementsService.CHAINED_NOT_SUPPORTED);
+    }
+    ObjectNode content = reader.fromPackage(root, payloadVersions(item));
     return new Applied(content, content, item.getVersion());
+  }
+
+  /** Refused while the steps of a chained scenario are not part of its content. */
+  public boolean isChained(CatalogItem item) {
+    return CatalogRequirementsService.isChained(item) || hasWorkflow(packageRoot(item));
+  }
+
+  private void refuseChained(Scenario scenario) {
+    try {
+      if (workflowService.findWorkflowTemplateByScenarioId(scenario.getId()).isPresent()) {
+        throw new BadRequestException(CatalogRequirementsService.CHAINED_NOT_SUPPORTED);
+      }
+    } catch (ChainingException e) {
+      throw new BadRequestException(CatalogRequirementsService.CHAINED_NOT_SUPPORTED);
+    }
+  }
+
+  private static boolean hasWorkflow(JsonNode root) {
+    JsonNode workflow = root.get("scenario_workflow");
+    return workflow != null && !workflow.isNull() && !workflow.isEmpty();
   }
 
   /** The normalized contract of each payload version a release names, by external ID. */
