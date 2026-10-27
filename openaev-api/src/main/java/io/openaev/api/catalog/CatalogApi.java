@@ -262,8 +262,7 @@ public class CatalogApi {
   @PostMapping(
       value = {CATALOG_URI + "/sync", TENANT_CATALOG_URI + "/sync"},
       consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  // Synced content is official and updates installed payloads: tenant administrators only.
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CATALOG_SYNC)
   @Transactional(rollbackFor = Exception.class)
   public CatalogSyncOutput sync(
       TxCtx ctx,
