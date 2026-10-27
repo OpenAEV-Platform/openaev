@@ -1,6 +1,7 @@
 package io.openaev.service.catalog;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.catalog.CatalogItemOutput;
 import io.openaev.api.catalog.CatalogManifest;
@@ -22,7 +23,9 @@ import io.openaev.utils.SemanticVersion;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class CatalogService {
+
+  // The size bound of a payload version file in the scenarios repository.
+  private static final long MAX_VERSION_FILE_SIZE = 262_144;
+
+  private enum Saved {
+    ADDED,
+    UNCHANGED,
+    CHANGED
+  }
 
   private final CatalogItemRepository catalogItemRepository;
   private final CatalogSyncStateRepository catalogSyncStateRepository;
@@ -219,25 +231,41 @@ public class CatalogService {
         refusals.put(key, reason.get());
         continue;
       }
-      String sha256 = item.archive().sha256();
-      try {
-        if (fileService.getCatalogPackage(sha256).isEmpty()) {
-          fileService.uploadCatalogPackage(
-              sha256, new ByteArrayInputStream(archives.get(item.archive().name())));
-        }
-      } catch (Exception e) {
-        log.warn("Catalogue item {} could not be stored", key, e);
-        refusals.put(key, "Archive could not be stored");
+      store(item.archive().sha256(), archives.get(item.archive().name()), key, refusals);
+    }
+    for (CatalogManifest.PayloadVersion version : payloadVersions(manifest)) {
+      String key = key(version.openaevId(), version.version());
+      Optional<String> reason = check(version, archives);
+      if (reason.isPresent()) {
+        log.warn("Catalogue payload {} refused: {}", key, reason.get());
+        refusals.put(key, reason.get());
+        continue;
       }
+      store(version.file().sha256(), archives.get(version.file().name()), key, refusals);
     }
     return refusals;
+  }
+
+  private void store(String sha256, byte[] content, String key, Map<String, String> refusals) {
+    try {
+      if (fileService.getCatalogPackage(sha256).isEmpty()) {
+        fileService.uploadCatalogPackage(sha256, new ByteArrayInputStream(content));
+      }
+    } catch (Exception e) {
+      log.warn("Catalogue item {} could not be stored", key, e);
+      refusals.put(key, "Archive could not be stored");
+    }
   }
 
   /** Records the release in the tenant's catalogue; an item failing its checks is skipped alone. */
   @Transactional(rollbackFor = Exception.class)
   public CatalogSyncOutput apply(
       // Unused by the body; TenantScopeTransactionAspect reads it to scope this transaction.
-      TxCtx ctx, String tenantId, CatalogManifest manifest, Map<String, String> refusals) {
+      TxCtx ctx,
+      String tenantId,
+      CatalogManifest manifest,
+      Map<String, byte[]> archives,
+      Map<String, String> refusals) {
     CatalogSyncState state =
         catalogSyncStateRepository
             .findByRepositoryAndChannel(manifest.repository(), channel(manifest))
@@ -255,36 +283,48 @@ public class CatalogService {
         refused.add(new Refusal(item.externalId(), item.version(), reason));
         continue;
       }
-      ContentType type = item.contentType();
-      Optional<CatalogItem> existing =
-          catalogItemRepository.findByTypeAndRepositoryAndExternalIdAndVersion(
-              type, manifest.repository(), item.externalId(), item.version());
-      if (existing.isPresent()
-          && !existing.get().getArchiveHash().equalsIgnoreCase(item.archive().sha256())) {
-        refused.add(
-            new Refusal(
-                item.externalId(),
-                item.version(),
-                "A published version cannot change its content"));
+      Saved saved =
+          save(
+              tenant,
+              item.contentType(),
+              manifest.repository(),
+              item.externalId(),
+              item.version(),
+              item.archive().sha256(),
+              target -> fill(target, item, manifest));
+      switch (saved) {
+        case ADDED -> added++;
+        case UNCHANGED -> unchanged++;
+        case CHANGED -> refused.add(changed(item.externalId(), item.version()));
+      }
+    }
+    for (CatalogManifest.PayloadVersion version : payloadVersions(manifest)) {
+      String reason = refusals.get(key(version.openaevId(), version.version()));
+      if (reason != null) {
+        refused.add(new Refusal(version.openaevId(), version.version(), reason));
         continue;
       }
-      CatalogItem catalogItem = existing.orElseGet(CatalogItem::new);
-      if (existing.isEmpty()) {
-        catalogItem.setType(type);
-        catalogItem.setExternalId(item.externalId());
-        catalogItem.setVersion(item.version());
-        catalogItem.setArchiveHash(item.archive().sha256().toLowerCase(Locale.ROOT));
-        catalogItem.setTenant(tenant);
-        added++;
-      } else {
-        unchanged++;
+      JsonNode file = readVersionFile(archives.get(version.file().name()));
+      Saved saved =
+          save(
+              tenant,
+              ContentType.PAYLOAD,
+              manifest.repository(),
+              version.openaevId(),
+              version.version(),
+              version.file().sha256(),
+              target -> fill(target, version, file, manifest));
+      switch (saved) {
+        case ADDED -> added++;
+        case UNCHANGED -> unchanged++;
+        case CHANGED -> refused.add(changed(version.openaevId(), version.version()));
       }
-      fill(catalogItem, item, manifest);
-      catalogItemRepository.save(catalogItem);
     }
     Set<String> released =
-        items(manifest).stream()
-            .map(item -> key(item.externalId(), item.version()))
+        Stream.concat(
+                items(manifest).stream().map(item -> key(item.externalId(), item.version())),
+                payloadVersions(manifest).stream()
+                    .map(version -> key(version.openaevId(), version.version())))
             .collect(Collectors.toSet());
     catalogItemRepository.findAllByRepository(manifest.repository()).stream()
         .filter(item -> !released.contains(key(item.getExternalId(), item.getVersion())))
@@ -298,6 +338,63 @@ public class CatalogService {
     state.setRelease(manifest.release());
     catalogSyncStateRepository.save(state);
     return new CatalogSyncOutput(manifest.release(), true, added, unchanged, refused);
+  }
+
+  private Saved save(
+      Tenant tenant,
+      ContentType type,
+      String repository,
+      String externalId,
+      String version,
+      String archiveHash,
+      Consumer<CatalogItem> fill) {
+    Optional<CatalogItem> existing =
+        catalogItemRepository.findByTypeAndRepositoryAndExternalIdAndVersion(
+            type, repository, externalId, version);
+    if (existing.isPresent() && !existing.get().getArchiveHash().equalsIgnoreCase(archiveHash)) {
+      return Saved.CHANGED;
+    }
+    CatalogItem catalogItem = existing.orElseGet(CatalogItem::new);
+    if (existing.isEmpty()) {
+      catalogItem.setType(type);
+      catalogItem.setExternalId(externalId);
+      catalogItem.setVersion(version);
+      catalogItem.setArchiveHash(archiveHash.toLowerCase(Locale.ROOT));
+      catalogItem.setTenant(tenant);
+    }
+    fill.accept(catalogItem);
+    catalogItemRepository.save(catalogItem);
+    return existing.isEmpty() ? Saved.ADDED : Saved.UNCHANGED;
+  }
+
+  private static Refusal changed(String externalId, String version) {
+    return new Refusal(externalId, version, "A published version cannot change its content");
+  }
+
+  private void fill(
+      CatalogItem target,
+      CatalogManifest.PayloadVersion version,
+      JsonNode file,
+      CatalogManifest manifest) {
+    target.setStatus("VERIFIED");
+    target.setName(file.path("payload_name").asText(version.payload()));
+    target.setDescription(file.path("payload_description").asText(null));
+    List<String> platforms = new ArrayList<>();
+    file.path("payload_platforms").forEach(platform -> platforms.add(platform.asText()));
+    target.setPlatforms(platforms.toArray(new String[0]));
+    target.setPublishedAt(manifest.issuedAt());
+    target.setArchiveName(version.file().name());
+    target.setRepository(manifest.repository());
+    target.setRelease(manifest.release());
+    try {
+      target.setPayloadRefs(
+          mapper.writeValueAsString(
+              List.of(
+                  new CatalogManifest.PayloadRef(
+                      version.openaevId(), version.version(), version.sha256()))));
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Unreadable payload references", e);
+    }
   }
 
   private void fill(CatalogItem target, CatalogManifest.Item item, CatalogManifest manifest) {
@@ -353,6 +450,54 @@ public class CatalogService {
       return Optional.of("Archive hash does not match the manifest");
     }
     return CatalogArchiveChecks.unsafeReason(archive);
+  }
+
+  private Optional<String> check(
+      CatalogManifest.PayloadVersion version, Map<String, byte[]> files) {
+    if (version.openaevId() == null
+        || version.version() == null
+        || version.sha256() == null
+        || version.file() == null
+        || version.file().name() == null
+        || version.file().sha256() == null) {
+      return Optional.of("Incomplete manifest entry");
+    }
+    try {
+      SemanticVersion.parse(version.version());
+    } catch (Exception e) {
+      return Optional.of("Unknown version format");
+    }
+    byte[] file = files.get(version.file().name());
+    if (file == null) {
+      return Optional.of("Payload file missing from the release");
+    }
+    if (file.length > MAX_VERSION_FILE_SIZE
+        || (version.file().size() != null && file.length != version.file().size())) {
+      return Optional.of("Payload file size does not match the manifest");
+    }
+    if (!CatalogArchiveChecks.sha256(file).equalsIgnoreCase(version.file().sha256())) {
+      return Optional.of("Payload file hash does not match the manifest");
+    }
+    try {
+      if (!version.openaevId().equals(readVersionFile(file).path("payload_external_id").asText())) {
+        return Optional.of("Payload file does not hold the listed ID");
+      }
+    } catch (Exception e) {
+      return Optional.of("Unreadable payload file");
+    }
+    return Optional.empty();
+  }
+
+  private JsonNode readVersionFile(byte[] file) {
+    try {
+      return mapper.readTree(file);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Unreadable payload file", e);
+    }
+  }
+
+  private static List<CatalogManifest.PayloadVersion> payloadVersions(CatalogManifest manifest) {
+    return manifest.payloads() == null ? List.of() : manifest.payloads();
   }
 
   private static List<CatalogManifest.Item> items(CatalogManifest manifest) {

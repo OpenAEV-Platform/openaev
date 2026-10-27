@@ -2,6 +2,7 @@ package io.openaev.rest.payload.service;
 
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 
+import io.openaev.api.payload.PayloadImportService;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TxCtx;
@@ -20,6 +21,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.GrantService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload.PayloadContentHashService;
 import io.openaev.service.payload.PayloadVersionNumbering;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
@@ -59,6 +61,7 @@ public class PayloadUpsertService {
   private final PayloadVersionNumbering payloadVersionNumbering;
   private final ContentHistoryService contentHistoryService;
   private final GrantService grantService;
+  private final PayloadContentHashService payloadContentHashService;
 
   /**
    * Legacy collector upsert. A catalogue payload with this external ID wins and is not touched.
@@ -110,6 +113,34 @@ public class PayloadUpsertService {
     }
     return createPayloadFromUpsert(
         tenantId, input, attackPatterns, collectorType, collectorOrganization);
+  }
+
+  /**
+   * A catalogue version from the JSON file its release carries: created as written, under the
+   * release identity and number. The caller checks its hash against the release.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Payload createCatalogVersion(
+      String tenantId, PayloadUpsertInput input, PayloadIdentity identity, String version) {
+    PayloadType payloadType = PayloadType.fromString(input.getType());
+    validateArchitecture(payloadType.key, input.getExecutionArch());
+    Payload payload = payloadType.getPayloadSupplier().get();
+    payload.setTenant(new Tenant(tenantId));
+    payloadUtils.copyProperties(input, payload, false);
+    PayloadImportService.asCatalogVersion(payload, identity, version);
+    List<AttackPattern> attackPatterns =
+        attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+            input.getAttackPatternsExternalIds(), tenantId);
+    payload.setContentHash(payloadContentHashService.hash(payload, attackPatterns));
+    Payload saved =
+        payloadVersionService.addVersion(
+            identity, payload, PayloadVersionService.Numbering.fixed(version));
+    payloadService.synchroniseInjectorContractBasedOnPayload(
+        saved,
+        attackPatterns,
+        domainService.upserts(input.getDomains(), tenantId),
+        new HashSet<>());
+    return saved;
   }
 
   // One local identity per collector and external ID (unique index); without a collector, the one

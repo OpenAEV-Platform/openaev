@@ -13,7 +13,9 @@ import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.form.DomainBaseInput;
+import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.rest.payload.service.PayloadUpsertService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.service.ZipJsonService;
@@ -44,6 +46,7 @@ public class PayloadImportService {
   private final TenantWriteScopeResolver writeScopeResolver;
   private final AmbientTenantBridge ambientTenantBridge;
   private final PayloadVersionService payloadVersionService;
+  private final PayloadUpsertService payloadUpsertService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -100,6 +103,20 @@ public class PayloadImportService {
                     IMPORT_OPTIONS,
                     payload -> asCatalogVersion(payload, identity, version),
                     tenantId)));
+  }
+
+  /** Same, from the JSON version file a release carries next to its archives. */
+  public Payload importCatalogVersionFile(
+      TxCtx ctx, byte[] file, PayloadIdentity identity, String version) throws Exception {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    PayloadUpsertInput input = mapper.readValue(file, PayloadUpsertInput.class);
+    // Taken as written: the input's default expectations would change the content and its hash.
+    if (!mapper.readTree(file).has("payload_expectations")) {
+      input.setExpectations(new BaseInjectExpectation.EXPECTATION_TYPE[0]);
+    }
+    return ambientTenantBridge.callInTenantChecked(
+        tenantId,
+        () -> payloadUpsertService.createCatalogVersion(tenantId, input, identity, version));
   }
 
   /** A catalogue version: the identity and number come from the release, not from the package. */
