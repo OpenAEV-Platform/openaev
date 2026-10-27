@@ -19,6 +19,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -102,6 +103,11 @@ public class TenantService {
     return tenantRepository
         .findById(tenantId)
         .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<Tenant> find(@NotBlank String tenantId) {
+    return tenantRepository.findById(tenantId);
   }
 
   /** Searches tenants with pagination and filtering. */
