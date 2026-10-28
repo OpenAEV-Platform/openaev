@@ -18,7 +18,7 @@ implemented.
 | [URL access token enforcement](#url-access-token-enforcement) | -             | 2.260622.0 |
 | [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
 | [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
-| [Elasticsearch 9](#elasticsearch-9)                            | -             | \[MigrationVersion\]        |
+| [Elasticsearch 9 and engine auto-detection](#elasticsearch-9)  | -             | \[MigrationVersion\]        |
 | [Windows agent config file permissions](#windows-agent-config-permissions) | -             | 3.261016.0 |
 
 ## OpenAEV 2.2.0
@@ -129,11 +129,12 @@ For more details, see [this migration guide](breaking-changes/MigrationVersion-t
 
 <a id="elasticsearch-9"></a>
 
-#### Elasticsearch 9
+#### Elasticsearch 9 and engine auto-detection
 
-Starting with **OpenAEV \[MigrationVersion\]**, the platform requires an Elasticsearch 9 cluster. The 9.x client
-tags its requests as `compatible-with=9`, which an 8.x server rejects, so every engine call fails against
-Elasticsearch 8. OpenSearch deployments are unaffected.
+Starting with **OpenAEV \[MigrationVersion\]**, the platform supports Elasticsearch 8.19+, Elasticsearch 9 and
+OpenSearch, and detects which one runs behind `engine.url` at startup. The `engine.engine-selector` parameter
+is removed: a value still set is ignored with a warning. `engine.client` forces a client when the detection
+cannot decide.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-elasticsearch-9.md)
 

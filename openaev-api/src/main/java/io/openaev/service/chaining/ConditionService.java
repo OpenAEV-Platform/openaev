@@ -695,8 +695,11 @@ public class ConditionService {
    * Evaluates all DEPEND_ON conditions for a step.
    *
    * <p>Each DEPEND_ON condition references a step template ID in its value. The condition is
-   * satisfied if and only if that step template has been executed at least once in the given
-   * workflow run.
+   * satisfied if and only if that step template has run in the given workflow run and every one of
+   * its run steps has ended ({@link StepStatus#END}), in success or in error: none is still {@code
+   * READY} or {@code RUN}, and no target of it waits in the delay queue (held back by the rate
+   * limit). A step that depends on another therefore starts once the other has finished on every
+   * target, not as soon as it was launched.
    *
    * <p>All DEPEND_ON conditions must be satisfied
    *
@@ -721,6 +724,15 @@ public class ConditionService {
       if (!executed) {
         log.debug(
             "[Chaining] DEPEND_ON not satisfied: step template {} has not been executed in workflow run {}",
+            dependentStepTemplateId,
+            workflowRun.getId());
+        return false;
+      }
+
+      if (stepRepository.existsUnfinishedByStepTemplateIdAndWorkflowRunId(
+          dependentStepTemplateId, workflowRun.getId())) {
+        log.debug(
+            "[Chaining] DEPEND_ON not satisfied: step template {} has not ended in workflow run {}",
             dependentStepTemplateId,
             workflowRun.getId());
         return false;

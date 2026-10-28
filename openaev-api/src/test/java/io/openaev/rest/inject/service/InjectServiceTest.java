@@ -33,6 +33,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
@@ -56,6 +57,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.util.*;
 import java.util.stream.Stream;
+import org.hibernate.LazyInitializationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1067,6 +1069,40 @@ class InjectServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "given MARKING on and a marked target with a live agent, should not report a missing agent")
+  void given_markedTargetWithALiveAgent_should_notReportAMissingAgent()
+      throws JsonProcessingException {
+    // -- ARRANGE --
+    // A health check describes the inject before any launch: no launcher, so no launch clearance.
+    lenient().when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)).thenReturn(true);
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
+    inject.getInjectorContract().get().setNeedsExecutor(true);
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setMarkingIds(new String[] {"m-green"});
+    Agent agent = AgentFixture.createAgent(endpoint, "agent-green");
+    agent.setExecutor(new Executor());
+    endpoint.setAgents(List.of(agent));
+    inject.setAssets(new ArrayList<>(List.of(endpoint)));
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
+
+    // -- ACT --
+    List<HealthCheck> healthChecks = injectService.runChecks(inject);
+
+    // -- ASSERT --
+    assertThat(healthChecks)
+        .extracting(HealthCheck::getType)
+        .doesNotContain(HealthCheck.Type.AGENT_OR_EXECUTOR);
+    verifyNoInteractions(markingClearanceCacheManager);
+    verify(injectRepository, never()).findLauncherId(any());
+  }
+
+  @Test
   public void testRunChecksForCollectorIssue() throws JsonProcessingException {
     // PREPARE
     Inject inject =
@@ -1525,9 +1561,167 @@ class InjectServiceTest {
     }
   }
 
+  /**
+   * The launcher as the dispatch reads it (#8730): its id from the inject, by query, then the user
+   * reloaded in the session; never through the inject's own associations.
+   */
+  private void stubLauncher(User launchedBy) {
+    lenient()
+        .when(injectRepository.findLauncherId(INJECT_ID))
+        .thenReturn(Optional.ofNullable(launchedBy).map(User::getId));
+    if (launchedBy != null) {
+      lenient().when(userService.find(List.of(launchedBy.getId()))).thenReturn(List.of(launchedBy));
+    }
+  }
+
+  @Nested
+  @DisplayName("dispatch with a launcher loaded by an earlier, closed transaction")
+  class LauncherOutsideItsSessionTests {
+
+    @BeforeEach
+    void markingEnabled() {
+      lenient()
+          .when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING))
+          .thenReturn(true);
+    }
+
+    @Test
+    @DisplayName("given MARKING on, should resolve the launcher by id, not through the inject")
+    void given_launcherOutsideItsSession_should_resolveTheClearanceById() {
+      // -- ARRANGE --
+      Asset assetGreen = new Asset();
+      assetGreen.setId("asset-green");
+      assetGreen.setMarkingIds(new String[] {"m-green"});
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      assetRed.setMarkingIds(new String[] {"m-red"});
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assetGreen, assetRed));
+      inject.setAssetGroups(List.of());
+
+      inject.setLaunchedBy(
+          mock(
+              User.class,
+              invocation -> {
+                throw new LazyInitializationException("Could not initialize proxy - no session");
+              }));
+      User reloaded = new User();
+      reloaded.setId("user-green");
+      when(injectRepository.findLauncherId(INJECT_ID)).thenReturn(Optional.of("user-green"));
+      when(userService.find(List.of("user-green"))).thenReturn(List.of(reloaded));
+      doReturn(MarkingCtx.forMarkings(List.of("m-green")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-green", "tenant-1", false);
+
+      // -- ACT --
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      // -- ASSERT --
+      assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetGreen);
+    }
+
+    @Test
+    @DisplayName("given no launcher, should resolve zero clearance and skip the marked target")
+    void given_noLauncher_should_skipTheMarkedTarget() {
+      // -- ARRANGE --
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      assetRed.setMarkingIds(new String[] {"m-red"});
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assetRed));
+      inject.setAssetGroups(List.of());
+      when(injectRepository.findLauncherId(INJECT_ID)).thenReturn(Optional.empty());
+
+      // -- ACT --
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      // -- ASSERT --
+      assertThat(resolved).isEmpty();
+      verifyNoInteractions(markingClearanceCacheManager);
+    }
+  }
+
+  @Nested
+  @DisplayName("dispatch with the MARKING preview feature off")
+  class MarkingFeatureOffTests {
+
+    /**
+     * Stands for the launcher of #8730: a lazy {@code User} reached outside its session, which
+     * throws on any access ("Could not initialize proxy ... no session").
+     */
+    private User launcherOutsideItsSession() {
+      return mock(
+          User.class,
+          invocation -> {
+            throw new LazyInitializationException("Could not initialize proxy - no session");
+          });
+    }
+
+    private Inject injectTargeting(Asset... assets) {
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assets));
+      inject.setAssetGroups(List.of());
+      inject.setLaunchedBy(launcherOutsideItsSession());
+      return inject;
+    }
+
+    @Test
+    @DisplayName("given MARKING off, should resolve every target without loading the launcher")
+    void given_markingOff_should_resolveEveryTargetWithoutTheLauncher() {
+      // -- ARRANGE --
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      assetRed.setMarkingIds(new String[] {"m-red"});
+      Asset assetPlain = new Asset();
+      assetPlain.setId("asset-plain");
+      Inject inject = injectTargeting(assetRed, assetPlain);
+
+      // -- ACT --
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      // -- ASSERT --
+      assertThat(resolved)
+          .extracting(AssetToExecute::asset)
+          .containsExactlyInAnyOrder(assetRed, assetPlain);
+      verifyNoInteractions(markingClearanceCacheManager);
+    }
+
+    @Test
+    @DisplayName("given MARKING off, should dispatch to every agentless target")
+    void given_markingOff_should_dispatchToEveryAgentlessTarget() {
+      // -- ARRANGE --
+      Endpoint endpointRed = new Endpoint();
+      endpointRed.setId("endpoint-red");
+      endpointRed.setMarkingIds(new String[] {"m-red"});
+      endpointRed.setAgents(List.of());
+      Inject inject = injectTargeting(endpointRed);
+
+      // -- ACT --
+      AgentsAndAssetsAgentless dispatched =
+          injectService.getAgentsAndAgentlessAssetsByInject(inject);
+
+      // -- ASSERT --
+      assertThat(dispatched.assetsAgentless()).containsExactly(endpointRed);
+      verifyNoInteractions(markingClearanceCacheManager);
+    }
+  }
+
   @Nested
   @DisplayName("dispatch-time marking clearance enforcement")
   class MarkingClearanceFilterTests {
+
+    @BeforeEach
+    void markingEnabled() {
+      lenient()
+          .when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING))
+          .thenReturn(true);
+    }
 
     private Asset assetWithMarking(String id, String... markingIds) {
       Asset asset = new Asset();
@@ -1545,6 +1739,7 @@ class InjectServiceTest {
       inject.setAssets(List.of(assets));
       inject.setAssetGroups(List.of());
       inject.setLaunchedBy(launchedBy);
+      stubLauncher(launchedBy);
       return inject;
     }
 
@@ -1681,6 +1876,13 @@ class InjectServiceTest {
           + "(getAgentsAndAgentlessAssetsByInject, the real dispatch decision)")
   class AgentRoutingDispatchFilterTests {
 
+    @BeforeEach
+    void markingEnabled() {
+      lenient()
+          .when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING))
+          .thenReturn(true);
+    }
+
     private Endpoint endpointWithAgent(
         String assetId, String agentExternalRef, String... markingIds) {
       Endpoint endpoint = EndpointFixture.createEndpoint(assetId);
@@ -1700,6 +1902,7 @@ class InjectServiceTest {
       inject.setAssets(List.of(endpoints));
       inject.setAssetGroups(List.of());
       inject.setLaunchedBy(launchedBy);
+      stubLauncher(launchedBy);
       return inject;
     }
 

@@ -43,8 +43,8 @@ and the reports generated from them.
 | --- | --- | --- |
 | Credentials | `admin:motdepasse` | `admin:mo******` |
 
-Sensitivity is **derived from the Finding type**, not stored: a type is sensitive as soon as its
-value is made of a password, a hash or a key.
+Sensitivity is **derived from the Finding type**: a type is sensitive as soon as its value is made of
+a password, a hash or a key. No setting or flag marks a Finding as sensitive.
 
 Masking is applied **segment by segment**. The platform knows how each Finding value is composed, so
 it masks only the segments that are actually secret: a credential is returned as `admin:mo******`,
@@ -66,29 +66,53 @@ Kerberoastable and ASREPRoastable account Findings are not masked either, and ne
 be so: their value is the account name alone. The hash their type declares never reaches the value,
 so segment-level masking leaves them untouched on its own.
 
-### Searching sensitive Findings in Dashboards
+### Searching sensitive Findings
 
-Dashboards, Widgets and reports store and read sensitive Findings in their masked form only. Their
-filters and their search therefore match **only the characters that are displayed**: with
-`admin:mo******` displayed, a filter on `admin` or `mo` finds the Finding, while a filter on `mot`
-or on the full password finds nothing. A filter cannot be used to guess the hidden part of a secret.
+The platform stores the masked form of each Finding value next to its full value, and every feature
+that reads or matches a value uses the masked form only:
+
+- the search bar, the filters and the sort of every Findings list (the **Findings** menu and the
+  Simulation, Scenario, Inject and Endpoint views);
+- the **Filters** of a notification [Trigger](../notifications/triggers.md) on the Finding Resource
+  type;
+- Dashboards, Widgets and the reports generated from them.
+
+Search, filters and Triggers therefore match **only the characters that are displayed**. A filter
+cannot be used to guess the hidden part of a secret:
+
+| Search or filter on `admin:motdepasse`, displayed as `admin:mo******` | Result |
+| --- | --- |
+| `admin` | The Finding is found |
+| `mo` (the displayed fragment) | The Finding is found |
+| `mot`, `motdepasse` | Nothing is found |
+| **Equals** `admin:mo******` | The Finding is found |
+| **Equals** `admin:motdepasse` | Nothing is found |
+
+Sorting by value uses the masked form too, so the position of a Finding in the list tells nothing
+about its hidden part.
 
 As a consequence, different secrets that share the same masked form (for example `admin:mo******`
-for two different passwords starting with `mo`) appear as a single entry in Widgets that group by
-Finding value.
+for two different passwords starting with `mo`) appear as a single row in the Findings list, with
+the occurrences and Assets of both, and as a single entry in Widgets that group by Finding value.
+
+!!! note "Saved filters and Triggers on a full secret"
+
+    A saved filter or a Trigger written against the full value of a sensitive Finding, such as
+    **Value contains** `motdepasse`, no longer matches anything. Rewrite it on the displayed part of
+    the value, such as the account name `admin`.
 
 !!! warning "The secret is not deleted"
 
-    The full value is still stored in the database, because deduplication, correlation and attack
-    path computation rely on it. Masking applies to the representation the platform displays: it
-    does not encrypt the stored value.
+    The full value is still stored in the database, next to its masked form, because deduplication,
+    correlation and attack path computation rely on it. Masking applies to the representation the
+    platform displays and matches: it does not encrypt the stored value.
 
     Reports generated before your platform masked Findings in Dashboards keep the values they were
     generated with. Generate them again to get the masked values.
 
 ## Findings list
 
-Navigate to **Findings** in the left menu to see all Findings in an aggregated view. The list groups Findings by unique value and type, merging Assets from all occurrences into a single row.
+Navigate to **Findings** in the left menu to see all Findings in an aggregated view. The list groups Findings by unique value and type, merging Assets from all occurrences into a single row. Sensitive Findings are grouped by their masked value (see [Searching sensitive Findings](#searching-sensitive-findings)).
 
 Each row displays:
 
@@ -101,7 +125,7 @@ Each row displays:
 | First seen | When the Finding was first detected |
 | Last seen | When the Finding was most recently detected (default sort) |
 
-Use the search bar and filters to narrow results by type, date range, Assets, or Asset groups.
+Use the search bar and filters to narrow results by type, value, date range, Assets, or Asset groups. On sensitive Findings, they match the displayed characters only.
 
 ![Findings list](assets/findings-list.png)
 

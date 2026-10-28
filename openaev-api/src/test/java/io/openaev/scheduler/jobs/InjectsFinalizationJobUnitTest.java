@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -61,6 +62,14 @@ class InjectsFinalizationJobUnitTest {
     @Captor private ArgumentCaptor<List<Exercise>> simulationCaptor;
 
     @Captor private ArgumentCaptor<NotificationEvent> notificationEventCaptor;
+
+    @BeforeEach
+    void runTheCrossTenantReadInline() {
+      // The candidate read spans every tenant through the runner; this unit test runs it in place.
+      lenient()
+          .when(tenantScopedJobRunner.supplyAcrossTenants(any()))
+          .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(0).get());
+    }
 
     private Exercise createMockSimulation(String id, Scenario scenario) {
       Exercise simulation = mock(Exercise.class, withSettings().strictness(LENIENT));

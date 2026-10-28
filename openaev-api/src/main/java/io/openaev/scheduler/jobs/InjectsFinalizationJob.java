@@ -125,18 +125,11 @@ public class InjectsFinalizationJob implements Job {
   }
 
   public void handleAutoClosingSimulations() {
-    // Change status of finished simulations.
-    List<Exercise> mustBeFinishedSimulations = exerciseRepository.thatMustBeFinished();
-    if (mustBeFinishedSimulations.isEmpty()) {
-      return;
-    }
-
-    Map<String, List<String>> simulationIdsByTenant = new LinkedHashMap<>();
-    mustBeFinishedSimulations.forEach(
-        simulation ->
-            simulationIdsByTenant
-                .computeIfAbsent(simulation.getTenant().getId(), key -> new ArrayList<>())
-                .add(simulation.getId()));
+    // Change status of finished simulations. The candidates are read across tenants and only their
+    // ids leave that read; each tenant's simulations are then finished in that tenant's scope.
+    Map<String, List<String>> simulationIdsByTenant =
+        tenantScopedJobRunner.supplyAcrossTenants(
+            () -> idsByTenant(exerciseRepository.thatMustBeFinished()));
 
     simulationIdsByTenant.forEach(
         (tenantId, simulationIds) ->
@@ -216,12 +209,12 @@ public class InjectsFinalizationJob implements Job {
                     injectRepository.findAllById(injectIds).forEach(this::finalizePendingInject)));
   }
 
-  private static Map<String, List<String>> idsByTenant(List<Inject> injects) {
+  private static Map<String, List<String>> idsByTenant(List<? extends TenantBase> rows) {
     Map<String, List<String>> idsByTenant = new LinkedHashMap<>();
-    for (Inject inject : injects) {
+    for (TenantBase row : rows) {
       idsByTenant
-          .computeIfAbsent(inject.getTenant().getId(), key -> new ArrayList<>())
-          .add(inject.getId());
+          .computeIfAbsent(row.getTenant().getId(), key -> new ArrayList<>())
+          .add(row.getId());
     }
     return idsByTenant;
   }
@@ -242,8 +235,7 @@ public class InjectsFinalizationJob implements Job {
       // inject with no reason. Add a clear agentless timeout trace instead, unless a terminal
       // COMPLETE trace was already recorded (e.g. the injector reported the timeout itself).
       boolean hasCompleteTrace =
-          status.getTraces().stream()
-              .anyMatch(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()));
+          ExecutionTraceUtils.completeTraces(status.getTraces()).findAny().isPresent();
       if (!hasCompleteTrace) {
         ExecutionTraceUtils.addAgentlessTimeoutTrace(status, this.injectExecutionThreshold);
       }
@@ -255,7 +247,7 @@ public class InjectsFinalizationJob implements Job {
         }
       }
     }
-    injectStatusService.updateFinalInjectStatus(status);
+    injectStatusService.updateFinalInjectStatus(status, null);
     // Save + stream one by one: the timeout finalization must reach the execution screens in
     // real time (an inject stuck PENDING would otherwise stay "in flight" until a reload).
     injectStatusService.saveAndStreamInject(status);

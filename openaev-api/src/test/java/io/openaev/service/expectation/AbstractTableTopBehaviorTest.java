@@ -7,6 +7,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForPlayerManualValidation;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForTeamManualValidation;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
@@ -16,8 +17,10 @@ import io.openaev.collectors.expectations_expiration_manager.service.Expectation
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.execution.ExecutionContext;
 import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.utils.InjectUtils;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -42,7 +45,9 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
   private static final String UI_SOURCE_ID = "ui";
 
   @Autowired private ArticleBehavior articleBehavior;
+  @Autowired private PhishingBehavior phishingBehavior;
   @Autowired private InjectExpectationService injectExpectationService;
+  @Autowired private InjectUtils injectUtils;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private ExpectationsExpirationManagerService expectationsExpirationManagerService;
   @Autowired private ExpectationsExpirationManagerJob expectationsExpirationManagerJob;
@@ -384,6 +389,271 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
                           && expectation.getArticle().getId().equals(article2.getId()))
               .count();
       assertThat(article2PlayerExpectation).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("InitializeAndSaveInjectExpectation for a chaining execution")
+  class InitializeAndSaveInjectExpectationForChaining {
+
+    @Test
+    @DisplayName("given recipients in a team should create expectations for the recipients only")
+    void given_recipients_in_a_team_should_create_expectations_for_the_recipients_only() {
+      // Arrange — the second player is a member of the team but not a recipient (e.g. denylisted)
+      Team team = persistTeamWithPlayers(2);
+      User recipient = team.getUsers().getFirst();
+      Inject inject = persistChainedInject(team, false);
+      ExecutableInject executableInject =
+          chainedExecutableInject(inject, List.of(team), List.of(recipientOf(recipient, team)));
+
+      // Act
+      phishingBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          executableInject, buildTemplate(inject), null);
+      entityManager.flush();
+
+      // Assert
+      List<TableTopInjectExpectation> players = findPlayerExpectations(inject);
+      assertThat(players).hasSize(1);
+      assertThat(players.getFirst().getUser().getId()).isEqualTo(recipient.getId());
+      assertThat(players.getFirst().getTeam().getId()).isEqualTo(team.getId());
+      assertThat(players.getFirst().getResults()).hasSize(1);
+      assertThat(findTeamExpectation(inject).getTeam().getId()).isEqualTo(team.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "given an inject targeting all teams should create expectations for its recipients")
+    void given_an_inject_targeting_all_teams_should_create_expectations_for_its_recipients() {
+      // Arrange — an all-teams inject carries no team of its own: they are the simulation's teams
+      Team team = persistTeamWithPlayers(2);
+      Inject inject = persistChainedInject(team, true);
+      ExecutableInject executableInject =
+          chainedExecutableInject(
+              inject,
+              List.of(),
+              team.getUsers().stream().map(user -> recipientOf(user, team)).toList());
+
+      // Act
+      phishingBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          executableInject, buildTemplate(inject), null);
+      entityManager.flush();
+
+      // Assert
+      assertThat(injectExpectationRepository.findAllByInjectId(inject.getId())).hasSize(3);
+      assertThat(findPlayerExpectations(inject))
+          .extracting(expectation -> expectation.getUser().getId())
+          .containsExactlyInAnyOrderElementsOf(team.getUsers().stream().map(User::getId).toList());
+    }
+
+    @Test
+    @DisplayName("given a team without any recipient should not create expectation for this team")
+    void given_a_team_without_any_recipient_should_not_create_expectation_for_this_team() {
+      // Arrange
+      Team teamWithRecipient = persistTeamWithPlayers(1);
+      Team teamWithoutRecipient = persistTeamWithPlayers(1);
+      Inject inject = persistChainedInject(teamWithRecipient, false);
+      ExecutableInject executableInject =
+          chainedExecutableInject(
+              inject,
+              List.of(teamWithRecipient, teamWithoutRecipient),
+              List.of(recipientOf(teamWithRecipient.getUsers().getFirst(), teamWithRecipient)));
+
+      // Act
+      phishingBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          executableInject, buildTemplate(inject), null);
+      entityManager.flush();
+
+      // Assert
+      List<BaseInjectExpectation> saved =
+          injectExpectationRepository.findAllByInjectId(inject.getId());
+      assertThat(saved)
+          .hasSize(2)
+          .allSatisfy(
+              expectation ->
+                  assertThat(((TableTopInjectExpectation) expectation).getTeam().getId())
+                      .isEqualTo(teamWithRecipient.getId()));
+    }
+
+    @Test
+    @DisplayName("given no recipient should not create expectations")
+    void given_no_recipient_should_not_create_expectations() {
+      // Arrange
+      Team team = persistTeamWithPlayers(1);
+      Inject inject = persistChainedInject(team, false);
+      ExecutableInject executableInject = chainedExecutableInject(inject, List.of(team), List.of());
+
+      // Act
+      phishingBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          executableInject, buildTemplate(inject), null);
+      entityManager.flush();
+
+      // Assert
+      assertThat(injectExpectationRepository.findAllByInjectId(inject.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given an audience made only of scope players should create a player expectation without team")
+    void given_an_audience_made_only_of_scope_players_should_create_player_expectations() {
+      // Arrange — no targeted team: the recipient is a player placed in the workflow scope
+      Team team = persistTeamWithPlayers(1);
+      User scopePlayer = persistPlayerWithoutTeam();
+      Inject inject = persistChainedInject(team, false);
+      ExecutableInject executableInject =
+          chainedExecutableInject(inject, List.of(), List.of(directRecipientOf(scopePlayer)));
+
+      // Act
+      phishingBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          executableInject, buildTemplate(inject), null);
+      entityManager.flush();
+
+      // Assert
+      List<BaseInjectExpectation> saved =
+          injectExpectationRepository.findAllByInjectId(inject.getId());
+      assertThat(saved).hasSize(1);
+      TableTopInjectExpectation player = (TableTopInjectExpectation) saved.getFirst();
+      assertThat(player.getUser().getId()).isEqualTo(scopePlayer.getId());
+      assertThat(player.getTeam()).isNull();
+      // The phishing default result ("resisted") settles the player from the start
+      assertThat(player.getResults()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName(
+        "given team members and a scope player should create the scope player expectation without team")
+    void given_team_members_and_a_scope_player_should_create_a_teamless_player_expectation() {
+      // Arrange
+      Team team = persistTeamWithPlayers(1);
+      User teamMember = team.getUsers().getFirst();
+      User scopePlayer = persistPlayerWithoutTeam();
+      Inject inject = persistChainedInject(team, false);
+      ExecutableInject executableInject =
+          chainedExecutableInject(
+              inject,
+              List.of(team),
+              List.of(recipientOf(teamMember, team), directRecipientOf(scopePlayer)));
+
+      // Act
+      phishingBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          executableInject, buildTemplate(inject), null);
+      entityManager.flush();
+
+      // Assert
+      assertThat(injectExpectationRepository.findAllByInjectId(inject.getId())).hasSize(3);
+      assertThat(findTeamExpectation(inject).getTeam().getId()).isEqualTo(team.getId());
+      List<TableTopInjectExpectation> players = findPlayerExpectations(inject);
+      assertThat(players)
+          .extracting(
+              expectation -> expectation.getUser().getId(),
+              expectation -> expectation.getTeam() == null ? null : expectation.getTeam().getId())
+          .containsExactlyInAnyOrder(
+              tuple(teamMember.getId(), team.getId()), tuple(scopePlayer.getId(), null));
+    }
+
+    @Test
+    @DisplayName("given a scope player that is also a team member should not duplicate its row")
+    void given_a_scope_player_that_is_also_a_team_member_should_not_duplicate_its_expectation() {
+      // Arrange — the same user is both in the targeted team and in the workflow scope
+      Team team = persistTeamWithPlayers(1);
+      User teamMember = team.getUsers().getFirst();
+      Inject inject = persistChainedInject(team, false);
+      ExecutableInject executableInject =
+          chainedExecutableInject(
+              inject,
+              List.of(team),
+              List.of(recipientOf(teamMember, team), directRecipientOf(teamMember)));
+
+      // Act
+      phishingBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          executableInject, buildTemplate(inject), null);
+      entityManager.flush();
+
+      // Assert
+      assertThat(findPlayerExpectations(inject))
+          .hasSize(1)
+          .allSatisfy(player -> assertThat(player.getTeam()).isNotNull());
+    }
+
+    @Test
+    @DisplayName("given a teamless player expectation should count in the primary expectations")
+    void given_a_teamless_player_expectation_should_count_in_the_primary_expectations() {
+      // Arrange
+      Team team = persistTeamWithPlayers(1);
+      User scopePlayer = persistPlayerWithoutTeam();
+      Inject inject = persistChainedInject(team, false);
+      phishingBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          chainedExecutableInject(inject, List.of(), List.of(directRecipientOf(scopePlayer))),
+          buildTemplate(inject),
+          null);
+      entityManager.flush();
+      entityManager.refresh(inject);
+
+      // Act
+      List<BaseInjectExpectation> primary = injectUtils.getPrimaryExpectations(inject);
+
+      // Assert
+      assertThat(primary).hasSize(1);
+    }
+
+    private User persistPlayerWithoutTeam() {
+      return userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist().get();
+    }
+
+    private ExecutionContext directRecipientOf(User user) {
+      return new ExecutionContext(user, List.of("Direct execution"));
+    }
+
+    @Test
+    @DisplayName("given a chained inject without simulation should target every team member")
+    void given_a_chained_inject_without_simulation_should_target_every_team_member() {
+      // Arrange — no simulation: the chaining step resolves no recipients, as for an atomic testing
+      Team team = persistTeamWithPlayers(2);
+      Inject inject = persistInjectForTeam(team);
+      ExecutableInject executableInject = chainedExecutableInject(inject, List.of(team), List.of());
+
+      // Act
+      phishingBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          executableInject, buildTemplate(inject), null);
+      entityManager.flush();
+
+      // Assert
+      assertThat(injectExpectationRepository.findAllByInjectId(inject.getId())).hasSize(3);
+      assertThat(findPlayerExpectations(inject)).hasSize(2);
+    }
+
+    private Inject persistChainedInject(Team team, boolean allTeams) {
+      Inject chainedInject = InjectFixture.getDefaultInject();
+      chainedInject.setAllTeams(allTeams);
+      return injectComposer
+          .forInject(chainedInject)
+          .withInjectorContract(
+              injectorContractComposer.forInjectorContract(
+                  InjectorContractFixture.createDefaultInjectorContract()))
+          .withTeam(teamComposer.forTeam(team))
+          .withExercise(
+              exerciseComposer
+                  .forExercise(ExerciseFixture.createDefaultCrisisExercise())
+                  .withTeam(teamComposer.forTeam(team)))
+          .persist()
+          .get();
+    }
+
+    private ExecutableInject chainedExecutableInject(
+        Inject inject, List<Team> teams, List<ExecutionContext> recipients) {
+      return new ExecutableInject(
+          true, true, inject, teams, List.of(), List.of(), List.of(), recipients, true);
+    }
+
+    private ExecutionContext recipientOf(User user, Team team) {
+      return new ExecutionContext(user, List.of(team.getName()));
+    }
+
+    private ManualInjectExpectation buildTemplate(Inject inject) {
+      ManualInjectExpectation template = new ManualInjectExpectation();
+      template.setInject(inject);
+      template.setExpectedScore(100.0);
+      template.setExpirationTime(21600L);
+      return template;
     }
   }
 

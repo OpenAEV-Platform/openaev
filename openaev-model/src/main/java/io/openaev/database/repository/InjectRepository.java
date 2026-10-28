@@ -61,6 +61,18 @@ public interface InjectRepository
   @Query("select i.id as id, i.tenant.id as tenantId from Inject i where i.id = :id")
   Optional<InjectTenantRef> findTenantRefById(@Param("id") @NotNull String id);
 
+  /**
+   * The id of the user whose launch gates this inject's dispatch: the simulation's launcher for a
+   * simulation inject, the inject's own launcher otherwise (atomic testing). Read from the database
+   * by ids, so a caller holding an inject loaded by an earlier transaction never has to initialise
+   * its lazy simulation or launcher. Empty when there is no launcher.
+   */
+  @Query(
+      "select case when e.id is not null then el.id else il.id end from Inject i"
+          + " left join i.exercise e left join e.launchedBy el left join i.launchedBy il"
+          + " where i.id = :injectId")
+  Optional<String> findLauncherId(@Param("injectId") @NotNull String injectId);
+
   /** Projection of {@link #findTenantRefById(String)}. */
   interface InjectTenantRef {
     String getId();

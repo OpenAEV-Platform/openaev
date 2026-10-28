@@ -15,6 +15,119 @@ checkNodeVersion();
 // imported once the version is checked: an older Node fails to load its TypeScript sources
 const { default: customRules } = await import('eslint-plugin-custom-rules');
 
+// Ramda is being removed, one pull request per family of functions. Files that still import it are
+// listed here: a pull request that cleans a file removes it from the list, so no new import comes in.
+const legacyRamdaFiles = [
+  'src/admin/components/atomic_testings/AtomicTestingCreation.tsx',
+  'src/admin/components/atomic_testings/atomic_testing/AtomicTestingUpdate.tsx',
+  'src/admin/components/autonomous/AutonomousOutcome.tsx',
+  'src/admin/components/autonomous/AutonomousOverview.tsx',
+  'src/admin/components/common/articles/Articles.tsx',
+  'src/admin/components/common/injects/InjectDistributionByTeam.tsx',
+  'src/admin/components/common/injects/InjectDistributionByType.tsx',
+  'src/admin/components/common/injects/Injects.tsx',
+  'src/admin/components/common/injects/form/articles/InjectAddArticles.tsx',
+  'src/admin/components/common/injects/form/challenges/InjectAddChallenges.tsx',
+  'src/admin/components/common/matrix/MitreMatrix.tsx',
+  'src/admin/components/common/matrix/MitreMatrixDummy.tsx',
+  'src/admin/components/components/teams/TeamPlayers.tsx',
+  'src/admin/components/integrations/injectors/injector_contracts/CreateInjectorContract.jsx',
+  'src/admin/components/integrations/injectors/injector_contracts/InjectorContractCustomForm.jsx',
+  'src/admin/components/integrations/injectors/injector_contracts/InjectorContractPopover.jsx',
+  'src/admin/components/lessons/LessonsObjectives.jsx',
+  'src/admin/components/lessons/ObjectiveEvaluations.jsx',
+  'src/admin/components/lessons/ObjectivePopover.jsx',
+  'src/admin/components/lessons/categories/LessonsCategoryAddTeams.jsx',
+  'src/admin/components/lessons/categories/LessonsCategoryPopover.jsx',
+  'src/admin/components/lessons/categories/questions/LessonsQuestionPopover.jsx',
+  'src/admin/components/lessons/scenarios/LessonsCategories.jsx',
+  'src/admin/components/lessons/simulations/CrysisIntensity.jsx',
+  'src/admin/components/lessons/simulations/Lessons.tsx',
+  'src/admin/components/lessons/simulations/LessonsCategories.jsx',
+  'src/admin/components/profile/Index.jsx',
+  'src/admin/components/scenarios/scenario/Scenario.tsx',
+  'src/admin/components/settings/attack_patterns/AttackPatternPopover.jsx',
+  'src/admin/components/settings/attack_patterns/CreateAttackPattern.jsx',
+  'src/admin/components/settings/groups/tenant_groups/GroupPopover.jsx',
+  'src/admin/components/settings/tags/CreateTag.jsx',
+  'src/admin/components/settings/tags/TagPopover.jsx',
+  'src/admin/components/settings/vulnerabilities/VulnerabilityPopover.tsx',
+  'src/admin/components/simulations/simulation/SimulationMainInformation.tsx',
+  'src/admin/components/simulations/simulation/injects/QuickInject.jsx',
+  'src/admin/components/simulations/simulation/logs/LogPopover.jsx',
+  'src/admin/components/simulations/simulation/logs/Logs.jsx',
+  'src/admin/components/simulations/simulation/mails/MailDistributionByInject.tsx',
+  'src/admin/components/simulations/simulation/mails/MailDistributionByPlayer.tsx',
+  'src/admin/components/simulations/simulation/mails/MailDistributionByTeam.tsx',
+  'src/admin/components/simulations/simulation/mails/MailDistributionOverTimeChart.tsx',
+  'src/admin/components/simulations/simulation/mails/MailDistributionOverTimeLine.tsx',
+  'src/admin/components/simulations/simulation/overview/DistributionUtils.ts',
+  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreByTeamInPercentage.tsx',
+  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByInjectorContract.tsx',
+  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByTeam.tsx',
+  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByTeamInPercentage.tsx',
+  'src/admin/components/simulations/simulation/overview/SimulationComponent.tsx',
+  'src/admin/components/simulations/simulation/validation/Validations.jsx',
+  'src/admin/components/simulations/simulation/validation/expectations/TechnicalExpectationAsset.tsx',
+  'src/admin/components/teams/organizations/OrganizationPopover.jsx',
+  'src/admin/components/teams/utils.ts',
+  'src/components/CountryField.jsx',
+  'src/components/FileField.jsx',
+  'src/components/ItemBoolean.jsx',
+  'src/components/ItemNumberDifference.jsx',
+  'src/components/KillChainPhaseField.jsx',
+  'src/components/Message.jsx',
+  'src/components/OldAttackPatternField.jsx',
+  'src/components/OrganizationField.jsx',
+  'src/components/TagField.jsx',
+  'src/components/common/SortHeadersList.tsx',
+  'src/components/common/queryable/filter/FilterChip.tsx',
+  'src/components/common/queryable/filter/FilterUtils.tsx',
+  'src/components/fields/AttackPatternFieldController.tsx',
+  'src/components/fields/TagField.tsx',
+  'src/public/components/channels/ChannelNewspaper.jsx',
+  'src/public/components/channels/ChannelTvChannel.jsx',
+  'src/public/components/lessons/LessonsPlayer.jsx',
+  'src/public/components/lessons/LessonsPreview.jsx',
+  'src/reducers/Referential.ts',
+  'src/store.ts',
+  'src/utils/Action.ts',
+  'src/utils/BrowserLanguage.ts',
+  'src/utils/Environment.ts',
+  'src/utils/SortingFiltering.jsx',
+  'src/utils/hooks/useEntityToggle.ts',
+  'src/utils/injector_contract/InjectorContractUtils.ts',
+  'src/utils/permissions/useScenarioPermissions.ts',
+  'src/utils/utils.ts',
+];
+
+const restrictedImports = ({ allowRamda }) => [
+  'error', {
+    patterns: [
+      {
+        group: [
+          '@mui/material/*', '!@mui/material/locale', '!@mui/material/styles', '!@mui/material/colors', '!@mui/material/transitions',
+          '@mui/icons-material/*',
+        ],
+        message: 'Please use named import from @mui/* instead.',
+      },
+    ],
+    paths: [
+      {
+        name: 'react',
+        importNames: ['*'],
+        message: 'Do not use `import * as React from \'react\'`. Use `import {...} from \'react\'` instead.',
+      },
+      ...(allowRamda
+        ? []
+        : [{
+            name: 'ramda',
+            message: 'Ramda is being removed: use native JavaScript instead.',
+          }]),
+    ],
+  },
+];
+
 export default [
   // rules recommended by @eslint/js
   js.configs.recommended,
@@ -118,26 +231,7 @@ export default [
           ignoreTemplateLiterals: true,
         },
       ],
-      'no-restricted-imports': [
-        'error', {
-          patterns: [
-            {
-              group: [
-                '@mui/material/*', '!@mui/material/locale', '!@mui/material/styles', '!@mui/material/colors', '!@mui/material/transitions',
-                '@mui/icons-material/*',
-              ],
-              message: 'Please use named import from @mui/* instead.',
-            },
-          ],
-          paths: [
-            {
-              name: 'react',
-              importNames: ['*'],
-              message: 'Do not use `import * as React from \'react\'`. Use `import {...} from \'react\'` instead.',
-            },
-          ],
-        },
-      ],
+      'no-restricted-imports': restrictedImports({ allowRamda: false }),
     },
     files: ['**/*.js', '**/*.ts', '**/*.jsx', '**/*.tsx'],
     languageOptions: {
@@ -148,6 +242,12 @@ export default [
         process: true,
       },
     },
+  },
+
+  // files that still import Ramda (a later config replaces the rule's options, it does not merge them)
+  {
+    files: legacyRamdaFiles,
+    rules: { 'no-restricted-imports': restrictedImports({ allowRamda: true }) },
   },
 
   // unit tests config

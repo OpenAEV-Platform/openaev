@@ -4,7 +4,6 @@ import static io.openaev.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.raw.RawFindingIndexing;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.engine.Handler;
@@ -53,10 +52,10 @@ public class FindingHandler implements Handler<EsFinding> {
   /**
    * Maps an indexing row to its search document.
    *
-   * <p>The value is indexed in its <b>displayed</b> form, masked exactly as the REST API hands it
-   * out: dashboards, widgets and reports read the documents as they are, and their filters and
-   * search run on them, so indexing the cleartext would both show the secret and let a {@code
-   * contains} filter guess it character by character.
+   * <p>The value is indexed in its <b>displayed</b> form, the stored {@code finding_value_display}:
+   * dashboards, widgets and reports read the documents as they are, and their filters and search
+   * run on them, so indexing the cleartext would both show the secret and let a {@code contains}
+   * filter guess it character by character.
    */
   private static EsFinding toEsFinding(RawFindingIndexing finding) {
     String displayedValue = displayedValueOf(finding);
@@ -104,17 +103,19 @@ public class FindingHandler implements Handler<EsFinding> {
   }
 
   /**
-   * The value as the platform displays it. The row carries the type as the enum <em>name</em>, as
-   * stored in the database. A type this version does not know - written by a newer instance, or
-   * missing - is masked whole: over-masking a harmless value is recoverable, indexing a secret in
-   * the clear is not, and a single such row must never fail the whole indexing batch.
+   * The value as the platform displays it, read from {@code finding_value_display}: the index holds
+   * exactly what the Findings page shows and what its search and filters match (ADR-017).
+   *
+   * <p>A row whose column is still empty - written by a pod of the previous version during a
+   * rolling deploy - is masked here from the cleartext, with the same fail-closed rule as every
+   * writer of the column: a cleartext secret must never reach the index, and a single such row must
+   * never fail the whole indexing batch.
    */
   private static String displayedValueOf(RawFindingIndexing finding) {
-    try {
-      return SensitiveValueMaskingUtils.maskIfNeeded(
-          ContractOutputType.valueOf(finding.getFinding_type()), finding.getFinding_value());
-    } catch (IllegalArgumentException | NullPointerException e) {
-      return SensitiveValueMaskingUtils.mask(finding.getFinding_value());
-    }
+    String stored = finding.getFinding_value_display();
+    return stored != null
+        ? stored
+        : SensitiveValueMaskingUtils.maskIfNeededFailClosed(
+            finding.getFinding_type(), finding.getFinding_value());
   }
 }

@@ -25,7 +25,7 @@ inputs:
     required: false
     default: "openaev-image-amd64"
   search-engine:
-    description: "Search engine type: elasticsearch or opensearch"
+    description: "Search engine: elasticsearch, elasticsearch8 or opensearch (see start-dev-services)"
     required: false
     default: "elasticsearch"
   search-engine-image:
@@ -193,7 +193,6 @@ runs:
           -e MINIO_ACCESS_KEY \
           -e MINIO_ACCESS_SECRET \
           -e ENGINE_URL \
-          -e ENGINE_ENGINESELECTOR \
           -e OPENBAS_RABBITMQ_HOSTNAME \
           -e OPENAEV_ADMIN_EMAIL \
           -e OPENAEV_ADMIN_PASSWORD \
