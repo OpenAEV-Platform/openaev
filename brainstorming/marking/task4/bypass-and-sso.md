@@ -64,14 +64,17 @@ What changes for them:
 - "Admin" holds `TLP:RED` only: an asset marked with another type (PAP, a custom type) stays hidden from Alice unless the
   group is given that marking too.
 
-The agent and OpenCTI groups always hold every marking of their tenant: the ones that already exist (at upgrade), the
-ones created later (through the API or a data pack), and all of them when the group is created (the OpenCTI group is
-created when the first connector registers; all connectors of a tenant share it). Nobody can change these groups'
-markings through the API (already refused for system groups; to be tested on both group routes).
+How the agent and OpenCTI groups get every marking: like in OpenCTI, a group can be set to **receive new markings**.
+When a marking is created, every group of the tenant with this setting gets it. The agent and OpenCTI groups have it
+on, and get every existing marking when they are created (the OpenCTI group is created when the first connector
+registers; all connectors of a tenant share it). At upgrade, a data pack turns it on for the existing technical groups
+and gives them the markings that already exist. Nobody can change these groups' markings through the API.
 
-The task 3 design had set this option aside as fragile, because a missed marking breaks the agent. It is fine now: one
-operation keeps the list complete, run at each of the moments above, and a miss only hides an asset from the agent, it
-never shows an asset to someone who should not see it. For chunk 6 (#8554): the agent reads exactly what it reads today
+The setting is not in the API yet. Later, it can be turned on for other groups, for example "Admin".
+
+The task 3 design had set this option aside as fragile, because a missed marking breaks the agent. It is fine now: the
+groups get new markings automatically, and a miss only hides an asset from the agent, it never shows an asset to
+someone who should not see it. For chunk 6 (#8554): the agent reads exactly what it reads today
 and never launches, so it gains nothing.
 
 ## SSO admins
@@ -120,19 +123,19 @@ findClearance(user.getId(), tenantId);
 
 The `AGENT_RUNTIME_ACCESS` / `MANAGE_STIX_BUNDLE` special case is deleted.
 
-**3. Technical groups always hold every marking.** One operation, safe to run again:
+**3. Groups that receive new markings (as in OpenCTI).** A new flag on the group, `group_auto_new_marking`:
 
 ```java
-void grantAllMarkingsToTechnicalGroups(tenantId) {
-  for (group : [agentGroup(tenantId), openCtiGroup(tenantId)]) {
-    if (group == null) continue;
-    insertMissing(groups_markings, group, tenantMarkings(tenantId));  // never deletes
-    evictClearance(group.users());
-  }
+// MarkingDefinitionService.create, after saving the marking
+for (group : groupsOfTenant(tenantId).where(autoNewMarking)) {
+  addIfMissing(group.markings, marking);            // never removes
+  evictClearance(group.users());
 }
-```
 
-Called when a marking is created, when the agent or OpenCTI group is created, and once at upgrade (new data pack).
+// when the agent or OpenCTI group is created, and once at upgrade (data pack)
+group.autoNewMarking = true;
+addIfMissing(group.markings, tenantMarkings(tenantId));
+```
 
 **4. Joining a group needs its markings.**
 
