@@ -353,7 +353,7 @@ transport.
 
 | Parameter                   | Environment variable        | Default value        | Description                                                                                                                                                                                          |
 |:-------------------------------|:--------------------------------|:-------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| openaev.default-mailer      | OPENAEV_DEFAULT-MAILER      | no-reply@openaev.io  | Default sender email address, used to pre-fill new Scenarios/Simulations. It is read-only in the UI to prevent spoofing; only the sender name below can be edited from the UI |
+| openaev.default-mailer      | OPENAEV_DEFAULT-MAILER      | no-reply@openaev.io  | Sender email address of all outgoing emails (the IMAP username is used instead when IMAP is enabled). It cannot be changed from the UI                                        |
 | openaev.default-mailer-name | OPENAEV_DEFAULT-MAILER-NAME | no-reply             | Default sender display name ("Sender email from"), pre-fills the sender name on new Scenario/Simulation creation. Editable per-Scenario/Simulation afterwards in the UI                              |
 | openaev.default-reply-to    | OPENAEV_DEFAULT-REPLY-TO    | contact@openaev.io   | Default Reply-To address used on outgoing emails                                                                                                                                                     |
 
