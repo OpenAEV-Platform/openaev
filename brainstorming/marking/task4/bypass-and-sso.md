@@ -20,7 +20,7 @@ Markings come first, capabilities second (Task 5).
 |---|---|
 | First admin (created at install, `openaev.admin.email`) | all, in every tenant |
 | Everyone else, `user_admin` and `BYPASS` (tenant or platform) included | only what their groups' markings allow |
-| Agent and OpenCTI accounts | all of their tenant, because their group holds every marking |
+| Agent and OpenCTI accounts | all assets of their own tenant: their group is given every marking of that tenant, like a normal user who holds them all |
 
 One place in the code decides it, used by reads, launches and marking assignment.
 
