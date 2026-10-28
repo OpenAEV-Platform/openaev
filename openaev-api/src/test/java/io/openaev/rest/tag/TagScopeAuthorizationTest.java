@@ -176,7 +176,7 @@ class TagScopeAuthorizationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("No header: a list needing only the read right, held in both tenants, is allowed")
+    @DisplayName("No header: the tag list, open to every member, is allowed")
     void given_noHeaderAndReadRightInEveryScopeTenant_should_listTags() throws Exception {
       // Arrange
       String tagId = seedTagInTenantB(READ_RIGHT);
