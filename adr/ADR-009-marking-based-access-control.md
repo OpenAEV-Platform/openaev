@@ -129,10 +129,14 @@ Concretely, Option C is composed of:
 - **Per-table activation** via `openaev.marking.active-tables`, and the activation procedure captured as a
   repeatable skill — the same shape as ADR-002's runbook.
 
-Governance decisions (multi-marking is **AND**; unmarked is visible to all; `BYPASS` overrides; background
-jobs see all markings; over-clearance direct `GET` returns **404** not 403, because a 403 leaks existence;
-a user may not assign a marking they do not hold) are recorded with their reasoning in
-[`tech-design-option-c.md` §6](../brainstorming/marking/tech-design-option-c.md).
+Governance decisions (multi-marking is **AND**; unmarked is visible to all; background jobs see all
+markings; over-clearance direct `GET` returns **404** not 403, because a 403 leaks existence; a user may not
+assign a marking they do not hold) are recorded with their reasoning in
+[`tech-design-option-c.md` §6](../brainstorming/marking/task3/tech-design-option-c.md).
+
+Markings come first, capabilities second: only the first admin (created at install) ignores markings.
+`BYPASS` and `user_admin` do not; the agent and OpenCTI accounts hold every marking of their tenant through
+their group. See [`bypass-and-sso.md`](../brainstorming/marking/task4/bypass-and-sso.md).
 
 ## 5. Consequences
 
