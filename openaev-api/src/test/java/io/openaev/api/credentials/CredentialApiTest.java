@@ -1087,6 +1087,136 @@ class CredentialApiTest extends IntegrationTest {
           .node("credential_azure_requests_certificate_defined")
           .isEqualTo(true);
     }
+
+    @Test
+    @DisplayName("given_azureInputWithCertificatePart_should_storeEncryptedCertificate")
+    void given_azureInputWithCertificatePart_should_storeEncryptedCertificate() throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-certificate");
+      CredentialInput input =
+          CredentialInputFixture.azureServicePrincipalInputWithAuthorityHost(
+              "azure-certificate", AZURE_AUTHORITY_HOST_URI);
+
+      // Act
+      String response =
+          mvc.perform(
+                  multipartCreateWithCertificate(
+                          tenantCredentialsUri(tenant.getId()),
+                          input,
+                          azureRequestsCertificateBytes())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
+      assertThat(secret).isInstanceOf(AzureServicePrincipalSecret.class);
+      AzureServicePrincipalSecret azureSecret = (AzureServicePrincipalSecret) secret;
+      assertThat(azureSecret.getAzureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      // The certificate is stored encrypted, never as the uploaded bytes
+      assertThat(azureSecret.getAzureRequestsCertificate())
+          .isNotNull()
+          .isNotEqualTo(azureRequestsCertificateBytes());
+    }
+
+    @Test
+    @DisplayName("given_oversizedAzureCertificate_should_failCreation")
+    void given_oversizedAzureCertificate_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-big-cert");
+      CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-big-cert");
+      byte[] oversizedCertificate = new byte[(int) MAX_CREDENTIAL_FILE_SIZE_BYTES + 1];
+
+      // Act
+      String errorResponse =
+          mvc.perform(
+                  multipartCreateWithCertificate(
+                      tenantCredentialsUri(tenant.getId()), input, oversizedCertificate))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(errorResponse).containsIgnoringCase("The provided file must not exceed");
+    }
+
+    @Test
+    @DisplayName("given_emptyAzureCertificate_should_failCreation")
+    void given_emptyAzureCertificate_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-empty-cert");
+      CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-empty-cert");
+
+      // Act: a present but empty part is a client error, never a silent "keep the stored one"
+      String errorResponse =
+          mvc.perform(
+                  multipartCreateWithCertificate(
+                      tenantCredentialsUri(tenant.getId()), input, new byte[0]))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(errorResponse).containsIgnoringCase("must not be empty");
+    }
+
+    @Test
+    @DisplayName("given_updateWithoutCertificatePart_should_keepStoredCertificate")
+    void given_updateWithoutCertificatePart_should_keepStoredCertificate() throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-cert-update");
+      CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-cert-keep");
+      String credentialId =
+          JsonPath.read(
+              mvc.perform(
+                      multipartCreateWithCertificate(
+                              tenantCredentialsUri(tenant.getId()),
+                              input,
+                              azureRequestsCertificateBytes())
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.credential_id");
+      CredentialSecretReference created =
+          credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
+      byte[] storedCertificate =
+          ((AzureServicePrincipalSecret)
+                  secretRepository.findById(created.getLocation()).orElseThrow())
+              .getAzureRequestsCertificate();
+
+      // Act: no certificate part on the update
+      String response =
+          mvc.perform(
+                  multipartUpdate(tenantCredentialsUri(tenant.getId()) + "/" + credentialId, input)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      CredentialSecretReference updated =
+          credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
+      AzureServicePrincipalSecret updatedSecret =
+          (AzureServicePrincipalSecret)
+              secretRepository.findById(updated.getLocation()).orElseThrow();
+      assertThat(updatedSecret.getAzureRequestsCertificate()).isEqualTo(storedCertificate);
+      assertThatJson(response)
+          .node("credential_azure_requests_certificate_defined")
+          .isEqualTo(true);
+    }
   }
 
   @Nested
