@@ -22,6 +22,8 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.MarkingDefinition;
+import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -30,12 +32,14 @@ import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.List;
@@ -87,10 +91,12 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private TagComposer tagComposer;
 
   private JdbcTemplate jdbc;
   private String userId;
   private String tenantId;
+  private String tagId;
   private String tlpGreen;
   private String tlpRed;
   private Endpoint green;
@@ -236,7 +242,7 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
       List<String> ids = new ArrayList<>();
       seedThenMark(
           () -> {
-            InjectComposer.Composer inject = injectWithContract();
+            InjectComposer.Composer inject = injectWithContract().withTag(tagInTenant());
             ids.add(
                 scenarioComposer
                     .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
@@ -257,6 +263,11 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
       assertThat(duplicate).isNotEqualTo(ids.get(1));
       assertThat(targetsOfInject(duplicate)).containsExactlyInAnyOrder(green.getId(), red.getId());
       assertThat(response).doesNotContain(red.getId());
+      // The response is serialized after the transaction: what the user sees must be loaded by
+      // then.
+      assertThat(JsonPath.<List<String>>read(response, "$.inject_assets"))
+          .containsExactly(green.getId());
+      assertThat(JsonPath.<List<String>>read(response, "$.inject_tags")).containsExactly(tagId);
     }
 
     @Test
@@ -304,7 +315,7 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
       List<String> ids = new ArrayList<>();
       seedThenMark(
           () -> {
-            InjectComposer.Composer inject = injectWithContract();
+            InjectComposer.Composer inject = injectWithContract().withTag(tagInTenant());
             ids.add(
                 exerciseComposer
                     .forExercise(ExerciseFixture.createDefaultExercise())
@@ -325,6 +336,11 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
       assertThat(duplicate).isNotEqualTo(ids.get(1));
       assertThat(targetsOfInject(duplicate)).containsExactlyInAnyOrder(green.getId(), red.getId());
       assertThat(response).doesNotContain(red.getId());
+      // The response is serialized after the transaction: what the user sees must be loaded by
+      // then.
+      assertThat(JsonPath.<List<String>>read(response, "$.inject_assets"))
+          .containsExactly(green.getId());
+      assertThat(JsonPath.<List<String>>read(response, "$.inject_tags")).containsExactly(tagId);
     }
   }
 
@@ -380,6 +396,14 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
     Inject inject = InjectFixture.getInjectWithoutContract();
     inject.setAssets(new ArrayList<>(List.of(green, red)));
     return inject;
+  }
+
+  private TagComposer.Composer tagInTenant() {
+    Tag tag = TagFixture.getTagWithText("faithful-copy-" + UUID.randomUUID());
+    tag.setTenant(new Tenant(tenantId));
+    TagComposer.Composer composer = tagComposer.forTag(tag);
+    tagId = composer.persist().get().getId();
+    return composer;
   }
 
   private InjectComposer.Composer injectWithContract() {
