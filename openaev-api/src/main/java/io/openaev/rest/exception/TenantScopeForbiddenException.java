@@ -1,11 +1,17 @@
 package io.openaev.rest.exception;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 /**
  * The caller holds the right a request needs in the ambient tenant but not in another tenant of the
  * request scope. The message names the rule and the remedy, never the tenant that refused, so the
  * response discloses no membership beyond what the caller sent.
+ *
+ * <p>A 403 {@link ResponseStatusException}, like the refusal in the ambient tenant, so that the
+ * audit log records it as an unauthorized access.
  */
-public class TenantScopeForbiddenException extends RuntimeException {
+public class TenantScopeForbiddenException extends ResponseStatusException {
 
   public static final String MESSAGE =
       "TENANT_SCOPE_FORBIDDEN: the right this request needs is missing in at least one tenant of"
@@ -13,6 +19,6 @@ public class TenantScopeForbiddenException extends RuntimeException {
           + " /api/tenants/{tenantId}/ route.";
 
   public TenantScopeForbiddenException() {
-    super(MESSAGE);
+    super(HttpStatus.FORBIDDEN, MESSAGE);
   }
 }
