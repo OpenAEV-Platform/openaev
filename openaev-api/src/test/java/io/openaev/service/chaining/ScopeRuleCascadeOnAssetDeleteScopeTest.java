@@ -13,12 +13,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.rest.asset_group.form.AssetGroupBulkProcessingInput;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
@@ -29,7 +32,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.UnexpectedRollbackException;
@@ -42,9 +46,16 @@ import org.springframework.transaction.UnexpectedRollbackException;
  * <p>The failure cases inject a database error on the rule delete with a trigger, the only way to
  * make the real statement fail on the real stack.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=workflows,workflow_scope_rules")
 @DisplayName("Deleting an asset group cascades to the template scope rules that name it")
 class ScopeRuleCascadeOnAssetDeleteScopeTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTablesWithScopeRules(DynamicPropertyRegistry registry) {
+    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
+    tables.add("workflows");
+    tables.add("workflow_scope_rules");
+    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
+  }
 
   private static final String TENANT_ASSET_GROUP_URI =
       TENANT_BASE_PATH + DEFAULT_TENANT_UUID + "/asset_groups";
