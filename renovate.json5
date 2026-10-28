@@ -261,7 +261,8 @@
         },
         // docs/requirements.txt pins every package the docs build installs, about fifty lines, and a
         // new release of one of them can break the docs build. One weekly PR keeps them moving
-        // together, and its Docs build check and Docs Links Check show whether the set still builds.
+        // together, and its Docs Check shows whether the set still builds. The git plugins are only
+        // built by Nightly, so an update that breaks one shows up the night after the merge.
         {
             groupName: 'docs tooling (non-major)',
             groupSlug: 'docs-tooling-non-major',

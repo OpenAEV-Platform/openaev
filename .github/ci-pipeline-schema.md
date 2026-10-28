@@ -2,7 +2,8 @@
 
 Both **Core CI** (`core-ci.yml`) and **Nightly CI** (`nightly-ci.yml`) are thin callers.
 All the work lives in one reusable workflow, `_ci-pipeline.yml`, and the callers differ
-only in three inputs: `api-matrix`, `e2e-matrix` and `vulnerability-scan-fail-on-error`.
+only in their inputs: `api-matrix`, `e2e-matrix`, `vulnerability-scan-fail-on-error`, `no-cache`
+and `docs-git-plugins`.
 
 ![OpenAEV CI pipeline — Core and Nightly](ci-pipeline-schema.svg)
 
@@ -114,7 +115,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
 | 🎨 **FDS Conformity** | 5 min | Design-system token bridge and migrated zones stay conformant |
 | 🎨 **FDS MUI Regression** | 5 min | Pull requests only: no MUI component re-enters where the design system replaces it |
-| 🔎 **Docs Links Check** | 5 min | Every in-app `docs.openaev.io` link, and every link between docs pages, resolves to a page and anchor of the built MkDocs site. Advisory in the Gate |
+| 📖 **Docs Check** | 10 min | Strict MkDocs build, every page and image in the built site and its search index, and every in-app `docs.openaev.io` link and link between docs pages resolves to a page and anchor. Git plugins on in Nightly only. Advisory in the Gate |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
 | 🔒 **Container Vulnerability Scan** | 25 min | CVE scan of both amd64 images, threshold `high` |
@@ -144,7 +145,7 @@ If the caller's job key changes, the branch-protection rule must be updated.
 It `needs:` these 20 jobs:
 
 `adr-numbering`, `ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
-`spotless-check`, `bom-override-guard`, `frontend-quality`, `fds-conformity`, `fds-mui-regression`, `docs-links-check`, `api-tests`, `e2e-tests`, `api-types-check`,
+`spotless-check`, `bom-override-guard`, `frontend-quality`, `fds-conformity`, `fds-mui-regression`, `docs-check`, `api-tests`, `e2e-tests`, `api-types-check`,
 `backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `container-vulnerability-scan`
 
 **Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must

@@ -59,7 +59,7 @@ style: {fill: "#CFD8DC"; stroke: "#37474F"; stroke-width: 4                     
 }
 
 triggers.core -> pipe: "api-matrix · e2e-matrix\nvulnerability-scan-fail-on-error: false" {class: needs}
-triggers.nightly -> pipe: "larger matrices\nvulnerability-scan-fail-on-error: true" {class: needs}
+triggers.nightly -> pipe: "larger matrices\nvulnerability-scan-fail-on-error: true\ndocs-git-plugins: true" {class: needs}
 
 # ═══ 2. Everything that starts immediately ═══════════════════════════════════
 wave0: "② LAUNCHED IMMEDIATELY AT  t = 0   —   18 job definitions, not one `needs:` between them" {
@@ -87,7 +87,7 @@ fq: "🧪 Frontend Quality & Unit Tests\ntimeout 20 min · ESLint + dependency-c
 bom: "🔎 BOM Override Guard\ntimeout 15 min · Spring Boot BOM overrides\nadvisory in the Gate" {class: quality}
 fds: "🎨 FDS Conformity\ntimeout 5 min · design-system conformity" {class: quality}
 fdsmui: "🎨 FDS MUI Regression\ntimeout 5 min · pull requests only" {class: quality}
-dl: "🔎 Docs Links Check\ntimeout 5 min · in-app and docs page links\nadvisory in the Gate" {class: quality}
+dl: "📖 Docs Check\ntimeout 10 min · strict build, built site, in-app and docs page links\nNightly: git plugins on\nadvisory in the Gate" {class: quality}
 }
 
 docker: "DOCKER" {
@@ -209,7 +209,7 @@ row4 -> row5: {style.opacity: 0}
 row5 -> row6: {style.opacity: 0}
 }
 
-matrix: "CORE vs NIGHTLY — THE ONLY THREE DIFFERENCES\n\nAPI TESTS\nCore: 10 cells — 9 balanced shards + a 'remaining' catch-all, Elasticsearch 8\nNightly: 60 cells — the same 10 on Elasticsearch 8 (x3), Elasticsearch 9 (x2)\nand OpenSearch, including the multi-tenancy shadow runs\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 6 cells on PRs (chromium/amd64), 10 on push (+ chrome, arm64)\nsharded arsenals / external-integrations / remaining, plus 3 or 5 infra cells\nNightly: 27 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 8 infra cells\n\nCONTAINER VULNERABILITY SCAN\nCore: reports findings, never blocks the Gate\nNightly: fails the Gate on high/critical findings and scanner errors" {
+matrix: "CORE vs NIGHTLY — THE ONLY FOUR DIFFERENCES\n\nAPI TESTS\nCore: 10 cells — 9 balanced shards + a 'remaining' catch-all, Elasticsearch 8\nNightly: 60 cells — the same 10 on Elasticsearch 8 (x3), Elasticsearch 9 (x2)\nand OpenSearch, including the multi-tenancy shadow runs\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 6 cells on PRs (chromium/amd64), 10 on push (+ chrome, arm64)\nsharded arsenals / external-integrations / remaining, plus 3 or 5 infra cells\nNightly: 27 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 8 infra cells\n\nCONTAINER VULNERABILITY SCAN\nCore: reports findings, never blocks the Gate\nNightly: fails the Gate on high/critical findings and scanner errors\n\nDOCS CHECK\nCore: builds without the git plugins, no GitHub API call per page\nNightly: builds with them, as the deployed site does" {
 style: {fill: "#FFFFFF"; stroke: "#607D8B"; stroke-width: 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ; font-size: 20}
 }
 
