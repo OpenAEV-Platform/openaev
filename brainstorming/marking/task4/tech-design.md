@@ -501,7 +501,7 @@ classDiagram
     class MarkingClearanceCacheManager {
         -MarkingScopeResolver resolver
         +findClearance(userId, tenantId, bypass) MarkingCtx
-        +findSystemClearance(tenantId) MarkingCtx
+        +findSystemClearance(tenantIds) MarkingCtx
     }
     class MarkingScopeResolver {
         +resolve(grantedIds, tenantDefinitions, bypass) MarkingCtx
@@ -523,7 +523,7 @@ classDiagram
     HttpMarkingScopeSupplier --> MarkingClearanceCacheManager : findClearance(userId, tenantId, bypass)
     MarkingClearanceCacheManager --> MarkingScopeResolver : resolve(granted, tenantDefinitions, bypass)
     TenantScopedTransaction --> MarkingScopeSupplier : systemClearanceFor(ctx)\nevery background transaction
-    HttpMarkingScopeSupplier --> MarkingClearanceCacheManager : findSystemClearance(tenantId)\nnever cached
+    HttpMarkingScopeSupplier --> MarkingClearanceCacheManager : findSystemClearance(tenantIds)\none query, never cached
 ```
 
 **Runtime flow, both branches:**
@@ -596,13 +596,15 @@ sequenceDiagram
 every marking of the tenants in scope. It used to come from its own query
 (`MarkingDefinitionRepository.findAllIdsByTenantIds`). It now comes from
 `MarkingScopeSupplier.systemClearanceFor`, which `HttpMarkingScopeSupplier` implements with the same
-tenant query and the same `MarkingScopeResolver` bypass branch as `findClearance(…, bypass = true)`:
-"every marking of a tenant" has one definition, for a bypassing user and for a job.
+`MarkingScopeResolver` bypass branch as `findClearance(…, bypass = true)`: "every marking of a tenant"
+has one definition, for a bypassing user and for a job. The definitions of every tenant in scope are
+read in one query (`tenant_id = any(?)`), not one per tenant: an `allTenants()` job spans every
+tenant, and runs often (`QueueChainingJob`, `AtomicTestingExecutionJob`).
 
 Unlike `findClearance`, `findSystemClearance` is **never cached**. It has no user to key on, so one
 entry would be shared by every job of the tenant, and a stale one would hide the rows marked with a
-just-created definition from executions until it expired. One indexed read per transaction is the
-price of always being exact (pinned by `TenantScopedTransactionMarkingScopeTest` and
+just-created definition from executions until it expired. One indexed read per transaction, whatever
+the number of tenants, is the price of always being exact (pinned by `TenantScopedTransactionMarkingScopeTest` and
 `MarkingClearanceCacheManagerCachingTest`). The supplier is mandatory there: unlike the aspect, which
 falls back to `none()`, a background transaction without it fails rather than silently skipping
 marked targets.
@@ -829,6 +831,17 @@ reused under the other. `FaithfulCopyCallersArchTest` limits its callers to the 
 `FaithfulCopyIntegrationTest` covers the seven copies (stored targets keep RED, responses hide it).
 Background copies (the scheduled relaunch, the scheduled scenario → simulation) already run at system
 clearance through `TenantScopedTransaction`, so they needed no change.
+
+**A shared service does not widen the request.** `ScenarioToExerciseService.toExercise` scopes its
+transaction to the scenario's tenant (`TenantScopedTransaction.setScopeOnCurrentTransaction`), which
+also sets the system clearance, as background callers need. It used to do so on HTTP too, so a
+manual launch ran the rest of its request at the system clearance. A transaction already scoped to
+exactly those tenants is now left as it is (#8726): an HTTP request keeps the user's clearance, and a
+faithful copy keeps the system clearance it set.
+
+The autonomous-run endpoints (create, restart, promote) call `toExercise` outside
+`FaithfulCopyTransaction`: their simulation is built from what the user can see, so it does not
+carry the targets they are not cleared for. Open: route them through `FaithfulCopyTransaction`.
 
 **Loading a finding's asset list.** For `finding.getAssets()` Hibernate emits:
 
