@@ -19,10 +19,14 @@ import org.springframework.stereotype.Component;
  *
  * <p>This is the API-side half of {@link MarkingScopeSupplier}: the aspect lives in {@code
  * openaev-model} and cannot reach the security context or the clearance cache, both of which live
- * here.
- * systemClearanceFor resolves "every marking of a tenant". 2 usages:
- * 1/ for bypassing HTTP callers (service account doing REST aPI)
- * 2/ background jobs.
+ * here. It also supplies the system clearance ({@link #systemClearanceFor}): every marking of a
+ * tenant, resolved like a bypassing caller's clearance. It serves:
+ *
+ * <ul>
+ *   <li>background jobs, through {@code TenantScopedTransaction};
+ *   <li>faithful copies (duplicate, relaunch, scenario launch), through {@code
+ *       withSystemClearance}.
+ * </ul>
  *
  * <p><b>Fail-closed, and note what that means for marking.</b> No principal, an anonymous caller,
  * or a tenant scope that grants nothing all yield {@link MarkingCtx#none()} — which still admits
