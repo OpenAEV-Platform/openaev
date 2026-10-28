@@ -387,8 +387,8 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
   private String seedRecurringScenario(String tenantId, String name) {
     String scenarioId = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from,"
-            + " scenario_recurrence, tenant_id) VALUES (?, ?, 'telemetry@openaev.io',"
+        "INSERT INTO scenarios (scenario_id, scenario_name,"
+            + " scenario_recurrence, tenant_id) VALUES (?, ?,"
             + " '0 0 8 * * *', ?)",
         scenarioId,
         name,
