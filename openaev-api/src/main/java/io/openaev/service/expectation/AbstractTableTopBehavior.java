@@ -10,9 +10,12 @@ import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.utils.ExpectationUtils;
+import io.openaev.utils.ReferenceResolver;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,6 +28,8 @@ public abstract class AbstractTableTopBehavior
     extends ExpectationBehavior<TableTopInjectExpectation> {
 
   @Resource protected ExpectationPropertiesConfig expectationPropertiesConfig;
+
+  @Resource private ReferenceResolver referenceResolver;
 
   protected final InjectExpectationRepository injectExpectationRepository;
 
@@ -53,10 +58,16 @@ public abstract class AbstractTableTopBehavior
     if (!shouldInitializeExpectation(executableInject)) {
       return;
     }
-    boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
+    Inject inject = executableInject.getInjection().getInject();
+    boolean isAtomicTesting = inject.isAtomicTesting();
+    // Without a simulation the chaining step resolves no recipients: it behaves as an atomic
+    // testing
+    boolean isChaining = executableInject.isChainingExecution() && inject.getExercise() != null;
 
-    List<Team> teams = executableInject.getTeams();
-    if (teams.isEmpty()) {
+    List<Team> teams = resolveTargetTeams(executableInject, inject, isChaining);
+    // A chaining audience made of players placed in the workflow scope has no target team
+    boolean hasDirectRecipients = isChaining && !executableInject.getUsers().isEmpty();
+    if (teams.isEmpty() && !hasDirectRecipients) {
       return;
     }
 
@@ -66,7 +77,9 @@ public abstract class AbstractTableTopBehavior
     List<TableTopInjectExpectation> allExpectations = new ArrayList<>();
 
     for (TableTopInjectExpectation template : templates) {
-      if (isAtomicTesting) {
+      if (isChaining) {
+        buildExpectationsForChaining(executableInject, template, teams, allExpectations);
+      } else if (isAtomicTesting) {
         buildExpectationsForAtomicTesting(template, teams, allExpectations);
       } else {
         buildExpectationsForExerciseInject(executableInject, template, teams, allExpectations);
@@ -166,15 +179,68 @@ public abstract class AbstractTableTopBehavior
   }
 
   /**
+   * Resolves the teams targeted by the inject. A chaining inject targeting all teams carries none
+   * of its own: they are the simulation's teams, as for the recipients resolved by the chaining
+   * step.
+   */
+  private static List<Team> resolveTargetTeams(
+      ExecutableInject executableInject, Inject inject, boolean isChaining) {
+    if (isChaining && inject.isAllTeams()) {
+      return inject.getExercise().getTeams();
+    }
+    return executableInject.getTeams();
+  }
+
+  /**
+   * Builds expectations for chaining executions: the audience is not read from the simulation
+   * enabled players but from the recipients the chaining step resolved (targeted teams' members,
+   * minus the players denylisted in the workflow scope). A team gets an expectation only when at
+   * least one of its members is a recipient. A recipient covered by none of the targeted teams (a
+   * player placed directly in the workflow scope) gets a player expectation without team: it has no
+   * team expectation to derive, so it is its own leaf (see {@link #getLeaves}).
+   */
+  private void buildExpectationsForChaining(
+      ExecutableInject executableInject,
+      TableTopInjectExpectation template,
+      List<Team> teams,
+      List<TableTopInjectExpectation> allExpectations) {
+    Set<String> recipientIds =
+        executableInject.getUsers().stream()
+            .map(context -> context.getUser().getId())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+    Set<String> coveredByTeamIds = new HashSet<>();
+    for (Team team : teams) {
+      List<TableTopInjectExpectation> playerExpectations =
+          team.getUsers().stream()
+              .filter(user -> recipientIds.contains(user.getId()))
+              .map(user -> buildExpectationForTarget(template, team, user))
+              .toList();
+      if (playerExpectations.isEmpty()) {
+        continue;
+      }
+      playerExpectations.forEach(
+          expectation -> coveredByTeamIds.add(expectation.getUser().getId()));
+      allExpectations.add(buildExpectationForTarget(template, team, null));
+      allExpectations.addAll(playerExpectations);
+    }
+
+    recipientIds.stream()
+        .filter(userId -> !coveredByTeamIds.contains(userId))
+        .map(userId -> referenceResolver.resolve(userId, User.class))
+        .forEach(user -> allExpectations.add(buildExpectationForTarget(template, null, user)));
+  }
+
+  /**
    * Clones the template expectation and sets the team/user target.
    *
    * @param template the expectation template to clone
-   * @param team the target team
+   * @param team the target team, or {@code null} for a player targeted outside of any team
    * @param user the target user, or {@code null} for team-level expectations
    * @return a new expectation ready to be persisted
    */
   private static TableTopInjectExpectation buildExpectationForTarget(
-      TableTopInjectExpectation template, Team team, @Nullable User user) {
+      TableTopInjectExpectation template, @Nullable Team team, @Nullable User user) {
     TableTopInjectExpectation expectation = template.clone();
     expectation.setTeam(team);
     expectation.setUser(user);

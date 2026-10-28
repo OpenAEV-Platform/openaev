@@ -626,6 +626,24 @@ Whichever field is read (`Exercise.launched_by`, `Inject.launched_by`), the rule
   (`getAgentsAndAgentlessAssetsByInject`/`launchExecutorContext`) is the primary target; path 3
   (`ExecutableInjectDTOMapper`) covers non-agent external connectors.
 
+- **Resolved by ids, only with `MARKING` on** (#8730). `InjectService.launchableUnderClearance` keeps
+  every target when the preview feature is off, without reading the launcher. When it is on, the
+  launcher id is read by query (`InjectRepository.findLauncherId`) and the user reloaded in the current
+  transaction: the job runs an inject loaded by an earlier transaction, whose lazy simulation and
+  launcher cannot be initialised.
+
+Where it applies (`InjectService.resolveAllAssetsToExecute` / `getAgentsAndAgentlessAssetsByInject`):
+
+| Call site | Path | Launch clearance |
+|---|---|---|
+| `InjectsExecutionJob.executeInject` | 2 (expectations) | ✅ |
+| `ExecutionExecutorService.launchExecutorContext` | 1 (agent dispatch) | ✅ |
+| `OpenAEVImplantExecutor.process` | 2 | ✅ |
+| `ExecutableInjectDTOMapper` (fallback when not cached by the job) | 3 (external push) | ✅ |
+| `AbstractTechnicalBehavior` (fallback when not cached by the job) | 2 | ✅ |
+| `AttackPathExecutionIngestionService` (`getAttackPathExecution`, `getExecutionIndex`) | attack path | ✅ |
+| `InjectService.runChecks` (inject and scenario health checks) | — | ❌ skipped: a health check describes the inject before any launch, so every target counts |
+
 ## Derived tables (Variant B)
 
 ### Where it lives: inside `MarkingDimension`, not a new `ScopeDimension`

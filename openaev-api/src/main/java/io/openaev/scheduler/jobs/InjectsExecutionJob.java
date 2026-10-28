@@ -33,6 +33,7 @@ import io.openaev.utils.AgentUtils;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,24 +98,57 @@ public class InjectsExecutionJob implements Job {
   private final Optional<AuditLogger> auditLogger;
 
   public List<Exercise> autoStartDueExercises() {
-    // Cross-tenant: no transaction is open here, so no v1 filter narrows the read. Once exercises
-    // is activated this sweep needs the primitive.
-    return promoteDueExercisesToRunning();
-  }
-
-  private List<Exercise> promoteDueExercisesToRunning() {
-    List<Exercise> exercises = exerciseRepository.findAllShouldBeInRunningState(now());
-    if (exercises.isEmpty()) {
+    // The poll spans every tenant and only ids leave it. Each tenant's simulations are then started
+    // inside that tenant's scope: exercises.tenant_id has a database default, so a status write
+    // under a wider scope would not say which tenant it acts for. The started list keeps the
+    // poll's order, which is the order executeChainedSimulations starts the workflows in.
+    Map<String, String> tenantIdByDueId =
+        tenantScopedJobRunner.supplyAcrossTenants(
+            () -> {
+              Map<String, String> tenantIds = new LinkedHashMap<>();
+              exerciseRepository
+                  .findAllShouldBeInRunningState(now())
+                  .forEach(
+                      exercise -> tenantIds.put(exercise.getId(), exercise.getTenant().getId()));
+              return tenantIds;
+            });
+    if (tenantIdByDueId.isEmpty()) {
       return List.of();
     }
-    actionMetricCollector.addSimulationPlayedCount(exercises.size());
-    List<Exercise> startedExercises = new ArrayList<>(exercises);
-    startedExercises.forEach(
+    actionMetricCollector.addSimulationPlayedCount(tenantIdByDueId.size());
+    Map<String, List<String>> dueIdsByTenant = new LinkedHashMap<>();
+    tenantIdByDueId.forEach(
+        (exerciseId, tenantId) ->
+            dueIdsByTenant.computeIfAbsent(tenantId, key -> new ArrayList<>()).add(exerciseId));
+
+    Map<String, Exercise> startedById = new HashMap<>();
+    dueIdsByTenant.forEach(
+        (tenantId, exerciseIds) -> {
+          try {
+            tenantScopedJobRunner
+                .supplyInTenant(tenantId, () -> promoteToRunning(exerciseIds))
+                .forEach(exercise -> startedById.put(exercise.getId(), exercise));
+          } catch (RuntimeException e) {
+            // That tenant's transaction rolled back, so its simulations stay SCHEDULED and the next
+            // run retries them. The other tenants' simulations are started and must still reach
+            // executeChainedSimulations.
+            log.error("Could not start the scheduled simulations of tenant {}", tenantId, e);
+          }
+        });
+    return tenantIdByDueId.keySet().stream()
+        .map(startedById::get)
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  private List<Exercise> promoteToRunning(List<String> exerciseIds) {
+    List<Exercise> exercises = new ArrayList<>(exerciseRepository.findAllById(exerciseIds));
+    exercises.forEach(
         exercise -> {
           exercise.setStatus(ExerciseStatus.RUNNING);
           exercise.setUpdatedAt(now());
         });
-    exerciseRepository.saveAll(startedExercises);
+    List<Exercise> startedExercises = exerciseRepository.saveAll(exercises);
     startedExercises.forEach(this::logScheduledLaunch);
     return startedExercises;
   }
