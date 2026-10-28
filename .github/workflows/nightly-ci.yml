@@ -133,4 +133,6 @@ jobs:
         ]
       # Keep Nightly runs out of shared caches used by PR workflows.
       no-cache: true
+      # Build the docs as the deployed site does, git plugins included.
+      docs-git-plugins: true
     secrets: inherit
