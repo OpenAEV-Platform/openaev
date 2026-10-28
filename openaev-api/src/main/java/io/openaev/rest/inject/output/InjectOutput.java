@@ -68,6 +68,13 @@ public class InjectOutput {
   @Schema(description = "Injector contract of the inject")
   private InjectorContract injectorContract;
 
+  @JsonProperty("inject_is_atomic_testing")
+  @Schema(
+      description =
+          "True when this inject is an atomic test, meaning it belongs to no scenario and no"
+              + " simulation")
+  private boolean atomicTesting;
+
   @JsonProperty("inject_tags")
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @ArraySchema(schema = @Schema(description = "Tags of the inject", implementation = String.class))

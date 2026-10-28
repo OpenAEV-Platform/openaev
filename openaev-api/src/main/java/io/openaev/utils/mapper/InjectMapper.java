@@ -305,6 +305,7 @@ public class InjectMapper {
             type,
             inject.getDependsOn(),
             healthchecks);
+    output.setAtomicTesting(inject.isAtomicTesting());
     output.setSecretReferences(
         inject.getSecretReferences().stream().map(SecretReference::getId).toList());
     output.setExpectations(toOutputs(inject.getExpectations()));
