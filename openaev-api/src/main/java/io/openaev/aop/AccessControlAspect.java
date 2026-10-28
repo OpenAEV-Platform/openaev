@@ -8,6 +8,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.exception.TenantScopeForbiddenException;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.lang.reflect.Method;
@@ -120,41 +121,49 @@ public class AccessControlAspect {
           "Access denied for user " + SessionHelper.currentUser().getId()) {};
     }
 
-    // Capabilities and grants resolve through the ambient tenant, which only the
-    // /api/tenants/{tenantId}/ route sets, while the TxCtx also honours the X-Tenant-Ids header
-    // and, with no selector, holds every tenant the caller belongs to. The method may work in any
-    // tenant of its scope, so the caller must be authorized in each of them as well as in the
-    // ambient one.
+    // The method may work in any tenant of its TxCtx scope, which the X-Tenant-Ids header names on
+    // the non-prefixed route and which, with no selector, holds every tenant the caller belongs to,
+    // while the ambient tenant is set only by the /api/tenants/{tenantId}/ route. So the caller
+    // must be authorized in the ambient tenant and in each other tenant of the scope. In each
+    // tenant, the check reads the capabilities and the tenant bypass the caller holds there. A
+    // grant is not tied to a tenant by its lookup, so it answers the same in every tenant. The
+    // resource's parent is resolved once, in the ambient tenant, and never again per tenant.
     final User user = principal;
-    final String resource = resourceId;
+    String ambientTenant = TenantContext.getCurrentTenant();
+    PermissionService.CheckedResource resource =
+        permissionService.checkedResource(
+            ambientTenant,
+            resourceId,
+            accessControl.resourceType(),
+            accessControl.actionPerformed());
     BooleanSupplier permitted =
         () ->
             accessControl.requireAdmin()
                 ? permissionService.hasUserAdminPrivileges(user)
-                : permissionService.hasPermission(
-                    user,
-                    httpMappingInfo,
-                    resource,
-                    accessControl.resourceType(),
-                    accessControl.actionPerformed());
-    boolean allowed =
-        permitted.getAsBoolean()
-            && otherScopeTenants(args).stream()
-                .allMatch(
-                    tenantId ->
-                        ambientTenantBridge.callInTenant(tenantId, permitted::getAsBoolean));
+                : permissionService.hasPermission(user, httpMappingInfo, resource);
 
-    if (!allowed) {
-      log.warn(
-          "Access denied for user: {} on resource: {} of type: {} and action: {}",
-          principal.getId(),
-          resourceId,
-          accessControl.resourceType(),
-          accessControl.actionPerformed());
-
+    if (!permitted.getAsBoolean()) {
+      logDenied(principal, resourceId, accessControl);
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getEmail()) {};
     }
+    boolean permittedInEveryScopeTenant =
+        otherScopeTenants(args, ambientTenant).stream()
+            .allMatch(
+                tenantId -> ambientTenantBridge.callInTenant(tenantId, permitted::getAsBoolean));
+    if (!permittedInEveryScopeTenant) {
+      logDenied(principal, resourceId, accessControl);
+      throw new TenantScopeForbiddenException();
+    }
+  }
+
+  private static void logDenied(User principal, String resourceId, AccessControl accessControl) {
+    log.warn(
+        "Access denied for user: {} on resource: {} of type: {} and action: {}",
+        principal.getId(),
+        resourceId,
+        accessControl.resourceType(),
+        accessControl.actionPerformed());
   }
 
   /**
@@ -162,8 +171,7 @@ public class AccessControlAspect {
    * is no such argument: a missing scope reads nothing and an all-tenants scope never comes from a
    * request, so neither adds a tenant to authorize in.
    */
-  private static List<String> otherScopeTenants(Object[] args) {
-    String ambientTenant = TenantContext.getCurrentTenant();
+  private static List<String> otherScopeTenants(Object[] args, String ambientTenant) {
     for (Object arg : args) {
       if (arg instanceof TxCtx.Restricted restricted) {
         return restricted.tenantIds().stream()
