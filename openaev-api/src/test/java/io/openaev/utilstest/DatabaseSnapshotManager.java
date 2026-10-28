@@ -188,6 +188,8 @@ public class DatabaseSnapshotManager {
                     WHERE tc.constraint_type = 'FOREIGN KEY'
                         AND tc.table_schema = 'public'
                         AND tc.table_name != ccu.table_name
+                        -- Checked at commit, so they impose no order (payload identity pointer).
+                        AND tc.is_deferrable = 'NO'
                     """);
 
     // Get all tables

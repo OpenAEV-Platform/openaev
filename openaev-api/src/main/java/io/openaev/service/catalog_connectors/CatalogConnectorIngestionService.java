@@ -121,11 +121,47 @@ public class CatalogConnectorIngestionService {
       log.warn("container_type is null or empty");
     }
 
+    connector.setInjectorContracts(buildInjectorContracts(contract));
+
     Set<CatalogConnectorConfiguration> conf = buildConnectorConfigurations(contract, connector);
     connector.getCatalogConnectorConfigurations().clear();
     connector.getCatalogConnectorConfigurations().addAll(conf);
 
     return connector;
+  }
+
+  private List<CatalogConnectorInjectorContract> buildInjectorContracts(JsonNode contract) {
+    JsonNode contracts = contract.path("injector_contracts");
+    if (!contracts.isArray()) {
+      return new ArrayList<>();
+    }
+    List<CatalogConnectorInjectorContract> result = new ArrayList<>();
+    for (JsonNode node : contracts) {
+      String contractId = node.path("contract_id").asText(null);
+      if (contractId == null || contractId.isBlank()) {
+        continue;
+      }
+      Map<String, String> labels = new HashMap<>();
+      node.path("labels")
+          .fields()
+          .forEachRemaining(e -> labels.put(e.getKey(), e.getValue().asText()));
+      result.add(
+          new CatalogConnectorInjectorContract(
+              contractId,
+              labels,
+              texts(node.path("domains")),
+              texts(node.path("platforms")),
+              texts(node.path("attack_patterns"))));
+    }
+    return result;
+  }
+
+  private static List<String> texts(JsonNode array) {
+    List<String> values = new ArrayList<>();
+    if (array.isArray()) {
+      array.forEach(value -> values.add(value.asText()));
+    }
+    return values;
   }
 
   private void cleanupInstanceConfigurations(CatalogConnector connector) {

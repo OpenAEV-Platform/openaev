@@ -11,6 +11,7 @@ import { type AttackPattern, type Domain, type InjectorContractFullOutput } from
 import { getIconByDomain } from '../../../../../utils/domains/domainIcons';
 import { TO_CLASSIFY } from '../../../../../utils/domains/domainUtils';
 import { isNotEmptyField } from '../../../../../utils/utils';
+import PayloadOriginChip from '../../../threat_arsenal/PayloadOriginChip';
 import InjectIcon from '../InjectIcon';
 
 interface Props {
@@ -209,6 +210,8 @@ const InjectContractCard: FunctionComponent<Props> = ({
           minHeight: 22,
         }}
         >
+          {contract.injector_contract_payload_version && <Chip label={`v${contract.injector_contract_payload_version}`} />}
+          <PayloadOriginChip origin={contract.injector_contract_payload_origin} />
           {primaryDomain && (
             <Chip
               startIcon={getIconByDomain(primaryDomain.domain_name, {

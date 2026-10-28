@@ -66,6 +66,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.FilterUtilsJpa;
@@ -153,6 +154,7 @@ public class InjectService {
   private final ApplicationEventPublisher eventPublisher;
   private final BulkOperationMonitor bulkOperationMonitor;
   private final InjectStatusService injectStatusService;
+  private final PayloadRevocationService payloadRevocationService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -275,6 +277,11 @@ public class InjectService {
     return inject;
   }
 
+  @Transactional(readOnly = true)
+  public Set<Inject> findByScenarioId(@NotBlank final String scenarioId) {
+    return injectRepository.findByScenarioId(scenarioId);
+  }
+
   public Inject inject(@NotBlank final String injectId) {
     return this.injectRepository
         .findById(injectId)
@@ -287,6 +294,16 @@ public class InjectService {
    * @param injectId inject ID to search
    * @return the inject found or null if none matched the ID
    */
+  /** Scenario and atomic testing injects running this payload (F30). */
+  @Transactional(readOnly = true)
+  public List<Inject> findTemplateInjectsByPayloadId(@NotBlank final String payloadId) {
+    return injectRepository.findTemplateInjectsByPayloadId(payloadId);
+  }
+
+  public Inject save(@NotNull final Inject inject) {
+    return injectRepository.save(inject);
+  }
+
   public Inject findInjectOrNull(@NotBlank final String injectId) {
     if (injectId == null) {
       return null;
@@ -657,9 +674,20 @@ public class InjectService {
     }
   }
 
+  /** A revoked payload is never launched, whatever the license (F9, F18). */
+  public void throwIfPayloadRevoked(Inject inject) {
+    payloadRevocationService
+        .revocationMessage(inject)
+        .ifPresent(
+            message -> {
+              throw new BadRequestException(message);
+            });
+  }
+
   @Transactional
   public InjectResultOverviewOutput launch(String id) {
     Inject inject = injectRepository.findById(id).orElseThrow(ElementNotFoundException::new);
+    this.throwIfPayloadRevoked(inject);
     this.throwIfInjectNotLaunchable(inject);
     inject.clean();
     inject.setUpdatedAt(Instant.now());
@@ -688,6 +716,7 @@ public class InjectService {
   // each other directly.
   private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     Inject duplicatedInject = findAndDuplicateInject(id);
+    this.throwIfPayloadRevoked(duplicatedInject);
     if (checkLaunchable) {
       this.throwIfInjectNotLaunchable(duplicatedInject);
     }

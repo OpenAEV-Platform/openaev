@@ -1,13 +1,16 @@
 export default function buildScenarioTabs(params: {
   isChained: boolean;
   lessonsEnabled: boolean | undefined;
+  isCatalog?: boolean;
   t: (value: string) => string;
 }): [string, string][] {
   const {
     isChained,
     lessonsEnabled,
+    isCatalog = false,
     t,
   } = params;
+  const versions: [string, string][] = isCatalog ? [['/versions', t('Versions')]] : [];
 
   if (isChained) {
     return [
@@ -19,6 +22,7 @@ export default function buildScenarioTabs(params: {
       ['/findings', t('Findings')],
       ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
       ['/statistics', t('Statistics')],
+      ...versions,
     ];
   }
 
@@ -30,5 +34,6 @@ export default function buildScenarioTabs(params: {
     ['/findings', t('Findings')],
     ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
     ['/statistics', t('Statistics')],
+    ...versions,
   ];
 }

@@ -4,6 +4,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
+import jakarta.persistence.LockModeType;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.*;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -367,4 +369,19 @@ public interface ScenarioRepository
   Optional<Scenario> findByIdAndTenantId(String id, String tenantId);
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /** Installed catalogue scenarios, as {catalog id, version, scenario id} rows (F5). */
+  @Query(
+      "SELECT s.catalogId, s.version, s.id FROM Scenario s WHERE s.catalogId IS NOT NULL"
+          + " AND s.version IS NOT NULL AND s.uninstalled = false")
+  List<Object[]> findInstalledCatalogVersions();
+
+  List<Scenario> findAllByCatalogId(String catalogId);
+
+  Optional<Scenario> findByCatalogRepositoryAndCatalogId(String repository, String catalogId);
+
+  // Update, rollback and simulation creation of a catalogue scenario take it in this order.
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT s FROM Scenario s WHERE s.id = :id")
+  Optional<Scenario> findForUpdate(@Param("id") String id);
 }

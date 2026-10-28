@@ -55,6 +55,20 @@ public class ScenarioOutput {
   @Schema(description = "Type affinity of the scenario")
   private String typeAffinity;
 
+  @Schema(description = "Id of the scenario author (user or organization)")
+  @JsonProperty("scenario_author")
+  private String author;
+
+  @Schema(
+      description =
+          "Name of the scenario author: the user who made it or the publishing organization")
+  @JsonProperty("scenario_author_name")
+  private String authorName;
+
+  @Schema(description = "Type of the scenario author: user or organization")
+  @JsonProperty("scenario_author_type")
+  private String authorType;
+
   @JsonProperty("scenario_external_url")
   @Schema(description = "External URL of the scenario")
   private String externalUrl;
@@ -149,6 +163,14 @@ public class ScenarioOutput {
   @JsonProperty("scenario_workflow_id")
   @Schema(description = "Workflow ID associated with the scenario")
   private String workflowId;
+
+  @JsonProperty("scenario_catalog_id")
+  @Schema(description = "Catalogue scenario this one was installed from")
+  private String catalogId;
+
+  @JsonProperty("scenario_version")
+  @Schema(description = "Installed catalogue version")
+  private String version;
 
   @JsonProperty("scenario_autonomous")
   @Schema(description = "Whether the scenario is an autonomous (AI-driven) attack-path scenario")

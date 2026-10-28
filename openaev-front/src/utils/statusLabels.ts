@@ -19,6 +19,7 @@ const statusLabelMap: Record<string, string> = {
   INVALID_USAGE: 'Invalid usage',
   TIMEOUT: 'Timeout',
   INTERRUPTED: 'Interrupted',
+  PAYLOAD_REVOKED: 'Payload revoked',
   AGENT_INACTIVE: 'Agent inactive',
   ASSET_AGENTLESS: 'Asset agentless',
 };
@@ -78,6 +79,7 @@ const agentStatusTooltipMap: Record<string, string> = {
   INVALID_USAGE: 'The command was invoked with incorrect arguments or syntax. Verify the inject parameters and command.',
   TIMEOUT: 'The agent did not complete execution within the allowed time threshold. Consider investigating target performance.',
   INTERRUPTED: 'The inject was interrupted before completion. This may be caused by a system signal, user intervention, or resource constraint.',
+  PAYLOAD_REVOKED: 'The payload was revoked: the inject was refused before execution.',
   AGENT_INACTIVE: 'This agent was not active during the inject execution. Check your asset connectivity.',
 };
 

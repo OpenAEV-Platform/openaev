@@ -82,4 +82,16 @@ public class ZipJsonApi<T extends Base> {
         IMPORTED_OBJECT_NAME_SUFFIX,
         writeTenantId);
   }
+
+  /** Same, from bytes and with the name as exported: a catalogue package keeps its content. */
+  public ZipJsonService.ImportOutput<T> handleImportAsExported(
+      byte[] fileBytes,
+      String nameAttributeKey,
+      IncludeOptions includeOptions,
+      Function<T, T> sanityCheck,
+      String writeTenantId)
+      throws IOException {
+    return this.zipJsonService.handleImport(
+        fileBytes, nameAttributeKey, includeOptions, sanityCheck, "", writeTenantId);
+  }
 }

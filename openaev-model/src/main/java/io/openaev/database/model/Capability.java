@@ -519,6 +519,13 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.AGENT_INSTALLER, Action.READ)),
 
+  // Sends content releases to the catalogue: meant for the collector's account alone.
+  SYNC_CATALOG(
+      null,
+      CapabilityGroup.THREAT_ARSENALS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.CATALOG_SYNC, Action.CREATE)),
+
   // STIX
   MANAGE_STIX_BUNDLE(
       null,

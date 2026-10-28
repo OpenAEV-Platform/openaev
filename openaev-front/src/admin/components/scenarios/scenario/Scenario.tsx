@@ -557,6 +557,9 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               <Field label={t('Platforms')}>
                 <PlatformIconGroup platforms={scenario.scenario_platforms} width={25} />
               </Field>
+              <Field label={t('Author')}>
+                {scenario.scenario_author_name ?? '-'}
+              </Field>
               <Field label={t('Tags')}>
                 <ItemTags variant="list" tags={scenario.scenario_tags} limit={10} />
               </Field>

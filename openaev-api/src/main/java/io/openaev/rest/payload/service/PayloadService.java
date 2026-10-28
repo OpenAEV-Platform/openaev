@@ -15,6 +15,7 @@ import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWith
 import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.service.stix.SecurityCoverageInjectService.ALL_PLATFORMS;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
+import static io.openaev.utils.mapper.PayloadMapper.toPayloadOutput;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -41,6 +42,7 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -50,9 +52,13 @@ import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
+import io.openaev.service.content.ContentHistoryService;
+import io.openaev.service.payload.PayloadContentHashService;
+import io.openaev.service.payload.PayloadRevocationService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
-import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -72,6 +78,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class PayloadService {
+
+  public static final String PAYLOAD_NAME_TAKEN = "A payload with this name already exists";
 
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY = "dynamic_hostname_key";
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE =
@@ -94,11 +102,17 @@ public class PayloadService {
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;
-
-  private final PayloadMapper payloadMapper;
+  private final ContentHistoryService contentHistoryService;
+  private final PayloadVersionService payloadVersionService;
+  private final PayloadContentHashService payloadContentHashService;
+  private final PayloadRevocationService payloadRevocationService;
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
+    // Every payload write passes here; a managed version keeps the hash of its release manifest.
+    if (!PayloadVersionService.isManaged(payload)) {
+      payload.setContentHash(payloadContentHashService.hash(payload, attackPatterns));
+    }
     // A contract lives in its payload's tenant. findAllByPayloads is scoped only by the ambient
     // TxCtx, which for a global (non-selector) request authorizes every tenant the caller can see -
     // built-in payload injectors repeat across tenants, so the raw result can mix several tenants'
@@ -300,7 +314,7 @@ public class PayloadService {
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
       PayloadCreationService.PayloadInjectorContractCreationResult result) {
-    return payloadMapper.toPayloadOutput(
+    return toPayloadOutput(
         result.payload(),
         result.injectorContract().getAttackPatterns().stream()
             .map(AttackPattern::getId)
@@ -360,12 +374,42 @@ public class PayloadService {
     return expectation;
   }
 
+  /**
+   * Whether no other payload of the tenant uses this name (#3399). Versions of the same payload
+   * share their name on purpose; existing duplicates are left as they are.
+   */
+  @Transactional(readOnly = true)
+  public boolean isNameAvailable(String name, @Nullable String payloadId) {
+    return nameAvailable(name, payloadId);
+  }
+
+  private boolean nameAvailable(String name, @Nullable String payloadId) {
+    if (name == null || name.isBlank()) {
+      return true;
+    }
+    String identityId =
+        payloadId == null
+            ? null
+            : payloadRepository.findById(payloadId).map(p -> p.getIdentity().getId()).orElse(null);
+    return !payloadRepository.existsOtherPayloadWithName(name, payloadId, identityId);
+  }
+
+  /** Refuses a name another payload of the tenant already uses (#3399). */
+  public void assertNameAvailable(String name, @Nullable String payloadId) {
+    if (!nameAvailable(name, payloadId)) {
+      throw new BadRequestException(PAYLOAD_NAME_TAKEN);
+    }
+  }
+
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
     Payload origin =
         this.payloadRepository
             .findById(payloadId)
             .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+    if (payloadRevocationService.isRevoked(origin)) {
+      throw new BadRequestException("A revoked payload cannot be duplicated");
+    }
     // Telemetry: one payload duplicated (community payload customization signal),
     // counted only once the origin payload is known to exist.
     resultsMetricCollector.recordPayloadDuplicated();
@@ -382,7 +426,7 @@ public class PayloadService {
       duplicatedPayload.setAuthorTeam(null);
       duplicatedPayload.setAuthorOrganization(null);
     }
-    Payload duplicated = payloadRepository.save(duplicatedPayload);
+    Payload duplicated = createFirstVersion(duplicatedPayload);
     InjectorContract injectorContract =
         this.synchroniseInjectorContractBasedOnPayload(
             duplicated,
@@ -393,8 +437,34 @@ public class PayloadService {
                 ? originInjectorContract.get().getDomains()
                 : Set.of(),
             originInjectorContract.isPresent() ? originInjectorContract.get().getTags() : Set.of());
+    contentHistoryService.payloadDuplicated(origin, duplicated);
     return new PayloadCreationService.PayloadInjectorContractCreationResult(
         duplicated, injectorContract);
+  }
+
+  /** A new payload: its own local identity and first version (ADR-018). */
+  public <T extends Payload> T createFirstVersion(T payload) {
+    @SuppressWarnings("unchecked")
+    T saved =
+        (T)
+            payloadVersionService.addVersion(
+                payload.identityOrNew(),
+                payload,
+                PayloadVersionService.Numbering.fixed(Payload.FIRST_VERSION));
+    return saved;
+  }
+
+  /** A row with the content of this version, to change and add as the next one (ADR-018). */
+  public Payload copyForNewVersion(Payload current) {
+    Payload copy = generateDuplicatedPayload(current);
+    copy.setName(current.getName());
+    copy.setOriginId(current.getOriginId());
+    copy.setStatus(current.getStatus());
+    copy.setAuthorUser(current.getAuthorUser());
+    copy.setAuthorTeam(current.getAuthorTeam());
+    copy.setAuthorOrganization(current.getAuthorOrganization());
+    payloadUtils.copyDetectionRemediations(current, copy);
+    return copy;
   }
 
   public Payload generateDuplicatedPayload(Payload originalPayload) {
@@ -546,7 +616,7 @@ public class PayloadService {
         });
     fileDrop.setTenant(new Tenant(writeTenant));
 
-    FileDrop saved = payloadRepository.save(fileDrop);
+    FileDrop saved = createFirstVersion(fileDrop);
     synchroniseInjectorContractBasedOnPayload(
         saved,
         List.of(),
@@ -625,7 +695,7 @@ public class PayloadService {
           BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
         });
 
-    DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);
+    DnsResolution saved = createFirstVersion(dynamicDnsResolutionPayload);
     synchroniseInjectorContractBasedOnPayload(
         saved,
         List.of(),
@@ -648,6 +718,7 @@ public class PayloadService {
         payloadRepository
             .findById(payloadId)
             .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+    payloadVersionService.assertDeletable(payload);
     // Payload deletion cascades at the DB level to its injector contract and then to the injects
     // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
     // event fires for them. Chaining steps referencing that contract have no FK to cascade on
@@ -661,7 +732,9 @@ public class PayloadService {
         injectorContractService.findContractIdsByPayloadIdPerTenant(payloadId);
     List<String> cascadeDeletedInjectIds =
         injectIndexCleanupService.injectIdsByPayloadId(payloadId, tenantId);
+    PayloadIdentity identity = payload.getIdentity();
     payloadRepository.deleteById(payloadId);
+    payloadVersionService.afterVersionDeleted(identity);
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
     cascadeDeletedContractIdsPerTenant.forEach(
         (contractTenantId, contractIds) ->

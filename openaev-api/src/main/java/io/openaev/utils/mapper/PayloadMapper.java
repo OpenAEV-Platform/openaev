@@ -223,6 +223,10 @@ public class PayloadMapper {
         .arguments(statusPayload.getArguments())
         .prerequisites(statusPayload.getPrerequisites())
         .externalId(statusPayload.getExternalId())
+        .payloadId(statusPayload.getPayloadId())
+        .version(statusPayload.getVersion())
+        .contentHash(statusPayload.getContentHash())
+        .argumentValues(statusPayload.getArgumentValues())
         .executableFile(statusPayload.getExecutableFile())
         .fileDropFile(statusPayload.getFileDropFile())
         .hostname(statusPayload.getHostname())
@@ -334,17 +338,8 @@ public class PayloadMapper {
     return RelatedEntityOutput.builder().id(payload.getId()).name(payload.getName()).build();
   }
 
-  /**
-   * Convert Payload to its DTO
-   *
-   * @param payload payload to convert
-   * @param attackPatternIds List of attackPattern Ids link to the payload through the
-   *     injectorContract
-   * @param domainIds List of domain ids link to the payload through the injectorContract
-   * @param tagsIds List of tags ids link to the payload through the injectorContract
-   * @return payload converted to its DTO
-   */
-  public PayloadOutput toPayloadOutput(
+  /** Attack pattern, domain and tag IDs come from the payload's injector contract. */
+  public static PayloadOutput toPayloadOutput(
       @NotNull Payload payload,
       List<String> attackPatternIds,
       List<String> domainIds,
@@ -364,6 +359,8 @@ public class PayloadMapper {
             .arguments(payload.getArguments())
             .prerequisites(payload.getPrerequisites())
             .externalId(payload.getExternalId())
+            .version(payload.getVersion())
+            .originId(payload.getOriginId())
             .source(payload.getSource())
             .expectations(payload.getExpectations())
             .expectedSecurityPlatforms(payload.getExpectedSecurityPlatforms())
@@ -375,16 +372,17 @@ public class PayloadMapper {
             .createdAt(payload.getCreatedAt())
             .updatedAt(payload.getUpdatedAt());
 
-    if (payload instanceof Command command) {
-      builder.commandExecutor(command.getExecutor()).commandContent(command.getContent());
-    } else if (payload instanceof DnsResolution dnsResolution) {
-      builder.dnsResolutionHostname(dnsResolution.getHostname());
-    } else if (payload instanceof FileDrop fileDrop && fileDrop.getFileDropFile() != null) {
-      builder.fileDropFile(fileDrop.getFileDropFile().getId());
-    } else if (payload instanceof Executable executable && executable.getExecutableFile() != null) {
-      builder.executableFile(executable.getExecutableFile().getId());
+    switch (Hibernate.unproxy(payload)) {
+      case Command command ->
+          builder.commandExecutor(command.getExecutor()).commandContent(command.getContent());
+      case DnsResolution dnsResolution ->
+          builder.dnsResolutionHostname(dnsResolution.getHostname());
+      case FileDrop fileDrop when fileDrop.getFileDropFile() != null ->
+          builder.fileDropFile(fileDrop.getFileDropFile().getId());
+      case Executable executable when executable.getExecutableFile() != null ->
+          builder.executableFile(executable.getExecutableFile().getId());
+      default -> {}
     }
-
     return builder.build();
   }
 }

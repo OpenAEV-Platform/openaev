@@ -131,7 +131,12 @@ const InjectContractPicker: FunctionComponent<Props> = ({
   const fetchContracts = (input: InjectorContractSearchPaginationInput) => {
     const seq = ++fetchSeqRef.current;
     setLoading(true);
-    return searchInjectorContracts(input).finally(() => {
+    // One card per payload, in its latest version; the version is chosen in the inject form.
+    return searchInjectorContracts({
+      ...input,
+      latest_versions_only: true,
+      exclude_revoked_payloads: true,
+    }).finally(() => {
       if (seq === fetchSeqRef.current) {
         setLoading(false);
       }

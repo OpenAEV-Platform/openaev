@@ -12,6 +12,7 @@ import io.openaev.database.repository.*;
 import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.CopyObjectListUtils;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ScenarioToExerciseService {
 
   private final ExerciseRepository exerciseRepository;
+  private final ScenarioRepository scenarioRepository;
   private final TeamRepository teamRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final ObjectiveRepository objectiveRepository;
@@ -63,6 +65,13 @@ public class ScenarioToExerciseService {
       @Nullable final Instant start,
       final boolean isRunning,
       @Nullable final User launchedBy) {
+    if (scenario.getCatalogId() != null) {
+      if (scenario.isUninstalled()) {
+        throw new BadRequestException("An uninstalled scenario cannot run");
+      }
+      // Same lock as an update or a rollback: the simulation copies one content or the other.
+      scenarioRepository.findForUpdate(scenario.getId());
+    }
     Exercise exercise = new Exercise();
     exercise.setScenario(scenario);
     exercise.setLaunchedBy(launchedBy);

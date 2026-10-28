@@ -41,6 +41,7 @@ const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
 const ScenarioExecution = lazy(() => import('./execution/ScenarioExecution'));
+const ScenarioVersions = lazy(() => import('./versions/ScenarioVersions'));
 
 const IndexScenarioComponent: FunctionComponent<{
   scenario: ScenarioOutput;
@@ -132,6 +133,7 @@ const IndexScenarioComponent: FunctionComponent<{
           {buildScenarioTabs({
             isChained,
             lessonsEnabled: scenario.scenario_lessons_enabled,
+            isCatalog: !!scenario.scenario_catalog_id,
             t,
           }).map(([suffix, label]) => {
             const path = `/admin/scenarios/${scenario.scenario_id}${suffix}`;
@@ -216,6 +218,7 @@ const IndexScenarioComponent: FunctionComponent<{
                 <Route path="execution" element={errorWrapper(ScenarioExecution)()} />
                 {/* Scenario-scoped custom dashboard, surfaced as the Statistics tab. */}
                 <Route path="statistics" element={errorWrapper(ScenarioStatistics)()} />
+                {scenario.scenario_catalog_id && <Route path="versions" element={errorWrapper(ScenarioVersions)()} />}
                 {/* Statistics replaced the hero dashboard quick action and the old
                     Analysis tab; keep redirects for old links. */}
                 <Route path="dashboard" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/statistics`} replace />} />

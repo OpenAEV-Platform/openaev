@@ -52,6 +52,9 @@ public interface GrantRepository
   List<String> resourceIdsByUserIdAndNameIn(
       @Param("userId") String userId, @Param("grantTypes") List<Grant.GRANT_TYPE> grantTypes);
 
+  List<Grant> findAllByResourceIdAndGrantResourceType(
+      String resourceId, Grant.GRANT_RESOURCE_TYPE grantResourceType);
+
   @Modifying
   @Query(
       "UPDATE Grant g SET g.resourceId = :newId WHERE g.resourceId = :currentId AND g.grantResourceType = :resourceType")

@@ -7,6 +7,7 @@ import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
+import io.openaev.service.scenario.ScenarioAuthor;
 import jakarta.validation.constraints.NotNull;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -66,7 +67,8 @@ public class ScenarioMapper {
   public ScenarioOutput toScenarioOutput(
       RawScenario rawScenario,
       Set<KillChainPhaseOutput> killChainPhases,
-      Set<ScenarioTeamUserOutput> scenarioTeamUsers) {
+      Set<ScenarioTeamUserOutput> scenarioTeamUsers,
+      ScenarioAuthor author) {
 
     return ScenarioOutput.builder()
         .id(rawScenario.getScenario_id())
@@ -77,6 +79,9 @@ public class ScenarioMapper {
         .customDashboard(rawScenario.getScenario_custom_dashboard())
         .description(rawScenario.getScenario_description())
         .externalUrl(rawScenario.getScenario_external_url())
+        .author(author != null ? author.id() : null)
+        .authorName(author != null ? author.name() : null)
+        .authorType(author != null ? author.type() : null)
         .lessonsAnonymized(rawScenario.getScenario_lessons_anonymized())
         .lessonsEnabled(rawScenario.getScenario_lessons_enabled())
         .from(rawScenario.getScenario_mail_from())
@@ -111,6 +116,8 @@ public class ScenarioMapper {
                 : 0)
         .workflowId(rawScenario.getScenario_workflow_id())
         .autonomous(rawScenario.getScenario_autonomous())
+        .catalogId(rawScenario.getScenario_catalog_id())
+        .version(rawScenario.getScenario_version())
         .build();
   }
 

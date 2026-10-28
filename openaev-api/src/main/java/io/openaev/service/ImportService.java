@@ -256,13 +256,17 @@ public class ImportService {
       // more payload.json (direct-import or nested in a PayloadArchive): aggregate the missing
       // actions reported by every importData call into one consolidated result.
       List<MissingImportedAction> aggregatedMissingActions = new ArrayList<>();
+      String scenarioId = null;
       for (InputStream dataStream : dataImports) {
         ImportResult result =
             handleDataImport(
                 ctx, dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
         aggregatedMissingActions.addAll(result.missingActions());
+        if (result.scenarioId() != null) {
+          scenarioId = result.scenarioId();
+        }
       }
-      return new ImportResult(aggregatedMissingActions);
+      return new ImportResult(aggregatedMissingActions, scenarioId);
     } finally {
       tempFile.delete();
     }

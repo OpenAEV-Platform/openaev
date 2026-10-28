@@ -22,6 +22,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
+import io.openaev.database.repository.ContentHistoryRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
@@ -42,6 +43,7 @@ import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
+import io.openaev.utils.helpers.PayloadVersionTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -68,6 +70,8 @@ class PayloadApiTest extends IntegrationTest {
   @Autowired private DocumentRepository documentRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadRepository payloadRepository;
+  @Autowired private PayloadVersionTestHelper payloadVersionTestHelper;
+  @Autowired private ContentHistoryRepository contentHistoryRepository;
   @Autowired private CollectorRepository collectorRepository;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
@@ -1264,6 +1268,294 @@ class PayloadApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Managed payload versions (ADR-018)")
+  class ManagedVersions {
+
+    private String createCommandPayload() throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          asJsonString(
+                              PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+                                  List.of(domain.getId()))))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.payload_id");
+    }
+
+    private void markAsManaged(String payloadId, String version) {
+      tenantScopedTransaction.execute(
+          io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> {
+            Payload payload = payloadRepository.findById(payloadId).orElseThrow();
+            String externalId =
+                payload.getExternalId() != null
+                    ? payload.getExternalId()
+                    : UUID.randomUUID().toString();
+            return payloadVersionTestHelper.asManagedVersion(payload, externalId, version);
+          });
+    }
+
+    private String upsert(PayloadUpsertInput input) throws Exception {
+      TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+      try {
+        return mvc.perform(
+                post(PAYLOAD_URI + "/upsert")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+
+    @Test
+    @DisplayName("Updating a managed version is refused")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_managedVersion_should_refuseUpdate() throws Exception {
+      // Arrange
+      String payloadId = createCommandPayload();
+      markAsManaged(payloadId, "1.0.0");
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+
+      // Act & Assert
+      mvc.perform(
+              put(PAYLOAD_URI + "/" + payloadId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      asJsonString(
+                          PayloadInputFixture.getDefaultCommandPayloadUpdateInput(
+                              List.of(domain.getId()))))
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Duplicating a managed version gives an unmanaged copy linked to its origin")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_managedVersion_should_duplicateIntoLocalCopy() throws Exception {
+      // Arrange
+      String payloadId = createCommandPayload();
+      markAsManaged(payloadId, "1.0.0");
+
+      // Act & Assert
+      mvc.perform(post(PAYLOAD_URI + "/" + payloadId + "/duplicate").with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.payload_version").value("1.0.0"))
+          .andExpect(jsonPath("$.payload_origin_id").value(payloadId));
+    }
+
+    @Test
+    @DisplayName("Duplicating a payload records it in the content history")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_duplication_should_recordContentHistory() throws Exception {
+      // Arrange
+      String payloadId = createCommandPayload();
+      markAsManaged(payloadId, "1.0.0");
+
+      // Act
+      String response =
+          mvc.perform(post(PAYLOAD_URI + "/" + payloadId + "/duplicate").with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String copyId = JsonPath.read(response, "$.payload_id");
+
+      // Assert
+      List<ContentHistory> history =
+          tenantScopedTransaction.execute(
+              io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+              () ->
+                  java.util.stream.StreamSupport.stream(
+                          contentHistoryRepository.findAll().spliterator(), false)
+                      .filter(h -> copyId.equals(h.getEntityId()))
+                      .toList());
+      assertEquals(1, history.size());
+      assertEquals(ContentHistory.ACTION.DUPLICATE, history.getFirst().getAction());
+      assertEquals("1.0.0", history.getFirst().getVersion());
+      assertFalse(history.getFirst().isAutomatic());
+    }
+
+    @Test
+    @DisplayName("The legacy upsert never overwrites a managed version")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_managedVersion_should_notBeOverwrittenByLegacyUpsert() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadUpsertInput input =
+          PayloadInputFixture.getDefaultCommandPayloadUpsertInput(Set.of(domain));
+      input.setExternalId(UUID.randomUUID().toString());
+      String payloadId = JsonPath.read(upsert(input), "$.payload_id");
+      markAsManaged(payloadId, "1.0.0");
+      input.setName("Renamed by the legacy collector");
+
+      // Act
+      String response = upsert(input);
+
+      // Assert
+      assertEquals(payloadId, JsonPath.read(response, "$.payload_id"));
+      mvc.perform(get(PAYLOAD_URI + "/" + payloadId).with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.payload_name").value("My Command Payload"))
+          .andExpect(jsonPath("$.payload_version").value("1.0.0"));
+    }
+
+    @Test
+    @DisplayName("The legacy deprecation leaves managed versions untouched")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_managedVersion_should_notBeDeprecatedByLegacyCollector() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadUpsertInput input =
+          PayloadInputFixture.getDefaultCommandPayloadUpsertInput(Set.of(domain));
+      input.setExternalId(UUID.randomUUID().toString());
+      String payloadId = JsonPath.read(upsert(input), "$.payload_id");
+      markAsManaged(payloadId, "1.0.0");
+
+      // Act
+      TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+      try {
+        tenantScopedTransaction.execute(
+            io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> {
+              payloadRepository.setPayloadStatusByExternalIds(
+                  Payload.PAYLOAD_STATUS.DEPRECATED.name(), List.of(input.getExternalId()));
+              return null;
+            });
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+
+      // Assert: installed as a catalogue version, it stays verified.
+      mvc.perform(get(PAYLOAD_URI + "/" + payloadId).with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.payload_status").value("VERIFIED"));
+    }
+
+    @Nested
+    @DisplayName("Tenant revocation (F34)")
+    class TenantRevocation {
+
+      private static final String REASON = "Crashes our domain controllers";
+
+      private String revocationUri(String payloadId) {
+        return PAYLOAD_URI + "/" + payloadId + "/revocation";
+      }
+
+      private void revoke(String payloadId) throws Exception {
+        mvc.perform(
+                post(revocationUri(payloadId))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(Map.of("content_revocation_reason", REASON)))
+                    .with(csrf()))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.content_revocation_reason").value(REASON))
+            .andExpect(jsonPath("$.content_revocation_source").value("tenant"));
+      }
+
+      private void setVersion(String payloadId, String externalId, String version, boolean latest) {
+        tenantScopedTransaction.execute(
+            io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () ->
+                payloadVersionTestHelper.asManagedVersion(
+                    payloadRepository.findById(payloadId).orElseThrow(), externalId, version));
+      }
+
+      private boolean isLatest(String payloadId) {
+        return tenantScopedTransaction.execute(
+            io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> payloadRepository.findById(payloadId).orElseThrow().isLatest());
+      }
+
+      private Payload.PAYLOAD_STATUS payloadStatus(String payloadId) {
+        return tenantScopedTransaction.execute(
+            io.openaev.context.TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> payloadRepository.findById(payloadId).orElseThrow().getStatus());
+      }
+
+      @Test
+      @DisplayName("A local payload can be revoked, then lifted")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      void given_localPayload_should_revokeThenLift() throws Exception {
+        // Arrange
+        String payloadId = createCommandPayload();
+        Payload.PAYLOAD_STATUS initialStatus = payloadStatus(payloadId);
+
+        // Act
+        revoke(payloadId);
+
+        // Assert
+        mvc.perform(get(revocationUri(payloadId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content_revocation_reason").value(REASON));
+        assertEquals(Payload.PAYLOAD_STATUS.REVOKED, payloadStatus(payloadId));
+        mvc.perform(delete(revocationUri(payloadId)).with(csrf()))
+            .andExpect(status().isNoContent());
+        mvc.perform(get(revocationUri(payloadId))).andExpect(status().isNotFound());
+        assertEquals(initialStatus, payloadStatus(payloadId));
+      }
+
+      @Test
+      @DisplayName("Revoking a revoked payload is refused")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      void given_revokedPayload_should_refuseSecondRevocation() throws Exception {
+        // Arrange
+        String payloadId = createCommandPayload();
+        revoke(payloadId);
+
+        // Act & Assert
+        mvc.perform(
+                post(revocationUri(payloadId))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(Map.of("content_revocation_reason", REASON)))
+                    .with(csrf()))
+            .andExpect(status().isBadRequest());
+      }
+
+      @Test
+      @DisplayName("Revoking the latest managed version makes the previous one latest")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      void given_latestVersionRevoked_should_flagPreviousVersion() throws Exception {
+        // Arrange
+        String externalId = UUID.randomUUID().toString();
+        String v1 = createCommandPayload();
+        String v2 = createCommandPayload();
+        setVersion(v1, externalId, "1.0.0", false);
+        setVersion(v2, externalId, "2.0.0", true);
+
+        // Act
+        revoke(v2);
+
+        // Assert
+        assertTrue(isLatest(v1));
+        assertFalse(isLatest(v2));
+      }
+
+      @Test
+      @DisplayName("Lifting without a tenant revocation is refused")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      void given_notRevokedPayload_should_refuseLift() throws Exception {
+        // Arrange
+        String payloadId = createCommandPayload();
+
+        // Act & Assert
+        mvc.perform(delete(revocationUri(payloadId)).with(csrf())).andExpect(status().isNotFound());
+      }
+    }
+  }
+
+  @Nested
   @DisplayName("Tenant Isolation")
   @WithMockUser(
       withCapabilities = {
@@ -1282,8 +1574,15 @@ class PayloadApiTest extends IntegrationTest {
       String payloadId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO payloads (payload_id, payload_type, payload_name, payload_status, payload_source, tenant_id, payload_created_at, payload_updated_at) "
-                  + "VALUES (:id, 'Command', :name, 'VERIFIED', 'MANUAL', :tenantId, now(), now())")
+              "INSERT INTO payload_identities (identity_id, tenant_id, payload_source, latest_payload_id) "
+                  + "VALUES (:id, :tenantId, 'MANUAL', :id)")
+          .setParameter("id", payloadId)
+          .setParameter("tenantId", tenant.getId())
+          .executeUpdate();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payloads (payload_id, identity_id, payload_version, payload_type, payload_name, payload_status, tenant_id, payload_created_at, payload_updated_at) "
+                  + "VALUES (:id, :id, '1.0.0', 'Command', :name, 'VERIFIED', :tenantId, now(), now())")
           .setParameter("id", payloadId)
           .setParameter("name", name)
           .setParameter("tenantId", tenant.getId())

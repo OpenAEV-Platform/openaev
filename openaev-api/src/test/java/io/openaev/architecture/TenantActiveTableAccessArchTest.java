@@ -39,11 +39,14 @@ import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.CatalogItemRepository;
+import io.openaev.database.repository.CatalogSyncStateRepository;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
+import io.openaev.database.repository.ContentHistoryRepository;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.CustomDomainRepository;
 import io.openaev.database.repository.CweRepository;
@@ -62,6 +65,7 @@ import io.openaev.database.repository.NotificationRepository;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.OrganizationRepository;
+import io.openaev.database.repository.PayloadIdentityRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
@@ -69,6 +73,7 @@ import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.database.repository.ReportingRepository;
 import io.openaev.database.repository.ReportingScheduleRepository;
+import io.openaev.database.repository.ScenarioRevisionRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
@@ -236,10 +241,13 @@ import io.openaev.service.autonomous.AutonomousRunReconciliationWriter;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
+import io.openaev.service.catalog.CatalogRequirementsService;
+import io.openaev.service.catalog.CatalogService;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.service.expectation.ChallengeBehavior;
 import io.openaev.service.finding.FindingValueDisplayBackfill;
@@ -249,8 +257,10 @@ import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.scenario.revision.ScenarioRevisionService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
@@ -356,7 +366,12 @@ class TenantActiveTableAccessArchTest {
           "teams",
           "attack_patterns",
           "agents",
-          "autonomous_objective_templates");
+          "autonomous_objective_templates",
+          "content_history",
+          "catalog_items",
+          "catalog_sync_state",
+          "payload_identities",
+          "scenario_revisions");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -1576,7 +1591,10 @@ class TenantActiveTableAccessArchTest {
               // tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId)) before any
               // factory/migration runs; getInstances() therefore only sees this tenant's
               // already-migrated instance:
-              ConfigurationMigration.class)
+              ConfigurationMigration.class,
+              // Reads the deployed instances inside the catalogue's scoped transactions (listing,
+              // install), to tell which prerequisites are missing:
+              CatalogRequirementsService.Checker.class)
           .should()
           .callMethod(CatalogConnector.class, "getInstances")
           .because(
@@ -1749,6 +1767,12 @@ class TenantActiveTableAccessArchTest {
               ThreatArsenalMapper.class,
               V1_DataImporter.class,
               V20260725_Fix_starter_pack_payload_contracts.class,
+              // Hashes a catalogue package inside the install transaction:
+              ThreatArsenalImportService.class,
+              // Hashes the payload that runs, inside the execution's scoped transaction:
+              io.openaev.service.payload.PayloadExecutionSnapshotService.class,
+              // Numbers variant versions inside the variant API's scoped transactions:
+              io.openaev.rest.payload.service.PayloadVariantService.class,
               WorkflowExportInitializer.class)
           .should()
           .callMethod(InjectorContract.class, "getAttackPatterns")
@@ -2118,7 +2142,10 @@ class TenantActiveTableAccessArchTest {
               V1_DataImporter.class,
               // One-shot repair migration, tenant-scoped by MigrationProcessor's per-tenant
               // transaction and reading with an explicit tenantId parameter regardless:
-              V20260725_Fix_starter_pack_payload_contracts.class)
+              V20260725_Fix_starter_pack_payload_contracts.class,
+              // Version resolution by external ID; only reached from PayloadUpsertService
+              // (TxCtx-carrying upsert) and V1_DataImporter (scoped import transaction):
+              PayloadVersionService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(PayloadRepository.class)
@@ -2189,6 +2216,79 @@ class TenantActiveTableAccessArchTest {
           .because(
               "reportings is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule payload_identities_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // The only writer of versions and of the latest pointer; joins the caller's scoped
+              // transaction:
+              PayloadVersionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PayloadIdentityRepository.class)
+          .because(
+              "payload_identities is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule scenario_revisions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Called by the scenario update, rollback and F30 paths, inside their scoped
+              // transactions:
+              ScenarioRevisionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ScenarioRevisionRepository.class)
+          .because(
+              "scenario_revisions is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule catalog_items_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Called by the catalogue API and sync, inside their scoped transactions:
+              CatalogService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CatalogItemRepository.class)
+          .because(
+              "catalog_items is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule catalog_sync_state_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Same, for the last applied release per repository:
+              CatalogService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CatalogSyncStateRepository.class)
+          .because(
+              "catalog_sync_state is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule content_history_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Joins the caller's scoped transaction; attributes each row from the entity's
+              // own tenant:
+              ContentHistoryService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ContentHistoryRepository.class)
+          .because(
+              "content_history is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule reporting_generations_repository_access_is_reviewed =

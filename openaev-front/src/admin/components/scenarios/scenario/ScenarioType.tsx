@@ -1,4 +1,4 @@
-import { Chip, type ChipSeverity } from '@filigran/design-system';
+import { Chip, type ChipSeverity, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AccountTreeOutlined, ScheduleOutlined } from '@mui/icons-material';
 import { type FunctionComponent } from 'react';
 
@@ -40,6 +40,20 @@ const ScenarioType: FunctionComponent<Props> = ({ type }) => {
 
   return (
     <Chip severity={severity} startIcon={<Icon />} label={t(type)} style={{ maxWidth: '100%' }} />
+  );
+};
+
+// The card icon of a scenario says its type.
+export const ScenarioTypeIcon: FunctionComponent<{ type: ScenarioTypeValue }> = ({ type }) => {
+  const { t } = useFormatter();
+  const { Icon } = TYPE_STYLES[type];
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Icon color="primary" />
+      </TooltipTrigger>
+      <TooltipContent>{t(type)}</TooltipContent>
+    </Tooltip>
   );
 };
 

@@ -58,6 +58,10 @@
     "YYYY"
   ],
   "de": [
+    "Revision",
+    "Argument {key}",
+    "Variable {key}",
+    "Installation",
     "{count} teams",
     "Admin",
     "Administrator",
@@ -190,6 +194,8 @@
     "Workstation"
   ],
   "es": [
+    "Variable {key}",
+    "Local",
     "{count} roles",
     "{counts} tokens",
     "Audio",
@@ -230,6 +236,11 @@
     "Vulnerable"
   ],
   "fr": [
+    "Argument {key}",
+    "Variable {key}",
+    "Local",
+    "Installation",
+    "Versions",
     "{count} / page",
     "{count} injects",
     "{count} pts",

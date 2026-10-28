@@ -48,6 +48,18 @@ public class StatusPayloadOutput {
   @JsonProperty("payload_prerequisites")
   private List<PayloadPrerequisite> prerequisites = new ArrayList<>();
 
+  @JsonProperty("payload_id")
+  private String payloadId;
+
+  @JsonProperty("payload_version")
+  private String version;
+
+  @JsonProperty("payload_content_hash")
+  private String contentHash;
+
+  @JsonProperty("payload_argument_values")
+  private java.util.Map<String, String> argumentValues;
+
   @JsonProperty("payload_external_id")
   private String externalId;
 

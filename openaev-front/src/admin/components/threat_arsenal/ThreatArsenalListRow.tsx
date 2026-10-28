@@ -1,4 +1,4 @@
-import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Checkbox, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { type FunctionComponent, type MouseEvent } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -44,7 +44,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
   disableDelete,
 }) => {
   const { classes } = useStyles();
-  const { tPick, nsdt } = useFormatter();
+  const { t, tPick, nsdt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
   const name = tPick(action.action_labels);
 
@@ -64,6 +64,17 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
           disableDuplicate={disableDuplicate}
           disableJsonExport={disableJsonExport}
           disableDelete={disableDelete}
+          revoked={action.action_payload?.payload_revoked}
+          managed={!!action.action_payload?.payload_managed}
+          variantIdentityId={action.action_payload?.payload_variant ? action.action_payload.payload_identity_id : undefined}
+          onRevocationChange={(revoked, status) => action.action_payload && onUpdate({
+            ...action,
+            action_payload: {
+              ...action.action_payload,
+              payload_revoked: revoked,
+              payload_status: status ?? action.action_payload.payload_status,
+            },
+          })}
         />
       )}
     >
@@ -142,7 +153,9 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
                 ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_status,
               }}
               >
-                <PayloadStatusComponent status={action.action_payload?.payload_status} />
+                {action.action_payload?.payload_revoked
+                  ? <Chip label={t('Revoked')} severity="critical" />
+                  : <PayloadStatusComponent status={action.action_payload?.payload_status} />}
               </div>
               <Typography
                 component="div"

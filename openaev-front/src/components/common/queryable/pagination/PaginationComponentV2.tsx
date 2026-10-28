@@ -1,7 +1,7 @@
 import { Button, Chip } from '@filigran/design-system';
 import { GridViewOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
-import { cloneElement, type ReactElement, useEffect, useState } from 'react';
+import { cloneElement, type ReactElement, useEffect, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { engineSchemas } from '../../../../actions/schema/schema-action';
@@ -12,6 +12,7 @@ import { type AttackPattern, type Filter, type PropertySchemaDTO, type SearchPag
 import { useFormatter } from '../../../i18n';
 import ClickableModeChip from '../../chips/ClickableModeChip';
 import Drawer from '../../Drawer';
+import MarketplaceResultsCount from '../../marketplace/MarketplaceResultsCount';
 import FilterAutocomplete, { type OptionPropertySchema } from '../filter/FilterAutocomplete';
 import FilterChips from '../filter/FilterChips';
 import { availableOperators, isEmptyFilter } from '../filter/FilterUtils';
@@ -80,6 +81,13 @@ interface Props<T> {
   reloadContentCount?: number;
   contextId?: string;
   topPagination?: boolean;
+  // Marketplace toolbars: a result count, and the pagination only when there is more than one page.
+  resultsCount?: boolean;
+  paginationOnlyWhenNeeded?: boolean;
+  // Marketplaces: no page controls, each next page is appended (see MarketplaceLoadMore).
+  infiniteScroll?: boolean;
+  // Filter fields given by the caller, for lists searched in the browser (no schema endpoint).
+  propertySchemas?: PropertySchemaDTO[];
 }
 
 const PaginationComponentV2 = <T extends object>({
@@ -101,7 +109,15 @@ const PaginationComponentV2 = <T extends object>({
   reloadContentCount = 0,
   contextId,
   topPagination = false,
+  resultsCount = false,
+  paginationOnlyWhenNeeded = false,
+  infiniteScroll = false,
+  propertySchemas,
 }: Props<T>) => {
+  // Infinite scroll: rows loaded so far, and the query and page they belong to.
+  const loadedRows = useRef<T[]>([]);
+  const loadedQuery = useRef<string | null>(null);
+  const loadedPage = useRef(-1);
   // Standard hooks
   const { classes } = useStyles({ topPagination });
   const { t } = useFormatter();
@@ -112,12 +128,16 @@ const PaginationComponentV2 = <T extends object>({
   // Stable key for the names array (callers pass literals, so identity changes
   // every render): refetch the schemas when the actual content changes.
   const availableFilterNamesKey = availableFilterNames.join(',');
+  const propertySchemasKey = JSON.stringify(propertySchemas ?? null);
 
   useEffect(() => {
     // ES-backed lists resolve their filterable properties from the engine
     // schema (the JPA schema may not expose ES-only computed fields such as
     // inject_expectation_status); JPA-backed lists keep using entityPrefix.
     const fetchProperties: Promise<PropertySchemaDTO[]> | null = (() => {
+      if (propertySchemas) {
+        return Promise.resolve(propertySchemas);
+      }
       if (engineEntityName) {
         return engineSchemas([engineEntityName]).then((result: { data: PropertySchemaDTO[] }) =>
           result.data.filter(p => availableFilterNames.length === 0 || availableFilterNames.includes(p.schema_property_name)));
@@ -140,7 +160,7 @@ const PaginationComponentV2 = <T extends object>({
       setOptions(newOptions);
       setProperties(propertySchemas);
     });
-  }, [entityPrefix, engineEntityName, availableFilterNamesKey]);
+  }, [entityPrefix, engineEntityName, availableFilterNamesKey, propertySchemasKey]);
 
   useEffect(() => {
     // Modify URI
@@ -154,6 +174,19 @@ const PaginationComponentV2 = <T extends object>({
     // totals. Loading is cleared in finally so a rejected search (network or
     // API error) never leaves callers stuck in a perpetual loading state.
     let stale = false;
+    const query = JSON.stringify({
+      ...searchPaginationInput,
+      page: undefined,
+      reloadContentCount,
+      contextId,
+    });
+    // Only the next page of the same query is appended; anything else restarts from the first page.
+    const appending = infiniteScroll && searchPaginationInput.page > 0
+      && query === loadedQuery.current && searchPaginationInput.page === loadedPage.current + 1;
+    if (infiniteScroll && searchPaginationInput.page > 0 && !appending) {
+      queryableHelpers.paginationHelpers.handleChangePage(0);
+      return undefined;
+    }
     setLoading?.(true);
     fetch(searchPaginationInput)
       .then((result: { data: Page<T> }) => {
@@ -161,7 +194,14 @@ const PaginationComponentV2 = <T extends object>({
           return;
         }
         const { data } = result;
-        setContent(data.content);
+        if (infiniteScroll) {
+          loadedRows.current = appending ? [...loadedRows.current, ...data.content] : data.content;
+          loadedQuery.current = query;
+          loadedPage.current = searchPaginationInput.page;
+          setContent(loadedRows.current);
+        } else {
+          setContent(data.content);
+        }
         queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
         // The current page fell past the end (dataset shrank, narrower filter,
         // state restored from another screen): restart from the first page.
@@ -223,6 +263,9 @@ const PaginationComponentV2 = <T extends object>({
   if (topBarButtons) {
     topBarButtonComponent = cloneElement(topBarButtons as ReactElement);
   }
+  const totalElements = queryableHelpers.paginationHelpers.getTotalElements();
+  const showPagination = !disablePagination && !infiniteScroll
+    && (!paginationOnlyWhenNeeded || totalElements > searchPaginationInput.size || searchPaginationInput.page > 0);
 
   return (
     <>
@@ -314,7 +357,8 @@ const PaginationComponentV2 = <T extends object>({
         {!topPagination
           && (
             <div className={classes.topbar}>
-              {!disablePagination && (
+              {resultsCount && <MarketplaceResultsCount count={totalElements} />}
+              {showPagination && (
                 <TablePaginationComponentV2
                   page={searchPaginationInput.page}
                   size={searchPaginationInput.size}

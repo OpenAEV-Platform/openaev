@@ -48,6 +48,19 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
   @JsonProperty("action_tags_ids")
   private Set<String> tags;
 
+  // Set by a save that created a new version (ADR-018).
+  @Schema(description = "Action of the version this save replaced, when it created a version")
+  @JsonProperty("action_previous_version_id")
+  private String previousVersionActionId;
+
+  @Schema(description = "Injects and chained steps still on the previous version")
+  @JsonProperty("action_previous_version_usages")
+  private Integer previousVersionUsages;
+
+  @Schema(description = "Whether the action targets teams (players) rather than assets")
+  @JsonProperty("action_targets_teams")
+  private boolean targetsTeams;
+
   // Author of the underlying payload (a user, a team or an organization),
   // surfaced here so the Threat Arsenal can display and filter by author.
   // Null for contracts whose payload has no author, and for payload-less
