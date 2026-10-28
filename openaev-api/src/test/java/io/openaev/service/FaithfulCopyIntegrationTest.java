@@ -19,12 +19,14 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -33,6 +35,7 @@ import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TagFixture;
+import io.openaev.utils.fixtures.composers.DocumentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
@@ -42,6 +45,7 @@ import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -92,11 +96,13 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
   @Autowired private TagComposer tagComposer;
+  @Autowired private DocumentComposer documentComposer;
 
   private JdbcTemplate jdbc;
   private String userId;
   private String tenantId;
   private String tagId;
+  private String documentId;
   private String tlpGreen;
   private String tlpRed;
   private Endpoint green;
@@ -222,7 +228,17 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
     @DisplayName("given a scenario duplicated by a TLP:GREEN user, should keep the RED target")
     void given_duplicate_should_keepTheRedTarget() throws Exception {
       // -- ARRANGE --
-      String scenario = seedThenMark(() -> scenario().get().getId());
+      String scenario =
+          seedThenMark(
+              () -> {
+                ScenarioComposer.Composer composer =
+                    scenarioComposer
+                        .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+                        .withInject(injectWithContract());
+                composer.get().setTags(new HashSet<>(Set.of(tagInTenant().get())));
+                composer.get().setDocuments(new ArrayList<>(List.of(documentInTenant())));
+                return composer.persist().get().getId();
+              });
 
       // -- ACT --
       String response = postFor(TENANT_SCENARIO_URI + "/{id}", scenario);
@@ -233,6 +249,11 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
       assertThat(targetsOfInjects("inject_scenario", duplicate))
           .containsExactlyInAnyOrder(green.getId(), red.getId());
       assertThat(response).doesNotContain(red.getId());
+      // The response is serialized after the transaction: what the user sees must be loaded by
+      // then.
+      assertThat(JsonPath.<List<String>>read(response, "$.scenario_tags")).containsExactly(tagId);
+      assertThat(JsonPath.<List<String>>read(response, "$.scenario_documents"))
+          .containsExactly(documentId);
     }
 
     @Test
@@ -396,6 +417,13 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
     Inject inject = InjectFixture.getInjectWithoutContract();
     inject.setAssets(new ArrayList<>(List.of(green, red)));
     return inject;
+  }
+
+  private Document documentInTenant() {
+    Document document = DocumentFixture.getDocumentJpeg();
+    document.setTenant(new Tenant(tenantId));
+    documentId = documentComposer.forDocument(document).persist().get().getId();
+    return document;
   }
 
   private TagComposer.Composer tagInTenant() {
