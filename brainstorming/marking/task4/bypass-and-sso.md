@@ -40,7 +40,8 @@ One place in the code decides it, used by the five places above.
 **New check, or the rule can be bypassed:** today you can add a user to a group if you hold the group's capabilities;
 markings are not checked, and a `BYPASS` user passes. So Bob (`TLP:GREEN`) could add himself to the "Admin" group
 (`TLP:RED`) and see everything. From now on, adding someone to a group also needs every marking of that group, like
-giving the markings directly.
+giving the markings directly. Same for making a group a default group: otherwise Bob could make a `TLP:RED` group the
+default one, and every new user of the tenant would get `TLP:RED`.
 
 ## Examples
 
@@ -137,10 +138,10 @@ group.autoNewMarking = true;
 addIfMissing(group.markings, tenantMarkings(tenantId));
 ```
 
-**4. Joining a group needs its markings.**
+**4. Joining a group, or making it a default group, needs its markings.**
 
 ```java
-// TenantGroupService.updateGroupUsers
+// TenantGroupService.updateGroupUsers, and updateGroup when "default group" is turned on
 assertCanAssignCapabilities(currentUser, group.roles());           // today
 assertCanAssignMarkings(findClearance(currentUser, tenantId), group.markings());  // new
 ```
@@ -165,7 +166,7 @@ else {
   applies to users who sign in with the admin role after the upgrade and do not already have `user_admin`.
 - Markings (`MARKING` preview flag): `user_admin` users other than the first admin, and `BYPASS` users, no longer see
   assets above their markings. Fix: add them to a group that holds those markings.
-- Adding a user to a group now needs the group's markings.
+- Adding a user to a group, or making it a default group, now needs the group's markings.
 
 ## Out of scope
 
