@@ -38,9 +38,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-// The export reads the scenario's workflow in the caller's tenant membership scope, so each test
-// acts as a member of the tenant its scenario lives in: the default tenant, granted on the method,
-// or the tenant a prefixed call in the test already joins.
+// Once the chaining tables are tenant-active, the export reads the scenario's workflow in the
+// caller's tenant membership scope, so each test acts as a member of the tenant its scenario lives
+// in: the default tenant, granted on the method, or the tenant a prefixed call already joins.
 @TestInstance(PER_CLASS)
 @Transactional
 public class ScenarioExportTest extends IntegrationTest {

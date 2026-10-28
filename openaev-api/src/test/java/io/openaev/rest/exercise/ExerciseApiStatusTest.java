@@ -59,9 +59,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-// A status change reads the simulation's workflow in the caller's tenant membership scope, so each
-// test that reaches it acts as a member of the default tenant, where its simulation lives. The
-// membership is granted on each method, never on the class.
+// Once the chaining tables are tenant-active, a status change reads the simulation's workflow in
+// the caller's tenant membership scope, so each test that reaches it acts as a member of the
+// default tenant, where its simulation lives. The membership is granted on each method, never on
+// the class.
 @SpringBootTest
 // Disable Quartz's live cron triggers for this class only: three tests below now commit real rows
 // (see the @Transactional(propagation = NOT_SUPPORTED) tests) so that

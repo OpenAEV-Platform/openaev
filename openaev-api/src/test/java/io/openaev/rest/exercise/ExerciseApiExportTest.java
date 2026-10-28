@@ -41,9 +41,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-// The export reads the simulation's workflow in the caller's tenant membership scope, so each test
-// acts as a member of the default tenant, where its simulation lives. The membership is granted on
-// each method, never on the class.
+// Once the chaining tables are tenant-active, the export reads the simulation's workflow in the
+// caller's tenant membership scope, so each test acts as a member of the default tenant, where its
+// simulation lives. The membership is granted on each method, never on the class.
 @Transactional
 @TestInstance(PER_CLASS)
 class ExerciseApiExportTest extends IntegrationTest {
