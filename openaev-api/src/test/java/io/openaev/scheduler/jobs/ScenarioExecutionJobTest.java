@@ -134,7 +134,11 @@ class ScenarioExecutionJobTest extends IntegrationTest {
       assertEquals(1, createdExercises.size());
       Exercise createdExercise = createdExercises.getFirst();
       assertNotNull(createdExercise.getStart());
-      assertThat(workflowRepository.existsBySimulationId(createdExercise.getId())).isFalse();
+      assertThat(
+              inTenantOf(
+                  createdExercise,
+                  () -> workflowRepository.existsBySimulationId(createdExercise.getId())))
+          .isFalse();
 
       EXERCISE_ID = createdExercise.getId();
     }

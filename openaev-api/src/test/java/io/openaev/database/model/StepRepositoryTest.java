@@ -362,7 +362,10 @@ class StepRepositoryTest extends IntegrationTest {
         .withStep(stepComposer.forStep(otherTenantTemplate))
         .persist();
 
-    // WHEN
+    // WHEN: every sweep runs in one scope that holds both tenants, as a payload deletion's
+    // per-tenant sweeps do, so only the tenant argument keeps a sweep to its own tenant
+    DefaultTenantScopeTestListener.setAmbientScope(
+        entityManager, tenantId + "," + otherTenant.getId());
     List<Step> matched =
         stepRepository.findTemplateStepsByInjectorContractIds(
             List.of(objectContractId, stringContractId), tenantId);
@@ -384,9 +387,8 @@ class StepRepositoryTest extends IntegrationTest {
         matchedIds.contains(otherTenantTemplate.getId()),
         "another tenant's TEMPLATE step on the same contract id must be out of scope");
 
-    // AND: the same sweep scoped to the other tenant only sees that tenant's own step. It runs in
-    // that tenant's scope, as the contract deletion that triggers it does.
-    DefaultTenantScopeTestListener.setAmbientScope(entityManager, otherTenant.getId());
+    // AND: the same sweep for the other tenant, in the same scope, only sees that tenant's own
+    // step
     Set<String> otherTenantMatchedIds =
         stepRepository
             .findTemplateStepsByInjectorContractIds(

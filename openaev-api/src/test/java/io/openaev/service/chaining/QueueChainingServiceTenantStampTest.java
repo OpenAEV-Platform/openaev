@@ -43,11 +43,11 @@ import org.springframework.transaction.annotation.Transactional;
  * A chaining event carries the tenant of the row it names, whatever the run's owner is, never the
  * tenant thread-local nor one taken from the transaction's tenant scope. The thread-local is set to
  * a tenant of its own throughout, so neither it nor the consumer's default-tenant fallback can pass
- * for the right answer. Each event is published in a scope of three tenants with the run's tenant
- * in the middle: the row stays readable, and a tenant taken from that scope is refused, malformed
- * or another tenant. Runs and steps are saved without an explicit flush, as the chaining services
- * do, so the stamp must see rows still pending in the session. The broker is replaced by a captor
- * for each test and restored after it.
+ * for the right answer. Each event that names a row is published in a scope of three tenants with
+ * the run's tenant in the middle: the row stays readable, and neither the whole scope nor its first
+ * or last entry can match the run's tenant. Runs and steps are saved without an explicit flush, as
+ * the chaining services do, so the stamp must see rows still pending in the session. The broker is
+ * replaced by a captor for each test and restored after it.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional

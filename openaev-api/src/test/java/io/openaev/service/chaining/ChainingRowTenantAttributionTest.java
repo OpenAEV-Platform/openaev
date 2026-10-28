@@ -51,10 +51,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Every chaining row takes its tenant from its parent row, never from the tenant thread-local nor
- * from the transaction's tenant scope. No other source can pass for the right answer: the
- * thread-local is set to a tenant of its own throughout, the default-tenant fallback is another
+ * from the transaction's tenant scope. None of these other sources can pass for the right answer:
+ * the thread-local is set to a tenant of its own throughout, the default-tenant fallback is another
  * tenant, and a test that has to read the owner's rows runs in a scope of three tenants with the
- * owner in the middle, so a tenant taken from that scope is refused, malformed or another tenant.
+ * owner in the middle, so neither the whole scope nor its first or last entry can match the owner.
  * The other tests run in the default tenant's scope. No scope ever includes the thread-local's
  * tenant.
  */
