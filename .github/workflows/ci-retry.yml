@@ -7,7 +7,7 @@ name: "[Core] Auto-Retry Failed CI"
 # the run as "cancelled", like a manual cancel or a superseded run. A cancelled run is retried
 # only when all its cancelled jobs hit their timeout, so a deliberate cancel is never undone.
 # A run is not retried either once a newer run of the same workflow exists for its branch:
-# the CI concurrency group cancels in progress, so the re-run would cancel the newer run.
+# the newer run already tests the branch, so retrying the old one would only spend CI time.
 
 on:
   workflow_run:
