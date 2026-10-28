@@ -98,6 +98,64 @@ in again with the admin role, they also join "Admin". As today, losing the IdP r
 **New:** the first admin is never demoted by SSO. Today it can be, if its email also signs in through SSO without the
 admin role. It is recognized by its fixed id, not by `user_admin`.
 
+## Implementation (pseudo code)
+
+**1. One rule for the clearance.** The `bypass` parameter goes away; the cache decides from the user id.
+
+```java
+// MarkingClearanceCacheManager
+MarkingCtx findClearance(userId, tenantId) {            // key: userId:tenantId (was userId:tenantId:bypass)
+  boolean all = User.ADMIN_UUID.equals(userId);
+  return resolver.resolve(markingsOfUserGroups(userId, tenantId), tenantMarkings(tenantId), all);
+}
+```
+
+**2. The five places just pass the user.**
+
+```java
+// before: findClearance(user.getId(), tenantId, user.isAdminOrBypass() || hasAgentOrStixRight(user))
+// after:
+findClearance(user.getId(), tenantId);
+```
+
+The `AGENT_RUNTIME_ACCESS` / `MANAGE_STIX_BUNDLE` special case is deleted.
+
+**3. Technical groups always hold every marking.** One operation, safe to run again:
+
+```java
+void grantAllMarkingsToTechnicalGroups(tenantId) {
+  for (group : [agentGroup(tenantId), openCtiGroup(tenantId)]) {
+    if (group == null) continue;
+    insertMissing(groups_markings, group, tenantMarkings(tenantId));  // never deletes
+    evictClearance(group.users());
+  }
+}
+```
+
+Called when a marking is created, when the agent or OpenCTI group is created, and once at upgrade (new data pack).
+
+**4. Joining a group needs its markings.**
+
+```java
+// TenantGroupService.updateGroupUsers
+assertCanAssignCapabilities(currentUser, group.roles());           // today
+assertCanAssignMarkings(findClearance(currentUser, tenantId), group.markings());  // new
+```
+
+**5. SSO admin (after #8739).**
+
+```java
+// at SSO login, provider has roles_admin or all_admin
+tenantId = provider.tenantId() ?: DEFAULT_TENANT;
+admin    = provider.allAdmin() || intersects(provider.adminRoles(), idpRoles);
+group    = findGroupByName("Admin", tenantId);         // not found → warning, nothing granted
+if (admin)  grantGroup(user, group);                   // user_admin is never set to true
+else {
+  revokeGroup(user, group);
+  if (!user.isFirstAdmin()) user.setAdmin(false);      // as today, except the first admin
+}
+```
+
 ## Breaking changes
 
 - SSO: an admin from a provider bound to a tenant now administers only that tenant, no longer the whole platform. This
