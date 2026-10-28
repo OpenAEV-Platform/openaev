@@ -39,8 +39,9 @@ class XtmComposerApiTenantScopeTest extends IntegrationTest {
     var tenant =
         tenantIsolationTestHelper.createTenantWithCapabilities(
             "xtm-composer", Set.of(Capability.ACCESS_TENANT_SETTINGS));
-    // Act & Assert: legacy (unscoped) route should be forbidden for tenant-only users
-    mvc.perform(get(XTMCOMPOSER_URI + "/reachable")).andExpect(status().isForbidden());
+    // Act & Assert: on the non-prefixed route the scope of a caller who belongs to one tenant only
+    // pins that tenant, so the request is authorized in it
+    mvc.perform(get(XTMCOMPOSER_URI + "/reachable")).andExpect(status().isOk());
     // Act & Assert: tenant-scoped route should be allowed
     mvc.perform(get((TENANT_XTMCOMPOSER_URI + "/reachable").replace("{tenantId}", tenant.getId())))
         .andExpect(status().isOk());

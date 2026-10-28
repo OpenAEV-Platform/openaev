@@ -1,7 +1,6 @@
 package io.openaev.rest.tag;
 
 import static io.openaev.rest.tag.TagApi.TAG_URI;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -34,15 +33,15 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Pins that a capability-based create on the non-prefixed route never writes a row in a tenant
- * where the caller lacks the create capability, whether that tenant is the ambient one or the one
- * the {@code X-Tenant-Ids} header names. The caller is not an admin and holds the create capability
- * in one tenant and only read access in the other.
+ * Pins that a capability-based create on the non-prefixed route is authorized in the tenant the
+ * {@code X-Tenant-Ids} header names, which is the tenant the row is written in. The caller is not
+ * an admin and holds the create capability in one tenant and only read access in the other, or the
+ * capability in both.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser
-@DisplayName("Tag create on the non-prefixed route is authorized in every tenant it may write in")
+@DisplayName("Tag create on the non-prefixed route is authorized in the tenant it writes in")
 class TagCreateHeaderRouteAuthorizationTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
@@ -115,17 +114,16 @@ class TagCreateHeaderRouteAuthorizationTest extends IntegrationTest {
   class CreateCapabilityInOtherTenantOnly {
 
     @Test
-    @DisplayName("A header naming B writes no row outside B")
-    void given_headerNamingTenantWithCreateCapability_should_notWriteOutsideThatTenant()
-        throws Exception {
+    @DisplayName("A header naming B writes in B")
+    void given_headerNamingTenantWithCreateCapability_should_writeInThatTenant() throws Exception {
       // Arrange
       String tenantB = createInNewTenantReadOnlyInDefault();
 
       // Act
-      perform(createTag().header(TENANT_IDS_HEADER, tenantB));
+      int status = perform(createTag().header(TENANT_IDS_HEADER, tenantB));
 
       // Assert
-      assertThat(rowTenants()).as("the row's tenant").isSubsetOf(tenantB);
+      assertWrittenIn(status, tenantB);
     }
 
     @Test

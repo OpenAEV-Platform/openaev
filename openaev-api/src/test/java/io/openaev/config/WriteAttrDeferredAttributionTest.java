@@ -11,8 +11,11 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.WriteAttrDetectorRecorder.Violation;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.CustomDashboardFixture;
+import io.openaev.utils.fixtures.composers.CustomDashboardComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.Set;
@@ -34,11 +37,14 @@ import org.springframework.transaction.annotation.Transactional;
  * the entry frame off the stack at that flush, it attributes the write to the test and waives it,
  * blinding the gate to exactly the class it exists to catch.
  *
- * <p>This exercises the real header-route scenario create, which stamps the row with the default
- * tenant while the request scope is tenant B. The test does no explicit {@code flush}; the pending
- * insert is forced out by a native read issued from the test method, so the flush stack carries no
- * production frame. The write must still be attributed to {@code ScenarioApi.createScenario},
- * captured when the application asked for it at {@code persist}, and so the gate must report it.
+ * <p>This exercises the real scenario create on the non-prefixed route with an {@code X-Tenant-Ids}
+ * header naming tenants B and C: a scope naming several tenants keeps the ambient tenant, the
+ * default one on that route, and the row is stamped from it while the request scope is B and C. A
+ * named dashboard skips the single-tenant write resolution, so the create is accepted under that
+ * scope. The test does no explicit {@code flush}; the pending insert is forced out by a native read
+ * issued from the test method, so the flush stack carries no production frame. The write must still
+ * be attributed to {@code ScenarioApi.createScenario}, captured when the application asked for it
+ * at {@code persist}, and so the gate must report it.
  *
  * <p>Non-vacuity is shown by a deliberate break (evidence in the task report): neutralising the
  * ask-time capture so the entry frame is read from the flush stack turns this green assertion red,
@@ -55,12 +61,16 @@ class WriteAttrDeferredAttributionTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private CustomDashboardComposer customDashboardComposer;
 
   private String tenantB;
+  private String tenantC;
 
   @BeforeEach
   void setUp() throws Exception {
+    customDashboardComposer.reset();
     tenantB = tenantHelper.createTenantWithCurrentUser("wattr-def-b").getId();
+    tenantC = tenantHelper.createTenantWithCurrentUser("wattr-def-c").getId();
     entityManager
         .unwrap(Session.class)
         .doWork(c -> WriteAttrDetectorTrigger.install(c, TenantTables.selfIsolatedTables()));
@@ -76,8 +86,12 @@ class WriteAttrDeferredAttributionTest extends IntegrationTest {
   @DisplayName(
       "a header-route write flushed at a later test-frame read is attributed to the controller")
   void deferredHeaderRouteWriteIsAttributedToTheController() throws Exception {
+    String dashboardId = dashboardInTenantB();
     WriteAttrDetectorRecorder.start();
-    String id = postScenario(post("/api/scenarios").header("X-Tenant-Ids", tenantB).with(csrf()));
+    String id =
+        postScenario(
+            post("/api/scenarios").header("X-Tenant-Ids", tenantB + "," + tenantC).with(csrf()),
+            dashboardId);
 
     // No explicit flush. The pending insert is forced out here, by a native read from the test
     // method, so the flush stack holds no production frame at all.
@@ -87,7 +101,7 @@ class WriteAttrDeferredAttributionTest extends IntegrationTest {
     assertEquals(
         DEFAULT_TENANT,
         writtenTenant,
-        "precondition: the header-route create misattributes the row to the default tenant");
+        "precondition: the create stamps the row with the default tenant, outside the scope");
 
     List<Violation> scenarioViolations =
         WriteAttrDetectorRecorder.violations().stream()
@@ -126,14 +140,24 @@ class WriteAttrDeferredAttributionTest extends IntegrationTest {
             .getSingleResult();
   }
 
+  private String dashboardInTenantB() {
+    CustomDashboard dashboard = CustomDashboardFixture.createDefaultCustomDashboard();
+    dashboard.setTenant(new Tenant(tenantB));
+    return customDashboardComposer.forCustomDashboard(dashboard).persist().get().getId();
+  }
+
   private String postScenario(
-      org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request)
+      org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
+      String dashboardId)
       throws Exception {
     String response =
         mvc.perform(
                 request
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"scenario_name\":\"wattr-deferred\"}"))
+                    .content(
+                        "{\"scenario_name\":\"wattr-deferred\",\"scenario_custom_dashboard\":\""
+                            + dashboardId
+                            + "\"}"))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()

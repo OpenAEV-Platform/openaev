@@ -4,7 +4,6 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -38,10 +37,10 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Pins that a simulation or scenario create never writes a row in a tenant where the caller lacks
- * the create capability, whichever route names that tenant: the path, or the {@code X-Tenant-Ids}
- * header of the non-prefixed route. The caller is not an admin and holds the create capability in
- * one tenant and only read access in the other.
+ * Pins that a simulation or scenario create is authorized in, and written in, the tenant the
+ * request names: the path, or the {@code X-Tenant-Ids} header of the non-prefixed route. The caller
+ * is not an admin and holds the create capability in one tenant and only read access in the other,
+ * or the capability in both.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
@@ -169,17 +168,17 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(Create.class)
-    @DisplayName("On the non-prefixed route with a header naming B, no row is written outside B")
-    void given_headerNamingTenantWithCreateCapability_should_notWriteOutsideThatTenant(
-        Create create) throws Exception {
+    @DisplayName("On the non-prefixed route with a header naming B, the row is written in B")
+    void given_headerNamingTenantWithCreateCapability_should_writeInThatTenant(Create create)
+        throws Exception {
       // Arrange
       String tenantB = createTenantWithCreateCapability();
 
       // Act
-      perform(nonPrefixed(create).header(TENANT_IDS_HEADER, tenantB));
+      int status = perform(nonPrefixed(create).header(TENANT_IDS_HEADER, tenantB));
 
       // Assert
-      assertThat(rowTenants(create)).as("the row's tenant").isSubsetOf(tenantB);
+      assertWrittenIn(create, status, tenantB);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -219,10 +218,9 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(Create.class)
-    @DisplayName(
-        "On the non-prefixed route with a header naming B, it is written in the ambient tenant")
-    void given_headerNamingOtherTenantWithCreateCapability_should_writeInAmbientTenant(
-        Create create) throws Exception {
+    @DisplayName("On the non-prefixed route with a header naming B, the row is written in B")
+    void given_headerNamingOtherTenantWithCreateCapability_should_writeInThatTenant(Create create)
+        throws Exception {
       // Arrange
       String tenantB = createTenantWithCreateCapabilityInBoth();
 
@@ -230,9 +228,7 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
       int status = perform(nonPrefixed(create).header(TENANT_IDS_HEADER, tenantB));
 
       // Assert
-      // These creates stamp their row from the ambient tenant, which the non-prefixed route
-      // leaves to the default one whatever the header names.
-      assertWrittenIn(create, status, DEFAULT_TENANT);
+      assertWrittenIn(create, status, tenantB);
     }
   }
 

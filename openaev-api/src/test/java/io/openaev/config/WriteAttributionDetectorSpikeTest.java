@@ -10,10 +10,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.CustomDashboardFixture;
+import io.openaev.utils.fixtures.composers.CustomDashboardComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
@@ -30,9 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Proof for the write-attribution detector. The detector must record a signature for every
  * INSERT/UPDATE that stamps a {@code tenant_id} outside the transaction's v2 scope, and stay silent
- * when the write is correctly attributed. This class proves it on a real statement, the
- * header-route scenario create, which stamps the row with the default tenant through the ambient
- * {@code TenantContext} while the request scope is tenant B.
+ * when the write is correctly attributed. This class proves it on a real statement: a scenario
+ * create on the non-prefixed route whose {@code X-Tenant-Ids} header names tenants B and C. A scope
+ * naming several tenants keeps the ambient {@code TenantContext}, the default tenant on that route,
+ * and the scenario is stamped from it, outside the request scope.
  *
  * <p>It wires the detector for this context only ({@link WriteAttrDetectorTestConfig}) and installs
  * the trigger in a rolled-back transaction, so nothing here changes the shared schema. The
@@ -49,12 +54,16 @@ class WriteAttributionDetectorSpikeTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private CustomDashboardComposer customDashboardComposer;
 
   private String tenantB;
+  private String tenantC;
 
   @BeforeEach
   void setUp() throws Exception {
+    customDashboardComposer.reset();
     tenantB = tenantHelper.createTenantWithCurrentUser("wattr-b").getId();
+    tenantC = tenantHelper.createTenantWithCurrentUser("wattr-c").getId();
     entityManager
         .unwrap(Session.class)
         .doWork(c -> WriteAttrDetectorTrigger.install(c, TenantTables.selfIsolatedTables()));
@@ -68,14 +77,18 @@ class WriteAttributionDetectorSpikeTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "header route: the scenario stamped with the default tenant under scope B is detected")
+      "header route: the scenario stamped with the default tenant under scope B,C is detected")
   void headerRouteWriteOutsideScopeIsDetected() throws Exception {
+    String dashboardId = dashboardInTenantB();
     WriteAttrDetectorRecorder.start();
-    String id = postScenario(post("/api/scenarios").header("X-Tenant-Ids", tenantB).with(csrf()));
+    String id =
+        postScenario(
+            post("/api/scenarios").header("X-Tenant-Ids", tenantB + "," + tenantC).with(csrf()),
+            dashboardId);
     entityManager.flush();
     WriteAttrDetectorRecorder.stop();
 
-    // Ground truth: the row really landed in the default tenant, not in B (the live defect).
+    // Ground truth: the row really landed in the default tenant, outside the scope.
     assertEquals(DEFAULT_TENANT, scenarioTenant(id), "precondition: the row is misattributed");
 
     List<WriteAttrDetectorRecorder.Violation> scenarioViolations =
@@ -88,14 +101,17 @@ class WriteAttributionDetectorSpikeTest extends IntegrationTest {
     WriteAttrDetectorRecorder.Violation violation = scenarioViolations.get(0);
     assertEquals(
         DEFAULT_TENANT, violation.writtenTenant(), "the recorded written tenant is the default");
-    assertEquals(tenantB, violation.scope(), "the recorded scope is the request tenant B");
+    assertEquals(
+        Set.of(tenantB, tenantC),
+        Set.of(violation.scope().split(",")),
+        "the recorded scope is the request tenants B and C");
   }
 
   @Test
   @DisplayName("prefixed route: the scenario correctly attributed to B is not detected (control)")
   void prefixedRouteCorrectlyAttributedIsNotDetected() throws Exception {
     WriteAttrDetectorRecorder.start();
-    String id = postScenario(post("/api/tenants/{t}/scenarios", tenantB).with(csrf()));
+    String id = postScenario(post("/api/tenants/{t}/scenarios", tenantB).with(csrf()), null);
     entityManager.flush();
     WriteAttrDetectorRecorder.stop();
 
@@ -160,12 +176,28 @@ class WriteAttributionDetectorSpikeTest extends IntegrationTest {
     return id;
   }
 
-  private String postScenario(MockHttpServletRequestBuilder request) throws Exception {
+  /**
+   * A scenario create that names its dashboard skips the single-tenant write resolution, so it is
+   * accepted under a scope naming several tenants.
+   */
+  private String dashboardInTenantB() {
+    CustomDashboard dashboard = CustomDashboardFixture.createDefaultCustomDashboard();
+    dashboard.setTenant(new Tenant(tenantB));
+    return customDashboardComposer.forCustomDashboard(dashboard).persist().get().getId();
+  }
+
+  private String postScenario(MockHttpServletRequestBuilder request, String dashboardId)
+      throws Exception {
     String response =
         mvc.perform(
                 request
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"scenario_name\":\"wattr-scenario\"}"))
+                    .content(
+                        dashboardId == null
+                            ? "{\"scenario_name\":\"wattr-scenario\"}"
+                            : "{\"scenario_name\":\"wattr-scenario\",\"scenario_custom_dashboard\":\""
+                                + dashboardId
+                                + "\"}"))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()

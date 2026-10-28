@@ -46,7 +46,7 @@ import org.springframework.web.server.ResponseStatusException;
  * AOP aspect that intercepts {@link AccessControl}-annotated controller methods to produce audit
  * log events for CRUD operations.
  *
- * <p>This {@code @Around} aspect <b>wraps</b> the {@link AccessControlAspect} ({@code @Before},
+ * <p>This {@code @Around} aspect <b>wraps</b> the {@link AccessControlAspect} ({@code @Around},
  * {@code @Order(LOWEST_PRECEDENCE)}). The RBAC check runs <b>during</b> {@code proceed()} — if it
  * denies access, the thrown {@code ResponseStatusException(403)} is caught here and logged as an
  * "unauthorized" audit event before being re-thrown.

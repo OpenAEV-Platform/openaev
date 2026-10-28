@@ -11,16 +11,17 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.lang.reflect.Method;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -53,7 +54,33 @@ public class AccessControlAspect {
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
-  @Before("@annotation(accessControl)")
+  /**
+   * Authorizes the call, then runs it, in the tenant its {@link TxCtx} argument pins when that
+   * tenant is not the ambient one.
+   *
+   * <p>The caller's capabilities and grants, the {@code tenantFilter} and the tenant stamped on new
+   * rows of tables not yet tenant-active all resolve through the ambient {@link TenantContext},
+   * which only the {@code /api/tenants/{tenantId}/} route sets, while the {@link TxCtx} also
+   * honours the {@code X-Tenant-Ids} header. A request whose scope pins one tenant is therefore
+   * authorized and run in that tenant, as on the prefixed route. A scope naming several tenants or
+   * none, and a method with no {@link TxCtx} argument, keep the ambient tenant.
+   */
+  @Around("@annotation(accessControl)")
+  public Object authorizeInScopeTenant(ProceedingJoinPoint joinPoint, AccessControl accessControl)
+      throws Throwable {
+    String tenantId = pinnedTenant(joinPoint.getArgs());
+    if (tenantId == null) {
+      methodRBACVerification(joinPoint, accessControl);
+      return joinPoint.proceed();
+    }
+    return ambientTenantBridge.callInTenantChecked(
+        tenantId,
+        () -> {
+          methodRBACVerification(joinPoint, accessControl);
+          return proceed(joinPoint);
+        });
+  }
+
   public void methodRBACVerification(JoinPoint joinPoint, AccessControl accessControl)
       throws AuthenticationException {
     // Enterprise Edition gating runs BEFORE the skipRBAC early return so that endpoints which
@@ -119,27 +146,16 @@ public class AccessControlAspect {
           "Access denied for user " + SessionHelper.currentUser().getId()) {};
     }
 
-    // Capabilities and grants resolve through the ambient tenant, which only the
-    // /api/tenants/{tenantId}/ route sets, while the TxCtx also honours the X-Tenant-Ids header.
-    // When the scope pins another tenant, the method may work in either one, so the caller must be
-    // authorized in both.
-    final User user = principal;
-    final String resource = resourceId;
-    BooleanSupplier permitted =
-        () ->
-            accessControl.requireAdmin()
-                ? permissionService.hasUserAdminPrivileges(user)
-                : permissionService.hasPermission(
-                    user,
-                    httpMappingInfo,
-                    resource,
-                    accessControl.resourceType(),
-                    accessControl.actionPerformed());
-    String pinnedTenant = pinnedTenant(args);
+    // Perform your RBAC check with the extracted value
     boolean allowed =
-        permitted.getAsBoolean()
-            && (pinnedTenant == null
-                || ambientTenantBridge.callInTenant(pinnedTenant, permitted::getAsBoolean));
+        accessControl.requireAdmin()
+            ? permissionService.hasUserAdminPrivileges(principal)
+            : permissionService.hasPermission(
+                principal,
+                httpMappingInfo,
+                resourceId,
+                accessControl.resourceType(),
+                accessControl.actionPerformed());
 
     if (!allowed) {
       log.warn(
@@ -166,6 +182,16 @@ public class AccessControlAspect {
       }
     }
     return null;
+  }
+
+  private static Object proceed(ProceedingJoinPoint joinPoint) throws Exception {
+    try {
+      return joinPoint.proceed();
+    } catch (Exception | Error e) {
+      throw e;
+    } catch (Throwable t) {
+      throw new UndeclaredThrowableException(t);
+    }
   }
 
   public record HttpMappingInfo(

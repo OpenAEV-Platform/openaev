@@ -48,9 +48,11 @@ import org.springframework.transaction.annotation.Transactional;
  * flushed from a test frame it is waived as test-driven, although the request that asked for it is
  * known: the owner of the collection was captured at {@code merge}.
  *
- * <p>The production shape is the contract update on the non-prefixed route: the contract (default
- * tenant, found through the ambient context) gets new attack patterns while the request scope is
- * tenant B, and the {@code injectors_contracts_attack_patterns} rows carry the contract's tenant.
+ * <p>The production shape is the contract update on the non-prefixed route with an {@code
+ * X-Tenant-Ids} header naming tenants B and C: a scope naming several tenants keeps the ambient
+ * tenant, so the contract (default tenant, found through the ambient context) gets new attack
+ * patterns while the request scope is B and C, and the {@code injectors_contracts_attack_patterns}
+ * rows carry the contract's tenant.
  */
 @Transactional
 @Import(WriteAttrDetectorTestConfig.class)
@@ -72,6 +74,7 @@ class WriteAttrJoinTableAttributionTest extends IntegrationTest {
   @Autowired private AttackPatternComposer attackPatternComposer;
 
   private String tenantB;
+  private String tenantC;
   private String contractId;
   private String attackPatternId;
 
@@ -80,6 +83,7 @@ class WriteAttrJoinTableAttributionTest extends IntegrationTest {
     injectorContractComposer.reset();
     attackPatternComposer.reset();
     tenantB = tenantHelper.createTenantWithCurrentUser("wattr-join-b").getId();
+    tenantC = tenantHelper.createTenantWithCurrentUser("wattr-join-c").getId();
     // The contract and the attack pattern live in the default tenant (no scope is set while they
     // are seeded, so the trigger stays silent on the seed).
     // A fresh injector rather than the well-known one: under the production active-tables list
@@ -115,7 +119,9 @@ class WriteAttrJoinTableAttributionTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Given a header-route update that adds elements to a tenant-keyed collection")
+  @DisplayName(
+      "Given an update under a scope naming several tenants that adds elements to a tenant-keyed"
+          + " collection")
   class CollectionWrite {
 
     @Test
@@ -133,7 +139,7 @@ class WriteAttrJoinTableAttributionTest extends IntegrationTest {
       // Act
       mvc.perform(
               put(InjectorContractApi.INJECTOR_CONTRACT_URL + "/" + contractId)
-                  .header("X-Tenant-Ids", tenantB)
+                  .header("X-Tenant-Ids", tenantB + "," + tenantC)
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(input)))

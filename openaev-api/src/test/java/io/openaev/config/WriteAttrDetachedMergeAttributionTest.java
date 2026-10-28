@@ -38,9 +38,10 @@ import org.springframework.transaction.annotation.Transactional;
  * the write falls back to the flush stack. Flushed from a test frame, it is then waived as
  * test-driven: a real production wrong-tenant write dropped in silence.
  *
- * <p>The production shape is the tenant group create on the non-prefixed route: the service assigns
- * the id, takes the tenant from the ambient context (the default tenant, since the header route
- * does not set it) and saves, while the request scope is tenant B.
+ * <p>The production shape is the tenant group create on the non-prefixed route with an {@code
+ * X-Tenant-Ids} header naming tenants B and C: the service assigns the id, takes the tenant from
+ * the ambient context (the default tenant, since a scope naming several tenants does not move it)
+ * and saves, while the request scope is B and C.
  */
 @Transactional
 @Import(WriteAttrDetectorTestConfig.class)
@@ -56,10 +57,12 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
   @Autowired private JdbcTemplate jdbcTemplate;
 
   private String tenantB;
+  private String tenantC;
 
   @BeforeEach
   void setUp() throws Exception {
     tenantB = tenantHelper.createTenantWithCurrentUser("wattr-merge-b").getId();
+    tenantC = tenantHelper.createTenantWithCurrentUser("wattr-merge-c").getId();
     entityManager
         .unwrap(Session.class)
         .doWork(c -> WriteAttrDetectorTrigger.install(c, TenantTables.selfIsolatedTables()));
@@ -72,7 +75,9 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Given a header-route create that saves a transient entity with an assigned id")
+  @DisplayName(
+      "Given a create under a scope naming several tenants that saves a transient entity with an"
+          + " assigned id")
   class MergedTransientEntity {
 
     @Test
@@ -84,7 +89,7 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
       assertEquals(
           DEFAULT_TENANT,
           TenantContext.getCurrentTenant(),
-          "precondition: the ambient tenant falls back to the default on the header route");
+          "precondition: the ambient tenant falls back to the default on the non-prefixed route");
       WriteAttrDetectorRecorder.start();
 
       // Act
@@ -98,7 +103,7 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
       assertEquals(
           DEFAULT_TENANT,
           writtenTenant,
-          "precondition: the header-route create stamps the row with the default tenant");
+          "precondition: the create stamps the row with the default tenant, outside the scope");
       List<Violation> groupViolations =
           WriteAttrDetectorRecorder.violations().stream()
               .filter(v -> "groups".equals(v.table()))
@@ -121,7 +126,7 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
     String response =
         mvc.perform(
                 post(TenantGroupApi.GROUP_URI)
-                    .header("X-Tenant-Ids", tenantB)
+                    .header("X-Tenant-Ids", tenantB + "," + tenantC)
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"group_name\":\"wattr-merge\"}"))

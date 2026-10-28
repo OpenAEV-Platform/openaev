@@ -73,10 +73,8 @@ import org.springframework.transaction.annotation.Transactional;
  * with access to the default tenant falls back to it, and a multi-tenant caller without it is
  * refused with 400.
  *
- * <p>On the non-prefixed route with {@code X-Tenant-Ids} the simulation parent is a primary-key
- * load and is found whatever the ambient tenant; the scenario parent is looked up in the ambient
- * tenant, the default one on that route, until {@code scenarios} is tenant-active, so that import
- * fails closed and writes nothing.
+ * <p>On the non-prefixed route a scope that pins one tenant runs the request in that tenant, as the
+ * prefixed route does, so a scenario parent outside it is not found.
  *
  * <p>The row tenant is read with raw JDBC on the test connection so the statement inspector never
  * rewrites the ground-truth read. {@code domains} is armed next to {@code documents} because the
@@ -429,16 +427,16 @@ class InjectImportWriteScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given_parentOutsideCallerScope_should_return400AndWriteNothing")
-    void given_parentOutsideCallerScope_should_return400AndWriteNothing() throws Exception {
-      // Arrange
+    @DisplayName("given_parentOutsideCallerScope_should_return404AndWriteNothing")
+    void given_parentOutsideCallerScope_should_return404AndWriteNothing() throws Exception {
+      // Arrange: the caller is a member of one tenant only and the parent lives in another one.
       tenantHelper.createTenantWithCurrentUser("scn-inj-outside");
       byte[] zip = injectZip();
       String scenarioId = saveScenario(DEFAULT_TENANT);
 
       // Act & Assert
       importZip(multipart(SCENARIO_URI + "/{scenarioId}/injects/import", scenarioId), zip)
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isNotFound());
       assertThat(importedInjectTenants()).isEmpty();
     }
 
@@ -462,11 +460,9 @@ class InjectImportWriteScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given_headerRouteAndParentInB_should_failClosedAndWriteNothing")
-    void given_headerRouteAndParentInB_should_failClosedAndWriteNothing() throws Exception {
-      // Arrange: the header selects B while the ambient tenant stays on the default one. The
-      // scenario is looked up in the ambient tenant until scenarios is tenant-active, so a B
-      // scenario is not found on this route and nothing is written in any tenant.
+    @DisplayName("given_headerRouteAndParentInB_should_writeInjectsInB")
+    void given_headerRouteAndParentInB_should_writeInjectsInB() throws Exception {
+      // Arrange: the header selects B while the ambient tenant stays on the default one.
       tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
       String tenantB = tenantHelper.createTenantWithCurrentUser("scn-inj-header-b").getId();
       byte[] zip = injectZip();
@@ -474,10 +470,12 @@ class InjectImportWriteScopeTest extends IntegrationTest {
       TenantContext.clearCurrentTenant();
       assertThat(TenantContext.getCurrentTenant()).isEqualTo(DEFAULT_TENANT);
 
-      // Act & Assert
+      // Act
       importZip(multipart(SCENARIO_URI + "/{scenarioId}/injects/import", scenarioId), zip, tenantB)
-          .andExpect(status().isNotFound());
-      assertThat(importedInjectTenants()).isEmpty();
+          .andExpect(status().isOk());
+
+      // Assert
+      assertThat(importedInjectTenants()).containsExactly(tenantB);
     }
   }
 
