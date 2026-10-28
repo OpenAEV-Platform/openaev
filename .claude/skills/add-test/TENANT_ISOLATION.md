@@ -152,13 +152,15 @@ Keep the raw red output: the activation workflow requires it as evidence.
 
 ## Context cost
 
-`@TestPropertySource` forks one Spring context per distinct property value.
-Every pre-go-live table therefore adds one context to the CI run; that is the
-price of proving activation before it is live, keep it. After the table's
-go-live, align the class's property value with the other activated tables'
-test classes: an identical value means a shared, cached context. Once several
-tables are live, hold that value in one shared test constant so it cannot
-drift between files.
+Spring keys a cached context on, among other things, the set of
+`@DynamicPropertySource` methods that apply to the class, not on the values
+they register. A class that declares its own registration method therefore
+gets its own context, even when it registers exactly what another class does;
+that is the price of following the production list per class, keep it. Copying
+the same value, or a shared constant, into several classes shares nothing, and
+a hard-coded value is a pin `PinnedActiveTablesArchTest` reports. Classes that
+must share a context inherit one registration method from a common superclass,
+so their method sets are equal.
 
 ## Run
 

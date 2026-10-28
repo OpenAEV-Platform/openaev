@@ -416,14 +416,16 @@ Find them before go-live:
 
 ```bash
 # test classes that assert something about this table's isolation, and whether they activate it
-grep -rln "{Entity}\|{table}" openaev-api/src/test --include="*.java"   | xargs grep -ln "Tenant\|tenant"   | xargs grep -Ln "TestPropertySource"
+grep -rln "{Entity}\|{table}" openaev-api/src/test --include="*.java"   | xargs grep -ln "Tenant\|tenant"   | xargs grep -Ln "openaev.tenant.active-tables"
 ```
 
-Read every hit. A class that asserts cross-tenant behaviour and does not set `active-tables` is
-either proving nothing or about to break.
+Read every hit. A class that asserts cross-tenant behaviour and does not set `active-tables` runs on
+the test profile's list, which is empty, so it is either proving nothing or about to break. Give it a
+`@DynamicPropertySource` that registers `ProductionActiveTables.names()` plus your table.
 
-**Put the annotation on the outermost test class, not on a `@Nested` one.** A `@TestPropertySource`
-on a nested class builds a second Spring context, and the mock user provisioned by
+**Put the registration on the outermost test class, not on a `@Nested` one.** A nested class that
+declares its own `@DynamicPropertySource` method gets a different set of registration methods than its
+enclosing class, so Spring builds it a second context, and the mock user provisioned by
 `WithMockUserTestExecutionListener` lives in the parent's `TestUserHolder`; the nested context gets
 an empty one and every test fails on "The given id must not be null" before reaching its assertion.
 
@@ -807,9 +809,12 @@ class {Entity}HttpIsolationTest extends IntegrationTest {
 ```
 
 Notes that make or break the test:
-- `@TestPropertySource` activates the table for this test only. The test
-  classpath keeps the allowlist empty on purpose; never add your table to the
-  test-wide properties.
+- The `@DynamicPropertySource` activates the table for this class only, on top
+  of every table production already isolates. The test classpath keeps the
+  allowlist empty on purpose; never add your table to the test-wide properties.
+  Do not hard-code a list instead: a value that does not hold the production
+  list is a pin, and `PinnedActiveTablesArchTest` fails until it is declared,
+  with its reason, in `pinned-active-tables-baseline.txt`.
 - **Leave `@WithMockUser` at its default (`autoJoinDefaultTenant` stays
   `false`) on this class.** The class-level mock user must resolve to exactly
   the tenants `tenantHelper.createTenantWithCurrentUser(...)` granted it —
