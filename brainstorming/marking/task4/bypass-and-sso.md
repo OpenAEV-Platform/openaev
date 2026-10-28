@@ -160,6 +160,16 @@ else {
 }
 ```
 
+## Plan
+
+| Step | What | Status |
+|---|---|---|
+| 1 | Team review of this doc and the ADR (this draft PR) | in progress |
+| 2 | Agent and OpenCTI groups receive every marking (group flag) | done, in the code PR |
+| 3 | One rule: only the first admin ignores markings; joining a group or making it a default group needs its markings | done, in the code PR |
+| 4 | SSO admins join the "Admin" group | after #8739, separate PR |
+| 5 | Check in the app with the `MARKING` flag on | to do |
+
 ## Breaking changes
 
 - SSO: an admin from a provider bound to a tenant now administers only that tenant, no longer the whole platform. This
