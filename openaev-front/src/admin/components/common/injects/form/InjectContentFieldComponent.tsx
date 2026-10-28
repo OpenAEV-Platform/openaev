@@ -175,6 +175,7 @@ const InjectContentFieldComponent = ({
             required={field.settings?.required}
             type={field.type as ('number' | 'text' | 'password')}
             writeOnly={field.writeOnly}
+            helperText={field.helperText}
           />
         );
       }

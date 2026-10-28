@@ -3349,6 +3349,7 @@ export interface CredentialBulkProcessingInput {
 export interface CredentialContractField {
   choices?: string[];
   default_value?: string;
+  field_description?: string;
   field_name: string;
   field_type?: "text" | "password" | "select" | "number" | "checkbox" | "file";
   mandatory_condition_field?: string;
