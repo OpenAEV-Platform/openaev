@@ -68,6 +68,7 @@ import org.springframework.transaction.annotation.Transactional;
 class AssetMarkingsApiTest extends IntegrationTest {
 
   private static final String ASSET_URI = "/api/assets";
+  private static final String TENANT_ASSET_URI = "/api/tenants/{tenantId}/assets";
 
   @Autowired private MockMvc mvc;
   @Autowired private DataSource dataSource;
@@ -387,13 +388,14 @@ class AssetMarkingsApiTest extends IntegrationTest {
     @Test
     @DisplayName("given neither explicit ids nor a search input, should return a bad request")
     void given_noSelection_should_returnBadRequest() throws Exception {
+      // -- PREPARE --
+      AssetBulkReplaceMarkingsInput input = new AssetBulkReplaceMarkingsInput();
+      input.setMarkingIds(List.of(green.getId()));
+
       // -- ACT / ASSERT --
       mvc.perform(
-              put(ASSET_URI + "/markings/bulk")
-                  .content(
-                      asJsonString(
-                          new AssetBulkReplaceMarkingsInput(
-                              null, null, null, List.of(green.getId()))))
+              put(TENANT_ASSET_URI + "/markings/bulk", tenantId)
+                  .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
@@ -405,7 +407,7 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
     return mvc.perform(
-        put(ASSET_URI + "/" + asset.getId() + "/markings")
+        put(TENANT_ASSET_URI + "/{assetId}/markings", tenantId, asset.getId())
             .content(asJsonString(new AssetUpdateMarkingsInput(markingIds)))
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
@@ -414,10 +416,12 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
   private ResultActions bulkReplaceMarkings(List<String> assetIds, List<String> markingIds)
       throws Exception {
+    AssetBulkReplaceMarkingsInput input = new AssetBulkReplaceMarkingsInput();
+    input.setAssetIdsToProcess(assetIds);
+    input.setMarkingIds(markingIds);
     return mvc.perform(
-        put(ASSET_URI + "/markings/bulk")
-            .content(
-                asJsonString(new AssetBulkReplaceMarkingsInput(null, assetIds, null, markingIds)))
+        put(TENANT_ASSET_URI + "/markings/bulk", tenantId)
+            .content(asJsonString(input))
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
             .with(csrf()));
