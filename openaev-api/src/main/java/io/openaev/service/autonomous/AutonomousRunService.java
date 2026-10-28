@@ -3007,12 +3007,14 @@ public class AutonomousRunService {
       }
       // Prune the scenario mirror twin and drop the mapping entry - both SECONDARY projections that
       // must never fail (500) this callback (the primary step is already gone). The twin delete
-      // runs in its OWN REQUIRES_NEW transaction so a failure rolls back only itself.
+      // runs in its OWN REQUIRES_NEW transaction so a failure rolls back only itself; that
+      // transaction does not inherit this one's scope, so it takes the run's own tenant.
       Map<String, String> mirror = run.getStepMirror();
       String scenarioStepId = mirror == null ? null : mirror.get(stepTemplateId);
       if (hasText(scenarioStepId)) {
         try {
-          workflowService.deleteChainedStepIsolated(scenarioStepId);
+          workflowService.deleteChainedStepIsolated(
+              TxCtx.forTenant(runTenantId(run)), scenarioStepId);
         } catch (Exception e) {
           log.warn(
               "[Autonomous] Deleted step {} but pruning its scenario mirror twin {} failed"
