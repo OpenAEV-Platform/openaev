@@ -28,7 +28,9 @@ import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
+import MarkingDefinitionExportButton from './MarkingDefinitionExportButton';
 import MarkingDefinitionForm from './MarkingDefinitionForm';
+import MarkingDefinitionImport from './MarkingDefinitionImport';
 import MarkingDefinitionPopover from './MarkingDefinitionPopover';
 import {
   extractMarkingDefinitionFromStoreResult,
@@ -54,6 +56,7 @@ const MarkingDefinitions = () => {
   const [markingDefinitions, setMarkingDefinitions] = useState<MarkingDefinitionOutput[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [openCreate, setOpenCreate] = useState(false);
+  const [reloadContentCount, setReloadContentCount] = useState(0);
 
   const availableFilterNames = [
     'marking_definition_type',
@@ -182,10 +185,15 @@ const MarkingDefinitions = () => {
           setLoading={setLoading}
           availableFilterNames={availableFilterNames}
           queryableHelpers={queryableHelpers}
+          reloadContentCount={reloadContentCount}
           entityPrefix="marking_definition"
           topBarButtons={(
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.MARKING_DEFINITION}>
-              <ButtonCreate onClick={() => setOpenCreate(true)} label={t('Add a marking definition')} />
+              <>
+                <MarkingDefinitionExportButton disabled={markingDefinitions.length === 0} />
+                <MarkingDefinitionImport onImported={() => setReloadContentCount(count => count + 1)} />
+                <ButtonCreate onClick={() => setOpenCreate(true)} label={t('Add a marking definition')} />
+              </>
             </Can>
           )}
         />
