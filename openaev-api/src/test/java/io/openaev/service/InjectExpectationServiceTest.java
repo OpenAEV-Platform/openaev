@@ -741,6 +741,40 @@ class InjectExpectationServiceTest {
     }
 
     @Test
+    @DisplayName("Asset view keeps the asset expectation id")
+    void given_agentSecurityPlatformResult_should_keepAssetExpectationId() {
+      // Arrange
+      DetectionInjectExpectation assetExpectation = new DetectionInjectExpectation();
+      assetExpectation.setId("asset-expectation");
+      DetectionInjectExpectation agentExpectation = new DetectionInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      agentExpectation.setResults(
+          new ArrayList<>(
+              List.of(
+                  InjectExpectationResult.builder()
+                      .sourceId("collector-1")
+                      .sourceType("collector")
+                      .sourceName("EDR Collector")
+                      .result("Success")
+                      .build())));
+      when(injectExpectationRepository.findAllByInjectAndAsset("inject-id", "asset-id"))
+          .thenReturn(List.of(assetExpectation));
+      when(injectExpectationRepository.findAllAgentExpectationsByInjectAndAsset(
+              "inject-id", "asset-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      // Act
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "ASSETS");
+
+      // Assert
+      assertEquals(1, merged.size());
+      assertNotSame(assetExpectation, merged.get(0));
+      assertEquals("asset-expectation", merged.get(0).getId());
+    }
+
+    @Test
     @DisplayName(
         "Vulnerability display merge drops the expiration manager row when a platform answered")
     void vulnerabilityDisplayMergeDropsExpirationManagerRowWhenPlatformAnswered() {
@@ -907,6 +941,26 @@ class InjectExpectationServiceTest {
     }
 
     @Test
+    @DisplayName("Merged view keeps the elected expectation id")
+    void given_sameTypeExpectations_should_keepElectedExpectationId() {
+      // Arrange
+      ManualInjectExpectation opened = manualStep("exp-opened", "Email not opened", 0.0);
+      ManualInjectExpectation clicked = manualStep("exp-clicked", "Link not clicked", 100.0);
+      when(injectExpectationRepository.findAllByInjectAndTeam("inject-id", "team-id"))
+          .thenReturn(List.of(opened, clicked));
+
+      // Act
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "team-id", "TEAMS");
+
+      // Assert
+      assertEquals(1, merged.size());
+      assertNotSame(opened, merged.get(0));
+      assertEquals("exp-opened", merged.get(0).getId());
+    }
+
+    @Test
     @DisplayName("A single expectation per type is returned as-is")
     void singleExpectationPerTypeIsReturnedAsIs() {
       ManualInjectExpectation single = manualStep("exp-single", "Manual validation", null);
@@ -970,6 +1024,30 @@ class InjectExpectationServiceTest {
                       .isTrue());
       // The enrichment must stay display-only: the persistent entity is untouched.
       assertTrue(groupExpectation.getResults().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Asset-group view keeps the group expectation id")
+    void given_childSecurityPlatformResult_should_keepGroupExpectationId() {
+      // Arrange
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      DetectionInjectExpectation agentExpectation = new DetectionInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      agentExpectation.setResults(new ArrayList<>(List.of(collectorResult("Not Detected", 0.0))));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      // Act
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      // Assert
+      assertEquals(1, merged.size());
+      assertNotSame(groupExpectation, merged.get(0));
+      assertEquals("group-expectation", merged.get(0).getId());
     }
 
     @Test

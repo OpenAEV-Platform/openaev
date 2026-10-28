@@ -1025,7 +1025,7 @@ public class InjectExpectationService {
               if (platformResults == null || platformResults.isEmpty()) {
                 return expectation;
               }
-              BaseInjectExpectation clone = expectation.clone();
+              BaseInjectExpectation clone = expectation.copyForDisplay();
               BinaryOperator<InjectExpectationResult> mergePreference =
                   mergePreferenceFor.apply(expectation);
               Map<String, InjectExpectationResult> bySource = new LinkedHashMap<>();
@@ -1361,7 +1361,7 @@ public class InjectExpectationService {
         continue;
       }
       // also clones the results entities so the getResults() call below returns copies
-      BaseInjectExpectation clone = elected.clone();
+      BaseInjectExpectation clone = elected.copyForDisplay();
       List<InjectExpectationResult> combinedResults = new ArrayList<>(clone.getResults());
       for (BaseInjectExpectation other : sameType.subList(1, sameType.size())) {
         for (InjectExpectationResult expectationResult : other.getResults()) {
