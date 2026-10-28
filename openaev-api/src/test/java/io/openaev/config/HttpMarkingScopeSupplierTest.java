@@ -106,13 +106,11 @@ class HttpMarkingScopeSupplierTest {
   }
 
   @Test
-  @DisplayName("the system clearance unions every tenant's markings, read fresh, with no principal")
-  void systemClearanceUnionsTenantsWithoutPrincipal() {
+  @DisplayName("the system clearance reads every tenant's markings at once, with no principal")
+  void systemClearanceReadsTenantsAtOnceWithoutPrincipal() {
     // -- ARRANGE --
-    when(clearanceCache.findSystemClearance(TENANT_ID))
-        .thenReturn(MarkingCtx.forMarkings(List.of("tlp-green", "tlp-red")));
-    when(clearanceCache.findSystemClearance(OTHER_TENANT_ID))
-        .thenReturn(MarkingCtx.forMarkings(List.of("pap-red")));
+    when(clearanceCache.findSystemClearance(List.of(TENANT_ID, OTHER_TENANT_ID)))
+        .thenReturn(MarkingCtx.forMarkings(List.of("tlp-green", "tlp-red", "pap-red")));
 
     // -- ACT --
     MarkingCtx clearance =
@@ -123,13 +121,15 @@ class HttpMarkingScopeSupplierTest {
     // A scheduler is not a user, and the cached per-user entries must never serve it.
     verifyNoInteractions(userService);
     verify(clearanceCache, never()).findClearance(anyString(), anyString(), anyBoolean());
+    // One read for the whole tenant set: an allTenants() job spans every tenant.
+    verify(clearanceCache).findSystemClearance(List.of(TENANT_ID, OTHER_TENANT_ID));
   }
 
   @Test
   @DisplayName("a system clearance over tenants without definitions resolves to none()")
   void systemClearanceWithoutDefinitionsIsNone() {
     // -- ARRANGE --
-    when(clearanceCache.findSystemClearance(TENANT_ID)).thenReturn(MarkingCtx.none());
+    when(clearanceCache.findSystemClearance(List.of(TENANT_ID))).thenReturn(MarkingCtx.none());
 
     // -- ACT & ASSERT --
     assertEquals(

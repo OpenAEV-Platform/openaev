@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -62,6 +63,29 @@ class MarkingClearanceCacheManagerCachingTest {
     lenient()
         .when(jdbcTemplate.queryForList(anyString(), eq(String.class), eq(USER), eq(tenantId)))
         .thenReturn(granted);
+  }
+
+  /** Stubs the scales of the tenants, read together for the system clearance. */
+  private void givenSystemScale(List<String> tenantIds, List<MarkingRef> scale) {
+    when(jdbcTemplate.query(
+            eq(MarkingClearanceCacheManager.TENANTS_MARKINGS_SQL),
+            any(RowMapper.class),
+            boundTenants(tenantIds)))
+        .thenReturn(scale);
+  }
+
+  /** The tenant ids, bound as the one array parameter of the system clearance read. */
+  private static Object boundTenants(List<String> tenantIds) {
+    return argThat(
+        (Object bound) -> bound instanceof String[] ids && List.of(ids).equals(tenantIds));
+  }
+
+  private void verifySystemReads(int times) {
+    verify(jdbcTemplate, times(times))
+        .query(
+            eq(MarkingClearanceCacheManager.TENANTS_MARKINGS_SQL),
+            any(RowMapper.class),
+            any(Object[].class));
   }
 
   @Nested
@@ -293,9 +317,10 @@ class MarkingClearanceCacheManagerCachingTest {
     void given_tenantScale_should_matchTheBypassClearance() {
       // -- ARRANGE --
       givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of());
+      givenSystemScale(List.of(TENANT_A), List.of(TLP_GREEN, TLP_RED));
 
       // -- ACT --
-      MarkingCtx system = clearanceCache.findSystemClearance(TENANT_A);
+      MarkingCtx system = clearanceCache.findSystemClearance(List.of(TENANT_A));
       MarkingCtx bypass = clearanceCache.findClearance(USER, TENANT_A, true);
 
       // -- ASSERT --
@@ -310,12 +335,14 @@ class MarkingClearanceCacheManagerCachingTest {
       // -- ARRANGE --
       // Warm the bypass entry of the same tenant, then add RED to the database, evicting nothing.
       givenGrants(TENANT_A, List.of(TLP_GREEN), List.of());
+      givenSystemScale(List.of(TENANT_A), List.of(TLP_GREEN));
       clearanceCache.findClearance(USER, TENANT_A, true);
-      clearanceCache.findSystemClearance(TENANT_A);
+      clearanceCache.findSystemClearance(List.of(TENANT_A));
       givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of());
+      givenSystemScale(List.of(TENANT_A), List.of(TLP_GREEN, TLP_RED));
 
       // -- ACT --
-      MarkingCtx system = clearanceCache.findSystemClearance(TENANT_A);
+      MarkingCtx system = clearanceCache.findSystemClearance(List.of(TENANT_A));
       MarkingCtx cachedBypass = clearanceCache.findClearance(USER, TENANT_A, true);
 
       // -- ASSERT --
@@ -323,17 +350,40 @@ class MarkingClearanceCacheManagerCachingTest {
       assertThat(system.toGuc()).isEqualTo("tlp-green,tlp-red");
       // The bypass entry is still the cached one: the system read neither used nor refreshed it.
       assertThat(cachedBypass.toGuc()).isEqualTo("tlp-green");
-      verify(jdbcTemplate, times(3)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
+      verifySystemReads(2);
+    }
+
+    @Test
+    @DisplayName("given several tenants, should read their scales in one query")
+    void given_severalTenants_should_readThemInOneQuery() {
+      // -- ARRANGE --
+      MarkingRef papRed = new MarkingRef("pap-red", "PAP", 40);
+      givenSystemScale(List.of(TENANT_A, TENANT_B), List.of(TLP_GREEN, TLP_RED, papRed));
+
+      // -- ACT --
+      MarkingCtx system = clearanceCache.findSystemClearance(List.of(TENANT_A, TENANT_B));
+
+      // -- ASSERT --
+      // An allTenants() job spans every tenant: one read per tenant would grow with their count.
+      assertThat(system.toGuc()).isEqualTo("pap-red,tlp-green,tlp-red");
+      verifySystemReads(1);
+      verify(jdbcTemplate)
+          .query(
+              eq(MarkingClearanceCacheManager.TENANTS_MARKINGS_SQL),
+              any(RowMapper.class),
+              boundTenants(List.of(TENANT_A, TENANT_B)));
+      verify(jdbcTemplate, never()).query(anyString(), any(RowMapper.class), eq(TENANT_A));
+      verify(jdbcTemplate, never()).query(anyString(), any(RowMapper.class), eq(TENANT_B));
     }
 
     @Test
     @DisplayName("given a system read, should leave nothing in the cache")
     void given_systemRead_should_notPopulateTheCache() {
       // -- ARRANGE --
-      givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of());
+      givenSystemScale(List.of(TENANT_A), List.of(TLP_GREEN, TLP_RED));
 
       // -- ACT --
-      clearanceCache.findSystemClearance(TENANT_A);
+      clearanceCache.findSystemClearance(List.of(TENANT_A));
 
       // -- ASSERT --
       Cache<?, ?> entries =

@@ -80,12 +80,12 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
   }
 
   /**
-   * Every marking of the tenants in scope, read fresh (never from the cache). No principal is
-   * involved: a scheduler is not a user.
+   * Every marking of the tenants in scope, read fresh (never from the cache) in one query for all
+   * of them. No principal is involved: a scheduler is not a user.
    */
   @Override
   public MarkingCtx systemClearanceFor(TxCtx.Restricted tenantScope) {
-    return union(tenantScope, clearanceCache::findSystemClearance);
+    return clearanceCache.findSystemClearance(tenantScope.tenantIds());
   }
 
   /**
