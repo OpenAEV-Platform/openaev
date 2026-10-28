@@ -3,14 +3,12 @@ import { type FunctionComponent, useState } from 'react';
 
 import { importMarkingDefinitions, USE_MOCK_IMPORT_EXPORT } from '../../../../actions/marking_definitions/marking-definition-actions';
 import { buildMockConflictSampleCsv } from '../../../../actions/marking_definitions/marking-definition-import-mock';
-import {
-  MarkingDefinitionImportFileError,
-  type MarkingDefinitionImportResult,
-} from '../../../../actions/marking_definitions/marking-definition-import-types';
+import { type MarkingDefinitionImportRowReason } from '../../../../actions/marking_definitions/marking-definition-import-types';
+import { ImportFileError, type ImportReport } from '../../../../components/common/import/import-report-types';
+import ImportReportDialog from '../../../../components/common/import/ImportReportDialog';
 import ImportUploader from '../../../../components/common/ImportUploader';
 import { useFormatter } from '../../../../components/i18n';
 import { download } from '../../../../utils/utils';
-import MarkingDefinitionImportReport from './MarkingDefinitionImportReport';
 
 interface Props { onImported: () => void }
 
@@ -18,25 +16,32 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
   const { t } = useFormatter();
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<MarkingDefinitionImportResult | null>(null);
+  const [report, setReport] = useState<ImportReport | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+
+  const reasonLabels: Record<MarkingDefinitionImportRowReason, string> = {
+    MISSING_FIELD: t('Missing value'),
+    INVALID_COLOR: t('Invalid colour'),
+    INVALID_ORDER: t('Invalid order'),
+    CONFLICT: t('Conflict'),
+  };
 
   const handleUpload = (_formData: FormData, file: File) => {
     setLoading(true);
-    setResult(null);
+    setReport(null);
     setFileError(null);
     return importMarkingDefinitions(file)
-      .then((importResult) => {
-        setResult(importResult);
+      .then((importReport) => {
+        setReport(importReport);
         setOpen(true);
-        if (importResult.import_created > 0) {
+        if (importReport.import_created > 0) {
           onImported();
         }
       })
       .catch((error: unknown) => {
         // A file-level failure (bad header, too big...) imports nothing: show it in the report
         // dialog. Any other failure was already notified by the API layer.
-        if (error instanceof MarkingDefinitionImportFileError) {
+        if (error instanceof ImportFileError) {
           setFileError(error.message);
           setOpen(true);
         }
@@ -61,11 +66,22 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
         fileAccepted=".csv"
         disabled={loading}
       />
-      <MarkingDefinitionImportReport
+      <ImportReportDialog
         open={open}
         onClose={() => setOpen(false)}
-        result={result}
+        title={t('Import marking definitions')}
+        report={report}
         fileError={fileError}
+        notice={USE_MOCK_IMPORT_EXPORT ? t('Mock backend: the file was checked with the import rules, but nothing was saved.') : undefined}
+        columnLabels={{
+          type: t('Type'),
+          definition: t('Definition'),
+          color: t('Color'),
+          order: t('Order'),
+        }}
+        reasonLabels={reasonLabels}
+        reasonSeverities={{ CONFLICT: 'medium' }}
+        downloadFileName="MarkingDefinitionsSkipped.csv"
       />
     </>
   );

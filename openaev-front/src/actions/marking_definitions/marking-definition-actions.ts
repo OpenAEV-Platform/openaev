@@ -1,5 +1,6 @@
 import type { Dispatch } from 'redux';
 
+import { type ImportReport } from '../../components/common/import/import-report-types';
 import { delReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import {
   type MarkingDefinitionInput,
@@ -7,7 +8,6 @@ import {
 } from '../../utils/api-types';
 import * as schema from '../Schema';
 import { mockExportMarkingDefinitions, mockImportMarkingDefinitions } from './marking-definition-import-mock';
-import { type MarkingDefinitionImportResult } from './marking-definition-import-types';
 
 const MARKING_DEFINITIONS_URI = '/api/marking_definitions';
 
@@ -66,7 +66,7 @@ export const exportMarkingDefinitions = (): Promise<{
   });
 };
 
-export const importMarkingDefinitions = (file: File): Promise<MarkingDefinitionImportResult> => {
+export const importMarkingDefinitions = (file: File): Promise<ImportReport> => {
   if (USE_MOCK_IMPORT_EXPORT) {
     return mockImportMarkingDefinitions(file, searchMarkingDefinitions);
   }
