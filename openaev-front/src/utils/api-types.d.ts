@@ -267,6 +267,7 @@ export interface AiAttack {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -1002,91 +1003,6 @@ export interface AtomicTestingInput {
 
 export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
-}
-
-export interface AttackObservationOutput {
-  /** Asset id */
-  asset_id?: string;
-  /** Asset name */
-  asset_name?: string;
-  /** Attack pattern external id */
-  attack_pattern_external_id?: string;
-  /** Attack pattern name */
-  attack_pattern_name?: string;
-  /**
-   * Successful attempts
-   * @format int64
-   */
-  attempts_success?: number;
-  /**
-   * Total attempts
-   * @format int64
-   */
-  attempts_total?: number;
-  /**
-   * Coverage ratio
-   * @format double
-   */
-  coverage_ratio?: number;
-  /** Endpoint hostname, null for an asset that is not an endpoint */
-  endpoint_hostname?: string;
-  /** Endpoint platform, null for an asset that is not an endpoint */
-  endpoint_platform?: string;
-  /** Expectation status */
-  expectation_status?: string;
-  /** Expectation type */
-  expectation_type?: string;
-  /** Observation id */
-  id?: string;
-  /** Id of the inject of the latest verified attempt */
-  last_inject_id?: string;
-  /** Id of the last simulation that produced this observation */
-  last_simulation_id?: string;
-  /** Name of the last simulation that produced this observation */
-  last_simulation_name?: string;
-  /**
-   * Start date of the last simulation that produced this observation
-   * @format date-time
-   */
-  last_simulation_start_date?: string;
-  /** Status of the last simulation that produced this observation */
-  last_simulation_status?: string;
-  /**
-   * Last verification timestamp
-   * @format date-time
-   */
-  last_verified_at?: string;
-  /**
-   * Types of the security platforms that reported on this technique
-   * @uniqueItems true
-   */
-  platform_types_reporting?: string[];
-  /**
-   * Types of the security platforms that succeeded
-   * @uniqueItems true
-   */
-  platform_types_succeeded?: string[];
-  /**
-   * Ids of the security platforms that reported on this technique
-   * @uniqueItems true
-   */
-  platforms_reporting?: string[];
-  /**
-   * Ids of the security platforms that succeeded
-   * @uniqueItems true
-   */
-  platforms_succeeded?: string[];
-  /** Scenario id */
-  scenario_id?: string;
-  /** Scenario name */
-  scenario_name?: string;
-  /** Tenant name */
-  tenant_name?: string;
-  /**
-   * Last update timestamp
-   * @format date-time
-   */
-  updated_at?: string;
 }
 
 export interface AttackPathAlertDTO {
@@ -2153,6 +2069,7 @@ interface BasePayload {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -2228,6 +2145,7 @@ interface BasePayloadCreateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -2825,6 +2743,7 @@ export interface Command {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -3907,6 +3826,7 @@ export interface DnsResolution {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -5521,6 +5441,7 @@ export interface Executable {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -5905,7 +5826,12 @@ export interface ExercisesGlobalScoresOutput {
 export interface ExpectationResultsByType {
   avgResult: "FAILED" | "PENDING" | "PARTIAL" | "UNKNOWN" | "SUCCESS";
   distribution: ResultDistribution[];
-  type: "DETECTION" | "HUMAN_RESPONSE" | "PREVENTION" | "VULNERABILITY";
+  type:
+    | "DETECTION"
+    | "HUMAN_RESPONSE"
+    | "LOGGING"
+    | "PREVENTION"
+    | "VULNERABILITY";
 }
 
 export interface ExpectationsDriftDismissInput {
@@ -5974,6 +5900,7 @@ export interface FileDrop {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -6711,6 +6638,7 @@ export interface InjectExpectationAgentOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
   /** @format int64 */
   inject_expiration_time: number;
@@ -6803,6 +6731,7 @@ export interface InjectExpectationOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
   /**
    * Last update date of the inject expectation
@@ -8243,6 +8172,7 @@ export interface NetworkTraffic {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9657,6 +9587,7 @@ export interface PayloadInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9740,6 +9671,7 @@ export interface PayloadOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of expectation type to expected security platform types (empty = any) */
@@ -9843,6 +9775,7 @@ export interface PayloadUpdateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9911,6 +9844,7 @@ export interface PayloadUpsertInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -10124,6 +10058,7 @@ export interface PlatformSettings {
     | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
     | "XTM_HUB_NEWS_FEED"
+    | "LOGGING_EXPECTATION"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -10142,6 +10077,11 @@ export interface PlatformSettings {
    * @format int64
    */
   expectation_detection_expiration_time: number;
+  /**
+   * Time to wait before logging time has expired
+   * @format int64
+   */
+  expectation_logging_expiration_time: number;
   /**
    * Default score for manuel expectation
    * @format int32
@@ -10512,6 +10452,7 @@ export interface PublicPlatformSettings {
     | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
     | "XTM_HUB_NEWS_FEED"
+    | "LOGGING_EXPECTATION"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -12034,82 +11975,6 @@ export interface SimulationsResultsLatest {
   >;
 }
 
-export interface SnapshotSearchInput {
-  /** Opaque resume cursor from a previous page */
-  cursor?: string | null;
-  /**
-   * Page size, default 500, capped at 1000
-   * @format int32
-   */
-  page_size?: number | null;
-  /**
-   * Safety lag in seconds, default 120, clamped to [max(60, grace), 3600]
-   * @format int32
-   */
-  safety_lag_seconds?: number | null;
-  /**
-   * Full reconciliation lower bound; mutually exclusive with cursor
-   * @format date-time
-   */
-  since?: string | null;
-}
-
-export interface SnapshotSearchOutputAttackObservationOutput {
-  /** Always "eventual" */
-  consistency_mode?: string;
-  /** Whether another page is expected to follow */
-  has_more?: boolean;
-  /**
-   * Approximate indexing horizon of this stream; a readiness signal, not the exact indexing cursor
-   * @format date-time
-   */
-  indexed_through?: string;
-  /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
-  next_cursor?: string | null;
-  /** Page of observations */
-  observations?: AttackObservationOutput[];
-  /**
-   * Server time at which this response was computed
-   * @format date-time
-   */
-  server_time?: string;
-  /** Whether the window is current with the indexing horizon */
-  snapshot_ready?: boolean;
-  /**
-   * Inclusive upper bound of this page's window
-   * @format date-time
-   */
-  snapshot_window_end?: string;
-}
-
-export interface SnapshotSearchOutputVulnerabilityObservationOutput {
-  /** Always "eventual" */
-  consistency_mode?: string;
-  /** Whether another page is expected to follow */
-  has_more?: boolean;
-  /**
-   * Approximate indexing horizon of this stream; a readiness signal, not the exact indexing cursor
-   * @format date-time
-   */
-  indexed_through?: string;
-  /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
-  next_cursor?: string | null;
-  /** Page of observations */
-  observations?: VulnerabilityObservationOutput[];
-  /**
-   * Server time at which this response was computed
-   * @format date-time
-   */
-  server_time?: string;
-  /** Whether the window is current with the indexing horizon */
-  snapshot_ready?: boolean;
-  /**
-   * Inclusive upper bound of this page's window
-   * @format date-time
-   */
-  snapshot_window_end?: string;
-}
-
 export interface SortField {
   direction?: string | null;
   nullHandling?: "NATIVE" | "NULLS_FIRST" | "NULLS_LAST";
@@ -12851,6 +12716,7 @@ export interface ThreatArsenalActionCreateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
@@ -12935,6 +12801,7 @@ export interface ThreatArsenalActionFullOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Security platform types expected to fulfil each predefined technical expectation (empty or absent = any security platform) */
@@ -13051,6 +12918,7 @@ export interface ThreatArsenalActionUpdateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
@@ -13168,6 +13036,7 @@ export interface ThreatArsenalExpectationDetail {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
 }
 
@@ -13619,47 +13488,6 @@ export interface VulnerabilityCreateInput {
    * @example "ANALYZED"
    */
   vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
-}
-
-export interface VulnerabilityObservationOutput {
-  /** Asset id */
-  asset_id?: string;
-  /** Asset name */
-  asset_name?: string;
-  /** Endpoint hostname, null for an asset that is not an endpoint */
-  endpoint_hostname?: string;
-  /** Endpoint platform, null for an asset that is not an endpoint */
-  endpoint_platform?: string;
-  /** Finding type */
-  finding_type?: string;
-  /** Finding value */
-  finding_value?: string;
-  /** Observation id */
-  id?: string;
-  /** Id of the finding that defines the current state of this grain */
-  last_finding_id?: string;
-  /** Id of the last scenario that produced this observation */
-  last_scenario_id?: string;
-  /** Name of the last scenario that produced this observation */
-  last_scenario_name?: string;
-  /** Id of the last simulation that produced this observation */
-  last_simulation_id?: string;
-  /** Name of the last simulation that produced this observation */
-  last_simulation_name?: string;
-  /**
-   * Last verification timestamp
-   * @format date-time
-   */
-  last_verified_at?: string;
-  /** Tenant name */
-  tenant_name?: string;
-  /**
-   * Last update timestamp
-   * @format date-time
-   */
-  updated_at?: string;
-  /** Vulnerability external id */
-  vulnerability_external_id?: string;
 }
 
 /** Full vulnerability output including references and CWEs */

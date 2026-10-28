@@ -23,7 +23,7 @@ asset group, signatures, traces) for Detection, Prevention and Vulnerability, an
 expectation itself, but it crosses every layer: contracts, execution, collectors, injectors, result
 computation, dashboards, the attack path and OpenCTI.
 
-The first version targets one SIEM (**Splunk ES**) and one EDR (**CrowdStrike**).
+The first version targets one SIEM (**Splunk ES**) and one EDR.
 
 ## 2. Decision drivers
 
@@ -96,7 +96,9 @@ collectors and injectors receive.
 ### 4.1 Model and lifecycle (platform)
 
 - `EXPECTATION_TYPE.LOGGING`, entity `LoggingInjectExpectation` and `LoggingBehavior` extending
-  `AbstractTechnicalBehavior`, like Detection. Labels **Logged** / **Not Logged**; no partial state.
+  `AbstractTechnicalBehavior`, like Detection. Labels **Logged** / **Not Logged**: a single result has
+  no partial state; an aggregate over several targets can be **Partially Logged**, like Partially
+  Detected.
 - The tree is the Detection one: one result slot per capable collector on each agent leaf, asset and
   asset group scores recomputed from their children with the `expectation_group` AND / OR rule.
 - **One source is enough**: LOGGING joins Detection and Prevention in `isSettledByAnySource`
@@ -133,7 +135,7 @@ Version mix:
 
 - Collectors search **events**, not alerts, between the execution start and end dates.
 - A match is the implant **marker** (strong) **OR** the target **IP** (weak, reported as "IP only").
-  Hostname and dates only narrow the search.
+  Only the execution window narrows the search.
 - The trace stores the search link, the time of the first matching event and the match type, **never**
   event content.
 - "Not Logged" only comes from an expired slot or an explicit answer after a completed search. An
@@ -156,12 +158,15 @@ Version mix:
 
 - **Splunk ES**: a separate flow next to the unchanged `notable` (alerts) flow, enabled by
   `SPLUNKES_LOGGING_ENABLED`. The customer lists their raw event indexes in a configuration variable;
-  the search looks for the marker or the IP in `_raw`, with a result limit and its own retry budget.
-- **CrowdStrike**: a new query strategy on the **Next-Gen SIEM** search (falconpy `NGSIEM`), next to the
-  unchanged Alerts API strategy, enabled by `CROWDSTRIKE_LOGGING_ENABLED`. The search is asynchronous
-  (start, poll, fetch, close), batched per cycle and kept within the API limits. LOGGING has its own
-  end-of-window handling: the collector's local expiry writes "Not Prevented" for every non-Detection
-  type and must not touch it. Requires a Falcon Next-Gen SIEM licence.
+  the search looks for the marker or the IP in `_raw`, with a result limit.
+- **EDR**: a new query strategy on the EDR's raw event search, next to the unchanged alerts strategy,
+  enabled by its own `*_LOGGING_ENABLED` variable. Event searches are often asynchronous and
+  rate-limited: they are batched per cycle and kept within the API limits. The event search may
+  require an additional licence.
+- **No retry and no local verdict**: a search without a match sends nothing. The expectation comes back
+  at the next cycle, until a match or until the platform expires it to "Not Logged"; a collector's own
+  end-of-window handling never writes a LOGGING result. A backoff between cycles limits the load on the
+  searched tool.
 
 **Contracts (offer)**
 
@@ -220,7 +225,7 @@ OpenCTI, and the backfill waits.
 
 Delivery order: the type and flag first, then the collector contract (its route, field and trace format
 are frozen up front so pyoaev can be built in parallel), then the platform wiring. pyoaev is released
-before the Splunk ES, CrowdStrike, injector and payload collector changes.
+before the Splunk ES, EDR, injector and payload collector changes.
 
 ## 5. Consequences
 
@@ -235,7 +240,7 @@ before the Splunk ES, CrowdStrike, injector and payload collector changes.
 ### Negative / trade-offs
 
 - Coverage depends on what the customer feeds their tools: Splunk ES needs the right event indexes
-  configured, CrowdStrike needs a Next-Gen SIEM licence.
+  configured, and the EDR event search may need an additional licence.
 - An "IP only" match is weak evidence: other traffic from the same IP in the window can match.
 - Most external injectors do not offer LOGGING until they send signatures.
 - One more expectation type in every aggregation and screen, and one more collector flow per product to
