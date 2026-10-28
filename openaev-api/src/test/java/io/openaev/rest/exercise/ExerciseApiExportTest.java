@@ -41,6 +41,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+// The export reads the simulation's workflow in the caller's tenant membership scope, so each test
+// acts as a member of the default tenant, where its simulation lives. The membership is granted on
+// each method, never on the class.
 @Transactional
 @TestInstance(PER_CLASS)
 class ExerciseApiExportTest extends IntegrationTest {
@@ -188,7 +191,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation, the export file is found in zip and correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_the_export_file_is_found_in_zip_and_correct()
       throws Exception {
     Exercise ex = getExercise();
@@ -230,7 +233,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a lessons-enabled simulation, exported lessons flags are present")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_lessons_enabled_simulation_exported_lessons_flags_are_present()
       throws Exception {
     Exercise ex = getExercise();
@@ -260,7 +263,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   @DisplayName(
       "Given a valid simulation and full options, the export file is found in zip and correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void
       given_a_valid_simulation_and_full_options_the_export_file_is_found_in_zip_and_correct()
           throws Exception {
@@ -301,7 +304,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported tags are correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_tags_are_correct()
       throws Exception {
     ObjectMapper objectMapper = mapper.copy();
@@ -337,7 +340,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported objectives are correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_objectives_are_correct()
       throws Exception {
     ObjectMapper objectMapper = mapper.copy();
@@ -364,7 +367,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported challenges are correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_challenges_are_correct()
       throws Exception {
     ObjectMapper objectMapper = mapper.copy();
@@ -391,7 +394,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported articles are correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_articles_are_correct()
       throws Exception {
     ObjectMapper objectMapper = mapper.copy();
@@ -418,7 +421,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported channels are correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_channels_are_correct()
       throws Exception {
     ObjectMapper objectMapper = mapper.copy();
@@ -445,7 +448,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported documents are correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_documents_are_correct()
       throws Exception {
     ObjectMapper objectMapper = mapper.copy();
@@ -472,7 +475,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported exercise info are correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_exercise_info_are_correct()
       throws Exception {
     ObjectMapper objectMapper = mapper.copy();
@@ -499,7 +502,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported variables have no value")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_variables_have_no_value()
       throws Exception {
     ObjectMapper objectMapper = mapper.copy();
@@ -527,7 +530,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   @DisplayName(
       "Given a valid simulation, given isWithVariableValues options, exported variables have values")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void
       given_a_valid_simulation_given_isWithVariableValues_option_exported_variables_have_values()
           throws Exception {
@@ -557,7 +560,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported teams is empty array")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_teams_is_empty_array()
       throws Exception {
     Exercise ex = getExercise();
@@ -577,7 +580,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   @DisplayName(
       "Given a valid simulation, given isWithTeams and NOT isWithPlayers options, exported teams have empty users")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void
       given_a_valid_simulation_given_isWithTeams_and_not_isWithPlayers_options_exported_teams_have_empty_users()
           throws Exception {
@@ -609,7 +612,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported users is absent key")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_users_is_absent_key()
       throws Exception {
     Exercise ex = getExercise();
@@ -629,7 +632,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   @DisplayName(
       "Given a valid simulation, given isWithPlayers and NOT isWithTeams option, exported users are correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void
       given_a_valid_simulation_given_isWithPlayers_and_not_isWithTeams_options_exported_users_are_correct()
           throws Exception {
@@ -660,7 +663,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given a valid simulation and default options, exported organisations is absent key")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_a_valid_simulation_and_default_options_exported_organisations_is_absent_key()
       throws Exception {
     Exercise ex = getExercise();
@@ -680,7 +683,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   @DisplayName(
       "Given a valid simulation, given isWithPlayers option, exported organisations are correct")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void
       given_a_valid_simulation_given_isWithPlayers_option_exported_organisations_are_correct()
           throws Exception {
@@ -710,7 +713,7 @@ class ExerciseApiExportTest extends IntegrationTest {
 
   @DisplayName("Given documents are provided, exported archive contains the documents")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void given_documents_are_provided_exported_archive_contains_the_documents()
       throws Exception {
     Exercise ex = getExercise();
