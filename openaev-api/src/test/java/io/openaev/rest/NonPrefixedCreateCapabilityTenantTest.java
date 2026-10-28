@@ -176,10 +176,13 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
       String tenantB = createTenantWithCreateCapability();
 
       // Act
-      perform(nonPrefixed(create).header(TENANT_IDS_HEADER, tenantB));
+      int status = perform(nonPrefixed(create).header(TENANT_IDS_HEADER, tenantB));
 
       // Assert
-      assertThat(rowTenants(create)).as("the row's tenant").isSubsetOf(tenantB);
+      // The caller must also hold the right in the ambient tenant, the default one on this route.
+      assertAll(
+          () -> assertEquals(HttpStatus.FORBIDDEN.value(), status, "the create is refused"),
+          () -> assertThat(rowTenants(create)).as("the row's tenant").isSubsetOf(tenantB));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -220,8 +223,9 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
     @ParameterizedTest(name = "{0}")
     @EnumSource(Create.class)
     @DisplayName(
-        "On the non-prefixed route with a header naming B, it is written in the ambient tenant")
-    void given_headerNamingOtherTenantWithCreateCapability_should_writeInAmbientTenant(
+        "Known gap until the exercises and scenarios tables are tenant-active: on the non-prefixed"
+            + " route with a header naming B, it is written in the ambient tenant")
+    void given_headerNamingOtherTenant_should_writeInAmbientTenantUntilTablesAreTenantActive(
         Create create) throws Exception {
       // Arrange
       String tenantB = createTenantWithCreateCapabilityInBoth();
@@ -230,8 +234,9 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
       int status = perform(nonPrefixed(create).header(TENANT_IDS_HEADER, tenantB));
 
       // Assert
-      // These creates stamp their row from the ambient tenant, which the non-prefixed route
-      // leaves to the default one whatever the header names.
+      // Known gap, accepted until the exercises and scenarios tables are tenant-active: these
+      // creates stamp their row from the ambient tenant, which the non-prefixed route leaves to the
+      // default one whatever the header names. Activating the tables must flip this to tenant B.
       assertWrittenIn(create, status, DEFAULT_TENANT);
     }
   }
