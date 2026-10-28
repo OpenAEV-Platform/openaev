@@ -12,6 +12,7 @@ import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -120,9 +121,10 @@ public class AccessControlAspect {
     }
 
     // Capabilities and grants resolve through the ambient tenant, which only the
-    // /api/tenants/{tenantId}/ route sets, while the TxCtx also honours the X-Tenant-Ids header.
-    // When the scope pins another tenant, the method may work in either one, so the caller must be
-    // authorized in both.
+    // /api/tenants/{tenantId}/ route sets, while the TxCtx also honours the X-Tenant-Ids header
+    // and, with no selector, holds every tenant the caller belongs to. The method may work in any
+    // tenant of its scope, so the caller must be authorized in each of them as well as in the
+    // ambient one.
     final User user = principal;
     final String resource = resourceId;
     BooleanSupplier permitted =
@@ -135,11 +137,12 @@ public class AccessControlAspect {
                     resource,
                     accessControl.resourceType(),
                     accessControl.actionPerformed());
-    String pinnedTenant = pinnedTenant(args);
     boolean allowed =
         permitted.getAsBoolean()
-            && (pinnedTenant == null
-                || ambientTenantBridge.callInTenant(pinnedTenant, permitted::getAsBoolean));
+            && otherScopeTenants(args).stream()
+                .allMatch(
+                    tenantId ->
+                        ambientTenantBridge.callInTenant(tenantId, permitted::getAsBoolean));
 
     if (!allowed) {
       log.warn(
@@ -155,17 +158,20 @@ public class AccessControlAspect {
   }
 
   /**
-   * The single tenant a {@link TxCtx} argument pins, or {@code null} when there is no such
-   * argument, it pins several tenants or none, or it pins the ambient tenant.
+   * The tenants of a {@link TxCtx.Restricted} argument other than the ambient one. Empty when there
+   * is no such argument: a missing scope reads nothing and an all-tenants scope never comes from a
+   * request, so neither adds a tenant to authorize in.
    */
-  private static String pinnedTenant(Object[] args) {
+  private static List<String> otherScopeTenants(Object[] args) {
+    String ambientTenant = TenantContext.getCurrentTenant();
     for (Object arg : args) {
-      if (arg instanceof TxCtx.Restricted restricted && restricted.tenantIds().size() == 1) {
-        String tenantId = restricted.tenantIds().getFirst();
-        return tenantId.equals(TenantContext.getCurrentTenant()) ? null : tenantId;
+      if (arg instanceof TxCtx.Restricted restricted) {
+        return restricted.tenantIds().stream()
+            .filter(tenantId -> !tenantId.equals(ambientTenant))
+            .toList();
       }
     }
-    return null;
+    return List.of();
   }
 
   public record HttpMappingInfo(

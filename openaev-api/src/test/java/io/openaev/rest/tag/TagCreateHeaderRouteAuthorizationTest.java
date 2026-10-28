@@ -104,9 +104,9 @@ class TagCreateHeaderRouteAuthorizationTest extends IntegrationTest {
       int status = perform(createTag().header(TENANT_IDS_HEADER, DEFAULT_TENANT + "," + tenantB));
 
       // Assert
-      assertAll(
-          () -> assertEquals(HttpStatus.BAD_REQUEST.value(), status, "the create is refused"),
-          () -> assertEquals(List.of(), rowTenants(), "a refused create writes no row"));
+      // The caller lacks the right in B, one of the scope's tenants: refused before the create
+      // resolves a single write tenant.
+      assertRefusedWithoutRow(status);
     }
   }
 
@@ -122,10 +122,13 @@ class TagCreateHeaderRouteAuthorizationTest extends IntegrationTest {
       String tenantB = createInNewTenantReadOnlyInDefault();
 
       // Act
-      perform(createTag().header(TENANT_IDS_HEADER, tenantB));
+      int status = perform(createTag().header(TENANT_IDS_HEADER, tenantB));
 
       // Assert
-      assertThat(rowTenants()).as("the row's tenant").isSubsetOf(tenantB);
+      // The caller must also hold the right in the ambient tenant, the default one on this route.
+      assertAll(
+          () -> assertEquals(HttpStatus.FORBIDDEN.value(), status, "the create is refused"),
+          () -> assertThat(rowTenants()).as("the row's tenant").isSubsetOf(tenantB));
     }
 
     @Test
