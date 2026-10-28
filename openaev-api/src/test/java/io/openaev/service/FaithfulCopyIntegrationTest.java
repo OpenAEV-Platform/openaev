@@ -23,6 +23,7 @@ import io.openaev.database.model.Document;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.MarkingDefinition;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -228,17 +229,7 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
     @DisplayName("given a scenario duplicated by a TLP:GREEN user, should keep the RED target")
     void given_duplicate_should_keepTheRedTarget() throws Exception {
       // -- ARRANGE --
-      String scenario =
-          seedThenMark(
-              () -> {
-                ScenarioComposer.Composer composer =
-                    scenarioComposer
-                        .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
-                        .withInject(injectWithContract());
-                composer.get().setTags(new HashSet<>(Set.of(tagInTenant().get())));
-                composer.get().setDocuments(new ArrayList<>(List.of(documentInTenant())));
-                return composer.persist().get().getId();
-              });
+      String scenario = seedThenMark(() -> taggedScenarioWithDocument().getId());
 
       // -- ACT --
       String response = postFor(TENANT_SCENARIO_URI + "/{id}", scenario);
@@ -295,7 +286,7 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
     @DisplayName("given a scenario launched by a TLP:GREEN user, should keep the RED target")
     void given_launch_should_keepTheRedTarget() throws Exception {
       // -- ARRANGE --
-      String scenario = seedThenMark(() -> scenario().get().getId());
+      String scenario = seedThenMark(() -> taggedScenarioWithDocument().getId());
 
       // -- ACT --
       String response = postFor(TENANT_SCENARIO_URI + "/{id}/exercise/running", scenario);
@@ -305,6 +296,9 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
       assertThat(targetsOfInjects("inject_exercise", simulation))
           .containsExactlyInAnyOrder(green.getId(), red.getId());
       assertThat(response).doesNotContain(red.getId());
+      // The response is serialized after the transaction: what the user sees must be loaded by
+      // then.
+      assertThat(JsonPath.<List<String>>read(response, "$.exercise_tags")).containsExactly(tagId);
     }
   }
 
@@ -453,6 +447,17 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
         .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
         .withInject(injectWithContract())
         .persist();
+  }
+
+  /** A {@link #scenario()} that also carries a tag and a document of the tenant. */
+  private Scenario taggedScenarioWithDocument() {
+    ScenarioComposer.Composer composer =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .withInject(injectWithContract());
+    composer.get().setTags(new HashSet<>(Set.of(tagInTenant().get())));
+    composer.get().setDocuments(new ArrayList<>(List.of(documentInTenant())));
+    return composer.persist().get();
   }
 
   private ExerciseComposer.Composer simulation() {
