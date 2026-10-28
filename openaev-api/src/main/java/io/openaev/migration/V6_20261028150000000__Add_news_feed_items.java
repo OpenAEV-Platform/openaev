@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
  * from ({@code *} when every type is unsubscribed).
  */
 @Component
-public class V6_20261026120000000__Add_news_feed_items extends BaseJavaMigration {
+public class V6_20261028150000000__Add_news_feed_items extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
