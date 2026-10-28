@@ -26,13 +26,21 @@ One place in the code decides it, used by reads, launches and marking assignment
 
 ## Examples
 
-- **Bob**, tenant admin (`BYPASS`) with `TLP:GREEN`: sees GREEN and CLEAR assets, not RED. A launch on a group holding a
-  RED asset skips it.
-- **Carole**, ops in a platform group with `BYPASS`: markings belong to a tenant, so she sees no marked asset until a
-  tenant group gives her some.
-- **The agent** of tenant A: its group gets every new marking of tenant A, at creation, so it keeps reporting on its
-  host even once the host is marked. Nobody can change this group's markings through the API (already the case for
-  system groups).
+Tenant A has four assets: `web-01` (no marking), `db-01` (`TLP:GREEN`), `hr-01` (`TLP:AMBER`), `ceo-laptop` (`TLP:RED`).
+
+| Who | Their markings | `web-01` | `db-01` | `hr-01` | `ceo-laptop` |
+|---|---|:-:|:-:|:-:|:-:|
+| First admin | none needed | ✅ | ✅ | ✅ | ✅ |
+| Bob, tenant admin (`BYPASS`) | `TLP:GREEN` | ✅ | ✅ | ❌ | ❌ |
+| Carole, ops in a platform group with `BYPASS` | none (markings belong to a tenant) | ✅ | ❌ | ❌ | ❌ |
+| Alice, SSO admin in "Administrators" of tenant A | `TLP:RED` (group default) | ✅ | ✅ | ✅ | ✅ |
+| Agent account of tenant A | every marking of tenant A | ✅ | ✅ | ✅ | ✅ |
+
+Today, Bob and Carole see all four. When Bob launches an inject on the four assets, it runs on `web-01` and `db-01` only.
+
+When a new marking is created in tenant A, the agent's group gets it at once, so the agent keeps reporting on its host
+even if the host is marked with it. Nobody can change this group's markings through the API (already the case for
+system groups).
 
 ## SSO admins
 
