@@ -40,7 +40,9 @@ import org.springframework.test.context.DynamicPropertySource;
  * targets and tags of the twin are written empty, and once {@code injectors_contracts} is active
  * the contract check refuses the twin altogether.
  *
- * <p>The tests arm the production list plus {@code injectors_contracts}, seed a tenant of their own
+ * <p>The tests arm the production list plus {@code injectors_contracts} and the seven chaining
+ * tables, so the mirror is checked in the scope it will run in once those tables are active: a twin
+ * read or deleted outside the run's tenant is then not found. They seed a tenant of their own
  * through auto-committed JDBC, and call the service inside a scoped transaction, the shape of the
  * orchestrator callback handler. Not {@code @Transactional}: the mirror's own transaction could not
  * see rows left uncommitted in a test-managed one.
@@ -49,10 +51,22 @@ import org.springframework.test.context.DynamicPropertySource;
 @DisplayName("Autonomous run scenario mirror under the run's tenant scope")
 class AutonomousScenarioMirrorScopeTest extends IntegrationTest {
 
+  private static final List<String> CHAINING_TABLES =
+      List.of(
+          "workflows",
+          "workflow_states",
+          "workflow_scope_rules",
+          "steps",
+          "steps_delay_queue",
+          "scope_variables",
+          "conditions");
+
   @DynamicPropertySource
-  static void productionActiveTablesWithInjectorContracts(DynamicPropertyRegistry registry) {
+  static void productionActiveTablesWithInjectorContractsAndChaining(
+      DynamicPropertyRegistry registry) {
     TreeSet<String> tables = new TreeSet<>(ProductionActiveTables.names());
     tables.add("injectors_contracts");
+    tables.addAll(CHAINING_TABLES);
     registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
   }
 
@@ -279,6 +293,40 @@ class AutonomousScenarioMirrorScopeTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Pruning a step")
+  class Prune {
+
+    @Test
+    @DisplayName("the scenario twin is deleted with the executing step")
+    void given_prunedStep_should_deleteTheTwin() {
+      // Arrange
+      String simStepId = author(input(assetId));
+      String twinId = twinOf(simStepId);
+      assertThat(twinId).isNotBlank();
+
+      // Act
+      tenantTx.execute(
+          TxCtx.forTenant(tenantId),
+          () -> {
+            autonomousRunService.deleteAttackPathStep(runId, simStepId);
+          });
+
+      // Assert - the executing step first, so a failure below is about the twin alone
+      assertThat(stepExists(simStepId)).isFalse();
+      assertThat(stepExists(twinId))
+          .as("the scenario twin must be pruned with the executing step")
+          .isFalse();
+      assertThat(twinOf(simStepId))
+          .as("the run must drop the pruned step from its mirror map")
+          .isNull();
+      assertThat(appender.list)
+          .filteredOn(e -> e.getLevel() == Level.WARN)
+          .filteredOn(e -> e.getFormattedMessage().contains("pruning its scenario mirror twin"))
+          .isEmpty();
+    }
+  }
+
+  @Nested
   @DisplayName("Enabling the members of a targeted team")
   class TeamMembers {
 
@@ -382,6 +430,12 @@ class AutonomousScenarioMirrorScopeTest extends IntegrationTest {
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  private boolean stepExists(String stepId) {
+    return jdbc.queryForObject(
+            "SELECT count(*) FROM steps WHERE step_id = ?", Integer.class, stepId)
+        > 0;
   }
 
   private JsonNode stepData(String stepId) throws Exception {
