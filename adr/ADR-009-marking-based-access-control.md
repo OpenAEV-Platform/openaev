@@ -134,7 +134,8 @@ markings; over-clearance direct `GET` returns **404** not 403, because a 403 lea
 assign a marking they do not hold) are recorded with their reasoning in
 [`tech-design-option-c.md` §6](../brainstorming/marking/task3/tech-design-option-c.md).
 
-Markings come first, capabilities second: only the first admin (created at install) ignores markings.
+Markings come first, capabilities second: among users, only the first admin (created at install) ignores
+markings; background jobs run without a user and see all.
 `BYPASS` and `user_admin` do not. The agent and OpenCTI accounts see all assets of their own tenant because
 their group is given every marking of that tenant. See [`bypass-and-sso.md`](../brainstorming/marking/task4/bypass-and-sso.md).
 
