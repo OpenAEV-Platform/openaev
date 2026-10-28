@@ -233,11 +233,12 @@ public class V1_DataImporter implements Importer {
       String suffix) {
     // Resolve the write tenant once. A bundle imported into an existing simulation or scenario is
     // written in the tenant of that parent, which must lie inside the request scope; a bundle with
-    // no parent takes the single tenant of the scope. Documents, tags, challenges, channels and the
-    // imported exercise or scenario are attributed to it explicitly; the roots that are not
-    // tenant-active yet (injects, teams, payloads) are still stamped from the ambient tenant and
-    // matched against existing rows through it. Running the whole import with the ambient tenant
-    // aligned on the write tenant keeps the bundle in one tenant on every route.
+    // no parent takes the single tenant of the scope. Documents, tags, teams, challenges, channels
+    // and the imported exercise or scenario are attributed to it explicitly. Injects and injector
+    // contracts, whose tables are not tenant-active yet, are still stamped from the ambient tenant
+    // and matched against existing rows through it, and a few rows (domains among them) are
+    // attributed from the ambient tenant by the importer itself. Running the whole import with the
+    // ambient tenant aligned on the write tenant keeps the bundle in one tenant on every route.
     String writeTenant =
         tenantWriteScopeResolver.tenantForWrite(ctx, parentTenantId(exercise, scenario));
     // The nested importers resolve the tenant of the rows they create (tags, challenges, channels,
