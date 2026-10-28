@@ -121,13 +121,17 @@ public class AccessControlAspect {
           "Access denied for user " + SessionHelper.currentUser().getId()) {};
     }
 
-    // The method may work in any tenant of its TxCtx scope, which the X-Tenant-Ids header names on
-    // the non-prefixed route and which, with no selector, holds every tenant the caller belongs to,
-    // while the ambient tenant is set only by the /api/tenants/{tenantId}/ route. So the caller
-    // must be authorized in the ambient tenant and in each other tenant of the scope. In each
-    // tenant, the check reads the capabilities and the tenant bypass the caller holds there. A
-    // grant is not tied to a tenant by its lookup, so it answers the same in every tenant. The
-    // resource's parent is resolved once, in the ambient tenant, and never again per tenant.
+    // The method may work in any tenant of its TxCtx scope, not only in the ambient one. The
+    // ambient tenant is set by the /api/tenants/{tenantId}/ route and, for an XTM One callback, by
+    // OrchestratorRunTenantInterceptor to the run's tenant; elsewhere it falls back to the default
+    // tenant. On the non-prefixed route the scope holds the tenants the X-Tenant-Ids header names
+    // and, with no selector, every tenant the caller belongs to, except that a
+    // @RequireTenantSelector parameter then narrows a multi-tenant caller to the default tenant.
+    // So the caller must be authorized in the ambient tenant and in each other tenant of the
+    // scope. In each tenant, the check reads the capabilities and the tenant bypass the caller
+    // holds there. A grant is not tied to a tenant by its lookup, so it answers the same in every
+    // tenant. The resource's parent is resolved once, in the ambient tenant, and never again per
+    // tenant.
     final User user = principal;
     String ambientTenant = TenantContext.getCurrentTenant();
     PermissionService.CheckedResource resource =
