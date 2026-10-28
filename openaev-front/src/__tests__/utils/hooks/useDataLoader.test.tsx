@@ -88,6 +88,34 @@ describe('useDataLoader', () => {
       expect(dispatch.mock.calls[0][0].type).toBe(DATA_UPDATE_SUCCESS);
     });
 
+    it('given_aRegistrationWithoutLoader_should_stillFeedTheStore', () => {
+      // Arrange: a layout with no data of its own (the private one) only registers
+      renderHook(() => useDataLoader());
+      client.startStream();
+      FakeEventSource.last.emit('open');
+
+      // Act
+      FakeEventSource.last.emit('message', tagMessage());
+      vi.advanceTimersByTime(200);
+
+      // Assert
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(dispatch.mock.calls[0][0].type).toBe(DATA_UPDATE_SUCCESS);
+    });
+
+    it('given_noRegistration_should_notFeedTheStore', () => {
+      // Arrange
+      client.startStream();
+      FakeEventSource.last.emit('open');
+
+      // Act
+      FakeEventSource.last.emit('message', tagMessage());
+      vi.advanceTimersByTime(200);
+
+      // Assert
+      expect(dispatch).not.toHaveBeenCalled();
+    });
+
     it('given_noLoaderMounted_should_feedEntityChangeHandlersWithoutTouchingTheStore', () => {
       // Arrange
       const changes = vi.fn();
