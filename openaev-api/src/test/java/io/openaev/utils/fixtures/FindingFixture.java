@@ -52,6 +52,12 @@ public class FindingFixture {
     return finding;
   }
 
+  public static Finding createCredentialsFinding(String value) {
+    Finding finding = createDefaultFindingCredentials();
+    finding.setValue(value);
+    return finding;
+  }
+
   public static Finding createDefaultFindingCredentials() {
     Finding finding = new Finding();
     finding.setType(ContractOutputType.Credentials);

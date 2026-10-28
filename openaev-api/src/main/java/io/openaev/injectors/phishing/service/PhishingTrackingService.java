@@ -56,12 +56,14 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Expectation polarity is inverted for phishing.</b> A phishing expectation measures whether
  * the recipient RESISTED a step (opening the lure, following the link, submitting data). Resisting
  * is the desired outcome, so each of the three step expectations is pre-scored to its full expected
- * score at send time - GREEN / "resisted" - by {@link #initializeExpectationsAsResisted(String)}.
- * The matching transition then flips the step to a zero score - RED / "fell for it" - the moment
- * the recipient performs it. Because a pre-scored row is no longer {@code score IS NULL}, the
- * generic expiration collector never touches these rows: a recipient who never interacts simply
- * keeps the green "resisted" verdict for good, which is exactly the intended "expired means
- * success" semantics without a bespoke expiration branch.
+ * score at send time - GREEN / "resisted" - by {@link
+ * io.openaev.service.expectation.PhishingBehavior}, which gives each step a default "no
+ * interaction" result when the expectations are created. The matching transition then flips the
+ * step to a zero score - RED / "fell for it" - the moment the recipient performs it. Because a
+ * pre-scored row is no longer {@code score IS NULL}, the generic expiration collector never touches
+ * these rows: a recipient who never interacts simply keeps the green "resisted" verdict for good,
+ * which is exactly the intended "expired means success" semantics without a bespoke expiration
+ * branch.
  *
  * <p><b>Automated probes never score.</b> Mail security gateways detonate every URL and pre-fetch
  * remote images right at delivery (Microsoft Defender Safe Links being the canonical case), so

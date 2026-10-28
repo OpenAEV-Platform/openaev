@@ -198,7 +198,6 @@ public class AuditLogger {
       String resourceId,
       JsonNode input,
       JsonNode output,
-      JsonNode signatureNode,
       Map<String, AuditLogContext.EntitySnapshot> snapshots) {
 
     if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
@@ -212,7 +211,6 @@ public class AuditLogger {
               Map<String, Object> ctx = new LinkedHashMap<>();
               ctx.put("input", input != null ? input : NullNode.getInstance());
               ctx.put("output", output != null ? output : NullNode.getInstance());
-              ctx.put("signature", signatureNode != null ? signatureNode : NullNode.getInstance());
 
               AuditEvent event =
                   AuditEvent.builder()

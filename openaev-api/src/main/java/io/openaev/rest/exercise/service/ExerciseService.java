@@ -1318,9 +1318,16 @@ public class ExerciseService {
    * exists in committed state (the callback path); creation flows must keep using {@link
    * #enableTargetedTeamMembers}, which joins the surrounding transaction and therefore sees a
    * simulation created in it. See {@code AutonomousRunService#setRunScope}.
+   *
+   * <p>The {@code ctx} argument is load-bearing even though this body never reads it: {@code
+   * REQUIRES_NEW} suspends the caller's transaction, so the caller's scope does not travel with it.
+   * The tenant aspect sets the new transaction's scope from this parameter. Without it the team
+   * lookup on the tenant-active {@code teams} table returns nothing and the team is skipped, so its
+   * players are never enabled.
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-  public void enableTargetedTeamMembersIsolated(String simulationId, List<String> teamIds) {
+  public void enableTargetedTeamMembersIsolated(
+      TxCtx ctx, String simulationId, List<String> teamIds) {
     this.exerciseTeamUserService.enableTargetedTeamMembers(simulationId, teamIds);
   }
 

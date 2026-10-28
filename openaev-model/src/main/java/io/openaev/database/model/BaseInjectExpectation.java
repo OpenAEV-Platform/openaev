@@ -53,6 +53,22 @@ public class BaseInjectExpectation implements Base, Cloneable {
     }
   }
 
+  /**
+   * Creates a detached copy of this expectation for a read-only view.
+   *
+   * <p>Unlike {@link #clone()}, which seeds new rows from a template and therefore drops the id,
+   * the copy keeps the id: the client acts on the real row through it. Its results list is its own,
+   * so the view can be enriched without dirtying the managed entity. Never persist it: saving it
+   * would overwrite the original row and, through orphan removal, delete its results.
+   *
+   * @return a detached copy carrying the id of this expectation
+   */
+  public BaseInjectExpectation copyForDisplay() {
+    BaseInjectExpectation copy = this.clone();
+    copy.setId(this.getId());
+    return copy;
+  }
+
   private void replaceResultsCollection() {
     this.results = new ArrayList<>();
   }

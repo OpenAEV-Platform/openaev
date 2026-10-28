@@ -62,6 +62,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
@@ -121,6 +122,7 @@ public class InjectService {
   // never through HttpMarkingScopeSupplier, which folds in the unrelated AGENT_RUNTIME_ACCESS
   // agent-callback bypass.
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final PreviewFeatureService previewFeatureService;
   private final AiTargetRepository aiTargetRepository;
   private final CollectorService collectorService;
   private final EnterpriseEditionService enterpriseEditionService;
@@ -522,10 +524,19 @@ public class InjectService {
    */
   private List<AssetToExecute> filterByMarkingClearance(
       Inject inject, List<AssetToExecute> assetToExecutes) {
-    MarkingCtx clearance = resolveLaunchedByClearance(inject);
+    java.util.function.Predicate<Asset> launchable = launchableUnderClearance(inject);
     return assetToExecutes.stream()
-        .filter(assetToExecute -> isVisibleUnderClearance(assetToExecute.asset(), clearance))
+        .filter(assetToExecute -> launchable.test(assetToExecute.asset()))
         .toList();
+  }
+
+  /** Resolve feature flag MARKING */
+  private java.util.function.Predicate<Asset> launchableUnderClearance(Inject inject) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
+      return asset -> true;
+    }
+    MarkingCtx clearance = resolveLaunchedByClearance(inject);
+    return asset -> isVisibleUnderClearance(asset, clearance);
   }
 
   /**
@@ -545,16 +556,18 @@ public class InjectService {
    * implemented once, not reinvented per call site.
    */
   private MarkingCtx resolveLaunchedByClearance(Inject inject) {
-    User launchedBy =
-        inject.getExercise() != null
-            ? inject.getExercise().getLaunchedBy()
-            : inject.getLaunchedBy();
-    if (launchedBy == null) {
+    // The dispatch may hold an inject loaded in another session, always load user by its id, do
+    // not rely on User associated to Inject by lazy loading association.
+    Optional<User> launchedBy =
+        injectRepository
+            .findLauncherId(inject.getId())
+            .flatMap(launcherId -> userService.find(List.of(launcherId)).stream().findFirst());
+    if (launchedBy.isEmpty()) {
       return MarkingCtx.none();
     }
-    boolean bypass = launchedBy.isAdminOrBypass();
+    User launcher = launchedBy.get();
     return markingClearanceCacheManager.findClearance(
-        launchedBy.getId(), inject.getTenant().getId(), bypass);
+        launcher.getId(), inject.getTenant().getId(), launcher.isAdminOrBypass());
   }
 
   /**
@@ -1192,19 +1205,23 @@ public class InjectService {
    * separate, independent resolution of the same inject's targets).
    */
   public AgentsAndAssetsAgentless getAgentsAndAgentlessAssetsByInject(Inject inject) {
+    return agentsAndAgentlessAssets(inject, launchableUnderClearance(inject));
+  }
+
+  private AgentsAndAssetsAgentless agentsAndAgentlessAssets(
+      Inject inject, java.util.function.Predicate<Asset> launchable) {
     Set<Agent> agents = new HashSet<>();
     Set<Asset> assetsAgentless = new HashSet<>();
-    MarkingCtx clearance = resolveLaunchedByClearance(inject);
 
     for (Asset asset : inject.getAssets()) {
-      if (isVisibleUnderClearance(asset, clearance)) {
+      if (launchable.test(asset)) {
         extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
       }
     }
 
     for (AssetGroup assetGroup : inject.getAssetGroups()) {
       for (Asset asset : assetGroupService.assetsFromAssetGroup(assetGroup.getId())) {
-        if (isVisibleUnderClearance(asset, clearance)) {
+        if (launchable.test(asset)) {
           extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
         }
       }
@@ -1619,9 +1636,11 @@ public class InjectService {
             imapService.isServiceAvailable(),
             HealthCheck.Type.IMAP,
             HealthCheck.Status.WARNING));
+    // Every target, not only those a launch would execute: a health check describes the inject's
+    // configuration, before any launch, so there is no launcher whose clearance would apply.
     healthChecks.addAll(
         healthCheckUtils.runExecutorChecks(
-            inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
+            inject, agentsAndAgentlessAssets(inject, asset -> true)));
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));

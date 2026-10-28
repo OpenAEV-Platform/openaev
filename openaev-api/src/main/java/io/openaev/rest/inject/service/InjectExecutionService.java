@@ -1,7 +1,5 @@
 package io.openaev.rest.inject.service;
 
-import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
-
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.WorkflowUpdateEvent;
@@ -119,22 +117,26 @@ public class InjectExecutionService {
           e);
     }
 
-    injectStatusService.updateInjectStatus(inject, agent, input, resolvedStructured);
-    addEndDateInjectExpectationTimeSignatureIfNeeded(inject, agent, input);
+    ExecutionTrace trace =
+        injectStatusService.updateInjectStatus(inject, agent, input, resolvedStructured);
+    addEndDateInjectExpectationTimeSignatureIfNeeded(inject, agent, input, trace);
   }
 
   /**
-   * Adds an end date signature to inject expectations if the action is COMPLETE.
+   * Adds an end date signature to inject expectations if the stored trace is a COMPLETE.
+   *
+   * <p>The stored trace is checked, not the reported action: a late COMPLETE (received once the
+   * agent or the inject is already closed) is stored as an EXECUTION and must not add an end date.
    *
    * @param inject the inject for which to add the end date signature
    * @param agent the agent for which to add the end date signature
-   * @param input the input containing the action and duration
+   * @param input the input containing the duration
+   * @param trace the trace stored for this callback
    */
   @VisibleForTesting
   public void addEndDateInjectExpectationTimeSignatureIfNeeded(
-      Inject inject, Agent agent, InjectExecutionInput input) {
-    if (agent != null
-        && ExecutionTraceAction.COMPLETE.equals(convertExecutionAction(input.getAction()))) {
+      Inject inject, Agent agent, InjectExecutionInput input, ExecutionTrace trace) {
+    if (agent != null && ExecutionTraceAction.COMPLETE.equals(trace.getAction())) {
       InjectStatus injectStatus = inject.getStatus().orElseThrow();
       Instant endDate =
           injectStatusService.getExecutionTimeFromStartTraceTimeAndDurationByAgentId(

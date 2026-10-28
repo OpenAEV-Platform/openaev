@@ -74,7 +74,7 @@ const Endpoints = () => {
   // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
   // either gate is closed so the platform issues no marking-definitions request at all.
   const markingDefinitions = useMarkingDefinitions({
-    skip: !canAccessMarkings,
+    skip: !markingEnabled,
     assignableOnly: true,
   });
 
@@ -233,7 +233,7 @@ const Endpoints = () => {
     },
     // Rendered only when MARKING is enabled and the user can access marking definitions — with
     // either gate closed, the list must look exactly as it did before this column was added.
-    ...(canAccessMarkings
+    ...(markingEnabled
       ? [{
           field: 'asset_markings',
           label: 'Markings',

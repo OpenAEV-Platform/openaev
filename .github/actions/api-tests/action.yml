@@ -24,7 +24,7 @@ inputs:
     description: Shard display name
     required: true
   search-engine:
-    description: "Search engine type: elasticsearch or opensearch"
+    description: "Search engine: elasticsearch, elasticsearch8 or opensearch (see start-dev-services)"
     required: false
     default: "elasticsearch"
   search-engine-image:

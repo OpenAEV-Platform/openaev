@@ -8,10 +8,14 @@
 #
 # Lines starting with # and blank lines are ignored.
 
-# BENIGN - eager init of the nullable Exercise.securityCoverage association (null under empty scope;
-# tenant is taken from the simulation, coverage is re-read under scope where it matters).
+# SCOPED-OK - SecurityCoverageJob reads the pending send jobs under TxCtx.allTenants() and loads,
+# bundles and consumes each one under TxCtx.forTenant of its simulation's tenant; a test that calls
+# these methods directly reads with no scope.
 io.openaev.service.SecurityCoverageSendJobService.getPendingSecurityCoverageSendJobs
 io.openaev.service.SecurityCoverageSendJobService.consumeJobs
+
+# BENIGN - eager init of the nullable Exercise.securityCoverage association (null under empty scope;
+# tenant is taken from the simulation, coverage is re-read under scope where it matters).
 io.openaev.database.model.Exercise.getInjects
 
 # SCOPED-OK - production path wraps the read in a scope; the test invokes the method directly.

@@ -242,6 +242,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.service.expectation.ChallengeBehavior;
+import io.openaev.service.finding.FindingValueDisplayBackfill;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.service.notification.NotificationService;
@@ -1470,7 +1471,10 @@ class TenantActiveTableAccessArchTest {
               FindingHandler.class,
               VulnerableEndpointHandler.class,
               // Telemetry gauge, explicitly TxCtx.allTenants() (ProductInventoryTenantScopeTest).
-              ProductInventoryMetricCollector.class)
+              ProductInventoryMetricCollector.class,
+              // One pass after an upgrade over every tenant's findings, each batch in
+              // TxCtx.allTenants() (FindingValueDisplayBackfillTest).
+              FindingValueDisplayBackfill.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(FindingRepository.class)
@@ -2250,7 +2254,8 @@ class TenantActiveTableAccessArchTest {
               // fail-closed on an empty one:
               io.openaev.service.TeamService.class,
               // Services behind the entrypoints above; their team reads run in the scoped
-              // transaction the entrypoint opened:
+              // transaction the entrypoint opened, except ExerciseService's isolated team
+              // enablement, which opens its own and is scoped by the TxCtx its caller passes:
               io.openaev.rest.exercise.service.ExerciseService.class,
               io.openaev.rest.finding.FindingService.class,
               io.openaev.rest.inject.service.InjectService.class,

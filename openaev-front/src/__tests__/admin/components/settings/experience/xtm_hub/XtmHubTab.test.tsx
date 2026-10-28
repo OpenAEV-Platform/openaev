@@ -9,7 +9,7 @@ import XtmHubTab from '../../../../../../admin/components/settings/experience/xt
 import { XTM_HUB_AUTO_REGISTER_QUERY_PARAM } from '../../../../../../admin/components/xtm_hub/XtmHubRedirect';
 import { type PlatformSettings, type TenantOutput, type User } from '../../../../../../utils/api-types';
 import type * as EnvironmentModule from '../../../../../../utils/Environment';
-import { isDemoInstance, XTM_HUB_DEFAULT_URL } from '../../../../../../utils/Environment';
+import { XTM_HUB_DEFAULT_URL } from '../../../../../../utils/Environment';
 import { UserContext, type UserContextType } from '../../../../../../utils/hooks/useAuth';
 import type * as UrlHelperModule from '../../../../../../utils/url-helper';
 
@@ -54,7 +54,6 @@ vi.mock('../../../../../../utils/Environment', async (importOriginal) => {
   const original = await importOriginal<typeof EnvironmentModule>();
   return {
     ...original,
-    isDemoInstance: vi.fn(() => false),
     MESSAGING$: {
       ...original.MESSAGING$,
       notifySuccess: mockNotifySuccess,
@@ -216,8 +215,6 @@ describe('XtmHubTab', () => {
     vi.clearAllMocks();
     // Restore default mock implementations after each test
     mockGetCurrentTenantId.mockImplementation(() => 'tenant-abc');
-    // Ensure the demo mode mock is reset between tests
-    vi.mocked(isDemoInstance).mockReturnValue(false);
   });
 
   // ── 1. Rendering ──────────────────────────────────────────────────────────
@@ -232,12 +229,6 @@ describe('XtmHubTab', () => {
       renderXtmHubTab({ registrationStatus: 'REGISTERED' });
       expect(screen.queryByText('Connect to XTM Hub')).toBeNull();
       expect(screen.getByTestId('trigger-button')).toBeDefined();
-    });
-
-    it('renders nothing when in demo mode', () => {
-      vi.mocked(isDemoInstance).mockReturnValue(true);
-      const { container } = renderXtmHubTab();
-      expect(container.firstChild).toBeNull();
     });
 
     it('does not crash when renderTrigger is omitted', () => {
@@ -525,21 +516,6 @@ describe('XtmHubTab', () => {
         { replace: true },
       ));
       expect(screen.queryByText('Authorize connection')).toBeNull();
-    });
-
-    it('clears auto-register query params in demo mode', async () => {
-      vi.mocked(isDemoInstance).mockReturnValue(true);
-      const autoRegisterRoute = `/admin/settings/experience?${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true`;
-      const { container } = renderXtmHubTab({ route: autoRegisterRoute });
-
-      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(
-        {
-          pathname: '/admin/settings/experience',
-          search: '',
-        },
-        { replace: true },
-      ));
-      expect(container.firstChild).toBeNull();
     });
   });
 });
