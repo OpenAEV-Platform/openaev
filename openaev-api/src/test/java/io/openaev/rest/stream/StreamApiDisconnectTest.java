@@ -98,6 +98,26 @@ class StreamApiDisconnectTest extends IntegrationTest {
       // Assert
       assertThat(consumers()).doesNotContainKey(sessionId);
     }
+
+    @Test
+    @DisplayName("Closing an old stream keeps the newer consumer of the same session")
+    void given_reconnectOnSameSession_should_keepNewerConsumer() {
+      // Arrange
+      String sessionId = "reconnect-" + System.nanoTime();
+      Disposable oldStream = streamService.makeDataFlux(sessionId).subscribe();
+      Object oldConsumer = consumers().get(sessionId);
+      Disposable newStream = streamService.makeDataFlux(sessionId).subscribe();
+      Object newConsumer = consumers().get(sessionId);
+      assertThat(newConsumer).isNotSameAs(oldConsumer);
+
+      // Act
+      oldStream.dispose();
+
+      // Assert
+      assertThat(consumers().get(sessionId)).isSameAs(newConsumer);
+      newStream.dispose();
+      assertThat(consumers()).doesNotContainKey(sessionId);
+    }
   }
 
   @Nested
@@ -110,6 +130,8 @@ class StreamApiDisconnectTest extends IntegrationTest {
       // Arrange
       int before = consumers().size();
       try (Socket socket = new Socket("localhost", port)) {
+        // Bounds the reads below if the server keeps the connection open without sending.
+        socket.setSoTimeout((int) CLEANUP_TIMEOUT.toMillis());
         OutputStream out = socket.getOutputStream();
         out.write(
             ("GET "
