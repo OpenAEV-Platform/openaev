@@ -220,7 +220,6 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     Assertions.assertEquals(expected.getSubtitle(), imported.getSubtitle());
     Assertions.assertEquals(expected.getHeader(), imported.getHeader());
     Assertions.assertEquals(expected.getFooter(), imported.getFooter());
-    Assertions.assertEquals(expected.getFrom(), imported.getFrom());
 
     Assertions.assertNotEquals(expected.getId(), imported.getId());
   }

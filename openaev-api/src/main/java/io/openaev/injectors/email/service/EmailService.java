@@ -325,7 +325,7 @@ public class EmailService {
   }
 
   private void sendEmailWithRetry(Execution execution, MimeMessage mimeMessage)
-      throws InterruptedException {
+      throws InterruptedException, MessagingException {
     for (int i = 0; i < 3; i++) {
       try {
         this.smtpService.send(mimeMessage);
@@ -333,10 +333,14 @@ public class EmailService {
       } catch (Exception e) {
         execution.addTrace(
             getNewInfoTrace(
-                "Failed to send mail" + e.getMessage(), ExecutionTraceAction.EXECUTION));
+                "Failed to send mail: " + e.getMessage(), ExecutionTraceAction.EXECUTION));
         Thread.sleep(2000);
       }
     }
-    throw new InterruptedException("Failed to send mail after 3 attempts");
+    throw new InterruptedException(
+        "Failed to send mail from "
+            + InternetAddress.toString(mimeMessage.getFrom())
+            + " after 3 attempts. Check that the mail server accepts this sender in the"
+            + " platform mail settings.");
   }
 }

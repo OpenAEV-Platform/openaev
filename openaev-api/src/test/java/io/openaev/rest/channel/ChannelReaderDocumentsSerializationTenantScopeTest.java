@@ -325,8 +325,7 @@ class ChannelReaderDocumentsSerializationTenantScopeTest extends IntegrationTest
   private String seedExercise(String tenantId) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, tenant_id)"
-            + " VALUES (?, ?, 'noreply@openaev.io', ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, tenant_id) VALUES (?, ?, ?)",
         id,
         "channel-reader-" + id,
         tenantId);
@@ -337,8 +336,7 @@ class ChannelReaderDocumentsSerializationTenantScopeTest extends IntegrationTest
   private String seedScenario(String tenantId) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-            + " VALUES (?, ?, 'noreply@openaev.io', ?)",
+        "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id) VALUES (?, ?, ?)",
         id,
         "channel-reader-" + id,
         tenantId);

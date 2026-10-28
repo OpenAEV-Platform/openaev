@@ -26,7 +26,6 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.NamedEntityGraph;
 import jakarta.persistence.NamedEntityGraphs;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -304,12 +303,6 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_message_footer")
   private String footer = "SIMULATION FOOTER";
 
-  @Column(name = "scenario_mail_from")
-  @JsonProperty("scenario_mail_from")
-  @Email
-  @NotBlank
-  private String from;
-
   @Getter(NONE)
   @Pattern(regexp = FROM_NAME_PATTERN, message = FROM_NAME_PATTERN_MESSAGE)
   @Size(max = FROM_NAME_MAX_LENGTH, message = FROM_NAME_SIZE_MESSAGE)
@@ -318,7 +311,7 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   private String fromName;
 
   public String getFromName() {
-    return resolveFromName(fromName, from);
+    return resolveFromName(fromName, null);
   }
 
   @ElementCollection(fetch = FetchType.EAGER)

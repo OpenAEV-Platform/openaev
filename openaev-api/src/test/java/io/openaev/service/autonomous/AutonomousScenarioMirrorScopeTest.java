@@ -111,14 +111,13 @@ class AutonomousScenarioMirrorScopeTest extends IntegrationTest {
         "autonomous-mirror-" + tagId,
         tenantId);
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_status,"
-            + " tenant_id) VALUES (?, 'autonomous-mirror', 'mirror@openaev.invalid',"
-            + " 'RUNNING', ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+            + " tenant_id) VALUES (?, 'autonomous-mirror', 'RUNNING', ?)",
         exerciseId,
         tenantId);
     jdbc.update(
-        "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-            + " VALUES (?, 'autonomous-mirror', 'mirror@openaev.invalid', ?)",
+        "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+            + " VALUES (?, 'autonomous-mirror', ?)",
         scenarioId,
         tenantId);
     seedTemplate("workflow_simulation_id", exerciseId);

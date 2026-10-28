@@ -20,10 +20,12 @@ import io.openaev.rest.exception.ChainingOperationNotSupportedException;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springdoc.api.ErrorMessage;
@@ -35,6 +37,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
@@ -91,6 +94,41 @@ class RestBehaviorTest {
                     "wrapped by the persistence layer", new TenantFilteringException("refused")));
 
     assertEquals("handleTenantFilteringException", resolved.getName());
+  }
+
+  static Stream<Exception> timeouts() {
+    return Stream.of(
+        new TransactionTimedOutException("deadline reached"),
+        new org.hibernate.TransactionException("transaction timeout expired"),
+        new org.hibernate.QueryTimeoutException("canceling statement", null, "select 1"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("timeouts")
+  @DisplayName("a wrapped timeout still selects the timeout handler")
+  void given_wrappedTimeout_should_resolveTimeoutHandler(Exception timeout) {
+    // GIVEN
+    RuntimeException wrapped = new RuntimeException("wrapped by the persistence layer", timeout);
+
+    // WHEN
+    Method resolved =
+        new ExceptionHandlerMethodResolver(RestBehavior.class).resolveMethodByThrowable(wrapped);
+
+    // THEN
+    assertEquals("handleTransactionTimeout", resolved.getName());
+  }
+
+  @Test
+  @DisplayName("a timeout returns 504")
+  void given_timeout_should_return504() {
+    // GIVEN
+    TransactionTimedOutException timeout = new TransactionTimedOutException("deadline reached");
+
+    // WHEN
+    ResponseEntity<ErrorMessage> response = new RestBehavior().handleTransactionTimeout(timeout);
+
+    // THEN
+    assertEquals(HttpStatus.GATEWAY_TIMEOUT, response.getStatusCode());
   }
 
   @Nested

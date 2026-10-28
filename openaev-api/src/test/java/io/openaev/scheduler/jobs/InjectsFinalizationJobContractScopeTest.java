@@ -110,11 +110,10 @@ class InjectsFinalizationJobContractScopeTest extends IntegrationTest {
   private String seedRunningExercise() {
     String exerciseId = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_status,"
-            + " exercise_start_date, tenant_id) VALUES (?, ?, ?, 'RUNNING', ?, ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+            + " exercise_start_date, tenant_id) VALUES (?, ?, 'RUNNING', ?, ?)",
         exerciseId,
         "finalization-contract-scope",
-        "finalization@openaev.invalid",
         Timestamp.from(Instant.now().minus(1, ChronoUnit.HOURS)),
         tenantId);
     return exerciseId;

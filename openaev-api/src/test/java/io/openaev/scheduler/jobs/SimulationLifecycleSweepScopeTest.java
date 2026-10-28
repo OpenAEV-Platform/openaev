@@ -157,8 +157,8 @@ class SimulationLifecycleSweepScopeTest extends IntegrationTest {
   private String seedExercise(String tenantId, String status, String startOffset) {
     String exerciseId = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_status,"
-            + " exercise_start_date, tenant_id) VALUES (?, ?, 'sim@openaev.io', ?,"
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+            + " exercise_start_date, tenant_id) VALUES (?, ?, ?,"
             + " now() + CAST(? AS interval), ?)",
         exerciseId,
         "lifecycle simulation " + exerciseId,
@@ -563,9 +563,9 @@ class SimulationLifecycleSweepScopeTest extends IntegrationTest {
       // -- Arrange --
       String scenarioId = UUID.randomUUID().toString();
       jdbc.update(
-          "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from,"
+          "INSERT INTO scenarios (scenario_id, scenario_name,"
               + " scenario_recurrence, scenario_recurrence_start, scenario_recurrence_end,"
-              + " tenant_id) VALUES (?, 'recurring scenario', 'sim@openaev.io', '0 0 8 * * *',"
+              + " tenant_id) VALUES (?, 'recurring scenario', '0 0 8 * * *',"
               + " now() - interval '10 days', now() - interval '1 day', ?)",
           scenarioId,
           seedTenant());
