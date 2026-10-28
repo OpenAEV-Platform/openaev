@@ -40,9 +40,18 @@ import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.event.service.spi.EventListenerRegistry;
+import org.hibernate.event.spi.EventType;
+import org.hibernate.event.spi.PersistContext;
+import org.hibernate.event.spi.PersistEvent;
+import org.hibernate.event.spi.PersistEventListener;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -65,9 +74,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  * <p>Both tables are armed for this class only. The class is deliberately NOT
  * {@code @Transactional}: each path runs in its own committed transaction under tenant A's v2
  * scope, as its production callers do, and the row's tenant is read back through auto-committed
- * JDBC, which the statement inspector never rewrites. Where the path takes its parent as an
- * argument, the ambient {@link TenantContext} is pointed at a third tenant, so only the parent can
- * attribute the row.
+ * JDBC, which the statement inspector never rewrites.
+ *
+ * <p>Reading the stored tenant is not enough while the listener is registered: wherever the ambient
+ * tenant already equals the expected one, the listener would store the same value. So every test
+ * also asserts the tenant the row carried when it was handed to the session to persist, which is
+ * before the listener runs: only an explicit attribution by the caller can set it there.
  */
 @TestPropertySource(properties = "openaev.tenant.active-tables=exercises,scenarios")
 @WithMockUser(isAdmin = true)
@@ -107,6 +119,9 @@ class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {
     tenantA = tenantHelper.createTenantWithCurrentUser("create-attr-a").getId();
     tenantThird = tenantHelper.createTenantWithCurrentUser("create-attr-third").getId();
     TenantContext.clearCurrentTenant();
+    TenantAtPersistRecorder.registerOnce(
+        entityManager.getEntityManagerFactory().unwrap(SessionFactoryImplementor.class));
+    TenantAtPersistRecorder.clear();
   }
 
   @AfterEach
@@ -153,6 +168,9 @@ class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {
       assertThat(exerciseTenant(simulation.getId()))
           .as("the simulation belongs to its scenario's tenant, not to the ambient one")
           .isEqualTo(tenantA);
+      assertThat(TenantAtPersistRecorder.simulations())
+          .as("the launch sets the simulation's tenant itself")
+          .containsEntry(simulation.getName(), tenantA);
     }
 
     @Test
@@ -204,6 +222,9 @@ class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {
       assertThat(exerciseTenant(duplicate.getId()))
           .as("the duplicate belongs to its source's tenant")
           .isEqualTo(tenantA);
+      assertThat(TenantAtPersistRecorder.simulations())
+          .as("the duplicate sets its tenant itself")
+          .containsEntry(duplicate.getName(), tenantA);
     }
   }
 
@@ -245,6 +266,9 @@ class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {
                   exportedName + IMPORTED_OBJECT_NAME_SUFFIX))
           .as("the imported simulation belongs to the import's write tenant")
           .containsExactly(tenantA);
+      assertThat(TenantAtPersistRecorder.simulations())
+          .as("the import sets the simulation's tenant itself")
+          .containsEntry(exportedName + IMPORTED_OBJECT_NAME_SUFFIX, tenantA);
     }
 
     @Test
@@ -280,6 +304,9 @@ class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {
                   exportedName + IMPORTED_OBJECT_NAME_SUFFIX))
           .as("the imported scenario belongs to the import's write tenant")
           .containsExactly(tenantA);
+      assertThat(TenantAtPersistRecorder.scenarios())
+          .as("the import sets the scenario's tenant itself")
+          .containsEntry(exportedName + IMPORTED_OBJECT_NAME_SUFFIX, tenantA);
     }
 
     private void importUnderTenantA(byte[] zip) {
@@ -333,6 +360,9 @@ class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {
       assertThat(scenarioTenant(scenario.getId()))
           .as("the scenario belongs to its coverage's tenant")
           .isEqualTo(tenantA);
+      assertThat(TenantAtPersistRecorder.scenarios())
+          .as("the coverage sets the scenario's tenant itself")
+          .containsEntry(scenario.getName(), tenantA);
     }
   }
 
@@ -364,6 +394,14 @@ class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {
       assertThat(exerciseTenant(run.getSimulationId()))
           .as("the run's simulation belongs to its scenario's tenant")
           .isEqualTo(tenantA);
+      String scenarioName =
+          jdbc.queryForObject(
+              "SELECT scenario_name FROM scenarios WHERE scenario_id = ?",
+              String.class,
+              run.getScenarioId());
+      assertThat(TenantAtPersistRecorder.scenarios())
+          .as("the provisioning sets the scenario's tenant itself")
+          .containsEntry(scenarioName, tenantA);
     }
   }
 
@@ -426,5 +464,66 @@ class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {
             "SELECT tenant_id FROM scenarios WHERE scenario_id = ?", String.class, scenarioId);
     assertThat(tenants).as("exactly one scenario row").hasSize(1);
     return tenants.getFirst();
+  }
+
+  /**
+   * Records, by name, the tenant each simulation and scenario carries when it is handed to the
+   * session to persist. It runs ahead of Hibernate's own persist listener, so ahead of {@code
+   * TenantBaseListener}: a tenant seen here was set by the code under test. The session factory is
+   * shared by every test of this Spring context and offers no way to remove a listener, so the
+   * recorder is prepended once and only keeps the first persist of each name.
+   */
+  static final class TenantAtPersistRecorder implements PersistEventListener {
+
+    private static final String NO_TENANT = "no tenant";
+    private static final TenantAtPersistRecorder INSTANCE = new TenantAtPersistRecorder();
+    private static final Set<SessionFactoryImplementor> REGISTERED = ConcurrentHashMap.newKeySet();
+    private static final Map<String, String> SIMULATIONS = new ConcurrentHashMap<>();
+    private static final Map<String, String> SCENARIOS = new ConcurrentHashMap<>();
+
+    static void registerOnce(SessionFactoryImplementor factory) {
+      if (REGISTERED.add(factory)) {
+        factory
+            .getServiceRegistry()
+            .getService(EventListenerRegistry.class)
+            .getEventListenerGroup(EventType.PERSIST)
+            .prependListener(INSTANCE);
+      }
+    }
+
+    static void clear() {
+      SIMULATIONS.clear();
+      SCENARIOS.clear();
+    }
+
+    static Map<String, String> simulations() {
+      return Map.copyOf(SIMULATIONS);
+    }
+
+    static Map<String, String> scenarios() {
+      return Map.copyOf(SCENARIOS);
+    }
+
+    @Override
+    public void onPersist(PersistEvent event) {
+      record(event.getObject());
+    }
+
+    @Override
+    public void onPersist(PersistEvent event, PersistContext createdAlready) {
+      record(event.getObject());
+    }
+
+    private static void record(Object entity) {
+      if (entity instanceof Exercise exercise) {
+        SIMULATIONS.putIfAbsent(exercise.getName(), tenantIdOrNone(exercise.getTenant()));
+      } else if (entity instanceof Scenario scenario) {
+        SCENARIOS.putIfAbsent(scenario.getName(), tenantIdOrNone(scenario.getTenant()));
+      }
+    }
+
+    private static String tenantIdOrNone(Tenant tenant) {
+      return tenant == null ? NO_TENANT : tenant.getId();
+    }
   }
 }
