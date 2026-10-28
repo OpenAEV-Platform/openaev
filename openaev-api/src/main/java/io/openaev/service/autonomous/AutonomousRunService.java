@@ -4382,7 +4382,7 @@ public class AutonomousRunService {
     if (!active) {
       return run;
     }
-    SimulationStatusProbe probe = probeSimulationStatus(run.getSimulationId());
+    SimulationStatusProbe probe = probeSimulationStatus(run);
     if (probe.unreadable()) {
       // Defense in depth on top of OrchestratorRunTenantInterceptor: an UNREADABLE simulation read
       // (a scope miss, a DB blip, any non-not-found error) must never be mistaken for a deletion
@@ -4475,7 +4475,16 @@ public class AutonomousRunService {
    * left to drive), and UNREADABLE (any other error - a scope miss, a DB blip). Only DELETED may
    * settle a run; an UNREADABLE probe must leave the run untouched so a transient miss can never be
    * mistaken for a deletion and cancel a healthy run.
+   *
+   * <p>The simulation is read in the run's own tenant, whatever the ambient one: the lookup is
+   * bound to the ambient tenant, which a request without a tenant prefix leaves on the default one
+   * while the run may belong to another tenant of the caller's scope.
    */
+  private SimulationStatusProbe probeSimulationStatus(AutonomousRun run) {
+    return ambientTenantBridge.callInTenant(
+        runTenantId(run), () -> probeSimulationStatus(run.getSimulationId()));
+  }
+
   private SimulationStatusProbe probeSimulationStatus(String simulationId) {
     try {
       return SimulationStatusProbe.ofReadable(exerciseService.exercise(simulationId).getStatus());
