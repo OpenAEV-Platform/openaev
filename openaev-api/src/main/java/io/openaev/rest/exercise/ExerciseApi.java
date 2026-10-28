@@ -3,6 +3,7 @@ package io.openaev.rest.exercise;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ExerciseSpecification.findGrantedFor;
+import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.exercise.form.SimulationDetails.fromRawExercise;
@@ -136,7 +137,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/healthchecks",
     TENANT_EXERCISE_URI + "/{exerciseId}/healthchecks"
   })
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, timeout = READINESS_CHECK_TIMEOUT_SECONDS)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -160,7 +161,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/expectations-drift",
     TENANT_EXERCISE_URI + "/{exerciseId}/expectations-drift"
   })
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, timeout = READINESS_CHECK_TIMEOUT_SECONDS)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,

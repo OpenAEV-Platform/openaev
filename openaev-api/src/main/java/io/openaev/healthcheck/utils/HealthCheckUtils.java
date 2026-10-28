@@ -31,6 +31,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class HealthCheckUtils {
+  // Caps how long health checks and expectations drift may hold a pooled DB connection.
+  public static final int READINESS_CHECK_TIMEOUT_SECONDS = 30;
+
   private static final ObjectMapper mapper = new ObjectMapper();
 
   /** Scope allowlist entry types consumed by asset/IP-centric (technical) steps. */

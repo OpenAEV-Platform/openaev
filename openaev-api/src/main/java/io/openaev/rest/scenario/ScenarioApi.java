@@ -3,6 +3,7 @@ package io.openaev.rest.scenario;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ScenarioSpecification.byName;
+import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
@@ -240,7 +241,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/healthchecks",
     TENANT_SCENARIO_URI + "/{scenarioId}/healthchecks"
   })
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, timeout = READINESS_CHECK_TIMEOUT_SECONDS)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -261,7 +262,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/expectations-drift",
     TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift"
   })
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, timeout = READINESS_CHECK_TIMEOUT_SECONDS)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
