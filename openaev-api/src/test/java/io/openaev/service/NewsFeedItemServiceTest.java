@@ -14,11 +14,11 @@ import static org.mockito.Mockito.when;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.NewsFeedItem;
-import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawNewsFeedItemKey;
 import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.NewsFeedItemRepository;
+import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.xtmhub.ProvisionedNewsFeedItem;
 import java.time.Instant;
@@ -234,7 +234,7 @@ class NewsFeedItemServiceTest {
             List.of(
                 recipient("subscribed"),
                 recipient("unsubscribed", "RESOURCE_SCENARIO"),
-                recipient("unsubscribed-all", NewsFeedType.ALL_TYPES),
+                recipient("unsubscribed-all", NewsFeedUtils.ALL_TYPES),
                 recipient("served")));
     when(newsFeedItemRepository.rawKeys(anyCollection(), anyCollection()))
         .thenReturn(

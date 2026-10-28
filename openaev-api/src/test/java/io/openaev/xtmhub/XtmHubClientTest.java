@@ -3,6 +3,7 @@ package io.openaev.xtmhub;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,7 +50,8 @@ class XtmHubClientTest {
   @BeforeEach
   void setUp() throws Exception {
     when(config.getApiUrl()).thenReturn(API_URL);
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    when(httpClientFactory.httpClientNoRetry(XtmHubClient.NEWS_FEED_TIMEOUT))
+        .thenReturn(httpClient);
     xtmHubClient.init();
   }
 
@@ -93,6 +95,20 @@ class XtmHubClientTest {
                             Instant.parse("2026-10-20T10:15:30Z"),
                             true));
               });
+    }
+
+    @Test
+    @DisplayName("Given a request, should use the client that never retries, with a timeout")
+    void given_request_should_useNoRetryClientWithTimeout() throws Exception {
+      // Arrange
+      givenHubAnswers(200, emptyAnswer());
+
+      // Act
+      consume();
+
+      // Assert
+      verify(httpClientFactory).httpClientNoRetry(XtmHubClient.NEWS_FEED_TIMEOUT);
+      verify(httpClientFactory, never()).httpClientCustom();
     }
 
     @Test

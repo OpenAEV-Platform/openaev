@@ -11,7 +11,6 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.Optional;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Type;
@@ -83,13 +82,6 @@ public class NewsFeedItem implements Base, UserScoped {
   // Stored as a plain string: removing a {@link NewsFeedType} must not break loading old rows.
   public void setType(NewsFeedType type) {
     this.type = type.name();
-  }
-
-  /**
-   * The known type of this item, empty when its stored value is no longer a {@link NewsFeedType}.
-   */
-  public Optional<NewsFeedType> resolveType() {
-    return NewsFeedType.fromHubValue(type);
   }
 
   @Override

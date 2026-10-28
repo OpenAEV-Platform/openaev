@@ -7,6 +7,7 @@ import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.NewsFeedItemRepository;
+import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.xtmhub.ProvisionedNewsFeedItem;
 import java.util.ArrayList;
@@ -65,7 +66,7 @@ public class NewsFeedItemService {
       if (item.deleted()) {
         continue;
       }
-      NewsFeedType.fromHubValue(item.type())
+      NewsFeedUtils.fromHubValue(item.type())
           .ifPresentOrElse(
               type -> {
                 if (typedItems.putIfAbsent(item.id(), new TypedItem(item, type)) != null) {
@@ -144,7 +145,7 @@ public class NewsFeedItemService {
           List<NewsFeedItem> created = new ArrayList<>();
           for (RawNewsFeedRecipient user : users) {
             for (TypedItem typed : items) {
-              if (!typed.type().isUnsubscribed(user.getUnsubscribedTypes())
+              if (!NewsFeedUtils.isUnsubscribed(typed.type(), user.getUnsubscribedTypes())
                   && !existing.contains(new UserItem(user.getId(), typed.item().id()))) {
                 created.add(toNewsFeedItem(typed, user.getId()));
               }

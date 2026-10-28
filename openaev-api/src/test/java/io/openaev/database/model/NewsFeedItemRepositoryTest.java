@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.openaev.IntegrationTest;
 import io.openaev.database.repository.NewsFeedItemRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.fixtures.NewsFeedItemFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import java.util.List;
@@ -54,7 +55,6 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
       assertThat(reloaded.getHubItemId()).isEqualTo(item.getHubItemId());
       assertThat(reloaded.getTitle()).isEqualTo(item.getTitle());
       assertThat(reloaded.getType()).isEqualTo("RESOURCE_SCENARIO");
-      assertThat(reloaded.resolveType()).contains(NewsFeedType.RESOURCE_SCENARIO);
       assertThat(reloaded.getTags()).containsExactly("phishing", "ransomware");
       assertThat(reloaded.getUrlPath()).isEqualTo("/scenarios/" + item.getHubItemId());
       assertThat(reloaded.getCreationDate()).isEqualTo(item.getCreationDate());
@@ -102,7 +102,7 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
 
       // Assert
       assertThat(reloaded.getType()).isEqualTo("RESOURCE_OBSOLETE");
-      assertThat(reloaded.resolveType()).isEmpty();
+      assertThat(NewsFeedUtils.fromHubValue(reloaded.getType())).isEmpty();
     }
   }
 
@@ -232,7 +232,7 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
     void given_unsubscribedTypes_should_persistThem() {
       // Arrange
       User user = createUser();
-      user.setUnsubscribedNewsFeedTypes(new String[] {NewsFeedType.ALL_TYPES});
+      user.setUnsubscribedNewsFeedTypes(new String[] {NewsFeedUtils.ALL_TYPES});
       userRepository.save(user);
 
       // Act
@@ -241,7 +241,7 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
       User reloaded = userRepository.findById(user.getId()).orElseThrow();
 
       // Assert
-      assertThat(reloaded.getUnsubscribedNewsFeedTypes()).containsExactly(NewsFeedType.ALL_TYPES);
+      assertThat(reloaded.getUnsubscribedNewsFeedTypes()).containsExactly(NewsFeedUtils.ALL_TYPES);
     }
   }
 }

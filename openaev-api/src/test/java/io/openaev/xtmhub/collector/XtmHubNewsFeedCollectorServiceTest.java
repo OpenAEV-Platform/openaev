@@ -22,6 +22,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.NewsFeedItemService;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
@@ -271,7 +272,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       // Arrange
       saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
       User unsubscribed = createUser(firstTenant);
-      unsubscribed.setUnsubscribedNewsFeedTypes(new String[] {NewsFeedType.ALL_TYPES});
+      unsubscribed.setUnsubscribedNewsFeedTypes(new String[] {NewsFeedUtils.ALL_TYPES});
       userRepository.save(unsubscribed);
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 

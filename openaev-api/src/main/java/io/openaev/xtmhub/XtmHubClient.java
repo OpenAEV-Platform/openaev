@@ -37,6 +37,7 @@ import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -62,6 +63,8 @@ public class XtmHubClient {
           + " available_news_feed_types } }";
   private static final ObjectMapper NEWS_FEED_MAPPER = new ObjectMapper();
   private static final String URL_PATH_METADATA_KEY = "url_path";
+  // Bounds a Hub that never answers: the collector runs on a shared scheduler thread.
+  static final Timeout NEWS_FEED_TIMEOUT = Timeout.ofSeconds(30);
   // What the Hub answers when the platform id and token headers do not match a registration: the
   // error code when it sends one, else (older Hubs) a message containing one of these values.
   private static final List<String> TOKEN_REJECTED_CODES =
@@ -111,9 +114,14 @@ public class XtmHubClient {
     }
   }
 
-  /** Consumes the news feed items the Hub provisioned for this platform, which removes them. */
+  /**
+   * Consumes the news feed items the Hub provisioned for this platform, which removes them. The
+   * request is never sent again by the client: a replay could lose items the Hub already removed,
+   * and a {@code Retry-After} honored by a retry would hold the scheduler thread for as long as the
+   * Hub asks.
+   */
   public NewsFeedFetchResult consumeProvisionedNewsFeedItems(String token, String platformId) {
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry(NEWS_FEED_TIMEOUT)) {
       HttpPost httpPost = new HttpPost(this.graphqlEndpoint);
       httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
       httpPost.addHeader(ACCEPT, APPLICATION_JSON_VALUE);

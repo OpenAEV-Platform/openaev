@@ -11,6 +11,7 @@ import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.response.PlatformSettings;
+import io.openaev.service.NewsFeedItemService;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
@@ -52,6 +53,7 @@ public class XtmHubService {
   private final TenantWriteScopeResolver tenantWriteScopeResolver;
   private final TenantScopedTransaction tenantTx;
   private final PreviewFeatureService previewFeatureService;
+  private final NewsFeedItemService newsFeedItemService;
   // Logged once per state change rather than at every run, as long as the tokens stay rejected.
   private final AtomicBoolean newsFeedTokensRejectedLogged = new AtomicBoolean(false);
 
@@ -191,16 +193,25 @@ public class XtmHubService {
   }
 
   /**
-   * Consumes the news feed items XTM Hub provisioned for the platform, which is one call per run
-   * whatever the number of tenants. Registered tenants are tried in registration order until one
-   * token is accepted. The Hub removes the items it returns, so the caller must persist them.
+   * Synchronizes the news feed of the platform with XTM Hub: consumes the items the Hub provisioned
+   * for the platform, which is one call per run whatever the number of tenants, and creates them
+   * for the users of the registered tenants. Registered tenants are tried in registration order
+   * until one token is accepted.
    *
-   * @return the items with the registered tenants, or empty when the feature is off, no registered
-   *     tenant has a valid token or the Hub is unreachable
+   * <p>Nothing is thrown: the Hub removes the items it returns, so those of a failed run are not
+   * delivered again, and the run must not stop the scheduled task.
    */
-  public Optional<NewsFeedConsumption> consumeProvisionedNewsFeedItems() {
+  public void syncNewsFeed() {
+    try {
+      consumeAndCreateNewsFeedItems();
+    } catch (Exception e) {
+      log.error("The XTM Hub news feed items could not be created: {}", e.getMessage(), e);
+    }
+  }
+
+  private void consumeAndCreateNewsFeedItems() {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED)) {
-      return Optional.empty();
+      return;
     }
 
     List<TenantXtmHubRegistration> registrations =
@@ -219,7 +230,7 @@ public class XtmHubService {
             .toList();
     if (registrations.isEmpty()) {
       log.info("No tenant is registered on XTM Hub, the news feed items are not consumed");
-      return Optional.empty();
+      return;
     }
 
     Set<String> registeredTenantIds =
@@ -229,21 +240,21 @@ public class XtmHubService {
       switch (xtmHubClient.consumeProvisionedNewsFeedItems(registration.getToken(), platformId)) {
         case NewsFeedFetchResult.Fetched fetched -> {
           newsFeedTokensRejectedLogged.set(false);
-          return Optional.of(new NewsFeedConsumption(fetched.payload(), registeredTenantIds));
+          newsFeedItemService.createMissingItems(fetched.payload().items(), registeredTenantIds);
+          return;
         }
         case NewsFeedFetchResult.TokenRejected rejected ->
             log.warn(
                 "XTM Hub rejected the registration token of tenant {}, trying the next tenant",
                 registration.getTenant().getId());
         case NewsFeedFetchResult.Failed failed -> {
-          return Optional.empty();
+          return;
         }
       }
     }
     if (newsFeedTokensRejectedLogged.compareAndSet(false, true)) {
       log.error("XTM Hub rejected the registration token of every registered tenant");
     }
-    return Optional.empty();
   }
 
   private TenantXtmHubRegistration findOrCreateRegistration(String tenantId) {
