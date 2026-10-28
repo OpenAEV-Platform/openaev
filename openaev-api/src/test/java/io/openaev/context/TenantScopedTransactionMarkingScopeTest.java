@@ -178,7 +178,64 @@ class TenantScopedTransactionMarkingScopeTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("joining the current transaction")
+  class JoiningTheCurrentTransaction {
+
+    @Test
+    @DisplayName("given a transaction already scoped to the tenant, should keep its clearance")
+    void given_sameTenantScope_should_keepTheTransactionsClearance() {
+      // -- ARRANGE --
+      // An HTTP request in tenant A, with a user cleared for one marking only.
+      String userClearance = markingIdsOf(tenantA).iterator().next();
+
+      // -- ACT --
+      Set<String> after =
+          rawTransaction()
+              .execute(
+                  status -> {
+                    setSetting("app.current_tenants", tenantA);
+                    setSetting("app.current_markings", userClearance);
+                    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+                    return currentMarkingScope();
+                  });
+
+      // -- ASSERT --
+      // A shared service asking for the tenant it already runs in must not widen the request to
+      // every marking of the tenant for the rest of its transaction.
+      assertEquals(Set.of(userClearance), after);
+    }
+
+    @Test
+    @DisplayName(
+        "given a transaction scoped to another tenant, should switch to the system clearance")
+    void given_otherTenantScope_should_setTheSystemClearance() {
+      // -- ARRANGE --
+      String otherClearance = markingIdsOf(tenantB).iterator().next();
+
+      // -- ACT --
+      Set<String> after =
+          rawTransaction()
+              .execute(
+                  status -> {
+                    setSetting("app.current_tenants", tenantB);
+                    setSetting("app.current_markings", otherClearance);
+                    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+                    return currentMarkingScope();
+                  });
+
+      // -- ASSERT --
+      // Crossing to another tenant is a scope boundary: background work joining there runs at the
+      // system clearance of its new tenant, never with what the previous scope carried.
+      assertEquals(markingIdsOf(tenantA), after);
+    }
+  }
+
   // -- HELPERS --
+
+  private void setSetting(String key, String value) {
+    jdbc.queryForObject("SELECT set_config(?, ?, true)", String.class, key, value);
+  }
 
   private Set<String> currentMarkingScope() {
     String raw = currentSetting("app.current_markings");

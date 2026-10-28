@@ -129,6 +129,12 @@ public class TenantScopedTransaction {
    * <p>Also sets the marking scope, same as {@link #run}: joining an ambient transaction is still a
    * scope boundary for both dimensions, and the marking GUC is transaction-local like the tenant
    * one, so it must be (re)set here too rather than inherited from whatever ran before.
+   *
+   * <p>A transaction already scoped to exactly these tenants is left as it is, marking scope
+   * included: there is no boundary to cross. This is what keeps a shared service that only needs
+   * the tenant scope (e.g. {@code ScenarioToExerciseService.toExercise}) from widening an HTTP
+   * request to the system clearance for the rest of its transaction: the request keeps the user's
+   * clearance. A transaction the primitive scoped already runs at the system clearance.
    */
   public void setScopeOnCurrentTransaction(TxCtx ctx) {
     if (!TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -138,6 +144,9 @@ public class TenantScopedTransaction {
               + " by the caller.");
     }
     TxCtx resolved = intentionResolver.resolve(ctx);
+    if (tenants(resolved.toGuc()).equals(tenants(currentScope()))) {
+      return;
+    }
     setScope(resolved.toGuc());
     setMarkingScope(systemClearance(resolved).toGuc());
   }
