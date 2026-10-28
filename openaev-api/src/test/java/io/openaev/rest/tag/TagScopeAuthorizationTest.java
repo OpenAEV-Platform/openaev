@@ -1,10 +1,12 @@
 package io.openaev.rest.tag;
 
+import static io.openaev.rest.exception.TenantScopeForbiddenException.MESSAGE;
 import static io.openaev.rest.tag.TagApi.TAG_URI;
 import static io.openaev.utils.fixtures.TagFixture.getTagWithText;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -12,6 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
@@ -21,7 +24,9 @@ import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +35,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -111,10 +118,10 @@ class TagScopeAuthorizationTest extends IntegrationTest {
       String tagId = seedTagInTenantB(READ_RIGHT);
 
       // Act
-      int status = perform(nonPrefixed(mutation.request(tagId)));
+      MockHttpServletResponse response = perform(nonPrefixed(mutation.request(tagId)));
 
       // Assert
-      assertRefusedAndUntouched(status, tagId);
+      assertRefusedInScopeAndUntouched(response, tagId);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -127,13 +134,13 @@ class TagScopeAuthorizationTest extends IntegrationTest {
       String tenantB = tenantOf(tagId);
 
       // Act
-      int status =
+      MockHttpServletResponse response =
           perform(
               nonPrefixed(mutation.request(tagId))
                   .header(TENANT_IDS_HEADER, DEFAULT_TENANT + "," + tenantB));
 
       // Assert
-      assertRefusedAndUntouched(status, tagId);
+      assertRefusedInScopeAndUntouched(response, tagId);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -146,26 +153,26 @@ class TagScopeAuthorizationTest extends IntegrationTest {
       String tenantB = tenantOf(tagId);
 
       // Act
-      int status = perform(nonPrefixed(mutation.request(tagId)).header(TENANT_IDS_HEADER, tenantB));
+      MockHttpServletResponse response =
+          perform(nonPrefixed(mutation.request(tagId)).header(TENANT_IDS_HEADER, tenantB));
 
       // Assert
-      assertRefusedAndUntouched(status, tagId);
+      assertRefusedInScopeAndUntouched(response, tagId);
     }
 
-    @ParameterizedTest(name = "{0}")
-    @EnumSource(Mutation.class)
+    @ParameterizedTest(name = "{0}, tenant without the right sorts first: {1}")
+    @MethodSource("io.openaev.rest.tag.TagScopeAuthorizationTest#mutationsInBothTenantOrders")
     @DisplayName("No header, a third tenant with the write rights: the change is still refused")
     void given_noHeaderAndTheRightMissingInOneOtherTenant_should_requireTheRightInEveryScopeTenant(
-        Mutation mutation) throws Exception {
+        Mutation mutation, boolean tenantWithoutTheRightSortsFirst) throws Exception {
       // Arrange
-      String tagId = seedTagInTenantB(READ_RIGHT);
-      tenantHelper.createTenantWithCapabilities("tag-scope-c", WRITE_RIGHTS);
+      String tagId = seedTagInTenantBNextToTenantC(tenantWithoutTheRightSortsFirst);
 
       // Act
-      int status = perform(nonPrefixed(mutation.request(tagId)));
+      MockHttpServletResponse response = perform(nonPrefixed(mutation.request(tagId)));
 
       // Assert
-      assertRefusedAndUntouched(status, tagId);
+      assertRefusedInScopeAndUntouched(response, tagId);
     }
 
     @Test
@@ -199,7 +206,7 @@ class TagScopeAuthorizationTest extends IntegrationTest {
       String tagId = seedTagInTenantB(WRITE_RIGHTS);
 
       // Act
-      int status = perform(nonPrefixed(mutation.request(tagId)));
+      int status = perform(nonPrefixed(mutation.request(tagId))).getStatus();
 
       // Assert
       assertApplied(mutation, status, tagId);
@@ -217,12 +224,75 @@ class TagScopeAuthorizationTest extends IntegrationTest {
       // Act
       int status =
           perform(
-              nonPrefixed(mutation.request(tagId))
-                  .header(TENANT_IDS_HEADER, DEFAULT_TENANT + "," + tenantB));
+                  nonPrefixed(mutation.request(tagId))
+                      .header(TENANT_IDS_HEADER, DEFAULT_TENANT + "," + tenantB))
+              .getStatus();
 
       // Assert
       assertApplied(mutation, status, tagId);
     }
+  }
+
+  @Nested
+  @DisplayName("Write rights in tenant B only, read only in the default tenant")
+  class WriteRightsInTenantBOnly {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Mutation.class)
+    @DisplayName("No header: the ambient refusal keeps its own body")
+    void given_noHeaderAndNoRightInAmbientTenant_should_refuseWithoutTheScopeRule(Mutation mutation)
+        throws Exception {
+      // Arrange
+      String tagId = seedTagInTenantB(READ_RIGHT, WRITE_RIGHTS);
+
+      // Act
+      MockHttpServletResponse response = perform(nonPrefixed(mutation.request(tagId)));
+
+      // Assert
+      assertAll(
+          () -> assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatus(), "refused"),
+          () -> assertNotNull(response.getErrorMessage(), "the ambient refusal reason"),
+          () ->
+              assertTrue(
+                  response.getErrorMessage().startsWith("Access denied for user"),
+                  "the ambient refusal reason"),
+          () ->
+              assertFalse(
+                  response.getContentAsString().contains("TENANT_SCOPE_FORBIDDEN"),
+                  "no scope rule in the body"),
+          () -> assertEquals(NAME, storedName(tagId), "the tag is untouched"));
+    }
+  }
+
+  /**
+   * Every mutation with the tenant lacking the right on either side of the other one: the scope
+   * lists its tenants in id order, so a check that stops at one of them misses the other in one of
+   * the two orders.
+   */
+  static Stream<Arguments> mutationsInBothTenantOrders() {
+    return Stream.of(Mutation.values())
+        .flatMap(
+            mutation -> Stream.of(Arguments.of(mutation, true), Arguments.of(mutation, false)));
+  }
+
+  /**
+   * The caller holds the write rights in the default tenant and in a new tenant C, and only the
+   * read right in a new tenant B, which owns the returned tag. B's id sorts before C's when {@code
+   * tenantBSortsFirst}, after it otherwise.
+   */
+  private String seedTagInTenantBNextToTenantC(boolean tenantBSortsFirst) throws Exception {
+    tenantHelper.grantCapabilitiesInTenant(DEFAULT_TENANT, WRITE_RIGHTS);
+    List<String> tenants =
+        Stream.of(
+                tenantHelper.createTenantWithCurrentUser("tag-scope-x").getId(),
+                tenantHelper.createTenantWithCurrentUser("tag-scope-y").getId())
+            .sorted()
+            .toList();
+    String tenantB = tenantBSortsFirst ? tenants.get(0) : tenants.get(1);
+    String tenantC = tenantBSortsFirst ? tenants.get(1) : tenants.get(0);
+    tenantHelper.grantCapabilitiesInTenant(tenantB, READ_RIGHT);
+    tenantHelper.grantCapabilitiesInTenant(tenantC, WRITE_RIGHTS);
+    return persistTagIn(tenantB);
   }
 
   /**
@@ -230,8 +300,21 @@ class TagScopeAuthorizationTest extends IntegrationTest {
    * B, which owns the returned tag.
    */
   private String seedTagInTenantB(Set<Capability> rightsInB) throws Exception {
-    tenantHelper.grantCapabilitiesInTenant(DEFAULT_TENANT, WRITE_RIGHTS);
+    return seedTagInTenantB(WRITE_RIGHTS, rightsInB);
+  }
+
+  /**
+   * The caller holds {@code rightsInDefault} in the default tenant and {@code rightsInB} in a new
+   * tenant B, which owns the returned tag.
+   */
+  private String seedTagInTenantB(Set<Capability> rightsInDefault, Set<Capability> rightsInB)
+      throws Exception {
+    tenantHelper.grantCapabilitiesInTenant(DEFAULT_TENANT, rightsInDefault);
     String tenantB = tenantHelper.createTenantWithCapabilities("tag-scope-b", rightsInB).getId();
+    return persistTagIn(tenantB);
+  }
+
+  private String persistTagIn(String tenantB) {
     Tag tag = getTagWithText(NAME);
     tag.setTenant(new Tenant(tenantB));
     String tagId = tagComposer.forTag(tag).persist().get().getId();
@@ -247,15 +330,20 @@ class TagScopeAuthorizationTest extends IntegrationTest {
     return request.with(csrf());
   }
 
-  private int perform(MockHttpServletRequestBuilder request) throws Exception {
-    int status = mvc.perform(request).andReturn().getResponse().getStatus();
+  private MockHttpServletResponse perform(MockHttpServletRequestBuilder request) throws Exception {
+    MockHttpServletResponse response = mvc.perform(request).andReturn().getResponse();
     entityManager.flush();
-    return status;
+    return response;
   }
 
-  private void assertRefusedAndUntouched(int status, String tagId) {
+  private void assertRefusedInScopeAndUntouched(MockHttpServletResponse response, String tagId) {
     assertAll(
-        () -> assertEquals(HttpStatus.FORBIDDEN.value(), status, "the change is refused"),
+        () -> assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatus(), "refused"),
+        () ->
+            assertEquals(
+                MESSAGE,
+                JsonPath.read(response.getContentAsString(), "$.message"),
+                "the body names the scope rule and its remedy"),
         () -> assertEquals(NAME, storedName(tagId), "the tag is untouched"));
   }
 
