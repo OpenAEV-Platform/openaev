@@ -215,7 +215,10 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(isAdmin = true)
+    // On this non-prefixed route the workflow is read in the caller's membership scope, which is
+    // empty for an admin with no membership; this test is about the reset, so its caller joins the
+    // default tenant, where the simulation lives.
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "given closed chained exercise reset should delete injects and revoke url access tokens")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
