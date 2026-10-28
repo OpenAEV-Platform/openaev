@@ -3,6 +3,7 @@ package io.openaev.secrets.provider;
 import io.openaev.database.model.AwsAssumeRoleSecret;
 import io.openaev.database.model.AwsRegion;
 import io.openaev.database.model.HashSecret;
+import lombok.Builder;
 
 /**
  * Safe metadata returned by secret providers for credential display/update helpers.
@@ -11,7 +12,11 @@ import io.openaev.database.model.HashSecret;
  * even encrypted, and more generally any field flagged as sensitive: this record is serialized to
  * the API through {@code CredentialFullOutput}. Sensitive fields do not need to be echoed back, as
  * the form renders them as write-only placeholders.
+ *
+ * <p>Built through the static factories below, one per secret type: the builder keeps every other
+ * component at its default ({@code null} or {@code false}) so a factory only names what it exposes.
  */
+@Builder
 public record SecretMetadata(
     String username,
     HashSecret.HASH_ALGORITHM hashAlgorithm,
@@ -30,89 +35,72 @@ public record SecretMetadata(
     boolean gcpPrivateKeyDefined,
     String gcpOauthClientId,
     boolean gcpOauthClientSecretDefined,
-    boolean gcpOauthRefreshTokenDefined) {
+    boolean gcpOauthRefreshTokenDefined,
+    String awsAccountId,
+    String awsEndpointUrl,
+    String gcpCustomTokenUri,
+    String gcpCustomProjectsUri,
+    String gcpCustomResourceManagerUri,
+    String gcpCustomIamUri,
+    boolean gcpCustomOauthAccessTokenDefined,
+    String azureAuthorityHostUri,
+    boolean azureRequestsCertificateDefined) {
 
   public static SecretMetadata empty() {
-    return new SecretMetadata(
-        null, null, null, null, false, null, null, null, null, null, null, null, null, null, false,
-        null, false, false);
+    return SecretMetadata.builder().build();
   }
 
   public static SecretMetadata forUsername(String username) {
-    return new SecretMetadata(
-        username, null, null, null, false, null, null, null, null, null, null, null, null, null,
-        false, null, false, false);
+    return SecretMetadata.builder().username(username).build();
   }
 
   public static SecretMetadata forHashAlgorithm(HashSecret.HASH_ALGORITHM hashAlgorithm) {
-    return new SecretMetadata(
-        null,
-        hashAlgorithm,
-        null,
-        null,
-        false,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        false,
-        null,
-        false,
-        false);
+    return SecretMetadata.builder().hashAlgorithm(hashAlgorithm).build();
   }
 
+  /**
+   * Non-sensitive metadata of an AWS access key secret.
+   *
+   * <p>The account id and the endpoint URL are identifiers, not credentials: they are echoed back
+   * to prefill the edit form.
+   *
+   * @param awsDefaultRegion default AWS region
+   * @param awsAccessKeyId access key id
+   * @param awsSessionTokenPresent whether a session token is currently stored
+   * @param awsAccountId optional AWS account id
+   * @param awsEndpointUrl optional endpoint override
+   * @return matching metadata
+   */
   public static SecretMetadata forAwsAccessKey(
-      AwsRegion awsDefaultRegion, String awsAccessKeyId, boolean awsSessionTokenPresent) {
-    return new SecretMetadata(
-        null,
-        null,
-        awsDefaultRegion,
-        awsAccessKeyId,
-        awsSessionTokenPresent,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        false,
-        null,
-        false,
-        false);
+      AwsRegion awsDefaultRegion,
+      String awsAccessKeyId,
+      boolean awsSessionTokenPresent,
+      String awsAccountId,
+      String awsEndpointUrl) {
+    return SecretMetadata.builder()
+        .awsDefaultRegion(awsDefaultRegion)
+        .awsAccessKeyId(awsAccessKeyId)
+        .awsSessionTokenPresent(awsSessionTokenPresent)
+        .awsAccountId(awsAccountId)
+        .awsEndpointUrl(awsEndpointUrl)
+        .build();
   }
 
   public static SecretMetadata forAwsAssumeRole(
       AwsRegion awsDefaultRegion,
       String awsRoleArn,
       AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
-      String awsSourceProfileAccessKeyId) {
-    return new SecretMetadata(
-        null,
-        null,
-        awsDefaultRegion,
-        null,
-        false,
-        awsRoleArn,
-        awsSourceIdentityType,
-        awsSourceProfileAccessKeyId,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        false,
-        null,
-        false,
-        false);
+      String awsSourceProfileAccessKeyId,
+      String awsAccountId,
+      String awsEndpointUrl) {
+    return SecretMetadata.builder()
+        .awsDefaultRegion(awsDefaultRegion)
+        .awsRoleArn(awsRoleArn)
+        .awsSourceIdentityType(awsSourceIdentityType)
+        .awsSourceProfileAccessKeyId(awsSourceProfileAccessKeyId)
+        .awsAccountId(awsAccountId)
+        .awsEndpointUrl(awsEndpointUrl)
+        .build();
   }
 
   /**
@@ -120,38 +108,31 @@ public record SecretMetadata(
    *
    * <p>Only the client secret is left out: the tenant id and the subscription id are directory
    * identifiers, not credentials, so they are stored in clear text and echoed back to prefill the
-   * edit form.
+   * edit form. The certificate is reduced to a boolean, like the GCP key file.
    *
    * @param azureEnvironment Azure cloud name
    * @param azureClientId client id of the service principal
    * @param azureTenantId Entra ID tenant id owning the service principal
    * @param azureSubscriptionId targeted subscription id, may be null
+   * @param azureAuthorityHostUri optional authority host override
+   * @param azureRequestsCertificateDefined whether a certificate file is currently stored
    * @return matching metadata
    */
   public static SecretMetadata forAzureServicePrincipal(
       String azureEnvironment,
       String azureClientId,
       String azureTenantId,
-      String azureSubscriptionId) {
-    return new SecretMetadata(
-        null,
-        null,
-        null,
-        null,
-        false,
-        null,
-        null,
-        null,
-        azureEnvironment,
-        azureClientId,
-        azureTenantId,
-        azureSubscriptionId,
-        null,
-        null,
-        false,
-        null,
-        false,
-        false);
+      String azureSubscriptionId,
+      String azureAuthorityHostUri,
+      boolean azureRequestsCertificateDefined) {
+    return SecretMetadata.builder()
+        .azureEnvironment(azureEnvironment)
+        .azureClientId(azureClientId)
+        .azureTenantId(azureTenantId)
+        .azureSubscriptionId(azureSubscriptionId)
+        .azureAuthorityHostUri(azureAuthorityHostUri)
+        .azureRequestsCertificateDefined(azureRequestsCertificateDefined)
+        .build();
   }
 
   /**
@@ -163,29 +144,23 @@ public record SecretMetadata(
    * @param azureEnvironment Azure cloud name
    * @param azureClientId client id of the user-assigned managed identity, null when system-assigned
    * @param azureSubscriptionId targeted subscription id, may be null
+   * @param azureAuthorityHostUri optional authority host override
+   * @param azureRequestsCertificateDefined whether a certificate file is currently stored
    * @return matching metadata
    */
   public static SecretMetadata forAzureManagedIdentity(
-      String azureEnvironment, String azureClientId, String azureSubscriptionId) {
-    return new SecretMetadata(
-        null,
-        null,
-        null,
-        null,
-        false,
-        null,
-        null,
-        null,
-        azureEnvironment,
-        azureClientId,
-        null,
-        azureSubscriptionId,
-        null,
-        null,
-        false,
-        null,
-        false,
-        false);
+      String azureEnvironment,
+      String azureClientId,
+      String azureSubscriptionId,
+      String azureAuthorityHostUri,
+      boolean azureRequestsCertificateDefined) {
+    return SecretMetadata.builder()
+        .azureEnvironment(azureEnvironment)
+        .azureClientId(azureClientId)
+        .azureSubscriptionId(azureSubscriptionId)
+        .azureAuthorityHostUri(azureAuthorityHostUri)
+        .azureRequestsCertificateDefined(azureRequestsCertificateDefined)
+        .build();
   }
 
   /**
@@ -198,29 +173,23 @@ public record SecretMetadata(
    * @param gcpScope the OAuth scope the credential is stored for
    * @param gcpProjectId targeted project id, may be null
    * @param gcpPrivateKeyDefined whether a service account key file is currently stored
+   * @param gcpCustomResourceManagerUri optional resource manager endpoint override
+   * @param gcpCustomProjectsUri optional projects endpoint override
    * @return matching metadata
    */
   public static SecretMetadata forGcpServiceAccount(
-      String gcpScope, String gcpProjectId, boolean gcpPrivateKeyDefined) {
-    return new SecretMetadata(
-        null,
-        null,
-        null,
-        null,
-        false,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        gcpScope,
-        gcpProjectId,
-        gcpPrivateKeyDefined,
-        null,
-        false,
-        false);
+      String gcpScope,
+      String gcpProjectId,
+      boolean gcpPrivateKeyDefined,
+      String gcpCustomResourceManagerUri,
+      String gcpCustomProjectsUri) {
+    return SecretMetadata.builder()
+        .gcpScope(gcpScope)
+        .gcpProjectId(gcpProjectId)
+        .gcpPrivateKeyDefined(gcpPrivateKeyDefined)
+        .gcpCustomResourceManagerUri(gcpCustomResourceManagerUri)
+        .gcpCustomProjectsUri(gcpCustomProjectsUri)
+        .build();
   }
 
   /**
@@ -228,17 +197,21 @@ public record SecretMetadata(
    *
    * <p>The client id is a public application identifier, echoed back to prefill the edit form —
    * this mirrors {@link #forAzureServicePrincipal}, which returns the client id and deliberately
-   * leaves the client secret out. The OAuth client secret and the refresh token ARE the credential
-   * and never leave the backend, not even encrypted: a refresh token is a long-lived bearer
-   * credential, and leaking it is equivalent to leaking the account. Only booleans tell the form
-   * that both are stored, so it can render their write-only placeholders and treat an absent value
-   * as "keep the stored one".
+   * leaves the client secret out. The OAuth client secret, the refresh token and the custom access
+   * token ARE the credential and never leave the backend, not even encrypted: a refresh token is a
+   * long-lived bearer credential, and leaking it is equivalent to leaking the account. Only
+   * booleans tell the form that they are stored, so it can render their write-only placeholders and
+   * treat an absent value as "keep the stored one".
    *
    * @param gcpScope the OAuth scope the credential is stored for
    * @param gcpProjectId targeted project id, may be null
    * @param gcpOauthClientId OAuth client id of the application
    * @param gcpOauthClientSecretDefined whether an OAuth client secret is currently stored
    * @param gcpOauthRefreshTokenDefined whether an OAuth refresh token is currently stored
+   * @param gcpCustomTokenUri optional token endpoint override
+   * @param gcpCustomProjectsUri optional projects endpoint override
+   * @param gcpCustomIamUri optional IAM endpoint override
+   * @param gcpCustomOauthAccessTokenDefined whether a custom OAuth access token is currently stored
    * @return matching metadata
    */
   public static SecretMetadata forGcpOAuth2(
@@ -246,25 +219,21 @@ public record SecretMetadata(
       String gcpProjectId,
       String gcpOauthClientId,
       boolean gcpOauthClientSecretDefined,
-      boolean gcpOauthRefreshTokenDefined) {
-    return new SecretMetadata(
-        null,
-        null,
-        null,
-        null,
-        false,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        gcpScope,
-        gcpProjectId,
-        false,
-        gcpOauthClientId,
-        gcpOauthClientSecretDefined,
-        gcpOauthRefreshTokenDefined);
+      boolean gcpOauthRefreshTokenDefined,
+      String gcpCustomTokenUri,
+      String gcpCustomProjectsUri,
+      String gcpCustomIamUri,
+      boolean gcpCustomOauthAccessTokenDefined) {
+    return SecretMetadata.builder()
+        .gcpScope(gcpScope)
+        .gcpProjectId(gcpProjectId)
+        .gcpOauthClientId(gcpOauthClientId)
+        .gcpOauthClientSecretDefined(gcpOauthClientSecretDefined)
+        .gcpOauthRefreshTokenDefined(gcpOauthRefreshTokenDefined)
+        .gcpCustomTokenUri(gcpCustomTokenUri)
+        .gcpCustomProjectsUri(gcpCustomProjectsUri)
+        .gcpCustomIamUri(gcpCustomIamUri)
+        .gcpCustomOauthAccessTokenDefined(gcpCustomOauthAccessTokenDefined)
+        .build();
   }
 }
