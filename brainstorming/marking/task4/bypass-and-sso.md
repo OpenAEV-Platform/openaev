@@ -68,5 +68,15 @@ Existing `user_admin` users are left as they are. Only today's rule stays: role 
 - Scenarios created from OpenCTI (chunk 6, #8554): this change gives the OpenCTI account every marking, including later
   ones. Chunk 6 only has to set that account as the scheduler of these scenarios.
 - One account per agent: today all agents of a tenant share one account.
-- Outside markings: a `BYPASS` user also gets the rights meant only for the agent and OpenCTI accounts (for example,
-  calling the agent API). Follow-up issue.
+- Outside markings: the `BYPASS` cleanup below.
+
+## Follow-up: `BYPASS` cleanup
+
+No effect on markings once this change is in, but worth a separate issue:
+
+- **`BYPASS` gives too much.** It is turned into "every capability", including the hidden ones meant only for the agent
+  and OpenCTI accounts. So a `BYPASS` user can, for example, call the agent API. It should not.
+- **`BYPASS` is checked in several ways.** `User.isAdminOrBypass()` looks for `BYPASS` in the user's capabilities, but
+  since #4864 `BYPASS` is replaced there by the capabilities it covers. So it never finds it and only means "is admin",
+  in about 40 places. Other checks (`hasPlatformBypass`, `hasTenantBypass`, `PermissionService.isBypassGranted`) work.
+  We should keep one way.
