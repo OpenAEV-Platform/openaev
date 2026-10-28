@@ -2,14 +2,18 @@ package io.openaev.xtmhub.collector;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import io.openaev.xtmhub.XtmHubService;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -19,8 +23,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 class XtmHubCollectorTest {
 
   @Mock private ThreadPoolTaskScheduler taskScheduler;
-  @Mock private XtmHubConnectivityCollectorService connectivityCollectorService;
-  @Mock private XtmHubNewsFeedCollectorService newsFeedCollectorService;
+  @Mock private XtmHubService xtmHubService;
 
   private XtmHubCollectorConfig config;
   private XtmHubCollector collector;
@@ -30,9 +33,7 @@ class XtmHubCollectorTest {
     config = new XtmHubCollectorConfig();
     config.setConnectivityCheckInterval(7200);
     config.setNewsFeedInterval(1800);
-    collector =
-        new XtmHubCollector(
-            config, taskScheduler, connectivityCollectorService, newsFeedCollectorService);
+    collector = new XtmHubCollector(config, taskScheduler, xtmHubService);
   }
 
   @Test
@@ -59,10 +60,18 @@ class XtmHubCollectorTest {
     collector.init();
 
     // Assert
+    ArgumentCaptor<Runnable> connectivityTask = ArgumentCaptor.forClass(Runnable.class);
+    ArgumentCaptor<Runnable> newsFeedTask = ArgumentCaptor.forClass(Runnable.class);
     verify(taskScheduler)
-        .scheduleAtFixedRate(connectivityCollectorService, Duration.ofSeconds(7200));
+        .scheduleAtFixedRate(connectivityTask.capture(), eq(Duration.ofSeconds(7200)));
     verify(taskScheduler)
-        .scheduleWithFixedDelay(newsFeedCollectorService, Duration.ofSeconds(1800));
+        .scheduleWithFixedDelay(newsFeedTask.capture(), eq(Duration.ofSeconds(1800)));
+
+    connectivityTask.getValue().run();
+    verify(xtmHubService, times(1)).refreshConnectivityAllTenants();
+    verify(xtmHubService, never()).syncNewsFeed();
+    newsFeedTask.getValue().run();
+    verify(xtmHubService, times(1)).syncNewsFeed();
   }
 
   @Test
@@ -78,8 +87,8 @@ class XtmHubCollectorTest {
     collector.init();
 
     // Assert
-    verify(taskScheduler).scheduleAtFixedRate(connectivityCollectorService, defaultInterval);
-    verify(taskScheduler).scheduleWithFixedDelay(newsFeedCollectorService, defaultInterval);
+    verify(taskScheduler).scheduleAtFixedRate(any(Runnable.class), eq(defaultInterval));
+    verify(taskScheduler).scheduleWithFixedDelay(any(Runnable.class), eq(defaultInterval));
   }
 
   @Test

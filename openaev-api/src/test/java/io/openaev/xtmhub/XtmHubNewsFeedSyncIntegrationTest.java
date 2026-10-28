@@ -1,4 +1,4 @@
-package io.openaev.xtmhub.collector;
+package io.openaev.xtmhub;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
@@ -30,11 +30,6 @@ import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.DefaultTenantExtension;
-import io.openaev.xtmhub.NewsFeedFetchResult;
-import io.openaev.xtmhub.ProvisionedNewsFeedItem;
-import io.openaev.xtmhub.ProvisionedNewsFeedItems;
-import io.openaev.xtmhub.XtmHubClient;
-import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -53,20 +48,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
- * Integration test for {@link XtmHubNewsFeedCollectorService}. It cannot be {@code @Transactional}:
- * the collector opens its own transactions, so data is committed and cleaned up by hand.
+ * Integration test for {@link XtmHubService#syncNewsFeed}. It cannot be {@code @Transactional}: the
+ * collector opens its own transactions, so data is committed and cleaned up by hand.
  */
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 @WithMockUser(isAdmin = true)
 @ExtendWith(DefaultTenantExtension.class)
-@DisplayName("XtmHubNewsFeedCollectorService integration tests")
-class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
+@DisplayName("XtmHubService news feed sync integration tests")
+class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
 
   private static final String FIRST_TOKEN = "first-token";
   private static final String SECOND_TOKEN = "second-token";
   private static final Instant CREATION_DATE = Instant.parse("2026-10-20T10:15:30Z");
 
-  @Autowired private XtmHubNewsFeedCollectorService collectorService;
+  @Autowired private XtmHubService xtmHubService;
   @Autowired private NewsFeedItemRepository newsFeedItemRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private GroupRepository groupRepository;
@@ -122,7 +117,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       for (User user : List.of(first, second)) {
@@ -155,7 +150,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
           scenario("hub-2"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(user))
@@ -173,7 +168,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       Set<String> userIds = users.stream().map(User::getId).collect(Collectors.toSet());
@@ -199,7 +194,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
               .toArray(ProvisionedNewsFeedItem[]::new));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       for (User user : List.of(first, second)) {
@@ -219,8 +214,8 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(user)).hasSize(1);
@@ -233,13 +228,13 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
       User user = createUser(firstTenant);
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
       NewsFeedItem item = itemsOf(user).getFirst();
       item.setRead(true);
       newsFeedItemRepository.save(item);
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(user))
@@ -259,7 +254,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(unsubscribed)).isEmpty();
@@ -277,7 +272,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(unsubscribed)).isEmpty();
@@ -298,7 +293,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(registeredUser)).hasSize(1);
@@ -315,7 +310,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(admin)).hasSize(1);
@@ -332,7 +327,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(tenantGroupMember)).hasSize(1);
@@ -348,7 +343,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(member)).isEmpty();
@@ -366,7 +361,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(serviceAccount)).isEmpty();
@@ -381,7 +376,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(user)).hasSize(1);
@@ -398,7 +393,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(first)).hasSize(1);
@@ -420,7 +415,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(first)).hasSize(1);
@@ -441,7 +436,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(withoutTenant)).isEmpty();
@@ -468,7 +463,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
               false));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(user)).extracting(NewsFeedItem::getHubItemId).containsExactly("hub-valid");
@@ -486,7 +481,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       User user = createUser(firstTenant);
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       verify(xtmHubClient, never()).consumeProvisionedNewsFeedItems(any(), any());
@@ -503,7 +498,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       User user = createUser(firstTenant);
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       verify(xtmHubClient, never()).consumeProvisionedNewsFeedItems(any(), any());
@@ -522,7 +517,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(SECOND_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(user)).hasSize(1);
@@ -539,7 +534,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
       givenHubReturns(SECOND_TOKEN, scenario("hub-1"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       verify(xtmHubClient).consumeProvisionedNewsFeedItems(eq(FIRST_TOKEN), any());
@@ -558,7 +553,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
           .thenReturn(new NewsFeedFetchResult.TokenRejected());
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       verify(xtmHubClient).consumeProvisionedNewsFeedItems(eq(FIRST_TOKEN), any());
@@ -576,7 +571,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
           .thenReturn(new NewsFeedFetchResult.Failed());
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(user)).isEmpty();
@@ -593,7 +588,7 @@ class XtmHubNewsFeedCollectorServiceTest extends IntegrationTest {
           .thenThrow(new IllegalStateException("unexpected"));
 
       // Act
-      collectorService.run();
+      xtmHubService.syncNewsFeed();
 
       // Assert
       assertThat(itemsOf(user)).isEmpty();

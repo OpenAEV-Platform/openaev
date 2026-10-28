@@ -1,5 +1,6 @@
 package io.openaev.xtmhub.collector;
 
+import io.openaev.xtmhub.XtmHubService;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.Objects;
@@ -15,14 +16,13 @@ public class XtmHubCollector {
 
   private final XtmHubCollectorConfig config;
   private final ThreadPoolTaskScheduler taskScheduler;
-  private final XtmHubConnectivityCollectorService connectivityCollectorService;
-  private final XtmHubNewsFeedCollectorService newsFeedCollectorService;
+  private final XtmHubService xtmHubService;
 
   @PostConstruct
   public void init() {
     if (this.config.isEnable()) {
       this.taskScheduler.scheduleAtFixedRate(
-          this.connectivityCollectorService,
+          this.xtmHubService::refreshConnectivityAllTenants,
           interval(
               "connectivity-check-interval",
               this.config.getConnectivityCheckInterval(),
@@ -31,7 +31,7 @@ public class XtmHubCollector {
       // Fixed delay: a run lasts as long as the number of users and items, so the next one starts
       // an interval after the end of the previous one rather than catching up.
       this.taskScheduler.scheduleWithFixedDelay(
-          this.newsFeedCollectorService,
+          this.xtmHubService::syncNewsFeed,
           interval(
               "news-feed-interval",
               this.config.getNewsFeedInterval(),
