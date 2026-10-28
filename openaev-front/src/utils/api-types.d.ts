@@ -6550,6 +6550,8 @@ export interface Inject {
   inject_id: string;
   inject_injector?: string;
   inject_injector_contract?: InjectorContract;
+  /** True when this inject is an atomic test, meaning it belongs to no scenario and no simulation */
+  inject_is_atomic_testing?: boolean;
   inject_kill_chain_phases?: KillChainPhase[];
   inject_launched_by?: string;
   inject_recurrence?: string;
@@ -7319,6 +7321,7 @@ export interface Injector {
 export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** True when this contract can be used to create an atomic test. It does not tell whether a given inject is an atomic test: read inject_is_atomic_testing for that */
   injector_contract_atomic_testing?: boolean;
   injector_contract_attack_patterns?: string[];
   /** @minLength 1 */

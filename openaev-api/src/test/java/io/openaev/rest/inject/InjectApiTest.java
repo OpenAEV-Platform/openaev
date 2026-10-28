@@ -211,6 +211,73 @@ class InjectApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Inject atomic testing status")
+  class InjectAtomicTestingStatusTest {
+
+    private String fetchInject(Inject inject) throws Exception {
+      return mvc.perform(get(INJECT_URI + "/" + inject.getId()).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given inject in a scenario should not be flagged as atomic testing")
+    void given_injectInScenario_should_notBeAtomicTesting() throws Exception {
+      // Arrange
+      Inject inject =
+          getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      inject.setScenario(SCENARIO);
+      Inject savedInject = injectRepository.save(inject);
+
+      // Act
+      String response = fetchInject(savedInject);
+
+      // Assert: the inject is not an atomic test, even though its contract can be used for one
+      assertThatJson(response).node("inject_is_atomic_testing").isEqualTo(false);
+      assertThatJson(response)
+          .node("inject_injector_contract.injector_contract_atomic_testing")
+          .isEqualTo(true);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given inject in a simulation should not be flagged as atomic testing")
+    void given_injectInSimulation_should_notBeAtomicTesting() throws Exception {
+      // Arrange
+      Inject inject =
+          getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      inject.setExercise(EXERCISE);
+      Inject savedInject = injectRepository.save(inject);
+
+      // Act
+      String response = fetchInject(savedInject);
+
+      // Assert
+      assertThatJson(response).node("inject_is_atomic_testing").isEqualTo(false);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given inject with no scenario and no simulation should be flagged as atomic testing")
+    void given_standaloneInject_should_beAtomicTesting() throws Exception {
+      // Arrange
+      Inject inject =
+          getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      Inject savedInject = injectRepository.save(inject);
+
+      // Act
+      String response = fetchInject(savedInject);
+
+      // Assert
+      assertThatJson(response).node("inject_is_atomic_testing").isEqualTo(true);
+    }
+  }
+
+  @Nested
   @Transactional
   @DisplayName("Inject lifecycle cleanup")
   class InjectLifecycleCleanupTest {

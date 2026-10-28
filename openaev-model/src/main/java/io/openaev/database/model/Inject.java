@@ -672,6 +672,17 @@ public class Inject implements GrantableBase, Injection, TenantBase {
     return this.exercise == null && this.scenario == null;
   }
 
+  // Tells API clients whether this inject is an atomic test, based on where it lives. The nested
+  // contract's injector_contract_atomic_testing only says the contract can be used for one.
+  @JsonProperty("inject_is_atomic_testing")
+  @Schema(
+      description =
+          "True when this inject is an atomic test, meaning it belongs to no scenario and no"
+              + " simulation")
+  public boolean getInjectIsAtomicTesting() {
+    return isAtomicTesting();
+  }
+
   @JsonProperty("inject_testable")
   public boolean getInjectTestable() {
     return VALID_TESTABLE_TYPES.contains(this.getType());
