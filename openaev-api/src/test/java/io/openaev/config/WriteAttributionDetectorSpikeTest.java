@@ -150,12 +150,11 @@ class WriteAttributionDetectorSpikeTest extends IntegrationTest {
     String id = UUID.randomUUID().toString();
     entityManager
         .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                + " VALUES (?1, ?2, ?3, ?4)")
+            "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                + " VALUES (?1, ?2, ?3)")
         .setParameter(1, id)
         .setParameter(2, "wattr-raw-" + id)
-        .setParameter(3, "planner@openaev.io")
-        .setParameter(4, tenantId)
+        .setParameter(3, tenantId)
         .executeUpdate();
     return id;
   }

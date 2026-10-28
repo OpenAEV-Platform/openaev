@@ -75,7 +75,6 @@ public class ScenarioToExerciseService {
     exercise.setDefaultKillChain(scenario.getDefaultKillChain());
     exercise.setHeader(scenario.getHeader());
     exercise.setFooter(scenario.getFooter());
-    exercise.setFrom(scenario.getFrom());
     exercise.setFromName(scenario.getFromName());
     exercise.addReplyTos(scenario.getReplyTos());
     exercise.setStart(start);

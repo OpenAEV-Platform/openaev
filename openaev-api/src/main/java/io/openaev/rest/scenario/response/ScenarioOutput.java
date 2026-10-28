@@ -79,11 +79,6 @@ public class ScenarioOutput {
   @Schema(description = "Footer of the scenario")
   private String footer;
 
-  @JsonProperty("scenario_mail_from")
-  @NotBlank
-  @Schema(description = "From value of the scenario")
-  private String from;
-
   @JsonProperty("scenario_mail_from_name")
   @Schema(description = "Sender display name of the scenario")
   private String fromName;

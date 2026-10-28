@@ -110,8 +110,8 @@ class AutoCloseChainedSimulationScopeTest extends IntegrationTest {
   private String seedRunningSimulationWithDoneInjects(String workflowStatus) {
     String exerciseId = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_status,"
-            + " tenant_id) VALUES (?, 'auto close', 'close@openaev.invalid', 'RUNNING', ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+            + " tenant_id) VALUES (?, 'auto close', 'RUNNING', ?)",
         exerciseId,
         tenantId);
     if (workflowStatus != null) {

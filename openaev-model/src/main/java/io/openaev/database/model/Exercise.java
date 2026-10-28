@@ -26,7 +26,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -172,13 +171,6 @@ public class Exercise implements GrantableBase, TenantBase {
   @JsonProperty("exercise_message_footer")
   private String footer = "SIMULATION FOOTER";
 
-  @Getter
-  @Column(name = "exercise_mail_from")
-  @JsonProperty("exercise_mail_from")
-  @Email
-  @NotBlank
-  private String from;
-
   @Pattern(regexp = FROM_NAME_PATTERN, message = FROM_NAME_PATTERN_MESSAGE)
   @Size(max = FROM_NAME_MAX_LENGTH, message = FROM_NAME_SIZE_MESSAGE)
   @Column(name = "exercise_mail_from_name")
@@ -186,7 +178,7 @@ public class Exercise implements GrantableBase, TenantBase {
   private String fromName;
 
   public String getFromName() {
-    return resolveFromName(fromName, from);
+    return resolveFromName(fromName, null);
   }
 
   @Getter
