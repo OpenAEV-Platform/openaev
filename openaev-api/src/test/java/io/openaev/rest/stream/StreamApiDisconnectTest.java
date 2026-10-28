@@ -147,7 +147,7 @@ class StreamApiDisconnectTest extends IntegrationTest {
         BufferedReader in =
             new BufferedReader(
                 new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-        assertThat(in.readLine()).isEqualTo("HTTP/1.1 200 ");
+        assertThat(in.readLine()).startsWith("HTTP/1.1 200");
         String line;
         while ((line = in.readLine()) != null && !line.startsWith("event:ping")) {
           // skip headers and events until the first ping
