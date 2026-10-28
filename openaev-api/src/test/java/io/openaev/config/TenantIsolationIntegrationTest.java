@@ -8,11 +8,12 @@ import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Base for end-to-end tenant-isolation tests. A subclass activates one table with
- * {@code @SpringBootTest(properties = "openaev.tenant.active-tables=<table>")} and uses these
- * helpers to seed tenants, set the transaction scope, and read or delete rows under it. Every such
- * test makes the same point: with the table active, the scope alone decides what a query sees and
- * what a write can touch.
+ * Base for end-to-end tenant-isolation tests. A subclass activates its table on top of the
+ * production list, with {@link ProductionActiveTables} plus that table in a {@code
+ * DynamicPropertySource}, and uses these helpers to seed tenants, set the transaction scope, and
+ * read or delete rows under it. Every such test makes the same point: with the table active, the
+ * scope alone decides what a query sees and what a write can touch. A subclass that arms a narrower
+ * list on purpose declares it in {@code pinned-active-tables-baseline.txt}.
  *
  * <p>This targets <b>data-layer</b> isolation (the inspector's SQL filtering, driven by the GUC
  * scope). It is deliberately separate from {@link io.openaev.utils.TenantIsolationTestHelper},

@@ -11,23 +11,28 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Reads {@code pinned-active-tables-baseline.txt}, the reasoned list of the test classes that set
  * the activation list themselves. One class per line, {@code fully.qualified.Class | <tables> |
- * <kind>: <why>}. The tables are the class's pinned list as written, {@code none} for an empty
- * list, or {@code dynamic} for a {@code @DynamicPropertySource} registration. The kind is one of:
+ * <kind>[ until-active:<table>,...]: <why>}. The tables are the list the class runs with: the
+ * annotation's value, or the value its dynamic registration produced when evaluated, {@code none}
+ * for an empty list, or {@code unevaluated} for a registration that could not be evaluated. The
+ * kind is one of:
  *
  * <ul>
- *   <li>{@code probe}: arms a chosen set on purpose, and every isolation it asserts is about a
- *       table in that set, so a table production activates beside it changes nothing it proves;
+ *   <li>{@code probe}: arms a chosen set on purpose, every assertion is about rows of that set or a
+ *       mechanism measured on it, and no assertion is that a flow works; a table production
+ *       activates beside it changes nothing it proves;
  *   <li>{@code control}: leaves a table off on purpose, to show that a mechanism other than the
- *       inspector holds on its own;
- *   <li>{@code drifts}: asserts an isolation that depends on a table outside its list, so it tests
- *       less than production does and must follow the production list instead;
- *   <li>{@code own-reader}: follows production through its own parser of the properties file rather
- *       than the shared reader, and must move to it.
+ *       inspector holds on its own. It names, in {@code until-active:}, the activation that retires
+ *       that mechanism, and the line fails once production arms one of those tables;
+ *   <li>{@code drifts}: an assertion depends on how a production-active table outside its list is
+ *       scoped, or it tests that a flow works without arming every production-active table the flow
+ *       reads, so it tests less than production does and must follow the production list.
  * </ul>
  *
  * <p>The kind is followed by a written explanation of at least {@value #MIN_WORDS} words.
@@ -35,19 +40,29 @@ import java.util.regex.Pattern;
 final class PinnedActiveTablesBaseline {
 
   static final String RESOURCE = "pinned-active-tables-baseline.txt";
-  static final Set<String> LEGITIMATE_KINDS = Set.of("probe", "control");
-  static final Set<String> DEBT_KINDS = Set.of("drifts", "own-reader");
+  static final Set<String> DELIBERATE_KINDS = Set.of("probe", "control");
+  static final Set<String> DEBT_KINDS = Set.of("drifts");
   static final String NO_TABLES = "none";
-  static final String DYNAMIC = "dynamic";
+  static final String UNEVALUATED = "unevaluated";
   static final int MIN_WORDS = 6;
 
+  private static final String EXPIRING_KIND = "control";
   private static final Pattern CLASS_NAME = Pattern.compile("[a-zA-Z_][\\w.$]*\\.[A-Z][\\w$]*");
+  private static final Pattern REASON =
+      Pattern.compile(
+          "([a-z-]+)(?:\\s+until-active:([a-z_]+(?:,[a-z_]+)*))?\\s*:\\s*(.*)", Pattern.DOTALL);
 
   /**
-   * One line. {@code tables} is null for a dynamic registration, whose value is not known before
-   * the context starts.
+   * One line. {@code tables} is null for a registration that could not be evaluated. {@code
+   * untilActive} names the tables whose activation retires the line, empty when it carries none.
    */
-  record Entry(int line, String testClass, Set<String> tables, String kind, String why) {}
+  record Entry(
+      int line,
+      String testClass,
+      Set<String> tables,
+      String kind,
+      Set<String> untilActive,
+      String why) {}
 
   private PinnedActiveTablesBaseline() {}
 
@@ -78,15 +93,22 @@ final class PinnedActiveTablesBaseline {
       String tablesColumn = parts.length > 1 ? parts[1].strip() : "";
       String reason = parts.length > 2 ? parts[2].strip() : "";
       Set<String> tables =
-          DYNAMIC.equals(tablesColumn)
+          UNEVALUATED.equals(tablesColumn)
               ? null
               : NO_TABLES.equals(tablesColumn)
                   ? Set.of()
                   : PinnedActiveTablesCatalog.tables(tablesColumn);
-      int colon = reason.indexOf(':');
-      String kind = colon < 0 ? reason : reason.substring(0, colon).strip();
-      String why = colon < 0 ? "" : reason.substring(colon + 1).strip();
-      entries.add(new Entry(i + 1, testClass, tables, kind, why));
+      Matcher matcher = REASON.matcher(reason);
+      if (matcher.matches()) {
+        Set<String> untilActive =
+            matcher.group(2) == null
+                ? Set.of()
+                : PinnedActiveTablesCatalog.tables(matcher.group(2));
+        entries.add(
+            new Entry(i + 1, testClass, tables, matcher.group(1), untilActive, matcher.group(3)));
+      } else {
+        entries.add(new Entry(i + 1, testClass, tables, reason, Set.of(), ""));
+      }
     }
     return entries;
   }
@@ -104,14 +126,19 @@ final class PinnedActiveTablesBaseline {
       Integer previous = firstSeen.putIfAbsent(entry.testClass(), entry.line());
       if (previous != null) {
         problems.add(where + "duplicates line " + previous);
-      } else if (!LEGITIMATE_KINDS.contains(entry.kind()) && !DEBT_KINDS.contains(entry.kind())) {
+      } else if (!DELIBERATE_KINDS.contains(entry.kind()) && !DEBT_KINDS.contains(entry.kind())) {
         problems.add(
             where
                 + "the third column must begin with one of "
-                + LEGITIMATE_KINDS
+                + new TreeSet<>(DELIBERATE_KINDS)
                 + " or "
                 + DEBT_KINDS
-                + " followed by ':'");
+                + ", optionally followed by until-active:<table>, then ':'");
+      } else if (EXPIRING_KIND.equals(entry.kind()) && entry.untilActive().isEmpty()) {
+        problems.add(
+            where
+                + "a control must name, in until-active:<table>, the activation that ends what"
+                + " it shows");
       } else if (entry.why().split("\\s+").length < MIN_WORDS) {
         problems.add(
             where
@@ -123,5 +150,24 @@ final class PinnedActiveTablesBaseline {
       }
     }
     return problems;
+  }
+
+  /** The entries whose {@code until-active} names a table production now arms. */
+  static List<String> expired(List<Entry> entries, Set<String> production) {
+    List<String> expired = new ArrayList<>();
+    for (Entry entry : entries) {
+      Set<String> active = new TreeSet<>(entry.untilActive());
+      active.retainAll(production);
+      if (!active.isEmpty()) {
+        expired.add(
+            "line "
+                + entry.line()
+                + " '"
+                + entry.testClass()
+                + "': production now arms "
+                + String.join(",", active));
+      }
+    }
+    return expired;
   }
 }
