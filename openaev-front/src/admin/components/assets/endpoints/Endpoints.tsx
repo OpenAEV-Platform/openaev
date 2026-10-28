@@ -23,7 +23,7 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
-import { type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type AssetBulkProcessingInput, type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
@@ -154,12 +154,16 @@ const Endpoints = () => {
     endpoints.map(endpoint => endpoint.asset_id),
   );
 
+  // Select-all-with-exclusions scope shared by every bulk asset operation (delete, marking
+  // replacement): either an explicit id list, or a search input with the deselected ids excluded.
+  const bulkSelectionInput: AssetBulkProcessingInput = {
+    search_pagination_input: selectAll ? searchPaginationInput : undefined,
+    asset_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+    asset_ids_to_ignore: Object.keys(deSelectedElements),
+  };
+
   const bulkDelete = () => {
-    bulkDeleteAssets({
-      search_pagination_input: selectAll ? searchPaginationInput : undefined,
-      asset_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
-      asset_ids_to_ignore: Object.keys(deSelectedElements),
-    }).then((result) => {
+    bulkDeleteAssets(bulkSelectionInput).then((result) => {
       const deletedIds: string[] = result.data ?? [];
       const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
       setEndpoints(endpoints.filter(e => !deletedIds.includes(e.asset_id)));
@@ -178,9 +182,7 @@ const Endpoints = () => {
   const [openEditMarkings, setOpenEditMarkings] = useState(false);
   const bulkEditMarkings = (markingIds: string[]) => {
     return bulkReplaceAssetMarkings({
-      search_pagination_input: selectAll ? searchPaginationInput : undefined,
-      asset_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
-      asset_ids_to_ignore: Object.keys(deSelectedElements),
+      ...bulkSelectionInput,
       marking_ids: markingIds,
     }).then(() => {
       setOpenEditMarkings(false);
@@ -456,9 +458,8 @@ const Endpoints = () => {
               })
         }
       </List>
-      {canBulkEditMarkings && (
+      {canBulkEditMarkings && openEditMarkings && (
         <BulkMarkingsDrawer
-          open={openEditMarkings}
           onClose={() => setOpenEditMarkings(false)}
           onSubmit={bulkEditMarkings}
         />

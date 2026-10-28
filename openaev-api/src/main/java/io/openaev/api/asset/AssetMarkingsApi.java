@@ -1,6 +1,5 @@
 package io.openaev.api.asset;
 
-import static io.openaev.api.asset.AssetOptionsApi.ASSET_URI;
 import static io.openaev.api.asset.AssetOptionsApi.TENANT_ASSET_URI;
 
 import io.openaev.aop.AccessControl;
@@ -46,36 +45,21 @@ public class AssetMarkingsApi extends RestBehavior {
   private final AssetMarkingsService assetMarkingsService;
   private final TenantWriteScopeResolver writeScopeResolver;
 
-  @PutMapping({ASSET_URI + "/{assetId}/markings", TENANT_ASSET_URI + "/{assetId}/markings"})
+  @PutMapping(TENANT_ASSET_URI + "/{assetId}/markings")
   @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
   @AccessControl(
       resourceId = "#assetId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET)
-  @Operation(
-      summary = "Replace the markings carried by an asset",
-      description =
-          "Replaces the whole set: an empty list clears every marking and makes the asset visible"
-              + " to everyone again. Requires ASSIGN_MARKING to add any marking the asset does not"
-              + " already carry, and/or DELETE_MARKING_ASSIGNMENT to remove any it currently does -"
-              + " whichever of the two this request's payload actually does, checked independently"
-              + " and in addition to the asset's own WRITE control above. A caller may only assign"
-              + " markings they hold themselves, and only markings defined in their own tenant."
-              + " Removing a marking is recorded as a declassification.")
+  @Operation(summary = "Replace the whole marking set carried by an asset")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Asset updated"),
         @ApiResponse(
             responseCode = "403",
-            description =
-                "Missing ASSIGN_MARKING/DELETE_MARKING_ASSIGNMENT for what this payload changes,"
-                    + " or assigning a marking the caller lacks"),
-        @ApiResponse(
-            responseCode = "404",
-            description =
-                "Asset or marking not found - including an asset marked above the caller's"
-                    + " clearance, which is indistinguishable from one that does not exist")
+            description = "Missing marking capability for what this payload changes"),
+        @ApiResponse(responseCode = "404", description = "Asset or marking not found")
       })
   // The @AccessControl WRITE check above answers "may you change what this asset carries" (same
   // gate as other asset-write endpoints); it says nothing about markings specifically. Which of
@@ -95,33 +79,17 @@ public class AssetMarkingsApi extends RestBehavior {
             writeScopeResolver.tenantForWrite(ctx, null), assetId, input));
   }
 
-  @PutMapping({ASSET_URI + "/markings/bulk", TENANT_ASSET_URI + "/markings/bulk"})
-  // SUPPORTS, not REQUIRED: the selected assets are updated chunk by chunk, each chunk in its own
-  // short transaction (see AssetMarkingsService.bulkReplaceAssetMarkings), so this entrypoint must
-  // not itself open one long transaction spanning the whole bulk scope.
+  @PutMapping(TENANT_ASSET_URI + "/markings/bulk")
   @Transactional(propagation = Propagation.SUPPORTS)
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
-  @Operation(
-      summary = "Replace the markings carried by every asset in a bulk selection",
-      description =
-          "Replaces the whole set on every selected asset, the bulk mirror of the single-asset"
-              + " PUT above: an empty list clears every marking. Selection is either an explicit id"
-              + " list or a search input with optional exclusions (select-all), same shape as the"
-              + " bulk delete endpoint. Requires DELETE_MARKING_ASSIGNMENT if any asset in scope"
-              + " would lose a marking and/or ASSIGN_MARKING if any would gain one - the same"
-              + " per-direction rule as the single-asset PUT, aggregated over the whole scope"
-              + " upfront so the gate still fails closed before any chunk writes. A caller may only"
-              + " assign markings they hold themselves, and only markings defined in their own"
-              + " tenant. Removing a marking from an asset is recorded as a declassification.")
+  @Operation(summary = "Replace the whole marking set carried by every asset in a bulk selection")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Assets updated"),
         @ApiResponse(
             responseCode = "403",
-            description =
-                "Missing ASSIGN_MARKING or DELETE_MARKING_ASSIGNMENT, or assigning a marking the"
-                    + " caller lacks"),
+            description = "Missing marking capability for what this payload changes"),
         @ApiResponse(
             responseCode = "404",
             description = "One or more marking definitions not found in the current tenant")

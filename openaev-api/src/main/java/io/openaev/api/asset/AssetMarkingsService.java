@@ -15,7 +15,6 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.MarkingDefinitionRepository;
-import io.openaev.rest.asset.form.AssetBulkProcessingInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.service.AssetService;
@@ -194,39 +193,9 @@ public class AssetMarkingsService {
   }
 
   /**
-   * Replaces the whole marking set of every asset in a bulk selection (explicit ids, or a search
-   * input with optional exclusions — the same select-all pattern as {@code
-   * AssetService.bulkDeleteAssets}), the bulk mirror of {@link #updateAssetMarkings}.
-   *
-   * <p>Every asset in scope ends up carrying exactly the requested set, nothing kept and nothing
-   * merged. Capability is gated by the same per-direction rule as {@link #updateAssetMarkings} -
-   * {@code DELETE_MARKING_ASSIGNMENT} only if some asset in scope would lose a marking, {@code
-   * ASSIGN_MARKING} only if some asset in scope would gain one - except aggregated over the whole
-   * scope rather than per asset: {@link #findBulkDiffDirections} reads scoped assets' current
-   * markings upfront (stopping early once both directions are confirmed), so the gate can still
-   * fail closed before any chunk writes rather than discovering a missing capability mid-write on
-   * some later chunk. That upfront read is a snapshot from its own, already-committed short
-   * transaction, so each chunk's write re-derives the diff under a {@code SELECT ... FOR UPDATE}
-   * row lock ({@link io.openaev.database.repository.AssetRepository#findAllByIdForUpdate}) and
-   * re-checks the capability against that fresh state before applying anything - a concurrent
-   * request that changes one of these assets' markings between the upfront scan and this chunk's
-   * write cannot smuggle a direction past the capability this caller actually holds.
-   *
-   * <p>Escalation is still checked once, upfront, against the requested final set - same as {@link
-   * #updateAssetMarkings}: a caller may not grant a marking they do not hold, whatever an asset's
-   * prior state. Declassification is logged per asset, same as the single-asset endpoint.
-   *
-   * <p>Callers must NOT be transactional: the escalation/capability check and the scope resolution
-   * each run in their own short transaction (through {@code chunkRunner}, which also enables the
-   * tenant filter), and the matched assets are then updated chunk by chunk in independent
-   * transactions, the same shape {@code ExpectationsDriftService.realign} uses for the same reason
-   * — a single transaction spanning a large bulk scope would hold row locks for its whole duration.
-   * When a caller breaks that rule (a transactional integration test, chiefly), {@code
-   * chunkRunner.call}'s {@code REQUIRED} propagation just joins the already-open transaction
-   * instead of opening and committing one per chunk - exactly like {@code
-   * BulkDeleteExecutor#deleteInChunks}, which this mirrors: {@code entityManager.clear()} between
-   * chunks is skipped in that case, because without a real per-chunk commit it would discard that
-   * chunk's still-unflushed write instead of merely detaching an already-persisted one.
+   * Bulk mirror of {@link #updateAssetMarkings}: replaces the whole marking set of every asset in a
+   * select-all-with-exclusions scope, chunk by chunk, with the same per-direction capability and
+   * escalation checks re-verified per chunk under a row lock.
    *
    * @param tenantId the tenant whose clearance the caller is checked against
    * @return the ids of the assets whose markings were updated
@@ -235,7 +204,7 @@ public class AssetMarkingsService {
       final TxCtx ctx,
       @NotBlank final String tenantId,
       @NotNull final AssetBulkReplaceMarkingsInput input) {
-    Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.markingIds());
+    Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.getMarkingIds());
 
     List<MarkingDefinition> markings =
         chunkRunner.call(
@@ -256,11 +225,7 @@ public class AssetMarkingsService {
             currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
         markings);
 
-    AssetBulkProcessingInput selection = new AssetBulkProcessingInput();
-    selection.setSearchPaginationInput(input.searchPaginationInput());
-    selection.setAssetIdsToProcess(input.assetIdsToProcess());
-    selection.setAssetIdsToIgnore(input.assetIdsToIgnore());
-    List<String> assetIds = assetService.resolveBulkAssetIds(ctx, selection);
+    List<String> assetIds = assetService.resolveBulkAssetIds(ctx, input);
     if (assetIds.isEmpty()) {
       return List.of();
     }

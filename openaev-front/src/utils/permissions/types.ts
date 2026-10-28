@@ -30,6 +30,10 @@ export const SUBJECTS = {
   ASSETS: 'ASSETS',
   CREDENTIALS: 'CREDENTIALS',
   MARKING_DEFINITION: 'MARKING_DEFINITION',
+  // Only DELETE_MARKING_ASSIGNMENT parses through this generic ACTION_SUBJECT scheme - the other
+  // capability on this resource, ASSIGN_MARKING, does not (its prefix "ASSIGN" isn't an action in
+  // ACTIONS), so it cannot be checked via ability.can() and is not represented here.
+  MARKING_ASSIGNMENT: 'MARKING_ASSIGNMENT',
   THREAT_ARSENALS: 'THREAT_ARSENALS',
   DASHBOARDS: 'DASHBOARDS',
   REPORTINGS: 'REPORTINGS',
