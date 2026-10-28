@@ -38,6 +38,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+// Once the chaining tables are tenant-active, the export reads the scenario's workflow in the
+// caller's tenant membership scope, so each test acts as a member of the tenant its scenario lives
+// in: the default tenant, granted on the method, or the tenant a prefixed call already joins.
 @TestInstance(PER_CLASS)
 @Transactional
 public class ScenarioExportTest extends IntegrationTest {
@@ -75,7 +78,7 @@ public class ScenarioExportTest extends IntegrationTest {
   class ScenarioDocumentExport {
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("given_injectWithDirectDocument_should_includeDocumentInScenarioDocuments")
     public void given_injectWithDirectDocument_should_includeDocumentInScenarioDocuments()
         throws Exception {
@@ -120,7 +123,7 @@ public class ScenarioExportTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("given_lessonsEnabledScenario_should_exportLessonsFlags")
     void given_lessonsEnabledScenario_should_exportLessonsFlags() throws Exception {
       ScenarioComposer.Composer scenarioComposerRef =
@@ -152,7 +155,7 @@ public class ScenarioExportTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("given_lessonsDisabledScenario_should_not_exportLessonsContent")
     void given_lessonsDisabledScenario_should_not_exportLessonsContent() throws Exception {
       Scenario scenario =
@@ -241,7 +244,7 @@ public class ScenarioExportTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("When payloads have tags, scenario export has these tags")
     public void WhenPayloadsHaveTags_ScenarioExportHasTheseTags() throws Exception {
 
@@ -296,7 +299,7 @@ public class ScenarioExportTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "given_nonChainingScenario_when_exporting_should_includeInjectorContractAndContractOutputElementTags")
     void
@@ -326,7 +329,7 @@ public class ScenarioExportTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "given_chainingScenario_when_exporting_should_includeInjectorContractAndContractOutputElementTags")
     void
