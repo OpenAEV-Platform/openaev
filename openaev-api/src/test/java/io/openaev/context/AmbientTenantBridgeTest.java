@@ -288,11 +288,9 @@ class AmbientTenantBridgeTest extends IntegrationTest {
 
   private String seedScenario(String id, String tenantId) {
     jdbc.update(
-        "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-            + " VALUES (?, ?, ?, ?)",
+        "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)" + " VALUES (?, ?, ?)",
         id,
         id,
-        "bridge@filigran.io",
         tenantId);
     return id;
   }

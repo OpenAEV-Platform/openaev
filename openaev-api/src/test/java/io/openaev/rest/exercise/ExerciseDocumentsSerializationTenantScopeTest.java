@@ -280,8 +280,7 @@ class ExerciseDocumentsSerializationTenantScopeTest extends IntegrationTest {
   private String seedExercise(String tenantId) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, tenant_id)"
-            + " VALUES (?, ?, 'noreply@openaev.io', ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, tenant_id) VALUES (?, ?, ?)",
         id,
         "exercise-documents-" + id,
         tenantId);
@@ -292,8 +291,8 @@ class ExerciseDocumentsSerializationTenantScopeTest extends IntegrationTest {
   private String seedExerciseWithLogos(String tenantId, String logoId) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_logo_dark,"
-            + " exercise_logo_light, tenant_id) VALUES (?, ?, 'noreply@openaev.io', ?, ?, ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_logo_dark,"
+            + " exercise_logo_light, tenant_id) VALUES (?, ?, ?, ?, ?)",
         id,
         "exercise-documents-" + id,
         logoId,

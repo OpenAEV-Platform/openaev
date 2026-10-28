@@ -34,6 +34,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectDependencyInput;
 import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
@@ -44,7 +45,6 @@ import io.openaev.rest.payload.regex_group.RegexGroupInput;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.service.*;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.CollectorTypeHumanizer;
 import io.openaev.utils.ConditionKeyTypesUtils;
 import io.openaev.utils.WorkflowScopeRuleUtils;
@@ -79,12 +79,11 @@ public class V1_DataImporter implements Importer {
   // region variables
   @Resource protected ObjectMapper mapper;
   private final FileService documentService;
-  private final ActionMetricCollector actionMetricCollector;
   private final DocumentRepository documentRepository;
   private final TagRepository tagRepository;
   private final AttackPatternRepository attackPatternRepository;
   private final KillChainPhaseService killChainPhaseService;
-  private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final ScenarioService scenarioService;
   private final TeamRepository teamRepository;
   private final TenantRepository tenantRepository;
@@ -233,11 +232,12 @@ public class V1_DataImporter implements Importer {
       String suffix) {
     // Resolve the write tenant once. A bundle imported into an existing simulation or scenario is
     // written in the tenant of that parent, which must lie inside the request scope; a bundle with
-    // no parent takes the single tenant of the scope. Documents, tags, challenges and channels are
-    // attributed to it explicitly; the roots that are not tenant-active yet (exercise, scenario,
-    // injects, teams, payloads) are still stamped from the ambient tenant and matched against
-    // existing rows through it. Running the whole import with the ambient tenant aligned on the
-    // write tenant keeps the bundle in one tenant on every route.
+    // no parent takes the single tenant of the scope. Documents, tags, teams, challenges, channels
+    // and the imported exercise or scenario are attributed to it explicitly. Injects and injector
+    // contracts, whose tables are not tenant-active yet, are still stamped from the ambient tenant
+    // and matched against existing rows through it, and a few rows (domains among them) are
+    // attributed from the ambient tenant by the importer itself. Running the whole import with the
+    // ambient tenant aligned on the write tenant keeps the bundle in one tenant on every route.
     String writeTenant =
         tenantWriteScopeResolver.tenantForWrite(ctx, parentTenantId(exercise, scenario));
     // The nested importers resolve the tenant of the rows they create (tags, challenges, channels,
@@ -354,9 +354,11 @@ public class V1_DataImporter implements Importer {
     // TenantBaseListener never has to stamp them, and the create/update decision is scoped to the
     // write tenant rather than the ambient filter.
     Exercise savedExercise =
-        Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
+        Optional.ofNullable(importExercise(importNode, baseIds, suffix, writeTenant))
+            .orElse(exercise);
     Scenario savedScenario =
-        Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
+        Optional.ofNullable(importScenario(importNode, baseIds, suffix, writeTenant))
+            .orElse(scenario);
     importDocuments(
         importNode, prefix, docReferences, writeTenant, savedExercise, savedScenario, baseIds);
     importDocument(
@@ -810,13 +812,15 @@ public class V1_DataImporter implements Importer {
 
   // -- EXERCISE --
 
-  private Exercise importExercise(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
+  private Exercise importExercise(
+      JsonNode importNode, Map<String, Base> baseIds, String suffix, String writeTenant) {
     JsonNode exerciseNode = importNode.get("exercise_information");
     if (exerciseNode == null) {
       return null;
     }
 
     Exercise exercise = new Exercise();
+    exercise.setTenant(new Tenant(writeTenant));
     exercise.setName(exerciseNode.get("exercise_name").textValue() + suffix);
     exercise.setDescription(exerciseNode.get("exercise_description").textValue());
     exercise.setSubtitle(exerciseNode.get("exercise_subtitle").textValue());
@@ -834,7 +838,6 @@ public class V1_DataImporter implements Importer {
         .ifPresent(exercise::setDefaultKillChain);
     exercise.setHeader(exerciseNode.get("exercise_message_header").textValue());
     exercise.setFooter(exerciseNode.get("exercise_message_footer").textValue());
-    exercise.setFrom(exerciseNode.get("exercise_mail_from").textValue());
     exercise.setLessonsAnonymized(
         ofNullable(exerciseNode.get("exercise_lessons_anonymized"))
             .map(node -> node.asBoolean(false))
@@ -848,19 +851,20 @@ public class V1_DataImporter implements Importer {
             .map(baseIds::get)
             .map(Tag.class::cast)
             .collect(Collectors.toSet()));
-    actionMetricCollector.addSimulationCreatedCount();
-    return exerciseRepository.save(exercise);
+    return exerciseService.createExercise(exercise);
   }
 
   // -- SCENARIO --
 
-  private Scenario importScenario(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
+  private Scenario importScenario(
+      JsonNode importNode, Map<String, Base> baseIds, String suffix, String writeTenant) {
     JsonNode scenarioNode = importNode.get("scenario_information");
     if (scenarioNode == null) {
       return null;
     }
 
     Scenario scenario = new Scenario();
+    scenario.setTenant(new Tenant(writeTenant));
     scenario.setName(scenarioNode.get("scenario_name").textValue() + suffix);
     scenario.setDescription(scenarioNode.get("scenario_description").textValue());
     scenario.setSubtitle(scenarioNode.get("scenario_subtitle").textValue());
@@ -883,7 +887,6 @@ public class V1_DataImporter implements Importer {
         .ifPresent(recurrenceEnd -> scenario.setRecurrenceEnd(Instant.parse(recurrenceEnd)));
     scenario.setHeader(scenarioNode.get("scenario_message_header").textValue());
     scenario.setFooter(scenarioNode.get("scenario_message_footer").textValue());
-    scenario.setFrom(scenarioNode.get("scenario_mail_from").textValue());
     scenario.setLessonsAnonymized(
         ofNullable(scenarioNode.get("scenario_lessons_anonymized"))
             .map(node -> node.asBoolean(false))

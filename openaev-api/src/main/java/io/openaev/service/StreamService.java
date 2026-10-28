@@ -46,7 +46,7 @@ public class StreamService {
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
 
   // Mutated from several threads: SSE connect (request thread), disconnect (reactor
-  // doAfterTerminate) and iteration in the @Async broadcast path, so it must be concurrent.
+  // onDispose) and iteration in the @Async broadcast path, so it must be concurrent.
   private final Map<String, StreamConsumer> consumers = new ConcurrentHashMap<>();
 
   // Short-lived per-principal user cache for the broadcast path. listenDatabaseUpdate
@@ -464,21 +464,26 @@ public class StreamService {
 
   public Flux<Object> makeDataFlux(String sessionId) {
     return Flux.create(
-            fluxSinkConsumer ->
-                consumers.put(
-                    sessionId,
-                    new StreamConsumer(
-                        currentUser(), TenantContext.getCurrentTenant(), fluxSinkConsumer)))
-        .doAfterTerminate(
-            () -> {
-              StreamConsumer removed = consumers.remove(sessionId);
-              // Drop the cached user once the principal has no stream left open.
-              if (removed != null
-                  && consumers.values().stream()
-                      .noneMatch(c -> removed.principal().getId().equals(c.principal().getId()))) {
-                userCache.remove(removed.principal().getId());
-              }
-            });
+        fluxSinkConsumer -> {
+          StreamConsumer consumer =
+              new StreamConsumer(currentUser(), TenantContext.getCurrentTenant(), fluxSinkConsumer);
+          consumers.put(sessionId, consumer);
+          // The stream never ends on its own: a client leaving cancels it instead of terminating
+          // it, so the cleanup must run on dispose (cancel, complete or error).
+          fluxSinkConsumer.onDispose(() -> removeConsumer(sessionId, consumer));
+        });
+  }
+
+  private void removeConsumer(String sessionId, StreamConsumer consumer) {
+    // Conditional remove: a reconnect on the same session may already have replaced it.
+    if (!consumers.remove(sessionId, consumer)) {
+      return;
+    }
+    // Drop the cached user once the principal has no stream left open.
+    String principalId = consumer.principal().getId();
+    if (consumers.values().stream().noneMatch(c -> principalId.equals(c.principal().getId()))) {
+      userCache.remove(principalId);
+    }
   }
 
   public Flux<Object> makePingFlux() {

@@ -6,7 +6,6 @@ import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.specification.ExerciseSpecification.*;
 import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
-import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JpaUtils.arrayAggOnId;
 import static io.openaev.utils.StringUtils.duplicateString;
@@ -22,7 +21,6 @@ import static java.util.Optional.ofNullable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -39,6 +37,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
@@ -88,7 +87,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -166,13 +164,7 @@ public class ExerciseService {
       autonomousRunRepository;
 
   // region properties
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
-
-  @Value("${openaev.mail.imap.username}")
-  private String imapUsername;
-
-  @Resource private OpenAEVConfig openAEVConfig;
+  @Resource private PlatformMailSender platformMailSender;
 
   // endregion
 
@@ -181,16 +173,15 @@ public class ExerciseService {
   // -- CREATION --
   @Transactional(rollbackFor = Exception.class)
   public Exercise createExercise(@NotNull final Exercise exercise) {
-    if (!StringUtils.hasText(exercise.getFrom())) {
-      if (imapEnabled) {
-        exercise.setFrom(imapUsername);
-        exercise.setFromName(resolveFromName(null, this.imapUsername));
-        exercise.setReplyTos(List.of(imapUsername));
-      } else {
-        exercise.setFrom(openAEVConfig.getDefaultMailer());
-        exercise.setFromName(this.openAEVConfig.getDefaultMailerName());
-        exercise.setReplyTos(new ArrayList<>(List.of(openAEVConfig.getDefaultReplyTo())));
-      }
+    if (!StringUtils.hasText(exercise.getFromName())) {
+      exercise.setFromName(platformMailSender.getName());
+    }
+    if (exercise.getReplyTos() == null || exercise.getReplyTos().isEmpty()) {
+      String defaultReplyTo = platformMailSender.getReplyTo();
+      exercise.setReplyTos(
+          StringUtils.hasText(defaultReplyTo)
+              ? new ArrayList<>(List.of(defaultReplyTo))
+              : new ArrayList<>());
     }
 
     actionMetricCollector.addSimulationCreatedCount();
@@ -372,10 +363,10 @@ public class ExerciseService {
 
   private Exercise copyExercise(Exercise exerciseOrigin) {
     Exercise exerciseDuplicate = new Exercise();
+    exerciseDuplicate.setTenant(exerciseOrigin.getTenant());
     exerciseDuplicate.setName(duplicateString(exerciseOrigin.getName()));
     exerciseDuplicate.setCategory(exerciseOrigin.getCategory());
     exerciseDuplicate.setDescription(exerciseOrigin.getDescription());
-    exerciseDuplicate.setFrom(exerciseOrigin.getFrom());
     exerciseDuplicate.setFromName(exerciseOrigin.getFromName());
     exerciseDuplicate.setFooter(exerciseOrigin.getFooter());
     exerciseDuplicate.setScenario(exerciseOrigin.getScenario());

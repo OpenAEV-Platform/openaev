@@ -91,7 +91,6 @@ class ScenarioInjectApiTest extends IntegrationTest {
         manualInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
-    scenario.setFrom("test@test.com");
     scenario.setReplyTos(List.of("test@test.com"));
     // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
     // class-wide fixture names the default tenant explicitly rather than relying on it.

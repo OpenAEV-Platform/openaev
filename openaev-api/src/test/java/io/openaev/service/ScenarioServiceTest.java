@@ -379,7 +379,6 @@ class ScenarioServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
-    assertEquals(scenario.getFrom(), scenarioDuplicated.getFrom());
     assertTrue(scenarioDuplicated.isLessonsEnabled());
     assertEquals(2, scenarioDuplicated.getTeams().size());
     scenarioDuplicated

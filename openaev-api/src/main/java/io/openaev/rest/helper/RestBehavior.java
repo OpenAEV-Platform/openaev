@@ -48,6 +48,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.method.ParameterValidationResult;
@@ -458,6 +459,18 @@ public class RestBehavior {
     ErrorMessage message = new ErrorMessage(ex.getMessage());
     log.warn(String.format("FileTooBigException: %s", ex.getMessage()), ex);
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  }
+
+  // Matched on the cause too: Spring Data and JPA wrap the timeout in their own exceptions.
+  @ExceptionHandler({
+    TransactionTimedOutException.class,
+    org.hibernate.TransactionException.class,
+    org.hibernate.QueryTimeoutException.class
+  })
+  public ResponseEntity<ErrorMessage> handleTransactionTimeout(Exception ex) {
+    log.error("Transaction stopped on {} {}: {}", requestMethod(), requestUri(), ex.getMessage());
+    return new ResponseEntity<>(
+        new ErrorMessage("The request took too long and was stopped."), HttpStatus.GATEWAY_TIMEOUT);
   }
 
   @ExceptionHandler(AlreadyExistingException.class)

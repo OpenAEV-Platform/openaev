@@ -84,7 +84,6 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
     exercise.setStatus(SCHEDULED);
-    exercise.setFrom("test@test.com");
     exercise.setReplyTos(List.of("test@test.com"));
     exercise.setStart(Instant.now());
     return this.exerciseRepository.save(exercise);

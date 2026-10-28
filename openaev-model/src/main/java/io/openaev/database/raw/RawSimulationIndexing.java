@@ -108,13 +108,6 @@ public interface RawSimulationIndexing extends RawTenant {
   String getExercise_message_footer();
 
   /**
-   * Returns the email address used as sender for exercise communications.
-   *
-   * @return the "from" email address
-   */
-  String getExercise_mail_from();
-
-  /**
    * Returns the sender display name for exercise communications.
    *
    * @return the "from" display name

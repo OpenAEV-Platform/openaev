@@ -160,8 +160,12 @@ class QueueChainingJobTest extends IntegrationTest {
     assertThatThrownBy(() -> job.execute(null)).isInstanceOf(IllegalStateException.class);
 
     // ... which rolls back the DELETE...RETURNING pop: the entry is not lost, it stays queued for
-    // the next tick, exactly as before the job was moved onto TenantScopedTransaction.
-    assertThat(stepDelayQueueRepository.findById(dueEntry.getId())).isPresent();
+    // the next tick, exactly as before the job was moved onto TenantScopedTransaction. Read in the
+    // scope the next tick pops it in.
+    assertThat(
+            tenantTx.execute(
+                TxCtx.allTenants(), () -> stepDelayQueueRepository.findById(dueEntry.getId())))
+        .isPresent();
   }
 
   @Test

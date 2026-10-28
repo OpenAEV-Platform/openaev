@@ -5748,11 +5748,6 @@ export interface Exercise {
   /** @format int64 */
   exercise_logs_number?: number;
   /**
-   * @format email
-   * @minLength 1
-   */
-  exercise_mail_from: string;
-  /**
    * @minLength 0
    * @maxLength 100
    * @pattern ^[^\r\n\x00]*$
@@ -11167,11 +11162,6 @@ export interface Scenario {
   scenario_lessons_categories?: string[];
   scenario_lessons_enabled?: boolean;
   /**
-   * @format email
-   * @minLength 1
-   */
-  scenario_mail_from: string;
-  /**
    * @minLength 0
    * @maxLength 100
    * @pattern ^[^\r\n\x00]*$
@@ -11308,11 +11298,6 @@ export interface ScenarioOutput {
   scenario_kill_chain_phases?: KillChainPhaseOutput[];
   /** Whether the lessons learned module is enabled for the scenario */
   scenario_lessons_enabled?: boolean;
-  /**
-   * From value of the scenario
-   * @minLength 1
-   */
-  scenario_mail_from: string;
   /** Sender display name of the scenario */
   scenario_mail_from_name?: string;
   /** @uniqueItems true */
@@ -12005,8 +11990,6 @@ export interface SimulationDetails {
   exercise_lessons_enabled?: boolean;
   /** @format int64 */
   exercise_logs_number?: number;
-  /** @minLength 1 */
-  exercise_mail_from: string;
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;

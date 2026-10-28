@@ -8,6 +8,8 @@ import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mockStatic;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Scenario;
@@ -29,6 +31,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.*;
 import org.mockito.MockedStatic;
 import org.quartz.JobExecutionException;
@@ -54,6 +57,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
   @Autowired private WorkflowRepository workflowRepository;
 
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private EntityManager entityManager;
 
   static String SCENARIO_ID_1;
@@ -130,9 +134,18 @@ class ScenarioExecutionJobTest extends IntegrationTest {
       assertEquals(1, createdExercises.size());
       Exercise createdExercise = createdExercises.getFirst();
       assertNotNull(createdExercise.getStart());
-      assertThat(workflowRepository.existsBySimulationId(createdExercise.getId())).isFalse();
+      assertThat(
+              inTenantOf(
+                  createdExercise,
+                  () -> workflowRepository.existsBySimulationId(createdExercise.getId())))
+          .isFalse();
 
       EXERCISE_ID = createdExercise.getId();
+    }
+
+    /** Reads in the simulation's tenant scope, the scope the jobs write its workflows in. */
+    private <T> T inTenantOf(Exercise simulation, Supplier<T> read) {
+      return tenantTx.execute(TxCtx.forTenant(simulation.getTenant().getId()), read);
     }
 
     /**
@@ -172,13 +185,22 @@ class ScenarioExecutionJobTest extends IntegrationTest {
       // -- ASSERT --
       assertNotNull(createdExercise.getStart());
       assertEquals(ExerciseStatus.SCHEDULED, createdExercise.getStatus());
-      assertThat(workflowRepository.existsBySimulationId(createdExercise.getId())).isTrue();
       assertThat(
-              workflowRepository.findAllBySimulation_IdAndStatus(
-                  createdExercise.getId(), WorkflowStatus.RUN))
+              inTenantOf(
+                  createdExercise,
+                  () -> workflowRepository.existsBySimulationId(createdExercise.getId())))
+          .isTrue();
+      assertThat(
+              inTenantOf(
+                  createdExercise,
+                  () ->
+                      workflowRepository.findAllBySimulation_IdAndStatus(
+                          createdExercise.getId(), WorkflowStatus.RUN)))
           .isEmpty();
       assertNotNull(
-          exerciseRepository.rawDetailsById(createdExercise.getId()).getExercise_workflow_id());
+          inTenantOf(
+                  createdExercise, () -> exerciseRepository.rawDetailsById(createdExercise.getId()))
+              .getExercise_workflow_id());
     }
 
     @DisplayName("Create chained workflow run when scheduled chained simulation auto-starts")
@@ -203,8 +225,11 @@ class ScenarioExecutionJobTest extends IntegrationTest {
       Exercise startedExercise = exerciseRepository.findById(createdExercise.getId()).orElseThrow();
       assertThat(startedExercise.getStatus()).isEqualTo(ExerciseStatus.FINISHED);
       assertThat(
-              workflowRepository.findAllBySimulation_IdAndStatus(
-                  createdExercise.getId(), WorkflowStatus.END))
+              inTenantOf(
+                  createdExercise,
+                  () ->
+                      workflowRepository.findAllBySimulation_IdAndStatus(
+                          createdExercise.getId(), WorkflowStatus.END)))
           .singleElement()
           .satisfies(workflow -> assertThat(workflow.getWorkflowTemplate()).isNotNull());
     }

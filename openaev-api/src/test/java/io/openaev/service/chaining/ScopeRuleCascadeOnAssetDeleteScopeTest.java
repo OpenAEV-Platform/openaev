@@ -220,8 +220,8 @@ class ScopeRuleCascadeOnAssetDeleteScopeTest extends IntegrationTest {
             .getContentAsString();
     assetGroupId = JsonPath.read(created, "$.asset_group_id");
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, tenant_id)"
-            + " VALUES (?, 'scoped simulation', 'sim@openaev.io', ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, tenant_id)"
+            + " VALUES (?, 'scoped simulation', ?)",
         exerciseId,
         DEFAULT_TENANT_UUID);
     jdbc.update(

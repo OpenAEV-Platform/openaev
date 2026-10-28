@@ -94,7 +94,6 @@ class ChainingRbacIsolationTest extends IntegrationTest {
     Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
     workflow.setStatus(WorkflowStatus.TEMPLATE);
     Exercise exercise = ExerciseFixture.getExercise();
-    exercise.setFrom("exercise@mail.fr");
     ExerciseComposer.Composer simulation = exerciseComposer.forExercise(exercise);
     StepComposer.Composer step = stepComposer.forStep(StepFixture.getDefaultStepTemplate());
     Workflow persisted =

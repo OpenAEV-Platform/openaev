@@ -949,11 +949,10 @@ public class ScenarioApiTest extends IntegrationTest {
       String scenarioId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
           .setParameter("id", scenarioId)
           .setParameter("name", "Isolation Test Scenario")
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
@@ -1021,11 +1020,10 @@ public class ScenarioApiTest extends IntegrationTest {
 
       entityManager
           .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
           .setParameter("id", UUID.randomUUID().toString())
           .setParameter("name", "CrossTenantSearchScenario")
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
@@ -1066,11 +1064,10 @@ public class ScenarioApiTest extends IntegrationTest {
       String scenarioId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
           .setParameter("id", scenarioId)
           .setParameter("name", "Update Isolation Test Scenario")
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
@@ -1113,11 +1110,10 @@ public class ScenarioApiTest extends IntegrationTest {
       String scenarioId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
           .setParameter("id", scenarioId)
           .setParameter("name", input.getName())
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
@@ -1151,11 +1147,10 @@ public class ScenarioApiTest extends IntegrationTest {
       String scenarioId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
           .setParameter("id", scenarioId)
           .setParameter("name", "SearchById Isolation Scenario")
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 

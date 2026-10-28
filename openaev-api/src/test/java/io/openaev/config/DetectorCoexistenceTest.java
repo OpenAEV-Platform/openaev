@@ -106,12 +106,11 @@ class DetectorCoexistenceTest extends IntegrationTest {
   private void seedScenario(String tenantId) {
     entityManager
         .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                + " VALUES (?1, ?2, ?3, ?4)")
+            "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                + " VALUES (?1, ?2, ?3)")
         .setParameter(1, UUID.randomUUID().toString())
         .setParameter(2, "coexist-scenario")
-        .setParameter(3, "planner@openaev.io")
-        .setParameter(4, tenantId)
+        .setParameter(3, tenantId)
         .executeUpdate();
   }
 }
