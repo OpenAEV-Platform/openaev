@@ -65,5 +65,7 @@ Existing `user_admin` users are left as they are. Only today's rule stays: role 
 
 ## Out of scope
 
-OpenCTI scenario launcher (chunk 6), one account per agent, the wider `BYPASS` cleanup (several ways to check it,
-hidden capabilities given by `BYPASS`).
+- Scenarios created from OpenCTI: who launches them, and with which markings (chunk 6, #8554).
+- One account per agent: today all agents of a tenant share one account.
+- Outside markings: a `BYPASS` user also gets the rights meant only for the agent and OpenCTI accounts (for example,
+  calling the agent API). Follow-up issue.
