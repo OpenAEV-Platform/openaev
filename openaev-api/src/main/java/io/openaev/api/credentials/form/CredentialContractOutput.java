@@ -34,11 +34,12 @@ public record CredentialContractOutput(
       @JsonProperty("mandatory_condition_value") String mandatoryConditionValue,
       @JsonProperty("visible_condition_field") String visibleConditionField,
       @JsonProperty("visible_condition_value") String visibleConditionValue,
-      @JsonProperty("default_value") String defaultValue) {
+      @JsonProperty("default_value") String defaultValue,
+      @JsonProperty("field_description") String fieldDescription) {
 
     /**
-     * Convenience constructor for the fields carrying no default value, so contracts declared
-     * before {@code default_value} existed stay untouched.
+     * Convenience constructor for the fields carrying no default value and no description, so
+     * contracts declared before {@code default_value} existed stay untouched.
      */
     public CredentialContractField(
         String fieldName,
@@ -58,6 +59,7 @@ public record CredentialContractOutput(
           mandatoryConditionValue,
           visibleConditionField,
           visibleConditionValue,
+          null,
           null);
     }
   }

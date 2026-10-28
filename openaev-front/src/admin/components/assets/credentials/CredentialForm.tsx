@@ -25,6 +25,11 @@ import type {
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
 import { humanizeEnum } from '../asset-categories';
 
+const FILE_FIELD_ACCEPTED_FORMATS: Record<string, string> = {
+  gcp_private_key_json: 'application/json',
+  azure_requests_certificate: '.pem,.crt,.cer,application/x-x509-ca-cert,application/x-pem-file',
+};
+
 interface Props {
   /** Receives the multipart payload: an `input` JSON part plus one part per uploaded file. */
   onSubmit: (formData: FormData, event?: BaseSyntheticEvent) => Promise<unknown> | void;
@@ -288,6 +293,7 @@ const CredentialForm: FunctionComponent<Props> = ({
       cardinality: '1',
       defaultValue: field.default_value ?? undefined,
       settings: { required: isRequired },
+      helperText: field.field_description ? t(field.field_description) : undefined,
       // A stored secret is never echoed back: passwords and uploaded key files are both rendered
       // as a placeholder in edit mode and only sent when the user provides a new value.
       writeOnly: editing && (field.field_type === 'password' || field.field_type === 'file'),
@@ -402,8 +408,8 @@ const CredentialForm: FunctionComponent<Props> = ({
                 <FileFieldController
                   key={field.field_name}
                   name={field.field_name}
-                  label={field.field_name}
-                  acceptMimeTypes="application/json"
+                  label={t(field.field_name)}
+                  acceptMimeTypes={FILE_FIELD_ACCEPTED_FORMATS[field.field_name]}
                   required={!!field.required}
                   disabled={isSubmitting}
                 />
