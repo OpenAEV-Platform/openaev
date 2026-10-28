@@ -74,7 +74,7 @@ authoritative scope statement; that one just points back to it per step.
 - `InjectUtils.duplicateInject()` must not blindly copy `launched_by` forward the way it already does
   for `user` — a relaunch has to explicitly overwrite it (current user for a manual relaunch, the
   original inject's `scheduled_by` for a scheduled one).
-- The per-tenant service account (`ServiceAccountPrivilegeService`) holds only
+- The per-tenant service account (`AgentServiceAccountPrivilegeService`) holds only
   `{AGENT_RUNTIME_ACCESS, AGENT_DOCUMENT_ACCESS, INSTALL_AGENT}` — none of which satisfies
   `@AccessControl(Action.LAUNCH)`. It cannot authenticate a launch/relaunch/recurrence call today, so it
   structurally cannot become `launched_by`/`scheduled_by`. This is a **verified invariant** this PoC

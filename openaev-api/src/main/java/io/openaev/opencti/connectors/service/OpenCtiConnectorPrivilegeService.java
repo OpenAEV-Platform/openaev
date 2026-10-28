@@ -1,19 +1,18 @@
 package io.openaev.opencti.connectors.service;
 
-import static io.openaev.opencti.connectors.Constants.*;
-
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.service.*;
+import io.openaev.service.account.AbstractPrivilegeService;
+import io.openaev.service.account.ReservedServiceAccount;
+import io.openaev.service.account.WellKnownAccess;
 import io.openaev.service.tenants.TenantUserService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,16 +21,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(rollbackFor = Exception.class)
 @Slf4j
-public class PrivilegeService extends AbstractPrivilegeService {
+public class OpenCtiConnectorPrivilegeService extends AbstractPrivilegeService {
 
-  public static final String CONNECTOR_EMAIL_PATTERN = "connector-opencti-%s@openaev.invalid";
   private static final String CONNECTOR_LASTNAME = "OpenCTI Connector";
 
   LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration;
   private final TenantScopedTransaction tenantTx;
 
   @Autowired
-  public PrivilegeService(
+  public OpenCtiConnectorPrivilegeService(
       TenantRoleService tenantRoleService,
       TenantGroupService tenantGroupService,
       UserService userService,
@@ -44,38 +42,8 @@ public class PrivilegeService extends AbstractPrivilegeService {
   }
 
   @Override
-  protected String getRoleId() {
-    return PROCESS_STIX_ROLE_ID;
-  }
-
-  @Override
-  protected String getRoleName() {
-    return PROCESS_STIX_ROLE_NAME;
-  }
-
-  @Override
-  protected String getRoleDescription() {
-    return PROCESS_STIX_ROLE_DESCRIPTION;
-  }
-
-  @Override
-  protected Set<Capability> getRoleCapabilities() {
-    return PROCESS_STIX_ROLE_CAPABILITIES;
-  }
-
-  @Override
-  protected String getGroupId() {
-    return PROCESS_STIX_GROUP_ID;
-  }
-
-  @Override
-  protected String getGroupName() {
-    return PROCESS_STIX_GROUP_NAME;
-  }
-
-  @Override
-  protected String getGroupDescription() {
-    return PROCESS_STIX_GROUP_DESCRIPTION;
+  protected WellKnownAccess wellKnownAccess() {
+    return ReservedServiceAccount.OPENCTI_CONNECTOR.access();
   }
 
   /**
@@ -94,7 +62,8 @@ public class PrivilegeService extends AbstractPrivilegeService {
     // the OpenCTI HTTP calls deliberately happen after it, outside any transaction.
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(connector.getTenantId()));
 
-    String email = CONNECTOR_EMAIL_PATTERN.formatted(connector.getId());
+    String email =
+        ReservedServiceAccount.OPENCTI_CONNECTOR.emailPattern().formatted(connector.getId());
 
     // TODO: remove once all deployments have been migrated to multi-tenant
     legacyOpenCTIConnectorMigration.deleteLegacyConnectorIfExists(email);

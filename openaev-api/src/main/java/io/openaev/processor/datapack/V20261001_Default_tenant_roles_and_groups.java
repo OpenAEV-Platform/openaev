@@ -8,9 +8,9 @@ import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
-import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.DataPackService;
 import io.openaev.service.TenantRoleService;
+import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -138,7 +138,8 @@ public class V20261001_Default_tenant_roles_and_groups extends DataPack {
    */
   private Optional<Role> findDefaultRole(List<Role> roles, String roleName, String tenantId) {
     String bootstrapAdminRoleId =
-        AbstractPrivilegeService.getUUIDFromName(AdminPrivilegeService.ADMIN_ROLE_ID, tenantId);
+        AbstractPrivilegeService.getUUIDFromName(
+            AdminPrivilegeService.ADMIN_ACCESS.roleId(), tenantId);
     return roles.stream()
         .filter(role -> roleName.equals(role.getName()))
         .filter(role -> !bootstrapAdminRoleId.equals(role.getId()))

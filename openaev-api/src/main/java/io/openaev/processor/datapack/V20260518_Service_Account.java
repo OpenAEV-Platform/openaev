@@ -2,17 +2,17 @@ package io.openaev.processor.datapack;
 
 import io.openaev.database.model.Tenant;
 import io.openaev.service.DataPackService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
 public class V20260518_Service_Account extends DataPack {
-  private final ServiceAccountPrivilegeService privilegeService;
+  private final AgentServiceAccountPrivilegeService privilegeService;
 
   public V20260518_Service_Account(
-      DataPackService dataPackService, ServiceAccountPrivilegeService privilegeService) {
+      DataPackService dataPackService, AgentServiceAccountPrivilegeService privilegeService) {
     super(dataPackService);
     this.privilegeService = privilegeService;
   }

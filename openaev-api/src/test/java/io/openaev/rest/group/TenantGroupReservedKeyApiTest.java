@@ -1,8 +1,8 @@
 package io.openaev.rest.group;
 
 import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
-import static io.openaev.opencti.connectors.Constants.PROCESS_STIX_GROUP_ID;
-import static io.openaev.service.account.Constants.SERVICE_GROUP_ID;
+import static io.openaev.service.account.ReservedServiceAccount.AGENT;
+import static io.openaev.service.account.ReservedServiceAccount.OPENCTI_CONNECTOR;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -25,7 +25,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
-import io.openaev.service.AbstractPrivilegeService;
+import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -55,19 +55,16 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private TenantRepository tenantRepository;
 
-  private static final String SERVICE_EMAIL_PATTERN =
-      io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN;
-
   /** Computes the tenant-scoped reserved id used by the service-account group in this tenant. */
   private String reservedServiceGroupId() {
     return AbstractPrivilegeService.getUUIDFromName(
-        SERVICE_GROUP_ID, TenantContext.getCurrentTenant());
+        AGENT.access().groupId(), TenantContext.getCurrentTenant());
   }
 
   /** Computes the tenant-scoped reserved id used by the STIX-processor group in this tenant. */
   private String reservedStixGroupId() {
     return AbstractPrivilegeService.getUUIDFromName(
-        PROCESS_STIX_GROUP_ID, TenantContext.getCurrentTenant());
+        OPENCTI_CONNECTOR.access().groupId(), TenantContext.getCurrentTenant());
   }
 
   /** Persists a group with an explicitly assigned (reserved) id. */
@@ -232,7 +229,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
       // so it is found by `findAllByIdInAndTenantId`.
       User reservedUser =
           UserFixture.getUser(
-              "Service", "Account", SERVICE_EMAIL_PATTERN.formatted(UUID.randomUUID().toString()));
+              "Service", "Account", AGENT.emailPattern().formatted(UUID.randomUUID().toString()));
       reservedUser = userRepository.save(reservedUser);
       tenantRepository.addUserToTenant(reservedUser.getId(), TenantContext.getCurrentTenant());
       entityManager.flush();
@@ -271,8 +268,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
           TenantRoleFixture.getRole("ReservedRoleById", Set.of(Capability.ACCESS_ASSETS));
       roleWithReservedId.setId(
           AbstractPrivilegeService.getUUIDFromName(
-              io.openaev.service.account.Constants.SERVICE_ROLE_ID,
-              TenantContext.getCurrentTenant()));
+              AGENT.access().roleId(), TenantContext.getCurrentTenant()));
       Role reservedRole = tenantRoleComposer.forRole(roleWithReservedId).persist().get();
       GroupUpdateRolesInput input =
           GroupUpdateRolesInput.builder().roleIds(List.of(reservedRole.getId())).build();

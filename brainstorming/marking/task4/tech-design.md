@@ -548,7 +548,7 @@ sequenceDiagram
   wrapper, not part of `MarkingScopeResolver`'s general contract. `MarkingScopeResolver.resolve()`
   (`MarkingScopeResolver.java:60-62`) just does what its `bypass` argument tells it to; the *decision*
   of what counts as bypass is made entirely by the caller.
-- The per-tenant service account (`ServiceAccountPrivilegeService`) holds exactly
+- The per-tenant service account (`AgentServiceAccountPrivilegeService`) holds exactly
   `{AGENT_RUNTIME_ACCESS, AGENT_DOCUMENT_ACCESS, INSTALL_AGENT}` — none of which satisfies
   `@AccessControl(Action.LAUNCH)` on the Scenario/Atomic Testing endpoints. It structurally cannot
   authenticate a launch/relaunch/recurrence-update call, so it can never be the value written into

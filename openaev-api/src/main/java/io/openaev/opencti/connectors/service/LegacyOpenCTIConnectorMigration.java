@@ -1,7 +1,6 @@
 package io.openaev.opencti.connectors.service;
 
-import static io.openaev.opencti.connectors.Constants.PROCESS_STIX_GROUP_ID;
-import static io.openaev.opencti.connectors.Constants.PROCESS_STIX_ROLE_ID;
+import static io.openaev.service.account.ReservedServiceAccount.OPENCTI_CONNECTOR;
 
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
@@ -59,10 +58,10 @@ public class LegacyOpenCTIConnectorMigration {
           legacyEmail,
           newEmail);
       userService.delete(legacyUser.get().getId());
-      if (groupRepository.existsById(PROCESS_STIX_GROUP_ID)) {
-        groupRepository.deleteById(PROCESS_STIX_GROUP_ID);
+      if (groupRepository.existsById(OPENCTI_CONNECTOR.access().groupId())) {
+        groupRepository.deleteById(OPENCTI_CONNECTOR.access().groupId());
       }
-      tenantRoleService.delete(PROCESS_STIX_ROLE_ID);
+      tenantRoleService.delete(OPENCTI_CONNECTOR.access().roleId());
     }
     migrationDone = true;
   }

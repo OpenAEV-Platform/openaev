@@ -14,7 +14,7 @@ import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.opencti.connectors.service.PrivilegeService;
+import io.openaev.opencti.connectors.service.OpenCtiConnectorPrivilegeService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.document.form.DocumentCreateInput;
@@ -41,7 +41,7 @@ public class OpenCTIService {
   private final XtmConfig xtmConfig;
   private final OpenCTIClient openCTIClient;
   private final ObjectMapper mapper;
-  private final PrivilegeService privilegeService;
+  private final OpenCtiConnectorPrivilegeService privilegeService;
   private final TagService tagService;
   private final DocumentService documentService;
 

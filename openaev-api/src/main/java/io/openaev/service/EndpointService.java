@@ -32,7 +32,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
@@ -100,7 +100,7 @@ public class EndpointService implements AuditLoggedService {
   /** Cache of raw install/upgrade script templates keyed by platform/script name. */
   private final Map<String, String> agentScriptTemplateCache = new ConcurrentHashMap<>();
 
-  private final ServiceAccountPrivilegeService privilegeService;
+  private final AgentServiceAccountPrivilegeService privilegeService;
 
   @Value("${info.app.version:unknown}")
   String version;

@@ -1,7 +1,7 @@
 package io.openaev.opencti.connectors.service;
 
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
-import static io.openaev.opencti.connectors.Constants.PROCESS_STIX_GROUP_ID;
+import static io.openaev.service.account.ReservedServiceAccount.OPENCTI_CONNECTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,8 +18,8 @@ import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
-import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.TenantGroupService;
+import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.utils.fixtures.opencti.ResponseFixture;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -47,10 +47,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  * <p>{@code OpenCTIConnectorRegisterPingJob} (Quartz) calls {@link
  * OpenCTIConnectorService#registerOrPingAllConnectors()}, which registers or pings every configured
  * connector; each one goes through {@code OpenCTIService} to {@link
- * PrivilegeService#ensurePrivilegedUserExistsForConnector}, whose {@code @Transactional} method
- * ensures the connector's well-known group. {@code Group.markings} is an eager association over
- * {@code marking_definitions}, a tenant-scoped table, so before this scope was set the flow read it
- * with no scope at all and the group came back granting no marking.
+ * OpenCtiConnectorPrivilegeService#ensurePrivilegedUserExistsForConnector}, whose
+ * {@code @Transactional} method ensures the connector's well-known group. {@code Group.markings} is
+ * an eager association over {@code marking_definitions}, a tenant-scoped table, so before this
+ * scope was set the flow read it with no scope at all and the group came back granting no marking.
  *
  * <p>The scope must be the connector's own tenant, not every tenant and not the default one: {@code
  * marking_definitions.tenant_id} is NOT NULL, so a marking belongs to exactly one tenant and a
@@ -63,7 +63,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  * collection already initialized, and records the scope that transaction was carrying.
  *
  * <p>NOT {@code @Transactional}: the assertions read the scope of the transaction {@code
- * PrivilegeService} owns, and a surrounding test transaction would make it join the test's instead.
+ * OpenCtiConnectorPrivilegeService} owns, and a surrounding test transaction would make it join the
+ * test's instead.
  */
 @TestPropertySource(
     properties = {
@@ -101,7 +102,8 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
   static final String GHOST_TENANT_ID = "2f1a6d84-1002-4b5e-9a01-6d9c1b7e1002";
 
   private static final String CONNECTOR_GROUP_ID =
-      AbstractPrivilegeService.getUUIDFromName(PROCESS_STIX_GROUP_ID, CONNECTOR_TENANT_ID);
+      AbstractPrivilegeService.getUUIDFromName(
+          OPENCTI_CONNECTOR.access().groupId(), CONNECTOR_TENANT_ID);
 
   @Autowired private OpenCTIConnectorService openCTIConnectorService;
   @Autowired private DataSource dataSource;
@@ -173,7 +175,7 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
   }
 
   private String connectorEmail() {
-    return PrivilegeService.CONNECTOR_EMAIL_PATTERN.formatted(connectorUnderTest().getId());
+    return OPENCTI_CONNECTOR.emailPattern().formatted(connectorUnderTest().getId());
   }
 
   private ConnectorBase connectorUnderTest() {
