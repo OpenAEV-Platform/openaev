@@ -135,8 +135,8 @@ assign a marking they do not hold) are recorded with their reasoning in
 [`tech-design-option-c.md` §6](../brainstorming/marking/task3/tech-design-option-c.md).
 
 Markings come first, capabilities second: only the first admin (created at install) ignores markings.
-`BYPASS` and `user_admin` do not; the agent and OpenCTI accounts hold every marking of their tenant through
-their group. See [`bypass-and-sso.md`](../brainstorming/marking/task4/bypass-and-sso.md).
+`BYPASS` and `user_admin` do not. The agent and OpenCTI accounts see all assets of their own tenant because
+their group is given every marking of that tenant. See [`bypass-and-sso.md`](../brainstorming/marking/task4/bypass-and-sso.md).
 
 ## 5. Consequences
 
