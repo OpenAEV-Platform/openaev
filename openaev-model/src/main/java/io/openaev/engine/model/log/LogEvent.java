@@ -3,7 +3,6 @@ package io.openaev.engine.model.log;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.annotation.Indexable;
 import java.time.Instant;
 import java.util.Map;
@@ -134,11 +133,5 @@ public class LogEvent {
 
     /** HTTP Url. */
     private String url;
-
-    /** HTTP Method. */
-    private String method;
-
-    /** Called method. */
-    private JsonNode signature;
   }
 }

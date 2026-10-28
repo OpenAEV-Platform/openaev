@@ -2,7 +2,6 @@ package io.openaev.aop.audit_log;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.audit.AuditLogContext;
@@ -164,7 +163,6 @@ public class AccessControlAuditLogAspect {
       String resourceId = resolveResourceId(joinPoint, accessControl);
       int payloadIndex = findRequestPayloadIndex(joinPoint);
       JsonNode inputNode = getInputNode(joinPoint, payloadIndex, eventScope);
-      JsonNode signatureNode = getMethodSignature(joinPoint, payloadIndex);
 
       // Capture snapshots on the servlet thread before any async handoff.
       Map<String, AuditLogContext.EntitySnapshot> snapshots = captureEntitySnapshots();
@@ -182,14 +180,7 @@ public class AccessControlAuditLogAspect {
 
       CompletableFuture<Boolean> auditFuture =
           auditLogger.logAccessControlEvent(
-              eventScope,
-              eventStatus,
-              resourceType,
-              resourceId,
-              inputNode,
-              outputNode,
-              signatureNode,
-              snapshots);
+              eventScope, eventStatus, resourceType, resourceId, inputNode, outputNode, snapshots);
 
       auditFuture.whenComplete(logCompletion);
     } catch (AuditLogFailureException ex) {
@@ -284,10 +275,7 @@ public class AccessControlAuditLogAspect {
    * Finds the index of the argument carrying the request payload.
    *
    * <p>Recognizes {@code @RequestBody}, {@code @RequestPart} and {@code @ModelAttribute}. Multipart
-   * endpoints (e.g. {@code InjectorApi.registerInjector}) pass their DTO via {@code @RequestPart};
-   * missing them made the payload fall through to the {@code signature} node, which at the time was
-   * not size-capped by {@code ObjectNormalizationUtils} — a heap-exhaustion risk on large payloads.
-   * {@code LogService} now normalizes the signature node as well, as defense in depth.
+   * endpoints (e.g. {@code InjectorApi.registerInjector}) pass their DTO via {@code @RequestPart}.
    *
    * @return the argument index, or {@code -1} if none matches
    */
@@ -324,50 +312,6 @@ public class AccessControlAuditLogAspect {
         || unwrapped instanceof InputStream
         || unwrapped instanceof HttpServletRequest
         || unwrapped instanceof HttpServletResponse;
-  }
-
-  /** Builds a JsonNode with the method signature and its parameter names mapped to their values. */
-  private JsonNode getMethodSignature(JoinPoint joinPoint, int payloadIndex) {
-    try {
-      MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-      String[] paramNames = signature.getParameterNames();
-      Object[] args = joinPoint.getArgs();
-
-      ObjectNode node = objectMapper.createObjectNode();
-      node.put("method", signature.getDeclaringTypeName() + "." + signature.getName());
-
-      ObjectNode params = objectMapper.createObjectNode();
-      if (paramNames != null) {
-        for (int i = 0; i < paramNames.length; i++) {
-          // Never re-serialize the payload into the signature; for mutating scopes it is captured
-          // separately as inputNode (normalized and size-capped downstream).
-          if (i == payloadIndex) {
-            params.put(paramNames[i], "@RequestBody");
-          } else {
-            setParameterNode(params, paramNames[i], i < args.length ? args[i] : null);
-          }
-        }
-      }
-      node.set("parameters", params);
-      return node;
-    } catch (Exception e) {
-      log.warn("[AUDIT] Failed to build method signature node: {}", e.getMessage(), e);
-    }
-    return null;
-  }
-
-  /** Serializes a single method parameter, skipping values Jackson must never walk. */
-  private void setParameterNode(ObjectNode params, String paramName, Object value) {
-    Object unwrapped = value instanceof Optional<?> opt ? opt.orElse(null) : value;
-    if (unwrapped != null && isNonSerializableArgument(unwrapped)) {
-      params.put(paramName, unwrapped.getClass().getSimpleName());
-      return;
-    }
-    try {
-      params.set(paramName, auditObjectMapper.valueToTree(value));
-    } catch (Exception ex) {
-      params.put(paramName, value != null ? value.toString() : "null");
-    }
   }
 
   /** Resolves the resource ID from the annotation's SpEL expression. */
