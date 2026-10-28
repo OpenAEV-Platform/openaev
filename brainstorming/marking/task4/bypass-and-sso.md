@@ -65,7 +65,8 @@ Existing `user_admin` users are left as they are. Only today's rule stays: role 
 
 ## Out of scope
 
-- Scenarios created from OpenCTI: who launches them, and with which markings (chunk 6, #8554).
+- Scenarios created from OpenCTI (chunk 6, #8554): this change gives the OpenCTI account every marking, including later
+  ones. Chunk 6 only has to set that account as the scheduler of these scenarios.
 - One account per agent: today all agents of a tenant share one account.
 - Outside markings: a `BYPASS` user also gets the rights meant only for the agent and OpenCTI accounts (for example,
   calling the agent API). Follow-up issue.
