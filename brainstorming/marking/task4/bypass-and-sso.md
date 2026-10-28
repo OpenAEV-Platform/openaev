@@ -4,9 +4,13 @@
 
 ## Problem
 
-A user whose group has a `BYPASS` role and only `TLP:GREEN` sees `TLP:RED` assets. The agent and OpenCTI accounts must
-see every asset, so the code lets them ignore markings. It spots them by a hidden capability, but `BYPASS` gives that
-capability too. Five places decide who ignores markings, and the read path and the launch path disagree.
+Today, a user with the `BYPASS` role and only `TLP:GREEN` can see `TLP:RED` assets.
+
+Why: the agent and OpenCTI accounts must see every asset. So the code skips markings for any user with a hidden right
+that only these accounts should have. But `BYPASS` gives that right too, so `BYPASS` users skip markings as well.
+
+Also, this check is written in five places that do not agree: the same user can be allowed to see an asset but not to
+launch on it.
 
 ## Rule
 
