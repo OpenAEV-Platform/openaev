@@ -741,10 +741,8 @@ class InjectExpectationServiceTest {
     }
 
     @Test
-    @DisplayName("given_agentSecurityPlatformResult_should_keepAssetExpectationId")
+    @DisplayName("Asset view keeps the asset expectation id")
     void given_agentSecurityPlatformResult_should_keepAssetExpectationId() {
-      // Regression (#8743): the enriched copy lost its id, so "Add a result" on the asset view
-      // sent PUT /expectations/null.
       // Arrange
       DetectionInjectExpectation assetExpectation = new DetectionInjectExpectation();
       assetExpectation.setId("asset-expectation");
@@ -943,9 +941,8 @@ class InjectExpectationServiceTest {
     }
 
     @Test
-    @DisplayName("given_sameTypeExpectations_should_keepElectedExpectationId")
+    @DisplayName("Merged view keeps the elected expectation id")
     void given_sameTypeExpectations_should_keepElectedExpectationId() {
-      // Regression (#8743): the merged copy lost its id, so the client could not update it.
       // Arrange
       ManualInjectExpectation opened = manualStep("exp-opened", "Email not opened", 0.0);
       ManualInjectExpectation clicked = manualStep("exp-clicked", "Link not clicked", 100.0);
@@ -1030,9 +1027,8 @@ class InjectExpectationServiceTest {
     }
 
     @Test
-    @DisplayName("given_childSecurityPlatformResult_should_keepGroupExpectationId")
+    @DisplayName("Asset-group view keeps the group expectation id")
     void given_childSecurityPlatformResult_should_keepGroupExpectationId() {
-      // Regression (#8743): the enriched copy lost its id, so the client could not update it.
       // Arrange
       DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
       groupExpectation.setId("group-expectation");
