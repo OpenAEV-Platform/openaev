@@ -362,7 +362,10 @@ public class ScenarioExportTest extends IntegrationTest {
   class ScenarioChainingExport {
 
     @Test
-    @WithMockUser(isAdmin = true)
+    // On this non-prefixed route the workflow is read in the caller's membership scope, which is
+    // empty for an admin with no membership; this test is about the export, so its caller joins the
+    // default tenant, where the scenario lives.
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("given_chainingScenario_should_not_export_scenarioInjects")
     void given_chainingScenario_should_not_export_scenarioInjects() throws Exception {
       // Arrange
