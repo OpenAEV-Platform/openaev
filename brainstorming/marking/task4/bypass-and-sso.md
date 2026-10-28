@@ -9,8 +9,8 @@ Today, a user with the `BYPASS` role and only `TLP:GREEN` can see `TLP:RED` asse
 Why: the agent and OpenCTI accounts must see every asset. So the code skips markings for any user with a hidden right
 that only these accounts should have. But `BYPASS` gives that right too, so `BYPASS` users skip markings as well.
 
-Also, this check is written in five places that do not agree: the same user can be allowed to see an asset but not to
-launch on it.
+Also, the rule "who skips markings" is copied in five places, and the copies differ: the OpenCTI account skips markings
+when it reads assets, but not when it launches. We want one rule, in one place.
 
 ## Rule
 
