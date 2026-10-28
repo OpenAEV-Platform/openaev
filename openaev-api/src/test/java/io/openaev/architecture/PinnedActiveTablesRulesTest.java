@@ -6,10 +6,12 @@ import static org.assertj.core.api.Assertions.tuple;
 import io.openaev.architecture.PinnedActiveTablesCatalog.Registration;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.AssumesOnTheReaderThenHardCodes;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.DeclaresTheKeyTwice;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.FollowsProduction;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.FollowsProductionWithItsOwnTables;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.InheritsThePin;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.NamesTheReaderOnlyInText;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.OverridesAnInheritedPin;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsAnEmptyList;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsNothing;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsThroughAComposedAnnotation;
@@ -75,6 +77,67 @@ class PinnedActiveTablesRulesTest {
                   PinsThroughAComposedAnnotation.class.getName(), Set.of("secrets"),
                   PinsAnEmptyList.class.getName(), Set.of(),
                   PinsThroughARelaxedName.class.getName(), Set.of("channels")));
+    }
+
+    @Test
+    @DisplayName(
+        "given the key in two repeated annotations, should report a conflict and record no value")
+    void given_keyInTwoRepeatedAnnotations_should_reportAConflictAndRecordNoValue() {
+      // Arrange
+      List<Class<?>> classes = List.of(DeclaresTheKeyTwice.class);
+
+      // Act
+      Map<String, List<String>> conflicts =
+          PinnedActiveTablesCatalog.conflictingDeclarations(classes);
+      Map<String, Set<String>> pins = PinnedActiveTablesCatalog.annotationPins(classes);
+
+      // Assert
+      String site = DeclaresTheKeyTwice.class.getName();
+      assertThat(conflicts).containsExactly(Map.entry(site, List.of(site, site)));
+      assertThat(pins).containsOnlyKeys(site).containsEntry(site, null);
+    }
+
+    @Test
+    @DisplayName(
+        "given a pin overriding an inherited one, should report a conflict and both sites' values")
+    void given_pinOverridingAnInheritedOne_should_reportAConflictAndBothSitesValues() {
+      // Arrange
+      List<Class<?>> classes = List.of(OverridesAnInheritedPin.class);
+
+      // Act
+      Map<String, List<String>> conflicts =
+          PinnedActiveTablesCatalog.conflictingDeclarations(classes);
+      Map<String, Set<String>> pins = PinnedActiveTablesCatalog.annotationPins(classes);
+
+      // Assert
+      assertThat(conflicts)
+          .containsExactly(
+              Map.entry(
+                  OverridesAnInheritedPin.class.getName(),
+                  List.of(
+                      OverridesAnInheritedPin.class.getName(),
+                      PinsThroughTestPropertySource.class.getName())));
+      assertThat(pins)
+          .containsExactlyInAnyOrderEntriesOf(
+              Map.of(
+                  OverridesAnInheritedPin.class.getName(), Set.of("findings"),
+                  PinsThroughTestPropertySource.class.getName(), Set.of("documents", "tags")));
+    }
+
+    @Test
+    @DisplayName("given a single declaration, inherited or composed, should report no conflict")
+    void given_singleDeclarationInheritedOrComposed_should_reportNoConflict() {
+      // Act
+      Map<String, List<String>> conflicts =
+          PinnedActiveTablesCatalog.conflictingDeclarations(
+              List.of(
+                  PinsThroughTestPropertySource.class,
+                  InheritsThePin.class,
+                  PinsThroughSpringBootTestWithColon.class,
+                  PinsThroughAComposedAnnotation.class));
+
+      // Assert
+      assertThat(conflicts).isEmpty();
     }
 
     @Test

@@ -43,6 +43,15 @@ public final class PinnedActiveTablesFixtures {
   @TestPropertySource(properties = "openaev.tenant.activeTables=channels")
   public static class PinsThroughARelaxedName {}
 
+  /** Spring keeps the last repeated declaration, documents. */
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @TestPropertySource(properties = "openaev.tenant.active-tables=documents")
+  public static class DeclaresTheKeyTwice {}
+
+  /** Spring keeps the subclass's value over the one it inherits. */
+  @TestPropertySource(properties = "openaev.tenant.active-tables=findings")
+  public static class OverridesAnInheritedPin extends PinsThroughTestPropertySource {}
+
   @TestPropertySource(properties = "openaev.marking.active-tables=assets")
   public static class SetsAnotherProperty {}
 

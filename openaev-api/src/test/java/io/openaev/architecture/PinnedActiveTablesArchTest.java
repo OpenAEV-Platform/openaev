@@ -16,8 +16,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Fails when a test class runs with an activation list that does not hold the production one,
- * without saying why.
+ * Fails when a test class sets the activation list itself, to a value that does not hold the
+ * production one, without saying why. A class that sets nothing runs on the test profile's list,
+ * which this guard does not judge.
  *
  * <p>A class that pins its own list keeps testing the list it was written with. The day production
  * activates another table, that class does not arm it: whatever it asserts about a path through
@@ -78,6 +79,10 @@ class PinnedActiveTablesArchTest {
           .containsEntry(
               PinnedActiveTablesFixtures.PinsThroughTestPropertySource.class.getName(),
               Set.of("documents", "tags"));
+      assertThat(PinnedActiveTablesCatalog.conflictingDeclarations(fixtures))
+          .containsKeys(
+              PinnedActiveTablesFixtures.DeclaresTheKeyTwice.class.getName(),
+              PinnedActiveTablesFixtures.OverridesAnInheritedPin.class.getName());
       assertThat(dynamicPins)
           .containsKey(PinnedActiveTablesFixtures.SubtractsOneTable.class.getName())
           .doesNotContainKey(PinnedActiveTablesFixtures.FollowsProduction.class.getName());
@@ -147,6 +152,18 @@ class PinnedActiveTablesArchTest {
     }
 
     @Test
+    @DisplayName("given a class, should find the key set in one annotation at most")
+    void given_aClass_should_findTheKeySetInOneAnnotationAtMost() {
+      // Act & Assert
+      assertThat(PinnedActiveTablesCatalog.conflictingDeclarations(TEST_TREE))
+          .as(
+              "These classes set %s in several annotations, inherited or repeated, and Spring"
+                  + " keeps one by its own precedence; declare it once",
+              PinnedActiveTablesCatalog.KEY)
+          .isEmpty();
+    }
+
+    @Test
     @DisplayName("given the baseline, should record each class's pinned list exactly")
     void given_baseline_should_recordEachPinnedListExactly() {
       // Arrange
@@ -191,6 +208,17 @@ class PinnedActiveTablesArchTest {
           .as(
               "These lines rest on a table production has now activated. Re-judge each class:"
                   + " follow the production list, or rewrite the line with what it now shows")
+          .isEmpty();
+    }
+
+    @Test
+    @DisplayName("given the baseline, should name only activatable tables in until-active")
+    void given_baseline_should_nameOnlyActivatableTablesInUntilActive() {
+      // Act & Assert
+      assertThat(
+              PinnedActiveTablesBaseline.unknownUntilActive(
+                  BASELINE, BackgroundEntrypointTenantScopeArchTest.wildcardActivatedTables()))
+          .as("an until-active table must be a strict tenant table, or the line never expires")
           .isEmpty();
     }
 

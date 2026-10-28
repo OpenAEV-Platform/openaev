@@ -30,6 +30,7 @@ import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestContextAnnotationUtils;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.support.TestPropertySourceUtils;
 
@@ -39,21 +40,26 @@ import org.springframework.test.context.support.TestPropertySourceUtils;
  *
  * <p>Two shapes are read, both from the compiled classes. An inlined property on {@code
  * TestPropertySource} or {@code SpringBootTest} is read through Spring's own merged-annotation
- * search and property parser, so a concatenated literal, a composed annotation and an inherited
- * declaration all resolve as Spring would resolve them; the site is the class that declares the
- * annotation. A {@code DynamicPropertySource} method is judged by what it registers: it is invoked
- * with a recording registry, and the value registered for the key is read. A class follows
+ * model and property parser, so a concatenated literal and a composed annotation resolve as Spring
+ * resolves them; the site is the class that declares the annotation. The annotations are searched
+ * where Spring searches them (the class, its interfaces, its superclasses, the enclosing class of
+ * an inner class), and a class that sets the key in more than one of them is reported as
+ * conflicting rather than resolved, since Spring keeps one value by a precedence the guard would
+ * have to copy. A {@code DynamicPropertySource} method is judged by what it registers: it is
+ * invoked with a recording registry, and the value registered for the key is read. A class follows
  * production only when every value it registers holds the whole production list; anything else,
  * including a registration that cannot be evaluated, is a site. The key is matched as Spring Boot
  * binds it, so a relaxed spelling such as {@code activeTables} counts.
  *
- * <p>Not seen: a property file named in {@code locations}, a {@code DynamicPropertyRegistrar} bean,
- * a system property set by hand, and a {@code DynamicPropertySource} whose class file does not hold
- * the text {@code openaev.tenant} (a key assembled at run time from non-constant parts). Methods of
- * other classes are not invoked, so that a registration starting a server is never run here. A
- * supplier is evaluated when the scan runs, so one that reads state set later (a field a {@code
- * BeforeAll} fills, a started container) either fails, and its class is reported as unevaluated, or
- * is read before that state exists.
+ * <p>Not seen: a property file named in {@code locations}, a profile file, a {@code
+ * DynamicPropertyRegistrar} bean, a {@code ContextCustomizerFactory}, a system property set by
+ * hand, and a {@code DynamicPropertySource} whose class file does not hold the text {@code
+ * openaev.tenant} (a key assembled at run time from non-constant parts). The registration methods
+ * of a class are invoked only when its class file holds that text; then all of them run, whatever
+ * they do besides, so a class that names the key must keep its registration methods free of side
+ * effects such as starting a server. A supplier is evaluated when the scan runs, so one that reads
+ * state set later (a field a {@code BeforeAll} fills, a started container) either fails, and its
+ * class is reported as unevaluated, or is read before that state exists.
  */
 final class PinnedActiveTablesCatalog {
 
@@ -116,20 +122,71 @@ final class PinnedActiveTablesCatalog {
             .toList();
   }
 
+  /** One annotation that sets the key: the class that wrote it and the tables it sets. */
+  record Declaration(String site, Set<String> tables) {}
+
   /**
    * The pinned table list of each class that declares one, keyed by the class that wrote the
-   * annotation. A subclass inheriting the pin is not a second site.
+   * annotation. A subclass inheriting the pin is not a second site. A class that writes the key in
+   * several annotations has no single list, so it maps to null and reads as unevaluated.
    */
   static Map<String, Set<String>> annotationPins(Collection<Class<?>> classes) {
     Map<String, Set<String>> pins = new TreeMap<>();
     for (Class<?> testClass : classes) {
-      MergedAnnotations annotations =
-          MergedAnnotations.from(testClass, SearchStrategy.TYPE_HIERARCHY);
-      Stream.of(TestPropertySource.class, SpringBootTest.class)
-          .flatMap(type -> annotations.stream(type))
-          .forEach(annotation -> collect(annotation, pins));
+      Map<String, List<Set<String>>> bySite = new TreeMap<>();
+      declarations(testClass)
+          .forEach(
+              declaration ->
+                  bySite
+                      .computeIfAbsent(declaration.site(), site -> new ArrayList<>())
+                      .add(declaration.tables()));
+      bySite.forEach((site, values) -> pins.put(site, values.size() == 1 ? values.get(0) : null));
     }
     return pins;
+  }
+
+  /**
+   * The classes that set the key in more than one annotation, with the sites that do. Spring keeps
+   * one of the values by a precedence of its own (the last repeated declaration, a subclass over
+   * its parent, an inner class over its enclosing class, a {@code TestPropertySource} over a {@code
+   * SpringBootTest}), so the guard does not reproduce it: such a class must declare the key once.
+   */
+  static Map<String, List<String>> conflictingDeclarations(Collection<Class<?>> classes) {
+    Map<String, List<String>> conflicts = new TreeMap<>();
+    for (Class<?> testClass : classes) {
+      List<Declaration> declarations = declarations(testClass);
+      if (declarations.size() > 1) {
+        conflicts.put(testClass.getName(), declarations.stream().map(Declaration::site).toList());
+      }
+    }
+    return conflicts;
+  }
+
+  /**
+   * Every annotation that sets the key for a class, searched where Spring searches: the class
+   * itself (repeated and composed annotations included), its interfaces, its superclasses and, for
+   * an inner class that inherits its configuration, its enclosing classes.
+   */
+  static List<Declaration> declarations(Class<?> testClass) {
+    List<Declaration> found = new ArrayList<>();
+    collectDeclarations(testClass, found);
+    return found;
+  }
+
+  private static void collectDeclarations(Class<?> type, List<Declaration> found) {
+    MergedAnnotations annotations = MergedAnnotations.from(type, SearchStrategy.DIRECT);
+    Stream.of(TestPropertySource.class, SpringBootTest.class)
+        .flatMap(annotations::stream)
+        .forEach(annotation -> collect(annotation, found));
+    for (Class<?> parent : type.getInterfaces()) {
+      collectDeclarations(parent, found);
+    }
+    if (type.getSuperclass() != null && type.getSuperclass() != Object.class) {
+      collectDeclarations(type.getSuperclass(), found);
+    }
+    if (TestContextAnnotationUtils.searchEnclosingClass(type)) {
+      collectDeclarations(type.getEnclosingClass(), found);
+    }
   }
 
   /**
@@ -190,7 +247,7 @@ final class PinnedActiveTablesCatalog {
   }
 
   private static void collect(
-      MergedAnnotation<? extends Annotation> annotation, Map<String, Set<String>> pins) {
+      MergedAnnotation<? extends Annotation> annotation, List<Declaration> found) {
     Map<String, Object> properties =
         TestPropertySourceUtils.convertInlinedPropertiesToMap(
             annotation.getStringArray("properties"));
@@ -198,7 +255,7 @@ final class PinnedActiveTablesCatalog {
         (name, value) -> {
           if (isKey(name)) {
             String site = ((Class<?>) annotation.getSource()).getName();
-            pins.merge(site, tables(String.valueOf(value)), (a, b) -> a);
+            found.add(new Declaration(site, tables(String.valueOf(value))));
           }
         });
   }

@@ -152,6 +152,28 @@ final class PinnedActiveTablesBaseline {
     return problems;
   }
 
+  /**
+   * The entries whose {@code until-active} names a table no activation can ever arm, a typo
+   * included: such a line would never expire.
+   */
+  static List<String> unknownUntilActive(List<Entry> entries, Set<String> activatable) {
+    List<String> unknown = new ArrayList<>();
+    for (Entry entry : entries) {
+      Set<String> names = new TreeSet<>(entry.untilActive());
+      names.removeAll(activatable);
+      if (!names.isEmpty()) {
+        unknown.add(
+            "line "
+                + entry.line()
+                + " '"
+                + entry.testClass()
+                + "': no activation arms "
+                + String.join(",", names));
+      }
+    }
+    return unknown;
+  }
+
   /** The entries whose {@code until-active} names a table production now arms. */
   static List<String> expired(List<Entry> entries, Set<String> production) {
     List<String> expired = new ArrayList<>();

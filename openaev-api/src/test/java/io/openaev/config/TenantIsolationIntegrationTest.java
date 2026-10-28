@@ -8,7 +8,7 @@ import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Base for end-to-end tenant-isolation tests. A subclass activates its table on top of the
+ * Base for end-to-end tenant-isolation tests. A new subclass activates its table on top of the
  * production list, with {@link ProductionActiveTables} plus that table in a {@code
  * DynamicPropertySource}, and uses these helpers to seed tenants, set the transaction scope, and
  * read or delete rows under it. Every such test makes the same point: with the table active, the
