@@ -26,6 +26,8 @@ import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,12 +40,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * A chaining event carries the tenant of the row it names, whatever the run's owner is. The
- * thread-local is set to a third tenant throughout, so neither it nor the consumer's default-tenant
- * fallback can pass for the right answer. Runs and steps are saved without an explicit flush, as
- * the chaining services do, so the stamp must see rows still pending in the session. Each event is
- * published in the scope of the run's tenant, as the chaining job and the inject callbacks publish
- * it. The broker is replaced by a captor for each test and restored after it.
+ * A chaining event carries the tenant of the row it names, whatever the run's owner is, never the
+ * tenant thread-local nor one taken from the transaction's tenant scope. The thread-local is set to
+ * a tenant of its own throughout, so neither it nor the consumer's default-tenant fallback can pass
+ * for the right answer. Each event is published in a scope of three tenants with the run's tenant
+ * in the middle: the row stays readable, and a tenant taken from that scope is refused, malformed
+ * or another tenant. Runs and steps are saved without an explicit flush, as the chaining services
+ * do, so the stamp must see rows still pending in the session. The broker is replaced by a captor
+ * for each test and restored after it.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
@@ -64,6 +68,7 @@ class QueueChainingServiceTenantStampTest extends IntegrationTest {
   private BatchQueueService<ExternalUpdateEvent> originalUpdateQueue;
   private Tenant simulationTenant;
   private Tenant scenarioTenant;
+  private Tenant bystanderTenant;
   private Exercise simulation;
   private Scenario scenario;
 
@@ -85,6 +90,7 @@ class QueueChainingServiceTenantStampTest extends IntegrationTest {
     scenarioComposer.reset();
     simulationTenant = persistTenant("stamp-simulation");
     scenarioTenant = persistTenant("stamp-scenario");
+    bystanderTenant = persistTenant("stamp-bystander");
     Tenant threadTenant = persistTenant("stamp-thread");
     simulation = ExerciseFixture.createDefaultExercise();
     simulation.setTenant(simulationTenant);
@@ -110,7 +116,7 @@ class QueueChainingServiceTenantStampTest extends IntegrationTest {
     @DisplayName("A run attached to a scenario stamps the scenario's tenant")
     void given_scenarioRun_should_stampReadyEventWithScenarioTenant() throws Exception {
       // Arrange
-      inScopeOf(scenarioTenant);
+      inScopeAround(scenarioTenant);
       Workflow run = run(null, scenario);
       Step step = persistStep(run);
 
@@ -125,7 +131,7 @@ class QueueChainingServiceTenantStampTest extends IntegrationTest {
     @DisplayName("A run attached to a simulation stamps the simulation's tenant")
     void given_simulationRun_should_stampReadyEventWithSimulationTenant() throws Exception {
       // Arrange
-      inScopeOf(simulationTenant);
+      inScopeAround(simulationTenant);
       Workflow run = run(simulation, null);
       Step step = persistStep(run);
 
@@ -145,7 +151,7 @@ class QueueChainingServiceTenantStampTest extends IntegrationTest {
     @DisplayName("A step of a run attached to a scenario stamps the scenario's tenant")
     void given_stepOfScenarioRun_should_stampUpdateEventWithScenarioTenant() throws Exception {
       // Arrange
-      inScopeOf(scenarioTenant);
+      inScopeAround(scenarioTenant);
       Step step = persistStep(run(null, scenario));
 
       // Act
@@ -159,7 +165,7 @@ class QueueChainingServiceTenantStampTest extends IntegrationTest {
     @DisplayName("A step of a run attached to a simulation stamps the simulation's tenant")
     void given_stepOfSimulationRun_should_stampUpdateEventWithSimulationTenant() throws Exception {
       // Arrange
-      inScopeOf(simulationTenant);
+      inScopeAround(simulationTenant);
       Step step = persistStep(run(simulation, null));
 
       // Act
@@ -182,9 +188,18 @@ class QueueChainingServiceTenantStampTest extends IntegrationTest {
 
   // -- helpers --
 
-  /** Narrows the test transaction to the run's tenant, as its chaining job or callback does. */
-  private void inScopeOf(Tenant tenant) {
-    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
+  /**
+   * Narrows the test transaction to the other fixture tenant, the run's tenant and the bystander,
+   * in that order: the run's rows stay readable, but the scope never names the run's tenant alone,
+   * first or last.
+   */
+  private void inScopeAround(Tenant owner) {
+    Tenant other = owner == simulationTenant ? scenarioTenant : simulationTenant;
+    DefaultTenantScopeTestListener.setAmbientScope(
+        entityManager,
+        Stream.of(other, owner, bystanderTenant)
+            .map(Tenant::getId)
+            .collect(Collectors.joining(",")));
   }
 
   private Tenant persistTenant(String name) {
