@@ -1,10 +1,9 @@
 package io.openaev.migration;
 
+import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
-
-import java.sql.Statement;
 
 /**
  * Adds the optional columns that let a credential reach a sovereign or mocked cloud provider.
@@ -24,7 +23,7 @@ public class V6_20261028120000000__Add_sovereign_cloud_columns_to_secrets
     try (Statement statement = context.getConnection().createStatement()) {
       statement.execute(
           """
-            ALTER TABLE secrets 
+            ALTER TABLE secrets
             ADD COLUMN IF NOT EXISTS secret_aws_account_id VARCHAR(255),
             ADD COLUMN IF NOT EXISTS secret_aws_endpoint_url VARCHAR(255),
             ADD COLUMN IF NOT EXISTS secret_gcp_custom_token_uri VARCHAR(255),
