@@ -509,6 +509,25 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
+  /**
+   * Returns the tenant of a scenario, provided it is one of the given tenants. The scenario is
+   * resolved by its id whatever the ambient tenant, so a request whose scope spans several tenants
+   * finds it in any of them. A scenario outside those tenants is reported as not found, exactly
+   * like one that does not exist.
+   *
+   * @param scenarioId the scenario to locate
+   * @param tenantIds the tenants the caller may work in
+   * @return the scenario's tenant id
+   */
+  public String scenarioTenantWithin(
+      @NotBlank final String scenarioId, @NotNull final Set<String> tenantIds) {
+    return this.scenarioRepository
+        .findById(scenarioId)
+        .map(scenario -> scenario.getTenant().getId())
+        .filter(tenantIds::contains)
+        .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
+  }
+
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
     RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {

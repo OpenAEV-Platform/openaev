@@ -24,6 +24,7 @@ import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -58,6 +59,7 @@ import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.validator.IpAddressUtils;
 import io.openaev.xtmone.XtmOneClient;
 import jakarta.persistence.EntityManager;
@@ -215,6 +217,10 @@ public class AutonomousRunService {
   // GUC scope is already gone and a bare repository call would be denied by the inspector).
   private final TenantScopedTransaction tenantTx;
 
+  // Keeps a create's reads and writes of the tables still on v1 (scenarios, simulations, injects)
+  // in the run's tenant: their filter and their listener follow the ambient tenant.
+  private final AmbientTenantBridge ambientTenantBridge;
+
   // Field-injected (not constructor) so it stays out of @RequiredArgsConstructor and null in the
   // Mockito @InjectMocks unit tests, where detachForResponse() below no-ops. Used only to evict a
   // returned run from the persistence context on the READ paths, so the open-in-view session's
@@ -342,19 +348,51 @@ public class AutonomousRunService {
    * AI orchestrator builds and executes it. An existing chaining scenario may still be passed
    * explicitly (advanced), otherwise a fresh one is provisioned from the objective. The
    * orchestrator is engaged separately by {@link #start} so creation stays fast and idempotent.
+   *
+   * <p>The whole create runs in one tenant. A run seeded from an existing scenario runs in that
+   * scenario's tenant, which must lie within the request scope, whatever its width. A run that
+   * provisions its own scenario runs in the tenant the request writes to (see {@link
+   * #provisioningTenant}).
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun create(TxCtx ctx, AutonomousRunCreateInput input) {
-    return doCreate(ctx, input);
+    String tenantId =
+        hasText(input.getScenarioId())
+            ? scenarioService.scenarioTenantWithin(
+                input.getScenarioId(), TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx))
+            : provisioningTenant(ctx);
+    // Reads by business key (an objective template, the tenant's dashboard setting) must resolve
+    // in the tenant the create writes to, not in every tenant of a broad scope. The simulation copy
+    // in toExercise narrows the same transaction to the same tenant, so this only moves that
+    // narrowing to the start of the create.
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    return ambientTenantBridge.callInTenant(tenantId, () -> doCreate(ctx, input, tenantId));
+  }
+
+  /**
+   * The tenant a run with no scenario provisions its scenario in. A request scope holding one
+   * tenant writes there. A broader scope, which a request naming no tenant gets from the caller's
+   * memberships, keeps the platform convention for such a request: the default tenant when the
+   * scope includes it, otherwise a refusal, since picking one of the other tenants would be a
+   * guess.
+   */
+  private String provisioningTenant(TxCtx ctx) {
+    Set<String> scoped = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scoped.size() > 1 && scoped.contains(Tenant.DEFAULT_TENANT_UUID)) {
+      return Tenant.DEFAULT_TENANT_UUID;
+    }
+    return writeScopeResolver.tenantForWrite(ctx, null);
   }
 
   /**
    * Body of {@link #create}. Kept un-annotated so composite transactional entry points ({@link
    * #launchFromScenario}) can reuse it without the intra-class {@code @Transactional}
    * self-invocation trap (a same-class call bypasses the Spring proxy). Must be called inside an
-   * active transaction.
+   * active transaction. {@code provisioningTenant} is the tenant a scenario provisioned here is
+   * written in; it is not read when the input names a scenario.
    */
-  private AutonomousRun doCreate(TxCtx ctx, AutonomousRunCreateInput input) {
+  private AutonomousRun doCreate(
+      TxCtx ctx, AutonomousRunCreateInput input, String provisioningTenant) {
     String objective = resolveObjective(input);
 
     Scenario scenario;
@@ -375,7 +413,8 @@ public class AutonomousRunService {
       // Autonomous default: provision a fresh attack-path scenario so the operator never has to
       // build one. The AI orchestrator populates and drives it after start().
       scenario =
-          provisionAutonomousScenario(ctx, objective, input.getName(), input.getDescription());
+          provisionAutonomousScenario(
+              provisioningTenant, objective, input.getName(), input.getDescription());
       scenarioId = scenario.getId();
     }
 
@@ -581,7 +620,7 @@ public class AutonomousRunService {
     // The un-annotated internals run inside THIS transaction: doCreate() builds + saves the run,
     // doStart() flips it live and registers the post-commit orchestrator engagement. Calling the
     // public @Transactional create()/start() here would self-invoke past the Spring proxy.
-    AutonomousRun created = doCreate(ctx, effective);
+    AutonomousRun created = doCreate(ctx, effective, null);
     return doStart(created.getId());
   }
 
@@ -4143,13 +4182,12 @@ public class AutonomousRunService {
    * is strictly required by the model; {@link ScenarioService#createScenarioChaining} fills the
    * mandatory sender emails and attaches the (empty) TEMPLATE workflow the AI orchestrator then
    * builds upon. Kept intentionally minimal so launching a run never asks the operator for anything
-   * beyond the objective. Like any create, the scenario is written in the single tenant of the
-   * request scope.
+   * beyond the objective. The scenario is written in the tenant the caller resolved for the create.
    */
   private Scenario provisionAutonomousScenario(
-      TxCtx ctx, String objective, String name, String description) {
+      String tenantId, String objective, String name, String description) {
     Scenario scenario = new Scenario();
-    scenario.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
+    scenario.setTenant(new Tenant(tenantId));
     scenario.setName(hasText(name) ? name.trim() : defaultScenarioName());
     scenario.setDescription(
         hasText(description) ? description.trim() : defaultScenarioDescription(objective));
