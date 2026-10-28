@@ -35,6 +35,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
@@ -91,6 +92,30 @@ class RestBehaviorTest {
                     "wrapped by the persistence layer", new TenantFilteringException("refused")));
 
     assertEquals("handleTenantFilteringException", resolved.getName());
+  }
+
+  @Test
+  @DisplayName("a transaction or query timeout returns 504, even when wrapped")
+  void timeoutMapsTo504ThroughWrappedCause() {
+    ExceptionHandlerMethodResolver resolver =
+        new ExceptionHandlerMethodResolver(RestBehavior.class);
+    List<Exception> timeouts =
+        List.of(
+            new TransactionTimedOutException("deadline reached"),
+            new org.hibernate.TransactionException("transaction timeout expired"),
+            new org.hibernate.QueryTimeoutException("canceling statement", null, "select 1"));
+
+    for (Exception timeout : timeouts) {
+      Method resolved =
+          resolver.resolveMethodByThrowable(
+              new RuntimeException("wrapped by the persistence layer", timeout));
+      assertEquals("handleTransactionTimeout", resolved.getName(), timeout.getClass().getName());
+    }
+    assertEquals(
+        HttpStatus.GATEWAY_TIMEOUT,
+        new RestBehavior()
+            .handleTransactionTimeout(new TransactionTimedOutException("deadline reached"))
+            .getStatusCode());
   }
 
   @Nested

@@ -462,7 +462,11 @@ public class RestBehavior {
   }
 
   // Matched on the cause too: Spring Data and JPA wrap the timeout in their own exceptions.
-  @ExceptionHandler({TransactionTimedOutException.class, org.hibernate.TransactionException.class})
+  @ExceptionHandler({
+    TransactionTimedOutException.class,
+    org.hibernate.TransactionException.class,
+    org.hibernate.QueryTimeoutException.class
+  })
   public ResponseEntity<ErrorMessage> handleTransactionTimeout(Exception ex) {
     log.error("Transaction stopped on {} {}: {}", requestMethod(), requestUri(), ex.getMessage());
     return new ResponseEntity<>(
