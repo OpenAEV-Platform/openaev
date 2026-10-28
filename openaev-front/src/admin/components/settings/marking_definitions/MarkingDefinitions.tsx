@@ -188,13 +188,17 @@ const MarkingDefinitions = () => {
           reloadContentCount={reloadContentCount}
           entityPrefix="marking_definition"
           topBarButtons={(
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.MARKING_DEFINITION}>
-              <>
+            <>
+              <Can I={ACTIONS.ACCESS} a={SUBJECTS.MARKING_DEFINITION}>
                 <MarkingDefinitionExportButton disabled={markingDefinitions.length === 0} />
-                <MarkingDefinitionImport onImported={() => setReloadContentCount(count => count + 1)} />
-                <ButtonCreate onClick={() => setOpenCreate(true)} label={t('Add a marking definition')} />
-              </>
-            </Can>
+              </Can>
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.MARKING_DEFINITION}>
+                <>
+                  <MarkingDefinitionImport onImported={() => setReloadContentCount(count => count + 1)} />
+                  <ButtonCreate onClick={() => setOpenCreate(true)} label={t('Add a marking definition')} />
+                </>
+              </Can>
+            </>
           )}
         />
         <List>

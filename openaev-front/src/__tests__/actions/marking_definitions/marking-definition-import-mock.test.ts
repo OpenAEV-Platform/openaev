@@ -5,7 +5,7 @@ import {
   buildMockConflictSampleCsv,
   mockImportMarkingDefinitions,
 } from '../../../actions/marking_definitions/marking-definition-import-mock';
-import { MarkingDefinitionImportFileError } from '../../../actions/marking_definitions/marking-definition-import-types';
+import { ImportFileError } from '../../../components/common/import/import-report-types';
 import { type MarkingDefinitionOutput } from '../../../utils/api-types';
 
 const existingMarking = (type: string, definition: string, color: string, order: number): MarkingDefinitionOutput => ({
@@ -32,40 +32,94 @@ const search = () => Promise.resolve({
 const csvFile = (content: string, name = 'markings.csv') => new File([content], name, { type: 'text/csv' });
 
 describe('mockImportMarkingDefinitions', () => {
-  it('reports every kind of conflict of the sample file, one reason per row', async () => {
+  it('reports every outcome of the sample file, one per row', async () => {
     // Arrange
     const file = csvFile(buildMockConflictSampleCsv());
 
     // Act
-    const result = await mockImportMarkingDefinitions(file, search);
+    const report = await mockImportMarkingDefinitions(file, search);
 
     // Assert
-    expect(result.import_created).toBe(2);
-    expect(result.import_skipped).toBe(6);
-    expect(result.import_rows.map(row => [row.import_row_line, row.import_row_reason ?? 'CREATED'])).toEqual([
-      [2, 'CREATED'],
-      [3, 'ALREADY_EXISTS'],
-      [4, 'ALREADY_EXISTS'],
-      [5, 'CREATED'],
-      [6, 'DUPLICATE_IN_FILE'],
-      [7, 'INVALID_COLOR'],
-      [8, 'INVALID_ORDER'],
-      [9, 'MISSING_FIELD'],
+    expect(report.import_columns).toEqual(['type', 'definition', 'color', 'order']);
+    expect(report.import_created).toBe(2);
+    expect(report.import_skipped).toBe(6);
+    expect(report.import_ignored).toBe(2);
+    expect(report.import_rows.map(row => [row.import_row_line, row.import_row_status, row.import_row_reason ?? null])).toEqual([
+      [2, 'CREATED', null],
+      [3, 'SKIPPED', 'CONFLICT'],
+      [4, 'SKIPPED', 'CONFLICT'],
+      [5, 'IGNORED', null],
+      [6, 'CREATED', null],
+      [7, 'SKIPPED', 'CONFLICT'],
+      [8, 'IGNORED', null],
+      [9, 'SKIPPED', 'INVALID_COLOR'],
+      [10, 'SKIPPED', 'INVALID_ORDER'],
+      [11, 'SKIPPED', 'MISSING_FIELD'],
     ]);
   });
 
-  it('never overwrites: an existing marking with another order is reported with its current values', async () => {
+  it('never overwrites: a conflict with an existing marking says what differs and its current values', async () => {
     // Arrange
     const file = csvFile(toMarkingDefinitionsCsv([['TLP', 'TLP:AMBER', '#000000', '9']]));
 
     // Act
-    const result = await mockImportMarkingDefinitions(file, search);
+    const report = await mockImportMarkingDefinitions(file, search);
 
     // Assert
-    expect(result.import_created).toBe(0);
-    expect(result.import_rows[0].import_row_reason).toBe('ALREADY_EXISTS');
-    expect(result.import_rows[0].import_row_message).toContain('order 3');
-    expect(result.import_rows[0].import_row_message).toContain('#ffc107');
+    const [row] = report.import_rows;
+    expect(report.import_created).toBe(0);
+    expect(row.import_row_reason).toBe('CONFLICT');
+    expect(row.import_row_message).toContain('the existing marking');
+    expect(row.import_row_message).toContain('color differs (this row #000000, the existing marking #ffc107)');
+    expect(row.import_row_message).toContain('order differs (this row 9, the existing marking 3)');
+  });
+
+  it('names only what differs: colour alone, then order alone', async () => {
+    // Arrange
+    const file = csvFile(toMarkingDefinitionsCsv([
+      ['TLP', 'TLP:AMBER', '#000000', '3'],
+      ['TLP', 'TLP:CLEAR', '#ffffff', '8'],
+    ]));
+
+    // Act
+    const report = await mockImportMarkingDefinitions(file, search);
+
+    // Assert
+    const [colourOnly, orderOnly] = report.import_rows.map(row => row.import_row_message);
+    expect(colourOnly).toContain('color differs');
+    expect(colourOnly).not.toContain('order differs');
+    expect(orderOnly).toContain('order differs');
+    expect(orderOnly).not.toContain('color differs');
+  });
+
+  it('ignores a row identical to an existing marking, whatever the case of its colour', async () => {
+    // Arrange
+    const file = csvFile(toMarkingDefinitionsCsv([['tlp', 'tlp:amber', '#FFC107', '3']]));
+
+    // Act
+    const report = await mockImportMarkingDefinitions(file, search);
+
+    // Assert
+    expect(report.import_ignored).toBe(1);
+    expect(report.import_skipped).toBe(0);
+    expect(report.import_rows[0].import_row_status).toBe('IGNORED');
+    expect(report.import_rows[0].import_row_reason).toBeUndefined();
+  });
+
+  it('compares a repeated row with the first one of the file when the marking is new', async () => {
+    // Arrange
+    const file = csvFile(toMarkingDefinitionsCsv([
+      ['PAP', 'PAP:GREEN', '#00ff00', '2'],
+      ['PAP', 'PAP:GREEN', '#00ff00', '2'],
+      ['PAP', 'PAP:GREEN', '#00ff00', '5'],
+    ]));
+
+    // Act
+    const report = await mockImportMarkingDefinitions(file, search);
+
+    // Assert
+    expect(report.import_rows.map(row => row.import_row_status)).toEqual(['CREATED', 'IGNORED', 'SKIPPED']);
+    expect(report.import_rows[2].import_row_message).toContain('line 2');
   });
 
   it('re-imports an exported file unchanged, including a formula-looking cell', async () => {
@@ -73,11 +127,11 @@ describe('mockImportMarkingDefinitions', () => {
     const file = csvFile(toMarkingDefinitionsCsv([['TLP', '-1', '#ffffff', '4']]));
 
     // Act
-    const result = await mockImportMarkingDefinitions(file, search);
+    const report = await mockImportMarkingDefinitions(file, search);
 
     // Assert
-    expect(result.import_rows[0].import_row_definition).toBe('-1');
-    expect(result.import_rows[0].import_row_status).toBe('CREATED');
+    expect(report.import_rows[0].import_row_values.definition).toBe('-1');
+    expect(report.import_rows[0].import_row_status).toBe('CREATED');
   });
 
   it('accepts reordered columns and ignores unknown ones', async () => {
@@ -85,11 +139,11 @@ describe('mockImportMarkingDefinitions', () => {
     const file = csvFile('order,note,color,definition,type\n7,hello,#abc,TLP:PURPLE,TLP');
 
     // Act
-    const result = await mockImportMarkingDefinitions(file, search);
+    const report = await mockImportMarkingDefinitions(file, search);
 
     // Assert
-    expect(result.import_created).toBe(1);
-    expect(result.import_rows[0].import_row_order).toBe('7');
+    expect(report.import_created).toBe(1);
+    expect(report.import_rows[0].import_row_values.order).toBe('7');
   });
 
   it.each([
@@ -104,7 +158,7 @@ describe('mockImportMarkingDefinitions', () => {
     const run = mockImportMarkingDefinitions(file, search);
 
     // Assert
-    await expect(run).rejects.toBeInstanceOf(MarkingDefinitionImportFileError);
+    await expect(run).rejects.toBeInstanceOf(ImportFileError);
     await expect(run).rejects.toThrow(message);
   });
 });
