@@ -625,7 +625,7 @@ public class RestBehavior {
   @ExceptionHandler(TenantScopeForbiddenException.class)
   public ResponseEntity<ErrorMessage> handleTenantScopeForbiddenException(
       TenantScopeForbiddenException ex) {
-    return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.FORBIDDEN);
+    return new ResponseEntity<>(new ErrorMessage(ex.getReason()), HttpStatus.FORBIDDEN);
   }
 
   // -- 500 INTERNAL_SERVER_ERROR --
