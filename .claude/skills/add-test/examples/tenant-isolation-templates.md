@@ -47,11 +47,17 @@ package io.openaev.rest.{domain};
  * and the aspect refuses to redefine it inside one transaction.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables={table}")
 @WithMockUser(isAdmin = true)
 // @CoversTenantIsolation("{table}") // uncomment when the tenant-scope-coverage CI gate (#6389) lands
 @DisplayName("{table} read and write isolation through the real HTTP endpoint")
 class {Entity}HttpIsolationTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTablesWith{Entity}(DynamicPropertyRegistry registry) {
+    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
+    tables.add("{table}");
+    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
+  }
 
   private static final String BY_ID = "/api/tenants/{tenantId}/{entities}/{entityId}";
 

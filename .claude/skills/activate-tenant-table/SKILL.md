@@ -378,9 +378,10 @@ Classify every hit:
 #### Removing the v1 `@Filter` silently disarms every isolation test that does not activate the table
 
 The test profile declares no `openaev.tenant.active-tables`, so the inspector never fires in a test
-context unless that context sets it. Every isolation test therefore needs
-`@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`, which the RED phase
-above already tells you to write.
+context unless that context sets it. Every isolation test therefore arms its table on top of the
+production list: a `@DynamicPropertySource` that registers `ProductionActiveTables.names()` plus
+`{table}`, as the RED phase above shows. A narrower list is a pin, and `PinnedActiveTablesArchTest`
+fails until it is declared, with its reason, in `pinned-active-tables-baseline.txt`.
 
 The same fact decides what a control run is worth when you size an activation by arming the table and
 counting what goes red. The rule is **the control must differ from the treatment by your table and
@@ -783,9 +784,15 @@ Copy the model's structure. Key elements that must all be present:
 
 ```java
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables={table}")
 @WithMockUser(isAdmin = true)
 class {Entity}HttpIsolationTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTablesWith{Entity}(DynamicPropertyRegistry registry) {
+    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
+    tables.add("{table}");
+    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -1001,8 +1008,8 @@ across multiple associations the way `Hibernate.initialize()` naturally allows
   any other `TxCtx`-bearing entrypoint.
 - Write one test per fixed entrypoint, modeled on
   `SecurityPlatformCollectorsTenantScopeTest` (PR #7026): run with
-  `@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`
-  (production-like, inspector active — the default test profile's empty
+  the production list plus `{table}` (`ProductionActiveTables.names()` in a
+  `@DynamicPropertySource`) (production-like, inspector active — the default test profile's empty
   allowlist is exactly what let #7026 through) and assert the association
   serializes the live link for an in-scope row, and comes back empty only
   once the linked `{Entity}` row is genuinely gone (not merely
@@ -1073,7 +1080,8 @@ Rules for this sub-phase:
   `/api/exercise/{id}/injects/test` variant is as live as its
   `/injects/test/search` successor.
 - Pin the sweep: for each sink type, add one production-like test
-  (`@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`)
+  (the production list plus `{table}`, through `ProductionActiveTables.names()` in a
+  `@DynamicPropertySource`)
   asserting the computed field is NON-NULL on a representative endpoint per
   controller family, not just on the table's own API. A null-valued scalar is
   the failure mode; an empty-array assertion will not catch it.
@@ -1398,8 +1406,8 @@ Key differences from the HTTP test:
 - The test class is NOT `@Transactional`. The primitive's `execute` refuses to
   open inside an active transaction, so seed and clean through auto-committed
   `JdbcTemplate`, not a rolled-back test transaction.
-- Activate the table with `@TestPropertySource(properties =
-  "openaev.tenant.active-tables={table}")`, same as the HTTP test.
+- Activate the table on top of the production list (`ProductionActiveTables.names()` plus
+  `{table}` in a `@DynamicPropertySource`), same as the HTTP test.
 - Prove: the converted job under its scope sees and writes only the in-scope
   tenant's rows; a cross-tenant row is invisible; for a per-tenant loop, one
   tenant's failure is rolled back on its own and does not poison the others.
