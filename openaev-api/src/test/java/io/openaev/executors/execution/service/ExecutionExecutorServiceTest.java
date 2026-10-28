@@ -27,6 +27,7 @@ import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -46,6 +47,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class ExecutionExecutorServiceTest {
+
+  // The dispatch's target resolution: its split into agents is stubbed per test on injectService
+  private static final ResolvedAssetsToExecute RESOLVED_TARGETS =
+      new ResolvedAssetsToExecute(List.of(), Set.of());
 
   @Mock private InjectService injectService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
@@ -111,7 +116,7 @@ public class ExecutionExecutorServiceTest {
             "Inject",
             endpoint);
     inject.setStatus(InjectStatusFixture.createPendingInjectStatus());
-    when(injectService.getAgentsAndAgentlessAssetsByInject(inject))
+    when(injectService.toAgentsAndAgentlessAssets(RESOLVED_TARGETS))
         .thenReturn(
             new AgentsAndAssetsAgentless(
                 new HashSet<>(),
@@ -122,7 +127,7 @@ public class ExecutionExecutorServiceTest {
     assertThrows(
         ExecutionExecutorException.class,
         () -> {
-          executorService.launchExecutorContext(inject);
+          executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
         });
   }
 
@@ -239,7 +244,7 @@ public class ExecutionExecutorServiceTest {
             "Inject",
             endpointRed);
     inject.setStatus(InjectStatusFixture.createPendingInjectStatus());
-    when(injectService.getAgentsAndAgentlessAssetsByInject(inject))
+    when(injectService.toAgentsAndAgentlessAssets(RESOLVED_TARGETS))
         .thenReturn(
             new AgentsAndAssetsAgentless(
                 new HashSet<>(),
@@ -249,7 +254,8 @@ public class ExecutionExecutorServiceTest {
 
     // Act & Assert
     assertThrows(
-        ExecutionExecutorException.class, () -> executorService.launchExecutorContext(inject));
+        ExecutionExecutorException.class,
+        () -> executorService.launchExecutorContext(inject, RESOLVED_TARGETS));
 
     ArgumentCaptor<List<ExecutionTrace>> executionTraces = ArgumentCaptor.forClass(List.class);
     verify(executionTraceRepository, times(2)).saveAll(executionTraces.capture());
@@ -415,7 +421,7 @@ public class ExecutionExecutorServiceTest {
               endpoint);
       inject.setStatus(InjectStatusFixture.createPendingInjectStatus());
 
-      when(injectService.getAgentsAndAgentlessAssetsByInject(inject))
+      when(injectService.toAgentsAndAgentlessAssets(RESOLVED_TARGETS))
           .thenReturn(
               new AgentsAndAssetsAgentless(
                   new HashSet<>(Set.of(agent)), new HashSet<>(), new HashSet<>(), new HashSet<>()));
@@ -465,7 +471,7 @@ public class ExecutionExecutorServiceTest {
           .thenReturn("token");
 
       // Act
-      executorService.launchExecutorContext(inject);
+      executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
 
       // Assert
       verify(connectorInstanceConfigurationRepository)
@@ -535,7 +541,7 @@ public class ExecutionExecutorServiceTest {
           .thenReturn("token");
 
       // Act
-      executorService.launchExecutorContext(inject);
+      executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
 
       // Assert
       ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
@@ -576,7 +582,7 @@ public class ExecutionExecutorServiceTest {
           .thenReturn("token");
 
       // Act & Assert
-      assertThatThrownBy(() -> executorService.launchExecutorContext(inject))
+      assertThatThrownBy(() -> executorService.launchExecutorContext(inject, RESOLVED_TARGETS))
           .isInstanceOf(ExecutionExecutorException.class)
           .hasMessageContaining("No asset executed");
 
@@ -629,7 +635,7 @@ public class ExecutionExecutorServiceTest {
               endpoint1);
       inject.setStatus(InjectStatusFixture.createPendingInjectStatus());
 
-      when(injectService.getAgentsAndAgentlessAssetsByInject(inject))
+      when(injectService.toAgentsAndAgentlessAssets(RESOLVED_TARGETS))
           .thenReturn(
               new AgentsAndAssetsAgentless(
                   new HashSet<>(Set.of(agent1, agent2)),
@@ -663,7 +669,7 @@ public class ExecutionExecutorServiceTest {
           .thenReturn("token");
 
       // Act
-      executorService.launchExecutorContext(inject);
+      executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
 
       // Assert
       verify(manager).requestForInstance(eq(instance1), eq(ExecutorContextService.class));

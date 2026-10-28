@@ -15,6 +15,7 @@ import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -46,13 +47,13 @@ public class ExecutionExecutorService {
   private final ActionMetricCollector actionMetricCollector;
   private final Optional<AuditLogger> auditLogger;
 
-  public void launchExecutorContext(Inject inject) {
+  public void launchExecutorContext(Inject inject, ResolvedAssetsToExecute resolvedAssets) {
     InjectStatus injectStatus =
         inject.getStatus().orElseThrow(() -> new IllegalArgumentException("Status should exist"));
     // First, get the agents and the assets agentless of this inject restricted by the launch by
-    // clearance
+    // clearance, from the dispatch's own target resolution
     AgentsAndAssetsAgentless agentsAndAssetsAgentless =
-        this.injectService.getAgentsAndAgentlessAssetsByInject(inject);
+        this.injectService.toAgentsAndAgentlessAssets(resolvedAssets);
     Set<Agent> agents = agentsAndAssetsAgentless.agents();
     Set<Agent> agentsWithoutClearance = agentsAndAssetsAgentless.agentsWithoutClearance();
     Set<Asset> assetsAgentless = agentsAndAssetsAgentless.assetsAgentless();
