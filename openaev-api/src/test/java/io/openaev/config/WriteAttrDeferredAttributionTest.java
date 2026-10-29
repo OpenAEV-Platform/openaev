@@ -41,12 +41,12 @@ import org.springframework.transaction.annotation.Transactional;
  * blinding the gate to exactly the class it exists to catch.
  *
  * <p>The first test persists a scenario through {@code ScenarioService.createScenario}, stamped
- * with the default tenant while the scope is tenant B. No controller writes a scenario outside the
- * request scope any more, so the service is driven directly, as the composite-key test drives the
- * executor registration. The test does no explicit {@code flush}; the pending insert is forced out
- * by a native read issued from the test method, so the flush stack carries no production frame. The
- * write must still be attributed to the service, captured when it asked for the write at {@code
- * persist}, and so the gate must report it.
+ * with the default tenant while the scope is tenant B. The scenario and simulation creates no
+ * longer write a scenario outside the request scope, so the service is driven directly, as the
+ * composite-key test drives the executor registration. The test does no explicit {@code flush}; the
+ * pending insert is forced out by a native read issued from the test method, so the flush stack
+ * carries no production frame. The write must still be attributed to the service, captured when it
+ * asked for the write at {@code persist}, and so the gate must report it.
  *
  * <p>Non-vacuity is shown by a deliberate break: neutralising the ask-time capture so the entry
  * frame is read from the flush stack turns this green assertion red, because the deferred write is
