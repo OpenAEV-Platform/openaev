@@ -6,6 +6,8 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -20,6 +22,7 @@ import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.CustomDashboardRepository;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CustomDashboardFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
@@ -34,8 +37,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.EnumSource.Mode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,8 +50,8 @@ import org.springframework.transaction.annotation.Transactional;
  * three creates: simulation, scenario, and scenario from injector contracts. The row takes the
  * single tenant of the request scope, whether or not the body carries a custom dashboard, and a
  * scope that does not pin exactly one tenant is refused before anything is written. The injects
- * created with a scenario from injector contracts follow their scenario. The prefixed route is the
- * control.
+ * created with a scenario from injector contracts follow their scenario, and so does the workflow
+ * of a chained simulation or scenario. The prefixed route is the control.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
@@ -65,6 +70,7 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private InjectorContractComposer injectorContractComposer;
+  @MockitoSpyBean private EnterpriseEditionService enterpriseEditionService;
 
   enum Create {
     SIMULATION(
@@ -76,6 +82,8 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
         "exercise_id",
         "exercise_name",
         "exercise_custom_dashboard",
+        "exercise_is_chaining",
+        "workflow_simulation_id",
         false),
     SCENARIO(
         SCENARIO_URI,
@@ -86,6 +94,8 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
         "scenario_id",
         "scenario_name",
         "scenario_custom_dashboard",
+        "scenario_is_chaining",
+        "workflow_scenario_id",
         false),
     SCENARIO_WITH_INJECTOR_CONTRACTS(
         SCENARIO_URI + WITH_INJECTOR_CONTRACTS,
@@ -96,6 +106,8 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
         "scenario_id",
         "scenario_name",
         "scenario_custom_dashboard",
+        "scenario_is_chaining",
+        null,
         true);
 
     final String uri;
@@ -106,6 +118,8 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
     final String idColumn;
     final String nameField;
     final String dashboardField;
+    final String chainingField;
+    final String workflowOwnerColumn;
     final boolean withInjectorContracts;
 
     Create(
@@ -117,6 +131,8 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
         String idColumn,
         String nameField,
         String dashboardField,
+        String chainingField,
+        String workflowOwnerColumn,
         boolean withInjectorContracts) {
       this.uri = uri;
       this.tenantUri = tenantUri;
@@ -126,11 +142,19 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
       this.idColumn = idColumn;
       this.nameField = nameField;
       this.dashboardField = dashboardField;
+      this.chainingField = chainingField;
+      this.workflowOwnerColumn = workflowOwnerColumn;
       this.withInjectorContracts = withInjectorContracts;
     }
 
     String body() {
       return wrap("{\"" + nameField + "\":\"" + NAME + "\"}", UNKNOWN_CONTRACT_ID);
+    }
+
+    String chainedBody() {
+      return wrap(
+          "{\"" + nameField + "\":\"" + NAME + "\",\"" + chainingField + "\":true}",
+          UNKNOWN_CONTRACT_ID);
     }
 
     String bodyWithDashboard(String dashboardId) {
@@ -351,6 +375,66 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
 
       // Assert
       assertEquals(tenantB, rowTenant(create, id));
+    }
+  }
+
+  @Nested
+  @DisplayName("Workflow of a chained simulation or scenario")
+  class WorkflowOfChainedCreate {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(
+        value = Create.class,
+        names = {"SIMULATION", "SCENARIO"},
+        mode = Mode.INCLUDE)
+    @DisplayName("With a header naming B, the workflow is written in the tenant of its owner")
+    void given_chainedCreateWithHeaderNamingOneTenant_should_writeWorkflowInOwnerTenant(
+        Create create) throws Exception {
+      // Arrange
+      enterpriseLicenseActive();
+      String tenantB = joinDefaultAndOtherTenant();
+
+      // Act
+      String id =
+          createdId(
+              create, nonPrefixed(create, create.chainedBody()).header(TENANT_IDS_HEADER, tenantB));
+
+      // Assert
+      assertEquals(tenantB, rowTenant(create, id));
+      assertEquals(List.of(tenantB), workflowTenants(create, id), "the workflow follows its owner");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(
+        value = Create.class,
+        names = {"SIMULATION", "SCENARIO"},
+        mode = Mode.INCLUDE)
+    @DisplayName("For a caller whose only tenant is B, the workflow is written in B")
+    void given_chainedCreateBySingleNonDefaultTenantCaller_should_writeWorkflowInCallerTenant(
+        Create create) throws Exception {
+      // Arrange
+      enterpriseLicenseActive();
+      String tenantB = tenantHelper.createTenantWithCurrentUser("posture-only-b").getId();
+
+      // Act
+      String id = createdId(create, nonPrefixed(create, create.chainedBody()));
+
+      // Assert
+      assertEquals(tenantB, rowTenant(create, id));
+      assertEquals(List.of(tenantB), workflowTenants(create, id), "the workflow follows its owner");
+    }
+
+    private void enterpriseLicenseActive() {
+      doReturn(false).when(enterpriseEditionService).isEnterpriseLicenseInactive(any());
+    }
+
+    private List<String> workflowTenants(Create create, String ownerId) {
+      return entityManager
+          .createNativeQuery(
+              "SELECT tenant_id FROM workflows WHERE " + create.workflowOwnerColumn + " = ?1",
+              String.class)
+          .setParameter(1, ownerId)
+          .getResultList();
     }
   }
 
