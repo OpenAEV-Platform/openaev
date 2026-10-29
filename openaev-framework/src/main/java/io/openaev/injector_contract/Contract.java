@@ -86,6 +86,10 @@ public class Contract {
   /** Whether this contract can be used to create an atomic testing inject. */
   @Setter
   @JsonProperty("is_atomic_testing")
+  // Lombok names the getter isAtomicTesting(), which Jackson would also write as a second
+  // "atomicTesting" key. Naming the getter too keeps a single key in the saved contract content.
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("is_atomic_testing"))
   private boolean isAtomicTesting = true;
 
   /** Whether this contract requires an executor agent. */
