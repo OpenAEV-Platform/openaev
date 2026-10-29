@@ -15,7 +15,7 @@ const MarkingDefinitionExportButton: FunctionComponent<Props> = ({ disabled = fa
   const handleExport = () => {
     setLoading(true);
     exportMarkingDefinitions()
-      .then(result => download(result.data, result.filename, 'text/csv'))
+      .then(result => download(result.data, result.filename, 'application/json'))
       // The API layer already notified the user of a failed call.
       .catch(() => {})
       .finally(() => setLoading(false));

@@ -6,15 +6,16 @@
 export type ImportReportRowStatus = 'CREATED' | 'SKIPPED' | 'IGNORED';
 
 export interface ImportReportRow {
-  // Line of the file, header included (the header is line 1).
-  import_row_line: number;
+  // 1-based position of the row in the file: the index of the item in a JSON array (the first item
+  // is 1), the line of a CSV file.
+  import_row_position: number;
   import_row_status: ImportReportRowStatus;
   // Feature-owned code, only on SKIPPED rows.
   import_row_reason?: string;
   // Fixed text built server-side, only on SKIPPED rows.
   import_row_message?: string;
-  // The row's cells as read, keyed by column name. Raw text: an invalid value has to be shown as
-  // the user wrote it.
+  // The row's fields as read (scalars as text), keyed by field name. An invalid value has to be
+  // shown as the user wrote it.
   import_row_values: Record<string, string>;
 }
 
@@ -24,11 +25,11 @@ export interface ImportReport {
   import_skipped: number;
   // Rows identical to an existing or earlier row: nothing to do, not an error.
   import_ignored: number;
-  // The column names of the file, in order.
+  // The field names of a row, in display order.
   import_columns: string[];
   import_rows: ImportReportRow[];
 }
 
-// File-level failure (bad header, file too big, too many rows...): nothing is imported and there is
-// no per-row report. The backend answers 400 with a message.
+// File-level failure (invalid JSON, file too big, too many items...): nothing is imported and there
+// is no per-row report. The backend answers 400 with a message.
 export class ImportFileError extends Error {}

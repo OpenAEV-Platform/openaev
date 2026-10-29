@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { skippedRowsOf, skippedRowsToCsv } from '../../../../components/common/import/import-report-helpers';
+import { skippedRowsOf, skippedRowsToJson } from '../../../../components/common/import/import-report-helpers';
 import { type ImportReport } from '../../../../components/common/import/import-report-types';
 
-// A report that has nothing to do with markings: other columns, other reason codes.
+// A report that has nothing to do with markings: other fields, other reason codes.
 const report: ImportReport = {
   import_created: 1,
   import_skipped: 2,
@@ -11,7 +11,7 @@ const report: ImportReport = {
   import_columns: ['name', 'url'],
   import_rows: [
     {
-      import_row_line: 2,
+      import_row_position: 1,
       import_row_status: 'CREATED',
       import_row_values: {
         name: 'ok',
@@ -19,7 +19,7 @@ const report: ImportReport = {
       },
     },
     {
-      import_row_line: 3,
+      import_row_position: 2,
       import_row_status: 'SKIPPED',
       import_row_reason: 'BAD_URL',
       import_row_message: 'Not a URL.',
@@ -29,7 +29,7 @@ const report: ImportReport = {
       },
     },
     {
-      import_row_line: 4,
+      import_row_position: 3,
       import_row_status: 'IGNORED',
       import_row_values: {
         name: 'same',
@@ -37,7 +37,7 @@ const report: ImportReport = {
       },
     },
     {
-      import_row_line: 5,
+      import_row_position: 4,
       import_row_status: 'SKIPPED',
       import_row_reason: 'MISSING',
       import_row_message: 'Missing url.',
@@ -55,27 +55,48 @@ describe('skippedRowsOf', () => {
     const rows = skippedRowsOf(report);
 
     // Assert
-    expect(rows.map(row => row.import_row_line)).toEqual([3, 5]);
+    expect(rows.map(row => row.import_row_position)).toEqual([2, 4]);
   });
 });
 
-describe('skippedRowsToCsv', () => {
-  it('writes the file columns as header and the values of the skipped rows only', () => {
+describe('skippedRowsToJson', () => {
+  it('writes a JSON array of the values of the skipped rows only, with the report fields as keys', () => {
     // Act
-    const csv = skippedRowsToCsv(report);
+    const json = JSON.parse(skippedRowsToJson(report));
 
     // Assert
-    expect(csv.split('\n')[0]).toBe('name,url');
-    expect(csv).toContain('broken,nope');
-    expect(csv).not.toContain('ok,');
-    expect(csv).not.toContain('same');
+    expect(json).toEqual([
+      {
+        name: 'broken',
+        url: 'nope',
+      },
+      {
+        name: '=SUM(A1)',
+        url: '',
+      },
+    ]);
   });
 
-  it('neutralises a formula-looking cell and leaves a missing value empty', () => {
+  it('keeps a value as the user wrote it, and leaves a missing value as an empty string', () => {
     // Act
-    const csv = skippedRowsToCsv(report);
+    const [, second] = JSON.parse(skippedRowsToJson(report));
 
     // Assert
-    expect(csv.split('\n')[2]).toBe('\'=SUM(A1),');
+    expect(second.name).toBe('=SUM(A1)');
+    expect(second.url).toBe('');
+  });
+
+  it('follows the order of the report fields, even when a row lists them differently', () => {
+    // Arrange
+    const reordered: ImportReport = {
+      ...report,
+      import_columns: ['url', 'name'],
+    };
+
+    // Act
+    const [first] = JSON.parse(skippedRowsToJson(reordered));
+
+    // Assert
+    expect(Object.keys(first)).toEqual(['url', 'name']);
   });
 });

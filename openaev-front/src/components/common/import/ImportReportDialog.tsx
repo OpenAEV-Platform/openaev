@@ -1,15 +1,30 @@
 import { Button, Chip } from '@filigran/design-system';
 // fds:keep-mui Dialog and Alert have no library equivalent yet
 import { Alert, Dialog, DialogActions, DialogContent, DialogTitle, useTheme } from '@mui/material';
-import { type CSSProperties, type FunctionComponent } from 'react';
+import { type FunctionComponent } from 'react';
 
 import { download } from '../../../utils/utils';
 import { useFormatter } from '../../i18n';
 import Transition from '../Transition';
-import { skippedRowsOf, skippedRowsToCsv } from './import-report-helpers';
+import { skippedRowsOf, skippedRowsToJson } from './import-report-helpers';
 import { type ImportReport } from './import-report-types';
 
 type ReasonSeverity = 'medium' | 'critical';
+
+// `as const` keeps the keyword values ('column', 'auto'...) as literals, so the objects are valid
+// `style` values whatever the editor's type service infers.
+const contentStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 16,
+} as const;
+
+const scrollStyle = { overflowX: 'auto' } as const;
+
+const tableStyle = {
+  width: '100%',
+  borderCollapse: 'collapse',
+} as const;
 
 interface Props {
   open: boolean;
@@ -20,7 +35,7 @@ interface Props {
   fileError?: string | null;
   // Optional info banner, for example to flag a mocked backend.
   notice?: string;
-  // Translated label of each column of the file, by column name. A column without label shows its name.
+  // Translated label of each field of a row, by field name. A field without label shows its name.
   columnLabels?: Record<string, string>;
   // Translated label of each reason code. A code without label shows the code.
   reasonLabels?: Record<string, string>;
@@ -47,12 +62,12 @@ const ImportReportDialog: FunctionComponent<Props> = ({
 
   const skippedRows = report ? skippedRowsOf(report) : [];
 
-  const cellStyle: CSSProperties = {
+  const cellStyle = {
     padding: '8px 12px',
     textAlign: 'left',
     verticalAlign: 'top',
     borderBottom: `1px solid ${theme.palette.divider}`,
-  };
+  } as const;
 
   return (
     <Dialog
@@ -65,12 +80,7 @@ const ImportReportDialog: FunctionComponent<Props> = ({
     >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
-        >
+        <div style={contentStyle}>
           {notice && <Alert severity="info">{notice}</Alert>}
           {fileError && (
             <Alert severity="error">
@@ -96,15 +106,11 @@ const ImportReportDialog: FunctionComponent<Props> = ({
                 </Alert>
               )}
               {skippedRows.length > 0 && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                  }}
-                  >
+                <div style={scrollStyle}>
+                  <table style={tableStyle}>
                     <thead>
                       <tr>
-                        <th style={cellStyle}>{t('Line')}</th>
+                        <th style={cellStyle}>{t('Position')}</th>
                         {report.import_columns.map(column => (
                           <th key={column} style={cellStyle}>{columnLabels[column] ?? column}</th>
                         ))}
@@ -113,10 +119,10 @@ const ImportReportDialog: FunctionComponent<Props> = ({
                     </thead>
                     <tbody>
                       {skippedRows.map(row => (
-                        <tr key={row.import_row_line}>
-                          <td style={cellStyle}>{row.import_row_line}</td>
+                        <tr key={row.import_row_position}>
+                          <td style={cellStyle}>{row.import_row_position}</td>
                           {report.import_columns.map(column => (
-                            // Plain text on purpose: these are the user's own cells, never HTML.
+                            // Plain text on purpose: these are the user's own fields, never HTML.
                             <td key={column} style={cellStyle}>{row.import_row_values[column] || '-'}</td>
                           ))}
                           <td style={cellStyle}>
@@ -143,7 +149,7 @@ const ImportReportDialog: FunctionComponent<Props> = ({
           <Button
             type="button"
             priority="secondary"
-            onClick={() => download(skippedRowsToCsv(report), downloadFileName, 'text/csv')}
+            onClick={() => download(skippedRowsToJson(report), downloadFileName, 'application/json')}
           >
             {t('Download skipped rows')}
           </Button>
