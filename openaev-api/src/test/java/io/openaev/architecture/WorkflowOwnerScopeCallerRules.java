@@ -122,8 +122,9 @@ final class WorkflowOwnerScopeCallerRules {
               + " its tenant",
           InjectorContractService.class,
           "the step sweep of a deleted contract passes the contract it deletes, loaded by"
-              + " deleteInjectorContract(String) under the request's tenant filter, after the"
-              + " DELETE access check on that contract");
+              + " deleteInjectorContract(String) under the request's tenant filter, or by"
+              + " deleteInjectorContractById on the request's tenant, after the DELETE access"
+              + " check");
 
   private WorkflowOwnerScopeCallerRules() {}
 
