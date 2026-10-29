@@ -14,8 +14,12 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,6 +60,8 @@ public class AzureCredentialConnectivityCheck {
 
   @Value("${openaev.credentials.status-validation.timeout-seconds:10}")
   private int timeoutSeconds;
+
+  private final X509TrustManager trustManager;
 
   /**
    * Checks a service principal (application + client secret).
@@ -152,7 +158,8 @@ public class AzureCredentialConnectivityCheck {
                 + "?api-version="
                 + SUBSCRIPTION_API_VERSION);
 
-    try (HttpClient httpClient = HttpClient.newBuilder().connectTimeout(timeout).build()) {
+    try (HttpClient httpClient =
+        HttpClient.newBuilder().sslContext(buildSslContext()).connectTimeout(timeout).build()) {
       HttpRequest request =
           HttpRequest.newBuilder(uri)
               .GET()
@@ -169,6 +176,16 @@ public class AzureCredentialConnectivityCheck {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return SecretConnectionResult.networkError();
+    }
+  }
+
+  private SSLContext buildSslContext() {
+    try {
+      SSLContext sslContext = SSLContext.getInstance("TLS");
+      sslContext.init(null, new TrustManager[] {trustManager}, null);
+      return sslContext;
+    } catch (GeneralSecurityException e) {
+      throw new IllegalStateException("Unable to build the TLS context of the Azure probe", e);
     }
   }
 
