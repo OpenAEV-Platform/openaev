@@ -1,5 +1,9 @@
 package io.openaev.rest.reporting;
 
+import static io.openaev.rest.reporting.ReportingApi.REPORTINGS_URI;
+import static io.openaev.rest.reporting.ReportingApi.TENANT_REPORTINGS_URI;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -8,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.ReportingContextType;
 import io.openaev.database.model.ReportingFormat;
 import io.openaev.database.model.ReportingGenerationStatus;
@@ -19,16 +24,20 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -56,7 +65,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName("Reporting generation download serves the output under the generation's tenant")
 class ReportingGenerationDownloadTenantScopeTest extends IntegrationTest {
 
-  private static final String DOWNLOAD = "/api/reportings/generations/{generationId}/file";
+  private static final String GENERATION_FILE = "/generations/{generationId}/file";
+  private static final String DOWNLOAD = REPORTINGS_URI + GENERATION_FILE;
+  private static final String TENANT_DOWNLOAD = TENANT_REPORTINGS_URI + GENERATION_FILE;
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
 
   @Autowired private MockMvc mvc;
@@ -143,6 +154,47 @@ class ReportingGenerationDownloadTenantScopeTest extends IntegrationTest {
 
     // Act & Assert
     mvc.perform(get(DOWNLOAD, generationId).with(csrf())).andExpect(status().isNotFound());
+  }
+
+  @Nested
+  @DisplayName("Tenant route, read right in that tenant only")
+  class TenantRouteWithTheRightInThatTenantOnly {
+
+    /**
+     * On the tenant route the access check runs in the path's tenant only, so a caller who belongs
+     * to several tenants and holds the read right in one of them downloads that tenant's generated
+     * reports there.
+     */
+    @Test
+    @WithMockUser
+    @DisplayName(
+        "The generation's tenant route serves its document to a caller with the right there")
+    void given_readRightInTheRouteTenantOnly_should_serveTheGenerationDocument() throws Exception {
+      // Arrange: a member of the default tenant without the right, and of tenant B with it.
+      String tenantB =
+          tenantHelper
+              .createTenantWithCapabilities(
+                  "report-download-route-b", Set.of(Capability.ACCESS_REPORTINGS))
+              .getId();
+      createdTenants.add(tenantB);
+      TenantContext.clearCurrentTenant();
+      byte[] bytes = ("report-route-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String target = DigestUtils.md5Hex(bytes) + ".pdf";
+      uploadObject(tenantB, target, bytes);
+      String documentId = seedDocument(tenantB, target);
+      String generationId = seedSuccessfulGeneration(tenantB, documentId);
+
+      // Act
+      MockHttpServletResponse response =
+          mvc.perform(get(TENANT_DOWNLOAD, tenantB, generationId).with(csrf()))
+              .andReturn()
+              .getResponse();
+
+      // Assert
+      assertAll(
+          () -> assertEquals(HttpStatus.OK.value(), response.getStatus(), "downloaded"),
+          () -> assertArrayEquals(bytes, response.getContentAsByteArray(), "the document's bytes"));
+    }
   }
 
   private String createTenant(String name, boolean withCurrentUser) throws Exception {
