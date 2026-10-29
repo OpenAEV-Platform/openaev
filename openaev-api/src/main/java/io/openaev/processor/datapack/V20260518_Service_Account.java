@@ -12,7 +12,8 @@ public class V20260518_Service_Account extends DataPack {
   private final AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
 
   public V20260518_Service_Account(
-      DataPackService dataPackService, AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService) {
+      DataPackService dataPackService,
+      AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService) {
     super(dataPackService);
     this.agentServiceAccountPrivilegeService = agentServiceAccountPrivilegeService;
   }

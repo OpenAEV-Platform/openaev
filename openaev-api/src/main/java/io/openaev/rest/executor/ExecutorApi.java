@@ -478,7 +478,8 @@ public class ExecutorApi extends RestBehavior {
 
     // FIND TOKEN BY TENANT
     String token =
-        agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+        agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+            TenantContext.getCurrentTenant());
 
     String installCommand =
         this.endpointService.generateInstallCommand(
@@ -511,7 +512,8 @@ public class ExecutorApi extends RestBehavior {
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(TxCtx ctx) {
     try {
       String token =
-          agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+          agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+              TenantContext.getCurrentTenant());
       return ResponseEntity.ok()
           .contentType(MediaType.TEXT_PLAIN)
           .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, private")
