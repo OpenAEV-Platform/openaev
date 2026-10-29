@@ -19,6 +19,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jayway.jsonpath.JsonPath;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -30,6 +33,7 @@ import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.service.FileService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.RabbitmqService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -43,8 +47,10 @@ import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -74,6 +80,8 @@ public class InjectorApiTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private FileService fileService;
   @Autowired private InjectorService injectorService;
+  @Autowired private RabbitmqService rabbitmqService;
+  @Autowired private ConnectionFactory connectionFactory;
 
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -797,11 +805,36 @@ public class InjectorApiTest extends IntegrationTest {
   @DisplayName("Deleting a managed injector")
   class DeleteManagedInjector {
 
+    private final List<String> declaredQueues = new ArrayList<>();
+
+    @AfterEach
+    void deleteDeclaredQueues() {
+      declaredQueues.forEach(rabbitmqService::safeDeleteQueue);
+      declaredQueues.clear();
+    }
+
     private Injector persistExternalInjector(String name, Instant lastHeartbeat) {
       Injector injector = createDefaultInjector(name);
       injector.setExternal(true);
       injector.setUpdatedAt(lastHeartbeat);
       return injectorRepository.save(injector);
+    }
+
+    private String registerQueue(Injector injector) throws Exception {
+      String queueName = rabbitmqService.registerQueue(injector.getId());
+      declaredQueues.add(queueName);
+      return queueName;
+    }
+
+    /** A passive declare fails with a 404 channel error when the queue does not exist. */
+    private boolean queueExists(String queueName) throws Exception {
+      try (Connection connection = connectionFactory.newConnection();
+          Channel channel = connection.createChannel()) {
+        channel.queueDeclarePassive(queueName);
+        return true;
+      } catch (IOException e) {
+        return false;
+      }
     }
 
     @Test
@@ -823,18 +856,63 @@ public class InjectorApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Goes through once the container has stopped pinging")
-    void givenSilentInjector_should_deleteIt() throws Exception {
+    @DisplayName("Goes through once the container has stopped pinging, with its pending injects")
+    void givenSilentInjector_should_deleteItAndItsQueue() throws Exception {
+      // Arrange
       Injector injector =
           persistExternalInjector("nmap-silent", Instant.now().minus(Duration.ofHours(1)));
       getInjectorInstance(injector.getId(), injector.getName());
+      String queueName = registerQueue(injector);
+      rabbitmqService.publish(injector.getId(), "{\"inject\":\"stale\"}");
 
+      // Act
       injectorService.deleteInjector(injector.getId());
 
+      // Assert
       assertThat(
               injectorRepository.findByIdAndTenantId(
                   injector.getId(), TenantContext.getCurrentTenant()))
           .isEmpty();
+      assertThat(queueExists(queueName)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Keeps the queue while another deployment with the same id still reads it")
+    void givenQueueStillConsumed_should_deleteInjectorAndKeepQueue() throws Exception {
+      // Arrange
+      Injector injector =
+          persistExternalInjector("nmap-shared", Instant.now().minus(Duration.ofHours(1)));
+      getInjectorInstance(injector.getId(), injector.getName());
+      String queueName = registerQueue(injector);
+      try (Connection connection = connectionFactory.newConnection();
+          Channel consumer = connection.createChannel()) {
+        consumer.basicConsume(queueName, true, (tag, delivery) -> {}, tag -> {});
+
+        // Act
+        injectorService.deleteInjector(injector.getId());
+
+        // Assert
+        assertThat(
+                injectorRepository.findByIdAndTenantId(
+                    injector.getId(), TenantContext.getCurrentTenant()))
+            .isEmpty();
+        assertThat(queueExists(queueName)).isTrue();
+      }
+    }
+
+    @Test
+    @DisplayName("Deletes the queue of an injector not deployed by the Integration Manager")
+    void givenUnmanagedInjector_should_deleteItsQueue() throws Exception {
+      // Arrange
+      Injector injector =
+          persistExternalInjector("nmap-unmanaged", Instant.now().minus(Duration.ofHours(1)));
+      String queueName = registerQueue(injector);
+
+      // Act
+      injectorService.deleteInjector(injector.getId());
+
+      // Assert
+      assertThat(queueExists(queueName)).isFalse();
     }
   }
 }
