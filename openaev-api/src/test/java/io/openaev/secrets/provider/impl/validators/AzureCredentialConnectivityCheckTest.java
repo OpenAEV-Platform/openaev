@@ -397,7 +397,7 @@ class AzureCredentialConnectivityCheckTest {
       when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any()))
           .thenReturn(tokenCredential);
       givenTokenIsGranted();
-      when(httpClientFactory.httpClientNoRetry(any(Timeout.class))).thenReturn(httpClient);
+      when(httpClientFactory.httpClientNoRetryWithProxy(any(Timeout.class))).thenReturn(httpClient);
     }
 
     @ParameterizedTest(name = "status={0}")
@@ -464,9 +464,9 @@ class AzureCredentialConnectivityCheckTest {
     }
 
     @Test
-    @DisplayName("The client is bounded by the probe timeout")
+    @DisplayName("The client is proxy-aware and bounded by the probe timeout")
     @SuppressWarnings("unchecked")
-    void given_probe_should_boundTheClientByTheTimeout() throws IOException {
+    void given_probe_should_useAProxyAwareClientBoundedByTheTimeout() throws IOException {
       // Arrange
       when(httpClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
           .thenReturn(200);
@@ -475,7 +475,7 @@ class AzureCredentialConnectivityCheckTest {
       validateWithSubscription();
 
       // Assert
-      verify(httpClientFactory).httpClientNoRetry(Timeout.ofSeconds(TIMEOUT_SECONDS));
+      verify(httpClientFactory).httpClientNoRetryWithProxy(Timeout.ofSeconds(TIMEOUT_SECONDS));
     }
 
     @Test

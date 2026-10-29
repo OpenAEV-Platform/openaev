@@ -14,7 +14,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import org.apache.hc.client5.http.classic.methods.ClassicHttpRequests;
+import org.apache.hc.client5.http.cookie.BasicCookieStore;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.entity.ByteArrayEntity;
@@ -60,9 +62,14 @@ public class ApacheAzureHttpClient implements HttpClient {
 
   @Override
   public HttpResponse sendSync(HttpRequest request, Context context) {
+    // The client is shared across tenants and Apache keeps cookies by default: a fresh store per
+    // request stops the cookies Entra ID sets for one tenant from being replayed to another.
+    HttpClientContext httpContext = HttpClientContext.create();
+    httpContext.setCookieStore(new BasicCookieStore());
     try {
       return httpClient.execute(
           toApacheRequest(request),
+          httpContext,
           response -> {
             HttpHeaders headers = new HttpHeaders();
             for (Header header : response.getHeaders()) {

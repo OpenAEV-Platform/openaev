@@ -15,13 +15,17 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import org.apache.hc.client5.http.cookie.CookieStore;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.io.entity.ByteArrayEntity;
 import org.apache.hc.core5.http.message.BasicHeader;
+import org.apache.hc.core5.http.protocol.HttpContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -54,18 +58,32 @@ class ApacheAzureHttpClientTest {
     when(response.getCode()).thenReturn(statusCode);
     when(response.getHeaders()).thenReturn(headers);
     when(response.getEntity()).thenReturn(body == null ? null : new ByteArrayEntity(body, null));
-    when(apacheClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
+    when(apacheClient.execute(
+            any(ClassicHttpRequest.class),
+            any(HttpContext.class),
+            any(HttpClientResponseHandler.class)))
         .thenAnswer(
             invocation ->
-                ((HttpClientResponseHandler<?>) invocation.getArgument(1))
+                ((HttpClientResponseHandler<?>) invocation.getArgument(2))
                     .handleResponse(response));
   }
 
   private ClassicHttpRequest capturedRequest() throws IOException {
     ArgumentCaptor<ClassicHttpRequest> captor = ArgumentCaptor.forClass(ClassicHttpRequest.class);
     org.mockito.Mockito.verify(apacheClient)
-        .execute(captor.capture(), any(HttpClientResponseHandler.class));
+        .execute(captor.capture(), any(HttpContext.class), any(HttpClientResponseHandler.class));
     return captor.getValue();
+  }
+
+  /** The cookie stores handed to the Apache client, one per call, in call order. */
+  private List<CookieStore> capturedCookieStores(int calls) throws IOException {
+    ArgumentCaptor<HttpContext> captor = ArgumentCaptor.forClass(HttpContext.class);
+    org.mockito.Mockito.verify(apacheClient, org.mockito.Mockito.times(calls))
+        .execute(
+            any(ClassicHttpRequest.class), captor.capture(), any(HttpClientResponseHandler.class));
+    return captor.getAllValues().stream()
+        .map(context -> HttpClientContext.adapt(context).getCookieStore())
+        .toList();
   }
 
   private static HttpRequest tokenRequest() throws Exception {
@@ -141,6 +159,27 @@ class ApacheAzureHttpClientTest {
 
       // Assert
       assertThat(capturedRequest().getEntity()).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("Cookie isolation")
+  class CookieIsolation {
+
+    @Test
+    @DisplayName("Every request gets its own empty cookie store, so no cookie crosses tenants")
+    void given_twoRequests_should_useDistinctEmptyCookieStores() throws Exception {
+      // Arrange
+      givenServerAnswers(200, new byte[0]);
+
+      // Act
+      client.sendSync(tokenRequest(), Context.NONE);
+      client.sendSync(tokenRequest(), Context.NONE);
+
+      // Assert
+      List<CookieStore> stores = capturedCookieStores(2);
+      assertThat(stores).allSatisfy(store -> assertThat(store.getCookies()).isEmpty());
+      assertThat(stores.get(0)).isNotSameAs(stores.get(1));
     }
   }
 
@@ -228,7 +267,9 @@ class ApacheAzureHttpClientTest {
     void given_ioFailure_should_throwUncheckedIoException() throws Exception {
       // Arrange
       when(apacheClient.execute(
-              any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
+              any(ClassicHttpRequest.class),
+              any(HttpContext.class),
+              any(HttpClientResponseHandler.class)))
           .thenThrow(new IOException("connection reset"));
       HttpRequest request = tokenRequest();
 
@@ -244,7 +285,9 @@ class ApacheAzureHttpClientTest {
     void given_ioFailure_should_failTheReactiveSend() throws Exception {
       // Arrange
       when(apacheClient.execute(
-              any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
+              any(ClassicHttpRequest.class),
+              any(HttpContext.class),
+              any(HttpClientResponseHandler.class)))
           .thenThrow(new IOException("connection reset"));
       HttpRequest request = tokenRequest();
 

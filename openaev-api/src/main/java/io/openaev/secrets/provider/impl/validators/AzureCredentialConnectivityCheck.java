@@ -156,9 +156,10 @@ public class AzureCredentialConnectivityCheck {
                 + "?api-version="
                 + SUBSCRIPTION_API_VERSION);
 
-    // Built by the platform's factory so the probe trusts the same extra certificates as the SDK.
+    // Built by the platform's factory so the probe trusts the same extra certificates and goes
+    // through the same proxy as the SDK.
     try (CloseableHttpClient httpClient =
-        httpClientFactory.httpClientNoRetry(Timeout.of(timeout))) {
+        httpClientFactory.httpClientNoRetryWithProxy(Timeout.of(timeout))) {
       HttpGet request = new HttpGet(uri);
       request.addHeader("Authorization", "Bearer " + token);
       Integer statusCode = httpClient.execute(request, ClassicHttpResponse::getCode);

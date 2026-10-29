@@ -36,8 +36,10 @@ public class DefaultAzureCredentialConnectivityCheckFactory
       HttpClientFactory httpClientFactory,
       @Value("${openaev.credentials.status-validation.timeout-seconds:10}") int timeoutSeconds) {
     // One client for every probe: building one per credential would leak its connection pool.
+    // Proxy-aware: the SDK's own Netty transport honored HTTPS_PROXY / NO_PROXY.
     this.apacheHttpClient =
-        httpClientFactory.httpClientNoRetry(Timeout.ofSeconds(Math.max(1, timeoutSeconds)));
+        httpClientFactory.httpClientNoRetryWithProxy(
+            Timeout.ofSeconds(Math.max(1, timeoutSeconds)));
     this.azureHttpClient = new ApacheAzureHttpClient(apacheHttpClient);
   }
 

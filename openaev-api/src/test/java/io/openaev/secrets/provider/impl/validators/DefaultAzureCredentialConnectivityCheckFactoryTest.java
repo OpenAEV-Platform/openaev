@@ -37,7 +37,7 @@ class DefaultAzureCredentialConnectivityCheckFactoryTest {
 
   @BeforeEach
   void setUp() {
-    when(httpClientFactory.httpClientNoRetry(any(Timeout.class))).thenReturn(httpClient);
+    when(httpClientFactory.httpClientNoRetryWithProxy(any(Timeout.class))).thenReturn(httpClient);
     factory =
         new DefaultAzureCredentialConnectivityCheckFactory(httpClientFactory, TIMEOUT_SECONDS);
   }
@@ -47,10 +47,11 @@ class DefaultAzureCredentialConnectivityCheckFactoryTest {
   class PlatformHttpClient {
 
     @Test
-    @DisplayName("The client comes from the platform factory, bounded by the probe timeout")
-    void given_factory_should_useThePlatformClientWithTheTimeout() {
+    @DisplayName(
+        "The client comes from the platform factory, proxy-aware and bounded by the probe timeout")
+    void given_factory_should_useTheProxyAwarePlatformClientWithTheTimeout() {
       // Assert
-      verify(httpClientFactory).httpClientNoRetry(Timeout.ofSeconds(TIMEOUT_SECONDS));
+      verify(httpClientFactory).httpClientNoRetryWithProxy(Timeout.ofSeconds(TIMEOUT_SECONDS));
     }
 
     @Test
