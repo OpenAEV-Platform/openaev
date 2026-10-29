@@ -2,14 +2,11 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.utils.StringUtils.duplicateString;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
-import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDocumentRepository;
 import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.InjectUtils;
 import lombok.RequiredArgsConstructor;
@@ -22,8 +19,6 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class InjectDuplicateService {
 
-  private final ExerciseRepository exerciseRepository;
-  private final ScenarioRepository scenarioRepository;
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
 
@@ -33,13 +28,13 @@ public class InjectDuplicateService {
     return saveInject(inject, duplicatedInject);
   }
 
+  /**
+   * Duplicates an inject into its scenario, with the duplicate word in its title. The caller
+   * resolves the scenario inside its tenant scope.
+   */
   @Transactional
   public Inject duplicateInjectForScenarioWithDuplicateWordInTitle(
-      final String scenarioId, final String injectId) {
-    Scenario scenario =
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+      final Scenario scenario, final String injectId) {
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     Inject duplicatedInject = getDuplicatedInjectWithScenario(scenario, inject);
     duplicatedInject.setTitle(duplicateString(duplicatedInject.getTitle()));
@@ -52,13 +47,13 @@ public class InjectDuplicateService {
     return saveInject(inject, duplicatedInject);
   }
 
+  /**
+   * Duplicates an inject into its simulation, with the duplicate word in its title. The caller
+   * resolves the simulation inside its tenant scope.
+   */
   @Transactional
   public Inject duplicateInjectForExerciseWithDuplicateWordInTitle(
-      final String exerciseId, final String injectId) {
-    Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+      final Exercise exercise, final String injectId) {
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     Inject duplicatedInject = getDuplicatedInjectWithExercise(exercise, inject);
     duplicatedInject.setTitle(duplicateString(duplicatedInject.getTitle()));

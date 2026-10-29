@@ -4,6 +4,7 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.raw.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -28,6 +29,15 @@ public interface ExerciseRepository
   Optional<Exercise> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /**
+   * By-id read keyed on a request's resolved tenant scope rather than on the v1 ambient tenant,
+   * which is set only on the tenant-prefixed route.
+   */
+  Optional<Exercise> findByIdAndTenantIdIn(
+      @NotNull String id, @NotNull Collection<String> tenantIds);
+
+  boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
 
   @Modifying
   @Query(value = "DELETE FROM exercises WHERE exercise_id = :simulationId", nativeQuery = true)

@@ -16,6 +16,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.repository.*;
@@ -73,6 +74,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @ExtendWith(MockitoExtension.class)
 class ScenarioServiceTest extends IntegrationTest {
+
+  private static final TxCtx DEFAULT_TENANT_SCOPE = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
 
   @Autowired ScenarioRepository scenarioRepository;
   @Autowired private ExerciseRepository exerciseRepository;
@@ -189,7 +192,7 @@ class ScenarioServiceTest extends IntegrationTest {
 
     String scenarioId = scenario.getId();
 
-    scenarioService.deleteScenario(scenarioId);
+    scenarioService.deleteScenario(DEFAULT_TENANT_SCOPE, scenarioId);
     entityManager.flush();
     entityManager.clear();
 
@@ -298,7 +301,8 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.clear();
 
     // Act
-    assertDoesNotThrow(() -> scenarioServiceBean.deleteScenario(scenario.getId()));
+    assertDoesNotThrow(
+        () -> scenarioServiceBean.deleteScenario(DEFAULT_TENANT_SCOPE, scenario.getId()));
 
     entityManager.flush();
     entityManager.clear();
@@ -335,7 +339,7 @@ class ScenarioServiceTest extends IntegrationTest {
 
     String scenarioId = scenarioWrapper.get().getId();
 
-    scenarioService.deleteScenario(scenarioId);
+    scenarioService.deleteScenario(DEFAULT_TENANT_SCOPE, scenarioId);
     entityManager.flush();
     entityManager.clear();
 
@@ -490,7 +494,7 @@ class ScenarioServiceTest extends IntegrationTest {
 
   @Test
   public void testRunChecksWhenScenarioIsNull() {
-    List<HealthCheck> healthchecks = scenarioService.runChecks(null);
+    List<HealthCheck> healthchecks = scenarioService.runChecks(DEFAULT_TENANT_SCOPE, null);
 
     assertNull(healthchecks);
   }
@@ -514,7 +518,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -548,7 +553,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -581,7 +587,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -614,7 +621,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -647,7 +655,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -672,7 +681,8 @@ class ScenarioServiceTest extends IntegrationTest {
     this.scenarioRepository.save(scenario);
 
     // Act
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // Assert
     verify(this.injectService, never()).runChecks(any());
@@ -708,7 +718,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of());
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());

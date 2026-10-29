@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
@@ -87,6 +88,8 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @DisplayName("Inject and scenario imports write in the tenant of the caller or of the parent")
 class InjectImportWriteScopeTest extends IntegrationTest {
+
+  private static final TxCtx DEFAULT_TENANT_SCOPE = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
@@ -414,7 +417,8 @@ class InjectImportWriteScopeTest extends IntegrationTest {
     @Test
     @DisplayName("given_multiTenantCallerAndParentInDefault_should_writeInjectsInDefault")
     void given_multiTenantCallerAndParentInDefault_should_writeInjectsInDefault() throws Exception {
-      // Arrange: the scenario is looked up in the ambient tenant, the default one on this route.
+      // Arrange: the scenario is looked up in the caller's scope, which includes the default
+      // tenant.
       tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
       tenantHelper.createTenantWithCurrentUser("scn-inj-multi");
       byte[] zip = injectZip();
@@ -429,16 +433,16 @@ class InjectImportWriteScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given_parentOutsideCallerScope_should_return400AndWriteNothing")
-    void given_parentOutsideCallerScope_should_return400AndWriteNothing() throws Exception {
+    @DisplayName("given_parentOutsideCallerScope_should_return404AndWriteNothing")
+    void given_parentOutsideCallerScope_should_return404AndWriteNothing() throws Exception {
       // Arrange
       tenantHelper.createTenantWithCurrentUser("scn-inj-outside");
       byte[] zip = injectZip();
       String scenarioId = saveScenario(DEFAULT_TENANT);
 
-      // Act & Assert
+      // Act & Assert: the scenario is looked up in the caller's scope, which excludes its tenant
       importZip(multipart(SCENARIO_URI + "/{scenarioId}/injects/import", scenarioId), zip)
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isNotFound());
       assertThat(importedInjectTenants()).isEmpty();
     }
 
@@ -533,7 +537,8 @@ class InjectImportWriteScopeTest extends IntegrationTest {
     scenario.setName(name);
     Scenario saved = scenarioComposer.forScenario(scenario).persist().get();
     MockHttpServletResponse response = new MockHttpServletResponse();
-    scenarioService.exportScenario(saved.getId(), false, false, false, false, response);
+    scenarioService.exportScenario(
+        DEFAULT_TENANT_SCOPE, saved.getId(), false, false, false, false, response);
     entityManager.flush();
     entityManager.clear();
     return response.getContentAsByteArray();

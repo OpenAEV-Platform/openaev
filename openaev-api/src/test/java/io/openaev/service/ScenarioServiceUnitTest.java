@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -267,14 +268,11 @@ class ScenarioServiceUnitTest {
     void shouldDeleteScenarioById() {
       Scenario scenario = new Scenario();
       scenario.setId("sc-1");
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.existsByIdAndTenantId("sc-1", "tenant-1")).thenReturn(true);
+      when(scenarioRepository.existsByIdAndTenantIdIn("sc-1", Set.of("tenant-1"))).thenReturn(true);
 
-        scenarioService.deleteScenario("sc-1");
+      scenarioService.deleteScenario(TxCtx.forTenant("tenant-1"), "sc-1");
 
-        verify(scenarioRepository).deleteById("sc-1");
-      }
+      verify(scenarioRepository).deleteById("sc-1");
     }
   }
 
@@ -313,16 +311,15 @@ class ScenarioServiceUnitTest {
       Scenario scenario = new Scenario();
       scenario.setId("sc-1");
       scenario.setInjects(new HashSet<>());
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("sc-1", "tenant-1"))
-            .thenReturn(Optional.of(scenario));
+      when(scenarioRepository.findByIdAndTenantIdIn("sc-1", Set.of("tenant-1")))
+          .thenReturn(Optional.of(scenario));
 
-        Scenario result = scenarioService.disablePlayers("sc-1", "team-id", List.of("player-1"));
+      Scenario result =
+          scenarioService.disablePlayers(
+              TxCtx.forTenant("tenant-1"), "sc-1", "team-id", List.of("player-1"));
 
-        assertNotNull(result);
-        assertEquals("sc-1", result.getId());
-      }
+      assertNotNull(result);
+      assertEquals("sc-1", result.getId());
     }
   }
 
@@ -404,52 +401,50 @@ class ScenarioServiceUnitTest {
       scenario.setId(scenarioId);
       scenario.setTeams(new ArrayList<>(List.of(existingTeam1, existingTeam2)));
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId(scenarioId, "tenant-1"))
-            .thenReturn(Optional.of(scenario));
-        when(teamRepository.findAllById(any()))
-            .thenAnswer(
-                invocation -> {
-                  Iterable<String> ids = invocation.getArgument(0);
-                  Map<String, Team> teamsById = Map.of("team-2", existingTeam2, "team-3", newTeam);
-                  List<Team> result = new ArrayList<>();
-                  ids.forEach(
-                      id -> {
-                        Team team = teamsById.get(id);
-                        if (team != null) {
-                          result.add(team);
-                        }
-                      });
-                  return result;
-                });
-        when(userRepository.findById("user-1")).thenReturn(Optional.of(newPlayer));
-        when(scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
-                scenarioId, "team-3", "user-1"))
-            .thenReturn(false);
-        when(teamService.find(any())).thenReturn(List.of());
+      when(scenarioRepository.findByIdAndTenantIdIn(scenarioId, Set.of("tenant-1")))
+          .thenReturn(Optional.of(scenario));
+      when(teamRepository.findAllById(any()))
+          .thenAnswer(
+              invocation -> {
+                Iterable<String> ids = invocation.getArgument(0);
+                Map<String, Team> teamsById = Map.of("team-2", existingTeam2, "team-3", newTeam);
+                List<Team> result = new ArrayList<>();
+                ids.forEach(
+                    id -> {
+                      Team team = teamsById.get(id);
+                      if (team != null) {
+                        result.add(team);
+                      }
+                    });
+                return result;
+              });
+      when(userRepository.findById("user-1")).thenReturn(Optional.of(newPlayer));
+      when(scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
+              scenarioId, "team-3", "user-1"))
+          .thenReturn(false);
+      when(teamService.find(any())).thenReturn(List.of());
 
-        scenarioService.replaceTeams(scenarioId, List.of("team-2", "team-3", "team-3"));
+      scenarioService.replaceTeams(
+          TxCtx.forTenant("tenant-1"), scenarioId, List.of("team-2", "team-3", "team-3"));
 
-        verify(scenarioTeamUserRepository)
-            .deleteByScenarioIdAndTeamIds(
-                eq(scenarioId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
-        verify(injectRepository)
-            .removeTeamsForScenario(
-                eq(scenarioId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
-        verify(lessonsCategoryRepository)
-            .removeTeamsForScenario(
-                eq(scenarioId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+      verify(scenarioTeamUserRepository)
+          .deleteByScenarioIdAndTeamIds(
+              eq(scenarioId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+      verify(injectRepository)
+          .removeTeamsForScenario(
+              eq(scenarioId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+      verify(lessonsCategoryRepository)
+          .removeTeamsForScenario(
+              eq(scenarioId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
 
-        verify(scenarioTeamUserRepository)
-            .existsByScenarioIdAndTeamIdAndUserId(scenarioId, "team-3", "user-1");
-        verify(scenarioTeamUserRepository, never())
-            .existsByScenarioIdAndTeamIdAndUserId(scenarioId, "team-2", "user-1");
+      verify(scenarioTeamUserRepository)
+          .existsByScenarioIdAndTeamIdAndUserId(scenarioId, "team-3", "user-1");
+      verify(scenarioTeamUserRepository, never())
+          .existsByScenarioIdAndTeamIdAndUserId(scenarioId, "team-2", "user-1");
 
-        assertEquals(2, scenario.getTeams().size());
-        assertTrue(scenario.getTeams().stream().anyMatch(t -> "team-2".equals(t.getId())));
-        assertTrue(scenario.getTeams().stream().anyMatch(t -> "team-3".equals(t.getId())));
-      }
+      assertEquals(2, scenario.getTeams().size());
+      assertTrue(scenario.getTeams().stream().anyMatch(t -> "team-2".equals(t.getId())));
+      assertTrue(scenario.getTeams().stream().anyMatch(t -> "team-3".equals(t.getId())));
     }
 
     @Test
@@ -464,19 +459,16 @@ class ScenarioServiceUnitTest {
       scenario.setId(scenarioId);
       scenario.setTeams(new ArrayList<>(List.of(existingTeam)));
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId(scenarioId, "tenant-1"))
-            .thenReturn(Optional.of(scenario));
-        when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
-        when(teamService.find(any())).thenReturn(List.of());
+      when(scenarioRepository.findByIdAndTenantIdIn(scenarioId, Set.of("tenant-1")))
+          .thenReturn(Optional.of(scenario));
+      when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
+      when(teamService.find(any())).thenReturn(List.of());
 
-        scenarioService.replaceTeams(scenarioId, List.of("team-1"));
+      scenarioService.replaceTeams(TxCtx.forTenant("tenant-1"), scenarioId, List.of("team-1"));
 
-        verify(scenarioTeamUserRepository, never()).deleteByScenarioIdAndTeamIds(any(), any());
-        verify(injectRepository, never()).removeTeamsForScenario(any(), any());
-        verify(lessonsCategoryRepository, never()).removeTeamsForScenario(any(), any());
-      }
+      verify(scenarioTeamUserRepository, never()).deleteByScenarioIdAndTeamIds(any(), any());
+      verify(injectRepository, never()).removeTeamsForScenario(any(), any());
+      verify(lessonsCategoryRepository, never()).removeTeamsForScenario(any(), any());
     }
   }
 }
