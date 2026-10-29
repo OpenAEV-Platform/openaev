@@ -1,11 +1,6 @@
 package io.openaev.secrets.provider.impl.validators;
 
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.AUTH_FAILED;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.FORMAT_ERROR;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.NETWORK_ERROR;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.TIMEOUT;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNKNOWN;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -22,6 +17,7 @@ import io.openaev.secrets.provider.SecretConnectionResult;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.concurrent.TimeoutException;
+import javax.net.ssl.X509TrustManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -53,12 +49,13 @@ class AzureCredentialConnectivityCheckTest {
 
   @Mock private AzureCredentialConnectivityCheckFactory tokenCredentialFactory;
   @Mock private TokenCredential tokenCredential;
+  @Mock private X509TrustManager trustManager;
 
   private AzureCredentialConnectivityCheck validator;
 
   @BeforeEach
   void setUp() {
-    validator = new AzureCredentialConnectivityCheck(tokenCredentialFactory);
+    validator = new AzureCredentialConnectivityCheck(tokenCredentialFactory, trustManager);
     // The timeout is a @Value field: without a Spring context it stays 0, which the validator
     // would clamp to 1s anyway — set it explicitly so the intent is visible.
     ReflectionTestUtils.setField(validator, "timeoutSeconds", TIMEOUT_SECONDS);
