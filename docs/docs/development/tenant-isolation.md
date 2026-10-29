@@ -137,8 +137,13 @@ discloses no membership beyond what the caller sent.
     refused as soon as one of its tenants lacks the right, even for rows of a tenant where it
     holds the right. Use the tenant path, which checks that tenant only. Sending `X-Tenant-Ids`
     naming only tenants where the right is held works only when the right is also held in the
-    default tenant, which the regular path always checks. The web interface calls tenant data on
-    the tenant path.
+    default tenant, which the regular path always checks. The web interface sends every call whose
+    decision depends on the tenant to the tenant path of the tenant it is working in, except the
+    mail attachment download. That call stays on the regular path until mail attachments are
+    stored under their simulation's tenant
+    ([#8796](https://github.com/OpenAEV-Platform/openaev/issues/8796)). The other calls it leaves
+    on the regular path go to platform endpoints, whose rights are platform rights, or to
+    endpoints that make no `@AccessControl` decision.
 
 Where the rule does not apply:
 
