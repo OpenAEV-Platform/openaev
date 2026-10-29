@@ -15,7 +15,6 @@ import io.openaev.opencti.connectors.service.OpenCTIConnectorPrivilegeService;
 import io.openaev.processor.MigrationProcessor;
 import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.runner.InitAdminCommandLineRunner;
 import io.openaev.scheduler.TenantScopedJobRunner;
@@ -107,14 +106,12 @@ final class WorkflowOwnerScopeCallerRules {
   static final Map<Class<?>, String> OWNER_SCOPE_CALLERS =
       Map.of(
           ExerciseApi.class,
-          "the export passes the simulation from ExerciseService#exercise, findByIdAndTenantId on"
-              + " the request's tenant",
+          "the export and its file name pass the simulation from ExerciseService#exercise,"
+              + " findByIdAndTenantId on the request's tenant",
           ExerciseService.class,
           "every call passes a simulation from ExerciseService#exercise (findByIdAndTenantId on the"
               + " request's tenant), or the duplicate copyExercise built from one, which carries"
               + " its tenant",
-          ExportService.class,
-          "the export is given the simulation ExerciseApi loaded through ExerciseService#exercise",
           ScenarioApi.class,
           "the launch passes the scenario from ScenarioService#scenario, findByIdAndTenantId on"
               + " the request's tenant",
