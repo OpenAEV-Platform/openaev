@@ -1,6 +1,7 @@
 package io.openaev.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
@@ -403,16 +404,45 @@ class TenantActiveTableAccessArchTest {
             .map(java.lang.reflect.Field::getName)
             .collect(Collectors.toSet());
     Set<String> missingRule =
-        active.stream()
-            .filter(t -> !TABLES_OWING_AN_ACCESSOR_RULE.contains(t))
-            .filter(t -> declaredRules.stream().noneMatch(r -> r.startsWith(t + "_")))
-            .collect(Collectors.toSet());
+        tablesWithoutAccessorRule(active, declaredRules, TABLES_OWING_AN_ACCESSOR_RULE);
     assertTrue(
         missingRule.isEmpty(),
         "these active tables have no accessor rule in this class, so nothing constrains who reads"
             + " them: "
             + missingRule
             + ". Add a <table>_repository_access_is_reviewed rule with an explicit allowlist.");
+  }
+
+  /**
+   * The active tables that have no {@code <table>_repository_access_is_reviewed} rule among {@code
+   * declaredRules} and are not in {@code owing}. The rule name is matched in full: a table name is
+   * often the prefix of another one ({@code steps} and {@code steps_delay_queue}), and a prefix
+   * match would let the longer table's rule stand in for the shorter table's missing one.
+   */
+  static Set<String> tablesWithoutAccessorRule(
+      Set<String> active, Set<String> declaredRules, Set<String> owing) {
+    return active.stream()
+        .filter(t -> !owing.contains(t))
+        .filter(t -> !declaredRules.contains(t + "_repository_access_is_reviewed"))
+        .collect(Collectors.toSet());
+  }
+
+  @ArchTest
+  static void the_accessor_rule_of_a_table_is_matched_by_its_full_name(JavaClasses classes) {
+    // Each active table below is the prefix of another one whose rule exists; neither borrowed
+    // rule may count as its own.
+    assertEquals(
+        Set.of("steps", "attackpath_execution"),
+        tablesWithoutAccessorRule(
+            Set.of(
+                "steps",
+                "steps_delay_queue",
+                "attackpath_execution",
+                "attackpath_execution_collector"),
+            Set.of(
+                "steps_delay_queue_repository_access_is_reviewed",
+                "attackpath_execution_collector_repository_access_is_reviewed"),
+            Set.of()));
   }
 
   /**
@@ -2336,8 +2366,8 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.chaining.WorkflowEndService.class,
               io.openaev.service.chaining.WorkflowResumeService.class,
               io.openaev.service.chaining.ConditionService.class,
-              // Reads a row's own tenant_id by primary key, the one read meant to work with no
-              // scope; every other read runs in the caller's scoped transaction:
+              // Reads a run's own tenant_id by primary key to stamp its ready events; like its
+              // other reads, it sees the run only when the caller's scope includes its tenant:
               io.openaev.service.chaining.QueueChainingService.class,
               // Attack-path seeding, reached only from the TxCtx-carrying AttackPathApi:
               io.openaev.service.attackpath.AttackPathCausalSeedService.class,
