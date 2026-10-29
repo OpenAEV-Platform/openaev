@@ -71,6 +71,7 @@ public class InjectMapper {
         .description(inject.getDescription())
         .content(inject.getContent())
         .type(inject.getType())
+        .atomicTesting(inject.isAtomicTesting())
         .tagIds(inject.getTags().stream().map(Tag::getId).toList())
         .documentIds(documentIds)
         .injectorContract(toInjectorContractOutput(injectorContract))

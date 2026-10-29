@@ -56,6 +56,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private ExecutorFixture executorFixture;
@@ -374,6 +375,59 @@ public class AtomicTestingApiTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.inject_recurrence").doesNotExist());
+  }
+
+  @Nested
+  @DisplayName("Inject atomic testing status")
+  class InjectAtomicTestingStatus {
+
+    @Test
+    @DisplayName("given an atomic testing should be flagged as atomic testing")
+    @WithMockUser(isAdmin = true)
+    void given_atomicTesting_should_beAtomicTesting() throws Exception {
+      // Act
+      String response =
+          mvc.perform(
+                  get(ATOMIC_TESTINGS_URI + "/" + INJECT_WITHOUT_STATUS.getId())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThatJson(response).node("inject_is_atomic_testing").isEqualTo(true);
+    }
+
+    @Test
+    @DisplayName(
+        "given a simulation inject read through this endpoint should not be flagged as atomic"
+            + " testing")
+    @WithMockUser(isAdmin = true)
+    void given_simulationInject_should_notBeAtomicTesting() throws Exception {
+      // Arrange: the simulation inject page reads its inject through the atomic testing endpoint
+      InjectComposer.Composer simulationInject =
+          injectComposer.forInject(InjectFixture.getInjectForEmailContract(INJECTOR_CONTRACT));
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(simulationInject)
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      String response =
+          mvc.perform(
+                  get(ATOMIC_TESTINGS_URI + "/" + simulationInject.get().getId())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThatJson(response).node("inject_is_atomic_testing").isEqualTo(false);
+    }
   }
 
   @Nested

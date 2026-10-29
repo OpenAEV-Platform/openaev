@@ -7155,6 +7155,8 @@ export interface InjectResultOverviewOutput {
   inject_id: string;
   /** Full contract */
   inject_injector_contract?: AtomicInjectorContractOutput;
+  /** True when this inject is an atomic test, meaning it belongs to no scenario and no simulation */
+  inject_is_atomic_testing?: boolean;
   /** Kill chain phases */
   inject_kill_chain_phases?: KillChainPhaseSimple[];
   /** Indicates whether the inject is ready for use */
