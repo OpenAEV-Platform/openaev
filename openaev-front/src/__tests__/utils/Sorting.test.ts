@@ -5,6 +5,7 @@ import { ascendBy, descendBy } from '../../utils/Sorting';
 interface Item {
   id: string;
   order?: number | null;
+  date?: string;
 }
 
 describe('Sorting utils', () => {
@@ -34,6 +35,30 @@ describe('Sorting utils', () => {
       const items: Item[] = [{ id: 'a' }, { id: 'b' }];
 
       expect(items.toSorted(ascendBy('order')).map(i => i.id)).toEqual(['a', 'b']);
+    });
+
+    it('given ISO dates, should sort them chronologically', () => {
+      const items: Item[] = [{
+        id: 'b',
+        date: '2026-03-01T10:00:00Z',
+      }, {
+        id: 'a',
+        date: '2026-01-15T08:30:00Z',
+      }];
+
+      expect(items.toSorted(ascendBy('date')).map(i => i.id)).toEqual(['a', 'b']);
+    });
+
+    it('given a null element in the list, should not throw', () => {
+      const items = [{
+        id: 'b',
+        order: 2,
+      }, null, {
+        id: 'a',
+        order: 1,
+      }] as unknown as Item[];
+
+      expect(() => items.toSorted(ascendBy('order'))).not.toThrow();
     });
 
     it('given a list, should not mutate it', () => {
