@@ -5,9 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectTeamsInput;
@@ -30,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 class SimulationInjectServiceTest extends IntegrationTest {
+
+  private static final TxCtx DEFAULT_TENANT_SCOPE = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
 
   @Autowired private SimulationInjectService simulationInjectService;
   @Autowired private InjectRepository injectRepository;
@@ -242,7 +246,8 @@ class SimulationInjectServiceTest extends IntegrationTest {
     @WithMockUser(isAdmin = true)
     void given_injectBelongsToSimulation_should_deleteInject() {
       // -- ACT --
-      simulationInjectService.deleteInject(simulationA.getId(), injectInA.getId());
+      simulationInjectService.deleteInject(
+          DEFAULT_TENANT_SCOPE, simulationA.getId(), injectInA.getId());
 
       // -- ASSERT --
       assertThat(injectRepository.findById(injectInA.getId())).isEmpty();
@@ -253,7 +258,9 @@ class SimulationInjectServiceTest extends IntegrationTest {
     void given_injectBelongsToAnotherSimulation_should_throwElementNotFoundException() {
       // -- ACT & ASSERT --
       assertThatThrownBy(
-              () -> simulationInjectService.deleteInject(simulationA.getId(), injectInB.getId()))
+              () ->
+                  simulationInjectService.deleteInject(
+                      DEFAULT_TENANT_SCOPE, simulationA.getId(), injectInB.getId()))
           .isInstanceOf(ElementNotFoundException.class);
     }
   }

@@ -9,11 +9,9 @@ import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
-import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.InjectSpecification;
@@ -42,7 +40,6 @@ public class SimulationChallengeApi extends RestBehavior {
   private final InjectRepository injectRepository;
   private final ChallengeRepository challengeRepository;
   private final UserRepository userRepository;
-  private final ExerciseRepository exerciseRepository;
 
   private final ChallengeService challengeService;
   private final ExerciseService exerciseService;
@@ -102,8 +99,7 @@ public class SimulationChallengeApi extends RestBehavior {
   public List<Document> playerDocuments(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant());
+    Optional<Exercise> exerciseOpt = exerciseService.findInScope(ctx, simulationId);
     final User user = impersonateUser(userRepository, userId);
     if (exerciseOpt.isPresent()) {
       if (!exerciseOpt.get().isUserHasAccess(user)
@@ -128,9 +124,7 @@ public class SimulationChallengeApi extends RestBehavior {
   public SimulationChallengesReader observerChallenges(
       TxCtx ctx, @PathVariable String simulationId) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, simulationId).orElseThrow(ElementNotFoundException::new);
     SimulationChallengesReader simulationChallengesReader =
         new SimulationChallengesReader(exercise);
     Iterable<Challenge> challenges = challengeService.getExerciseChallenges(simulationId);

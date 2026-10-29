@@ -9,10 +9,11 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.ChannelRepository;
-import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.expectation.ExpectationVerdict;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.fixtures.ArticleFixture;
@@ -37,14 +38,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ChannelServiceTest {
 
-  private static final String TENANT_ID = "tenant-1";
+  private static final TxCtx CTX = TxCtx.forTenant("tenant-1");
   private static final String EXERCISE_ID = "exercise-1";
   private static final String CHANNEL_ID = "channel-1";
   private static final String EXPECTATION_ID = "expectation-1";
   private static final Double EXPECTED_SCORE = 100.0;
 
   @Mock private InjectExpectationService injectExpectationService;
-  @Mock private ExerciseRepository exerciseRepository;
+  @Mock private ExerciseService exerciseService;
   @Mock private ScenarioService scenarioService;
   @Mock private ArticleRepository articleRepository;
   @Mock private ChannelRepository channelRepository;
@@ -65,8 +66,7 @@ class ChannelServiceTest {
       expectation.setResults(null); // null results — previously caused NPE with isEmpty()
 
       // Act
-      assertDoesNotThrow(
-          () -> channelService.validateArticles(EXERCISE_ID, CHANNEL_ID, user, TENANT_ID));
+      assertDoesNotThrow(() -> channelService.validateArticles(CTX, EXERCISE_ID, CHANNEL_ID, user));
 
       // Assert
       ArgumentCaptor<ExpectationVerdict> captor = ArgumentCaptor.forClass(ExpectationVerdict.class);
@@ -93,7 +93,7 @@ class ChannelServiceTest {
                       .build())));
 
       // Act
-      channelService.validateArticles(EXERCISE_ID, CHANNEL_ID, user, TENANT_ID);
+      channelService.validateArticles(CTX, EXERCISE_ID, CHANNEL_ID, user);
 
       // Assert
       verify(injectExpectationService, never())
@@ -143,10 +143,8 @@ class ChannelServiceTest {
       exercise.setInjects(List.of(inject));
 
       when(channelRepository.findById(CHANNEL_ID)).thenReturn(Optional.of(channel));
-      // tenantId is resolved by the caller (API layer) and passed explicitly, instead of the
-      // service reading TenantContext / calling the unscoped findById.
-      when(exerciseRepository.findByIdAndTenantId(eq(EXERCISE_ID), eq(TENANT_ID)))
-          .thenReturn(Optional.of(exercise));
+      // The simulation is looked up in the request's tenant scope, not by an unscoped findById.
+      when(exerciseService.findInScope(eq(CTX), eq(EXERCISE_ID))).thenReturn(Optional.of(exercise));
       when(articleRepository.findAllById(any())).thenReturn(List.of(article));
       return expectation;
     }

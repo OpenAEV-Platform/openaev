@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -23,6 +22,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.mapper.InjectMapper;
@@ -70,7 +70,7 @@ public class InjectImportService {
   private final UserRepository userRepository;
 
   private final ExerciseRepository exerciseRepository;
-  private final ScenarioRepository scenarioRepository;
+  private final ScenarioService scenarioService;
   private final ImportService importService;
 
   private final List<String> importReservedField = List.of("description", "title", "trigger_time");
@@ -1265,9 +1265,7 @@ public class InjectImportService {
   public void importInjectsForScenario(TxCtx ctx, MultipartFile file, String scenarioId)
       throws Exception {
     Scenario targetScenario =
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
 
     this.importService.handleFileImport(ctx, file, null, targetScenario);
   }

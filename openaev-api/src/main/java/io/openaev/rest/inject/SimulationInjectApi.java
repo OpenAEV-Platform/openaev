@@ -10,7 +10,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.comparator.InjectExecutionComparator;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -20,6 +19,7 @@ import io.openaev.execution.ExecutionContextService;
 import io.openaev.executors.Executor;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
@@ -66,6 +66,7 @@ public class SimulationInjectApi extends RestBehavior {
   private final Executor executor;
   private final InjectorContractRepository injectorContractRepository;
   private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final UserRepository userRepository;
   private final InjectRepository injectRepository;
   private final ExecutionContextService executionContextService;
@@ -243,13 +244,9 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public InjectOutput createInjectForExercise(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     Inject persistedInject = this.injectService.createAndSaveInject(exercise, null, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
@@ -266,9 +263,7 @@ public class SimulationInjectApi extends RestBehavior {
   public List<Inject> createInjectsForExercise(
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     List<Inject> created = this.injectService.createAndSaveInjectList(exercise, null, inputs);
     KillChainPhaseInitializer.initializeFromInjects(created);
     return created;
@@ -284,14 +279,14 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.INJECT)
   public InjectOutput duplicateInjectForExercise(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
+    Exercise exercise =
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     Inject persistedInject =
         injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
-            exerciseId, injectId);
+            exercise, injectId);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
@@ -489,7 +484,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public void deleteInject(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
-    this.simulationInjectService.deleteInject(exerciseId, injectId);
+    this.simulationInjectService.deleteInject(ctx, exerciseId, injectId);
   }
 
   /** See {@link KillChainPhaseInitializer}: hydrate before open-in-view rendering. */
