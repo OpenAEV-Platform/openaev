@@ -40,11 +40,6 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
           ON inject_expectation_results (inject_expectation_result_inject_expectation_id);
         """);
 
-      // Legacy results carry no date: the ones built by V2_75 only hold 'result', and until
-      // mid-2024
-      // the challenge and channel validations stored their timestamp in 'result' too. An explicit
-      // NULL bypasses the column default, so the date falls back to the expectation's own dates.
-      // Empty strings and non-array values are skipped rather than failing the cast.
       statement.execute(
           """
         WITH results AS (
