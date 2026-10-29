@@ -8,6 +8,7 @@ import com.tngtech.archunit.lang.EvaluationResult;
 import io.openaev.architecture.fixture.CurrentTransactionMoveFixture;
 import io.openaev.architecture.fixture.OwnerScopeOutsideAllowlistFixture;
 import io.openaev.architecture.fixture.OwnerScopeSubclassFixture;
+import io.openaev.architecture.fixture.ScopeSetterOutsideBaselineFixture;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -112,6 +113,61 @@ class WorkflowOwnerScopeCallerRulesTest {
 
       // Assert
       assertThat(callers).containsExactly(OwnerScopeOutsideAllowlistFixture.class.getName());
+    }
+  }
+
+  @Nested
+  @DisplayName("Setting the scope of the current transaction")
+  class SettingTheScopeOfTheCurrentTransaction {
+
+    @Test
+    @DisplayName("a call and a method reference from a class outside the baseline both violate")
+    void given_callerOutsideTheBaseline_should_violateTheRuleForEachAccess() {
+      // Arrange
+      JavaClasses fixture =
+          new ClassFileImporter().importClasses(ScopeSetterOutsideBaselineFixture.class);
+
+      // Act
+      EvaluationResult result =
+          WorkflowOwnerScopeCallerRules.scopeSetOnCurrentTransactionOnlyFrom(Set.of())
+              .evaluate(fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().getDetails())
+          .anyMatch(line -> line.contains("moveTo"))
+          .anyMatch(line -> line.contains("asReference"));
+    }
+
+    @Test
+    @DisplayName("a class in the baseline passes the rule")
+    void given_callerInTheBaseline_should_passTheRule() {
+      // Arrange
+      JavaClasses fixture =
+          new ClassFileImporter().importClasses(ScopeSetterOutsideBaselineFixture.class);
+
+      // Act
+      EvaluationResult result =
+          WorkflowOwnerScopeCallerRules.scopeSetOnCurrentTransactionOnlyFrom(
+                  Set.of(ScopeSetterOutsideBaselineFixture.class.getName()))
+              .evaluate(fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("the inventory names the calling class once, method references included")
+    void given_callerWithACallAndAReference_should_beInventoriedOnce() {
+      // Arrange
+      JavaClasses fixture =
+          new ClassFileImporter().importClasses(ScopeSetterOutsideBaselineFixture.class);
+
+      // Act
+      Set<String> callers = WorkflowOwnerScopeCallerRules.scopeSetters(fixture);
+
+      // Assert
+      assertThat(callers).containsExactly(ScopeSetterOutsideBaselineFixture.class.getName());
     }
   }
 }
