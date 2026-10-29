@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(rollbackFor = Exception.class)
 @Slf4j
-public class OpenCtiConnectorPrivilegeService extends AbstractPrivilegeService {
+public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
 
   private static final String CONNECTOR_LASTNAME = "OpenCTI Connector";
 
@@ -29,7 +29,7 @@ public class OpenCtiConnectorPrivilegeService extends AbstractPrivilegeService {
   private final TenantScopedTransaction tenantTx;
 
   @Autowired
-  public OpenCtiConnectorPrivilegeService(
+  public OpenCTIConnectorPrivilegeService(
       TenantRoleService tenantRoleService,
       TenantGroupService tenantGroupService,
       UserService userService,

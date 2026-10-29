@@ -85,7 +85,7 @@ public class ExecutorApi extends RestBehavior {
   private final EndpointService endpointService;
   private final FileService fileService;
   private final ExecutorService executorService;
-  private final AgentServiceAccountPrivilegeService privilegeService;
+  private final AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   private final TenantWriteScopeResolver writeScopeResolver;
 
   @Resource protected ObjectMapper mapper;
@@ -478,7 +478,7 @@ public class ExecutorApi extends RestBehavior {
 
     // FIND TOKEN BY TENANT
     String token =
-        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+        agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
 
     String installCommand =
         this.endpointService.generateInstallCommand(
@@ -511,7 +511,7 @@ public class ExecutorApi extends RestBehavior {
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(TxCtx ctx) {
     try {
       String token =
-          privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+          agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
       return ResponseEntity.ok()
           .contentType(MediaType.TEXT_PLAIN)
           .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, private")
@@ -542,7 +542,7 @@ public class ExecutorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public ResponseEntity<Void> rotateOpenAevAgentInstallerToken(@RequireTenantSelector TxCtx ctx) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    privilegeService.rotateTokenForTenant(tenantId);
+    agentServiceAccountPrivilegeService.rotateTokenForTenant(tenantId);
     return ResponseEntity.noContent().build();
   }
 }

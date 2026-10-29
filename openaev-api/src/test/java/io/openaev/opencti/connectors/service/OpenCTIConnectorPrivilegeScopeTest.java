@@ -47,7 +47,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  * <p>{@code OpenCTIConnectorRegisterPingJob} (Quartz) calls {@link
  * OpenCTIConnectorService#registerOrPingAllConnectors()}, which registers or pings every configured
  * connector; each one goes through {@code OpenCTIService} to {@link
- * OpenCtiConnectorPrivilegeService#ensurePrivilegedUserExistsForConnector}, whose
+ * OpenCTIConnectorPrivilegeService#ensurePrivilegedUserExistsForConnector}, whose
  * {@code @Transactional} method ensures the connector's well-known group. {@code Group.markings} is
  * an eager association over {@code marking_definitions}, a tenant-scoped table, so before this
  * scope was set the flow read it with no scope at all and the group came back granting no marking.
@@ -63,7 +63,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  * collection already initialized, and records the scope that transaction was carrying.
  *
  * <p>NOT {@code @Transactional}: the assertions read the scope of the transaction {@code
- * OpenCtiConnectorPrivilegeService} owns, and a surrounding test transaction would make it join the
+ * OpenCTIConnectorPrivilegeService} owns, and a surrounding test transaction would make it join the
  * test's instead.
  */
 @TestPropertySource(
