@@ -241,7 +241,8 @@ public class TenantGroupService {
    * keeps granting access: fail-open. Union of before and after, because {@code setMarkings}
    * replaces wholesale — a member losing a marking is only visible in the old set.
    *
-   * @param tenantId resolved in the API layer and passed in, per the multi-tenancy convention
+   * @param tenantId resolved in the API layer and passed in, per the multi-tenancy convention; the
+   *     tenant whose clearance and capabilities the caller is checked against
    */
   public Group updateGroupMarkings(
       @NotBlank final String tenantId,
@@ -273,13 +274,19 @@ public class TenantGroupService {
     addedIds.removeAll(currentMarkingIds);
 
     if (!removedIds.isEmpty()
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.DELETE)) {
+        && !permissionService.holdsInTenant(
+            tenantId,
+            () ->
+                permissionService.hasCapabilityPermission(
+                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.DELETE))) {
       throw new ForbiddenException("Missing the DELETE_MARKING_ASSIGNMENT capability");
     }
     if (!addedIds.isEmpty()
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
+        && !permissionService.holdsInTenant(
+            tenantId,
+            () ->
+                permissionService.hasCapabilityPermission(
+                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE))) {
       throw new ForbiddenException("Missing the ASSIGN_MARKING capability");
     }
 

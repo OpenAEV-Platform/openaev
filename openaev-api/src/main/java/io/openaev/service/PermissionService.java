@@ -1,6 +1,9 @@
 package io.openaev.service;
 
+import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromHTTPCtx;
+
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.autonomous.AutonomousRun;
@@ -15,8 +18,10 @@ import io.openaev.service.chaining.WorkflowService;
 import jakarta.validation.constraints.NotNull;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,6 +81,7 @@ public class PermissionService {
   private final WorkflowService workflowService;
   private final StepService stepService;
   private final ConditionService conditionService;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   @Transactional
   public boolean hasPermission(
@@ -100,6 +106,39 @@ public class PermissionService {
       ResourceType resourceType,
       Action action) {
     return checkPermission(user, Optional.empty(), resourceId, resourceType, action);
+  }
+
+  /**
+   * Whether {@code decision} holds in {@code tenantId}: while it runs, the caller's capabilities
+   * and tenant bypass are the ones the caller holds in that tenant. A grant is not tied to a tenant
+   * by its lookup, so it answers the same in every tenant.
+   *
+   * <p>For a permission decision a handler takes in its own code, on rows it returns. Those rows
+   * follow the request scope, which can name several tenants, while the checks of this service read
+   * the caller's rights in the ambient tenant only: the tenant the {@code /api/tenants/{tenantId}/}
+   * route names, and the default tenant on the other routes. So the decision is taken in the tenant
+   * of the rows it gates.
+   *
+   * @param tenantId the tenant of the rows the decision gates
+   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   */
+  public boolean holdsInTenant(@NotNull final String tenantId, final BooleanSupplier decision) {
+    Objects.requireNonNull(tenantId, "tenantId must not be null");
+    return ambientTenantBridge.callInTenant(tenantId, decision::getAsBoolean);
+  }
+
+  /**
+   * Whether {@code decision} holds in the ambient tenant and in every tenant of {@code ctx}, as
+   * {@link #holdsInTenant} evaluates it. For a decision taken before the rows are read, or on rows
+   * whose tenant is not known: they can come from any tenant of the scope.
+   *
+   * @param ctx the request scope
+   * @param decision a check of this service, such as {@link #hasPermission}
+   */
+  public boolean holdsInScope(@NotNull final TxCtx ctx, final BooleanSupplier decision) {
+    return decision.getAsBoolean()
+        && tenantIdsFromHTTPCtx(ctx).stream()
+            .allMatch(tenantId -> holdsInTenant(tenantId, decision));
   }
 
   private boolean checkPermission(
