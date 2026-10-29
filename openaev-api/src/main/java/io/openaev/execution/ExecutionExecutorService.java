@@ -13,15 +13,16 @@ import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,8 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class ExecutionExecutorService {
+
+  private static final String ASSET_NOT_TARGETED_MESSAGE = "Asset not targeted";
 
   private final ManagerFactory managerFactory;
   private final ExecutionTraceRepository executionTraceRepository;
@@ -44,17 +47,19 @@ public class ExecutionExecutorService {
   private final ActionMetricCollector actionMetricCollector;
   private final Optional<AuditLogger> auditLogger;
 
-  public void launchExecutorContext(Inject inject) {
+  public void launchExecutorContext(Inject inject, ResolvedAssetsToExecute resolvedAssets) {
     InjectStatus injectStatus =
         inject.getStatus().orElseThrow(() -> new IllegalArgumentException("Status should exist"));
-    // First, get the agents and the assets agentless of this inject
+    // First, get the agents and the assets agentless of this inject restricted by the launch by
+    // clearance, from the dispatch's own target resolution
     AgentsAndAssetsAgentless agentsAndAssetsAgentless =
-        this.injectService.getAgentsAndAgentlessAssetsByInject(inject);
+        this.injectService.toAgentsAndAgentlessAssets(resolvedAssets);
     Set<Agent> agents = agentsAndAssetsAgentless.agents();
+    Set<Agent> agentsWithoutClearance = agentsAndAssetsAgentless.agentsWithoutClearance();
     Set<Asset> assetsAgentless = agentsAndAssetsAgentless.assetsAgentless();
     // Persist the number of agents resolved at launch so the COMPLETE callback path can decide
     // completion without re-resolving the full asset/agent graph on every callback
-    injectStatus.setExpectedAgentCount(agents.size());
+    injectStatus.setExpectedAgentCount(agents.size() + agentsWithoutClearance.size());
     injectStatusRepository.save(injectStatus);
     // Manage agentless assets
     saveAgentlessAssetsTraces(assetsAgentless, injectStatus);
@@ -75,6 +80,10 @@ public class ExecutionExecutorService {
     saveWithoutExecutorAgentsTraces(agentsWithoutExecutor, injectStatus);
     // Manage overloaded agents
     saveOverloadedAgentsTraces(overloadedAgents, injectStatus);
+    // Manage assets not cleared
+    saveAgentsWithoutClearanceTraces(agentsWithoutClearance, injectStatus);
+    saveAssetsWithoutClearanceTraces(
+        agentsAndAssetsAgentless.assetsWithoutClearance(), injectStatus);
 
     // Group remaining agents by their executor entity for per-instance routing.
     // Each executor entity maps to exactly one ConnectorInstance (and therefore one Integration
@@ -177,7 +186,7 @@ public class ExecutionExecutorService {
             + " agent(s) across "
             + endpointCount
             + " endpoint(s)";
-    executionTraceRepository.save(
+    ExecutionTrace trace =
         new ExecutionTrace(
             injectStatus,
             ExecutionTraceStatus.INFO,
@@ -185,124 +194,166 @@ public class ExecutionExecutorService {
             message,
             ExecutionTraceAction.START,
             null,
-            null));
+            null);
+    injectStatus.addTrace(trace);
+    executionTraceRepository.save(trace);
   }
 
-  @VisibleForTesting
-  public void saveAgentErrorTrace(AgentException e, InjectStatus injectStatus) {
-    executionTraceRepository.save(
-        new ExecutionTrace(
-            injectStatus,
-            ExecutionTraceStatus.ERROR,
-            List.of(),
-            e.getMessage(),
-            ExecutionTraceAction.COMPLETE,
-            e.getAgent(),
-            null));
-  }
-
+  /**
+   * Writes one terminal ERROR trace per agent, carrying the exception message, so a failure while
+   * dispatching the inject to an executor is reported on each affected agent instead of being lost.
+   */
   @VisibleForTesting
   public void saveAgentsErrorTraces(Exception e, Set<Agent> agents, InjectStatus injectStatus) {
-    executionTraceRepository.saveAll(
-        agents.stream()
-            .map(
-                agent ->
-                    new ExecutionTrace(
-                        injectStatus,
-                        ExecutionTraceStatus.ERROR,
-                        List.of(),
-                        e.getMessage(),
-                        ExecutionTraceAction.COMPLETE,
-                        agent,
-                        null))
-            .toList());
+    saveAgentTraces(agents, injectStatus, ExecutionTraceStatus.ERROR, agent -> e.getMessage());
   }
 
+  /**
+   * Writes one terminal ERROR trace per agent that has no executor attached, since the inject
+   * cannot be dispatched to them and they would otherwise never report a result.
+   */
   @VisibleForTesting
   public void saveWithoutExecutorAgentsTraces(
       Set<Agent> agentsWithoutExecutor, InjectStatus injectStatus) {
-    if (!agentsWithoutExecutor.isEmpty()) {
-      executionTraceRepository.saveAll(
-          agentsWithoutExecutor.stream()
-              .map(
-                  agent ->
-                      new ExecutionTrace(
-                          injectStatus,
-                          ExecutionTraceStatus.ERROR,
-                          List.of(),
-                          "Cannot find the executor for the agent "
-                              + agent.getExecutedByUser()
-                              + " from the asset "
-                              + agent.getAsset().getName(),
-                          ExecutionTraceAction.COMPLETE,
-                          agent,
-                          null))
-              .toList());
-    }
+    saveAgentTraces(
+        agentsWithoutExecutor,
+        injectStatus,
+        ExecutionTraceStatus.ERROR,
+        agent ->
+            "Cannot find the executor for the agent "
+                + agent.getExecutedByUser()
+                + " from the asset "
+                + agent.getAsset().getName());
   }
 
+  /**
+   * Writes one terminal AGENT_INACTIVE trace per inactive agent, so the user can tell that the
+   * inject was skipped on that agent rather than failed by it.
+   */
   @VisibleForTesting
   public void saveInactiveAgentsTraces(Set<Agent> inactiveAgents, InjectStatus injectStatus) {
-    if (!inactiveAgents.isEmpty()) {
-      executionTraceRepository.saveAll(
-          inactiveAgents.stream()
-              .map(
-                  agent ->
-                      new ExecutionTrace(
-                          injectStatus,
-                          ExecutionTraceStatus.AGENT_INACTIVE,
-                          List.of(),
-                          "Agent "
-                              + agent.getExecutedByUser()
-                              + " is inactive for the asset "
-                              + agent.getAsset().getName(),
-                          ExecutionTraceAction.COMPLETE,
-                          agent,
-                          null))
-              .toList());
-    }
+    saveAgentTraces(
+        inactiveAgents,
+        injectStatus,
+        ExecutionTraceStatus.AGENT_INACTIVE,
+        agent ->
+            "Agent "
+                + agent.getExecutedByUser()
+                + " is inactive for the asset "
+                + agent.getAsset().getName());
   }
 
+  /**
+   * Writes one terminal AGENT_OVERLOADED trace per agent whose job queue exceeds the threshold, so
+   * the user can tell that the inject was not dispatched to that agent for capacity reasons.
+   */
   @VisibleForTesting
   public void saveOverloadedAgentsTraces(Set<Agent> overloadedAgents, InjectStatus injectStatus) {
-    if (!overloadedAgents.isEmpty()) {
-      executionTraceRepository.saveAll(
-          overloadedAgents.stream()
-              .map(
-                  agent ->
-                      new ExecutionTrace(
-                          injectStatus,
-                          ExecutionTraceStatus.AGENT_OVERLOADED,
-                          List.of(),
-                          "Agent "
-                              + agent.getExecutedByUser()
-                              + " is overloaded for the asset "
-                              + agent.getAsset().getName()
-                              + " (queue threshold exceeded)",
-                          ExecutionTraceAction.COMPLETE,
-                          agent,
-                          null))
-              .toList());
-    }
+    saveAgentTraces(
+        overloadedAgents,
+        injectStatus,
+        ExecutionTraceStatus.AGENT_OVERLOADED,
+        agent ->
+            "Agent "
+                + agent.getExecutedByUser()
+                + " is overloaded for the asset "
+                + agent.getAsset().getName()
+                + " (queue threshold exceeded)");
   }
 
+  /**
+   * Writes one terminal ASSET_AGENTLESS trace per targeted asset that has no agent. Asset traces
+   * carry no agent, so the asset id is stored as the trace context to attach it to the endpoint.
+   */
   @VisibleForTesting
   public void saveAgentlessAssetsTraces(Set<Asset> assetsAgentless, InjectStatus injectStatus) {
-    if (!assetsAgentless.isEmpty()) {
-      executionTraceRepository.saveAll(
-          assetsAgentless.stream()
-              .map(
-                  asset ->
+    saveAssetTraces(
+        assetsAgentless,
+        injectStatus,
+        ExecutionTraceStatus.ASSET_AGENTLESS,
+        asset -> "Asset " + asset.getName() + " has no agent, unable to launch the inject");
+  }
+
+  /**
+   * Writes one ASSET_CLEARANCE_RESTRICTED trace per agent whose asset is not cleared for the
+   * inject's markings, so the endpoint shows "Asset not targeted" instead of a pending status.
+   */
+  @VisibleForTesting
+  public void saveAgentsWithoutClearanceTraces(
+      Set<Agent> agentsWithoutClearance, InjectStatus injectStatus) {
+    saveAgentTraces(
+        agentsWithoutClearance,
+        injectStatus,
+        ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED,
+        agent -> ASSET_NOT_TARGETED_MESSAGE);
+  }
+
+  /**
+   * Agentless counterpart of {@link #saveAgentsWithoutClearanceTraces}: writes one
+   * ASSET_CLEARANCE_RESTRICTED trace per non-cleared asset, keyed by the asset id as trace context.
+   */
+  @VisibleForTesting
+  public void saveAssetsWithoutClearanceTraces(
+      Set<Asset> assetsWithoutClearance, InjectStatus injectStatus) {
+    saveAssetTraces(
+        assetsWithoutClearance,
+        injectStatus,
+        ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED,
+        asset -> ASSET_NOT_TARGETED_MESSAGE);
+  }
+
+  private void saveAgentTraces(
+      Set<Agent> agents,
+      InjectStatus injectStatus,
+      ExecutionTraceStatus status,
+      Function<Agent, String> message) {
+    if (agents.isEmpty()) {
+      return;
+    }
+    executionTraceRepository.saveAll(
+        agents.stream()
+            .map(
+                agent -> {
+                  ExecutionTrace trace =
                       new ExecutionTrace(
                           injectStatus,
-                          ExecutionTraceStatus.ASSET_AGENTLESS,
+                          status,
+                          List.of(),
+                          message.apply(agent),
+                          ExecutionTraceAction.COMPLETE,
+                          agent,
+                          null);
+                  injectStatus.addTrace(trace);
+                  return trace;
+                })
+            .toList());
+  }
+
+  private void saveAssetTraces(
+      Set<Asset> assets,
+      InjectStatus injectStatus,
+      ExecutionTraceStatus status,
+      Function<Asset, String> message) {
+    if (assets.isEmpty()) {
+      return;
+    }
+    executionTraceRepository.saveAll(
+        assets.stream()
+            .map(
+                asset -> {
+                  ExecutionTrace trace =
+                      new ExecutionTrace(
+                          injectStatus,
+                          status,
                           List.of(asset.getId()),
-                          "Asset " + asset.getName() + " has no agent, unable to launch the inject",
+                          message.apply(asset),
                           ExecutionTraceAction.COMPLETE,
                           null,
-                          null))
-              .toList());
-    }
+                          null);
+                  injectStatus.addTrace(trace);
+                  return trace;
+                })
+            .toList());
   }
 
   // -- AUDIT LOGGING --

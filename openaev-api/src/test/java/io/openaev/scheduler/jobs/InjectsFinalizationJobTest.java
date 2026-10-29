@@ -3,7 +3,6 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
@@ -16,6 +15,7 @@ import io.openaev.utils.fixtures.composers.*;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -267,6 +267,52 @@ class InjectsFinalizationJobTest extends IntegrationTest {
                                   && trace.getAgent() == null
                                   && trace.getMessage().contains("did not complete within the")));
             });
+      } finally {
+        sweep(injectId);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "given agentless pending inject with only a not targeted trace should still add the"
+            + " agentless timeout trace")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void given_agentlessPendingInjectWithNotTargetedTrace_should_addAgentlessTimeoutTrace() {
+      // The not targeted trace is a COMPLETE trace written at dispatch: it must not be taken for
+      // a terminal outcome reported by the injector.
+      String injectId =
+          seedPendingInject(
+              () -> {
+                InjectStatus statusToSave = InjectStatusFixture.createPendingInjectStatus();
+                statusToSave.setTrackingSentDate(Instant.now().minus(20, ChronoUnit.MINUTES));
+                return injectComposer
+                    .forInject(InjectFixture.getDefaultInject())
+                    .withInjectStatus(
+                        injectStatusComposer
+                            .forInjectStatus(statusToSave)
+                            .withExecutionTrace(
+                                executionTraceComposer.forExecutionTrace(
+                                    new ExecutionTrace(
+                                        null,
+                                        ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED,
+                                        List.of("asset-red"),
+                                        "Asset red not targeted",
+                                        ExecutionTraceAction.COMPLETE,
+                                        null,
+                                        null))))
+                    .persist()
+                    .get();
+              });
+      try {
+        job.handlePendingInject();
+        inTransaction(
+            () ->
+                assertTrue(
+                    reload(injectId).getTraces().stream()
+                        .anyMatch(
+                            trace ->
+                                ExecutionTraceStatus.TIMEOUT.equals(trace.getStatus())
+                                    && trace.getAgent() == null)));
       } finally {
         sweep(injectId);
       }
