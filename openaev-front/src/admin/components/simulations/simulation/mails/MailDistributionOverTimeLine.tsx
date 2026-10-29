@@ -11,6 +11,7 @@ import { type Communication, type Exercise, type Team } from '../../../../../uti
 import { lineChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { ascendBy } from '../../../../../utils/Sorting';
 import { getTeamsColors } from '../../../teams/utils';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { sampleMailsOverTimeByTeam } from './mailsSampleData';
@@ -37,7 +38,7 @@ const MailDistributionOverTime: FunctionComponent<Props> = ({ exerciseId }) => {
       return R.assoc(
         'team_communications',
         R.pipe(
-          R.sortWith([R.ascend(R.prop('communication_received_at'))]),
+          items => items.toSorted(ascendBy('communication_received_at')),
           R.map((i: Communication) => {
             cumulation += 1;
             return R.assoc('communication_cumulated_number', cumulation, i);

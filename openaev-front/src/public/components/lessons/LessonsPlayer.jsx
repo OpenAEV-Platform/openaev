@@ -14,6 +14,7 @@ import OldTextField from '../../../components/fields/OldTextField';
 import SliderField from '../../../components/fields/SliderField';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
+import { ascendBy } from '../../../utils/Sorting';
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -65,8 +66,8 @@ const LessonsPlayer = (props) => {
       onFetchPlayerLessonsAnswers();
     });
   };
-  const sortCategories = R.sortWith([R.ascend(R.prop('lessons_category_order'))]);
-  const sortQuestions = R.sortWith([R.ascend(R.prop('lessons_question_order'))]);
+  const sortCategories = items => items.toSorted(ascendBy('lessons_category_order'));
+  const sortQuestions = items => items.toSorted(ascendBy('lessons_question_order'));
   const sortedCategories = sortCategories(lessonsCategories);
 
   const initialValues = R.pipe(R.map(n => ({

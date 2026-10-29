@@ -11,6 +11,7 @@ import { type Exercise, type Inject } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { descendBy } from '../../../../../utils/Sorting';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { sampleMailsByInject } from './mailsSampleData';
 
@@ -29,7 +30,7 @@ const MailDistributionByInject: FunctionComponent<Props> = ({ exerciseId }) => {
   });
 
   const sortedInjectsByCommunicationNumber = R.pipe(
-    R.sortWith([R.descend(R.prop('inject_communications_number'))]),
+    items => items.toSorted(descendBy('inject_communications_number')),
     R.take(10),
   )(injects || []);
   const totalMailsByInjectData = [

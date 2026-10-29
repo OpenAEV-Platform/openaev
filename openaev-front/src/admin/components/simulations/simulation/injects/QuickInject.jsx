@@ -30,6 +30,7 @@ import OldTextField from '../../../../../components/fields/OldTextField';
 import inject18n from '../../../../../components/i18n';
 import ItemBoolean from '../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../components/ItemTags';
+import { ascendBy, descendBy } from '../../../../../utils/Sorting';
 import { secondsFromToNow } from '../../../../../utils/Time';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
@@ -789,11 +790,7 @@ class QuickInjectComponent extends Component {
     const teams = teamsIds
       .map(a => teamsMap[a])
       .filter(a => a !== undefined);
-    const sortTeams = R.sortWith(
-      teamsOrderAsc
-        ? [R.ascend(R.prop(teamsSortBy))]
-        : [R.descend(R.prop(teamsSortBy))],
-    );
+    const sortTeams = items => items.toSorted(teamsOrderAsc ? ascendBy(teamsSortBy) : descendBy(teamsSortBy));
     const sortedTeams = sortTeams(teams);
     const hasTeams = injectorContract.fields
       .map(f => f.key)
@@ -808,11 +805,7 @@ class QuickInjectComponent extends Component {
         : undefined))
       .filter(d => d !== undefined);
     const attachedDocs = docs.filter(n => n.document_attached);
-    const sortDocuments = R.sortWith(
-      documentsOrderAsc
-        ? [R.ascend(R.prop(documentsSortBy))]
-        : [R.descend(R.prop(documentsSortBy))],
-    );
+    const sortDocuments = items => items.toSorted(documentsOrderAsc ? ascendBy(documentsSortBy) : descendBy(documentsSortBy));
     const sortedDocuments = sortDocuments(docs);
     const hasAttachments = injectorContract.fields
       .map(f => f.key)

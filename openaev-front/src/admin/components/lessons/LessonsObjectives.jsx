@@ -1,10 +1,10 @@
 import { FlagOutlined } from '@mui/icons-material';
 import { Box, LinearProgress, List, ListItem, ListItemButton, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { useContext } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { ascendBy } from '../../../utils/Sorting';
 import { PermissionsContext } from '../common/Context';
 import LessonsPlaceholder from './LessonsPlaceholder';
 import ObjectivePopover from './ObjectivePopover';
@@ -18,10 +18,7 @@ const LessonsObjectives = ({
   const { t } = useFormatter();
   const { permissions } = useContext(PermissionsContext);
 
-  const sortedObjectives = R.sortWith(
-    [R.ascend(R.prop('objective_priority'))],
-    objectives,
-  );
+  const sortedObjectives = objectives.toSorted(ascendBy('objective_priority'));
   return (
     /* No surface here: ConfigurationSection owns it now, with the library
        header above it. Two Papers would nest — PAPER-GAP-INVENTORY §5.5. */

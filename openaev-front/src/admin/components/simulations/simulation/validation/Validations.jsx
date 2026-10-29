@@ -16,6 +16,7 @@ import Loader from '../../../../../components/Loader';
 import SearchFilter from '../../../../../components/SearchFilter';
 import { useHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { descendBy } from '../../../../../utils/Sorting';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import TagsFilter from '../../../common/filters/TagsFilter';
 import { HUMAN_EXPECTATION } from '../../../common/injects/expectations/ExpectationUtils.tsx';
@@ -66,7 +67,7 @@ const Validations = () => {
       || (n.inject_expectation_inject?.inject_description || '')
         .toLowerCase()
         .indexOf(keyword.toLowerCase()) !== -1;
-  const sort = R.sortWith([R.descend(R.prop('inject_expectation_created_at'))]);
+  const sort = items => items.toSorted(descendBy('inject_expectation_created_at'));
   const sortedInjectExpectations = R.pipe(
     R.uniqBy(R.prop('inject_expectation_id')),
     R.map(n => R.assoc(

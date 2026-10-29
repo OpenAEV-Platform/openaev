@@ -1,8 +1,8 @@
 import { ArrowDropDownOutlined, ArrowDropUpOutlined } from '@mui/icons-material';
-import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, type ReactElement, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import { ascendBy, descendBy } from '../../utils/Sorting';
 import { useFormatter } from '../i18n';
 
 const useStyles = makeStyles()(() => ({
@@ -46,11 +46,7 @@ const SortHeadersList: FunctionComponent<Props> = ({
   const [sortBy, setSortBy] = useState(initialSortBy);
   const [sortAsc, setSortAsc] = useState(true);
 
-  const sort = R.sortWith(
-    sortAsc
-      ? [R.ascend(R.prop(sortBy))]
-      : [R.descend(R.prop(sortBy))],
-  );
+  const sort = items => items.toSorted(sortAsc ? ascendBy(sortBy) : descendBy(sortBy));
 
   const reverseBy = (field: string) => {
     setSortBy(field);

@@ -11,6 +11,7 @@ import { type Communication, type Exercise } from '../../../../../utils/api-type
 import { areaChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { ascendBy } from '../../../../../utils/Sorting';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { sampleMailsOverTime } from './mailsSampleData';
 
@@ -30,7 +31,7 @@ const MailDistributionOverTimeChart: FunctionComponent<Props> = ({ exerciseId })
 
   let cumulation = 0;
   const communicationsOverTime = R.pipe(
-    R.sortWith([R.ascend(R.prop('communication_received_at'))]),
+    items => items.toSorted(ascendBy('communication_received_at')),
     R.map((i: Communication) => {
       cumulation += 1;
       return R.assoc('communication_cumulated_number', cumulation, i);

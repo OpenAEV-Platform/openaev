@@ -10,6 +10,7 @@ import { useHelper } from '../../../../../store';
 import { type Exercise, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { lineChartOptions } from '../../../../../utils/Charts';
 import { sampleScoreOverTimeSeries } from '../../../../../utils/SampleCharts';
+import { ascendBy } from '../../../../../utils/Sorting';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { computeTeamsColors } from './DistributionUtils';
 
@@ -37,7 +38,7 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
       return [
         n[0],
         R.pipe(
-          R.sortWith([R.ascend(R.prop('inject_expectation_updated_at'))]),
+          items => items.toSorted(ascendBy('inject_expectation_updated_at')),
           R.map((i: InjectExpectationOutput) => {
             cumulation += i.inject_expectation_score ?? 0;
             return R.assoc(

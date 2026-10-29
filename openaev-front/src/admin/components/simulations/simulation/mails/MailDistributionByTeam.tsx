@@ -11,6 +11,7 @@ import { type Exercise, type Team } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { descendBy } from '../../../../../utils/Sorting';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { computeTeamsColors } from '../overview/DistributionUtils';
 import { sampleMailsByTeam } from './mailsSampleData';
@@ -36,7 +37,7 @@ const MailDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
       a.team_communications?.length,
       a,
     )),
-    R.sortWith([R.descend(R.prop('team_communications_number'))]),
+    items => items.toSorted(descendBy('team_communications_number')),
     R.take(10),
   )(teams || []);
   const totalMailsByTeamData = [

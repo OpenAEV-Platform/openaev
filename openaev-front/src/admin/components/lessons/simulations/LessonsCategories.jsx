@@ -6,6 +6,7 @@ import * as R from 'ramda';
 import { useContext } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
+import { ascendBy } from '../../../../utils/Sorting';
 import { truncate } from '../../../../utils/String';
 import { LessonContext, PermissionsContext } from '../../common/Context';
 import LessonsCategoryAddTeams from '../categories/LessonsCategoryAddTeams';
@@ -33,12 +34,8 @@ const LessonsCategories = ({
   // Context
   const { onUpdateLessonsCategoryTeams } = useContext(LessonContext);
 
-  const sortCategories = R.sortWith([
-    R.ascend(R.prop('lessons_category_order')),
-  ]);
-  const sortQuestions = R.sortWith([
-    R.ascend(R.prop('lessons_question_order')),
-  ]);
+  const sortCategories = items => items.toSorted(ascendBy('lessons_category_order'));
+  const sortQuestions = items => items.toSorted(ascendBy('lessons_question_order'));
   const sortedCategories = sortCategories(lessonsCategories);
   const handleUpdateTeams = (lessonsCategoryId, teamsIds) => {
     const data = { lessons_category_teams: teamsIds };
