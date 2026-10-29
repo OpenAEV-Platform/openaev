@@ -92,9 +92,10 @@ public class TeamService {
    * <p>The team's injects are the ones of its simulations and scenarios that target it: each
    * inject's eager {@code teams} reads the isolated {@code teams} table, so loaded after the commit
    * the team is no longer among its targets and its injects, their counts and communications come
-   * back empty. Reading them here loads those collections (one query per simulation or scenario for
-   * its injects, plus one subselect per eager collection of an inject, none growing with the number
-   * of injects) while the scope is set; the response then finds them initialized.
+   * back empty. Reading them here loads those collections while the scope is set (one query per
+   * simulation or scenario for its injects, one subselect per eager collection of an inject, and
+   * the batch-fetched dependencies of the injects, which grow with their number in batches of the
+   * configured batch size); the response then finds them initialized.
    */
   public Team teamInScopeWithCollections(@NotNull final TxCtx ctx, @NotNull final String teamId) {
     Team team = teamInScope(ctx, teamId);
