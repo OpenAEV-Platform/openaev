@@ -4,6 +4,7 @@ import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_
 
 import io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE;
 import io.openaev.database.model.AwsRegion;
+import java.net.URI;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
 /** Default {@link AwsCredentialConnectivityCheckFactory}, backed by the AWS SDK. */
@@ -58,16 +60,21 @@ public class DefaultAwsCredentialConnectivityCheckFactory
   }
 
   @Override
-  public StsClient stsClient(AwsRegion region, AwsCredentialsProvider credentialsProvider) {
+  public StsClient stsClient(
+      AwsRegion region, AwsCredentialsProvider credentialsProvider, String endpointUrl) {
     Duration timeout = Duration.ofSeconds(Math.max(1, timeoutSeconds));
-    return StsClient.builder()
-        .region(Region.of(region.code()))
-        .credentialsProvider(credentialsProvider)
-        .overrideConfiguration(
-            ClientOverrideConfiguration.builder()
-                .apiCallAttemptTimeout(timeout)
-                .apiCallTimeout(timeout)
-                .build())
-        .build();
+    StsClientBuilder builder =
+        StsClient.builder()
+            .region(Region.of(region.code()))
+            .credentialsProvider(credentialsProvider)
+            .overrideConfiguration(
+                ClientOverrideConfiguration.builder()
+                    .apiCallAttemptTimeout(timeout)
+                    .apiCallTimeout(timeout)
+                    .build());
+    if (endpointUrl != null && !endpointUrl.isBlank()) {
+      builder.endpointOverride(URI.create(endpointUrl));
+    }
+    return builder.build();
   }
 }
