@@ -10,7 +10,8 @@ export const pick = <T extends object, K extends keyof T>(obj: T, keys: readonly
   return result;
 };
 
-// Same semantics as Ramda's `omit` / `dissoc`: a shallow copy without the given keys, `obj` is untouched
+// A shallow copy without the given keys, `obj` is untouched. Unlike Ramda's `omit` / `dissoc` it copies own
+// enumerable properties only (not inherited ones), which is what plain JSON payloads and Redux state need
 export const omit = <T extends object, K extends keyof T>(obj: T, keys: readonly K[]): Omit<T, K> => {
   const result: Partial<T> = { ...obj };
   keys.forEach((key) => {
