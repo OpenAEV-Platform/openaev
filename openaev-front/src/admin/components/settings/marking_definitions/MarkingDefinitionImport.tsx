@@ -2,7 +2,7 @@ import { Button } from '@filigran/design-system';
 import { type FunctionComponent, useState } from 'react';
 
 import { importMarkingDefinitions, USE_MOCK_IMPORT_EXPORT } from '../../../../actions/marking_definitions/marking-definition-actions';
-import { buildMockConflictSampleCsv } from '../../../../actions/marking_definitions/marking-definition-import-mock';
+import { buildMockConflictSampleJson } from '../../../../actions/marking_definitions/marking-definition-import-mock';
 import { type MarkingDefinitionImportRowReason } from '../../../../actions/marking_definitions/marking-definition-import-types';
 import { ImportFileError, type ImportReport } from '../../../../components/common/import/import-report-types';
 import ImportReportDialog from '../../../../components/common/import/ImportReportDialog';
@@ -39,7 +39,7 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
         }
       })
       .catch((error: unknown) => {
-        // A file-level failure (bad header, too big...) imports nothing: show it in the report
+        // A file-level failure (invalid JSON, too big...) imports nothing: show it in the report
         // dialog. Any other failure was already notified by the API layer.
         if (error instanceof ImportFileError) {
           setFileError(error.message);
@@ -55,7 +55,7 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
         <Button
           type="button"
           priority="tertiary"
-          onClick={() => download(buildMockConflictSampleCsv(), 'MarkingDefinitionsSampleWithConflicts.csv', 'text/csv')}
+          onClick={() => download(buildMockConflictSampleJson(), 'MarkingDefinitionsSampleWithConflicts.json', 'application/json')}
         >
           {t('Mock: sample file with conflicts')}
         </Button>
@@ -63,7 +63,7 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
       <ImportUploader
         title={t('Import marking definitions')}
         handleUpload={handleUpload}
-        fileAccepted=".csv"
+        fileAccepted=".json"
         disabled={loading}
       />
       <ImportReportDialog
@@ -81,7 +81,7 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
         }}
         reasonLabels={reasonLabels}
         reasonSeverities={{ CONFLICT: 'medium' }}
-        downloadFileName="MarkingDefinitionsSkipped.csv"
+        downloadFileName="MarkingDefinitionsSkipped.json"
       />
     </>
   );

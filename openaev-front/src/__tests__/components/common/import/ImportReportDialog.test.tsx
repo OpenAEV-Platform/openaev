@@ -16,7 +16,7 @@ const report: ImportReport = {
   import_columns: ['name', 'url'],
   import_rows: [
     {
-      import_row_line: 2,
+      import_row_position: 1,
       import_row_status: 'CREATED',
       import_row_values: {
         name: 'created-name',
@@ -24,7 +24,7 @@ const report: ImportReport = {
       },
     },
     {
-      import_row_line: 3,
+      import_row_position: 2,
       import_row_status: 'SKIPPED',
       import_row_reason: 'BAD_URL',
       import_row_message: 'Not a URL.',
@@ -34,7 +34,7 @@ const report: ImportReport = {
       },
     },
     {
-      import_row_line: 4,
+      import_row_position: 3,
       import_row_status: 'IGNORED',
       import_row_values: {
         name: 'ignored-name',
@@ -52,7 +52,7 @@ const dialog = (props: Partial<Parameters<typeof ImportReportDialog>[0]> = {}) =
     onClose={() => {}}
     title="Import things"
     report={report}
-    downloadFileName="skipped.csv"
+    downloadFileName="skipped.json"
     {...props}
   />
 );
@@ -70,11 +70,12 @@ describe('ImportReportDialog', () => {
     expect(screen.getByText('2 ignored (already identical)')).toBeTruthy();
   });
 
-  it('lists one column per report column and only the skipped rows', () => {
+  it('lists the position, one column per report field and only the skipped rows', () => {
     // Act
     renderDialog(dialog({ columnLabels: { name: 'Display name' } }));
 
     // Assert
+    expect(screen.getByRole('columnheader', { name: 'Position' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Display name' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'url' })).toBeTruthy();
     expect(screen.getByText('broken-name')).toBeTruthy();
@@ -82,7 +83,7 @@ describe('ImportReportDialog', () => {
     expect(screen.queryByText('ignored-name')).toBeNull();
   });
 
-  it('renders the cells as plain text, never as HTML', () => {
+  it('renders the fields as plain text, never as HTML', () => {
     // Act
     renderDialog(dialog());
 
