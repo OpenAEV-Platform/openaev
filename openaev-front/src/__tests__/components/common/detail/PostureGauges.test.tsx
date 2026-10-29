@@ -25,8 +25,16 @@ describe('PostureGauges', () => {
 
   it('includes pending expectations in the displayed percentage and ring segments', () => {
     const distribution = [
-      { id: 'PREVENTED', label: 'Prevented', value: 1 },
-      { id: 'PENDING', label: 'Pending', value: 1 },
+      {
+        id: 'PREVENTED',
+        label: 'Prevented',
+        value: 1,
+      },
+      {
+        id: 'PENDING',
+        label: 'Pending',
+        value: 1,
+      },
     ];
 
     const { container } = renderGauges([prevention(distribution)]);
@@ -37,10 +45,22 @@ describe('PostureGauges', () => {
 
   it.each([
     [[
-      { id: 'PREVENTED', label: 'Prevented', value: 1 },
-      { id: 'FAILED', label: 'Failed', value: 1 },
+      {
+        id: 'PREVENTED',
+        label: 'Prevented',
+        value: 1,
+      },
+      {
+        id: 'FAILED',
+        label: 'Failed',
+        value: 1,
+      },
     ], '50%'],
-    [[{ id: 'PENDING', label: 'Pending', value: 2 }], '0%'],
+    [[{
+      id: 'PENDING',
+      label: 'Pending',
+      value: 2,
+    }], '0%'],
   ])('calculates resilience from the complete distribution: %s', (distribution, percentage) => {
     renderGauges([prevention(distribution)]);
 
