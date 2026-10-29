@@ -9,6 +9,7 @@ import io.openaev.service.tenants.TenantQueueService;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +34,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>A tenant the restore removes takes its broker queues and exchanges with it, through the
  * production teardown: the broker is outside the database, so a tenant onboarded and committed by a
- * test class would otherwise leave them on the broker for good.
+ * test class would otherwise leave them on the broker for good. The teardown is attempted for every
+ * removed tenant even when one fails, and a tenant whose teardown failed is kept for the next
+ * restore, since its row, the only other place its id was known, is already gone.
  */
 @Component
 @Slf4j
@@ -48,6 +51,7 @@ public class DatabaseSnapshotManager {
   private static final Map<String, List<Map<String, Object>>> startupData = new HashMap<>();
   private static final List<String> TABLE_WITHOUT_RESTORATION = List.of("indexing_status");
   private static final int ROW_DESCRIPTION_MAX_LENGTH = 1000;
+  private static final Set<String> brokerTeardownsToRetry = ConcurrentHashMap.newKeySet();
   private static List<String> tablesInOrder;
 
   private static boolean snapshotCreated = false;
@@ -97,6 +101,7 @@ public class DatabaseSnapshotManager {
       return;
     }
 
+    Set<String> tenantsToRemove;
     try {
       // Get tables order
       if (tablesInOrder == null) {
@@ -105,7 +110,8 @@ public class DatabaseSnapshotManager {
 
       cleanElasticsearchIndices(engineContext.getModels());
 
-      List<String> tenantsToRemove = tenantsNotInSnapshot();
+      tenantsToRemove = new LinkedHashSet<>(brokerTeardownsToRetry);
+      tenantsToRemove.addAll(tenantsNotInSnapshot());
 
       jdbcTemplate.execute(
           (Connection connection) -> {
@@ -115,11 +121,11 @@ public class DatabaseSnapshotManager {
 
       log.info("Database restored to startup state via JDBC");
 
-      deleteBrokerObjects(tenantsToRemove);
-
     } catch (Exception e) {
       throw new IllegalStateException("Error restoring startup state: " + e.getMessage(), e);
     }
+
+    deleteBrokerObjects(tenantsToRemove);
   }
 
   private void restoreInOneTransaction(Connection connection) throws SQLException {
@@ -171,15 +177,34 @@ public class DatabaseSnapshotManager {
         .toList();
   }
 
-  private void deleteBrokerObjects(List<String> tenantIds) {
+  /**
+   * Tears down the broker objects of every given tenant, keeps going past a failure, and reports
+   * every failure at the end. A failed tenant stays in {@link #brokerTeardownsToRetry} until a
+   * later restore tears it down.
+   */
+  private void deleteBrokerObjects(Set<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    brokerTeardownsToRetry.addAll(tenantIds);
+    TenantQueueService queues = tenantQueueService.getObject();
+    Map<String, Exception> failures = new LinkedHashMap<>();
     for (String tenantId : tenantIds) {
       try {
-        tenantQueueService.getObject().deleteDependencyForTenant(tenantId);
-      } catch (DependenciesManagerException e) {
-        throw new IllegalStateException(
-            "Cannot delete the broker objects of tenant " + tenantId + " removed by the restore",
-            e);
+        queues.deleteDependencyForTenant(tenantId);
+        brokerTeardownsToRetry.remove(tenantId);
+      } catch (DependenciesManagerException | RuntimeException e) {
+        failures.put(tenantId, e);
       }
+    }
+    if (!failures.isEmpty()) {
+      IllegalStateException failure =
+          new IllegalStateException(
+              "Database restored, but the broker objects of the removed tenants "
+                  + failures.keySet()
+                  + " could not be deleted; the next restore retries them");
+      failures.values().forEach(failure::addSuppressed);
+      throw failure;
     }
   }
 

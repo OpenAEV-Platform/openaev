@@ -2,16 +2,23 @@ package io.openaev.service.tenants;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.ShutdownSignalException;
 import io.openaev.IntegrationTest;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.QueueConfig;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.Tenant;
 import io.openaev.multitenancy.DependenciesManager;
+import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.service.RabbitmqService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
@@ -20,10 +27,13 @@ import io.openaev.utilstest.DatabaseSnapshotManager;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -48,6 +59,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p>NOT {@code @Transactional}: the commit or rollback of the onboarding is the subject, so each
  * case owns its transactions.
+ *
+ * <p>{@link RabbitmqService} is a spy that calls the real broker, except where a case makes one
+ * broker call fail on purpose.
  */
 @WithMockUser(isAdmin = true)
 @Import(TenantQueueServiceBrokerLifecycleTest.FailingOnboardingConfiguration.class)
@@ -56,16 +70,19 @@ class TenantQueueServiceBrokerLifecycleTest extends IntegrationTest {
 
   /**
    * A {@link DependenciesManager} that fails the onboarding of the tenants it is told to. It runs
-   * after {@link TenantQueueService}, so the broker objects already exist when it throws, inside
-   * the real {@link TenantService#create} loop.
+   * after {@link TenantQueueService}, inside the real {@link TenantService#create} loop, and
+   * records the tenant's broker objects as they stand when it throws.
    */
   static class FailingOnboardingManager implements DependenciesManager {
 
     final Set<String> failingTenantNames = ConcurrentHashMap.newKeySet();
+    final Map<String, List<String>> brokerObjectsAtFailure = new ConcurrentHashMap<>();
+    volatile Function<String, List<String>> brokerProbe;
 
     @Override
     public void createDependencyForTenant(Tenant tenant) {
       if (failingTenantNames.contains(tenant.getName())) {
+        brokerObjectsAtFailure.put(tenant.getId(), brokerProbe.apply(tenant.getId()));
         throw new IllegalStateException("onboarding failure for tenant " + tenant.getId());
       }
     }
@@ -98,17 +115,55 @@ class TenantQueueServiceBrokerLifecycleTest extends IntegrationTest {
   @Autowired private RabbitmqConfig rabbitmqConfig;
   @Autowired private OpenAEVConfig openAEVConfig;
   @Autowired private DatabaseSnapshotManager databaseSnapshotManager;
+  @MockitoSpyBean private RabbitmqService rabbitmqService;
 
   private final List<String> tenantIds = new ArrayList<>();
 
+  /** Tenants among which the next broker deletion fails, once; empty when no failure is armed. */
+  private final Set<String> failNextBrokerDeletionAmong = ConcurrentHashMap.newKeySet();
+
+  private final AtomicReference<String> tenantWhoseBrokerDeletionFailed = new AtomicReference<>();
+  private final AtomicBoolean failDeclarationAfterFirstQueue = new AtomicBoolean();
+  private final AtomicReference<List<String>> brokerObjectsAtDeclarationFailure =
+      new AtomicReference<>();
+
   @BeforeEach
-  void setUp() {
+  void setUp() throws Exception {
     failingOnboardingManager.failingTenantNames.clear();
+    failingOnboardingManager.brokerObjectsAtFailure.clear();
+    failingOnboardingManager.brokerProbe = this::existingBrokerObjects;
+    doAnswer(
+            invocation -> {
+              String tenantId = invocation.getArgument(0);
+              if (failNextBrokerDeletionAmong.contains(tenantId)
+                  && tenantWhoseBrokerDeletionFailed.compareAndSet(null, tenantId)) {
+                failNextBrokerDeletionAmong.clear();
+                throw new IOException("broker deletion failure for tenant " + tenantId);
+              }
+              return invocation.callRealMethod();
+            })
+        .when(rabbitmqService)
+        .deleteQueuesForTenant(anyString(), anyList());
+    doAnswer(
+            invocation -> {
+              String tenantId = invocation.getArgument(0);
+              List<QueueConfig> configs = invocation.getArgument(1);
+              if (configs.size() > 1 && failDeclarationAfterFirstQueue.getAndSet(false)) {
+                rabbitmqService.declareQueuesForTenant(tenantId, configs.subList(0, 1));
+                brokerObjectsAtDeclarationFailure.set(existingBrokerObjects(tenantId));
+                throw new IOException("declaration failure for tenant " + tenantId);
+              }
+              return invocation.callRealMethod();
+            })
+        .when(rabbitmqService)
+        .declareQueuesForTenant(anyString(), any());
   }
 
   @AfterEach
   void cleanup() {
     failingOnboardingManager.failingTenantNames.clear();
+    failNextBrokerDeletionAmong.clear();
+    failDeclarationAfterFirstQueue.set(false);
     for (String tenantId : tenantIds) {
       tenantHelper.deleteCommittedTenants(tenantId);
     }
@@ -186,6 +241,60 @@ class TenantQueueServiceBrokerLifecycleTest extends IntegrationTest {
       assertThat(tenantRepository.existsById(tenantId)).isFalse();
       assertThat(existingBrokerObjects(tenantId)).isEmpty();
     }
+
+    @Test
+    @DisplayName("A tenant whose broker teardown fails does not stop the teardown of the others")
+    void given_aBrokerTeardownFailingForTheFirstTenant_should_stillRemoveTheOtherTenantsObjects() {
+      // Arrange
+      String firstTenantId = committedTenant("broker-lifecycle-restore-a");
+      String secondTenantId = committedTenant("broker-lifecycle-restore-b");
+      failNextBrokerDeletionAmong.addAll(List.of(firstTenantId, secondTenantId));
+
+      // Act
+      Throwable thrown = catchThrowable(databaseSnapshotManager::restoreToSnapshotState);
+
+      // Assert
+      String failedTenantId = tenantWhoseBrokerDeletionFailed.get();
+      assertThat(failedTenantId).isIn(firstTenantId, secondTenantId);
+      String otherTenantId = failedTenantId.equals(firstTenantId) ? secondTenantId : firstTenantId;
+      assertThat(thrown).isNotNull().hasMessageContaining(failedTenantId);
+      assertThat(thrown.getMessage()).doesNotContain(otherTenantId);
+      assertThat(tenantRepository.existsById(failedTenantId)).isFalse();
+      assertThat(tenantRepository.existsById(otherTenantId)).isFalse();
+      assertThat(existingBrokerObjects(failedTenantId))
+          .isEqualTo(brokerObjectNames(failedTenantId));
+      assertThat(existingBrokerObjects(otherTenantId)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A tenant whose broker teardown failed is torn down by the next restore")
+    void given_aBrokerTeardownThatFailedAtARestore_should_beRetriedByTheNextRestore() {
+      // Arrange
+      String tenantId = committedTenant("broker-lifecycle-restore-retry");
+      failNextBrokerDeletionAmong.add(tenantId);
+      Throwable firstRestore = catchThrowable(databaseSnapshotManager::restoreToSnapshotState);
+      assertThat(firstRestore).isNotNull().hasMessageContaining(tenantId);
+      assertThat(tenantRepository.existsById(tenantId)).isFalse();
+      assertThat(existingBrokerObjects(tenantId)).isEqualTo(brokerObjectNames(tenantId));
+
+      // Act
+      databaseSnapshotManager.restoreToSnapshotState();
+
+      // Assert
+      assertThat(existingBrokerObjects(tenantId)).isEmpty();
+    }
+
+    private String committedTenant(String name) {
+      String tenantId;
+      try {
+        tenantId = tenantHelper.createTenant(name).getId();
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
+      tenantIds.add(tenantId);
+      assertThat(existingBrokerObjects(tenantId)).isEqualTo(brokerObjectNames(tenantId));
+      return tenantId;
+    }
   }
 
   @Nested
@@ -209,6 +318,36 @@ class TenantQueueServiceBrokerLifecycleTest extends IntegrationTest {
       String tenantId = tenant.getId();
       assertThat(tenantId).isNotNull();
       tenantIds.add(tenantId);
+      assertThat(failingOnboardingManager.brokerObjectsAtFailure.get(tenantId))
+          .as("the broker objects existed when the later manager failed")
+          .isEqualTo(brokerObjectNames(tenantId));
+      assertThat(tenantRepository.existsById(tenantId)).isFalse();
+      assertThat(existingBrokerObjects(tenantId)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A declaration failing after its first queue leaves no broker object")
+    void given_aDeclarationFailingAfterItsFirstQueue_should_leaveNoBrokerObject() {
+      // Arrange
+      Tenant tenant =
+          TenantFixture.getTenant(
+              "broker-lifecycle-partial-" + UUID.randomUUID().toString().substring(0, 8));
+      failDeclarationAfterFirstQueue.set(true);
+
+      // Act
+      Throwable thrown = catchThrowable(() -> tenantService.create(tenant));
+
+      // Assert
+      assertThat(thrown)
+          .isInstanceOf(DependenciesManagerException.class)
+          .hasRootCauseMessage("declaration failure for tenant " + tenant.getId());
+      String tenantId = tenant.getId();
+      tenantIds.add(tenantId);
+      assertThat(brokerObjectsAtDeclarationFailure.get())
+          .as("the declaration created part of the broker objects before failing")
+          .isNotEmpty()
+          .hasSizeLessThan(brokerObjectNames(tenantId).size())
+          .isSubsetOf(brokerObjectNames(tenantId));
       assertThat(tenantRepository.existsById(tenantId)).isFalse();
       assertThat(existingBrokerObjects(tenantId)).isEmpty();
     }
@@ -306,6 +445,10 @@ class TenantQueueServiceBrokerLifecycleTest extends IntegrationTest {
     }
   }
 
+  /**
+   * Whether the object exists. Only the broker's 404 reads as absent: any other failure of the
+   * probe is rethrown, so it can never pass for a deleted object.
+   */
   private static boolean exists(Connection connection, String name, boolean queue) {
     // A passive declaration of a missing object closes its channel, so one channel per probe.
     try (Channel channel = connection.createChannel()) {
@@ -316,9 +459,18 @@ class TenantQueueServiceBrokerLifecycleTest extends IntegrationTest {
       }
       return true;
     } catch (IOException e) {
-      return false;
+      if (isNotFound(e)) {
+        return false;
+      }
+      throw new IllegalStateException("Cannot probe broker object " + name, e);
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  private static boolean isNotFound(IOException e) {
+    return e.getCause() instanceof ShutdownSignalException signal
+        && signal.getReason() instanceof AMQP.Channel.Close close
+        && close.getReplyCode() == AMQP.NOT_FOUND;
   }
 }
