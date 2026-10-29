@@ -31,8 +31,15 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>Self-invocation is not a concern for this class: it is called explicitly, no proxy is
  * involved, so there is no intra-class call that could bypass it.
  *
- * <p>Background-only: HTTP code must not reach for this class (guarded by an ArchUnit rule); the
- * HTTP path carries its scope through {@code @Transactional} + {@code TxCtx} and the aspect.
+ * <p>Opening a transaction here ({@link #execute}, {@link #executeNew}, {@link #forEachTenant}) is
+ * for background code; the HTTP path carries its scope through {@code @Transactional} + {@code
+ * TxCtx} and the aspect. An ArchUnit rule refuses any direct dependency on this class from the
+ * {@code rest} and {@code api} packages and from controller-annotated classes; it does not follow
+ * calls through services. The two methods that change the scope of a transaction already open,
+ * {@link #setScopeOnCurrentTransaction} and {@link #executeOnCurrentTransaction}, are called from
+ * services that requests reach as well as from background code: neither checks the tenant it is
+ * given against the scope the transaction was opened with, so the classes calling them directly are
+ * a reasoned list that an architecture test keeps exact.
  *
  * <p>Interaction with the aspect, for per-tenant loops: inside a resolved {@code allTenants()}
  * scope, a joined {@code @Transactional} service method carrying a NARROWER {@code TxCtx} argument
@@ -122,6 +129,10 @@ public class TenantScopedTransaction {
    *
    * <p>Refuses to run outside an active transaction: there is no ambient scope to join.
    *
+   * <p>Checks nothing about the caller: the scope it sets may lie outside the scope of the request
+   * that opened the transaction, and it is never put back. The classes allowed to call it are a
+   * reasoned list that may only shrink, pinned by an architecture test.
+   *
    * <p>Also sets the marking scope, same as {@link #run}: joining an ambient transaction is still a
    * scope boundary for both dimensions, and the marking GUC is transaction-local like the tenant
    * one, so it must be (re)set here too rather than inherited from whatever ran before.
@@ -157,16 +168,20 @@ public class TenantScopedTransaction {
    *
    * <p>One transaction throughout, unlike {@link #executeNew}: the work sees the uncommitted writes
    * made before it, its writes share the transaction's fate, and it never waits on a lock the
-   * suspended transaction holds. Pending changes are flushed before the scope changes. When the
-   * work returns normally they are flushed again before the scope is put back, so every statement
-   * runs under the scope its change was made in. When the work throws, the scope is put back
-   * without that second flush: a change the work left pending would be written later under the
-   * restored scope, so a caller that catches the exception and goes on to commit must not rely on
-   * the work's pending changes. An association loaded inside the work and first read after it is
-   * read under the scope put back.
+   * suspended transaction holds. Pending changes are flushed before the scope changes, and flushed
+   * again before the scope is put back, whether the work returns or throws, so every statement runs
+   * under the scope its change was made in. A caller that catches the work's exception and commits
+   * therefore commits the work's changes as written in the work's tenant, the same outcome as a
+   * checked exception thrown without a scope change. If that flush fails, the persistence provider
+   * marks the transaction rollback-only, so nothing of the work can commit under the restored
+   * scope. When the work throws, its exception is the one thrown: a failure of the flush or of
+   * putting the scope back is added to it as suppressed. An association loaded inside the work and
+   * first read after it is read under the scope put back.
    *
-   * <p>Only the tenant scope changes. The marking scope is left as it is: the caller's clearance
-   * still applies to what the work reads.
+   * <p>The method sets only the tenant scope, so the caller's clearance applies to what the work
+   * reads. Both scopes are put back afterwards: work that sets the scope of the transaction itself
+   * (for instance through {@link #setScopeOnCurrentTransaction}, which also sets a system
+   * clearance) does not change what the rest of the caller's transaction may read.
    *
    * <p>Refuses to run outside an active transaction, and refuses any scope but exactly one tenant.
    */
@@ -182,15 +197,38 @@ public class TenantScopedTransaction {
           "executeOnCurrentTransaction() runs work in exactly one tenant, got " + ctx);
     }
     TxCtx resolved = intentionResolver.resolve(ctx);
-    String previous = currentScope();
+    String previousTenants = currentSetting("app.current_tenants");
+    String previousMarkings = currentSetting("app.current_markings");
     entityManager.flush();
     setScope(resolved.toGuc());
+    T result;
     try {
-      T result = work.get();
+      result = work.get();
+    } catch (Throwable failure) {
+      addSuppressedOnFailure(failure, entityManager::flush);
+      addSuppressedOnFailure(failure, () -> putBack(previousTenants, previousMarkings));
+      throw failure;
+    }
+    try {
       entityManager.flush();
-      return result;
-    } finally {
-      setScope(previous);
+    } catch (RuntimeException failure) {
+      addSuppressedOnFailure(failure, () -> putBack(previousTenants, previousMarkings));
+      throw failure;
+    }
+    putBack(previousTenants, previousMarkings);
+    return result;
+  }
+
+  private void putBack(String tenants, String markings) {
+    setScope(tenants);
+    setMarkingScope(markings);
+  }
+
+  private static void addSuppressedOnFailure(Throwable failure, Runnable step) {
+    try {
+      step.run();
+    } catch (RuntimeException stepFailure) {
+      failure.addSuppressed(stepFailure);
     }
   }
 
@@ -309,11 +347,12 @@ public class TenantScopedTransaction {
     return markingIds.isEmpty() ? MarkingCtx.none() : MarkingCtx.forMarkings(markingIds);
   }
 
-  private String currentScope() {
+  private String currentSetting(String name) {
     return (String)
         entityManager
-            .createNativeQuery("SELECT coalesce(current_setting('app.current_tenants', true), '')")
+            .createNativeQuery("SELECT coalesce(current_setting(:name, true), '')")
             .setFlushMode(FlushModeType.COMMIT)
+            .setParameter("name", name)
             .getSingleResult();
   }
 

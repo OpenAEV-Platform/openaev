@@ -2,12 +2,14 @@ package io.openaev.context;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.repository.ImportMapperRepository;
 import jakarta.persistence.EntityManager;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -203,6 +205,137 @@ class TenantScopedTransactionCurrentTransactionTest extends IntegrationTest {
 
       // Assert
       assertThat(storedName(mapperB)).isEqualTo("renamed-b");
+    }
+
+    @Test
+    @DisplayName(
+        "given work that changes a row then throws, caught by a caller that commits, should write"
+            + " the change under the work's scope")
+    void given_workThatChangesARowThenThrows_should_writeTheChangeUnderTheWorksScope() {
+      // Act
+      inTenantA(
+          () -> {
+            try {
+              tenantTx.executeOnCurrentTransaction(
+                  TxCtx.forTenant(tenantB),
+                  () -> {
+                    loadOnly().setName("renamed-b");
+                    throw new java.io.IOException("work failed");
+                  });
+            } catch (java.io.IOException expected) {
+              // the caller handles the failure and commits
+            }
+            return null;
+          });
+
+      // Assert
+      assertThat(storedName(mapperB)).isEqualTo("renamed-b");
+    }
+
+    @Test
+    @DisplayName(
+        "given work whose change cannot be written then throws should keep the work's exception"
+            + " and commit nothing of it")
+    void given_workWhoseChangeCannotBeWrittenThenThrows_should_keepItsExceptionAndCommitNothing() {
+      // Arrange
+      AtomicReference<Throwable> caught = new AtomicReference<>();
+
+      // Act
+      Throwable commit =
+          catchThrowable(
+              () ->
+                  inTenantA(
+                      () -> {
+                        try {
+                          tenantTx.executeOnCurrentTransaction(
+                              TxCtx.forTenant(tenantB),
+                              () -> {
+                                loadOnly().setInjectTypeColumn(null);
+                                throw new java.io.IOException("work failed");
+                              });
+                        } catch (java.io.IOException expected) {
+                          caught.set(expected);
+                        }
+                        return null;
+                      }));
+
+      // Assert
+      assertThat(caught.get()).hasMessage("work failed");
+      assertThat(caught.get().getSuppressed()).isNotEmpty();
+      assertThat(commit).isNotNull();
+      assertThat(storedName(mapperB)).isEqualTo("mapper-b");
+    }
+  }
+
+  @Nested
+  @DisplayName("Failure while putting the scope back")
+  class FailureWhilePuttingTheScopeBack {
+
+    @Test
+    @DisplayName("given the scope cannot be put back should keep the work's exception")
+    void given_scopeCannotBePutBack_should_keepTheWorksException() {
+      // Arrange: a statement that fails aborts the PostgreSQL transaction, so every later
+      // statement, the one that puts the scope back included, fails too
+      AtomicReference<Throwable> caught = new AtomicReference<>();
+
+      // Act
+      catchThrowable(
+          () ->
+              inTenantA(
+                  () -> {
+                    try {
+                      tenantTx.executeOnCurrentTransaction(
+                          TxCtx.forTenant(tenantB),
+                          () -> {
+                            try {
+                              manager.createNativeQuery("SELECT 1/0").getSingleResult();
+                            } catch (RuntimeException abortsTheTransaction) {
+                              // the work goes on to fail on its own terms
+                            }
+                            throw new java.io.IOException("work failed");
+                          });
+                    } catch (java.io.IOException expected) {
+                      caught.set(expected);
+                    }
+                    return null;
+                  }));
+
+      // Assert
+      assertThat(caught.get()).hasMessage("work failed");
+      assertThat(caught.get().getSuppressed()).isNotEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Marking scope")
+  class MarkingScope {
+
+    @Test
+    @DisplayName("given work that sets the marking scope should put the caller's back")
+    void given_workThatSetsTheMarkingScope_should_putTheCallersBack() {
+      // Act
+      String after =
+          inTenantA(
+              () -> {
+                manager
+                    .createNativeQuery(
+                        "SELECT set_config('app.current_markings', 'caller-clearance', true)")
+                    .getSingleResult();
+                tenantTx.executeOnCurrentTransaction(
+                    TxCtx.forTenant(tenantB),
+                    () -> {
+                      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantB));
+                      return null;
+                    });
+                return (String)
+                    manager
+                        .createNativeQuery(
+                            "SELECT coalesce(current_setting('app.current_markings', true), '')")
+                        .getSingleResult();
+              });
+
+      // Assert
+      assertThat(after).isEqualTo("caller-clearance");
     }
   }
 
