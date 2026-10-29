@@ -143,7 +143,8 @@ import_mappers OTHER io.openaev.rest.mapper.MapperApi.updateImportMapper
 # the unattributed line is the pinned shape of an entity nobody captured (loaded before the recording
 # window) whose UPDATE is flushed by the test. ScenarioService.createScenario is given a scenario
 # stamped with the default tenant under scope B, to prove a deferred persist is attributed to the
-# service that asked for it (no controller writes a scenario outside the request scope any more).
+# service that asked for it (the scenario and simulation creates no longer write outside the request
+# scope; AutonomousRunApi.create still does, waived above).
 # Retired with the tests that produce them.
 executors DEFAULT io.openaev.executors.ExecutorService.register
 scenarios DEFAULT io.openaev.service.scenario.ScenarioService.createScenario
