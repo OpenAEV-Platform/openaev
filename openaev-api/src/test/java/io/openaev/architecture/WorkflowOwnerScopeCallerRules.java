@@ -15,6 +15,7 @@ import io.openaev.opencti.connectors.service.OpenCTIConnectorPrivilegeService;
 import io.openaev.processor.MigrationProcessor;
 import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.runner.InitAdminCommandLineRunner;
 import io.openaev.scheduler.TenantScopedJobRunner;
@@ -39,10 +40,10 @@ import java.util.function.Predicate;
  * <ul>
  *   <li>{@link TenantScopedTransaction#executeOnCurrentTransaction} moves the transaction to one
  *       tenant for the duration of some work. {@link WorkflowOwnerScope} is its only allowed
- *       caller, and passes the tenant of a simulation or scenario. That is safe only when the
- *       simulation or scenario was loaded through the request's own access check, so the callers of
- *       {@link WorkflowOwnerScope} are an allowlist, each with the reason the owner it passes was
- *       loaded that way.
+ *       caller, and passes the tenant of a simulation, a scenario or an injector contract. That is
+ *       safe only when that owner was loaded through the request's own access check, so the callers
+ *       of {@link WorkflowOwnerScope} are an allowlist, each with the reason the owner it passes
+ *       was loaded that way.
  *   <li>{@link TenantScopedTransaction#setScopeOnCurrentTransaction} sets the scope for the rest of
  *       the transaction. Its direct callers are a baseline, each with the scope it sets and where
  *       that scope comes from. The baseline may only shrink.
@@ -99,9 +100,9 @@ final class WorkflowOwnerScopeCallerRules {
           "startup: provisions the default tenant");
 
   /**
-   * The classes allowed to call {@link WorkflowOwnerScope}, each with how the simulation or
-   * scenario it passes was loaded. Every entry must still call it: an entry with no call left is
-   * removed in the same change.
+   * The classes allowed to call {@link WorkflowOwnerScope}, each with how the simulation, scenario
+   * or injector contract it passes was loaded. Every entry must still call it: an entry with no
+   * call left is removed in the same change.
    */
   static final Map<Class<?>, String> OWNER_SCOPE_CALLERS =
       Map.of(
@@ -118,7 +119,11 @@ final class WorkflowOwnerScopeCallerRules {
           ScenarioService.class,
           "every call passes a scenario from ScenarioService#scenario (findByIdAndTenantId on the"
               + " request's tenant), or the duplicate copyScenario built from one, which carries"
-              + " its tenant");
+              + " its tenant",
+          InjectorContractService.class,
+          "the step sweep of a deleted contract passes the contract it deletes, loaded by"
+              + " deleteInjectorContract(String) under the request's tenant filter, after the"
+              + " DELETE access check on that contract");
 
   private WorkflowOwnerScopeCallerRules() {}
 
@@ -173,7 +178,7 @@ final class WorkflowOwnerScopeCallerRules {
                 WorkflowOwnerScopeCallerRules::reachesOwnerScope,
                 allowed))
         .because(
-            "WorkflowOwnerScope runs work in the tenant of the simulation or scenario it is given,"
+            "WorkflowOwnerScope runs work in the tenant of the owner it is given,"
                 + " which is safe only for one loaded through the request's access check");
   }
 
