@@ -4,6 +4,7 @@ import static io.openaev.rest.team.TeamApi.TENANT_TEAM_URI;
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExerciseFixture.createDefaultExercise;
+import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.OrganizationFixture.createDefaultOrganisation;
 import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
 import static io.openaev.utils.fixtures.TagFixture.getTagWithText;
@@ -25,14 +26,18 @@ import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Communication;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.CommunicationRepository;
 import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.TagRepository;
@@ -49,6 +54,7 @@ import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.fixtures.composers.TeamComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -115,6 +121,8 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
   @Autowired private TeamRepository teamRepository;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private InjectRepository injectRepository;
+  @Autowired private CommunicationRepository communicationRepository;
 
   private String tenant;
   private final List<String> seededScenarios = new ArrayList<>();
@@ -171,6 +179,35 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
       // Without the in-scope load the lazy team_tags serializes as [] here: the post-commit
       // open-in-view load runs with app.current_tenants cleared and fails closed.
       expectEveryTeamLazyAssociation(getTeam(seeded.team()), seeded);
+    }
+  }
+
+  @Nested
+  @DisplayName("Get a team targeted by injects")
+  class GetTeamTargetedByInjects {
+
+    @Test
+    @DisplayName(
+        "given a team targeted by an inject of its simulation and of its scenario when it is read"
+            + " by id then the injects, their counts and the communication are serialized")
+    void
+        given_a_team_targeted_by_an_inject_of_its_simulation_and_scenario_when_it_is_read_by_id_then_injects_counts_and_communication_are_serialized()
+            throws Exception {
+      // -- Arrange --
+      SeededTeam seeded = seedTeamWithEveryLazyAssociation();
+      TargetingInjects injects = targetTeamWithInjects(seeded);
+
+      // -- Act & Assert --
+      // Each inject's eager teams reads the isolated teams table: loaded after the commit it comes
+      // back empty, the team is then not among its targets and every derived field is empty.
+      getTeam(seeded.team())
+          .andExpect(jsonPath("$.team_exercise_injects", contains(injects.exerciseInjectId())))
+          .andExpect(jsonPath("$.team_exercise_injects_number").value(1))
+          .andExpect(jsonPath("$.team_scenario_injects", contains(injects.scenarioInjectId())))
+          .andExpect(jsonPath("$.team_scenario_injects_number").value(1))
+          .andExpect(
+              jsonPath("$.team_communications[*].communication_id")
+                  .value(contains(injects.communicationId())));
     }
   }
 
@@ -411,6 +448,45 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
 
           return new SeededTeam(
               team, playerWrapper.get(), organization.getId(), exercise.getId(), scenarioId);
+        });
+  }
+
+  /**
+   * Targets the seeded team with one inject of its simulation and one of its scenario, neither of
+   * them aimed at all teams, and gives the simulation inject a communication.
+   */
+  private record TargetingInjects(
+      String exerciseInjectId, String scenarioInjectId, String communicationId) {}
+
+  private TargetingInjects targetTeamWithInjects(SeededTeam seeded) {
+    return inTenantScope(
+        () -> {
+          Team team = teamRepository.findById(seeded.team().getId()).orElseThrow();
+          Inject exerciseInject = getDefaultInject();
+          exerciseInject.setTenant(new Tenant(tenant));
+          exerciseInject.setExercise(
+              exerciseRepository.findById(seeded.exerciseId()).orElseThrow());
+          exerciseInject.setTeams(new ArrayList<>(List.of(team)));
+          exerciseInject = injectRepository.save(exerciseInject);
+
+          Communication communication = new Communication();
+          communication.setInject(exerciseInject);
+          communication.setIdentifier("message-" + UUID.randomUUID());
+          communication.setFrom("sender@example.com");
+          communication.setTo("player@example.com");
+          communication.setSentAt(Instant.now());
+          communication.setReceivedAt(Instant.now());
+          communication = communicationRepository.save(communication);
+
+          Inject scenarioInject = getDefaultInject();
+          scenarioInject.setTenant(new Tenant(tenant));
+          scenarioInject.setScenario(
+              scenarioRepository.findById(seeded.scenarioId()).orElseThrow());
+          scenarioInject.setTeams(new ArrayList<>(List.of(team)));
+          scenarioInject = injectRepository.save(scenarioInject);
+
+          return new TargetingInjects(
+              exerciseInject.getId(), scenarioInject.getId(), communication.getId());
         });
   }
 
