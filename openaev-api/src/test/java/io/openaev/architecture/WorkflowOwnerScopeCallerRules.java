@@ -11,7 +11,7 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.integration.ManagerCreator;
-import io.openaev.opencti.connectors.service.PrivilegeService;
+import io.openaev.opencti.connectors.service.OpenCTIConnectorPrivilegeService;
 import io.openaev.processor.MigrationProcessor;
 import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -83,7 +83,7 @@ final class WorkflowOwnerScopeCallerRules {
               + " instances of every tenant",
           XtmHubService.class,
           "contactUs reads the default tenant's own registration, whatever the caller's tenant",
-          PrivilegeService.class,
+          OpenCTIConnectorPrivilegeService.class,
           "background (OpenCTI connector register and ping job): the connector's own tenant",
           QueueChainingJob.class,
           "background: moves its one transaction to each popped entry's tenant, read from the"
