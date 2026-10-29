@@ -150,9 +150,11 @@ public class QueueChainingJob implements Job {
   }
 
   /**
-   * The tenant a delayed step belongs to. {@code workflows} carries no tenant column of its own;
-   * its owner does. {@code chk_workflow_simulation_or_scenario} allows exactly one of a simulation
-   * or a scenario, and both are {@code TenantBase}, so both have to be read.
+   * The tenant a delayed step belongs to, read from the run's owner. {@code
+   * chk_workflow_simulation_or_scenario} allows exactly one of a simulation or a scenario, and both
+   * are {@code TenantBase}, so both have to be read. The run carries its own {@code tenant_id} too,
+   * and the two agree: the run takes its owner's tenant when it is inserted and refuses any other
+   * ({@code Workflow#attributeTenantFromOwner}), and neither column is updatable.
    */
   private static String tenantOf(StepDelayQueue stepDelayQueue) {
     // chk_workflow_simulation_or_scenario guarantees exactly one of the two is set, and both
