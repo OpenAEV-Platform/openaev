@@ -68,6 +68,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.ScopeService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -157,6 +158,7 @@ public class ScenarioService {
 
   private final ScenarioMapper scenarioMapper;
   private final WorkflowService workflowService;
+  private final WorkflowOwnerScope workflowOwnerScope;
   private final WorkflowExportInitializer workflowExportInitializer;
   private final BulkDeleteExecutor bulkDeleteExecutor;
 
@@ -504,10 +506,7 @@ public class ScenarioService {
   }
 
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
-    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
-    if (rawScenario == null) {
-      throw new ElementNotFoundException("Scenario not found");
-    }
+    RawScenario rawScenario = rawScenario(scenarioId);
     Set<KillChainPhaseOutput> killChainPhases = new HashSet<>();
     if (rawScenario.getScenario_kill_chain_phases() != null) {
       try {
@@ -541,14 +540,21 @@ public class ScenarioService {
    */
   @Transactional(readOnly = true)
   public List<TeamOutput> getScenarioTeams(@NotBlank final String scenarioId) {
-    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
-    if (rawScenario == null) {
-      throw new ElementNotFoundException("Scenario not found");
-    }
-    String workflowId = rawScenario.getScenario_workflow_id();
+    String workflowId = rawScenario(scenarioId).getScenario_workflow_id();
     return hasText(workflowId)
         ? getWorkflowScenarioTeams(scenarioId, workflowId)
         : getTimeBasedScenarioTeams(scenarioId);
+  }
+
+  // The detail names the scenario's workflow, read in the scenario's own tenant.
+  private RawScenario rawScenario(final String scenarioId) {
+    RawScenario rawScenario =
+        workflowOwnerScope.call(
+            scenario(scenarioId), () -> scenarioRepository.getScenarioByIdAndTenantId(scenarioId));
+    if (rawScenario == null) {
+      throw new ElementNotFoundException("Scenario not found");
+    }
+    return rawScenario;
   }
 
   private List<TeamOutput> getWorkflowScenarioTeams(
@@ -736,8 +742,31 @@ public class ScenarioService {
       final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
-    ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
     Scenario scenario = this.scenario(scenarioId);
+    // The export carries the scenario's workflow, read in the scenario's own tenant whatever the
+    // caller's scope; the whole export runs there, as it serializes the workflow with the rest.
+    workflowOwnerScope.run(
+        scenario,
+        () ->
+            writeScenarioExport(
+                scenario,
+                isWithTeams,
+                isWithPlayers,
+                isWithVariableValues,
+                isWithScopeDefinition,
+                response));
+  }
+
+  private void writeScenarioExport(
+      final Scenario scenario,
+      final boolean isWithTeams,
+      final boolean isWithPlayers,
+      final boolean isWithVariableValues,
+      final boolean isWithScopeDefinition,
+      HttpServletResponse response)
+      throws IOException {
+    String scenarioId = scenario.getId();
+    ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
     boolean isChaining = workflowService.isScenarioChaining(scenarioId);
     List<Inject> exportedInjects =
         isChaining ? new ArrayList<>() : new ArrayList<>(scenario.getInjects());
@@ -1160,14 +1189,20 @@ public class ScenarioService {
   private void duplicateChainingWorkflowIfAny(
       @NotBlank final String scenarioId, @NotNull final Scenario duplicate)
       throws ChainingException {
-    if (!workflowService.isScenarioChaining(scenarioId)) {
-      return;
-    }
-    if (enterpriseEditionService.isEnterpriseLicenseInactive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
-      throw new EnterpriseEditionException("Enterprise Edition license required");
-    }
-    workflowService.duplicateScenarioWorkflow(scenarioId, duplicate);
+    // The duplicate carries its source's tenant, so the source workflow is read and its copy
+    // written in that one tenant.
+    workflowOwnerScope.run(
+        duplicate,
+        () -> {
+          if (!workflowService.isScenarioChaining(scenarioId)) {
+            return;
+          }
+          if (enterpriseEditionService.isEnterpriseLicenseInactive(
+              licenseCacheManager.getEnterpriseEditionInfo())) {
+            throw new EnterpriseEditionException("Enterprise Edition license required");
+          }
+          workflowService.duplicateScenarioWorkflow(scenarioId, duplicate);
+        });
   }
 
   /**

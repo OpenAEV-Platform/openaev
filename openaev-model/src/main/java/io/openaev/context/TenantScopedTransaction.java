@@ -138,6 +138,54 @@ public class TenantScopedTransaction {
     setMarkingScope(systemClearance(resolved).toGuc());
   }
 
+  /** Work run by {@link #executeOnCurrentTransaction}, allowed to throw a checked exception. */
+  @FunctionalInterface
+  public interface ScopedWork<T, E extends Exception> {
+    T get() throws E;
+  }
+
+  /**
+   * Runs {@code work} on the CURRENT, already-active transaction under {@code ctx}, then puts back
+   * the tenant scope the transaction had before. For a row whose own tenant decides where its
+   * dependent rows are read and written, whatever the scope the transaction was opened with: the
+   * caller has already been granted the row, and its dependents follow it.
+   *
+   * <p>One transaction throughout, unlike {@link #executeNew}: the work sees the uncommitted writes
+   * made before it, its writes share the transaction's fate, and it never waits on a lock the
+   * suspended transaction holds. Pending changes are flushed before the scope changes and again
+   * before it is put back, so every statement runs under the scope its change was made in. An
+   * association loaded inside the work and first read after it is read under the scope put back.
+   *
+   * <p>Only the tenant scope changes. The marking scope is left as it is: the caller's clearance
+   * still applies to what the work reads.
+   *
+   * <p>Refuses to run outside an active transaction, and refuses any scope but exactly one tenant:
+   * the work follows one row's tenant, and a request must never widen its own scope through it.
+   */
+  public <T, E extends Exception> T executeOnCurrentTransaction(TxCtx ctx, ScopedWork<T, E> work)
+      throws E {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.executeOnCurrentTransaction() has nothing to join: no"
+              + " transaction is active.");
+    }
+    if (!(ctx instanceof TxCtx.Restricted restricted) || restricted.tenantIds().size() != 1) {
+      throw new IllegalArgumentException(
+          "executeOnCurrentTransaction() runs work in exactly one tenant, got " + ctx);
+    }
+    TxCtx resolved = intentionResolver.resolve(ctx);
+    String previous = currentScope();
+    entityManager.flush();
+    setScope(resolved.toGuc());
+    try {
+      T result = work.get();
+      entityManager.flush();
+      return result;
+    } finally {
+      setScope(previous);
+    }
+  }
+
   /**
    * The per-tenant loop idiom: runs {@code work} once for every active tenant, each in its OWN
    * top-level transaction scoped to that tenant. This is the FLAT loop, not a nested one: a tenant
@@ -251,6 +299,14 @@ public class TenantScopedTransaction {
     List<String> markingIds =
         markingDefinitionRepository.findAllIdsByTenantIds(restricted.tenantIds());
     return markingIds.isEmpty() ? MarkingCtx.none() : MarkingCtx.forMarkings(markingIds);
+  }
+
+  private String currentScope() {
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT coalesce(current_setting('app.current_tenants', true), '')")
+            .setFlushMode(FlushModeType.COMMIT)
+            .getSingleResult();
   }
 
   private void setScope(String scope) {

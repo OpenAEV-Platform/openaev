@@ -12,7 +12,9 @@ import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -31,8 +33,22 @@ class ScenarioServiceDuplicateUnitTest {
   @Mock private WorkflowService workflowService;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
+  @Mock private WorkflowOwnerScope workflowOwnerScope;
 
   @Spy @InjectMocks private ScenarioService scenarioService;
+
+  // The owner's tenant scope is the integration tests' concern; here the work just runs.
+  @BeforeEach
+  void runScopedWorkInPlace() throws Exception {
+    lenient()
+        .doAnswer(
+            invocation -> {
+              invocation.<WorkflowOwnerScope.ScopedAction<?>>getArgument(1).run();
+              return null;
+            })
+        .when(workflowOwnerScope)
+        .run(any(Scenario.class), any());
+  }
 
   @Nested
   @DisplayName("Given a time-based scenario")

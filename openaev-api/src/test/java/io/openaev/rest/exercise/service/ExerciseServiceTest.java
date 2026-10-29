@@ -19,6 +19,7 @@ import io.openaev.service.LessonsService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowEndService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -51,6 +52,7 @@ import org.springframework.transaction.annotation.Transactional;
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceTest extends IntegrationTest {
 
+  @Autowired private WorkflowOwnerScope workflowOwnerScope;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private EntityManager entityManager;
@@ -140,6 +142,7 @@ class ExerciseServiceTest extends IntegrationTest {
         workflowService,
         workflowEndService,
         workflowPauseService,
+        workflowOwnerScope,
         pauseExerciseService,
         fileService,
         healthCheckUtils,
