@@ -184,6 +184,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // injector was not deployed through the Integration Manager.
     if (!deleteOwningConnectorInstance(injectorId)) {
       injectorRepository.deleteByInjectorId(injectorId);
+      rabbitmqService.deleteInjectorQueueIfUnused(injectorId);
     }
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
     // Chaining steps reference contracts only through a JSON snapshot in step_data (no FK to

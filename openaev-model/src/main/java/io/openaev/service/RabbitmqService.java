@@ -416,6 +416,24 @@ public class RabbitmqService {
     return rabbitmqConfig.getPrefix() + queueName;
   }
 
+  /**
+   * Deletes the queue of a deleted injector, unless a consumer still reads it (another deployment
+   * with the same id). Its pending messages are dropped: they would run stale injects.
+   *
+   * @param identifier the injector id the queue was registered with
+   */
+  public void deleteInjectorQueueIfUnused(String identifier) {
+    String queueName = rabbitmqConfig.getPrefix() + INJECTOR_PREFIX + identifier;
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      channel.queueDelete(queueName, true, false);
+      log.info("Deleted injector queue '{}'.", queueName);
+    } catch (Exception e) {
+      log.warn(
+          "Injector queue '{}' kept (still consumed or missing): {}", queueName, e.getMessage());
+    }
+  }
+
   // -- HEALTH & METADATA --
 
   /** Cached broker version (thread-safe lazy initialization). */
