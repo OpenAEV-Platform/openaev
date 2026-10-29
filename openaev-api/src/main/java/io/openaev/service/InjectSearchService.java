@@ -9,6 +9,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.AiTargetRepository;
@@ -38,12 +39,14 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -56,6 +59,8 @@ public class InjectSearchService {
   private final InjectExpectationRepository injectExpectationRepository;
   private final TeamRepository teamRepository;
   private final UserService userService;
+  // Lazy: PermissionService is built from the inject services.
+  private final ObjectProvider<PermissionService> permissionServiceProvider;
   private final AssetRepository assetRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final AiTargetRepository aiTargetRepository;
@@ -355,50 +360,91 @@ public class InjectSearchService {
   // grants (OBSERVER or higher).
 
   public Page<InjectResultOutput> getPageOfInjectResultsForAsset(
-      @NotBlank final String assetId, @Valid SearchPaginationInput searchPaginationInput) {
+      @NotNull final TxCtx ctx,
+      @NotBlank final String assetId,
+      @Valid SearchPaginationInput searchPaginationInput) {
     return getPageOfInjectResultsForTarget(
-        InjectSpecification.targetsAsset(assetId), searchPaginationInput);
+        InjectSpecification.targetsAsset(assetId),
+        readableInEachTenant(ctx),
+        searchPaginationInput);
   }
 
   public Page<InjectResultOutput> getPageOfInjectResultsForAssetGroup(
-      @NotBlank final String assetGroupId, @Valid SearchPaginationInput searchPaginationInput) {
+      @NotNull final TxCtx ctx,
+      @NotBlank final String assetGroupId,
+      @Valid SearchPaginationInput searchPaginationInput) {
     return getPageOfInjectResultsForTarget(
-        InjectSpecification.targetsAssetGroup(assetGroupId), searchPaginationInput);
+        InjectSpecification.targetsAssetGroup(assetGroupId),
+        readableInEachTenant(ctx),
+        searchPaginationInput);
   }
 
   public Page<InjectResultOutput> getPageOfInjectResultsForTeam(
-      @NotBlank final String teamId, @Valid SearchPaginationInput searchPaginationInput) {
+      @NotNull final TxCtx ctx,
+      @NotBlank final String teamId,
+      @Valid SearchPaginationInput searchPaginationInput) {
     return getPageOfInjectResultsForTarget(
-        InjectSpecification.targetsTeam(teamId), searchPaginationInput);
+        InjectSpecification.targetsTeam(teamId), readableInEachTenant(ctx), searchPaginationInput);
   }
 
   public Page<InjectResultOutput> getPageOfInjectResultsForPlayer(
-      @NotBlank final String userId, @Valid SearchPaginationInput searchPaginationInput) {
+      @NotNull final TxCtx ctx,
+      @NotBlank final String userId,
+      @Valid SearchPaginationInput searchPaginationInput) {
     return getPageOfInjectResultsForTarget(
-        InjectSpecification.targetsPlayer(userId), searchPaginationInput);
+        InjectSpecification.targetsPlayer(userId),
+        readableInEachTenant(ctx),
+        searchPaginationInput);
   }
 
+  /**
+   * Unlike the other targets, the access right is read in the ambient tenant only: the endpoint
+   * passes no request scope.
+   */
   public Page<InjectResultOutput> getPageOfInjectResultsForOrganization(
       @NotBlank final String organizationId, @Valid SearchPaginationInput searchPaginationInput) {
+    User currentUser = userService.currentUser();
     return getPageOfInjectResultsForTarget(
-        InjectSpecification.targetsOrganization(organizationId), searchPaginationInput);
+        InjectSpecification.targetsOrganization(organizationId),
+        SpecificationUtils.hasGrantAccess(
+            currentUser.getId(),
+            false,
+            canAccessEveryInject(currentUser),
+            Grant.GRANT_TYPE.OBSERVER),
+        searchPaginationInput);
+  }
+
+  /**
+   * The injects the caller reads: every inject of a tenant where it holds the access right, and the
+   * injects of the resources it holds a grant on.
+   */
+  private Specification<Inject> readableInEachTenant(TxCtx ctx) {
+    User currentUser = userService.currentUser();
+    return permissionServiceProvider
+        .getObject()
+        .filterInEachTenant(
+            ctx,
+            () -> canAccessEveryInject(currentUser),
+            accessRight ->
+                SpecificationUtils.hasGrantAccess(
+                    currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
+  }
+
+  private static boolean canAccessEveryInject(User user) {
+    return user.isAdminOrBypass() || user.getCapabilities().contains(Capability.ACCESS_ASSESSMENT);
   }
 
   private Page<InjectResultOutput> getPageOfInjectResultsForTarget(
-      Specification<Inject> targetScope, SearchPaginationInput searchPaginationInput) {
+      Specification<Inject> targetScope,
+      Specification<Inject> readable,
+      SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
-    User currentUser = userService.currentUser();
     Specification<Inject> customSpec =
         Specification.<Inject>unrestricted()
             .and((root, query, cb) -> cb.isNull(root.get("scenario")))
             .and(targetScope)
-            .and(
-                SpecificationUtils.hasGrantAccess(
-                    currentUser.getId(),
-                    currentUser.isAdminOrBypass(),
-                    currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
-                    Grant.GRANT_TYPE.OBSERVER));
+            .and(readable);
 
     return buildPaginationCriteriaBuilder(
         (Specification<Inject> specification,

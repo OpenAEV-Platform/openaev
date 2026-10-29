@@ -88,7 +88,7 @@ public interface ExerciseRepository
    */
   @Query(
       value =
-          " SELECT ex.exercise_id, "
+          " SELECT ex.exercise_id, ex.tenant_id, "
               + "ex.exercise_status, "
               + "ex.exercise_start_date, "
               + "ex.exercise_updated_at, "
@@ -114,7 +114,7 @@ public interface ExerciseRepository
    */
   @Query(
       value =
-          " SELECT ex.exercise_id, "
+          " SELECT ex.exercise_id, ex.tenant_id, "
               + "ex.exercise_status, "
               + "ex.exercise_start_date, "
               + "ex.exercise_updated_at, "

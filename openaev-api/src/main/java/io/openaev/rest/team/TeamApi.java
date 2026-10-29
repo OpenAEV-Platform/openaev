@@ -158,7 +158,7 @@ public class TeamApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String teamId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return injectSearchService.getPageOfInjectResultsForTeam(teamId, searchPaginationInput);
+    return injectSearchService.getPageOfInjectResultsForTeam(ctx, teamId, searchPaginationInput);
   }
 
   @GetMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})
