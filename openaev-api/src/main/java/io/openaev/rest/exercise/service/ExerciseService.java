@@ -237,7 +237,8 @@ public class ExerciseService {
    */
   public Optional<Exercise> findInScope(
       @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
-    return this.exerciseRepository.findByIdAndTenantIdIn(exerciseId, readScope(ctx));
+    return this.exerciseRepository.findByIdAndTenantIdIn(
+        exerciseId, TxCtxScopeUtils.requestReadScope(ctx));
   }
 
   /**
@@ -249,7 +250,7 @@ public class ExerciseService {
    */
   public Optional<Exercise> findByIdInScope(
       @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
-    Set<String> scope = readScope(ctx);
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
     return this.exerciseRepository
         .findById(exerciseId)
         .filter(exercise -> scope.contains(exercise.getTenant().getId()));
@@ -263,20 +264,10 @@ public class ExerciseService {
 
   /** Validates that the exercise exists inside the request's tenant scope. Throws if not. */
   public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
-    if (!this.exerciseRepository.existsByIdAndTenantIdIn(exerciseId, readScope(ctx))) {
+    if (!this.exerciseRepository.existsByIdAndTenantIdIn(
+        exerciseId, TxCtxScopeUtils.requestReadScope(ctx))) {
       throw new ElementNotFoundException("Exercise not found");
     }
-  }
-
-  /**
-   * The tenants a request reads exercises from by id: its resolved scope, or the v1 ambient tenant
-   * when the request resolves none (an anonymous or membership-less caller on the non-prefixed
-   * route), which is what such a caller read before. The fallback goes with the v1 filter when the
-   * table becomes tenant-isolated, where an empty scope reads nothing.
-   */
-  private static Set<String> readScope(final TxCtx ctx) {
-    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    return tenantIds.isEmpty() ? Set.of(TenantContext.getCurrentTenant()) : tenantIds;
   }
 
   /**

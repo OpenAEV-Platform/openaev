@@ -75,9 +75,10 @@ import org.springframework.transaction.annotation.Transactional;
  * refused with 400.
  *
  * <p>A simulation or scenario parent is looked up in the request scope: one outside it is not found
- * (404) and nothing is written. On the non-prefixed route with {@code X-Tenant-Ids} the lookup also
- * follows the ambient tenant, the default one on that route, until {@code exercises} and {@code
- * scenarios} are tenant-active, so a parent of another tenant fails closed there.
+ * (404) and nothing is written. A simulation parent is loaded by primary key and kept when its
+ * tenant lies in the scope, so a member reaches it on both routes. A scenario parent is looked up
+ * in the scope and, on the non-prefixed route, also follows the ambient tenant, the default one on
+ * that route, until {@code scenarios} is tenant-active.
  *
  * <p>The row tenant is read with raw JDBC on the test connection so the statement inspector never
  * rewrites the ground-truth read. {@code domains} is armed next to {@code documents} because the

@@ -168,6 +168,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public ExpectationsDriftOutput exerciseExpectationsDrift(
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
+    requireSimulationInScope(ctx, exerciseId);
     return expectationsDriftService.exerciseDrift(exerciseId);
   }
 
@@ -190,6 +191,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public ExpectationsRealignOutput realignExerciseExpectations(
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
+    requireSimulationInScope(ctx, exerciseId);
     return expectationsDriftService.realignExercise(ctx, exerciseId);
   }
 
@@ -212,7 +214,12 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    requireSimulationInScope(ctx, exerciseId);
     return expectationsDriftService.dismissExerciseDrift(exerciseId, input.dismissed());
+  }
+
+  private void requireSimulationInScope(final TxCtx ctx, final String exerciseId) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
   }
 
   // endregion

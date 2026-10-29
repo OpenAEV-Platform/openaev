@@ -497,7 +497,23 @@ public class ScenarioService {
    */
   public Optional<Scenario> findInScope(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
-    return this.scenarioRepository.findByIdAndTenantIdIn(scenarioId, readScope(ctx));
+    return this.scenarioRepository.findByIdAndTenantIdIn(
+        scenarioId, TxCtxScopeUtils.requestReadScope(ctx));
+  }
+
+  /**
+   * Loads a scenario by primary key and keeps it only when its tenant lies in the request's tenant
+   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
+   * the default one on the non-prefixed route: a member reaches its own scenario in any tenant of
+   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
+   * them refuses only what lies outside the scope.
+   */
+  public Optional<Scenario> findByIdInScope(
+      @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    return this.scenarioRepository
+        .findById(scenarioId)
+        .filter(scenario -> scope.contains(scenario.getTenant().getId()));
   }
 
   /** Loads a scenario inside the request's tenant scope. Throws if not found there. */
@@ -597,7 +613,7 @@ public class ScenarioService {
   /** The scenario of a simulation, provided it lies inside the request's tenant scope. */
   public Scenario scenarioFromSimulationId(
       @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
-    Set<String> scope = readScope(ctx);
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
     return this.scenarioRepository
         .findByExercises_Id(simulationId)
         .filter(scenario -> scope.contains(scenario.getTenant().getId()))
@@ -667,20 +683,10 @@ public class ScenarioService {
 
   /** Validates that the scenario exists inside the request's tenant scope. Throws if not. */
   public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
-    if (!this.scenarioRepository.existsByIdAndTenantIdIn(scenarioId, readScope(ctx))) {
+    if (!this.scenarioRepository.existsByIdAndTenantIdIn(
+        scenarioId, TxCtxScopeUtils.requestReadScope(ctx))) {
       throw new ElementNotFoundException("Scenario not found");
     }
-  }
-
-  /**
-   * The tenants a request reads scenarios from by id: its resolved scope, or the v1 ambient tenant
-   * when the request resolves none (an anonymous or membership-less caller on the non-prefixed
-   * route), which is what such a caller read before. The fallback goes with the v1 filter when the
-   * table becomes tenant-isolated, where an empty scope reads nothing.
-   */
-  private static Set<String> readScope(final TxCtx ctx) {
-    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    return tenantIds.isEmpty() ? Set.of(TenantContext.getCurrentTenant()) : tenantIds;
   }
 
   @Transactional(rollbackFor = Exception.class)
