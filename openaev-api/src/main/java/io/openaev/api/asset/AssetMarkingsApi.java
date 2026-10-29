@@ -61,13 +61,8 @@ public class AssetMarkingsApi extends RestBehavior {
             description = "Missing marking capability for what this payload changes"),
         @ApiResponse(responseCode = "404", description = "Asset or marking not found")
       })
-  // The @AccessControl WRITE check above answers "may you change what this asset carries" (same
-  // gate as other asset-write endpoints); it says nothing about markings specifically. Which of
-  // ASSIGN_MARKING / DELETE_MARKING_ASSIGNMENT this request additionally needs depends on the diff
-  // between the payload and the asset's current markings, so that check is done in
-  // AssetMarkingsService.updateAssetMarkings, which already loads the asset's current state - see
-  // its doc. Per-definition escalation (you may not assign a marking you do not hold yourself) is a
-  // separate, narrower check also enforced there, via MarkingEscalationValidator.
+  // MANAGE_MARKING_ASSIGNMENT and escalation are checked in
+  // AssetMarkingsService.updateAssetMarkings instead - see its doc.
   public AssetMarkingsOutput updateAssetMarkings(
       TxCtx ctx,
       @PathVariable @NotBlank final String assetId,

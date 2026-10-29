@@ -58,12 +58,7 @@ import org.springframework.transaction.annotation.Transactional;
  * ground truth of what actually reached the column.
  */
 @Transactional
-@WithMockUser(
-    withCapabilities = {
-      Capability.MANAGE_ASSETS,
-      Capability.ASSIGN_MARKING,
-      Capability.DELETE_MARKING_ASSIGNMENT
-    })
+@WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS, Capability.MANAGE_MARKING_ASSIGNMENT})
 @DisplayName("Asset markings API")
 class AssetMarkingsApiTest extends IntegrationTest {
 
@@ -290,18 +285,12 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given the caller holds neither marking capability, should refuse an addition with 403")
+        "given the caller lacks MANAGE_MARKING_ASSIGNMENT, should refuse an addition with 403")
     @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
     void given_noMarkingCapability_withAddition_should_forbid() throws Exception {
       // -- ACT / ASSERT --
-      // The asset starts unmarked, so replacing with GREEN is a pure addition, gated by
-      // ASSIGN_MARKING alone - mirrored from the single-asset endpoint's own diff.
-      //
-      // DELETE_MARKING_ASSIGNMENT is deliberately NOT granted here either: Capability.java declares
-      // it as a child of ASSIGN_MARKING (DELETE_MARKING_ASSIGNMENT(ASSIGN_MARKING, ...)), and
-      // Role.setCapabilities resolves parents on the way in, so holding DELETE_MARKING_ASSIGNMENT
-      // without ASSIGN_MARKING is not a constructible state - granting only the former would
-      // silently also grant the latter, making this test vacuous.
+      // The asset starts unmarked, so replacing with GREEN is a pure addition - still gated by
+      // MANAGE_MARKING_ASSIGNMENT, mirrored from the single-asset endpoint's own diff.
       bulkReplaceMarkings(List.of(asset.getId()), List.of(green.getId()))
           .andExpect(status().isForbidden());
       assertEquals(0, storedMarkings().length);
@@ -309,7 +298,7 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given the caller holds neither marking capability, should refuse a removal with 403")
+        "given the caller lacks MANAGE_MARKING_ASSIGNMENT, should refuse a removal with 403")
     @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
     void given_noMarkingCapability_withRemoval_should_forbid() throws Exception {
       // -- ARRANGE --
@@ -321,44 +310,8 @@ class AssetMarkingsApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -- ACT / ASSERT --
-      // GREEN dropped, nothing added - a pure removal, gated by DELETE_MARKING_ASSIGNMENT alone.
+      // GREEN dropped, nothing added - a pure removal, still gated by MANAGE_MARKING_ASSIGNMENT.
       bulkReplaceMarkings(List.of(asset.getId()), List.of()).andExpect(status().isForbidden());
-      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
-    }
-
-    @Test
-    @DisplayName(
-        "given the caller lacks DELETE_MARKING_ASSIGNMENT and the replace would remove a marking,"
-            + " should refuse with 403")
-    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS, Capability.ASSIGN_MARKING})
-    void given_missingDeleteCapability_withRemoval_should_forbid() throws Exception {
-      // -- ARRANGE --
-      entityManager.flush();
-      jdbc.update(
-          "UPDATE assets SET marking_ids = ? WHERE asset_id = ?",
-          (Object) new String[] {green.getId()},
-          asset.getId());
-      entityManager.clear();
-
-      // -- ACT / ASSERT --
-      // GREEN dropped, nothing added - a pure removal, the direction DELETE_MARKING_ASSIGNMENT
-      // gates.
-      bulkReplaceMarkings(List.of(asset.getId()), List.of()).andExpect(status().isForbidden());
-      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
-    }
-
-    @Test
-    @DisplayName(
-        "given the caller lacks DELETE_MARKING_ASSIGNMENT but the replace is a pure addition,"
-            + " should succeed")
-    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS, Capability.ASSIGN_MARKING})
-    void given_missingDeleteCapability_withPureAddition_should_succeed() throws Exception {
-      // -- ACT / ASSERT --
-      // The asset starts unmarked, so replacing with GREEN is a pure addition - the aggregate
-      // scope-wide diff never touches the DELETE direction, so the missing capability must not
-      // block it.
-      bulkReplaceMarkings(List.of(asset.getId()), List.of(green.getId()))
-          .andExpect(status().is2xxSuccessful());
       assertArrayEquals(new String[] {green.getId()}, storedMarkings());
     }
 

@@ -30,15 +30,9 @@ public interface AssetRepository
   Optional<Asset> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   /**
-   * Pessimistically locked lookup ({@code SELECT ... FOR UPDATE}) for the bulk marking-replace
-   * write path ({@code AssetMarkingsService.bulkReplaceAssetMarkings}). The per-direction {@code
-   * ASSIGN_MARKING}/{@code DELETE_MARKING_ASSIGNMENT} capability check runs upfront, in its own
-   * short transaction, against a snapshot of these assets' markings that can be stale by the time a
-   * later chunk actually writes - a concurrent request can add or remove a marking on one of them
-   * in between. Locking the row here and re-checking the diff against this freshly-locked state
-   * (not the upfront snapshot) closes that window: a concurrent writer either already committed
-   * before this lock is taken, so this read observes its change, or blocks until this transaction
-   * commits, so it cannot slip a change in while this chunk's diff is computed.
+   * Pessimistically locked lookup for the bulk marking-replace write path ({@code
+   * AssetMarkingsService.bulkReplaceAssetMarkings}), so its per-chunk capability re-check sees
+   * fresh state rather than the upfront scan's possibly-stale snapshot.
    */
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT a FROM Asset a WHERE a.id IN :ids")

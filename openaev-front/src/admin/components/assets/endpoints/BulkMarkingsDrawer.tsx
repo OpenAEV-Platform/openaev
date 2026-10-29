@@ -5,8 +5,6 @@ import { type FunctionComponent, useState } from 'react';
 import Drawer from '../../../../components/common/Drawer';
 import MarkingField from '../../../../components/fields/MarkingField';
 import { useFormatter } from '../../../../components/i18n';
-import { useAbility } from '../../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props {
   onClose: () => void;
@@ -19,22 +17,12 @@ interface Props {
 // pre-filled from any one row's markings, since the selection can span assets with different
 // marking sets - it always starts empty, see bulkReplaceAssetMarkings's doc.
 //
-// Mounted by the caller only while open ({condition && <BulkMarkingsDrawer ... />}, see
-// Drawer.tsx), so there is no `open` prop here - closing unmounts this component, which resets
-// its state for free.
+// Mounted by the caller only while open (no `open` prop here, see Drawer.tsx), gated on
+// MANAGE_MARKING_ASSIGNMENT by Endpoints.tsx's canBulkEditMarkings - no extra guard needed here.
 const BulkMarkingsDrawer: FunctionComponent<Props> = ({ onClose, onSubmit }) => {
   const { t } = useFormatter();
-  const ability = useAbility();
   const [markingIds, setMarkingIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // An empty submission clears every selected asset's markings server-side, which needs
-  // DELETE_MARKING_ASSIGNMENT for any asset in scope that currently carries one (see
-  // AssetMarkingsService#assertMarkingDirectionCapability) - this frontend cannot know in advance
-  // whether that is the case for every asset in a select-all scope, so a caller without the
-  // capability is blocked from submitting empty at all rather than discovering a 403 mid-bulk.
-  const canDeleteMarkingAssignment = ability.can(ACTIONS.DELETE, SUBJECTS.MARKING_ASSIGNMENT);
-  const emptySelectionBlocked = markingIds.length === 0 && !canDeleteMarkingAssignment;
 
   const handleClose = () => {
     if (isSubmitting) return;
@@ -42,7 +30,6 @@ const BulkMarkingsDrawer: FunctionComponent<Props> = ({ onClose, onSubmit }) => 
   };
 
   const handleSubmit = async () => {
-    if (emptySelectionBlocked) return;
     setIsSubmitting(true);
     try {
       await onSubmit(markingIds);
@@ -69,12 +56,9 @@ const BulkMarkingsDrawer: FunctionComponent<Props> = ({ onClose, onSubmit }) => 
           label={t('Markings')}
           fieldValue={markingIds}
           fieldOnChange={setMarkingIds}
-          error={emptySelectionBlocked
-            ? { type: 'manual', message: t('Select at least one marking, or ask for the Delete marking assignment capability to clear all markings.') }
-            : undefined}
         />
         <Box sx={{ textAlign: 'right' }}>
-          <Button type="button" variant="destructive" onClick={handleSubmit} loading={isSubmitting} disabled={emptySelectionBlocked}>
+          <Button type="button" variant="destructive" onClick={handleSubmit} loading={isSubmitting}>
             {t('Edit markings')}
           </Button>
         </Box>
