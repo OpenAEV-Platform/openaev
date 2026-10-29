@@ -17,7 +17,6 @@ import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.FileService;
-import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.organization.OrganizationService;
 import jakarta.annotation.Resource;
@@ -40,7 +39,6 @@ public class ExportService {
   @Resource private ArticleService articleService;
   @Resource private FileService fileService;
   @Resource private WorkflowService workflowService;
-  @Resource private WorkflowOwnerScope workflowOwnerScope;
   @Resource private WorkflowExportInitializer workflowExportInitializer;
   @Resource private OrganizationService organizationService;
 
@@ -76,14 +74,6 @@ public class ExportService {
   }
 
   public byte[] exportExerciseToZip(
-      Exercise exercise, int exportOptionsMask, boolean isWithScopeDefinition) throws IOException {
-    // The export carries the simulation's workflow, read in the simulation's own tenant whatever
-    // the caller's scope; the whole export runs there, as it serializes the workflow with the rest.
-    return workflowOwnerScope.call(
-        exercise, () -> writeExerciseZip(exercise, exportOptionsMask, isWithScopeDefinition));
-  }
-
-  private byte[] writeExerciseZip(
       Exercise exercise, int exportOptionsMask, boolean isWithScopeDefinition) throws IOException {
     ObjectMapper objectMapper = mapper.copy();
 
