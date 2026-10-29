@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.architecture.PinnedActiveTablesCatalog.Registration;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.config.TenantTables;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,10 @@ import org.junit.jupiter.api.Test;
  * relabelled from debt to deliberate moves both counts, and the debt cannot quietly regrow. A new
  * deliberate line raises {@link #DELIBERATE_SIZE} in review, with its reason in the line; a new
  * debt line is never added.
+ *
+ * <p>Every check holds on an empty baseline with no pin left, the state the debt count is driven
+ * towards. A check that the scan saw anything at all rests on classes that outlive the debt: this
+ * guard and the reader it compares against, never on a number of pins.
  */
 @DisplayName("A test class that pins the activation list says why")
 class PinnedActiveTablesArchTest {
@@ -49,16 +54,11 @@ class PinnedActiveTablesArchTest {
   /** How many lines are {@code drifts}. Lower it, never raise it. */
   static final int DEBT_SIZE = 128;
 
-  private static final Set<String> PRODUCTION = ProductionActiveTables.names();
-  private static final List<Class<?>> TEST_TREE = PinnedActiveTablesCatalog.testTreeClasses();
-  private static final Map<String, Set<String>> ANNOTATION_PINS =
-      PinnedActiveTablesCatalog.annotationPins(TEST_TREE);
-  private static final Map<String, Registration> DYNAMIC_REGISTRATIONS =
-      PinnedActiveTablesCatalog.dynamicRegistrations(TEST_TREE);
-  private static final Map<String, Registration> DYNAMIC_PINS =
-      PinnedActiveTablesCatalog.dynamicPins(DYNAMIC_REGISTRATIONS, PRODUCTION);
-  private static final List<PinnedActiveTablesBaseline.Entry> BASELINE =
-      PinnedActiveTablesBaseline.load();
+  private static final Scan SCAN =
+      Scan.of(
+          PinnedActiveTablesCatalog.testTreeClasses(),
+          PinnedActiveTablesBaseline.load(),
+          ProductionActiveTables.names());
 
   @Nested
   @DisplayName("The inventory it is built on")
@@ -71,33 +71,33 @@ class PinnedActiveTablesArchTest {
       List<Class<?>> fixtures = PinnedActiveTablesCatalog.fixtureClasses();
 
       // Act
-      Map<String, Set<String>> annotationPins = PinnedActiveTablesCatalog.annotationPins(fixtures);
-      Map<String, Registration> dynamicPins =
-          PinnedActiveTablesCatalog.dynamicPins(
-              PinnedActiveTablesCatalog.dynamicRegistrations(fixtures), PRODUCTION);
+      Scan scan = Scan.of(fixtures, List.of(), SCAN.production());
 
       // Assert
-      assertThat(annotationPins)
+      assertThat(scan.annotationPins())
           .containsEntry(
               PinnedActiveTablesFixtures.PinsThroughTestPropertySource.class.getName(),
               Set.of("documents", "tags"));
-      assertThat(PinnedActiveTablesCatalog.conflictingDeclarations(fixtures))
+      assertThat(scan.conflicts())
           .containsKeys(
               PinnedActiveTablesFixtures.DeclaresTheKeyTwice.class.getName(),
               PinnedActiveTablesFixtures.OverridesAnInheritedPin.class.getName());
-      assertThat(dynamicPins)
+      assertThat(scan.inherited())
+          .containsKeys(
+              PinnedActiveTablesFixtures.InheritsThePin.class.getName(),
+              PinnedActiveTablesFixtures.InheritsARegisteredPin.class.getName());
+      assertThat(scan.dynamicPins())
           .containsKey(PinnedActiveTablesFixtures.SubtractsOneTable.class.getName())
           .containsKey(PinnedActiveTablesFixtures.DelegatesToAHelper.class.getName())
-          .doesNotContainKey(PinnedActiveTablesFixtures.FollowsProduction.class.getName());
+          .doesNotContainKey(PinnedActiveTablesFixtures.FollowsProduction.class.getName())
+          .doesNotContainKey(PinnedActiveTablesFixtures.RegistersTheWildcard.class.getName());
     }
 
     @Test
-    @DisplayName("given the test tree, should find the pins and the registrations it holds")
-    void given_testTree_should_findThePinsAndTheRegistrationsItHolds() {
-      // Act & Assert: floors well under what the tree holds fail a broken scan, not a shrinking
-      // one
-      assertThat(ANNOTATION_PINS).hasSizeGreaterThan(100);
-      assertThat(DYNAMIC_REGISTRATIONS).hasSizeGreaterThan(10);
+    @DisplayName("given the test tree, should reach this guard and the reader it compares against")
+    void given_testTree_should_reachThisGuardAndItsReader() {
+      // Act & Assert: a scan that misses them read the wrong tree, so its silence means nothing
+      assertThat(SCAN.unreached()).isEmpty();
     }
   }
 
@@ -108,24 +108,8 @@ class PinnedActiveTablesArchTest {
     @Test
     @DisplayName("given the live pins, should find each one declared in the baseline")
     void given_livePins_should_allBeDeclared() {
-      // Arrange
-      Set<String> declared = new TreeSet<>();
-      BASELINE.forEach(entry -> declared.add(entry.testClass()));
-
       // Act
-      List<String> undeclared = new ArrayList<>();
-      livePins()
-          .forEach(
-              (testClass, column) -> {
-                if (!declared.contains(testClass)) {
-                  Registration registration = DYNAMIC_PINS.get(testClass);
-                  String failure =
-                      registration == null || registration.evaluated()
-                          ? ""
-                          : " (" + registration.failure() + ")";
-                  undeclared.add(testClass + " | " + column + " | <kind>: <why>" + failure);
-                }
-              });
+      List<String> undeclared = SCAN.undeclared();
 
       // Assert
       assertThat(undeclared)
@@ -144,12 +128,8 @@ class PinnedActiveTablesArchTest {
     @DisplayName(
         "given a class, should find it pinned by an annotation or a registration, not both")
     void given_aClass_should_pinByAnAnnotationOrARegistrationNotBoth() {
-      // Act
-      Set<String> both = new TreeSet<>(ANNOTATION_PINS.keySet());
-      both.retainAll(DYNAMIC_REGISTRATIONS.keySet());
-
-      // Assert
-      assertThat(both)
+      // Act & Assert
+      assertThat(SCAN.pinnedBothWays())
           .as("Spring lets the registration win over the annotation; keep one of the two")
           .isEmpty();
     }
@@ -158,7 +138,7 @@ class PinnedActiveTablesArchTest {
     @DisplayName("given a class, should find the key set in one annotation at most")
     void given_aClass_should_findTheKeySetInOneAnnotationAtMost() {
       // Act & Assert
-      assertThat(PinnedActiveTablesCatalog.conflictingDeclarations(TEST_TREE))
+      assertThat(SCAN.conflicts())
           .as(
               "These classes set %s in several annotations, inherited or repeated, and Spring"
                   + " keeps one by its own precedence; declare it once",
@@ -167,26 +147,22 @@ class PinnedActiveTablesArchTest {
     }
 
     @Test
+    @DisplayName("given a class, should not run with a pin it inherits from a type it extends")
+    void given_aClass_should_notRunWithAPinItInherits() {
+      // Act & Assert
+      assertThat(SCAN.inherited())
+          .as(
+              "These classes run with a pin declared on a class or interface they extend, whose"
+                  + " baseline reason was written for that type's assertions. Follow the"
+                  + " production list here, or move the pin to the class that runs")
+          .isEmpty();
+    }
+
+    @Test
     @DisplayName("given the baseline, should record each class's pinned list exactly")
     void given_baseline_should_recordEachPinnedListExactly() {
-      // Arrange
-      Map<String, String> live = livePins();
-
-      // Act
-      Map<String, String> mismatched = new TreeMap<>();
-      for (PinnedActiveTablesBaseline.Entry entry : BASELINE) {
-        String actual = live.get(entry.testClass());
-        String recorded = column(entry.tables());
-        if (actual == null) {
-          mismatched.put(
-              entry.testClass(), "no longer runs with less than production: remove the line");
-        } else if (!actual.equals(recorded)) {
-          mismatched.put(entry.testClass(), "recorded " + recorded + ", runs with " + actual);
-        }
-      }
-
-      // Assert
-      assertThat(mismatched)
+      // Act & Assert
+      assertThat(SCAN.mismatched())
           .as(
               "Lines of %s that no longer describe their class. Re-read the reason when a pin"
                   + " changes, then fix the line, or remove it and lower its count",
@@ -198,7 +174,7 @@ class PinnedActiveTablesArchTest {
     @DisplayName("given the baseline, should carry a classified reason on every line")
     void given_baseline_should_carryAClassifiedReasonOnEveryLine() {
       // Act & Assert
-      assertThat(PinnedActiveTablesBaseline.malformed(BASELINE))
+      assertThat(PinnedActiveTablesBaseline.malformed(SCAN.baseline()))
           .as("every line of " + PinnedActiveTablesBaseline.RESOURCE)
           .isEmpty();
     }
@@ -207,7 +183,7 @@ class PinnedActiveTablesArchTest {
     @DisplayName("given the production list, should hold no line past its until-active table")
     void given_productionList_should_holdNoLinePastItsUntilActiveTable() {
       // Act & Assert
-      assertThat(PinnedActiveTablesBaseline.expired(BASELINE, PRODUCTION))
+      assertThat(PinnedActiveTablesBaseline.expired(SCAN.baseline(), SCAN.production()))
           .as(
               "These lines rest on a table production has now activated. Re-judge each class:"
                   + " follow the production list, or rewrite the line with what it now shows")
@@ -220,52 +196,183 @@ class PinnedActiveTablesArchTest {
       // Act & Assert
       assertThat(
               PinnedActiveTablesBaseline.unknownUntilActive(
-                  BASELINE, BackgroundEntrypointTenantScopeArchTest.wildcardActivatedTables()))
+                  SCAN.baseline(),
+                  BackgroundEntrypointTenantScopeArchTest.wildcardActivatedTables()))
           .as("an until-active table must be a strict tenant table, or the line never expires")
           .isEmpty();
+    }
+
+    @Test
+    @DisplayName("given the terminal '*' as the production list, should expire every control line")
+    void given_terminalWildcardAsProductionList_should_expireEveryControlLine() {
+      // Act & Assert: '*' ends the rollout, so no mechanism a control line shows outlives it
+      assertThat(SCAN.outliving(ProductionActiveTables.armedBy(TenantTables.ALL_STRICT))).isEmpty();
     }
 
     @Test
     @DisplayName(
         "given the baseline, should hold exactly the pinned numbers of deliberate and debt")
     void given_baseline_should_holdExactlyThePinnedCounts() {
-      // Act
+      // Act & Assert
+      assertThat(SCAN.miscounted(DELIBERATE_SIZE, DEBT_SIZE)).isEmpty();
+    }
+  }
+
+  /**
+   * What the guard reads from a set of classes, and what it reports against a baseline. The tests
+   * above run it over the test tree; {@link PinnedActiveTablesRulesTest} runs it over fixtures.
+   */
+  record Scan(
+      List<Class<?>> classes,
+      Map<String, Set<String>> annotationPins,
+      Map<String, Registration> dynamicRegistrations,
+      Map<String, Registration> dynamicPins,
+      List<PinnedActiveTablesBaseline.Entry> baseline,
+      Set<String> production) {
+
+    /** The classes a scan of the test tree must reach for its silence to mean anything. */
+    static final List<Class<?>> REACHED =
+        List.of(PinnedActiveTablesArchTest.class, ProductionActiveTables.class);
+
+    static Scan of(
+        List<Class<?>> classes,
+        List<PinnedActiveTablesBaseline.Entry> baseline,
+        Set<String> production) {
+      Map<String, Registration> registrations =
+          PinnedActiveTablesCatalog.dynamicRegistrations(classes);
+      return new Scan(
+          classes,
+          PinnedActiveTablesCatalog.annotationPins(classes),
+          registrations,
+          PinnedActiveTablesCatalog.dynamicPins(registrations, production),
+          baseline,
+          production);
+    }
+
+    /**
+     * The classes of {@link #REACHED} the scan did not see. They are this guard and the reader it
+     * compares against, in two packages, so they stay in the test tree as long as the guard does: a
+     * scan that misses them read the wrong tree, while a tree with no pin left still passes.
+     */
+    List<String> unreached() {
+      Set<Class<?>> seen = Set.copyOf(classes);
+      return REACHED.stream().filter(type -> !seen.contains(type)).map(Class::getName).toList();
+    }
+
+    /** Each pinning class the baseline does not declare, written as the line it would need. */
+    List<String> undeclared() {
+      Set<String> declared = new TreeSet<>();
+      baseline.forEach(entry -> declared.add(entry.testClass()));
+      List<String> undeclared = new ArrayList<>();
+      livePins()
+          .forEach(
+              (testClass, column) -> {
+                if (!declared.contains(testClass)) {
+                  Registration registration = dynamicPins.get(testClass);
+                  String failure =
+                      registration == null || registration.evaluated()
+                          ? ""
+                          : " (" + registration.failure() + ")";
+                  undeclared.add(testClass + " | " + column + " | <kind>: <why>" + failure);
+                }
+              });
+      return undeclared;
+    }
+
+    Set<String> pinnedBothWays() {
+      Set<String> both = new TreeSet<>(annotationPins.keySet());
+      both.retainAll(dynamicRegistrations.keySet());
+      return both;
+    }
+
+    Map<String, List<String>> conflicts() {
+      return PinnedActiveTablesCatalog.conflictingDeclarations(classes);
+    }
+
+    Map<String, String> inherited() {
+      return PinnedActiveTablesCatalog.inheritedPins(classes, dynamicPins);
+    }
+
+    /** The baseline lines that no longer describe their class, each with what changed. */
+    Map<String, String> mismatched() {
+      Map<String, String> live = livePins();
+      Map<String, String> mismatched = new TreeMap<>();
+      for (PinnedActiveTablesBaseline.Entry entry : baseline) {
+        String actual = live.get(entry.testClass());
+        String recorded = column(entry.tables());
+        if (actual == null) {
+          mismatched.put(
+              entry.testClass(), "no longer runs with less than production: remove the line");
+        } else if (!actual.equals(recorded)) {
+          mismatched.put(entry.testClass(), "recorded " + recorded + ", runs with " + actual);
+        }
+      }
+      return mismatched;
+    }
+
+    /**
+     * The {@code control} lines an activation list arming {@code armed} would leave standing. A
+     * line is selected by its kind, not by a parsed {@code until-active}, so a control whose expiry
+     * failed to parse stands, and is reported, rather than drop out of the check.
+     */
+    List<String> outliving(Set<String> armed) {
+      List<PinnedActiveTablesBaseline.Entry> controls =
+          baseline.stream()
+              .filter(entry -> PinnedActiveTablesBaseline.EXPIRING_KIND.equals(entry.kind()))
+              .toList();
+      List<String> outliving = new ArrayList<>();
+      controls.stream()
+          .filter(entry -> entry.untilActive().stream().noneMatch(armed::contains))
+          .forEach(entry -> outliving.add("line " + entry.line() + " '" + entry.testClass() + "'"));
+      return outliving;
+    }
+
+    /** What is wrong with the two counts, empty when both match their constant. */
+    List<String> miscounted(int deliberateSize, int debtSize) {
       long deliberate =
-          BASELINE.stream()
+          baseline.stream()
               .filter(entry -> PinnedActiveTablesBaseline.DELIBERATE_KINDS.contains(entry.kind()))
               .count();
       long debt =
-          BASELINE.stream()
+          baseline.stream()
               .filter(entry -> PinnedActiveTablesBaseline.DEBT_KINDS.contains(entry.kind()))
               .count();
-
-      // Assert
-      assertThat(deliberate)
-          .as(
-              "The probe and control lines must number DELIBERATE_SIZE. Removed one? Lower the"
-                  + " constant. Added or relabelled one? That is the review call.")
-          .isEqualTo(DELIBERATE_SIZE);
-      assertThat(debt)
-          .as(
-              "The drifts lines must number DEBT_SIZE. Converted a class? Lower the constant. A"
-                  + " new class follows the production list instead.")
-          .isEqualTo(DEBT_SIZE);
+      List<String> miscounted = new ArrayList<>();
+      if (deliberate != deliberateSize) {
+        miscounted.add(
+            "The probe and control lines number "
+                + deliberate
+                + ", not DELIBERATE_SIZE "
+                + deliberateSize
+                + ". Removed one? Lower the constant. Added or relabelled one? That is the review"
+                + " call.");
+      }
+      if (debt != debtSize) {
+        miscounted.add(
+            "The drifts lines number "
+                + debt
+                + ", not DEBT_SIZE "
+                + debtSize
+                + ". Converted a class? Lower the constant. A new class follows the production"
+                + " list instead.");
+      }
+      return miscounted;
     }
-  }
 
-  /** The column each pinning class should carry, annotation and dynamic pins together. */
-  private static Map<String, String> livePins() {
-    Map<String, String> live = new TreeMap<>();
-    ANNOTATION_PINS.forEach((testClass, tables) -> live.put(testClass, column(tables)));
-    DYNAMIC_PINS.forEach(
-        (testClass, registration) -> live.put(testClass, column(registration.tables())));
-    return live;
-  }
-
-  private static String column(Set<String> tables) {
-    if (tables == null) {
-      return PinnedActiveTablesBaseline.UNEVALUATED;
+    /** The column each pinning class should carry, annotation and dynamic pins together. */
+    private Map<String, String> livePins() {
+      Map<String, String> live = new TreeMap<>();
+      annotationPins.forEach((testClass, tables) -> live.put(testClass, column(tables)));
+      dynamicPins.forEach(
+          (testClass, registration) -> live.put(testClass, column(registration.tables())));
+      return live;
     }
-    return tables.isEmpty() ? PinnedActiveTablesBaseline.NO_TABLES : String.join(",", tables);
+
+    private static String column(Set<String> tables) {
+      if (tables == null) {
+        return PinnedActiveTablesBaseline.UNEVALUATED;
+      }
+      return tables.isEmpty() ? PinnedActiveTablesBaseline.NO_TABLES : String.join(",", tables);
+    }
   }
 }

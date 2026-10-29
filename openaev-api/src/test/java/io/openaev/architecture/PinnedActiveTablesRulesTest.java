@@ -3,6 +3,7 @@ package io.openaev.architecture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
+import io.openaev.architecture.PinnedActiveTablesArchTest.Scan;
 import io.openaev.architecture.PinnedActiveTablesCatalog.Registration;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.AssumesOnTheReaderThenHardCodes;
@@ -11,19 +12,26 @@ import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.DelegatesAnoth
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.DelegatesToAHelper;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.FollowsProduction;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.FollowsProductionWithItsOwnTables;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.InheritsAFollower;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.InheritsARegisteredPin;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.InheritsThePin;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.InheritsThroughADiamond;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.NamesTheReaderOnlyInText;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.OverridesAnInheritedPin;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsAnEmptyList;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsNothing;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsThroughAComposedAnnotation;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsThroughARelaxedName;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsThroughAnInterface;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsThroughSpringBootTestWithColon;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsThroughTestPropertySource;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsWithAnInnerClass;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersARelaxedName;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersAnotherProperty;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersStateSetLater;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersTheKeyTwice;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersTheWildcard;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersTheWildcardBesideATable;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersThroughAConstant;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.SetsAnotherProperty;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.SubtractsOneTable;
@@ -144,6 +152,58 @@ class PinnedActiveTablesRulesTest {
     }
 
     @Test
+    @DisplayName(
+        "given one declaration reached through two interfaces, should report one pin, no conflict")
+    void given_oneDeclarationReachedThroughTwoInterfaces_should_reportOnePinAndNoConflict() {
+      // Arrange
+      List<Class<?>> classes = List.of(InheritsThroughADiamond.class);
+
+      // Act
+      Map<String, List<String>> conflicts =
+          PinnedActiveTablesCatalog.conflictingDeclarations(classes);
+      Map<String, Set<String>> pins = PinnedActiveTablesCatalog.annotationPins(classes);
+
+      // Assert
+      assertThat(conflicts).isEmpty();
+      assertThat(pins)
+          .containsExactly(Map.entry(PinsThroughAnInterface.class.getName(), Set.of("tags")));
+    }
+
+    @Test
+    @DisplayName(
+        "given a pin declared on a type the class extends, should report the class that inherits"
+            + " it")
+    void given_pinDeclaredOnATypeTheClassExtends_should_reportTheClassThatInheritsIt() {
+      // Arrange
+      List<Class<?>> classes =
+          List.of(
+              PinsThroughTestPropertySource.class,
+              InheritsThePin.class,
+              InheritsThroughADiamond.class,
+              SubtractsOneTable.class,
+              InheritsARegisteredPin.class,
+              PinsWithAnInnerClass.class,
+              PinsWithAnInnerClass.Inner.class,
+              FollowsProduction.class,
+              InheritsAFollower.class);
+      Map<String, Registration> dynamicPins =
+          PinnedActiveTablesCatalog.dynamicPins(
+              PinnedActiveTablesCatalog.dynamicRegistrations(classes),
+              ProductionActiveTables.names());
+
+      // Act
+      Map<String, String> inherited = PinnedActiveTablesCatalog.inheritedPins(classes, dynamicPins);
+
+      // Assert: an inner class shares its enclosing class's pin and reason, it does not inherit
+      assertThat(inherited)
+          .containsExactlyInAnyOrderEntriesOf(
+              Map.of(
+                  InheritsThePin.class.getName(), PinsThroughTestPropertySource.class.getName(),
+                  InheritsThroughADiamond.class.getName(), PinsThroughAnInterface.class.getName(),
+                  InheritsARegisteredPin.class.getName(), SubtractsOneTable.class.getName()));
+    }
+
+    @Test
     @DisplayName("given the fixture holder, should not report a class that pins nothing")
     void given_fixtureHolder_should_notReportAClassThatPinsNothing() {
       // Act
@@ -218,6 +278,40 @@ class PinnedActiveTablesRulesTest {
                   AssumesOnTheReaderThenHardCodes.class.getName(), Registration.of(Set.of("tags")),
                   RegistersThroughAConstant.class.getName(), Registration.of(Set.of("tags")),
                   RegistersARelaxedName.class.getName(), Registration.of(Set.of("tags"))));
+    }
+
+    @Test
+    @DisplayName("given a registration of the terminal '*', should read it as production reads it")
+    void given_registrationOfTheTerminalWildcard_should_readItAsProductionReadsIt() {
+      // Act
+      Map<String, Registration> registrations =
+          PinnedActiveTablesCatalog.dynamicRegistrations(List.of(RegistersTheWildcard.class));
+
+      // Assert
+      assertThat(registrations)
+          .containsExactly(
+              Map.entry(
+                  RegistersTheWildcard.class.getName(),
+                  Registration.of(ProductionActiveTables.armedBy(TenantTables.ALL_STRICT))));
+      assertThat(PinnedActiveTablesCatalog.dynamicPins(registrations, production)).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given the terminal '*' registered beside a table, should report it as production refuses"
+            + " it")
+    void given_terminalWildcardRegisteredBesideATable_should_reportItAsProductionRefusesIt() {
+      // Act
+      Map<String, Registration> pins =
+          PinnedActiveTablesCatalog.dynamicPins(
+              PinnedActiveTablesCatalog.dynamicRegistrations(
+                  List.of(RegistersTheWildcardBesideATable.class)),
+              production);
+
+      // Assert
+      assertThat(pins).containsOnlyKeys(RegistersTheWildcardBesideATable.class.getName());
+      assertThat(pins.get(RegistersTheWildcardBesideATable.class.getName()).failure())
+          .contains("not both");
     }
 
     @Test
@@ -390,24 +484,69 @@ class PinnedActiveTablesRulesTest {
               p -> assertThat(p).contains("io.openaev.WaitsOnScenarios").endsWith("scenarios"),
               p -> assertThat(p).contains("io.openaev.WaitsOnExercises").endsWith("exercises"));
     }
+  }
+
+  @Nested
+  @DisplayName("The end state")
+  class TheEndState {
+
+    private final Set<String> production = ProductionActiveTables.names();
 
     @Test
-    @DisplayName("given the terminal '*' as the production list, should expire every control line")
-    void given_terminalWildcardAsProductionList_should_expireEveryControlLine() {
-      // Arrange
-      List<PinnedActiveTablesBaseline.Entry> controls =
-          PinnedActiveTablesBaseline.load().stream()
-              .filter(entry -> !entry.untilActive().isEmpty())
-              .toList();
+    @DisplayName("given an empty baseline and no pin left, should report nothing")
+    void given_emptyBaselineAndNoPinLeft_should_reportNothing() {
+      // Arrange: the tree once the debt is paid, this guard and its reader still in it
+      List<Class<?>> tree =
+          List.of(
+              PinnedActiveTablesArchTest.class,
+              ProductionActiveTables.class,
+              PinsNothing.class,
+              FollowsProduction.class);
 
       // Act
-      List<String> expired =
-          PinnedActiveTablesBaseline.expired(
-              controls, ProductionActiveTables.armedBy(TenantTables.ALL_STRICT));
+      Scan scan = Scan.of(tree, List.of(), production);
 
-      // Assert: '*' is the end of the rollout, so no mechanism a control line shows outlives it
-      assertThat(controls).isNotEmpty();
-      assertThat(expired).hasSameSizeAs(controls);
+      // Assert
+      assertThat(scan.unreached()).isEmpty();
+      assertThat(scan.undeclared()).isEmpty();
+      assertThat(scan.pinnedBothWays()).isEmpty();
+      assertThat(scan.conflicts()).isEmpty();
+      assertThat(scan.inherited()).isEmpty();
+      assertThat(scan.mismatched()).isEmpty();
+      assertThat(PinnedActiveTablesBaseline.malformed(scan.baseline())).isEmpty();
+      assertThat(PinnedActiveTablesBaseline.expired(scan.baseline(), production)).isEmpty();
+      assertThat(scan.outliving(ProductionActiveTables.armedBy(TenantTables.ALL_STRICT))).isEmpty();
+      assertThat(scan.miscounted(0, 0)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given a scan that missed this guard and its reader, should report both")
+    void given_scanThatMissedThisGuardAndItsReader_should_reportBoth() {
+      // Act
+      Scan scan = Scan.of(List.of(PinsNothing.class), List.of(), production);
+
+      // Assert
+      assertThat(scan.unreached())
+          .containsExactlyInAnyOrder(
+              PinnedActiveTablesArchTest.class.getName(), ProductionActiveTables.class.getName());
+    }
+
+    @Test
+    @DisplayName("given a control line whose expiry did not parse, should report it still standing")
+    void given_controlLineWhoseExpiryDidNotParse_should_reportItStillStanding() {
+      // Arrange
+      List<PinnedActiveTablesBaseline.Entry> baseline =
+          List.of(
+              new PinnedActiveTablesBaseline.Entry(
+                  1, "io.openaev.Control", Set.of("tags"), "control", Set.of(), "leaves it off"));
+
+      // Act
+      Scan scan = Scan.of(List.of(), baseline, production);
+
+      // Assert
+      assertThat(scan.outliving(ProductionActiveTables.armedBy(TenantTables.ALL_STRICT)))
+          .singleElement()
+          .satisfies(line -> assertThat(line).contains("io.openaev.Control"));
     }
   }
 }

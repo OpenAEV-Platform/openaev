@@ -57,6 +57,22 @@ public final class PinnedActiveTablesFixtures {
 
   public static class PinsNothing {}
 
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  public interface PinsThroughAnInterface {}
+
+  public interface LeftBranch extends PinsThroughAnInterface {}
+
+  public interface RightBranch extends PinsThroughAnInterface {}
+
+  /** Reaches one declaration through two interfaces: one pin, not a conflict. */
+  public static class InheritsThroughADiamond implements LeftBranch, RightBranch {}
+
+  /** A nested class is part of the class that declares the pin, so it does not inherit it. */
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  public static class PinsWithAnInnerClass {
+    public class Inner {}
+  }
+
   // -- DYNAMIC SHAPES --
 
   public static class FollowsProduction {
@@ -116,6 +132,27 @@ public final class PinnedActiveTablesFixtures {
       registry.add(Keys.ACTIVE_TABLES, () -> "tags");
     }
   }
+
+  /** Registers the terminal wildcard, which production reads as every table it arms. */
+  public static class RegistersTheWildcard {
+    @DynamicPropertySource
+    static void tables(DynamicPropertyRegistry registry) {
+      registry.add("openaev.tenant.active-tables", () -> " * ");
+    }
+  }
+
+  /** Production refuses the wildcard beside a table at startup. */
+  public static class RegistersTheWildcardBesideATable {
+    @DynamicPropertySource
+    static void tables(DynamicPropertyRegistry registry) {
+      registry.add("openaev.tenant.active-tables", () -> "*,tags");
+    }
+  }
+
+  /** Runs with the registration its parent makes. */
+  public static class InheritsARegisteredPin extends SubtractsOneTable {}
+
+  public static class InheritsAFollower extends FollowsProduction {}
 
   public static class RegistersARelaxedName {
     @DynamicPropertySource

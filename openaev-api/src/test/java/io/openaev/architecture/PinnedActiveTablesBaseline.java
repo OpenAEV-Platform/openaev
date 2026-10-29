@@ -36,6 +36,12 @@ import java.util.regex.Pattern;
  * </ul>
  *
  * <p>The kind is followed by a written explanation of at least {@value #MIN_WORDS} words.
+ *
+ * <p>The guard checks a line's list, never its reason. Only a {@code control} line expires on its
+ * own. A {@code probe} or {@code drifts} reason is judged against the production list of the day it
+ * is written, and trusted until the line is touched again: when production later activates a table
+ * a probe's flow reads, nothing here fails, and the line keeps a reason that may no longer hold.
+ * Re-read the probe lines of the flows an activation reaches as part of that activation.
  */
 final class PinnedActiveTablesBaseline {
 
@@ -46,7 +52,7 @@ final class PinnedActiveTablesBaseline {
   static final String UNEVALUATED = "unevaluated";
   static final int MIN_WORDS = 6;
 
-  private static final String EXPIRING_KIND = "control";
+  static final String EXPIRING_KIND = "control";
   private static final Pattern CLASS_NAME = Pattern.compile("[a-zA-Z_][\\w.$]*\\.[A-Z][\\w$]*");
   private static final Pattern REASON =
       Pattern.compile(

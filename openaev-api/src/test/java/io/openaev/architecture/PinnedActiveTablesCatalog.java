@@ -6,6 +6,7 @@ import com.tngtech.archunit.core.domain.JavaCodeUnitAccess;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.core.importer.Location;
+import io.openaev.config.ProductionActiveTables;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -57,10 +58,13 @@ import org.springframework.test.context.support.TestPropertySourceUtils;
  * have to copy. Every such annotation is a site, whatever it lists: its value is fixed when it is
  * written, so it cannot follow the next table production activates. A {@code DynamicPropertySource}
  * method is judged by what it registers: it is invoked with a recording registry, and the value
- * registered for the key is read. A class follows production only when every value it registers
+ * registered for the key is read the way production reads its own list ({@link
+ * ProductionActiveTables#armedBy}), so a registered {@code *} is the tables it arms and {@code *}
+ * beside a table cannot be evaluated. A class follows production only when every value it registers
  * holds the whole production list; anything else, including a registration that cannot be
- * evaluated, is a site. The key is matched as Spring Boot binds it, so a relaxed spelling such as
- * {@code activeTables} counts.
+ * evaluated, is a site. A class that runs with a pin declared on a type it extends is refused
+ * ({@link #inheritedPins}). The key is matched as Spring Boot binds it, so a relaxed spelling such
+ * as {@code activeTables} counts.
  *
  * <p>The registration methods of a class are invoked only when the key can be among what they
  * register: its class file holds the text {@code openaev.tenant}, or a test-tree class those
@@ -183,27 +187,74 @@ final class PinnedActiveTablesCatalog {
   /**
    * Every annotation that sets the key for a class, searched where Spring searches: the class
    * itself (repeated and composed annotations included), its interfaces, its superclasses and, for
-   * an inner class that inherits its configuration, its enclosing classes.
+   * an inner class that inherits its configuration, its enclosing classes. A type reached by more
+   * than one path, an interface two branches of a diamond both extend, is read once: what it
+   * declares is one declaration, however many paths lead to it. Annotations repeated on one type
+   * stay separate declarations.
    */
   static List<Declaration> declarations(Class<?> testClass) {
     List<Declaration> found = new ArrayList<>();
-    collectDeclarations(testClass, found);
+    collectDeclarations(testClass, new HashSet<>(), found);
     return found;
   }
 
-  private static void collectDeclarations(Class<?> type, List<Declaration> found) {
+  private static void collectDeclarations(
+      Class<?> type, Set<Class<?>> visited, List<Declaration> found) {
+    if (!visited.add(type)) {
+      return;
+    }
     MergedAnnotations annotations = MergedAnnotations.from(type, SearchStrategy.DIRECT);
     Stream.of(TestPropertySource.class, SpringBootTest.class)
         .flatMap(annotations::stream)
         .forEach(annotation -> collect(annotation, found));
     for (Class<?> parent : type.getInterfaces()) {
-      collectDeclarations(parent, found);
+      collectDeclarations(parent, visited, found);
     }
     if (type.getSuperclass() != null && type.getSuperclass() != Object.class) {
-      collectDeclarations(type.getSuperclass(), found);
+      collectDeclarations(type.getSuperclass(), visited, found);
     }
     if (TestContextAnnotationUtils.searchEnclosingClass(type)) {
-      collectDeclarations(type.getEnclosingClass(), found);
+      collectDeclarations(type.getEnclosingClass(), visited, found);
+    }
+  }
+
+  /**
+   * The classes that run with a pin declared on a class or interface they extend, each with the
+   * type that declares it. Spring hands such a class the pin, but the pin's baseline reason was
+   * written for the declaring type's assertions, not this class's, so the shape is refused rather
+   * than read as covered by that line. A pin reached through an enclosing class is not inherited in
+   * this sense: an inner class is part of the class that declares it, and that line covers it.
+   */
+  static Map<String, String> inheritedPins(
+      Collection<Class<?>> classes, Map<String, Registration> dynamicPins) {
+    Map<String, String> inherited = new TreeMap<>();
+    for (Class<?> testClass : classes) {
+      Set<String> supertypes = new HashSet<>();
+      collectSupertypes(testClass, supertypes);
+      declarations(testClass).stream()
+          .map(Declaration::site)
+          .filter(supertypes::contains)
+          .findFirst()
+          .ifPresent(site -> inherited.put(testClass.getName(), site));
+      for (Class<?> parent = testClass.getSuperclass();
+          parent != null && !inherited.containsKey(testClass.getName());
+          parent = parent.getSuperclass()) {
+        if (dynamicPins.containsKey(parent.getName())) {
+          inherited.put(testClass.getName(), parent.getName());
+        }
+      }
+    }
+    return inherited;
+  }
+
+  private static void collectSupertypes(Class<?> type, Set<String> supertypes) {
+    for (Class<?> parent : type.getInterfaces()) {
+      if (supertypes.add(parent.getName())) {
+        collectSupertypes(parent, supertypes);
+      }
+    }
+    if (type.getSuperclass() != null && supertypes.add(type.getSuperclass().getName())) {
+      collectSupertypes(type.getSuperclass(), supertypes);
     }
   }
 
@@ -301,7 +352,7 @@ final class PinnedActiveTablesCatalog {
     List<Registration> registered = new ArrayList<>();
     for (Supplier<Object> supplier : suppliers) {
       try {
-        registered.add(Registration.of(tables(supplier.get())));
+        registered.add(Registration.of(armedBy(supplier.get())));
       } catch (RuntimeException | LinkageError e) {
         registered.add(Registration.unevaluated(where + " supplier threw " + e));
       }
@@ -309,14 +360,18 @@ final class PinnedActiveTablesCatalog {
     return registered;
   }
 
-  private static Set<String> tables(Object value) {
+  /**
+   * The tables a registered value arms, read by the production reader: the terminal {@code *} is
+   * the tables it arms, and {@code *} beside a table throws, as production refuses it at startup.
+   */
+  private static Set<String> armedBy(Object value) {
     if (value instanceof Collection<?> collection) {
-      return tables(collection.stream().map(String::valueOf).collect(Collectors.joining(",")));
+      return armedBy(collection.stream().map(String::valueOf).collect(Collectors.joining(",")));
     }
     if (value instanceof Object[] array) {
-      return tables(Arrays.stream(array).map(String::valueOf).collect(Collectors.joining(",")));
+      return armedBy(Arrays.stream(array).map(String::valueOf).collect(Collectors.joining(",")));
     }
-    return tables(String.valueOf(value));
+    return ProductionActiveTables.armedBy(String.valueOf(value));
   }
 
   /**
