@@ -78,11 +78,11 @@ import org.springframework.test.web.servlet.ResultActions;
  *
  * <p>The tests cover every lazy association these responses serialize that can be seeded without an
  * inject: team tags, users, organization, simulations, scenarios and simulation players; player
- * tags, teams, organization and simulation players. Every endpoint returning a raw team is covered:
- * read, edit, players update and upsert. They run with the production list of isolated tables plus
- * {@code exercises} and {@code scenarios}, which a team reaches through its simulations and
- * scenarios: activating another table that one of these associations reaches makes them fail until
- * the association is loaded inside the scope too.
+ * tags, teams, organization and simulation players. Every {@code TeamApi} endpoint returning a raw
+ * team is covered except create: read, edit, players update and upsert. They run with the
+ * production list of isolated tables plus {@code exercises} and {@code scenarios}, which a team
+ * reaches through its simulations and scenarios: activating another table that one of these
+ * associations reaches makes them fail until the association is loaded inside the scope too.
  *
  * <p>The class is deliberately NOT {@code @Transactional}: a rolled-back test transaction never
  * commits, so the tenant-local GUC would stay alive through serialization and MASK the very failure
