@@ -475,7 +475,10 @@ class ExerciseServiceUnitTest {
       String exerciseId = "exercise-123";
       List<String> teamIds = List.of("team-1", "team-2");
 
-      mockedExerciseService.removeTeams(exerciseId, teamIds);
+      when(exerciseRepository.existsByIdAndTenantIdIn(exerciseId, Set.of("tenant-1")))
+          .thenReturn(true);
+
+      mockedExerciseService.removeTeams(TxCtx.forTenant("tenant-1"), exerciseId, teamIds);
 
       verify(exerciseRepository).removeTeams(exerciseId, teamIds);
       verify(exerciseTeamUserRepository).deleteByExerciseIdAndTeamIds(exerciseId, teamIds);

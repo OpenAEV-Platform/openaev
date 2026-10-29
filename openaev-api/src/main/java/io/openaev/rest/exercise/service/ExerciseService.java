@@ -291,7 +291,14 @@ public class ExerciseService {
     return exercise;
   }
 
-  public RawSimulationIndexing rawSimulation(@NotBlank final String simulationId) {
+  /**
+   * Reads the details of a simulation found inside the request's tenant scope. The native read
+   * itself keys on the v1 ambient tenant, the default one on the non-prefixed route, so the scope
+   * is checked first.
+   */
+  public RawSimulationIndexing rawSimulation(
+      @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
+    existsInScope(ctx, simulationId);
     RawSimulationIndexing rawSimulation = exerciseRepository.rawDetailsById(simulationId);
     if (rawSimulation == null) {
       throw new ElementNotFoundException("Simulation not found");
@@ -311,8 +318,9 @@ public class ExerciseService {
   }
 
   @Transactional(readOnly = true)
-  public List<TeamOutput> getExerciseTeams(@NotBlank final String exerciseId) {
-    String workflowId = rawSimulation(exerciseId).getExercise_workflow_id();
+  public List<TeamOutput> getExerciseTeams(
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    String workflowId = rawSimulation(ctx, exerciseId).getExercise_workflow_id();
     return StringUtils.hasText(workflowId)
         ? getWorkflowExerciseTeams(exerciseId, workflowId)
         : getTimeBasedExerciseTeams(exerciseId);
@@ -349,8 +357,8 @@ public class ExerciseService {
    * @return the persisted duplicate
    */
   @Transactional
-  public Exercise duplicateExercise(@NotBlank String exerciseId) {
-    Exercise duplicate = copyExerciseContent(exerciseId);
+  public Exercise duplicateExercise(@NotNull TxCtx ctx, @NotBlank String exerciseId) {
+    Exercise duplicate = copyExerciseContent(ctx, exerciseId);
     duplicateChainingWorkflowIfAny(exerciseId, duplicate);
     return duplicate;
   }
@@ -381,7 +389,7 @@ public class ExerciseService {
 
   /**
    * Duplicates a simulation's authored content only, without its chaining logic map. Use {@link
-   * #duplicateExercise(String)} for the full duplicate.
+   * #duplicateExercise(TxCtx, String)} for the full duplicate.
    *
    * @param exerciseId the source simulation
    * @return the persisted duplicate
@@ -392,12 +400,21 @@ public class ExerciseService {
   }
 
   /**
-   * The metadata copy itself, shared by both public entry points. Free of {@code @Transactional} so
-   * neither trips the Spring self-invocation trap. Package-private so it can be stubbed when
-   * unit-testing the orchestration.
+   * The metadata copy itself, of a simulation found inside the request's tenant scope. Free of
+   * {@code @Transactional} so both public entry points can call it without tripping the Spring
+   * self-invocation trap. Package-private so it can be stubbed when unit-testing the orchestration.
    */
+  Exercise copyExerciseContent(@NotNull TxCtx ctx, @NotBlank String exerciseId) {
+    return copyExerciseContent(exercise(ctx, exerciseId));
+  }
+
+  /** The metadata copy of a simulation of the current tenant, for work without a request scope. */
   Exercise copyExerciseContent(@NotBlank String exerciseId) {
-    Exercise exerciseOrigin = exercise(exerciseId);
+    return copyExerciseContent(exercise(exerciseId));
+  }
+
+  private Exercise copyExerciseContent(@NotNull Exercise exerciseOrigin) {
+    String exerciseId = exerciseOrigin.getId();
     Exercise exercise = copyExercise(exerciseOrigin);
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
@@ -1063,8 +1080,8 @@ public class ExerciseService {
   }
 
   public List<InjectExpectationResultsByAttackPattern> extractExpectationResultsByAttackPattern(
-      String exerciseId) {
-    Exercise exercise = exercise(exerciseId);
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    Exercise exercise = exercise(ctx, exerciseId);
     return resultUtils.computeInjectExpectationResults(exercise.getInjects());
   }
 
@@ -1300,7 +1317,11 @@ public class ExerciseService {
   // -- TEAMS --
   @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
-      @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
+      @NotNull final TxCtx ctx,
+      @NotBlank final String exerciseId,
+      @NotNull final List<String> teamIds) {
+    // The deletes below key on the exercise id alone
+    existsInScope(ctx, exerciseId);
     // Remove teams from exercise
     this.exerciseRepository.removeTeams(exerciseId, teamIds);
     // Remove only associations for this exercise

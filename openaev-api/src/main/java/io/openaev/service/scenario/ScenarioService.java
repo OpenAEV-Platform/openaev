@@ -525,7 +525,13 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
-  public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
+  /**
+   * Reads a scenario found inside the request's tenant scope. The native read itself keys on the v1
+   * ambient tenant, the default one on the non-prefixed route, so the scope is checked first.
+   */
+  public ScenarioOutput getScenarioById(
+      @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    existsInScope(ctx, scenarioId);
     RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {
       throw new ElementNotFoundException("Scenario not found");
@@ -562,7 +568,9 @@ public class ScenarioService {
    * @return the available teams for lessons
    */
   @Transactional(readOnly = true)
-  public List<TeamOutput> getScenarioTeams(@NotBlank final String scenarioId) {
+  public List<TeamOutput> getScenarioTeams(
+      @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    existsInScope(ctx, scenarioId);
     RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {
       throw new ElementNotFoundException("Scenario not found");
@@ -586,9 +594,13 @@ public class ScenarioService {
     return this.teamService.find(fromScenario(scenarioId));
   }
 
-  public Scenario scenarioFromSimulationId(@NotBlank final String simulationId) {
+  /** The scenario of a simulation, provided it lies inside the request's tenant scope. */
+  public Scenario scenarioFromSimulationId(
+      @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
+    Set<String> scope = readScope(ctx);
     return this.scenarioRepository
         .findByExercises_Id(simulationId)
+        .filter(scenario -> scope.contains(scenario.getTenant().getId()))
         .orElseThrow(
             () ->
                 new ElementNotFoundException("Scenario not found for simulation: " + simulationId));
@@ -1036,7 +1048,11 @@ public class ScenarioService {
 
   @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
-      @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
+      @NotNull final TxCtx ctx,
+      @NotBlank final String scenarioId,
+      @NotNull final List<String> teamIds) {
+    // The deletes below key on the scenario id alone
+    existsInScope(ctx, scenarioId);
     // Remove teams from scenario
     this.scenarioRepository.removeTeams(scenarioId, teamIds);
     // Remove only associations for this scenario
