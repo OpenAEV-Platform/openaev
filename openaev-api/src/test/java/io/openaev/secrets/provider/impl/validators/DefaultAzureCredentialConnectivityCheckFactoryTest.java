@@ -55,6 +55,13 @@ class DefaultAzureCredentialConnectivityCheckFactoryTest {
     }
 
     @Test
+    @DisplayName("The shared client is exposed for the probe's own calls")
+    void given_factory_should_exposeItsSharedClient() {
+      // Assert
+      assertThat(factory.httpClient()).isSameAs(httpClient);
+    }
+
+    @Test
     @DisplayName("The client is released when the factory is destroyed")
     void given_destroy_should_closeTheClient() throws IOException {
       // Act

@@ -7,20 +7,23 @@ import com.azure.core.exception.ClientAuthenticationException;
 import com.azure.core.exception.HttpResponseException;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
-import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.AzureEnvironments;
 import io.openaev.secrets.provider.SecretConnectionResult;
+import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpResponse;
-import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -56,7 +59,15 @@ public class AzureCredentialConnectivityCheck {
   private static final String SUBSCRIPTION_API_VERSION = "2022-12-01";
 
   private final AzureCredentialConnectivityCheckFactory tokenCredentialFactory;
-  private final HttpClientFactory httpClientFactory;
+
+  /** Cancels a subscription probe that outlives its deadline. */
+  private final ScheduledExecutorService deadlines =
+      Executors.newSingleThreadScheduledExecutor(
+          runnable -> {
+            Thread thread = new Thread(runnable, "azure-probe-deadline");
+            thread.setDaemon(true);
+            return thread;
+          });
 
   @Value("${openaev.credentials.status-validation.timeout-seconds:10}")
   private int timeoutSeconds;
@@ -156,20 +167,42 @@ public class AzureCredentialConnectivityCheck {
                 + "?api-version="
                 + SUBSCRIPTION_API_VERSION);
 
-    // Built by the platform's factory so the probe trusts the same extra certificates and goes
-    // through the same proxy as the SDK.
-    try (CloseableHttpClient httpClient =
-        httpClientFactory.httpClientNoRetryWithProxy(Timeout.of(timeout))) {
-      HttpGet request = new HttpGet(uri);
-      request.addHeader("Authorization", "Bearer " + token);
-      Integer statusCode = httpClient.execute(request, ClassicHttpResponse::getCode);
+    HttpGet request = new HttpGet(uri);
+    request.addHeader("Authorization", "Bearer " + token);
+
+    // The client's timeouts bound the connect, the handshake and each read, not the whole call: a
+    // server trickling its response keeps resetting them. The deadline caps the call itself.
+    AtomicBoolean deadlineExpired = new AtomicBoolean();
+    ScheduledFuture<?> deadline =
+        deadlines.schedule(
+            () -> {
+              deadlineExpired.set(true);
+              request.cancel();
+            },
+            timeout.toMillis(),
+            TimeUnit.MILLISECONDS);
+    // The factory's client is shared: it trusts the same extra certificates and goes through the
+    // same proxy as the SDK, and is not ours to close.
+    try {
+      Integer statusCode =
+          tokenCredentialFactory.httpClient().execute(request, ClassicHttpResponse::getCode);
       return mapStatusCode(statusCode);
     } catch (SocketTimeoutException e) {
       // Also covers Apache's ConnectTimeoutException, which extends it.
       return SecretConnectionResult.timeout();
     } catch (IOException e) {
-      return SecretConnectionResult.networkError();
+      // A request cancelled by the deadline surfaces as a plain I/O failure.
+      return deadlineExpired.get()
+          ? SecretConnectionResult.timeout()
+          : SecretConnectionResult.networkError();
+    } finally {
+      deadline.cancel(false);
     }
+  }
+
+  @PreDestroy
+  void shutdown() {
+    deadlines.shutdownNow();
   }
 
   private SecretConnectionResult mapStatusCode(int statusCode) {

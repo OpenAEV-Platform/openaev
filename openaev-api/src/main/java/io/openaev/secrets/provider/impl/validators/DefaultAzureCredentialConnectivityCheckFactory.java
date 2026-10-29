@@ -43,6 +43,11 @@ public class DefaultAzureCredentialConnectivityCheckFactory
     this.azureHttpClient = new ApacheAzureHttpClient(apacheHttpClient);
   }
 
+  @Override
+  public CloseableHttpClient httpClient() {
+    return apacheHttpClient;
+  }
+
   @PreDestroy
   void close() {
     try {

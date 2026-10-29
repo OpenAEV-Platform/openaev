@@ -18,11 +18,11 @@ import com.azure.core.exception.HttpResponseException;
 import com.azure.core.http.HttpResponse;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
-import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.concurrent.TimeoutException;
 import org.apache.hc.client5.http.ConnectTimeoutException;
@@ -30,7 +30,7 @@ import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
-import org.apache.hc.core5.util.Timeout;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -50,8 +50,7 @@ import reactor.core.publisher.Mono;
  * Unit tests for the Azure credential probe.
  *
  * <p>No test here reaches the network: the token exchange is a stubbed credential, and the ARM
- * subscription read goes through a mocked Apache client handed out by the mocked {@link
- * HttpClientFactory}.
+ * subscription read goes through the mocked Apache client the mocked credential factory shares.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AzureCredentialValidator tests")
@@ -62,7 +61,6 @@ class AzureCredentialConnectivityCheckTest {
   private static final int TIMEOUT_SECONDS = 1;
 
   @Mock private AzureCredentialConnectivityCheckFactory tokenCredentialFactory;
-  @Mock private HttpClientFactory httpClientFactory;
   @Mock private CloseableHttpClient httpClient;
   @Mock private TokenCredential tokenCredential;
 
@@ -70,10 +68,15 @@ class AzureCredentialConnectivityCheckTest {
 
   @BeforeEach
   void setUp() {
-    validator = new AzureCredentialConnectivityCheck(tokenCredentialFactory, httpClientFactory);
+    validator = new AzureCredentialConnectivityCheck(tokenCredentialFactory);
     // The timeout is a @Value field: without a Spring context it stays 0, which the validator
     // would clamp to 1s anyway — set it explicitly so the intent is visible.
     ReflectionTestUtils.setField(validator, "timeoutSeconds", TIMEOUT_SECONDS);
+  }
+
+  @AfterEach
+  void tearDown() {
+    validator.shutdown();
   }
 
   /** Makes the mocked credential answer with a usable token. */
@@ -397,7 +400,7 @@ class AzureCredentialConnectivityCheckTest {
       when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any()))
           .thenReturn(tokenCredential);
       givenTokenIsGranted();
-      when(httpClientFactory.httpClientNoRetryWithProxy(any(Timeout.class))).thenReturn(httpClient);
+      when(tokenCredentialFactory.httpClient()).thenReturn(httpClient);
     }
 
     @ParameterizedTest(name = "status={0}")
@@ -449,9 +452,9 @@ class AzureCredentialConnectivityCheckTest {
     }
 
     @Test
-    @DisplayName("The client built for the probe is always closed")
+    @DisplayName("The shared client is left open: it belongs to the factory")
     @SuppressWarnings("unchecked")
-    void given_probe_should_closeTheClient() throws IOException {
+    void given_probe_should_notCloseTheSharedClient() throws IOException {
       // Arrange
       when(httpClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
           .thenReturn(200);
@@ -460,22 +463,32 @@ class AzureCredentialConnectivityCheckTest {
       validateWithSubscription();
 
       // Assert
-      verify(httpClient).close();
+      verify(httpClient, never()).close();
     }
 
     @Test
-    @DisplayName("The client is proxy-aware and bounded by the probe timeout")
+    @DisplayName("A response that outlives the overall deadline is a timeout, not a network error")
     @SuppressWarnings("unchecked")
-    void given_probe_should_useAProxyAwareClientBoundedByTheTimeout() throws IOException {
-      // Arrange
+    void given_slowResponse_should_cancelTheRequestAndReturnTimeout() throws IOException {
+      // Arrange: blocks like a server trickling its response, until the deadline cancels the call
       when(httpClient.execute(any(ClassicHttpRequest.class), any(HttpClientResponseHandler.class)))
-          .thenReturn(200);
+          .thenAnswer(
+              invocation -> {
+                HttpGet request = invocation.getArgument(0);
+                long giveUpAt = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+                while (!request.isCancelled() && System.nanoTime() < giveUpAt) {
+                  Thread.sleep(10);
+                }
+                throw new IOException("Request aborted");
+              });
+      Instant start = Instant.now();
 
       // Act
-      validateWithSubscription();
+      SecretConnectionResult result = validateWithSubscription();
 
       // Assert
-      verify(httpClientFactory).httpClientNoRetryWithProxy(Timeout.ofSeconds(TIMEOUT_SECONDS));
+      assertThat(result.status()).isEqualTo(TIMEOUT);
+      assertThat(Duration.between(start, Instant.now())).isLessThan(Duration.ofSeconds(5));
     }
 
     @Test
