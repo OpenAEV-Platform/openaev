@@ -39,7 +39,6 @@ const Index = () => {
   const onUpdate = (data) => {
     const inputValues = {
       ...data,
-
       user_organization: data.user_organization && data.user_organization.id
         ? data.user_organization.id
         : data.user_organization,

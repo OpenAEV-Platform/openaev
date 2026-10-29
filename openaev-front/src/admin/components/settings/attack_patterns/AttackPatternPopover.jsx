@@ -67,7 +67,6 @@ const AttackPatternPopover = ({ attackPattern, killChainPhasesMap, onUpdate, onD
       'attack_pattern_name',
       'attack_pattern_description',
     ]),
-
     attack_pattern_kill_chain_phases: attackPatternKillChainPhases,
   };
   return (

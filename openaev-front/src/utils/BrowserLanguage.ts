@@ -19,7 +19,7 @@ const browserLanguagePropertyKeys = [
 ];
 
 const detectedLocale = R.pipe(
-  (navigator: object) => pick(navigator as Record<string, unknown>, browserLanguagePropertyKeys), // Get only language properties
+  (source: object) => pick(source as Record<string, unknown>, browserLanguagePropertyKeys), // Get only language properties
   R.values(), // Get values of the properties
   R.flatten(), // flatten all arrays
   R.reject(R.isNil), // Remove undefined values

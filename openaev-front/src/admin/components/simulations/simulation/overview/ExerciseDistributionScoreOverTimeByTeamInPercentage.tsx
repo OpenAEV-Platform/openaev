@@ -42,7 +42,6 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
             cumulation += i.inject_expectation_score ?? 0;
             return {
               ...i,
-
               inject_expectation_percent_score: Math.round(
                 (cumulation * 100)
                 / (teamsMap[n[0]] && teamsMap[n[0]].team_injects_expectations_total_expected_score_by_exercise
