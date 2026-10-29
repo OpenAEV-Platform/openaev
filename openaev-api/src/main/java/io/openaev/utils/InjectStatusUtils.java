@@ -16,7 +16,7 @@ public class InjectStatusUtils {
    */
   public static ExecutionStatus computeStatus(List<ExecutionTrace> traces) {
     List<ExecutionTrace> activeTraces =
-        traces.stream().filter(t -> !t.getStatus().isCounted()).toList();
+        traces.stream().filter(t -> !t.getStatus().isNotCounted()).toList();
 
     if (activeTraces.isEmpty()) {
       return ExecutionStatus.ERROR;

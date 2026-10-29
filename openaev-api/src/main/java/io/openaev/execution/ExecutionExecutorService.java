@@ -277,7 +277,6 @@ public class ExecutionExecutorService {
   /**
    * Writes one ASSET_CLEARANCE_RESTRICTED trace per agent whose asset is not cleared for the
    * inject's markings, so the endpoint shows "Asset not targeted" instead of a pending status.
-   * These traces are excluded from the inject completion count.
    */
   @VisibleForTesting
   public void saveAgentsWithoutClearanceTraces(

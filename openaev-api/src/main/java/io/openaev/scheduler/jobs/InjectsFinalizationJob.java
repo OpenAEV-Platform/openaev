@@ -237,8 +237,7 @@ public class InjectsFinalizationJob implements Job {
       // A not-targeted trace is written at dispatch, it says nothing about the execution outcome
       boolean hasCompleteTrace =
           ExecutionTraceUtils.completeTraces(status.getTraces())
-              .anyMatch(
-                  t -> !ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED.equals(t.getStatus()));
+              .anyMatch(t -> !t.getStatus().isNotCounted());
       if (!hasCompleteTrace) {
         ExecutionTraceUtils.addAgentlessTimeoutTrace(status, this.injectExecutionThreshold);
       }

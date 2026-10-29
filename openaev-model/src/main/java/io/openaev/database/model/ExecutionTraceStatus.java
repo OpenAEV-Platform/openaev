@@ -73,7 +73,7 @@ public enum ExecutionTraceStatus {
     return SUCCESS_STATUSES.contains(this);
   }
 
-  public boolean isCounted() {
+  public boolean isNotCounted() {
     return NOT_COUNTED.contains(this);
   }
 }

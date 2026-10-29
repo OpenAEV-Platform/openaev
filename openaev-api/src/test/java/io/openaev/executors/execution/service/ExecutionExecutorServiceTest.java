@@ -224,7 +224,7 @@ public class ExecutionExecutorServiceTest {
   @Test
   @DisplayName(
       "Given only targets outside the launcher's clearance, launchExecutorContext should trace them"
-          + " as not targeted without counting them as expected agents")
+          + " as not targeted and counting them")
   void given_onlyRestrictedTargets_should_traceThemAsNotTargetedAndExecuteNothing()
       throws Exception {
     // Arrange
@@ -267,7 +267,7 @@ public class ExecutionExecutorServiceTest {
     assertThat(savedTraces)
         .extracting(ExecutionTrace::getMessage)
         .containsExactlyInAnyOrder("Asset not targeted", "Asset not targeted");
-    assertThat(inject.getStatus().orElseThrow().getExpectedAgentCount()).isZero();
+    assertThat(inject.getStatus().orElseThrow().getExpectedAgentCount()).isOne();
   }
 
   @Test

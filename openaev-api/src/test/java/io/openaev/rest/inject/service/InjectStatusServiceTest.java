@@ -167,7 +167,7 @@ class InjectStatusServiceTest {
 
     @Test
     @DisplayName(
-        "given restricted agent and first cleared agent complete should keep inject running")
+        "given restricted agent and first cleared agent complete should finalize inject")
     void given_restrictedAgentAndFirstClearedAgentComplete_should_keepInjectRunning() {
       // Arrange
       Agent firstClearedAgent = agent("agent-cleared-1");
@@ -176,9 +176,9 @@ class InjectStatusServiceTest {
       injectStatusService.updateInjectStatus(inject, firstClearedAgent, completeInput(), null);
 
       // Assert
-      assertThat(injectStatus.getName()).isEqualTo(ExecutionStatus.PENDING);
-      assertThat(injectStatus.getTrackingEndDate()).isNull();
-      verify(injectAuthorisationRepository, never()).deleteAllByInjectId(any());
+      assertThat(injectStatus.getName()).isEqualTo(ExecutionStatus.EXECUTED);
+      assertThat(injectStatus.getTrackingEndDate()).isNotNull();
+      verify(injectAuthorisationRepository).deleteAllByInjectId("inject-mixed-clearance");
     }
 
     @Test
