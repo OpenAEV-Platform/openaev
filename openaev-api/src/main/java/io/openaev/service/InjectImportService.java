@@ -19,6 +19,7 @@ import io.openaev.database.repository.*;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.FileTooBigException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportPostSummary;
@@ -73,7 +74,7 @@ public class InjectImportService {
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
 
-  private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final ScenarioService scenarioService;
   private final ImportService importService;
 
@@ -1311,7 +1312,9 @@ public class InjectImportService {
   public void importInjectsForSimulation(TxCtx ctx, MultipartFile file, String simulationId)
       throws Exception {
     Exercise targetSimulation =
-        exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
+        exerciseService
+            .findByIdInScope(ctx, simulationId)
+            .orElseThrow(ElementNotFoundException::new);
 
     this.importService.handleFileImport(ctx, file, targetSimulation, null);
   }
