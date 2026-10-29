@@ -1,5 +1,7 @@
-# Test classes that run with an openaev.tenant.active-tables list not holding the production one,
-# read by PinnedActiveTablesArchTest.
+# Test classes that set openaev.tenant.active-tables themselves, read by PinnedActiveTablesArchTest:
+# every class that sets it in an annotation, whatever the value, since a written value cannot follow
+# the next activation; and every class whose @DynamicPropertySource registers a list not holding
+# every table production arms.
 #
 # A class that pins its own list keeps testing the list it was written with. When production
 # activates another table, the class does not arm it, so a path through that table runs there with
@@ -7,7 +9,8 @@
 # production list: ProductionActiveTables in a @DynamicPropertySource, plus its own tables on top
 # when it needs more. Such a registration is judged by the value it registers, not by how it is
 # written, so it follows production only while that value holds every production table. A class
-# that pins on purpose says why, here.
+# that pins on purpose says why, here. "The production list" below is the tables production arms:
+# under the terminal *, the tables * arms, as ProductionActiveTables reads it.
 #
 # Format: <fully.qualified.Class> | <tables, sorted> | <kind>[ until-active:<table>,...]: <why>
 #   The tables column is the list the class runs with: the annotation's value, or the value its

@@ -7,6 +7,8 @@ import io.openaev.architecture.PinnedActiveTablesCatalog.Registration;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.AssumesOnTheReaderThenHardCodes;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.DeclaresTheKeyTwice;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.DelegatesAnotherPropertyToAHelper;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.DelegatesToAHelper;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.FollowsProduction;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.FollowsProductionWithItsOwnTables;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.InheritsThePin;
@@ -26,6 +28,7 @@ import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersThrou
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.SetsAnotherProperty;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.SubtractsOneTable;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.config.TenantTables;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -235,6 +238,34 @@ class PinnedActiveTablesRulesTest {
     }
 
     @Test
+    @DisplayName(
+        "given a registration handed to a helper of another class, should report what it registers")
+    void given_registrationHandedToAHelperOfAnotherClass_should_reportWhatItRegisters() {
+      // Act
+      Map<String, Registration> pins =
+          PinnedActiveTablesCatalog.dynamicPins(
+              PinnedActiveTablesCatalog.dynamicRegistrations(List.of(DelegatesToAHelper.class)),
+              production);
+
+      // Assert
+      assertThat(pins)
+          .containsExactly(
+              Map.entry(DelegatesToAHelper.class.getName(), Registration.of(Set.of("tags"))));
+    }
+
+    @Test
+    @DisplayName("given a registration whose calls never reach the key, should not run it")
+    void given_registrationWhoseCallsNeverReachTheKey_should_notRunIt() {
+      // Act
+      Map<String, Registration> registrations =
+          PinnedActiveTablesCatalog.dynamicRegistrations(
+              List.of(DelegatesAnotherPropertyToAHelper.class));
+
+      // Assert: run, it would throw and be reported as unevaluated
+      assertThat(registrations).isEmpty();
+    }
+
+    @Test
     @DisplayName("given a registration of another property, should not report it")
     void given_registrationOfAnotherProperty_should_notReportIt() {
       // Act
@@ -332,6 +363,51 @@ class PinnedActiveTablesRulesTest {
       assertThat(expired)
           .singleElement()
           .satisfies(p -> assertThat(p).contains("io.openaev.Expired").endsWith("documents"));
+    }
+
+    @Test
+    @DisplayName(
+        "given the terminal '*' as the production list, should report the lines waiting on"
+            + " scenarios and exercises expired")
+    void given_terminalWildcardAsProductionList_should_reportTheLinesWaitingOnItsTablesExpired() {
+      // Arrange
+      List<PinnedActiveTablesBaseline.Entry> entries =
+          PinnedActiveTablesBaseline.parse(
+              List.of(
+                  "io.openaev.WaitsOnScenarios | tags | control until-active:scenarios: leaves"
+                      + " scenarios off so the v1 filter decides alone",
+                  "io.openaev.WaitsOnExercises | documents | control until-active:exercises:"
+                      + " leaves exercises off so the anonymous route decides alone"));
+
+      // Act
+      List<String> expired =
+          PinnedActiveTablesBaseline.expired(
+              entries, ProductionActiveTables.armedBy(TenantTables.ALL_STRICT));
+
+      // Assert
+      assertThat(expired)
+          .satisfiesExactly(
+              p -> assertThat(p).contains("io.openaev.WaitsOnScenarios").endsWith("scenarios"),
+              p -> assertThat(p).contains("io.openaev.WaitsOnExercises").endsWith("exercises"));
+    }
+
+    @Test
+    @DisplayName("given the terminal '*' as the production list, should expire every control line")
+    void given_terminalWildcardAsProductionList_should_expireEveryControlLine() {
+      // Arrange
+      List<PinnedActiveTablesBaseline.Entry> controls =
+          PinnedActiveTablesBaseline.load().stream()
+              .filter(entry -> !entry.untilActive().isEmpty())
+              .toList();
+
+      // Act
+      List<String> expired =
+          PinnedActiveTablesBaseline.expired(
+              controls, ProductionActiveTables.armedBy(TenantTables.ALL_STRICT));
+
+      // Assert: '*' is the end of the rollout, so no mechanism a control line shows outlives it
+      assertThat(controls).isNotEmpty();
+      assertThat(expired).hasSameSizeAs(controls);
     }
   }
 }

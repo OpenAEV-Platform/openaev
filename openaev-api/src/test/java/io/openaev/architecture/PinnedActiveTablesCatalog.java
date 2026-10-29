@@ -1,8 +1,11 @@
 package io.openaev.architecture;
 
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaCodeUnit;
+import com.tngtech.archunit.core.domain.JavaCodeUnitAccess;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.core.importer.Location;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -10,13 +13,19 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -45,21 +54,30 @@ import org.springframework.test.context.support.TestPropertySourceUtils;
  * where Spring searches them (the class, its interfaces, its superclasses, the enclosing class of
  * an inner class), and a class that sets the key in more than one of them is reported as
  * conflicting rather than resolved, since Spring keeps one value by a precedence the guard would
- * have to copy. A {@code DynamicPropertySource} method is judged by what it registers: it is
- * invoked with a recording registry, and the value registered for the key is read. A class follows
- * production only when every value it registers holds the whole production list; anything else,
- * including a registration that cannot be evaluated, is a site. The key is matched as Spring Boot
- * binds it, so a relaxed spelling such as {@code activeTables} counts.
+ * have to copy. Every such annotation is a site, whatever it lists: its value is fixed when it is
+ * written, so it cannot follow the next table production activates. A {@code DynamicPropertySource}
+ * method is judged by what it registers: it is invoked with a recording registry, and the value
+ * registered for the key is read. A class follows production only when every value it registers
+ * holds the whole production list; anything else, including a registration that cannot be
+ * evaluated, is a site. The key is matched as Spring Boot binds it, so a relaxed spelling such as
+ * {@code activeTables} counts.
+ *
+ * <p>The registration methods of a class are invoked only when the key can be among what they
+ * register: its class file holds the text {@code openaev.tenant}, or a test-tree class those
+ * methods call, at any depth, holds it, so a registration handed to a shared helper is judged by
+ * what the helper registers. The calls are read from the class files, not run, so a registration
+ * that reaches no such class, one that starts a server for instance, is never invoked. Once a class
+ * is invoked, all of its registration methods run, whatever they do besides, so a class whose
+ * registration reaches the key must keep those methods free of side effects. A supplier is
+ * evaluated when the scan runs, so one that reads state set later (a field a {@code BeforeAll}
+ * fills, a started container) either fails, and its class is reported as unevaluated, or is read
+ * before that state exists.
  *
  * <p>Not seen: a property file named in {@code locations}, a profile file, a {@code
  * DynamicPropertyRegistrar} bean, a {@code ContextCustomizerFactory}, a system property set by
- * hand, and a {@code DynamicPropertySource} whose class file does not hold the text {@code
- * openaev.tenant} (a key assembled at run time from non-constant parts). The registration methods
- * of a class are invoked only when its class file holds that text; then all of them run, whatever
- * they do besides, so a class that names the key must keep its registration methods free of side
- * effects such as starting a server. A supplier is evaluated when the scan runs, so one that reads
- * state set later (a field a {@code BeforeAll} fills, a started container) either fails, and its
- * class is reported as unevaluated, or is read before that state exists.
+ * hand, a registration whose key is assembled at run time from non-constant parts, and one that
+ * reaches the key only through code outside the test tree or through a call the class file does not
+ * name (reflection, a registry handed to a callback stored elsewhere).
  */
 final class PinnedActiveTablesCatalog {
 
@@ -201,7 +219,9 @@ final class PinnedActiveTablesCatalog {
               .filter(method -> method.isAnnotationPresent(DynamicPropertySource.class))
               .filter(method -> Modifier.isStatic(method.getModifiers()))
               .toList();
-      if (methods.isEmpty() || !mentionsTheKeyPrefix(testClass)) {
+      if (methods.isEmpty()
+          || !(mentionsTheKeyPrefix(testClass.getName(), testClass.getClassLoader())
+              || reachesTheKeyPrefix(testClass, methods))) {
         continue;
       }
       List<Registration> found = new ArrayList<>();
@@ -304,16 +324,75 @@ final class PinnedActiveTablesCatalog {
    * compile-time constant is copied into every class that uses it, so a key held in a constant of
    * another class is still found here.
    */
-  private static boolean mentionsTheKeyPrefix(Class<?> testClass) {
-    String resource = testClass.getName().replace('.', '/') + ".class";
-    try (InputStream in = testClass.getClassLoader().getResourceAsStream(resource)) {
+  private static boolean mentionsTheKeyPrefix(String className, ClassLoader loader) {
+    String resource = className.replace('.', '/') + ".class";
+    try (InputStream in = loader.getResourceAsStream(resource)) {
       if (in == null) {
-        throw new IllegalStateException("cannot find the class file of " + testClass.getName());
+        throw new IllegalStateException("cannot find the class file of " + className);
       }
       return contains(in.readAllBytes(), KEY_PREFIX);
     } catch (IOException e) {
-      throw new UncheckedIOException("cannot read the class file of " + testClass.getName(), e);
+      throw new UncheckedIOException("cannot read the class file of " + className, e);
     }
+  }
+
+  /**
+   * Whether the registration methods call, at any depth through the test tree, a class whose file
+   * holds the key's prefix. The calls and method references are read from the class files and
+   * followed, never run; code outside the test tree is not followed.
+   */
+  private static boolean reachesTheKeyPrefix(Class<?> testClass, List<Method> methods) {
+    ClassLoader loader = testClass.getClassLoader();
+    Map<String, Optional<JavaClass>> imported = new HashMap<>();
+    Deque<JavaCodeUnit> pending = new ArrayDeque<>();
+    testTreeClass(testClass.getName(), loader, imported)
+        .ifPresent(
+            javaClass ->
+                methods.forEach(
+                    method ->
+                        pending.add(
+                            javaClass.getMethod(method.getName(), method.getParameterTypes()))));
+    Set<String> followed = new HashSet<>();
+    while (!pending.isEmpty()) {
+      JavaCodeUnit unit = pending.pop();
+      if (!followed.add(unit.getFullName())) {
+        continue;
+      }
+      List<JavaCodeUnitAccess<?>> accesses = new ArrayList<>(unit.getCallsFromSelf());
+      accesses.addAll(unit.getCodeUnitReferencesFromSelf());
+      for (JavaCodeUnitAccess<?> access : accesses) {
+        String owner = access.getTargetOwner().getName();
+        Optional<JavaClass> target = testTreeClass(owner, loader, imported);
+        if (target.isEmpty()) {
+          continue;
+        }
+        if (mentionsTheKeyPrefix(owner, loader)) {
+          return true;
+        }
+        target
+            .get()
+            .tryGetCodeUnitWithParameterTypeNames(
+                access.getTarget().getName(),
+                access.getTarget().getRawParameterTypes().stream().map(JavaClass::getName).toList())
+            .ifPresent(pending::add);
+      }
+    }
+    return false;
+  }
+
+  /** The class imported with its code, when it is a class of the test tree. */
+  private static Optional<JavaClass> testTreeClass(
+      String className, ClassLoader loader, Map<String, Optional<JavaClass>> imported) {
+    return imported.computeIfAbsent(
+        className,
+        name -> {
+          URL url = loader.getResource(name.replace('.', '/') + ".class");
+          if (url == null
+              || !ImportOption.Predefined.ONLY_INCLUDE_TESTS.includes(Location.of(url))) {
+            return Optional.empty();
+          }
+          return Optional.of(new ClassFileImporter().importUrl(url).get(name));
+        });
   }
 
   private static boolean contains(byte[] haystack, byte[] needle) {

@@ -16,9 +16,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Fails when a test class sets the activation list itself, to a value that does not hold the
- * production one, without saying why. A class that sets nothing runs on the test profile's list,
- * which this guard does not judge.
+ * Fails when a test class sets the activation list itself, in an annotation or through a dynamic
+ * registration whose value does not hold every production table, without saying why. A class that
+ * sets nothing runs on the test profile's list, which this guard does not judge. An annotation's
+ * value is written once and cannot follow production, so every annotation that sets the key is a
+ * pin, whatever tables it lists today.
  *
  * <p>A class that pins its own list keeps testing the list it was written with. The day production
  * activates another table, that class does not arm it: whatever it asserts about a path through
@@ -85,6 +87,7 @@ class PinnedActiveTablesArchTest {
               PinnedActiveTablesFixtures.OverridesAnInheritedPin.class.getName());
       assertThat(dynamicPins)
           .containsKey(PinnedActiveTablesFixtures.SubtractsOneTable.class.getName())
+          .containsKey(PinnedActiveTablesFixtures.DelegatesToAHelper.class.getName())
           .doesNotContainKey(PinnedActiveTablesFixtures.FollowsProduction.class.getName());
     }
 

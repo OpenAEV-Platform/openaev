@@ -159,4 +159,41 @@ public final class PinnedActiveTablesFixtures {
 
     private Keys() {}
   }
+
+  /** Hands its registration to a shared helper of another class, through a method of its own. */
+  public static class DelegatesToAHelper {
+    @DynamicPropertySource
+    static void tables(DynamicPropertyRegistry registry) {
+      arm(registry);
+    }
+
+    private static void arm(DynamicPropertyRegistry registry) {
+      ActiveTablesHelper.armOnly(registry, "tags");
+    }
+  }
+
+  /** Calls a helper that never registers the key, so the scan has no reason to run it. */
+  public static class DelegatesAnotherPropertyToAHelper {
+    @DynamicPropertySource
+    static void url(DynamicPropertyRegistry registry) {
+      OtherPropertyHelper.registerUrl(registry);
+      throw new IllegalStateException("a registration that never reaches the key is not run");
+    }
+  }
+
+  static final class ActiveTablesHelper {
+    static void armOnly(DynamicPropertyRegistry registry, String tables) {
+      registry.add(Keys.ACTIVE_TABLES, () -> tables);
+    }
+
+    private ActiveTablesHelper() {}
+  }
+
+  static final class OtherPropertyHelper {
+    static void registerUrl(DynamicPropertyRegistry registry) {
+      registry.add("openaev.other-url", () -> "http://localhost");
+    }
+
+    private OtherPropertyHelper() {}
+  }
 }
