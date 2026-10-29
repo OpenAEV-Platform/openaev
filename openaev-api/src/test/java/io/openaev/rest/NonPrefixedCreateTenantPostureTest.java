@@ -40,6 +40,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.EnumSource.Mode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -67,6 +68,7 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
   private static final String UNKNOWN_CONTRACT_ID = "00000000-0000-0000-0000-000000000000";
 
   @Autowired private MockMvc mvc;
+  @Autowired private JdbcTemplate jdbcTemplate;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -675,13 +677,16 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
             .getSingleResult();
   }
 
+  // Through JdbcTemplate on purpose: a native query on the entity manager goes through the
+  // statement inspector, which fails closed to zero rows on a table that is active, so the count
+  // would pass whatever the refused create wrote.
   private long rowCount(Create create) {
-    return ((Number)
-            entityManager
-                .createNativeQuery(
-                    "SELECT count(*) FROM " + create.table + " WHERE " + create.nameField + " = ?1")
-                .setParameter(1, NAME)
-                .getSingleResult())
-        .longValue();
+    entityManager.flush();
+    Long count =
+        jdbcTemplate.queryForObject(
+            "SELECT count(*) FROM " + create.table + " WHERE " + create.nameField + " = ?",
+            Long.class,
+            NAME);
+    return count == null ? 0L : count;
   }
 }
