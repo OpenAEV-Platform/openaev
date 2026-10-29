@@ -111,9 +111,10 @@ A grant on a resource is not tied to a tenant, so it answers the same in every t
 scope.
 
 The tenant of the request context is the tenant in the path on the tenant route. On the regular
-path, it is the default tenant, except on the autonomous run routes that name a run
-(`/api/autonomous-runs/{runId}/...`), where it is the tenant of that run when the run exists. So,
-outside those routes:
+path, it is the default tenant, except for the XTM One orchestrator callbacks: when the verified
+XTM One service identity calls an autonomous run route that names a run
+(`/api/autonomous-runs/{runId}/...`), it is the tenant of that run when the run exists. So, for
+every other caller:
 
 | Request | Tenants in which the decision is evaluated |
 |---|---|
