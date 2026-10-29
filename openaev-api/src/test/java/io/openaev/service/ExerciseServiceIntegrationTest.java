@@ -49,6 +49,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
@@ -71,6 +72,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private DocumentService documentService;
   @Autowired private InjectService injectService;
   @Autowired private UserService userService;
+  @Autowired private ObjectProvider<PermissionService> permissionServiceProvider;
   @Autowired private ScopeService scopeService;
   @Autowired private GrantService grantService;
   @Autowired private ExerciseTeamUserService exerciseTeamUserService;
@@ -165,7 +167,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             healthCheckUtils,
             eventPublisher,
             attackPathExecutionService,
-            autonomousRunRepository);
+            autonomousRunRepository,
+            permissionServiceProvider);
   }
 
   @AfterAll

@@ -203,7 +203,7 @@ public class ScenarioApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<ScenarioSimple> scenarios(TxCtx ctx) {
-    return this.scenarioService.scenarios();
+    return this.scenarioService.scenarios(ctx);
   }
 
   @LogExecutionTime
@@ -212,7 +212,7 @@ public class ScenarioApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public Page<RawPaginationScenario> scenarios(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return this.scenarioService.scenarios(searchPaginationInput);
+    return this.scenarioService.scenarios(ctx, searchPaginationInput);
   }
 
   @LogExecutionTime
@@ -224,7 +224,7 @@ public class ScenarioApi extends RestBehavior {
       description = "Get the scenarios with the specified ids if you have the right to see them")
   public List<ScenarioSimple> scenariosById(
       TxCtx ctx, @RequestBody final GetScenariosInput getScenariosInput) {
-    return this.scenarioService.scenarios(getScenariosInput.getScenarioIds());
+    return this.scenarioService.scenarios(ctx, getScenariosInput.getScenarioIds());
   }
 
   @GetMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})

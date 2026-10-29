@@ -16,6 +16,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.repository.*;
@@ -123,6 +124,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private ActionMetricCollector actionMetricCollector;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @Mock private ObjectProvider<AutonomousRunService> autonomousRunServiceProvider;
+  @Autowired private ObjectProvider<PermissionService> permissionServiceProvider;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -162,7 +164,8 @@ class ScenarioServiceTest extends IntegrationTest {
             workflowService,
             workflowExportInitializer,
             bulkDeleteExecutor,
-            autonomousRunServiceProvider);
+            autonomousRunServiceProvider,
+            permissionServiceProvider);
   }
 
   @AfterAll
@@ -234,7 +237,10 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.clear();
 
     Map<String, Set<String>> platformsByScenarioId =
-        scenarioServiceBean.scenarios(PaginationFixture.getDefault().build()).getContent().stream()
+        scenarioServiceBean
+            .scenarios(TxCtx.missing(), PaginationFixture.getDefault().build())
+            .getContent()
+            .stream()
             .filter(
                 scenario ->
                     scenario.getScenario_id().equals(timeBasedScenario.getId())

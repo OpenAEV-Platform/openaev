@@ -1,8 +1,6 @@
 package io.openaev.service.scenario;
 
-import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
-import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.database.specification.TeamSpecification.fromScenario;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -92,6 +90,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -168,6 +167,10 @@ public class ScenarioService {
           io.openaev.service.autonomous.AutonomousRunService>
       autonomousRunServiceProvider;
 
+  // Lazy for the same cycle: PermissionService reaches AutonomousRunService.
+  private final org.springframework.beans.factory.ObjectProvider<PermissionService>
+      permissionServiceProvider;
+
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
     return computeAndCreateScenario(scenario);
@@ -226,33 +229,57 @@ public class ScenarioService {
     }
   }
 
-  public List<ScenarioSimple> scenarios() {
-    List<RawScenarioSimpleIndexing> scenarios;
+  /**
+   * The scenarios the caller reads: every scenario of a tenant where it holds the access right, and
+   * the scenarios it holds a grant on.
+   */
+  public List<ScenarioSimple> scenarios(@NotNull final TxCtx ctx) {
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
-      scenarios = fromIterable(this.scenarioRepository.rawAll());
-    } else {
-      scenarios = this.scenarioRepository.rawAllGranted(currentUser().getId());
-    }
-    return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
+    return readableInEachTenant(
+            ctx,
+            currentUser,
+            () -> fromIterable(this.scenarioRepository.rawAll()),
+            () -> this.scenarioRepository.rawAllGranted(currentUser.getId()))
+        .stream()
+        .map(ScenarioSimple::fromRawScenario)
+        .toList();
   }
 
-  public List<ScenarioSimple> scenarios(final List<String> scenarioIds) {
-    List<RawScenarioSimpleIndexing> scenarios;
+  /** The scenarios of {@code scenarioIds} the caller reads, as {@link #scenarios(TxCtx)}. */
+  public List<ScenarioSimple> scenarios(@NotNull final TxCtx ctx, final List<String> scenarioIds) {
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
-      scenarios = fromIterable(this.scenarioRepository.rawByScenarioIds(scenarioIds));
-    } else {
-      scenarios =
-          this.scenarioRepository.rawGrantedByScenarioIds(currentUser().getId(), scenarioIds);
-    }
-    return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
+    return readableInEachTenant(
+            ctx,
+            currentUser,
+            () -> fromIterable(this.scenarioRepository.rawByScenarioIds(scenarioIds)),
+            () -> this.scenarioRepository.rawGrantedByScenarioIds(currentUser.getId(), scenarioIds))
+        .stream()
+        .map(ScenarioSimple::fromRawScenario)
+        .toList();
+  }
+
+  private List<RawScenarioSimpleIndexing> readableInEachTenant(
+      TxCtx ctx,
+      User currentUser,
+      Supplier<List<RawScenarioSimpleIndexing>> all,
+      Supplier<List<RawScenarioSimpleIndexing>> granted) {
+    return permissionServiceProvider
+        .getObject()
+        .listInEachTenant(
+            ctx,
+            () -> canAccessEveryScenario(currentUser),
+            all,
+            granted,
+            RawScenarioSimpleIndexing::getTenant_id,
+            RawScenarioSimpleIndexing::getScenario_id);
+  }
+
+  private static boolean canAccessEveryScenario(User user) {
+    return user.isAdminOrBypass() || user.getCapabilities().contains(Capability.ACCESS_ASSESSMENT);
   }
 
   public Page<RawPaginationScenario> scenarios(
-      @NotNull final SearchPaginationInput searchPaginationInput) {
+      @NotNull final TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
     // Compute custom filter
@@ -262,7 +289,7 @@ public class ScenarioService {
     // Compute find all method
     TriFunction<
             Specification<Scenario>, Specification<Scenario>, Pageable, Page<RawPaginationScenario>>
-        findAll = getFindAllFunction(deepFilterSpecification, joinMap);
+        findAll = getFindAllFunction(ctx, deepFilterSpecification, joinMap);
 
     // Compute pagination from find all
     return buildPaginationCriteriaBuilder(findAll, searchPaginationInput, Scenario.class, joinMap);
@@ -271,27 +298,25 @@ public class ScenarioService {
   private TriFunction<
           Specification<Scenario>, Specification<Scenario>, Pageable, Page<RawPaginationScenario>>
       getFindAllFunction(
+          TxCtx ctx,
           UnaryOperator<Specification<Scenario>> deepFilterSpecification,
           Map<String, Join<Base, Base>> joinMap) {
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
-      return (specification, specificationCount, pageable) ->
-          this.findAllWithCriteriaBuilder(
-              deepFilterSpecification.apply(specification),
-              deepFilterSpecification.apply(specificationCount),
-              pageable,
-              joinMap);
-    } else {
-      return (specification, specificationCount, pageable) ->
-          this.findAllWithCriteriaBuilder(
-              findGrantedFor(currentUser().getId())
-                  .and(deepFilterSpecification.apply(specification)),
-              findGrantedFor(currentUser().getId())
-                  .and(deepFilterSpecification.apply(specificationCount)),
-              pageable,
-              joinMap);
-    }
+    Specification<Scenario> readable =
+        permissionServiceProvider
+            .getObject()
+            .filterInEachTenant(
+                ctx,
+                () -> canAccessEveryScenario(currentUser),
+                accessRight ->
+                    SpecificationUtils.hasGrantAccess(
+                        currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
+    return (specification, specificationCount, pageable) ->
+        this.findAllWithCriteriaBuilder(
+            readable.and(deepFilterSpecification.apply(specification)),
+            readable.and(deepFilterSpecification.apply(specificationCount)),
+            pageable,
+            joinMap);
   }
 
   private Page<RawPaginationScenario> findAllWithCriteriaBuilder(
@@ -694,15 +719,25 @@ public class ScenarioService {
                 specification =
                     specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
               }
-              // Restrict to scenarios the user is granted to plan on (no-op for admins and users
-              // with the delete capability)
+              // Restrict to scenarios the user is granted to plan on (no-op in a tenant where the
+              // user is an admin or holds the delete capability)
               specification =
                   specification.and(
-                      SpecificationUtils.hasGrantAccess(
-                          currentUser.getId(),
-                          currentUser.isAdminOrBypass(),
-                          currentUser.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
-                          Grant.GRANT_TYPE.PLANNER));
+                      permissionServiceProvider
+                          .getObject()
+                          .filterInEachTenant(
+                              ctx,
+                              () ->
+                                  currentUser.isAdminOrBypass()
+                                      || currentUser
+                                          .getCapabilities()
+                                          .contains(Capability.DELETE_ASSESSMENT),
+                              deleteRight ->
+                                  SpecificationUtils.hasGrantAccess(
+                                      currentUser.getId(),
+                                      false,
+                                      deleteRight,
+                                      Grant.GRANT_TYPE.PLANNER)));
               return this.scenarioRepository.findAll(specification).stream()
                   .map(Scenario::getId)
                   .toList();

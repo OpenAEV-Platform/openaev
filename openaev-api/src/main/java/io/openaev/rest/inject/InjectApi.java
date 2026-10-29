@@ -35,6 +35,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import io.openaev.secrets.provider.SecretResolvedValue;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.credential.CredentialService;
 import io.openaev.service.targets.TargetService;
@@ -91,6 +92,7 @@ public class InjectApi extends RestBehavior {
   private final UserRepository userRepository;
   private final PayloadMapper payloadMapper;
   private final UserService userService;
+  private final PermissionService permissionService;
   private final DocumentService documentService;
 
   private final InjectMapper injectMapper;
@@ -153,11 +155,19 @@ public class InjectApi extends RestBehavior {
             Specification.<Inject>unrestricted()
                 .and(SpecificationUtils.hasIdIn(targetIds))
                 .and(
-                    SpecificationUtils.hasGrantAccess(
-                        currentUser.getId(),
-                        currentUser.isAdminOrBypass(),
-                        currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
-                        Grant.GRANT_TYPE.OBSERVER)));
+                    permissionService.filterInEachTenant(
+                        ctx,
+                        () ->
+                            currentUser.isAdminOrBypass()
+                                || currentUser
+                                    .getCapabilities()
+                                    .contains(Capability.ACCESS_ASSESSMENT),
+                        accessRight ->
+                            SpecificationUtils.hasGrantAccess(
+                                currentUser.getId(),
+                                false,
+                                accessRight,
+                                Grant.GRANT_TYPE.OBSERVER))));
     List<String> foundIds = injects.stream().map(Inject::getId).toList();
     List<String> missedIds =
         new ArrayList<>(targetIds.stream().filter(id -> !foundIds.contains(id)).toList());
