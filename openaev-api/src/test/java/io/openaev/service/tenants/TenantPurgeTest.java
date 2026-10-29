@@ -275,23 +275,77 @@ class TenantPurgeTest extends IntegrationTest {
       // Act
       Throwable thrown = catchThrowable(() -> tenantService.purgeExpiredTenants());
 
-      // Assert - the others are gone, the failed one stays soft deleted for the next run.
-      assertThat(countRows("tenants", firstTenantId)).isZero();
-      assertThat(countRows("tenants", lastTenantId)).isZero();
-      assertThat(countRows("tenants", failingTenantId)).isEqualTo(1);
-
-      // Assert - the run reports the failure instead of skipping it silently.
-      assertThat(thrown)
-          .as("the job must end failed so the scheduler records it")
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining(failingTenantId);
-      assertThat(appender.list)
-          .filteredOn(event -> event.getLevel() == Level.ERROR)
-          .anySatisfy(
-              event -> {
-                assertThat(event.getFormattedMessage()).contains(failingTenantId);
-                assertThat(event.getThrowableProxy()).isNotNull();
-              });
+      // Assert
+      assertOnlyTheFailedTenantIsKept(firstTenantId, failingTenantId, lastTenantId, thrown);
     }
+  }
+
+  /**
+   * The tenant row delete itself is refused, as a foreign key without a delete action refuses it:
+   * the cleanup succeeds and the failure only comes with the delete.
+   */
+  @Nested
+  @DisplayName("one tenant whose row delete is refused")
+  class RefusedTenantDelete {
+
+    private static final String REFUSED_NAME = "purge-refused-delete";
+
+    @BeforeEach
+    void refuseTheDeleteOfMarkedTenants() {
+      jdbc.execute(
+          "CREATE OR REPLACE FUNCTION purge_test_refuse_tenant_delete() RETURNS trigger"
+              + " LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION USING"
+              + " ERRCODE = 'foreign_key_violation', MESSAGE = 'tenant row still referenced: '"
+              + " || OLD.tenant_id; END $$");
+      jdbc.execute(
+          "CREATE OR REPLACE TRIGGER purge_test_refuse_tenant_delete BEFORE DELETE ON tenants"
+              + " FOR EACH ROW WHEN (OLD.tenant_name LIKE '"
+              + REFUSED_NAME
+              + "-%') EXECUTE FUNCTION purge_test_refuse_tenant_delete()");
+    }
+
+    @AfterEach
+    void acceptTheDeleteAgain() {
+      jdbc.execute("DROP TRIGGER IF EXISTS purge_test_refuse_tenant_delete ON tenants");
+      jdbc.execute("DROP FUNCTION IF EXISTS purge_test_refuse_tenant_delete()");
+    }
+
+    @Test
+    @DisplayName(
+        "given a batch where one tenant row delete is refused, should purge the others and report"
+            + " the refused one")
+    void given_aBatchWhereOneTenantRowDeleteIsRefused_should_purgeTheOthersAndReportIt() {
+      // Arrange
+      String firstTenantId = seedExpiredTenant("purge-first");
+      String refusedTenantId = seedExpiredTenant(REFUSED_NAME);
+      String lastTenantId = seedExpiredTenant("purge-last");
+
+      // Act
+      Throwable thrown = catchThrowable(() -> tenantService.purgeExpiredTenants());
+
+      // Assert
+      assertOnlyTheFailedTenantIsKept(firstTenantId, refusedTenantId, lastTenantId, thrown);
+    }
+  }
+
+  private void assertOnlyTheFailedTenantIsKept(
+      String firstTenantId, String failedTenantId, String lastTenantId, Throwable thrown) {
+    // The others are gone, the failed one stays soft deleted for the next run.
+    assertThat(countRows("tenants", firstTenantId)).isZero();
+    assertThat(countRows("tenants", lastTenantId)).isZero();
+    assertThat(countRows("tenants", failedTenantId)).isEqualTo(1);
+
+    // The run reports the failure instead of skipping it silently.
+    assertThat(thrown)
+        .as("the run must end in error, naming the failed tenant")
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining(failedTenantId);
+    assertThat(appender.list)
+        .filteredOn(event -> event.getLevel() == Level.ERROR)
+        .anySatisfy(
+            event -> {
+              assertThat(event.getFormattedMessage()).contains(failedTenantId);
+              assertThat(event.getThrowableProxy()).isNotNull();
+            });
   }
 }

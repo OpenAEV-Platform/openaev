@@ -46,12 +46,14 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * leaves the second tenant's cleanup reading the first tenant's rows, which the assertions below
  * refuse.
  *
- * <p>The scope the tenant row delete runs under is observed from a transaction synchronization,
- * because it runs after the cleanup and the GUC is transaction-local, so nothing outside the purge
- * transaction can read it. That assertion pins a stated commitment of the method, not a row
- * difference: {@code tenants} is not an active table, so the {@code DELETE} is not rewritten by the
- * scope today and the tenant row is removed whatever the scope says. What it refuses is the delete
- * running under another tenant's scope, or under none.
+ * <p>The tenant row delete is observed from a transaction synchronization registered by the
+ * cleanup, because the GUC is transaction-local, so nothing outside the purge transaction can read
+ * it. Just before that transaction commits, the probe reads the scope and counts the tenant's row
+ * on the same connection: a count of zero there proves the delete ran in this transaction, under
+ * this scope, and not in another transaction after it. That assertion pins a stated commitment of
+ * the method, not a row difference: {@code tenants} is not an active table, so the {@code DELETE}
+ * is not rewritten by the scope today and the tenant row is removed whatever the scope says. What
+ * it refuses is the delete running under another tenant's scope, or under none.
  *
  * <p>NOT {@code @Transactional}: the purge opens one transaction per tenant, and a surrounding test
  * transaction would also keep the tenant rows it deletes alive for the assertions.
@@ -73,6 +75,7 @@ class TenantPurgeScopeTest extends IntegrationTest {
     final Map<String, String> scopeSeenPerTenant = new LinkedHashMap<>();
     final Map<String, List<String>> markingsSeenPerTenant = new LinkedHashMap<>();
     final Map<String, String> scopeSeenAtCommitPerTenant = new LinkedHashMap<>();
+    final Map<String, Number> tenantRowsSeenAtCommitPerTenant = new LinkedHashMap<>();
 
     ScopeProbe(EntityManager entityManager) {
       this.entityManager = entityManager;
@@ -96,8 +99,9 @@ class TenantPurgeScopeTest extends IntegrationTest {
     }
 
     /**
-     * Reads the scope the tenant row delete runs under. {@code beforeCommit} fires after that
-     * delete, while the transaction and its connection are still this tenant's own.
+     * Reads the scope of this tenant's purge transaction and whether its tenant row is still there.
+     * {@code beforeCommit} fires after the rest of the purge work, while the transaction and its
+     * connection are still this tenant's own.
      */
     private void registerCommitProbe(String tenantId) {
       TransactionSynchronizationManager.registerSynchronization(
@@ -105,6 +109,13 @@ class TenantPurgeScopeTest extends IntegrationTest {
             @Override
             public void beforeCommit(boolean readOnly) {
               scopeSeenAtCommitPerTenant.put(tenantId, currentScope());
+              tenantRowsSeenAtCommitPerTenant.put(
+                  tenantId,
+                  (Number)
+                      entityManager
+                          .createNativeQuery("SELECT count(*) FROM tenants WHERE tenant_id = :id")
+                          .setParameter("id", tenantId)
+                          .getSingleResult());
             }
           });
     }
@@ -120,6 +131,7 @@ class TenantPurgeScopeTest extends IntegrationTest {
       scopeSeenPerTenant.clear();
       markingsSeenPerTenant.clear();
       scopeSeenAtCommitPerTenant.clear();
+      tenantRowsSeenAtCommitPerTenant.clear();
     }
   }
 
@@ -253,7 +265,11 @@ class TenantPurgeScopeTest extends IntegrationTest {
       // Act
       tenantService.purgeExpiredTenants();
 
-      // Assert - each delete carries its own tenant, not the other purged one nor the bystander.
+      // Assert - the row is already gone inside the transaction that carries the tenant's scope.
+      assertThat(scopeProbe.tenantRowsSeenAtCommitPerTenant)
+          .as("each tenant row must be deleted in that tenant's own purge transaction")
+          .hasEntrySatisfying(firstExpiredTenantId, rows -> assertThat(rows.intValue()).isZero())
+          .hasEntrySatisfying(secondExpiredTenantId, rows -> assertThat(rows.intValue()).isZero());
       assertThat(scopeProbe.scopeSeenAtCommitPerTenant)
           .as("each tenant's purge transaction must still carry that tenant's scope at commit")
           .containsEntry(firstExpiredTenantId, firstExpiredTenantId)

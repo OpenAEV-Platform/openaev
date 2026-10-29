@@ -202,7 +202,7 @@ public class TenantService {
    * Permanently deletes every tenant whose grace period has expired, each in its own transaction
    * scoped to that tenant, so that one tenant that cannot be purged neither rolls back nor stops
    * the others. A failed tenant stays soft deleted and is retried on the next run; the failures are
-   * logged one by one and rethrown together at the end, so the job is recorded as failed.
+   * logged one by one and rethrown together at the end, so the run ends in error.
    *
    * <p>Opens no transaction of its own: the per-tenant transactions are top-level.
    */
