@@ -21,6 +21,7 @@ import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.EndpointService;
+import io.openaev.service.RabbitmqService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.connectors.HeartbeatWindow;
 import io.openaev.service.exception.ConnectorStatusException;
@@ -55,6 +56,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
   private final EncryptionFactory encryptionFactory;
   private final ManagerFactory managerFactory;
   private final EndpointService endpointService;
+  private final RabbitmqService rabbitmqService;
   private final TenantScopedTransaction tenantTx;
 
   public ConnectorInstanceService(
@@ -68,6 +70,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
       ExecutorRepository executorRepository,
       InjectorRepository injectorRepository,
       EndpointService endpointService,
+      RabbitmqService rabbitmqService,
       TenantScopedTransaction tenantTx,
       // Use lazy injection to break a circular dependency
       @Lazy ManagerFactory managerFactory) {
@@ -81,6 +84,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
     this.executorRepository = executorRepository;
     this.injectorRepository = injectorRepository;
     this.endpointService = endpointService;
+    this.rabbitmqService = rabbitmqService;
     this.tenantTx = tenantTx;
     this.managerFactory = managerFactory;
   }
@@ -464,7 +468,10 @@ public class ConnectorInstanceService implements AuditLoggedService {
           endpointService.removeSourceTagsForExecutor(connectorId, tenantId);
           executorRepository.deleteByExecutorId(connectorId);
         }
-        case INJECTOR -> injectorRepository.deleteByInjectorId(connectorId);
+        case INJECTOR -> {
+          injectorRepository.deleteByInjectorId(connectorId);
+          rabbitmqService.deleteInjectorQueueIfUnused(connectorId);
+        }
         case COLLECTOR -> collectorRepository.deleteByCollectorId(connectorId);
       }
     }
