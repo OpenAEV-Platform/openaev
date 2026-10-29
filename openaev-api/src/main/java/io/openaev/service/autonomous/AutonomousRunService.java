@@ -598,7 +598,7 @@ public class AutonomousRunService {
     effective.setScenarioId(scenarioId);
     effective.setPlanMode(false);
     if (!hasText(effective.getObjective()) && !hasText(effective.getObjectiveTemplateKey())) {
-      Scenario scenario = scenarioService.scenario(scenarioId);
+      Scenario scenario = scenarioService.scenario(ctx, scenarioId);
       // The default mission depends on whether the scenario already carries any logic: with
       // authored
       // steps the run executes them first then adapts; on an empty scenario there is nothing to
@@ -648,7 +648,7 @@ public class AutonomousRunService {
           "The scenario must be a chained scenario to be planned by the orchestrator");
     }
     AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     // Refine (follow-up) vs rebuild (from scratch): refine keeps the existing logic + history and
     // continues from it; rebuild wipes the logic map and re-authors fresh (the original behaviour).
     return effective.isRefine()
@@ -3953,11 +3953,11 @@ public class AutonomousRunService {
    * pre-fill from the last configuration so the operator can review, then Build or Launch.
    */
   @Transactional(readOnly = true)
-  public AutonomousRunCreateInput getScenarioAutonomousConfig(String scenarioId) {
+  public AutonomousRunCreateInput getScenarioAutonomousConfig(TxCtx ctx, String scenarioId) {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     Map<String, Object> stored = scenario.getAutonomousConfig();
     if (stored == null || stored.isEmpty()) {
       return null;
@@ -3973,7 +3973,7 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRunCreateInput saveScenarioAutonomousConfig(
-      String scenarioId, AutonomousRunCreateInput input) {
+      TxCtx ctx, String scenarioId, AutonomousRunCreateInput input) {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
@@ -3982,7 +3982,7 @@ public class AutonomousRunService {
           HttpStatus.BAD_REQUEST,
           "Only a chained scenario can carry an autonomous-run configuration");
     }
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (input == null) {
       scenario.setAutonomousConfig(null);
     } else {

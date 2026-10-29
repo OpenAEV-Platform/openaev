@@ -9,7 +9,6 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -18,6 +17,7 @@ import io.openaev.rest.channel.form.*;
 import io.openaev.rest.channel.response.ChannelReader;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
@@ -47,6 +47,7 @@ public class ChannelApi extends RestBehavior {
   public static final String TENANT_PLAYER_CHANNEL_URI = TENANT_PREFIX + "/player/channels";
 
   private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final ScenarioService scenarioService;
   private final ArticleRepository articleRepository;
   private final ChannelRepository channelRepository;
@@ -148,8 +149,7 @@ public class ChannelApi extends RestBehavior {
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
 
-    Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant());
+    Optional<Exercise> exerciseOpt = exerciseService.findInScope(ctx, exerciseId);
     if (exerciseOpt.isPresent()) {
       Exercise exercise = exerciseOpt.get();
       channelReader = new ChannelReader(channel, exercise);
@@ -159,7 +159,7 @@ public class ChannelApi extends RestBehavior {
               exercise.getInjects(), publishedArticles, this.mapper);
       channelReader.setChannelArticles(articles);
     } else {
-      Scenario scenario = this.scenarioService.scenario(exerciseId);
+      Scenario scenario = this.scenarioService.scenario(ctx, exerciseId);
       channelReader = new ChannelReader(channel, scenario);
       List<Article> publishedArticles = scenario.getArticlesForChannel(channel);
       List<Article> articles =
@@ -187,10 +187,7 @@ public class ChannelApi extends RestBehavior {
       @RequestParam Optional<String> userId)
       throws AuthenticationError {
     final User user = impersonateUser(userRepository, userId);
-    // TenantContext resolved here (API layer) and passed explicitly to the service, per review
-    // feedback on keeping tenant resolution out of the Service layer.
-    return channelService.validateArticles(
-        exerciseId, channelId, user, TenantContext.getCurrentTenant());
+    return channelService.validateArticles(ctx, exerciseId, channelId, user);
   }
 
   // -- EXERCISES --
@@ -207,9 +204,7 @@ public class ChannelApi extends RestBehavior {
   public Article createArticleForExercise(
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     Article article = new Article();
     article.setUpdateAttributes(input);
     article.setChannel(
@@ -252,9 +247,7 @@ public class ChannelApi extends RestBehavior {
       @PathVariable String articleId,
       @Valid @RequestBody ArticleUpdateInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     Article article =
         articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();
@@ -321,7 +314,7 @@ public class ChannelApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody ArticleCreateInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     Article article = new Article();
     article.setUpdateAttributes(input);
     article.setChannel(
@@ -363,7 +356,7 @@ public class ChannelApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String articleId,
       @Valid @RequestBody ArticleUpdateInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     Article article =
         articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();

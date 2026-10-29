@@ -54,7 +54,7 @@ public class ExerciseImportApi extends RestBehavior {
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
-    Exercise exercise = this.exerciseService.exercise(exerciseId);
+    Exercise exercise = this.exerciseService.exercise(ctx, exerciseId);
 
     // Getting the mapper to use
     ImportMapper importMapper =
@@ -86,7 +86,7 @@ public class ExerciseImportApi extends RestBehavior {
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
-    Exercise exercise = this.exerciseService.exercise(exerciseId);
+    Exercise exercise = this.exerciseService.exercise(ctx, exerciseId);
 
     if (input.getLaunchDate() != null) {
       exercise.setStart(input.getLaunchDate().toInstant());

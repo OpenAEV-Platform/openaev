@@ -1040,7 +1040,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
 
     // save() assigns the generated id and the follow-up start() reloads it by that id.
     final AutonomousRun[] savedHolder = new AutonomousRun[1];
@@ -1129,7 +1129,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
 
     // A settled dry-run (PLANNED, no simulation) already exists: it must be torn down so the fresh
     // plan run can bind, but its (absent) simulation is never touched.
@@ -1179,7 +1179,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
 
     // The scenario was previously built by the AI: a settled PLAN-mode run (PLANNED, no simulation)
     // owns it. Refine must reuse THIS row so its timeline survives, never a fresh one.
@@ -1255,7 +1255,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
     // A manually authored chained scenario: it has steps but no autonomous run.
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
 
@@ -1297,7 +1297,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
     AutonomousRun prior = new AutonomousRun();
     prior.setId("prior-run");
     prior.setPlanMode(true);
@@ -1327,7 +1327,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
 
     final AutonomousRun[] savedHolder = new AutonomousRun[1];
@@ -1369,7 +1369,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
 
     final AutonomousRun[] savedHolder = new AutonomousRun[1];
