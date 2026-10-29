@@ -17,7 +17,7 @@ import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.EndpointService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.*;
@@ -43,7 +43,7 @@ public class ExecutionExecutorService {
   private final ExecutorUtils executorUtils;
   private final EndpointService endpointService;
   private final ConnectorInstanceService connectorInstanceService;
-  private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   private final ActionMetricCollector actionMetricCollector;
   private final Optional<AuditLogger> auditLogger;
 
@@ -135,7 +135,7 @@ public class ExecutionExecutorService {
                   new ComponentRequest(executor.getName()), ExecutorContextService.class);
         }
         String token =
-            serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+            agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
                 inject.getTenant().getId());
         List<Agent> agentsProcessed =
             executorContextService.launchBatchExecutorSubprocess(

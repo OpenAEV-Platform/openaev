@@ -1,9 +1,6 @@
 package io.openaev.service.account;
 
-import static io.openaev.service.account.Constants.*;
-
 import io.openaev.config.SessionManager;
-import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -17,14 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
-public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
-  public static final String SERVICE_EMAIL_PATTERN = "service-%s@openaev.invalid";
+public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeService {
   private static final String SERVICE_FIRSTNAME = "service";
 
   private final SessionManager sessionManager;
 
   @Autowired
-  public ServiceAccountPrivilegeService(
+  public AgentServiceAccountPrivilegeService(
       TenantRoleService tenantRoleService,
       TenantGroupService tenantGroupService,
       UserService userService,
@@ -35,45 +31,15 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
   }
 
   @Override
-  protected String getRoleId() {
-    return SERVICE_ROLE_ID;
-  }
-
-  @Override
-  protected String getRoleName() {
-    return SERVICE_ROLE_NAME;
-  }
-
-  @Override
-  protected String getRoleDescription() {
-    return SERVICE_ROLE_DESCRIPTION;
-  }
-
-  @Override
-  protected Set<Capability> getRoleCapabilities() {
-    return SERVICE_ROLE_CAPABILITIES;
-  }
-
-  @Override
-  protected String getGroupId() {
-    return SERVICE_GROUP_ID;
-  }
-
-  @Override
-  protected String getGroupName() {
-    return SERVICE_GROUP_NAME;
-  }
-
-  @Override
-  protected String getGroupDescription() {
-    return SERVICE_GROUP_DESCRIPTION;
+  protected WellKnownAccess wellKnownAccess() {
+    return ReservedServiceAccount.AGENT.access();
   }
 
   @Transactional
   public void ensurePrivilegedUserExists(String tenantId) {
     Group group = createWellKnownGroupWithRole(createWellKnownRole(tenantId), tenantId);
     // UNIQUE by tenant
-    String email = SERVICE_EMAIL_PATTERN.formatted(tenantId);
+    String email = ReservedServiceAccount.AGENT.emailPattern().formatted(tenantId);
 
     Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);
 
@@ -107,7 +73,7 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
   // Not @Transactional: every caller in this class is itself @Transactional, and a self-invocation
   // bypasses the Spring proxy — an annotation here would never take effect.
   public Optional<User> getUserServiceAccountByTenant(String tenantId) {
-    String email = SERVICE_EMAIL_PATTERN.formatted(tenantId);
+    String email = ReservedServiceAccount.AGENT.emailPattern().formatted(tenantId);
 
     return userService.findByEmailIgnoreCase(email).stream().findFirst();
   }

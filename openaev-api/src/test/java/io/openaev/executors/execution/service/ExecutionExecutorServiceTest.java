@@ -29,7 +29,7 @@ import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.EndpointService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.*;
@@ -65,7 +65,7 @@ public class ExecutionExecutorServiceTest {
   @Mock private ActionMetricCollector actionMetricCollector;
 
   private ExecutionExecutorService executorService;
-  @Mock private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Mock private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
 
   @BeforeEach
   void setUp() {
@@ -92,7 +92,7 @@ public class ExecutionExecutorServiceTest {
             new ExecutorUtils(assetAgentJobRepository),
             endpointService,
             connectorInstanceService,
-            serviceAccountPrivilegeService,
+            agentServiceAccountPrivilegeService,
             actionMetricCollector,
             Optional.of(auditLogger));
   }
@@ -467,7 +467,7 @@ public class ExecutionExecutorServiceTest {
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenReturn(List.of());
-      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
           .thenReturn("token");
 
       // Act
@@ -537,7 +537,7 @@ public class ExecutionExecutorServiceTest {
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenReturn(List.of());
-      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
           .thenReturn("token");
 
       // Act
@@ -578,7 +578,7 @@ public class ExecutionExecutorServiceTest {
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenThrow(new RuntimeException("CrowdStrike API timeout"));
-      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
           .thenReturn("token");
 
       // Act & Assert
@@ -665,7 +665,7 @@ public class ExecutionExecutorServiceTest {
           .thenReturn(List.of());
       when(mockCtx2.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenReturn(List.of());
-      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
           .thenReturn("token");
 
       // Act

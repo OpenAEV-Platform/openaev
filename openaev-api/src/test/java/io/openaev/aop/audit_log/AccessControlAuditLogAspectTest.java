@@ -35,7 +35,7 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.service.LogService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.TeamFixture;
@@ -71,7 +71,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @Autowired private TeamRepository teamRepository;
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private ExecutorFixture executorFixture;
-  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
 
@@ -332,7 +332,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       // Arrange — set up executor and service account required for agent registration
       executorComposer.reset();
       executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
-      serviceAccountPrivilegeService.ensurePrivilegedUserExists(
+      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
           io.openaev.context.TenantContext.getCurrentTenant());
       entityManager.flush();
 
