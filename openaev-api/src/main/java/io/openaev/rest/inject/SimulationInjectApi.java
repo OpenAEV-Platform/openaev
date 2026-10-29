@@ -66,7 +66,6 @@ public class SimulationInjectApi extends RestBehavior {
   private final InjectSearchService injectSearchService;
   private final Executor executor;
   private final InjectorContractRepository injectorContractRepository;
-  private final ExerciseRepository exerciseRepository;
   private final ExerciseService exerciseService;
   private final UserRepository userRepository;
   private final InjectRepository injectRepository;
@@ -308,13 +307,17 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public InjectStatus executeInject(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for the transaction (resolveInjector and executor.directExecute resolve the injector
-      // through the v2 tenant-scoped injectors table).
+      // TenantScopeTransactionAspect reads it to set the tenant scope for the transaction
+      // (resolveInjector and executor.directExecute resolve the injector through the v2
+      // tenant-scoped injectors table); the handler resolves the simulation in the same scope.
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestPart("input") DirectInjectInput input,
       @RequestPart("file") Optional<MultipartFile> file) {
+    Exercise exercise =
+        this.exerciseService
+            .findByIdInScope(ctx, exerciseId)
+            .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
     InjectorContract injectorContract =
         this.injectorContractRepository
             .findById(input.getInjectorContract())
@@ -325,10 +328,7 @@ public class SimulationInjectApi extends RestBehavior {
         this.userRepository
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
-    inject.setExercise(
-        this.exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(() -> new ElementNotFoundException("Exercise not found")));
+    inject.setExercise(exercise);
     inject.setDependsDuration(0L);
     Inject savedInject = this.injectRepository.save(inject);
     Iterable<User> users = this.userRepository.findAllById(input.getUserIds());

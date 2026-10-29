@@ -74,8 +74,6 @@ public class SimulationChallengeApi extends RestBehavior {
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   @Transactional(rollbackFor = Exception.class)
   public SimulationChallengesReader validateChallenge(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for this transaction.
       TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String challengeId,
@@ -85,8 +83,10 @@ public class SimulationChallengeApi extends RestBehavior {
     validateUUID(exerciseId);
     validateUUID(challengeId);
 
+    Exercise exercise =
+        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     final User user = impersonateUser(userRepository, userId);
-    return challengeService.validateChallenge(exerciseId, challengeId, input, user);
+    return challengeService.validateChallenge(exercise, challengeId, input, user);
   }
 
   @GetMapping({
@@ -145,7 +145,11 @@ public class SimulationChallengeApi extends RestBehavior {
   public SimulationChallengesReader playerChallenges(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
+    Exercise exercise =
+        exerciseService
+            .findByIdInScope(ctx, simulationId)
+            .orElseThrow(ElementNotFoundException::new);
     final User user = impersonateUser(userRepository, userId);
-    return challengeService.playerChallenges(simulationId, user);
+    return challengeService.playerChallenges(exercise, user);
   }
 }

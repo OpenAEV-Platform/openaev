@@ -285,6 +285,7 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public ExpectationsDriftOutput scenarioExpectationsDrift(
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+    requireScenarioInScope(ctx, scenarioId);
     return expectationsDriftService.scenarioDrift(scenarioId);
   }
 
@@ -307,6 +308,7 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public ExpectationsRealignOutput realignScenarioExpectations(
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+    requireScenarioInScope(ctx, scenarioId);
     return expectationsDriftService.realignScenario(ctx, scenarioId);
   }
 
@@ -329,6 +331,7 @@ public class ScenarioApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    requireScenarioInScope(ctx, scenarioId);
     return expectationsDriftService.dismissScenarioDrift(scenarioId, input.dismissed());
   }
 
@@ -372,6 +375,7 @@ public class ScenarioApi extends RestBehavior {
     // Tear down the autonomous run's coordination first (409 if it is still active), then delete
     // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
     // any chained simulation. No-op for manual scenarios.
+    this.scenarioService.existsInScope(ctx, scenarioId);
     this.autonomousRunService.deleteForScenario(scenarioId);
     this.scenarioService.deleteScenario(ctx, scenarioId);
   }
@@ -392,6 +396,10 @@ public class ScenarioApi extends RestBehavior {
   public List<String> bulkDeleteScenarios(
       TxCtx ctx, @RequestBody @Valid final ScenarioBulkProcessingInput input) {
     return this.scenarioService.bulkDeleteScenarios(ctx, input);
+  }
+
+  private void requireScenarioInScope(final TxCtx ctx, final String scenarioId) {
+    scenarioService.findByIdInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
   }
 
   // -- TAGS --
