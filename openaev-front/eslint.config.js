@@ -18,8 +18,6 @@ const { default: customRules } = await import('eslint-plugin-custom-rules');
 // Ramda is being removed, one pull request per family of functions. Files that still import it are
 // listed here: a pull request that cleans a file removes it from the list, so no new import comes in.
 const legacyRamdaFiles = [
-  'src/admin/components/atomic_testings/AtomicTestingCreation.tsx',
-  'src/admin/components/atomic_testings/atomic_testing/AtomicTestingUpdate.tsx',
   'src/admin/components/autonomous/AutonomousOutcome.tsx',
   'src/admin/components/autonomous/AutonomousOverview.tsx',
   'src/admin/components/common/articles/Articles.tsx',
@@ -36,10 +34,7 @@ const legacyRamdaFiles = [
   'src/admin/components/integrations/injectors/injector_contracts/InjectorContractPopover.jsx',
   'src/admin/components/lessons/LessonsObjectives.jsx',
   'src/admin/components/lessons/ObjectiveEvaluations.jsx',
-  'src/admin/components/lessons/ObjectivePopover.jsx',
   'src/admin/components/lessons/categories/LessonsCategoryAddTeams.jsx',
-  'src/admin/components/lessons/categories/LessonsCategoryPopover.jsx',
-  'src/admin/components/lessons/categories/questions/LessonsQuestionPopover.jsx',
   'src/admin/components/lessons/scenarios/LessonsCategories.jsx',
   'src/admin/components/lessons/simulations/CrysisIntensity.jsx',
   'src/admin/components/lessons/simulations/Lessons.tsx',
@@ -51,7 +46,6 @@ const legacyRamdaFiles = [
   'src/admin/components/settings/groups/tenant_groups/GroupPopover.jsx',
   'src/admin/components/settings/tags/CreateTag.jsx',
   'src/admin/components/settings/tags/TagPopover.jsx',
-  'src/admin/components/settings/vulnerabilities/VulnerabilityPopover.tsx',
   'src/admin/components/simulations/simulation/SimulationMainInformation.tsx',
   'src/admin/components/simulations/simulation/injects/QuickInject.jsx',
   'src/admin/components/simulations/simulation/logs/LogPopover.jsx',
@@ -89,7 +83,6 @@ const legacyRamdaFiles = [
   'src/public/components/channels/ChannelTvChannel.jsx',
   'src/public/components/lessons/LessonsPlayer.jsx',
   'src/public/components/lessons/LessonsPreview.jsx',
-  'src/reducers/Referential.ts',
   'src/store.ts',
   'src/utils/Action.ts',
   'src/utils/BrowserLanguage.ts',

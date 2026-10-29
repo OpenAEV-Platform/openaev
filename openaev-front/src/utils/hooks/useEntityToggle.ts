@@ -1,6 +1,8 @@
 import * as R from 'ramda';
 import { type SyntheticEvent, useState } from 'react';
 
+import { omit } from '../object';
+
 export interface UseEntityToggle<T> {
   selectedElements: Record<string, T>;
   deSelectedElements: Record<string, T>;
@@ -53,20 +55,20 @@ const useEntityToggle = <T extends Record<string, any>>(
         ),
       };
       if (forceRemove.length > 0) {
-        newSelectedElements = R.omit(
-          forceRemove.map(n => n[`${prefix}_id`]),
+        newSelectedElements = omit(
           newSelectedElements,
+          forceRemove.map(n => n[`${prefix}_id`]),
         );
       }
       setSelectAll(false);
       setSelectedElements(newSelectedElements);
       setDeSelectedElements({});
     } else if (entity[`${prefix}_id`] in (selectedElements || {})) {
-      const newSelectedElements = R.omit([entity[`${prefix}_id`]], selectedElements);
+      const newSelectedElements = omit(selectedElements, [entity[`${prefix}_id`]]);
       setSelectAll(false);
       setSelectedElements(newSelectedElements);
     } else if (selectAll && entity[`${prefix}_id`] in (deSelectedElements || {})) {
-      const newDeSelectedElements = R.omit([entity[`${prefix}_id`]], deSelectedElements);
+      const newDeSelectedElements = omit(deSelectedElements, [entity[`${prefix}_id`]]);
       setDeSelectedElements(newDeSelectedElements);
     } else if (selectAll) {
       const newDeSelectedElements = {

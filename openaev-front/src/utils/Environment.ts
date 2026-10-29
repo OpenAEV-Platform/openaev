@@ -5,6 +5,7 @@ import { Subject, timer } from 'rxjs';
 import { debounce } from 'rxjs/operators';
 
 import type { PlatformSettings } from './api-types';
+import { pick } from './object';
 
 export interface Message {
   type: 'error' | 'message';
@@ -85,7 +86,7 @@ export const exportData = <T extends object>(
   scenariosMap: ScenariosMap = {},
 ): Record<string, string | undefined>[] => {
   return data
-    .map(d => R.pick(keys, d as Record<string, unknown>) as Record<string, unknown>)
+    .map(d => pick(d as Record<string, unknown>, keys) as Record<string, unknown>)
     .map((d) => {
       let entry = d;
 

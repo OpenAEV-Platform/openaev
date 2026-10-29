@@ -34,7 +34,10 @@ const buildError = (data: AxiosError) => {
       return [R.head(elem), extractErrorsPipe(elem)];
     }),
     R.fromPairs(),
-    R.set(R.lensProp(FORM_ERROR), data.message),
+    (errors: Record<string, unknown>) => ({
+      ...errors,
+      [FORM_ERROR]: data.message,
+    }),
   );
   return errorsExtractor(data);
 };

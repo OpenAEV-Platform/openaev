@@ -1,6 +1,7 @@
 import * as R from 'ramda';
 
 import { DEFAULT_LANG, supportedLanguages } from '../constants/Lang';
+import { pick } from './object';
 
 // These window.navigator contain language information
 // 1. languages -> [] of preferred languages (eg ["en-US", "zh-CN", "ja-JP"]) Firefox^32, Chrome^32
@@ -18,7 +19,7 @@ const browserLanguagePropertyKeys = [
 ];
 
 const detectedLocale = R.pipe(
-  R.pick(browserLanguagePropertyKeys), // Get only language properties
+  (navigator: object) => pick(navigator as Record<string, unknown>, browserLanguagePropertyKeys), // Get only language properties
   R.values(), // Get values of the properties
   R.flatten(), // flatten all arrays
   R.reject(R.isNil), // Remove undefined values
