@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -30,6 +31,7 @@ import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.AssetToExecute;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -39,6 +41,8 @@ import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +68,8 @@ class ExpectationApiTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectExpectationService injectExpectationService;
+  @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private CacheManager cacheManager;
 
   // Saved entities for test setup
   private Injector savedInjector;
@@ -1217,6 +1223,148 @@ class ExpectationApiTest extends IntegrationTest {
           .andReturn()
           .getResponse()
           .getContentAsString();
+    }
+  }
+
+  @Nested
+  @Transactional
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Logging expectations for collectors")
+  class LoggingExpectationsForCollectors {
+
+    private static final String LOGGING_URI = INJECTS_EXPECTATIONS_URI + "/logging/";
+
+    @BeforeEach
+    void declareLoggingOnSiemCollector() {
+      // Only the SIEM collector declares Logging: the EDR one keeps the legacy behaviour.
+      Collector siem =
+          collectorRepository
+              .findByIdAndTenantId(savedSIEMCollector.getId(), Tenant.DEFAULT_TENANT_UUID)
+              .orElseThrow();
+      siem.setSupportedExpectationTypes(
+          new BaseInjectExpectation.EXPECTATION_TYPE[] {
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+            BaseInjectExpectation.EXPECTATION_TYPE.LOGGING
+          });
+      collectorRepository.save(siem);
+      em.flush();
+      em.clear();
+    }
+
+    @AfterEach
+    void disableLoggingFlag() {
+      setLoggingFlag(false);
+    }
+
+    @Test
+    @DisplayName("given_flag_off_should_return_an_empty_list")
+    void given_flag_off_should_return_an_empty_list() throws Exception {
+      // Arrange
+      setLoggingFlag(false);
+      computeDetectionAndLoggingExpectations();
+
+      // Act & Assert
+      mvc.perform(
+              get(LOGGING_URI + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("given_flag_on_should_return_only_unanswered_logging_leaves")
+    void given_flag_on_should_return_only_unanswered_logging_leaves() throws Exception {
+      // Arrange
+      setLoggingFlag(true);
+      computeDetectionAndLoggingExpectations();
+
+      // Act & Assert
+      mvc.perform(
+              get(LOGGING_URI + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(2)))
+          .andExpect(
+              jsonPath(
+                  "$[*].inject_expectation_type",
+                  everyItem(is(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING_VALUE))))
+          .andExpect(
+              jsonPath(
+                  "$[*].inject_expectation_agent",
+                  containsInAnyOrder(savedAgent1.getId(), savedAgent2.getId())));
+    }
+
+    @Test
+    @DisplayName("given_logging_expectations_should_not_be_returned_by_the_assets_route")
+    void given_logging_expectations_should_not_be_returned_by_the_assets_route() throws Exception {
+      // Arrange
+      setLoggingFlag(true);
+      computeDetectionAndLoggingExpectations();
+
+      // Act & Assert
+      mvc.perform(
+              get(INJECTS_EXPECTATIONS_URI + "/assets/" + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(2)))
+          .andExpect(
+              jsonPath(
+                  "$[*].inject_expectation_type",
+                  everyItem(is(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION_VALUE))));
+    }
+
+    @Test
+    @DisplayName("given_collector_without_declaration_should_not_be_awaited_on_logging")
+    void given_collector_without_declaration_should_not_be_awaited_on_logging() {
+      // Arrange
+      setLoggingFlag(true);
+      computeDetectionAndLoggingExpectations();
+
+      // Act
+      List<BaseInjectExpectation> agentExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
+
+      // Assert
+      BaseInjectExpectation logging =
+          agentExpectations.stream()
+              .filter(e -> e.getType() == BaseInjectExpectation.EXPECTATION_TYPE.LOGGING)
+              .findFirst()
+              .orElseThrow();
+      BaseInjectExpectation detection =
+          agentExpectations.stream()
+              .filter(e -> e.getType() == BaseInjectExpectation.EXPECTATION_TYPE.DETECTION)
+              .findFirst()
+              .orElseThrow();
+      assertEquals(
+          List.of(savedSIEMCollector.getId()),
+          logging.getResults().stream().map(InjectExpectationResult::getSourceId).toList());
+      assertEquals(
+          Set.of(savedEDRCollector.getId(), savedSIEMCollector.getId()),
+          new HashSet<>(
+              detection.getResults().stream().map(InjectExpectationResult::getSourceId).toList()));
+    }
+
+    private void computeDetectionAndLoggingExpectations() {
+      Expectation detection =
+          createExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection");
+      detection.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      Expectation logging =
+          createExpectation(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING, "Logging");
+      logging.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          newExecutableInjectWithTargets(false), List.of(detection, logging), "implantType");
+      em.flush();
+      em.clear();
+    }
+
+    private void setLoggingFlag(boolean enabled) {
+      openAEVConfig.setEnabledDevFeatures(
+          enabled ? PreviewFeature.LOGGING_EXPECTATION.getValue() : "");
+      Optional.ofNullable(cacheManager.getCache("global")).ifPresent(Cache::clear);
     }
   }
 
