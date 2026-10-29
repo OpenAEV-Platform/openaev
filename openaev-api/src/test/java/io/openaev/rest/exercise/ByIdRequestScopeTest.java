@@ -3,12 +3,14 @@ package io.openaev.rest.exercise;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * Simulation and scenario by-id reads resolve the row inside the request's tenant scope, with the
@@ -20,6 +22,9 @@ import org.springframework.test.context.DynamicPropertySource;
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulation and scenario by-id reads in the request scope, production tables")
 class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
+
+  // The autonomous launch is EE-gated; the mock's license checks default to "active".
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @DynamicPropertySource
   static void productionActiveTables(DynamicPropertyRegistry registry) {
@@ -63,6 +68,29 @@ class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
       // Assert
       assertThat(new int[] {read, update, delete}).containsExactly(200, 200, 200);
       assertThat(scenarioExists(scenarioId)).isFalse();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given default tenant rows on the route of another tenant, their teams are not removed")
+    void given_defaultTenantRowsOnRouteOfAnotherTenant_should_notRemoveTheirTeams()
+        throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(DEFAULT_TENANT);
+      String simulationTeamId = seedTeamOfSimulation(DEFAULT_TENANT, simulationId);
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      String scenarioTeamId = seedTeamOfScenario(DEFAULT_TENANT, scenarioId);
+      Route route = tenantRoute(memberTenant);
+
+      // Act
+      int simulationRemove = removeSimulationTeam(route, simulationId, simulationTeamId);
+      int scenarioRemove = removeScenarioTeam(route, scenarioId, scenarioTeamId);
+
+      // Assert
+      assertThat(new int[] {simulationRemove, scenarioRemove}).containsExactly(404, 404);
+      assertThat(simulationHasTeam(simulationId, simulationTeamId)).isTrue();
+      assertThat(scenarioHasTeam(scenarioId, scenarioTeamId)).isTrue();
     }
   }
 
@@ -190,6 +218,115 @@ class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
       assertThat(new int[] {simulationDelete, scenarioDelete}).containsExactly(403, 403);
       assertThat(simulationExists(simulationId)).isTrue();
       assertThat(scenarioExists(scenarioId)).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("Non-prefixed route, endpoints that act on a simulation or scenario by id")
+  class EndpointsByIdOnNonPrefixedRoute {
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant simulation and a selector naming another tenant, every simulation"
+            + " endpoint answers not found and changes nothing")
+    void given_defaultTenantSimulationAndSelectorNamingAnotherTenant_should_refuseEveryEndpoint()
+        throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(DEFAULT_TENANT);
+      String teamId = seedTeamOfSimulation(DEFAULT_TENANT, simulationId);
+      linkSimulationToScenario(simulationId, seedScenario(DEFAULT_TENANT));
+      int simulationsBefore = simulationCount();
+      Route route = headerRoute(memberTenant);
+
+      // Act
+      int read = getSimulation(route, simulationId);
+      int teams = getSimulationTeams(route, simulationId);
+      int results = getSimulationResultsByAttackPattern(route, simulationId);
+      int scenario = getScenarioOfSimulation(route, simulationId);
+      int duplicate = duplicateSimulation(route, simulationId);
+      int removeTeam = removeSimulationTeam(route, simulationId, teamId);
+
+      // Assert
+      assertThat(new int[] {read, teams, results, scenario, duplicate, removeTeam})
+          .containsExactly(404, 404, 404, 404, 404, 404);
+      assertThat(simulationCount()).isEqualTo(simulationsBefore);
+      assertThat(simulationHasTeam(simulationId, teamId)).isTrue();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant simulation and no selector, a member of the default tenant still"
+            + " reaches every simulation endpoint")
+    void given_defaultTenantSimulationAndNoSelector_should_reachEveryEndpoint() throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(DEFAULT_TENANT);
+      String teamId = seedTeamOfSimulation(DEFAULT_TENANT, simulationId);
+      linkSimulationToScenario(simulationId, seedScenario(DEFAULT_TENANT));
+      int simulationsBefore = simulationCount();
+      Route route = noSelectorRoute();
+
+      // Act
+      int read = getSimulation(route, simulationId);
+      int teams = getSimulationTeams(route, simulationId);
+      int results = getSimulationResultsByAttackPattern(route, simulationId);
+      int scenario = getScenarioOfSimulation(route, simulationId);
+      int duplicate = duplicateSimulation(route, simulationId);
+      int removeTeam = removeSimulationTeam(route, simulationId, teamId);
+
+      // Assert
+      assertThat(new int[] {read, teams, results, scenario, duplicate, removeTeam})
+          .containsExactly(200, 200, 200, 200, 200, 200);
+      assertThat(simulationCount()).isEqualTo(simulationsBefore + 1);
+      assertThat(simulationHasTeam(simulationId, teamId)).isFalse();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant scenario and a selector naming another tenant, every scenario"
+            + " endpoint answers not found and changes nothing")
+    void given_defaultTenantScenarioAndSelectorNamingAnotherTenant_should_refuseEveryEndpoint()
+        throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      String teamId = seedTeamOfScenario(DEFAULT_TENANT, scenarioId);
+      Route route = headerRoute(memberTenant);
+
+      // Act
+      int read = getScenario(route, scenarioId);
+      int teams = getScenarioTeams(route, scenarioId);
+      int launch = launchAutonomousRun(route, scenarioId);
+      int removeTeam = removeScenarioTeam(route, scenarioId, teamId);
+
+      // Assert
+      assertThat(new int[] {read, teams, launch, removeTeam}).containsExactly(404, 404, 404, 404);
+      assertThat(autonomousRunCount(scenarioId)).isZero();
+      assertThat(scenarioHasTeam(scenarioId, teamId)).isTrue();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant scenario and no selector, a member of the default tenant still"
+            + " reaches every scenario endpoint")
+    void given_defaultTenantScenarioAndNoSelector_should_reachEveryEndpoint() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      String teamId = seedTeamOfScenario(DEFAULT_TENANT, scenarioId);
+      Route route = noSelectorRoute();
+
+      // Act
+      int read = getScenario(route, scenarioId);
+      int teams = getScenarioTeams(route, scenarioId);
+      // Reached: refused only because the seeded scenario has no attack path workflow.
+      int launch = launchAutonomousRun(route, scenarioId);
+      int removeTeam = removeScenarioTeam(route, scenarioId, teamId);
+
+      // Assert
+      assertThat(new int[] {read, teams, launch, removeTeam}).containsExactly(200, 200, 400, 200);
+      assertThat(scenarioHasTeam(scenarioId, teamId)).isFalse();
     }
   }
 }
