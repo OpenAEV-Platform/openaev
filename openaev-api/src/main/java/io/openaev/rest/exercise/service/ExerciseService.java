@@ -240,6 +240,21 @@ public class ExerciseService {
     return this.exerciseRepository.findByIdAndTenantIdIn(exerciseId, readScope(ctx));
   }
 
+  /**
+   * Loads an exercise by primary key and keeps it only when its tenant lies in the request's tenant
+   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
+   * the default one on the non-prefixed route: a member reaches its own exercise in any tenant of
+   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
+   * them refuses only what lies outside the scope.
+   */
+  public Optional<Exercise> findByIdInScope(
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    Set<String> scope = readScope(ctx);
+    return this.exerciseRepository
+        .findById(exerciseId)
+        .filter(exercise -> scope.contains(exercise.getTenant().getId()));
+  }
+
   /** Loads an exercise inside the request's tenant scope. Throws if not found there. */
   public Exercise exercise(@NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
     return findInScope(ctx, exerciseId)

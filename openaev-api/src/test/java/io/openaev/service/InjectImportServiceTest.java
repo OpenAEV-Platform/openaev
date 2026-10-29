@@ -12,9 +12,9 @@ import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.InjectImporter;
 import io.openaev.database.model.RuleAttribute;
 import io.openaev.database.model.Scenario;
-import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.scenario.ScenarioService;
@@ -336,7 +336,7 @@ public class InjectImportServiceTest {
     private final TxCtx ctx = TxCtx.forTenant("tenant-1");
 
     @Mock private ScenarioService scenarioService;
-    @Mock private ExerciseRepository exerciseRepository;
+    @Mock private ExerciseService exerciseService;
     @Mock private ImportService importService;
 
     private InjectImportService injectImportService;
@@ -351,7 +351,7 @@ public class InjectImportServiceTest {
               null,
               null,
               null,
-              exerciseRepository,
+              exerciseService,
               scenarioService,
               importService,
               null,
@@ -380,7 +380,7 @@ public class InjectImportServiceTest {
       // -------- Prepare --------
       Exercise exercise = new Exercise();
       exercise.setId("ex-1");
-      when(exerciseRepository.findById("ex-1")).thenReturn(Optional.of(exercise));
+      when(exerciseService.findByIdInScope(ctx, "ex-1")).thenReturn(Optional.of(exercise));
 
       MultipartFile file = mock(MultipartFile.class);
 
@@ -419,7 +419,7 @@ public class InjectImportServiceTest {
     @Test
     void shouldThrowElementNotFound_whenExerciseMissing() {
       // -------- Prepare --------
-      when(exerciseRepository.findById("missing")).thenReturn(Optional.empty());
+      when(exerciseService.findByIdInScope(ctx, "missing")).thenReturn(Optional.empty());
       MultipartFile file = mock(MultipartFile.class);
 
       // -------- Act / Assert --------
