@@ -166,8 +166,7 @@ class InjectStatusServiceTest {
     }
 
     @Test
-    @DisplayName(
-        "given restricted agent and first cleared agent complete should finalize inject")
+    @DisplayName("given restricted agent and first cleared agent complete should finalize inject")
     void given_restrictedAgentAndFirstClearedAgentComplete_should_keepInjectRunning() {
       // Arrange
       Agent firstClearedAgent = agent("agent-cleared-1");
