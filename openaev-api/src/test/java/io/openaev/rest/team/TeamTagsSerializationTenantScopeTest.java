@@ -15,11 +15,13 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -36,7 +38,9 @@ import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.rest.team.form.TeamUpdateInput;
+import io.openaev.rest.team.form.UpdateUsersTeamInput;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
@@ -45,14 +49,10 @@ import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.fixtures.composers.TeamComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
@@ -78,8 +78,10 @@ import org.springframework.test.web.servlet.ResultActions;
  *
  * <p>The tests cover every lazy association these responses serialize that can be seeded without an
  * inject: team tags, users, organization, simulations, scenarios and simulation players; player
- * tags, teams, organization and simulation players. They run with the production list of isolated
- * tables, read from {@code application.properties}: activating another table that one of these
+ * tags, teams, organization and simulation players. Every {@code TeamApi} endpoint returning a raw
+ * team is covered except create: read, edit, players update and upsert. They run with the
+ * production list of isolated tables plus {@code exercises} and {@code scenarios}, which a team
+ * reaches through its simulations and scenarios: activating another table that one of these
  * associations reaches makes them fail until the association is loaded inside the scope too.
  *
  * <p>The class is deliberately NOT {@code @Transactional}: a rolled-back test transaction never
@@ -92,15 +94,11 @@ import org.springframework.test.web.servlet.ResultActions;
 class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
 
   @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    Properties props = new Properties();
-    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
-      props.load(in);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-    String activeTables = props.getProperty("openaev.tenant.active-tables", "");
-    registry.add("openaev.tenant.active-tables", () -> activeTables);
+  static void productionActiveTablesWithExercisesAndScenarios(DynamicPropertyRegistry registry) {
+    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
+    tables.add("exercises");
+    tables.add("scenarios");
+    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
   }
 
   @Autowired private MockMvc mvc;
@@ -220,14 +218,17 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
       // added. The response must therefore show every existing link: an empty tag list here is
       // what erased the tags before the fix.
       expectEveryTeamLazyAssociation(getTeam(team), seeded);
-      mvc.perform(
-              put(TENANT_TEAM_URI + "/{teamId}", tenant, team.getId())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(teamEditInput(team, editedTags)))
-                  .with(csrf()))
-          .andExpect(status().isOk());
+      ResultActions response =
+          mvc.perform(
+                  put(TENANT_TEAM_URI + "/{teamId}", tenant, team.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(teamEditInput(team, editedTags)))
+                      .with(csrf()))
+              .andExpect(status().isOk());
 
       // -- Assert --
+      // The response replaces the team in the client store, so it must carry every link too.
+      expectEveryTeamLazyAssociation(response, seeded, editedTags);
       inTenantScope(
           () -> {
             Team saved = teamRepository.findById(team.getId()).orElseThrow();
@@ -244,6 +245,72 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
       input.setOrganizationId(team.getOrganization().getId());
       input.setTagIds(tagIds);
       return input;
+    }
+  }
+
+  @Nested
+  @DisplayName("Edit the players of a team")
+  class EditTeamPlayers {
+
+    @Test
+    @DisplayName(
+        "given a team carrying every lazy association when its players are updated then the"
+            + " response serializes all of them")
+    void
+        given_a_team_carrying_every_lazy_association_when_its_players_are_updated_then_the_response_serializes_all_of_them()
+            throws Exception {
+      // -- Arrange --
+      SeededTeam seeded = seedTeamWithEveryLazyAssociation();
+      UpdateUsersTeamInput input = new UpdateUsersTeamInput();
+      input.setUserIds(List.of(seeded.player().getId()));
+
+      // -- Act --
+      ResultActions response =
+          mvc.perform(
+                  put(TENANT_TEAM_URI + "/{teamId}/players", tenant, seeded.team().getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .with(csrf()))
+              .andExpect(status().isOk());
+
+      // -- Assert --
+      // The team detail page stores this response in place of the team it shows.
+      expectEveryTeamLazyAssociation(response, seeded);
+    }
+  }
+
+  @Nested
+  @DisplayName("Upsert a team")
+  class UpsertTeam {
+
+    @Test
+    @DisplayName(
+        "given an existing team carrying every lazy association when it is upserted by name then"
+            + " the response serializes all of them")
+    void
+        given_an_existing_team_carrying_every_lazy_association_when_it_is_upserted_by_name_then_the_response_serializes_all_of_them()
+            throws Exception {
+      // -- Arrange --
+      SeededTeam seeded = seedTeamWithEveryLazyAssociation();
+      Team team = seeded.team();
+      TeamCreateInput input = new TeamCreateInput();
+      input.setName(team.getName());
+      input.setDescription(team.getDescription());
+      input.setOrganizationId(seeded.organizationId());
+      input.setTagIds(tagIds(team.getTags()));
+
+      // -- Act --
+      ResultActions response =
+          mvc.perform(
+                  post(TENANT_TEAM_URI + "/upsert", tenant)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .with(csrf()))
+              .andExpect(status().isOk());
+
+      // -- Assert --
+      response.andExpect(jsonPath("$.team_id").value(team.getId()));
+      expectEveryTeamLazyAssociation(response, seeded);
     }
   }
 
@@ -388,9 +455,13 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
 
   private static void expectEveryTeamLazyAssociation(ResultActions response, SeededTeam seeded)
       throws Exception {
+    expectEveryTeamLazyAssociation(response, seeded, tagIds(seeded.team().getTags()));
+  }
+
+  private static void expectEveryTeamLazyAssociation(
+      ResultActions response, SeededTeam seeded, List<String> expectedTagIds) throws Exception {
     response
-        .andExpect(
-            jsonPath("$.team_tags", containsInAnyOrder(tagIds(seeded.team().getTags()).toArray())))
+        .andExpect(jsonPath("$.team_tags", containsInAnyOrder(expectedTagIds.toArray())))
         .andExpect(jsonPath("$.team_users", contains(seeded.player().getId())))
         .andExpect(jsonPath("$.team_organization").value(seeded.organizationId()))
         .andExpect(jsonPath("$.team_exercises", contains(seeded.exerciseId())))
