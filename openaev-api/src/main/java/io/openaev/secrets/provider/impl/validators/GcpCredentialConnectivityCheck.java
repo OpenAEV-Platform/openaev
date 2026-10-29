@@ -52,8 +52,7 @@ public class GcpCredentialConnectivityCheck {
    * used rather than v3 because it accepts the human-readable project id directly, which is what is
    * stored on the credential.
    */
-  private static final String PROJECT_ENDPOINT =
-      "https://cloudresourcemanager.googleapis.com/v1/projects/";
+  static final String PROJECT_ENDPOINT = "https://cloudresourcemanager.googleapis.com/v1/projects/";
 
   /** Google answers a revoked or expired refresh token with HTTP 400 and this error code. */
   private static final String ERROR_INVALID_GRANT = "invalid_grant";
@@ -92,23 +91,31 @@ public class GcpCredentialConnectivityCheck {
    * @param privateKeyJson the decrypted key file content
    * @param scope the OAuth scope the credential is stored for
    * @param projectId optional project to additionally probe with a resource-manager read
+   * @param customResourceManagerUri optional token server of a sovereign or mocked cloud
+   * @param customProjectsUri optional projects endpoint of a sovereign or mocked cloud
    * @return the outcome, never null
    */
   public SecretConnectionResult validateServiceAccount(
-      byte[] privateKeyJson, String scope, String projectId) {
+      byte[] privateKeyJson,
+      String scope,
+      String projectId,
+      String customResourceManagerUri,
+      String customProjectsUri) {
     if (privateKeyJson == null || privateKeyJson.length == 0 || isBlank(scope)) {
       return SecretConnectionResult.formatError();
     }
 
     GoogleCredentials credentials;
     try {
-      credentials = googleCredentialsFactory.forServiceAccount(privateKeyJson, scope);
+      credentials =
+          googleCredentialsFactory.forServiceAccount(
+              privateKeyJson, scope, customResourceManagerUri);
     } catch (IOException | RuntimeException e) {
-      // Malformed or unparsable stored key: the configuration is broken, so the credential cannot
-      // be checked at all — never "rejected".
+      // Malformed or unparsable stored key, or malformed override: the configuration is broken, so
+      // the credential cannot be checked at all — never "rejected".
       return SecretConnectionResult.formatError();
     }
-    return probe(credentials, projectId);
+    return probe(credentials, projectId, projectsEndpoint(customProjectsUri));
   }
 
   /**
@@ -119,24 +126,43 @@ public class GcpCredentialConnectivityCheck {
    * @param refreshToken the decrypted refresh token
    * @param scope the OAuth scope the credential is stored for
    * @param projectId optional project to additionally probe with a resource-manager read
+   * @param customTokenUri optional token server of a sovereign or mocked cloud
+   * @param customProjectsUri optional projects endpoint of a sovereign or mocked cloud
    * @return the outcome, never null
    */
   public SecretConnectionResult validateOAuth2(
-      String clientId, String clientSecret, String refreshToken, String scope, String projectId) {
+      String clientId,
+      String clientSecret,
+      String refreshToken,
+      String scope,
+      String projectId,
+      String customTokenUri,
+      String customProjectsUri) {
     if (isBlank(clientId) || isBlank(clientSecret) || isBlank(refreshToken) || isBlank(scope)) {
       return SecretConnectionResult.formatError();
     }
 
     GoogleCredentials credentials;
     try {
-      credentials = googleCredentialsFactory.forOAuth2(clientId, clientSecret, refreshToken, scope);
+      credentials =
+          googleCredentialsFactory.forOAuth2(
+              clientId, clientSecret, refreshToken, scope, customTokenUri);
     } catch (RuntimeException e) {
       return SecretConnectionResult.formatError();
     }
-    return probe(credentials, projectId);
+    return probe(credentials, projectId, projectsEndpoint(customProjectsUri));
   }
 
-  private SecretConnectionResult probe(GoogleCredentials credentials, String projectId) {
+  /**
+   * The base the project id is appended to: the stored override when present, the official resource
+   * manager otherwise.
+   */
+  static String projectsEndpoint(String customProjectsUri) {
+    return isBlank(customProjectsUri) ? PROJECT_ENDPOINT : withTrailingSlash(customProjectsUri);
+  }
+
+  private SecretConnectionResult probe(
+      GoogleCredentials credentials, String projectId, String projectsEndpoint) {
     Duration timeout = Duration.ofSeconds(Math.max(1, timeoutSeconds));
     String token;
     try {
@@ -158,7 +184,7 @@ public class GcpCredentialConnectivityCheck {
     if (isBlank(projectId)) {
       return SecretConnectionResult.active();
     }
-    return probeProject(projectId, token, timeout);
+    return probeProject(projectsEndpoint, projectId, token, timeout);
   }
 
   /**
@@ -184,10 +210,10 @@ public class GcpCredentialConnectivityCheck {
    * resource-manager SDK: the status code alone answers the question, and pulling the full GCP
    * resource-manager client in for one call would add a large dependency tree for no gain.
    */
-  private SecretConnectionResult probeProject(String projectId, String token, Duration timeout) {
-    URI uri = URI.create(PROJECT_ENDPOINT + projectId);
-
+  private SecretConnectionResult probeProject(
+      String projectsEndpoint, String projectId, String token, Duration timeout) {
     try (HttpClient httpClient = HttpClient.newBuilder().connectTimeout(timeout).build()) {
+      URI uri = URI.create(projectsEndpoint + projectId);
       HttpRequest request =
           HttpRequest.newBuilder(uri)
               .GET()
@@ -197,6 +223,8 @@ public class GcpCredentialConnectivityCheck {
       HttpResponse<Void> response =
           httpClient.send(request, HttpResponse.BodyHandlers.discarding());
       return mapStatusCode(response.statusCode());
+    } catch (IllegalArgumentException e) {
+      return SecretConnectionResult.formatError();
     } catch (java.net.http.HttpTimeoutException e) {
       return SecretConnectionResult.timeout();
     } catch (IOException e) {
@@ -322,6 +350,10 @@ public class GcpCredentialConnectivityCheck {
       }
     }
     return false;
+  }
+
+  private static String withTrailingSlash(String endpoint) {
+    return endpoint.endsWith("/") ? endpoint : endpoint + "/";
   }
 
   private static boolean isBlank(String value) {
