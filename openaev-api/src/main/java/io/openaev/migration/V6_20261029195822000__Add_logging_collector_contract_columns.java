@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * matched the attack.
  */
 @Component
-public class V6_20261028120000000__Add_logging_collector_contract_columns
+public class V6_20261029195822000__Add_logging_collector_contract_columns
     extends BaseJavaMigration {
 
   @Override
