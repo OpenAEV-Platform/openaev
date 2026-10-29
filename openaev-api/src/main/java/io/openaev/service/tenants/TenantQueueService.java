@@ -12,9 +12,12 @@ import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -23,8 +26,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * Manages tenant-scoped RabbitMQ queues lifecycle.
  *
  * <p>At startup, declares all configured queues for every active tenant. On tenant creation,
- * declares queues for the new tenant, and deletes them again if the creation rolls back. On tenant
- * deletion (purge), deletes the tenant's queues and exchanges.
+ * declares queues for the new tenant, and deletes them again if the creation rolls back, retrying
+ * that deletion until it succeeds. On tenant deletion (purge), deletes the tenant's queues and
+ * exchanges.
  *
  * <p>Queue name pattern per tenant: {@code prefix-tenantId_execution_queueName}
  */
@@ -36,6 +40,12 @@ public class TenantQueueService implements DependenciesManager {
   private final RabbitmqService rabbitmqService;
   private final OpenAEVConfig openAEVConfig;
   private final TenantRepository tenantRepository;
+
+  /**
+   * Rolled back tenants whose broker objects could not be deleted. Held in memory: no tenant row is
+   * left to find them by, and nothing written inside the rolled back transaction survives it.
+   */
+  private final Set<String> rollbackCleanupsToRetry = ConcurrentHashMap.newKeySet();
 
   // -- LIFECYCLE --
 
@@ -78,8 +88,13 @@ public class TenantQueueService implements DependenciesManager {
   /**
    * Declares all configured queues for a newly created tenant.
    *
-   * <p>The broker is not transactional: if the onboarding transaction rolls back, the declared
-   * objects are deleted once it has, since no tenant row is left for the purge to find them by.
+   * <p>The broker is not transactional, and no tenant row is left for the purge to find the objects
+   * by if the onboarding transaction rolls back. So once a rollback is confirmed, the objects
+   * declared so far are deleted. If that deletion fails, the tenant id is kept and {@link
+   * #retryFailedRollbackCleanups} deletes them once the broker accepts it. The pending ids live in
+   * this process only: they survive a broker outage, not a restart of the application, and objects
+   * whose deletion is still pending when the application stops stay on the broker. When the
+   * transaction outcome is unknown, the objects are kept, since the tenant row may exist.
    */
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
@@ -114,6 +129,27 @@ public class TenantQueueService implements DependenciesManager {
     }
   }
 
+  /**
+   * Retries the deletion of the broker objects of rolled back tenants whose first attempt failed. A
+   * tenant stays pending until its deletion succeeds; deleting objects that are already gone is a
+   * no-op on the broker, so a deletion that failed partway is completed.
+   */
+  @Scheduled(fixedDelay = 60_000, initialDelay = 60_000)
+  public void retryFailedRollbackCleanups() {
+    for (String tenantId : List.copyOf(rollbackCleanupsToRetry)) {
+      try {
+        rabbitmqService.deleteQueuesForTenant(tenantId, getQueueConfigs());
+        rollbackCleanupsToRetry.remove(tenantId);
+        log.info("Deleted RabbitMQ queues of rolled back tenant '{}' on retry", tenantId);
+      } catch (IOException | TimeoutException | RuntimeException e) {
+        log.warn(
+            "Retry failed to delete RabbitMQ queues of rolled back tenant '{}': {}",
+            tenantId,
+            e.getMessage());
+      }
+    }
+  }
+
   // -- INTERNAL --
 
   private void deleteQueuesOnRollback(String tenantId, List<QueueConfig> configs) {
@@ -132,7 +168,11 @@ public class TenantQueueService implements DependenciesManager {
               rabbitmqService.deleteQueuesForTenant(tenantId, configs);
               log.info("Deleted RabbitMQ queues of rolled back tenant '{}'", tenantId);
             } catch (IOException | TimeoutException | RuntimeException e) {
-              log.error("Failed to delete RabbitMQ queues of rolled back tenant '{}'", tenantId, e);
+              rollbackCleanupsToRetry.add(tenantId);
+              log.error(
+                  "Failed to delete RabbitMQ queues of rolled back tenant '{}', will retry",
+                  tenantId,
+                  e);
             }
           }
         });

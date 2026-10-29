@@ -46,6 +46,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -127,6 +129,14 @@ class TenantQueueServiceBrokerLifecycleTest extends IntegrationTest {
   private final AtomicReference<List<String>> brokerObjectsAtDeclarationFailure =
       new AtomicReference<>();
 
+  /** While set, every broker deletion of a tenant's objects fails, as with the broker down. */
+  private final AtomicBoolean brokerDeletionsDown = new AtomicBoolean();
+
+  /** While the broker is down, whether a deletion removes the first queue before it fails. */
+  private final AtomicBoolean deleteFirstQueueBeforeFailing = new AtomicBoolean();
+
+  private final Set<String> tenantsWhoseBrokerDeletionWasRefused = ConcurrentHashMap.newKeySet();
+
   @BeforeEach
   void setUp() throws Exception {
     failingOnboardingManager.failingTenantNames.clear();
@@ -135,6 +145,14 @@ class TenantQueueServiceBrokerLifecycleTest extends IntegrationTest {
     doAnswer(
             invocation -> {
               String tenantId = invocation.getArgument(0);
+              List<QueueConfig> configs = invocation.getArgument(1);
+              if (brokerDeletionsDown.get() && configs.size() > 1) {
+                tenantsWhoseBrokerDeletionWasRefused.add(tenantId);
+                if (deleteFirstQueueBeforeFailing.get()) {
+                  rabbitmqService.deleteQueuesForTenant(tenantId, configs.subList(0, 1));
+                }
+                throw new IOException("broker unavailable for tenant " + tenantId);
+              }
               if (failNextBrokerDeletionAmong.contains(tenantId)
                   && tenantWhoseBrokerDeletionFailed.compareAndSet(null, tenantId)) {
                 failNextBrokerDeletionAmong.clear();
@@ -164,6 +182,8 @@ class TenantQueueServiceBrokerLifecycleTest extends IntegrationTest {
     failingOnboardingManager.failingTenantNames.clear();
     failNextBrokerDeletionAmong.clear();
     failDeclarationAfterFirstQueue.set(false);
+    brokerDeletionsDown.set(false);
+    deleteFirstQueueBeforeFailing.set(false);
     for (String tenantId : tenantIds) {
       tenantHelper.deleteCommittedTenants(tenantId);
     }
@@ -406,6 +426,96 @@ class TenantQueueServiceBrokerLifecycleTest extends IntegrationTest {
       assertThat(tenantRepository.existsById(tenantId.get())).isTrue();
       assertThat(existingBrokerObjects(tenantId.get()))
           .isEqualTo(brokerObjectNames(tenantId.get()));
+    }
+
+    @Test
+    @DisplayName("An onboarding whose transaction outcome is unknown keeps its broker objects")
+    void given_anOnboardingWhoseTransactionOutcomeIsUnknown_should_keepItsBrokerObjects()
+        throws Exception {
+      // Arrange
+      Tenant tenant = TenantFixture.getTenant("broker-lifecycle-unknown");
+      tenant.setId(UUID.randomUUID().toString());
+      tenantIds.add(tenant.getId());
+      List<TransactionSynchronization> synchronizations;
+      TransactionSynchronizationManager.initSynchronization();
+      try {
+        tenantQueueService.createDependencyForTenant(tenant);
+        synchronizations = TransactionSynchronizationManager.getSynchronizations();
+      } finally {
+        TransactionSynchronizationManager.clearSynchronization();
+      }
+      assertThat(synchronizations).hasSize(1);
+      assertThat(existingBrokerObjects(tenant.getId()))
+          .isEqualTo(brokerObjectNames(tenant.getId()));
+
+      // Act
+      synchronizations.getFirst().afterCompletion(TransactionSynchronization.STATUS_UNKNOWN);
+      tenantQueueService.retryFailedRollbackCleanups();
+
+      // Assert
+      assertThat(existingBrokerObjects(tenant.getId()))
+          .isEqualTo(brokerObjectNames(tenant.getId()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Rollback cleanup that fails")
+  class FailedRollbackCleanup {
+
+    @Test
+    @DisplayName("Keeps the objects while the broker is down and deletes them once it is back")
+    void given_aRollbackCleanupFailingWhileTheBrokerIsDown_should_deleteTheObjectsOnceItIsBack() {
+      // Arrange
+      String tenantId = onboardingRolledBackWhileTheBrokerIsDown("broker-lifecycle-down-");
+      assertThat(existingBrokerObjects(tenantId)).isEqualTo(brokerObjectNames(tenantId));
+      tenantQueueService.retryFailedRollbackCleanups();
+      assertThat(existingBrokerObjects(tenantId))
+          .as("a retry while the broker is still down deletes nothing")
+          .isEqualTo(brokerObjectNames(tenantId));
+      brokerDeletionsDown.set(false);
+
+      // Act
+      tenantQueueService.retryFailedRollbackCleanups();
+
+      // Assert
+      assertThat(existingBrokerObjects(tenantId)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Deletes the remaining objects of a cleanup that failed partway")
+    void given_aRollbackCleanupFailingAfterItsFirstQueue_should_deleteTheRemainingObjectsOnRetry() {
+      // Arrange
+      deleteFirstQueueBeforeFailing.set(true);
+      String tenantId = onboardingRolledBackWhileTheBrokerIsDown("broker-lifecycle-partly-");
+      assertThat(existingBrokerObjects(tenantId))
+          .as("the failed cleanup deleted part of the broker objects")
+          .isNotEmpty()
+          .hasSizeLessThan(brokerObjectNames(tenantId).size())
+          .isSubsetOf(brokerObjectNames(tenantId));
+      brokerDeletionsDown.set(false);
+
+      // Act
+      tenantQueueService.retryFailedRollbackCleanups();
+
+      // Assert
+      assertThat(existingBrokerObjects(tenantId)).isEmpty();
+    }
+
+    /** Rolls back an onboarding through a later manager, with every broker deletion failing. */
+    private String onboardingRolledBackWhileTheBrokerIsDown(String namePrefix) {
+      Tenant tenant =
+          TenantFixture.getTenant(namePrefix + UUID.randomUUID().toString().substring(0, 8));
+      failingOnboardingManager.failingTenantNames.add(tenant.getName());
+      brokerDeletionsDown.set(true);
+      Throwable thrown = catchThrowable(() -> tenantService.create(tenant));
+      assertThat(thrown).hasMessageStartingWith("onboarding failure for tenant ");
+      String tenantId = tenant.getId();
+      tenantIds.add(tenantId);
+      assertThat(tenantRepository.existsById(tenantId)).isFalse();
+      assertThat(tenantsWhoseBrokerDeletionWasRefused)
+          .as("the rollback cleanup ran and failed")
+          .contains(tenantId);
+      return tenantId;
     }
   }
 
