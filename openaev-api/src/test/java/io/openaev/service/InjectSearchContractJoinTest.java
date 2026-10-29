@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
@@ -28,6 +29,8 @@ import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -35,7 +38,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,19 +50,26 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Once {@code injectors_contracts} is tenant-active, the statement inspector replaces the joined
  * table with a scoped derived table. PostgreSQL only accepts an ungrouped column of a base table
  * whose primary key is grouped, so every projected contract column must be grouped explicitly.
- * These tests arm the contract tables and pin the row count and the contract values both searches
- * return.
+ * These tests arm the contract tables on top of the production list and pin the row count and the
+ * contract values both searches return.
  */
 @TestInstance(PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(
-    properties =
-        "openaev.tenant.active-tables=injectors_contracts,injector_contract_tags,"
-            + "injectors_contracts_attack_patterns,injectors_contracts_domains,"
-            + "injectors_contracts_vulnerabilities,injectors_injector_contracts")
 @DisplayName("Inject searches joining the injector contract")
 class InjectSearchContractJoinTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTablesWithContractTables(DynamicPropertyRegistry registry) {
+    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
+    tables.add("injectors_contracts");
+    tables.add("injector_contract_tags");
+    tables.add("injectors_contracts_attack_patterns");
+    tables.add("injectors_contracts_domains");
+    tables.add("injectors_contracts_vulnerabilities");
+    tables.add("injectors_injector_contracts");
+    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
+  }
 
   private static final Map<String, String> CONTRACT_LABELS = Map.of("en", "Contract label");
   private static final Endpoint.PLATFORM_TYPE[] CONTRACT_PLATFORMS = {
