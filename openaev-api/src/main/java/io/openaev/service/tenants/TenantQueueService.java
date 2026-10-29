@@ -27,7 +27,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * <p>At startup, declares all configured queues for every active tenant. On tenant creation,
  * declares queues for the new tenant, and deletes them again if the creation rolls back, retrying
- * that deletion until it succeeds. On tenant deletion (purge), deletes the tenant's queues and
+ * that deletion until it succeeds or the application stops: the pending deletions are held in
+ * memory and do not survive a restart. On tenant deletion (purge), deletes the tenant's queues and
  * exchanges.
  *
  * <p>Queue name pattern per tenant: {@code prefix-tenantId_execution_queueName}
