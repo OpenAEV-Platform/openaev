@@ -20,7 +20,7 @@ Thus already a BIG THANK YOU upfront to you for choosing to help with your PR.
 * Related #ISSUE-NUMBER
 *
 
-<!-- If the related issue is in a private repository, do not link or reference it here. Use "N/A" and link this public PR from the private issue instead. -->
+<!-- If the related issue is in a private repository, do not link or reference it here. Use "* N/A" and link this public PR from the private issue instead. -->
 
 ### Checklist
 

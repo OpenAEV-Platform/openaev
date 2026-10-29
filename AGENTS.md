@@ -140,7 +140,7 @@ These apply to **all agents**. Do not flag these — they are intentional patter
 Sections, verbatim and in this order: `### Proposed changes`, `### Testing Instructions`,
 `### Related issues`, `### Checklist`, `### Further comments`.
 
-- `Related issues` is mandatory (`* Related #1234`) for public issues. Use `N/A` when the related issue is in a private repository.
+- `Related issues` is mandatory (`* Related #1234`) for public issues. Use `* N/A` when the related issue is in a private repository.
 - Keep all checklist lines **unchecked** — never tick a box, the human author does that.
 - Drop the template's HTML comments from the final body.
 - Title follows Conventional Commits and ends with the issue reference, unless the related issue is in a private repository.
