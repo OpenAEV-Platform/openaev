@@ -67,22 +67,11 @@ const Endpoints = () => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const ability = useAbility();
-  // ACCESS_MARKING_DEFINITION and marking assignment (ASSIGN_MARKING / DELETE_MARKING_ASSIGNMENT,
-  // enforced server-side on the asset WRITE endpoints) are independent capabilities - a user can
-  // hold either without the other. Three separate gates, each matching what the request it guards
-  // actually requires server-side:
-  //  - markingEnabled: row display and the bulk picker, which only ever call the capability-free
-  //    /assignable endpoint (a row's own markings are always within the viewer's clearance already,
-  //    see useMarkingDefinitions's doc).
-  //  - canAccessMarkingDefinitions: the asset_markings filter, whose options come from
-  //    /marking_definitions/options|search, which does require ACCESS_MARKING_DEFINITION.
-  //  - canManage (MANAGE_ASSETS, i.e. asset WRITE): the bulk "Edit markings" action, mirroring the
-  //    @AccessControl on PUT /api/assets/markings/bulk; the finer-grained ASSIGN_MARKING /
-  //    DELETE_MARKING_ASSIGNMENT check depends on the payload and is only enforced server-side.
   const markingEnabled = isFeatureEnabled('MARKING');
   const canAccessMarkingDefinitions = markingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
-  const canBulkEditMarkings = markingEnabled && canManage;
+  const canManageMarkingAssignment = ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
+  const canBulkEditMarkings = markingEnabled && canManage && canManageMarkingAssignment;
   // Resolved once for the whole page; the Markings column maps ids per row. Needs no capability,
   // only the feature flag - see the gating note above.
   const markingDefinitions = useMarkingDefinitions({
