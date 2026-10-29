@@ -1,4 +1,4 @@
-import { type FunctionComponent, useCallback, useContext, useState } from 'react';
+import { type FunctionComponent, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { createReporting, createReportingSchedule } from '../../../actions/reporting/reporting-actions';
@@ -6,7 +6,7 @@ import ButtonCreate from '../../../components/common/ButtonCreate';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import { type Reporting, type ReportingInput, type ReportingScheduleInput } from '../../../utils/api-types';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ReportingForm from './form/ReportingForm';
 
@@ -18,7 +18,7 @@ import ReportingForm from './form/ReportingForm';
 const ReportingCreation: FunctionComponent = () => {
   const { t } = useFormatter();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [open, setOpen] = useState(false);
 

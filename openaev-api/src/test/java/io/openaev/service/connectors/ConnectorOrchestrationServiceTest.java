@@ -3,6 +3,7 @@ package io.openaev.service.connectors;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -24,6 +26,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -113,6 +116,28 @@ class ConnectorOrchestrationServiceTest {
     service.createConnectorInstance(catalog, input, TENANT_ID);
 
     verify(connectorInstanceService).createConnectorInstance(catalog, input, TENANT_ID);
+  }
+
+  @Test
+  @DisplayName(
+      "Migrating a collector that already has an instance returns that instance instead of"
+          + " creating a duplicate that would collide in XTM Composer")
+  void given_migrationOfAlreadyMigratedCollector_should_returnExistingInstance() {
+    when(collectorService.collector(COLLECTOR_ID)).thenReturn(new Collector());
+    ConnectorInstancePersisted existingInstance = new ConnectorInstancePersisted();
+    existingInstance.setId("existing-instance-id");
+    when(connectorInstanceService.findPersistedByConnectorId(
+            ConnectorType.COLLECTOR, COLLECTOR_ID, TENANT_ID))
+        .thenReturn(Optional.of(existingInstance));
+    when(connectorInstanceService.connectorInstanceById("existing-instance-id"))
+        .thenReturn(existingInstance);
+
+    CreateConnectorInstanceInput input = migrationInput(COLLECTOR_ID);
+    ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalog = collectorCatalog();
+    ConnectorInstancePersisted result = service.createConnectorInstance(catalog, input, TENANT_ID);
+
+    assertThat(result).isSameAs(existingInstance);
+    verify(connectorInstanceService, never()).createConnectorInstance(catalog, input, TENANT_ID);
   }
 
   @Test

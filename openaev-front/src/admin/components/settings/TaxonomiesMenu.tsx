@@ -1,13 +1,13 @@
 import { BugReportOutlined, RouteOutlined, StyleOutlined } from '@mui/icons-material';
 import { LockPattern } from 'mdi-material-ui';
-import { type FunctionComponent, memo, useContext } from 'react';
+import { type FunctionComponent, memo } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/RightMenu';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { canAccessTags, canAccessTenantSettings } from '../nav/config/settings.config';
 
 const TaxonomiesMenuComponent: FunctionComponent = () => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const hasTenantSettingsAccess = canAccessTenantSettings(ability);
   const hasTagsAccess = canAccessTags(ability);
 

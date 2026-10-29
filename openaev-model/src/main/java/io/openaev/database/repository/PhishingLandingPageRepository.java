@@ -26,4 +26,13 @@ public interface PhishingLandingPageRepository
   Optional<PhishingLandingPage> findById(@NotNull @Param("id") String id);
 
   List<PhishingLandingPage> findByNameIgnoreCase(String name);
+
+  /**
+   * Explicit tenant-scoped listing, used by contract re-sync paths that must not rely on the
+   * ambient scope of a plain {@code findAll()} (background onboarding sets the v2 scope, never the
+   * v1 {@code TenantContext} a Hibernate filter would need, and a caller running before this table
+   * is active in its own context has no scope at all).
+   */
+  @Query("SELECT p FROM PhishingLandingPage p WHERE p.tenant.id = :tenantId")
+  List<PhishingLandingPage> findAllByTenantId(@Param("tenantId") String tenantId);
 }

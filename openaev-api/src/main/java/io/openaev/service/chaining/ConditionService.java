@@ -72,6 +72,7 @@ public class ConditionService {
     Condition root =
         Condition.builder()
             .workflowId(input.getWorkflowId())
+            .tenant(workflowTenant(input.getWorkflowId()))
             .name(input.getName())
             .description(input.getDescription())
             .type(rootInput.getType())
@@ -94,6 +95,26 @@ public class ConditionService {
           }
         },
         null);
+  }
+
+  /**
+   * The tenant of an event's workflow. An event linked to no step has no other parent to take its
+   * tenant from, so a blank id is legitimate and returns null.
+   *
+   * <p>An id that is given but names no workflow is refused here, as a 404. Letting it through
+   * returns null, and the tenant derivation then throws on persist, which turns a bad request into
+   * a 500.
+   */
+  private Tenant workflowTenant(String workflowId) {
+    if (workflowId == null || workflowId.isBlank()) {
+      return null;
+    }
+    // orElseThrow on the workflow, not on its tenant: Optional.map collapses a workflow that
+    // exists with no tenant into an empty Optional, which would report a missing row as a 404.
+    return workflowRepository
+        .findById(workflowId)
+        .orElseThrow(() -> new EntityNotFoundException("Workflow not found: " + workflowId))
+        .getTenant();
   }
 
   /**
@@ -674,8 +695,11 @@ public class ConditionService {
    * Evaluates all DEPEND_ON conditions for a step.
    *
    * <p>Each DEPEND_ON condition references a step template ID in its value. The condition is
-   * satisfied if and only if that step template has been executed at least once in the given
-   * workflow run.
+   * satisfied if and only if that step template has run in the given workflow run and every one of
+   * its run steps has ended ({@link StepStatus#END}), in success or in error: none is still {@code
+   * READY} or {@code RUN}, and no target of it waits in the delay queue (held back by the rate
+   * limit). A step that depends on another therefore starts once the other has finished on every
+   * target, not as soon as it was launched.
    *
    * <p>All DEPEND_ON conditions must be satisfied
    *
@@ -700,6 +724,15 @@ public class ConditionService {
       if (!executed) {
         log.debug(
             "[Chaining] DEPEND_ON not satisfied: step template {} has not been executed in workflow run {}",
+            dependentStepTemplateId,
+            workflowRun.getId());
+        return false;
+      }
+
+      if (stepRepository.existsUnfinishedByStepTemplateIdAndWorkflowRunId(
+          dependentStepTemplateId, workflowRun.getId())) {
+        log.debug(
+            "[Chaining] DEPEND_ON not satisfied: step template {} has not ended in workflow run {}",
             dependentStepTemplateId,
             workflowRun.getId());
         return false;
@@ -739,7 +772,7 @@ public class ConditionService {
           @Override
           public WorkflowContext get() {
             if (cached == null) {
-              cached = fetchWorkflowContext(workflowRun, stepTemplate);
+              cached = fetchFilterContext(workflowRun, stepTemplate, filterConditions);
             }
             return cached;
           }
@@ -1106,8 +1139,8 @@ public class ConditionService {
       return List.of(new ConditionService.ExecutionBatch(null, List.of(), null));
     }
 
-    // Fetch and Parse State
-    WorkflowContext context = fetchWorkflowContext(workflowRun, stepTemplate);
+    // Load only the state entries the dynamic mappers can read (ADR-011)
+    WorkflowContext context = fetchMapperContext(workflowRun, stepTemplate, mappers);
 
     // Prepare Inputs
     MapperInputPreparation preparation =
@@ -1128,28 +1161,70 @@ public class ConditionService {
     return batches;
   }
 
-  /** Handles the complexity of fetching and deserializing the workflow states. */
-  private WorkflowContext fetchWorkflowContext(Workflow workflowRun, Step stepTemplate) {
-    WorkflowState globalState =
-        workflowStateService.getGlobalStateByWorkflowId(workflowRun.getId());
-    WorkflowState localState =
-        workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
-
-    WorkflowStateEntries emptyEntries =
-        new WorkflowStateEntries(
-            new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
-
-    WorkflowStateEntries localEntries =
-        localState != null ? deserializeEntries(localState.getEntries()) : emptyEntries;
-    WorkflowStateEntries globalEntries =
-        globalState != null ? deserializeEntries(globalState.getEntries()) : emptyEntries;
-
-    return new WorkflowContext(localState, localEntries, globalEntries);
+  /**
+   * Loads the state views a filter evaluation reads: the input values of the keys of its leaves, in
+   * the local and global states. Filters never read correlated tuples nor execution hashes.
+   */
+  private WorkflowContext fetchFilterContext(
+      Workflow workflowRun, Step stepTemplate, List<Condition> filterConditions) {
+    Set<String> keys = collectFilterKeyNames(filterConditions);
+    return new WorkflowContext(
+        workflowStateService.loadLocalEntries(stepTemplate, workflowRun, keys, false, false),
+        workflowStateService.loadGlobalEntries(workflowRun, keys, false));
   }
 
-  /** Converts JSON strings to WorkflowStateEntries objects. */
-  private WorkflowStateEntries deserializeEntries(String json) {
-    return gson.fromJson(json, WorkflowStateEntries.class);
+  /**
+   * Loads the state views a mapper evaluation reads: input values and correlated tuples of the
+   * dynamic mappers' source keys, from the pool(s) they actually read, plus the step's committed
+   * execution hashes (always local).
+   *
+   * <p>Pool rules mirror {@link #resolveMapperPairs} and {@link #buildExecutionBatches}: a GLOBAL
+   * mapper reads the global pool, any other dynamic mapper the local one, and the correlated-first
+   * step (two dynamic mappers or more) reads the global pool when no mapper is LOCAL.
+   */
+  private WorkflowContext fetchMapperContext(
+      Workflow workflowRun, Step stepTemplate, List<Condition> mappers) {
+    Set<String> keys = collectMapperSourceKeys(mappers);
+    List<MappingType> dynamicTypes =
+        mappers.stream()
+            .map(Condition::getMappingType)
+            .filter(type -> type != MappingType.DEFAULT)
+            .toList();
+    boolean readsLocal = dynamicTypes.stream().anyMatch(type -> type != MappingType.GLOBAL);
+    boolean readsGlobal =
+        dynamicTypes.contains(MappingType.GLOBAL)
+            || (dynamicTypes.size() >= 2 && !dynamicTypes.contains(MappingType.LOCAL));
+
+    WorkflowStateEntries localEntries =
+        workflowStateService.loadLocalEntries(
+            stepTemplate, workflowRun, readsLocal ? keys : Set.of(), true, true);
+    WorkflowStateEntries globalEntries =
+        readsGlobal
+            ? workflowStateService.loadGlobalEntries(workflowRun, keys, true)
+            : WorkflowStateEntries.empty();
+    return new WorkflowContext(localEntries, globalEntries);
+  }
+
+  /** Key names read by the leaves of the given filter trees. */
+  private Set<String> collectFilterKeyNames(List<Condition> filterConditions) {
+    Set<String> keys = new HashSet<>();
+    Deque<Condition> toVisit = new ArrayDeque<>(filterConditions);
+    while (!toVisit.isEmpty()) {
+      Condition condition = toVisit.pop();
+      keys.addAll(resolveConditionKeyNames(condition));
+      if (condition.getConditionChildren() != null) {
+        toVisit.addAll(condition.getConditionChildren());
+      }
+    }
+    return keys;
+  }
+
+  /** Source key names read by the dynamic (non-DEFAULT) mappers. */
+  private Set<String> collectMapperSourceKeys(List<Condition> mappers) {
+    return mappers.stream()
+        .filter(mapper -> mapper.getMappingType() != MappingType.DEFAULT)
+        .flatMap(mapper -> resolveMapperSourceKeys(mapper).stream())
+        .collect(Collectors.toSet());
   }
 
   /**
@@ -1162,41 +1237,25 @@ public class ConditionService {
    * @return the committed hash set, or an empty set if no local state exists yet
    */
   public Set<String> getCommittedHashes(Step stepTemplate, Workflow workflowRun) {
-    WorkflowState localState =
-        workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
-    if (localState == null) {
-      return Set.of();
-    }
-    WorkflowStateEntries entries = deserializeEntries(localState.getEntries());
-    Set<String> hashExecution = entries.getHashExecution();
-    return hashExecution != null ? hashExecution : Set.of();
+    return workflowStateService.getCommittedHashes(stepTemplate, workflowRun);
   }
 
   /**
    * Commits the given execution hashes into the local workflow state for the step template,
    * preventing those input combinations from being re-executed in the future.
    *
-   * <p>Only hashes of batches that were actually turned into READY steps should be committed.
+   * <p>Only hashes of batches that are about to be turned into READY steps should be committed.
    * Batches that were delayed (e.g. due to rate limiting) must <b>not</b> have their hash committed
    * so that they can be retried later.
    *
    * @param stepTemplate the step template whose local state stores the hash set
    * @param workflowRun the running workflow
    * @param hashes the set of hashes to commit
+   * @return the hashes actually committed by this call; a hash missing from the result was already
+   *     committed (possibly by a concurrent evaluation) and its batch must not be executed
    */
-  public void commitHashes(Step stepTemplate, Workflow workflowRun, Set<String> hashes) {
-    if (hashes == null || hashes.isEmpty()) {
-      return;
-    }
-    WorkflowState localState =
-        workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
-    if (localState == null) {
-      return;
-    }
-    WorkflowStateEntries entries = deserializeEntries(localState.getEntries());
-    entries.getHashExecution().addAll(hashes);
-    localState.setEntries(gson.toJson(entries));
-    workflowStateService.save(localState);
+  public Set<String> commitHashes(Step stepTemplate, Workflow workflowRun, Set<String> hashes) {
+    return workflowStateService.commitHashes(stepTemplate, workflowRun, hashes);
   }
 
   /**
@@ -1459,7 +1518,7 @@ public class ConditionService {
       return;
     }
 
-    String hash = localEntries.hashCombo(comboIdentity(comboPairs));
+    String hash = ChainingHashUtils.hashCombo(comboIdentity(comboPairs));
     if (localEntries.getHashExecution().contains(hash) || pendingHashes.contains(hash)) {
       return;
     }
@@ -1595,7 +1654,5 @@ public class ConditionService {
       Condition mapper, List<String> sourceKeys, MappingType mappingType) {}
 
   private record WorkflowContext(
-      WorkflowState localStateEntity,
-      WorkflowStateEntries localEntries,
-      WorkflowStateEntries globalEntries) {}
+      WorkflowStateEntries localEntries, WorkflowStateEntries globalEntries) {}
 }

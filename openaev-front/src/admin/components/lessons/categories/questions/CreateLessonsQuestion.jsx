@@ -1,13 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { Add, ControlPointOutlined } from '@mui/icons-material';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-} from '@mui/material';
+import { Dialog, DialogContent, DialogTitle, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -17,10 +10,6 @@ import { LessonContext } from '../../../common/Context';
 import LessonsQuestionForm from './LessonsQuestionForm';
 
 const useStyles = makeStyles()(theme => ({
-  createButton: {
-    float: 'left',
-    margin: '-15px 0 0 5px',
-  },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,
@@ -63,21 +52,21 @@ const CreateLessonsQuestion = (props) => {
         </ListItemButton>
       ) : (
         <IconButton
+          icon={<Add fontSize="small" />}
+          aria-label={t('Add')}
           onClick={handleOpen}
           aria-haspopup="true"
-          size="large"
-          color="secondary"
-        >
-          <Add fontSize="small" />
-        </IconButton>
+          priority="tertiary"
+          size="md"
+        />
       )}
       <Dialog
         open={open}
-        TransitionComponent={Transition}
         onClose={handleClose}
         fullWidth
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Create a new lessons learned question')}</DialogTitle>
         <DialogContent>

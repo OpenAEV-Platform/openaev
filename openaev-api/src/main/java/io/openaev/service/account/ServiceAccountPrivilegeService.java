@@ -2,9 +2,11 @@ package io.openaev.service.account;
 
 import static io.openaev.service.account.Constants.*;
 
+import io.openaev.config.SessionManager;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.*;
 import io.openaev.service.tenants.TenantUserService;
 import java.util.*;
@@ -19,13 +21,17 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
   public static final String SERVICE_EMAIL_PATTERN = "service-%s@openaev.invalid";
   private static final String SERVICE_FIRSTNAME = "service";
 
+  private final SessionManager sessionManager;
+
   @Autowired
   public ServiceAccountPrivilegeService(
       TenantRoleService tenantRoleService,
       TenantGroupService tenantGroupService,
       UserService userService,
-      TenantUserService tenantUserService) {
+      TenantUserService tenantUserService,
+      SessionManager sessionManager) {
     super(tenantRoleService, tenantGroupService, userService, tenantUserService);
+    this.sessionManager = sessionManager;
   }
 
   @Override
@@ -98,7 +104,8 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
     }
   }
 
-  @Transactional(readOnly = true)
+  // Not @Transactional: every caller in this class is itself @Transactional, and a self-invocation
+  // bypasses the Spring proxy — an annotation here would never take effect.
   public Optional<User> getUserServiceAccountByTenant(String tenantId) {
     String email = SERVICE_EMAIL_PATTERN.formatted(tenantId);
 
@@ -113,5 +120,30 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
         .filter(tokens -> !tokens.isEmpty())
         .map(tokens -> tokens.getFirst().getValue())
         .orElseThrow(() -> new UnsupportedOperationException("Token not found"));
+  }
+
+  /**
+   * Rotates the tenant's service-account bearer token: deletes the existing one(s) and issues a
+   * fresh value. The service account never logs in, so {@code UserService#renewUserToken} (which
+   * only lets a token's own owner renew it) is unreachable for it; this is the only remediation
+   * path if the token embedded in the agent installer command/endpoint leaks to a holder of {@code
+   * INSTALL_AGENT} who isn't trusted to manage the account itself.
+   *
+   * <p>Also kills every live session of the service account. Token authentications are stateless
+   * (see {@code AppSecurityConfig#hasTokenCredential}), so no new session can be minted from the
+   * leaked token going forward - but a session established before this fix shipped, or before this
+   * rotation runs, would otherwise keep authenticating as the service account without ever
+   * presenting the token again, including to fetch the very token this call just issued.
+   *
+   * @param tenantId tenant whose service-account token must be rotated
+   */
+  @Transactional
+  public void rotateTokenForTenant(String tenantId) {
+    User user =
+        getUserServiceAccountByTenant(tenantId)
+            .orElseThrow(() -> new ElementNotFoundException("Service account not found"));
+    new ArrayList<>(user.getTokens()).forEach(userService::deleteUserToken);
+    userService.createUserToken(user);
+    sessionManager.invalidateUserSession(user.getId());
   }
 }

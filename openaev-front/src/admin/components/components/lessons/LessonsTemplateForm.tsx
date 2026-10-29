@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
@@ -47,7 +47,7 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="lessonTemplateForm" onSubmit={handleSubmit(onSubmit)}>
+    <form noValidate id="lessonTemplateForm" onSubmit={handleSubmit(onSubmit)}>
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -55,22 +55,18 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
       }}
       >
         <TextField
-          variant="standard"
-          fullWidth
+          required
           label={t('Name')}
           error={!!errors.lessons_template_name}
           helperText={errors.lessons_template_name?.message}
-          inputProps={register('lessons_template_name')}
-          InputLabelProps={{ required: true }}
+          {...register('lessons_template_name')}
           control={control}
         />
         <TextField
-          variant="standard"
-          fullWidth
           label={t('Description')}
           error={!!errors.lessons_template_description}
           helperText={errors.lessons_template_description?.message}
-          inputProps={register('lessons_template_description')}
+          {...register('lessons_template_description')}
           control={control}
         />
       </div>
@@ -81,20 +77,10 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
         gap: theme.spacing(1),
       }}
       >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          disabled={isSubmitting}
-        >
+        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
-        >
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

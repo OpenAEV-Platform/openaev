@@ -1,3 +1,4 @@
+import { Button, Paper } from '@filigran/design-system';
 import {
   CheckOutlined,
   CloudOutlined,
@@ -9,11 +10,13 @@ import {
   TerminalOutlined,
   VerifiedOutlined,
 } from '@mui/icons-material';
-import { Box, Button, ButtonBase, Typography } from '@mui/material';
+import { Box, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, useMemo } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
+import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
+import useAuth from '../../../../utils/hooks/useAuth';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import {
   type CatalogFacetFilters,
@@ -151,8 +154,16 @@ interface Props {
 const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAll }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const { settings } = useAuth();
   const anyActive = hasActiveFacetFilters(filters);
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+
+  // The page scrolls the document, so `position: sticky` resolves against the
+  // viewport. Clear the fixed app bar (68px) plus any active top banner, then
+  // add a small gap, so the panel's "Filters" title never slides under the
+  // header instead of sticking below it.
+  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const stickyTop = `calc(var(--fds-header-height, 68px) + ${bannerHeightNumber}px + ${theme.spacing(2)})`;
 
   const groups: FacetGroup[] = useMemo(() => {
     // Faceted-search count semantics: each group is counted against items
@@ -266,14 +277,14 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
           xs: 'static',
           md: 'sticky',
         },
-        top: theme.spacing(2),
+        top: stickyTop,
         alignSelf: {
           xs: 'stretch',
           md: 'flex-start',
         },
         maxHeight: {
           xs: 'none',
-          md: `calc(100vh - ${theme.spacing(20)})`,
+          md: `calc(100vh - var(--fds-header-height, 68px) - ${bannerHeightNumber}px - ${theme.spacing(4)})`,
         },
         overflowY: {
           xs: 'visible',
@@ -281,15 +292,13 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
         },
       }}
     >
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: theme.spacing(2),
-        padding: theme.spacing(2),
-        borderRadius: theme.shape.borderRadius,
-        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-        backgroundColor: theme.palette.background.paper,
-      }}
+      <Paper
+        padding={16}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+        }}
       >
         <header style={{
           display: 'flex',
@@ -307,7 +316,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             {t('Filters')}
           </Typography>
           {anyActive && (
-            <Button size="small" onClick={onClearAll}>
+            <Button type="button" priority="tertiary" size="sm" onClick={onClearAll}>
               {t('Clear all')}
             </Button>
           )}
@@ -352,7 +361,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             ))}
           </section>
         ))}
-      </div>
+      </Paper>
     </Box>
   );
 };

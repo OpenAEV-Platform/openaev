@@ -1,4 +1,15 @@
-import { Autocomplete, Chip, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { type CSSProperties, type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchNotifiers } from '../../../../actions/notifications/notifier-actions';
@@ -29,33 +40,29 @@ const NotifierField: FunctionComponent<Props> = ({
   const selected = notifiers.filter(notifier => value.includes(notifier.notifier_id));
 
   return (
-    <Autocomplete
-      multiple
-      options={notifiers}
-      value={selected}
-      onChange={(_, newValue) => onChange(newValue.map(notifier => notifier.notifier_id))}
-      getOptionLabel={notifier => notifier.notifier_name ?? ''}
-      isOptionEqualToValue={(option, val) => option.notifier_id === val.notifier_id}
-      style={style}
-      renderTags={(tagValue, getTagProps) =>
-        tagValue.map((option, index) => (
-          <Chip
-            {...getTagProps({ index })}
-            key={option.notifier_id}
-            label={option.notifier_name}
-            size="small"
-          />
-        ))}
-      renderInput={params => (
-        <TextField
-          {...params}
-          label={t('Notifiers')}
-          variant="standard"
-          error={!!error}
-          helperText={error}
-        />
-      )}
-    />
+    <div style={style}>
+      <Combobox<NotifierOutput>
+        multiple
+        options={notifiers}
+        value={selected}
+        onValueChange={newValue => onChange((newValue as NotifierOutput[]).map(notifier => notifier.notifier_id))}
+        getOptionLabel={notifier => notifier.notifier_name ?? ''}
+        isOptionEqualToValue={(option, val) => option.notifier_id === val.notifier_id}
+        error={!!error}
+      >
+        <ComboboxLabel>{t('Notifiers')}</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxChips />
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxClear />
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent />
+        {error ? <ComboboxHelperText>{error}</ComboboxHelperText> : null}
+      </Combobox>
+    </div>
   );
 };
 

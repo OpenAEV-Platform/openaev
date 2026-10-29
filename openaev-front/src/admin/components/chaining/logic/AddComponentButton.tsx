@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { Add } from '@mui/icons-material';
-import { Button, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -42,13 +43,7 @@ const AddComponentButton = ({
   const isEmptyCanvas = nodeCount === 0;
 
   const button = (
-    <Button
-      variant="contained"
-      color="primary"
-      size={isEmptyCanvas ? 'large' : 'medium'}
-      startIcon={<Add />}
-      onClick={onClick}
-    >
+    <Button type="button" startIcon={<Add fontSize="small" />} onClick={onClick}>
       {t('Add component')}
     </Button>
   );
@@ -63,7 +58,11 @@ const AddComponentButton = ({
 
   return (
     <div className={classes.buttonEmptyCanvas}>
-      <Typography variant="body1" color="text.secondary" align="center">
+      <Typography
+        variant="body1"
+        align="center"
+        sx={{ color: 'text.secondary' }}
+      >
         {context === 'scenario'
           ? t('Start adding components to complete the configuration of your scenario.')
           : t('Start adding components to complete the configuration of your simulation.')}

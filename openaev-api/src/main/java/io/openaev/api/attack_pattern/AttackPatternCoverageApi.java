@@ -45,6 +45,6 @@ public class AttackPatternCoverageApi {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "The 'latest' parameter must be a positive integer");
     }
-    return attackPatternService.getGlobalCoverage(latest);
+    return attackPatternService.getGlobalCoverage(ctx, latest);
   }
 }

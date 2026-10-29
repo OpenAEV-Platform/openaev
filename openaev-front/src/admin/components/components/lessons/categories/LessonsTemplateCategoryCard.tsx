@@ -1,4 +1,5 @@
-import { Box, Chip, List, ListItem, ListItemIcon, ListItemText, Paper, Typography } from '@mui/material';
+import { Chip, Paper } from '@filigran/design-system';
+import { Box, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -34,10 +35,11 @@ const LessonsTemplateCategoryCard: FunctionComponent<Props> = ({
   const hairline = alpha(theme.palette.text.primary, 0.05);
   return (
     <Paper
-      variant="outlined"
+      padding={0}
       data-testid="lessons-category-card"
-      sx={{
-        borderRadius: 1,
+      style={{
+        // `overflow: hidden` is carried over on purpose: without it the first
+        // child's gradient band overflows the surface's rounded corner.
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
@@ -98,16 +100,10 @@ const LessonsTemplateCategoryCard: FunctionComponent<Props> = ({
             <Chip
               label={(() => {
                 if (questions.length === 1) return t('1 question');
-                return t('{count} questions', { count: questions.length });
+                return String(t('{count} questions', { count: questions.length }));
               })()}
-              size="small"
-              sx={{
-                height: 18,
-                fontSize: 11,
-                borderRadius: 0.5,
-                flexShrink: 0,
-                color: 'text.secondary',
-              }}
+              severity="neutral"
+              style={{ flexShrink: 0 }}
             />
           </Box>
           {category.lessons_template_category_description && (

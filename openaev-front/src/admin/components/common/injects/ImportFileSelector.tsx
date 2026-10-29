@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -93,20 +93,10 @@ const ImportFileSelector: FunctionComponent<Props> = ({
               />
             </div>
             <div className={classes.buttons}>
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={handleClose}
-                disabled={isSubmitting}
-              >
+              <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
                 {t('Cancel')}
               </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                disabled={!isDirty || isSubmitting}
-              >
+              <Button type="submit" disabled={!isDirty || isSubmitting}>
                 {submitActionLabel}
               </Button>
             </div>

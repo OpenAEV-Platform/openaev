@@ -29,7 +29,6 @@ import io.openaev.rest.user.form.user.UpdateUserInfoInput;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.function.Function;
@@ -39,7 +38,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -58,24 +56,14 @@ public class MeApi extends RestBehavior {
   private final UserService userService;
   private final TenantService tenantService;
 
-  @GetMapping("/api/logout")
-  @Transactional
-  @AccessControl(skipRBAC = true)
-  public ResponseEntity<Object> logout(TxCtx ctx, HttpServletRequest request) {
-    HttpSession session = request.getSession(false);
-    if (session != null) {
-      session.setAttribute(SessionManager.EXPLICIT_LOGOUT, Boolean.TRUE);
-    }
-    return ResponseEntity.ok().build();
-  }
-
   @GetMapping({ME_URI, TENANT_ME_URI})
   @Transactional
   @AccessControl(skipRBAC = true)
   public User me(TxCtx ctx) {
-    return userRepository
-        .findById(currentUser().getId())
-        .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    return hydrateUserForResponse(
+        userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
   }
 
   @PutMapping(ME_URI + "/profile")
@@ -92,7 +80,7 @@ public class MeApi extends RestBehavior {
         updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
-    return savedUser;
+    return hydrateUserForResponse(savedUser);
   }
 
   @PutMapping(ME_URI + "/information")
@@ -107,7 +95,7 @@ public class MeApi extends RestBehavior {
     user.setUpdateAttributes(input);
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
-    return savedUser;
+    return hydrateUserForResponse(savedUser);
   }
 
   @PutMapping(ME_URI + "/password")
@@ -117,14 +105,15 @@ public class MeApi extends RestBehavior {
   public User updatePassword(
       TxCtx ctx, @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
-    return doSecuritySensitiveUpdate(
-        currentUser().getId(),
-        input.getCurrentPassword(),
-        user -> {
-          user.setPassword(userService.encodeUserPassword(input.getPassword()));
-          return user;
-        },
-        httpRequest.getSession().getId());
+    return hydrateUserForResponse(
+        doSecuritySensitiveUpdate(
+            currentUser().getId(),
+            input.getCurrentPassword(),
+            user -> {
+              user.setPassword(userService.encodeUserPassword(input.getPassword()));
+              return user;
+            },
+            httpRequest.getSession().getId()));
   }
 
   @PutMapping(ME_URI + "/email")
@@ -134,14 +123,15 @@ public class MeApi extends RestBehavior {
   public User updateEmail(
       TxCtx ctx, @Valid @RequestBody UpdateMeEmailInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
-    return doSecuritySensitiveUpdate(
-        currentUser().getId(),
-        input.getCurrentPassword(),
-        user -> {
-          userService.requestEmailChange(user, input.getEmail());
-          return user;
-        },
-        httpRequest.getSession().getId());
+    return hydrateUserForResponse(
+        doSecuritySensitiveUpdate(
+            currentUser().getId(),
+            input.getCurrentPassword(),
+            user -> {
+              userService.requestEmailChange(user, input.getEmail());
+              return user;
+            },
+            httpRequest.getSession().getId()));
   }
 
   @GetMapping(ME_URI + "/confirm-email-change/{confirmationCode}")
@@ -155,7 +145,7 @@ public class MeApi extends RestBehavior {
 
     userService.sendEmailChangeConfirmationEmail(user);
 
-    MultiValueMap<String, String> headers = new HttpHeaders();
+    HttpHeaders headers = new HttpHeaders();
     headers.add("Location", openAEVConfig.getBaseUrl());
     return new ResponseEntity<>(headers, HttpStatus.FOUND);
   }

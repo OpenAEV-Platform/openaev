@@ -333,7 +333,7 @@ public final class FilterUtilsJpa {
       return cb.conjunction();
     }
 
-    String pattern = "%" + text.toLowerCase() + "%";
+    String pattern = "%" + OperationUtilsJpa.escapeLike(text.toLowerCase()) + "%";
 
     Subquery<Integer> subquery = query.subquery(Integer.class);
     Root<T> subRoot = subquery.correlate(root);
@@ -341,7 +341,11 @@ public final class FilterUtilsJpa {
 
     subquery
         .select(cb.literal(1))
-        .where(cb.like(cb.lower(join.get(labelPath).as(String.class)), pattern));
+        .where(
+            cb.like(
+                cb.lower(join.get(labelPath).as(String.class)),
+                pattern,
+                OperationUtilsJpa.LIKE_ESCAPE));
 
     return cb.exists(subquery);
   }

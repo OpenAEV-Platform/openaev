@@ -11,13 +11,14 @@ import io.openaev.utils.fixtures.GrantFixture;
 import io.openaev.utils.fixtures.composers.GrantComposer;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUserTestExecutionListener;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.RabbitMQTestListener;
 import io.openaev.utilstest.StartupSnapshotTestListener;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrint;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint;
 import org.springframework.test.context.TestExecutionListeners;
 
 @AutoConfigureMockMvc(print = MockMvcPrint.SYSTEM_ERR)
@@ -25,6 +26,7 @@ import org.springframework.test.context.TestExecutionListeners;
 @TestExecutionListeners(
     value = {
       StartupSnapshotTestListener.class,
+      DefaultTenantScopeTestListener.class,
       WithMockUserTestExecutionListener.class,
       RabbitMQTestListener.class
     },

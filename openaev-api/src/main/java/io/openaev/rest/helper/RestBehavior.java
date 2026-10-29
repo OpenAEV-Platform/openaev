@@ -2,6 +2,7 @@ package io.openaev.rest.helper;
 
 import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
@@ -14,6 +15,8 @@ import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ratelimit.aop.RateLimitAspect;
+import io.openaev.ratelimit.exception.RateLimitedException;
 import io.openaev.rest.exception.*;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.stix.parsing.ParsingException;
@@ -23,20 +26,29 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityNotFoundException;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springdoc.api.ErrorMessage;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.method.ParameterValidationResult;
@@ -49,9 +61,24 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
+/**
+ * Base class for all REST controllers in the app. Note controllers inheriting are globally rate
+ * limited ({@link RateLimitAspect}).
+ */
 @RestControllerAdvice
 @Slf4j
 public class RestBehavior {
+
+  /** Response header carrying the base64 RSA/SHA-256 signature of a served binary. */
+  public static final String SIGNATURE_HEADER = "X-Signature-Sha256-Rsa";
+
+  /** Response header carrying the release version of a served binary. */
+  public static final String VERSION_HEADER = "X-Release-Version";
+
+  // A version the installer scripts can compare: two to four dot-separated numbers of at most nine
+  // digits, which is what Windows PowerShell's [version] parses.
+  private static final Pattern COMPARABLE_RELEASE_VERSION =
+      Pattern.compile("\\d{1,9}(\\.\\d{1,9}){1,3}");
 
   @Resource protected ObjectMapper mapper;
 
@@ -359,6 +386,16 @@ public class RestBehavior {
     return index >= 0 ? "arg" + index : parameter.getParameterType().getSimpleName();
   }
 
+  @ResponseStatus(code = HttpStatus.TOO_MANY_REQUESTS)
+  @ExceptionHandler(RateLimitedException.class)
+  public ResponseEntity<Object> handleRateLimitingException(RateLimitedException ex) {
+    return ResponseEntity.of(ProblemDetail.forStatus(HttpStatus.TOO_MANY_REQUESTS))
+        .header("RateLimit-Limit", String.valueOf(ex.getQuota()))
+        .header("RateLimit-Remaining", String.valueOf(ex.getRemaining()))
+        .header("RateLimit-Reset", String.valueOf(ex.getReset()))
+        .build();
+  }
+
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   @ExceptionHandler(InputValidationException.class)
   public ValidationErrorBag handleInputValidationExceptions(InputValidationException ex) {
@@ -422,6 +459,18 @@ public class RestBehavior {
     ErrorMessage message = new ErrorMessage(ex.getMessage());
     log.warn(String.format("FileTooBigException: %s", ex.getMessage()), ex);
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  }
+
+  // Matched on the cause too: Spring Data and JPA wrap the timeout in their own exceptions.
+  @ExceptionHandler({
+    TransactionTimedOutException.class,
+    org.hibernate.TransactionException.class,
+    org.hibernate.QueryTimeoutException.class
+  })
+  public ResponseEntity<ErrorMessage> handleTransactionTimeout(Exception ex) {
+    log.error("Transaction stopped on {} {}: {}", requestMethod(), requestUri(), ex.getMessage());
+    return new ResponseEntity<>(
+        new ErrorMessage("The request took too long and was stopped."), HttpStatus.GATEWAY_TIMEOUT);
   }
 
   @ExceptionHandler(AlreadyExistingException.class)
@@ -672,6 +721,12 @@ public class RestBehavior {
     return errorBag;
   }
 
+  @ExceptionHandler(ConflictException.class)
+  public ResponseEntity<ErrorMessage> handleConflictException(ConflictException ex) {
+    log.debug("ConflictException: {}", ex.getReason(), ex);
+    return new ResponseEntity<>(new ErrorMessage(ex.getReason()), HttpStatus.CONFLICT);
+  }
+
   // -- 415 UNSUPPORTED_MEDIA_TYPE --
 
   @ExceptionHandler(UnsupportedMediaTypeException.class)
@@ -742,6 +797,53 @@ public class RestBehavior {
     }
   }
 
+  /**
+   * Adds the RSA/SHA-256 signature of a local classpath binary to the response headers, read from
+   * its adjacent {@code .sig} file (base64). Forwarded as is: clients verify it against the keys
+   * they embed. Does nothing when no signature file is shipped.
+   */
+  protected void addLocalSignatureHeader(HttpHeaders headers, String resourcePath)
+      throws IOException {
+    try (InputStream in = getClass().getResourceAsStream(resourcePath + ".sig")) {
+      if (in != null) {
+        addSignatureHeader(headers, in);
+      }
+    }
+  }
+
+  /**
+   * Adds the RSA/SHA-256 signature of a JFrog binary to the response headers, read from the {@code
+   * .sig} file (base64) the release promotion publishes next to it. Forwarded as is: clients verify
+   * it against the keys they embed. Does nothing when no signature is published.
+   */
+  protected void addRepositorySignatureHeader(
+      HttpHeaders headers, String resourcePath, String filename) throws IOException {
+    try (InputStream in = validateJFrogUri(resourcePath, filename + ".sig").toURL().openStream()) {
+      addSignatureHeader(headers, in);
+    } catch (FileNotFoundException e) {
+      log.warn("No signature published for {}{}", resourcePath, filename);
+    }
+  }
+
+  private static void addSignatureHeader(HttpHeaders headers, InputStream in) throws IOException {
+    String signature = new String(in.readAllBytes(), StandardCharsets.US_ASCII).trim();
+    if (!signature.isEmpty()) {
+      headers.add(SIGNATURE_HEADER, signature);
+    }
+  }
+
+  /**
+   * Adds the release version of a served binary to the response headers: the installer scripts
+   * record it and refuse to upgrade to an older one. Left out unless it is a plain numeric release,
+   * because the scripts skip the check when the header is missing, while a value they cannot
+   * compare, such as {@code latest} or a build label, would make them refuse every later upgrade.
+   */
+  protected void addReleaseVersionHeader(HttpHeaders headers, String version) {
+    if (version != null && COMPARABLE_RELEASE_VERSION.matcher(version).matches()) {
+      headers.add(VERSION_HEADER, version);
+    }
+  }
+
   // -- UTILS --
 
   /** Current request method, or {@code ?} when called outside a servlet request. */
@@ -758,5 +860,16 @@ public class RestBehavior {
             instanceof ServletRequestAttributes attributes
         ? attributes.getRequest().getRequestURI()
         : "?";
+  }
+
+  /**
+   * Hydrates, inside the scoped transaction, the lazy {@code user_teams} collection every endpoint
+   * returning a raw {@link User} serializes. The collection is loaded after the controller returns,
+   * through open-in-view, where the tenant scope is already gone: a lazy load at that point runs
+   * unscoped and fails closed, so the array comes back empty although the memberships exist.
+   */
+  protected static User hydrateUserForResponse(User user) {
+    Hibernate.initialize(user.getTeams());
+    return user;
   }
 }

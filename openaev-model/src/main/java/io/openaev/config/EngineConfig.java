@@ -12,19 +12,15 @@ import org.springframework.stereotype.Component;
  * tuning parameters for the underlying search engine. Properties are loaded from the application
  * configuration with the {@code engine.*} prefix.
  *
- * <p>Supported engines:
- *
- * <ul>
- *   <li>{@code elk} - Elasticsearch (default)
- *   <li>{@code opensearch} - OpenSearch
- * </ul>
+ * <p>The engine itself is not configured: Elasticsearch 8, Elasticsearch 9 and OpenSearch are
+ * detected from the server behind {@code url} at startup (see {@link
+ * io.openaev.engine.EngineComponent}).
  *
  * <p>Example configuration:
  *
  * <pre>{@code
  * engine:
  *   url: http://localhost:9200
- *   engine-selector: elk
  *   index-prefix: openaev
  *   username: elastic
  *   password: changeme
@@ -37,8 +33,8 @@ public class EngineConfig {
 
   /** Default configuration values for the search engine. */
   public static class Defaults {
-    /** Default engine selector (Elasticsearch). */
-    public static final String ENGINE_SELECTOR = "elk";
+    /** Default engine client: detected from the server behind {@code url}. */
+    public static final String CLIENT = "auto";
 
     /** Default AWS mode (disabled). */
     public static final String ENGINE_AWS_MODE = "no";
@@ -137,9 +133,27 @@ public class EngineConfig {
      * with the compare-and-set).
      */
     public static final long INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS = 180;
+
+    /**
+     * Default delay, in seconds, after which the pod that applied a migration requesting an
+     * in-place re-feed of an index (see {@code EsIndexingUtils#requestRefeedAtStartup}) re-asserts
+     * the model's epoch cursor, so the index is re-fed a second time. During a rolling deploy, the
+     * pods still running the previous version take part in the first re-feed with their own
+     * document building - writing, for instance, finding values in cleartext - and may overwrite
+     * the epoch cursor; the second re-feed rewrites whatever they wrote. The delay must therefore
+     * exceed the longest rolling deploy plus one sync round. Unlike {@link
+     * #INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS}, it waits for the old pods to be gone, not only
+     * for one of their rounds to drain. 0 disables the second re-feed, which is safe on
+     * single-instance installs (no old pod runs alongside the new one).
+     */
+    public static final long INDEXING_REFEED_REASSERT_DELAY_SECONDS = 1800;
   }
 
-  private String engineSelector = Defaults.ENGINE_SELECTOR;
+  /**
+   * Engine client to use: {@code auto} detects it from the server, {@code elasticsearch8}, {@code
+   * elasticsearch9} or {@code opensearch} forces it when the detection cannot decide.
+   */
+  private String client = Defaults.CLIENT;
 
   private String engineAwsMode = Defaults.ENGINE_AWS_MODE;
 
@@ -199,6 +213,8 @@ public class EngineConfig {
 
   private long indexingResetEpochReassertDelaySeconds =
       Defaults.INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS;
+
+  private long indexingRefeedReassertDelaySeconds = Defaults.INDEXING_REFEED_REASSERT_DELAY_SECONDS;
 
   /**
    * Wildcard pattern matching all indices of this platform and only them.

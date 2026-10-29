@@ -126,4 +126,16 @@ public class Objective implements Base {
         ? ResourceType.SCENARIO
         : this.getExercise() != null ? ResourceType.SIMULATION : ResourceType.OBJECTIVE;
   }
+
+  @JsonIgnore
+  @Override
+  public String getPermissionResourceId() {
+    return getParentResourceId();
+  }
+
+  @JsonIgnore
+  @Override
+  public ResourceType getPermissionResourceType() {
+    return getParentResourceType();
+  }
 }

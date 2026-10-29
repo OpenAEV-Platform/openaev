@@ -8,8 +8,10 @@ import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
-import static org.mockito.Mockito.mockStatic;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,6 +27,7 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.rest.exercise.form.ExerciseUpdateStatusInput;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
@@ -38,25 +41,28 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+// Once the chaining tables are tenant-active, a status change reads the simulation's workflow in
+// the caller's tenant membership scope, so each test that reaches it acts as a member of the
+// default tenant, where its simulation lives. The membership is granted on each method, never on
+// the class.
 @SpringBootTest
 // Disable Quartz's live cron triggers for this class only: three tests below now commit real rows
 // (see the @Transactional(propagation = NOT_SUPPORTED) tests) so that
@@ -91,7 +97,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @Autowired private InjectRepository injectRepository;
 
-  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectAuthorisationRepository injectAuthorisationRepository;
 
   @Autowired private InjectStatusRepository injectStatusRepository;
 
@@ -107,6 +113,10 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @Autowired private PauseRepository pauseRepository;
 
+  @Autowired private WorkflowRepository workflowRepository;
+
+  @Autowired private UrlAccessTokenRepository urlAccessTokenRepository;
+
   @Autowired private InjectHelper injectHelper;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Resource protected ObjectMapper mapper;
@@ -119,6 +129,9 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @Autowired private CacheManager cacheManager;
   @Autowired private PlatformTransactionManager transactionManager;
 
+  @MockitoSpyBean private WorkflowEndService workflowEndService;
+  @MockitoSpyBean private InjectRepository injectRepositorySpy;
+
   private void inTransaction(Runnable work) {
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
   }
@@ -126,6 +139,210 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @BeforeEach
   void beforeAll() {
     inTransaction(this::createFixtures);
+  }
+
+  @Nested
+  @DisplayName("simulation reset and stop cleanup")
+  class SimulationResetAndStopCleanupTest {
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given closed exercise reset should clear status and authorisation")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void given_closedExerciseReset_should_clearStatusAndInjectAuthorisation() throws Exception {
+      String[] ids = new String[2]; // exerciseId, injectId
+      try {
+        // Arrange
+        inTransaction(
+            () -> {
+              Exercise exercise = ExerciseFixture.createCanceledAttackExercise(REFERENCE_TIME);
+              exercise.setName("reset-cleanup-" + UUID.randomUUID());
+              Exercise savedExercise = exerciseRepository.save(exercise);
+
+              Inject inject =
+                  getInjectForEmailContract(
+                      injectorContractFixture.getWellKnownSingleEmailContract());
+              inject.setExercise(savedExercise);
+              inject.setTeams(new ArrayList<>(List.of(TEAM)));
+              Inject savedInject = injectRepository.save(inject);
+
+              InjectStatus status = new InjectStatus();
+              status.setInject(savedInject);
+              status.setName(ExecutionStatus.PENDING);
+              InjectStatus savedStatus = injectStatusRepository.save(status);
+              savedInject.setStatus(savedStatus);
+              savedInject.setTriggerNowDate(Instant.now());
+              savedInject.setCollectExecutionStatus(CollectExecutionStatus.COLLECTING);
+
+              InjectAuthorisation authorisation = new InjectAuthorisation();
+              authorisation.setInject(savedInject);
+              authorisation.setCode("hashed-code");
+              authorisation.setIssuedAt(Instant.now());
+              injectAuthorisationRepository.save(authorisation);
+              entityManager.flush();
+              entityManager.detach(savedInject);
+
+              ids[0] = savedExercise.getId();
+              ids[1] = savedInject.getId();
+            });
+
+        ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+        input.setStatus(ExerciseStatus.SCHEDULED);
+
+        // Act
+        mvc.perform(
+                put(EXERCISE_URI + "/" + ids[0] + "/status")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // Assert
+        inTransaction(
+            () -> {
+              Inject reloadedInject = injectRepository.findById(ids[1]).orElseThrow();
+              assertTrue(injectStatusRepository.findByInjectId(ids[1]).isEmpty());
+              assertTrue(injectAuthorisationRepository.findByInjectId(ids[1]).isEmpty());
+              assertNull(reloadedInject.getTriggerNowDate());
+              assertEquals(
+                  CollectExecutionStatus.COLLECTING, reloadedInject.getCollectExecutionStatus());
+            });
+      } finally {
+        inTransaction(
+            () -> {
+              if (ids[0] != null) {
+                exerciseRepository.deleteById(ids[0]);
+              }
+            });
+      }
+    }
+
+    @Test
+    // On this non-prefixed route the workflow is read in the caller's membership scope, which is
+    // empty for an admin with no membership; this test is about the reset, so its caller joins the
+    // default tenant, where the simulation lives.
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given closed chained exercise reset should delete injects and revoke url access tokens")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void given_closedChainedExerciseReset_should_deleteInjectsAndRevokeUrlAccessTokens()
+        throws Exception {
+      // Regression: the URL access token revocation clears the persistence context; run after the
+      // chained injects deletion, it detached the exercise and the final save merged a collection
+      // still holding the deleted injects (ObjectNotFoundException).
+      String[] ids = new String[3]; // exerciseId, injectId, tokenId
+      try {
+        // Arrange
+        inTransaction(
+            () -> {
+              Exercise exercise = ExerciseFixture.createCanceledAttackExercise(REFERENCE_TIME);
+              exercise.setName("reset-chained-" + UUID.randomUUID());
+              Exercise savedExercise = exerciseRepository.save(exercise);
+
+              Workflow template = WorkflowFixture.getDefaultWorkflowTemplate();
+              template.setSimulation(savedExercise);
+              workflowRepository.save(template);
+
+              Inject inject =
+                  getInjectForEmailContract(
+                      injectorContractFixture.getWellKnownSingleEmailContract());
+              inject.setExercise(savedExercise);
+              inject.setTeams(new ArrayList<>(List.of(TEAM)));
+              Inject savedInject = injectRepository.save(inject);
+
+              UrlAccessToken token =
+                  urlAccessTokenRepository.save(
+                      UrlAccessTokenFixture.createValidToken(
+                          savedExercise, USER, UrlAccessTokenFixture.DEFAULT_TARGET_URL));
+
+              ids[0] = savedExercise.getId();
+              ids[1] = savedInject.getId();
+              ids[2] = token.getId();
+            });
+
+        ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+        input.setStatus(ExerciseStatus.SCHEDULED);
+
+        // Act
+        mvc.perform(
+                put(EXERCISE_URI + "/" + ids[0] + "/status")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // Assert
+        inTransaction(
+            () -> {
+              Exercise reloadedExercise = exerciseRepository.findById(ids[0]).orElseThrow();
+              assertEquals(ExerciseStatus.SCHEDULED, reloadedExercise.getStatus());
+              assertTrue(reloadedExercise.getStart().isEmpty());
+              assertTrue(injectRepository.findById(ids[1]).isEmpty());
+              assertNotNull(urlAccessTokenRepository.findById(ids[2]).orElseThrow().getRevokedAt());
+            });
+      } finally {
+        inTransaction(
+            () -> {
+              if (ids[0] != null) {
+                exerciseRepository.deleteById(ids[0]);
+              }
+            });
+      }
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given running exercise stop should delegate active inject finalization to workflowEndService")
+    void given_runningExerciseStop_should_delegateActiveInjectFinalizationToWorkflowEndService()
+        throws Exception {
+      // Arrange
+      Exercise exercise = ExerciseFixture.createRunningAttackExercise(REFERENCE_TIME);
+      exercise.setName("stop-cleanup-" + UUID.randomUUID());
+      exercise = exerciseRepository.save(exercise);
+
+      Inject inject =
+          getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      inject.setExercise(exercise);
+      inject.setTeams(new ArrayList<>(List.of(TEAM)));
+      inject = injectRepository.save(inject);
+
+      InjectStatus status = new InjectStatus();
+      status.setInject(inject);
+      status.setName(ExecutionStatus.PENDING);
+      status = injectStatusRepository.save(status);
+      inject.setStatus(status);
+      injectRepository.save(inject);
+
+      InjectAuthorisation authorisation = new InjectAuthorisation();
+      authorisation.setInject(inject);
+      authorisation.setCode("hashed-code");
+      authorisation.setIssuedAt(Instant.now());
+      injectAuthorisationRepository.save(authorisation);
+
+      doNothing()
+          .when(workflowEndService)
+          .stopActiveInjects(anyString(), any(WorkflowEndService.WORKFLOW_END_CAUSE.class));
+
+      ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+      input.setStatus(ExerciseStatus.CANCELED);
+
+      // Act
+      mvc.perform(
+              put(EXERCISE_URI + "/" + exercise.getId() + "/status")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      verify(workflowEndService)
+          .stopActiveInjects(
+              eq(exercise.getId()), eq(WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED));
+    }
   }
 
   private void createFixtures() {
@@ -175,12 +392,13 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                 "tom-test+" + uniqueSuffix + "@fake.email"));
     Team team = TeamFixture.getTeam(user, "TeamA-" + uniqueSuffix, true);
     team.setExercises(
-        Arrays.asList(
-            scheduledExercise,
-            runningExercise,
-            pausedExercise,
-            canceledExercise,
-            finishedExercise));
+        new HashSet<>(
+            Arrays.asList(
+                scheduledExercise,
+                runningExercise,
+                pausedExercise,
+                canceledExercise,
+                finishedExercise)));
     SCHEDULED_EXERCISE = exerciseRepository.save(scheduledExercise);
     RUNNING_EXERCISE = exerciseRepository.save(runningExercise);
     PAUSED_EXERCISE = exerciseRepository.save(pausedExercise);
@@ -250,7 +468,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Start an exercise manually")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void manualStartExerciseTest() throws Exception {
     try {
@@ -309,7 +527,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from canceled to scheduled")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void rescheduledExerciseTest() throws Exception {
     // --PREPARE--
     ExerciseComposer.Composer exerciseWrapper =
@@ -355,7 +573,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from finished to scheduled")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void rescheduledExerciseFromFinishedStateTest() throws Exception {
     // --PREPARE--
     ExerciseComposer.Composer exerciseWrapper =
@@ -402,7 +620,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from pause to running")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   // InjectHelper.getInjectsToRun() opens its own TenantScopedTransaction, which refuses to run
   // inside an already-active transaction. Suspend the framework's test transaction so the
   // fixtures created in @BeforeEach are genuinely committed and visible to it, and clean them up
@@ -467,7 +685,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from running to paused")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   // InjectHelper.getInjectsToRun() opens its own TenantScopedTransaction, which refuses to run
   // inside an already-active transaction. Suspend the framework's test transaction so the
   // fixtures created in @BeforeEach are genuinely committed and visible to it, and clean them up
@@ -528,7 +746,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from running to canceled")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void cancelAnExerciseTest() throws Exception {
     // --PREPARE--
     Exercise exercise = exerciseRepository.save(ExerciseFixture.createRunningAttackExercise());
@@ -607,7 +825,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise with an inject from finished to scheduled")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void rescheduledExerciseWithInjectTest() throws Exception {
     // --PREPARE--
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
@@ -632,14 +850,5 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     assertEquals(
         List.of(ExerciseStatus.RUNNING.name()),
         JsonPath.read(response, "$.exercise_next_possible_status"));
-  }
-
-  // The preview feature lookup is @Cacheable("global"), so the cache must be dropped on every
-  // toggle of the enabled dev features.
-  private void clearGlobalCache() {
-    var cache = cacheManager.getCache("global");
-    if (cache != null) {
-      cache.clear();
-    }
   }
 }

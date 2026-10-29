@@ -26,6 +26,8 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowEndService;
+import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -43,8 +45,10 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
@@ -56,6 +60,7 @@ import org.springframework.transaction.annotation.Transactional;
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(MockitoExtension.class)
 class ExerciseServiceIntegrationTest extends IntegrationTest {
 
   @Mock EnterpriseEditionService enterpriseEditionService;
@@ -100,6 +105,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private UrlAccessTokenService urlAccessTokenService;
 
   @Autowired private WorkflowService workflowService;
+  @Autowired private WorkflowPauseService workflowPauseService;
   @Autowired private WorkflowRepository workflowRepository;
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
   @Autowired private ApplicationEventPublisher eventPublisher;
@@ -113,6 +119,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
 
   @InjectMocks private ExerciseService exerciseService;
   @Autowired private StepService stepService;
+  @Autowired private WorkflowEndService workflowEndService;
 
   @BeforeEach
   void setUp() {
@@ -140,23 +147,21 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             articleRepository,
             exerciseRepository,
             bulkDeleteExecutor,
-            injectStatusRepository,
             pauseRepository,
-            lessonsQuestionRepository,
             teamRepository,
             userRepository,
             exerciseTeamUserRepository,
             injectRepository,
-            lessonsAnswerRepository,
             lessonsCategoryRepository,
             lessonsService,
             urlAccessTokenService,
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
+            workflowEndService,
+            workflowPauseService,
             pauseExerciseService,
             fileService,
-            stepService,
             healthCheckUtils,
             eventPublisher,
             attackPathExecutionService,
@@ -181,7 +186,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     Team noContextualTeam = this.teamRepository.save(getTeam(null, "fakeTeamName2", false));
     exerciseTeams.add(noContextualTeam);
     Exercise exercise = getExercise(exerciseTeams);
-    exercise.setFrom("test@test.com");
     exercise.setLessonsEnabled(true);
     this.exerciseRepository.save(exercise);
     entityManager.flush();
@@ -211,7 +215,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Transactional(rollbackFor = Exception.class)
   void shouldSkipLessonDataDuringExerciseDuplicationWhenLessonsDisabled() {
     Exercise exercise = getExercise();
-    exercise.setFrom("test@test.com");
     exercise.setLessonsEnabled(false);
     this.exerciseRepository.save(exercise);
 
@@ -241,7 +244,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     // Stopping used to delete every inject of a manual chained simulation, which emptied the
     // Execution screen while the attack path (cleared only on reset) still showed the same run.
     Exercise exercise = ExerciseFixture.getExercise();
-    exercise.setFrom("test@test.com");
     exercise.setStatus(ExerciseStatus.RUNNING);
     Exercise exerciseSaved = this.exerciseRepository.save(exercise);
 
@@ -282,7 +284,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     TEAM_ID = teamSaved.getId();
     Exercise exercise = ExerciseFixture.getExercise();
     exercise.setTeams(List.of(teamSaved));
-    exercise.setFrom(user.getEmail());
     Exercise exerciseSaved = this.exerciseRepository.saveAndFlush(exercise);
     InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);

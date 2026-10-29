@@ -12,15 +12,22 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, String> {
+  /**
+   * Pause/resume safety barrier: this pop must stay limited to RUN workflows. Broadening it would
+   * allow delay-step execution while a workflow is paused (STOP).
+   */
   @Modifying
   @Query(
       value =
           """
     WITH next_per_run AS (
-        SELECT DISTINCT ON (steps_delay_queue_workflow_run_id) steps_delay_queue_id
-        FROM steps_delay_queue
-        WHERE steps_delay_queue_goal <= now()
-        ORDER BY steps_delay_queue_workflow_run_id, steps_delay_queue_goal
+        SELECT DISTINCT ON (sdq.steps_delay_queue_workflow_run_id) sdq.steps_delay_queue_id
+        FROM steps_delay_queue sdq
+        JOIN workflows w ON w.workflow_id = sdq.steps_delay_queue_workflow_run_id
+        WHERE w.workflow_status = 'RUN'
+          AND sdq.steps_delay_queue_goal IS NOT NULL
+          AND sdq.steps_delay_queue_goal <= now()
+        ORDER BY sdq.steps_delay_queue_workflow_run_id, sdq.steps_delay_queue_goal
     )
     DELETE FROM steps_delay_queue
     WHERE steps_delay_queue_id IN (SELECT steps_delay_queue_id FROM next_per_run)
@@ -33,7 +40,16 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
 
   int deleteAllByWorkflowRun(Workflow workflowRun);
 
-  // Native upsert is required here to keep insert/update atomic under concurrency.
+  @Modifying
+  @Query(
+      "UPDATE StepDelayQueue sdq "
+          + "SET sdq.goal = null "
+          + "WHERE sdq.workflowRun = :workflowRun AND sdq.goal IS NOT NULL")
+  int nullifyGoalsByWorkflowRun(@Param("workflowRun") Workflow workflowRun);
+
+  // Native upsert is required here to keep insert/update atomic under concurrency. The tenant is
+  // the run's, read in the same statement: a run that does not exist leaves it NULL and the insert
+  // fails. An update keeps the tenant the row was created with.
   @Modifying
   @Query(
       value =
@@ -45,6 +61,7 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
             steps_delay_queue_delay,
             steps_delay_queue_step_template_id,
             steps_delay_queue_workflow_run_id,
+            tenant_id,
             steps_delay_queue_created_at,
             steps_delay_queue_updated_at
           ) VALUES (
@@ -54,6 +71,7 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
             :delay,
             :stepTemplateId,
             :workflowRunId,
+            (SELECT w.tenant_id FROM workflows w WHERE w.workflow_id = :workflowRunId),
             now(),
             now()
           )

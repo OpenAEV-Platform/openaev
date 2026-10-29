@@ -1,6 +1,6 @@
 import type { Dispatch } from 'redux';
 
-import { delReferential, postReferential, putReferential, simplePostCall } from '../../utils/Action';
+import { delReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import {
   type MarkingDefinitionInput,
   type SearchPaginationInput,
@@ -11,6 +11,20 @@ const MARKING_DEFINITIONS_URI = '/api/marking_definitions';
 
 export const searchMarkingDefinitions = (searchPaginationInput: SearchPaginationInput) => {
   return simplePostCall(`${MARKING_DEFINITIONS_URI}/search`, searchPaginationInput);
+};
+
+// The tenant's marking definitions narrowed server-side to the current user's own clearance
+// (cumulative per type, same rule enforced when a marking is actually assigned) - for populating
+// an assignment picker with only the options a submission would actually be allowed to include.
+// Unlike searchMarkingDefinitions, this returns a plain array, not a paginated {content: [...]}.
+export const fetchAssignableMarkingDefinitions = () => {
+  return simpleCall(`${MARKING_DEFINITIONS_URI}/assignable`);
+};
+
+// Whether any entity currently carries this marking definition - checked before a delete, which
+// silently removes the definition from every entity that holds it.
+export const fetchMarkingDefinitionAssigned = (markingDefinitionId: string) => {
+  return simpleCall(`${MARKING_DEFINITIONS_URI}/${markingDefinitionId}/assigned`);
 };
 
 export const createMarkingDefinition = (input: MarkingDefinitionInput) => (dispatch: Dispatch) => {
@@ -26,4 +40,15 @@ export const updateMarkingDefinition = (
 
 export const deleteMarkingDefinition = (markingDefinitionId: string) => (dispatch: Dispatch) => {
   return delReferential(`${MARKING_DEFINITIONS_URI}/${markingDefinitionId}`, 'marking_definitions', markingDefinitionId)(dispatch);
+};
+
+// -- OPTIONS --
+
+export const searchMarkingDefinitionAsOption = (searchText: string = '') => {
+  const params = { searchText };
+  return simpleCall(`${MARKING_DEFINITIONS_URI}/options`, { params });
+};
+
+export const searchMarkingDefinitionByIdAsOption = (ids: string[]) => {
+  return simplePostCall(`${MARKING_DEFINITIONS_URI}/options`, ids);
 };

@@ -1,5 +1,6 @@
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip, Typography } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type KeyboardEvent, memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 
@@ -8,6 +9,7 @@ import { SECURITY_PLATFORM_TYPE_COLORS } from '../../../../../../../components/s
 import useCountUp from '../../../../../../../utils/hooks/useCountUp';
 import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
 import { compactNumber } from '../../../../../../../utils/number';
+import { tint } from '../../../../../../../utils/tint';
 
 interface OrbitPlatform {
   id: string;
@@ -98,7 +100,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
     };
     if (score < 75) return {
       label: t('High exposure'),
-      color: '#ff7043',
+      color: 'var(--color-feedback-warning-primary)',
     };
     return {
       label: t('Critical exposure'),
@@ -138,7 +140,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
     {
       range: '50 - 74',
       label: t('High exposure'),
-      color: '#ff7043',
+      color: 'var(--color-feedback-warning-primary)',
       desc: t('More than half of the validated attacks were not stopped.'),
     },
     {
@@ -238,8 +240,8 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
               <stop offset="100%" stopColor={theme.palette.error.main} />
             </linearGradient>
             <radialGradient id={glassId} cx="38%" cy="30%" r="75%">
-              <stop offset="0%" stopColor={alpha(color, 0.32)} />
-              <stop offset="55%" stopColor={alpha(color, 0.1)} />
+              <stop offset="0%" stopColor={tint(color, 32)} />
+              <stop offset="55%" stopColor={tint(color, 10)} />
               <stop offset="100%" stopColor={alpha(dark ? '#000000' : '#ffffff', 0.06)} />
             </radialGradient>
             {/* soft-edged gloss: a radial gradient instead of a blur() filter, which would
@@ -252,10 +254,10 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
           </defs>
 
           {/* glassy translucent sphere */}
-          <circle cx={cx} cy={cy} r={rRing - 6} fill={`url(#${glassId})`} stroke={alpha(color, 0.18)} strokeWidth={1} />
+          <circle cx={cx} cy={cy} r={rRing - 6} fill={`url(#${glassId})`} stroke={tint(color, 18)} strokeWidth={1} />
           {/* inner hairline rings for depth */}
           <circle cx={cx} cy={cy} r={rRing - 24} fill="none" stroke={dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} strokeWidth={1} />
-          <ellipse cx={cx} cy={cy} rx={rRing - 10} ry={(rRing - 10) / 3} fill="none" stroke={alpha(color, 0.12)} strokeWidth={1} />
+          <ellipse cx={cx} cy={cy} rx={rRing - 10} ry={(rRing - 10) / 3} fill="none" stroke={tint(color, 12)} strokeWidth={1} />
           {/* glossy top highlight */}
           <ellipse cx={cx - 14} cy={cy - 34} rx={40} ry={20} fill={`url(#${glossId})`} />
 
@@ -377,7 +379,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
             }}
           >
             {/* halo ring drawn as geometry instead of a drop-shadow filter */}
-            <circle cx={markerBase.x} cy={markerBase.y} r={8.5} fill={alpha(color, 0.3)} />
+            <circle cx={markerBase.x} cy={markerBase.y} r={8.5} fill={tint(color, 30)} />
             <circle cx={markerBase.x} cy={markerBase.y} r={4.5} fill={color} />
           </g>
 
@@ -414,54 +416,57 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
         </svg>
       </Box>
 
-      <Tooltip title={t('Exposure score {score} / 100 - click to understand how it is computed', { score: Math.round(score) })}>
-        <Box
-          className="noDrag"
-          onClick={() => setExplainOpen(true)}
-          {...explainA11yProps}
-          sx={{
-            'display': 'inline-flex',
-            'alignItems': 'center',
-            'gap': 0.75,
-            'paddingInline': 1,
-            'height': 22,
-            'borderRadius': 999,
-            'cursor': 'pointer',
-            'border': `1px solid ${alpha(color, 0.3)}`,
-            'background': alpha(color, 0.1),
-            'transition': 'background-color 0.15s ease',
-            '&:hover': { background: alpha(color, 0.2) },
-          }}
-        >
-          <Box sx={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: color,
-            boxShadow: `0 0 6px ${color}`,
-          }}
-          />
-          <Typography sx={{
-            fontSize: 10,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color,
-          }}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Box
+            className="noDrag"
+            onClick={() => setExplainOpen(true)}
+            {...explainA11yProps}
+            sx={{
+              'display': 'inline-flex',
+              'alignItems': 'center',
+              'gap': 0.75,
+              'paddingInline': 1,
+              'height': 22,
+              'borderRadius': 999,
+              'cursor': 'pointer',
+              'border': `1px solid ${tint(color, 30)}`,
+              'background': tint(color, 10),
+              'transition': 'background-color 0.15s ease',
+              '&:hover': { background: tint(color, 20) },
+            }}
           >
-            {band.label}
-          </Typography>
-          <Typography sx={{
-            fontSize: 10,
-            color: 'text.secondary',
-          }}
-          >
-            {(() => {
-              if (gaps === 0 && validations === 0) return t('No validations yet');
-              if (gaps === 0) return t('All controls holding');
-              return t('{count} gaps to remediate', { count: compactNumber(gaps) });
-            })()}
-          </Typography>
-        </Box>
+            <Box sx={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: color,
+              boxShadow: `0 0 6px ${color}`,
+            }}
+            />
+            <Typography sx={{
+              fontSize: 10,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color,
+            }}
+            >
+              {band.label}
+            </Typography>
+            <Typography sx={{
+              fontSize: 10,
+              color: 'text.secondary',
+            }}
+            >
+              {(() => {
+                if (gaps === 0 && validations === 0) return t('No validations yet');
+                if (gaps === 0) return t('All controls holding');
+                return t('{count} gaps to remediate', { count: compactNumber(gaps) });
+              })()}
+            </Typography>
+          </Box>
+        </TooltipTrigger>
+        <TooltipContent>{t('Exposure score {score} / 100 - click to understand how it is computed', { score: Math.round(score) })}</TooltipContent>
       </Tooltip>
 
       <Dialog
@@ -469,7 +474,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
         onClose={() => setExplainOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: 1 } } }}
       >
         <DialogTitle sx={{
           display: 'flex',
@@ -489,8 +494,8 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
             padding: 2,
             borderRadius: 1,
             marginBottom: 2,
-            border: `1px solid ${alpha(color, 0.3)}`,
-            background: alpha(color, 0.08),
+            border: `1px solid ${tint(color, 30)}`,
+            background: tint(color, 8),
           }}
           >
             <Typography sx={{
@@ -513,7 +518,10 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
               >
                 {band.label}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary' }}
+              >
                 {validations === 0
                   ? t('No validations have run yet.')
                   : t('{gaps} of {validations} validations breached your controls.', {
@@ -525,7 +533,13 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
           </Box>
 
           <Typography variant="h4" gutterBottom>{t('What it measures')}</Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'text.secondary',
+              marginBottom: '16px',
+            }}
+          >
             {t('The adversarial exposure score is the share of security validations your controls failed to stop. It runs from 0 to 100 and, unlike a resilience score, a HIGHER number is WORSE - it means you are more exposed.')}
           </Typography>
           <Box sx={{
@@ -556,7 +570,13 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
               {Math.round(score)}
             </Box>
           </Box>
-          <Typography variant="body2" color="text.secondary" paragraph>
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'text.secondary',
+              marginBottom: '16px',
+            }}
+          >
             {t('Every validation counts equally - there is no per-pillar weighting. Pillars that run more validations therefore weigh more on the overall score. It is the exact inverse of the resilience gauges below: exposure = 100 - overall resilience ({resilience}%).', { resilience })}
           </Typography>
 
@@ -577,7 +597,10 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {t(PILLAR_LABELS[p.key.toUpperCase()] ?? p.key)}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography
+                        variant="body2"
+                        sx={{ color: 'text.secondary' }}
+                      >
                         {t('{failed} / {total} breached ({pct}%)', {
                           failed: compactNumber(p.failed),
                           total: compactNumber(p.total),
@@ -585,30 +608,34 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                         })}
                       </Typography>
                     </Box>
-                    <Tooltip title={t('{stopped} stopped - {breached} breached', {
-                      stopped: p.success.toLocaleString(),
-                      breached: p.failed.toLocaleString(),
-                    })}
-                    >
-                      <Box sx={{
-                        display: 'flex',
-                        height: 8,
-                        borderRadius: 999,
-                        overflow: 'hidden',
-                        background: theme.palette.action.hover,
-                      }}
-                      >
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                         <Box sx={{
-                          width: `${100 - breachPct}%`,
-                          background: theme.palette.success.main,
+                          display: 'flex',
+                          height: 8,
+                          borderRadius: 999,
+                          overflow: 'hidden',
+                          background: theme.palette.action.hover,
                         }}
-                        />
-                        <Box sx={{
-                          width: `${breachPct}%`,
-                          background: theme.palette.error.main,
-                        }}
-                        />
-                      </Box>
+                        >
+                          <Box sx={{
+                            width: `${100 - breachPct}%`,
+                            background: theme.palette.success.main,
+                          }}
+                          />
+                          <Box sx={{
+                            width: `${breachPct}%`,
+                            background: theme.palette.error.main,
+                          }}
+                          />
+                        </Box>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t('{stopped} stopped - {breached} breached', {
+                          stopped: p.success.toLocaleString(),
+                          breached: p.failed.toLocaleString(),
+                        })}
+                      </TooltipContent>
                     </Tooltip>
                   </Box>
                 );
@@ -632,7 +659,12 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                     background: theme.palette.success.main,
                   }}
                   />
-                  <Typography variant="body2" color="text.secondary">{t('Stopped')}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    {t('Stopped')}
+                  </Typography>
                 </Box>
                 <Box sx={{
                   display: 'flex',
@@ -647,7 +679,12 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                     background: theme.palette.error.main,
                   }}
                   />
-                  <Typography variant="body2" color="text.secondary">{t('Breached')}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    {t('Breached')}
+                  </Typography>
                 </Box>
               </Box>
             </>
@@ -667,8 +704,8 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                   paddingBlock: 0.75,
                   paddingInline: 1,
                   borderRadius: 1,
-                  background: isCurrent ? alpha(b.color, 0.1) : 'transparent',
-                  border: `1px solid ${isCurrent ? alpha(b.color, 0.4) : 'transparent'}`,
+                  background: isCurrent ? tint(b.color, 10) : 'transparent',
+                  border: `1px solid ${isCurrent ? tint(b.color, 40) : 'transparent'}`,
                 }}
               >
                 <Box sx={{
@@ -678,7 +715,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                   marginTop: 0.5,
                   flexShrink: 0,
                   background: b.color,
-                  boxShadow: `0 0 6px ${alpha(b.color, 0.7)}`,
+                  boxShadow: `0 0 6px ${tint(b.color, 70)}`,
                 }}
                 />
                 <Box>
@@ -686,7 +723,12 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                     {`${b.range} - ${b.label}`}
                     {isCurrent ? ` - ${t('current')}` : ''}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">{b.desc}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    {b.desc}
+                  </Typography>
                 </Box>
               </Box>
             );
@@ -694,11 +736,10 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
 
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
+          <Button type="button" priority="secondary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
           {onInvestigate && (
             <Button
-              variant="contained"
-              color="primary"
+              type="button"
               onClick={() => {
                 setExplainOpen(false);
                 onInvestigate();

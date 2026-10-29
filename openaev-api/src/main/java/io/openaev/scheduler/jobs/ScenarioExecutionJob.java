@@ -48,29 +48,21 @@ public class ScenarioExecutionJob implements Job {
   @Override
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
-    // Disable tenant filter — this job runs cross-tenant
-    createExercisesFromScenarios();
-    cleanOutdatedRecurringScenario();
-  }
-
-  private void createExercisesFromScenarios() {
     Instant now = Instant.now();
     tenantRepository
         .findAllIdsByDeletedAtIsNull()
-        .forEach(tenantId -> createExercisesFromScenariosAndByTenant(tenantId, now));
+        .forEach(
+            tenantId -> {
+              createExercisesFromScenariosAndByTenant(tenantId, now);
+              cleanOutdatedRecurringScenario(tenantId);
+            });
   }
 
   private void createExercisesFromScenariosAndByTenant(String tenantId, Instant now) {
     executeInTenant(
         tenantId,
         () -> {
-          // MT v1 compatibility: the tenant filter must be active for now
-          // we ust enable the filter here for lack of the @Transactional aspect
-          // (forbidden by usage of the TenantScopedTransaction)
-          entityManager
-              .unwrap(Session.class)
-              .enableFilter("tenantFilter")
-              .setParameter("tenantId", tenantId);
+          enableV1TenantFilter(tenantId);
           // Find each scenario with cron where now is between start and end date
           List<Scenario> scenarios = this.scenarioService.recurringScenarios(now);
           // Filter on valid cron scenario -> Start date on cron is in 1 minute
@@ -110,7 +102,9 @@ public class ScenarioExecutionJob implements Job {
 
   private void createScheduledExercise(Scenario scenario, Instant now) {
     Instant start = scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now);
-    Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, start, false);
+    Exercise exercise =
+        this.scenarioToExerciseService.toExercise(
+            scenario, start, false, scenario.getScheduledBy());
     // Chained scenarios need the workflow template now; the workflow run is created later when
     // the scheduled exercise is auto-started.
     provisionChainedWorkflowTemplateIfNeeded(scenario.getId(), exercise);
@@ -142,23 +136,37 @@ public class ScenarioExecutionJob implements Job {
     }
   }
 
-  private void cleanOutdatedRecurringScenario() {
-    // MT v1: disable filter here to act on all tenants
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-    // Find each scenario with cron is outdated:
-    List<Scenario> scenarios =
-        this.scenarioService.potentialOutdatedRecurringScenario(Instant.now());
-    List<Scenario> validScenarios = scenarios.stream().filter(this::isScenarioOutdated).toList();
+  private void enableV1TenantFilter(String tenantId) {
+    // MT v1 compatibility: the tenant filter must be active for now
+    // we ust enable the filter here for lack of the @Transactional aspect
+    // (forbidden by usage of the TenantScopedTransaction)
+    entityManager
+        .unwrap(Session.class)
+        .enableFilter("tenantFilter")
+        .setParameter("tenantId", tenantId);
+  }
 
-    // Remove recurring setup
-    validScenarios.forEach(
-        s -> {
-          s.setRecurrenceStart(null);
-          s.setRecurrenceEnd(null);
-          s.setRecurrence(null);
+  private void cleanOutdatedRecurringScenario(String tenantId) {
+    executeInTenant(
+        tenantId,
+        () -> {
+          enableV1TenantFilter(tenantId);
+          // Find each scenario with cron is outdated:
+          List<Scenario> scenarios =
+              this.scenarioService.potentialOutdatedRecurringScenario(Instant.now());
+          List<Scenario> validScenarios =
+              scenarios.stream().filter(this::isScenarioOutdated).toList();
+
+          // Remove recurring setup
+          validScenarios.forEach(
+              s -> {
+                s.setRecurrenceStart(null);
+                s.setRecurrenceEnd(null);
+                s.setRecurrence(null);
+              });
+          // Save it
+          if (!validScenarios.isEmpty()) this.scenarioService.updateScenarios(validScenarios);
         });
-    // Save it
-    if (!validScenarios.isEmpty()) this.scenarioService.updateScenarios(validScenarios);
   }
 
   private boolean isScenarioOutdated(@NotNull final Scenario scenario) {

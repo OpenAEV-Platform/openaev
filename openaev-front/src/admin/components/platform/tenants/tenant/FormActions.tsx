@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -26,21 +26,11 @@ const FormActions: FunctionComponent<FormActionsProps> = ({
       gap: theme.spacing(2),
     }}
     >
-      <Button
-        variant="outlined"
-        color="primary"
-        onClick={onCancel}
-        disabled={submitting}
-      >
+      <Button type="button" priority="secondary" onClick={onCancel} disabled={submitting}>
         {cancelLabel}
       </Button>
 
-      <Button
-        variant="contained"
-        color="primary"
-        type="submit"
-        disabled={disabled || submitting}
-      >
+      <Button type="submit" disabled={disabled || submitting}>
         {submitLabel}
       </Button>
     </div>

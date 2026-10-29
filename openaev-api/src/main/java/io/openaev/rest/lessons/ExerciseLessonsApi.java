@@ -2,6 +2,7 @@ package io.openaev.rest.lessons;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.lessons.LessonsCategoryHydration.hydrateForResponse;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
@@ -52,7 +53,8 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public Iterable<LessonsCategory> exerciseLessonsCategories(
       TxCtx ctx, @PathVariable String exerciseId) {
-    return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId));
+    return hydrateForResponse(
+        lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId)));
   }
 
   @PostMapping({
@@ -98,7 +100,8 @@ public class ExerciseLessonsApi extends RestBehavior {
               .toList();
       lessonsQuestionRepository.saveAll(lessonsQuestions);
     }
-    return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId));
+    return hydrateForResponse(
+        lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId)));
   }
 
   @PostMapping({
@@ -153,10 +156,8 @@ public class ExerciseLessonsApi extends RestBehavior {
                                     .stream()))
             .toList();
     lessonsAnswerRepository.deleteAll(lessonsAnswers);
-    return lessonsCategoryRepository
-        .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
-        .stream()
-        .toList();
+    return hydrateForResponse(
+        lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId)));
   }
 
   @PostMapping({
@@ -181,7 +182,7 @@ public class ExerciseLessonsApi extends RestBehavior {
             .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
             .stream()
             .toList();
-    return lessonsCategories;
+    return hydrateForResponse(lessonsCategories);
   }
 
   @PutMapping({
@@ -204,7 +205,7 @@ public class ExerciseLessonsApi extends RestBehavior {
             .orElseThrow(ElementNotFoundException::new);
     lessonsTemplateCategory.setUpdateAttributes(input);
     lessonsTemplateCategory.setUpdated(now());
-    return lessonsCategoryRepository.save(lessonsTemplateCategory);
+    return hydrateForResponse(lessonsCategoryRepository.save(lessonsTemplateCategory));
   }
 
   @DeleteMapping({
@@ -241,7 +242,7 @@ public class ExerciseLessonsApi extends RestBehavior {
             .orElseThrow(ElementNotFoundException::new);
     Iterable<Team> lessonsCategoryTeams = teamRepository.findAllById(input.getTeamIds());
     lessonsCategory.setTeams(fromIterable(lessonsCategoryTeams));
-    return lessonsCategoryRepository.save(lessonsCategory);
+    return hydrateForResponse(lessonsCategoryRepository.save(lessonsCategory));
   }
 
   @GetMapping({

@@ -53,6 +53,34 @@ public interface InjectRepository
   Optional<Inject> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   /**
+   * The inject's id and its tenant, and nothing else. For the one read that has to cross every
+   * tenant because its input carries no tenant: an inbound email routed by the inject id in its
+   * footer. Loading the entity there would pull its associations across the tenant boundary to
+   * answer a question about two columns.
+   */
+  @Query("select i.id as id, i.tenant.id as tenantId from Inject i where i.id = :id")
+  Optional<InjectTenantRef> findTenantRefById(@Param("id") @NotNull String id);
+
+  /**
+   * The id of the user whose launch gates this inject's dispatch: the simulation's launcher for a
+   * simulation inject, the inject's own launcher otherwise (atomic testing). Read from the database
+   * by ids, so a caller holding an inject loaded by an earlier transaction never has to initialise
+   * its lazy simulation or launcher. Empty when there is no launcher.
+   */
+  @Query(
+      "select case when e.id is not null then el.id else il.id end from Inject i"
+          + " left join i.exercise e left join e.launchedBy el left join i.launchedBy il"
+          + " where i.id = :injectId")
+  Optional<String> findLauncherId(@Param("injectId") @NotNull String injectId);
+
+  /** Projection of {@link #findTenantRefById(String)}. */
+  interface InjectTenantRef {
+    String getId();
+
+    String getTenantId();
+  }
+
+  /**
    * Updates only an inject's {@code updated_at} timestamp, through Hibernate so the tenant
    * statement inspector covers it (a previous raw-JDBC helper bypassed it). Returns the number of
    * rows updated.
@@ -170,11 +198,13 @@ public interface InjectRepository
       ic.injector_contract_platforms as inject_platforms,
       (SELECT array_agg(icap.attack_pattern_id)
        FROM injectors_contracts_attack_patterns icap
-       WHERE icap.injector_contract_id = ic.injector_contract_id) as inject_attack_patterns,
+       WHERE icap.injector_contract_id = ic.injector_contract_id
+         AND icap.tenant_id = ic.tenant_id) as inject_attack_patterns,
       (SELECT array_agg(ap.phase_id)
        FROM injectors_contracts_attack_patterns icap
        JOIN attack_patterns_kill_chain_phases ap ON ap.attack_pattern_id = icap.attack_pattern_id
-       WHERE icap.injector_contract_id = ic.injector_contract_id) as inject_kill_chain_phases,
+       WHERE icap.injector_contract_id = ic.injector_contract_id
+         AND icap.tenant_id = ic.tenant_id) as inject_kill_chain_phases,
       (SELECT array_agg(idp.inject_children_id)
        FROM injects_dependencies idp
        WHERE idp.inject_parent_id = f.inject_id) as inject_children,
@@ -187,6 +217,7 @@ public interface InjectRepository
        JOIN injectors_contracts ic_c ON ic_c.injector_contract_id = child.inject_injector_contract
                                     AND ic_c.tenant_id = child.tenant_id
        JOIN injectors_contracts_attack_patterns icap_c ON icap_c.injector_contract_id = ic_c.injector_contract_id
+                                                      AND icap_c.tenant_id = ic_c.tenant_id
        WHERE idp.inject_parent_id = f.inject_id) as attack_patterns_children,
       ins.status_name as inject_status_name,
       (SELECT array_agg(it.tag_id)
@@ -212,13 +243,15 @@ public interface InjectRepository
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
+  // Ids only: Hibernate 7 cannot map Inject from a native result set, its tenant-scoped
+  // @JoinFormula associations need generated column aliases a plain select i.* does not carry.
   @Query(
       value =
-          "select i.*, i.tenant_id as tenantId from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+          "select i.inject_id from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
               + " and i.inject_content like :challengeId"
               + " and i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
-  List<Inject> findAllForChallengeId(@Param("challengeId") String challengeId);
+  List<String> findAllIdsForChallengeId(@Param("challengeId") String challengeId);
 
   @Query(
       value =
@@ -244,7 +277,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, inject_exercise, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :exercise, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :exercise, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveForExercise(
       @Param("id") String id,
@@ -257,7 +290,8 @@ public interface InjectRepository
       @Param("enabled") boolean enabled,
       @Param("exercise") String exerciseId,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
@@ -265,7 +299,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, inject_scenario, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :scenario, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :scenario, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveForScenario(
       @Param("id") String id,
@@ -278,7 +312,8 @@ public interface InjectRepository
       @Param("enabled") boolean enabled,
       @Param("scenario") String scenarioId,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
@@ -286,7 +321,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveStandAlone(
       @Param("id") String id,
@@ -298,7 +333,8 @@ public interface InjectRepository
       @Param("allTeams") boolean allTeams,
       @Param("enabled") boolean enabled,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
@@ -324,87 +360,6 @@ public interface InjectRepository
   @Override
   @Query("select count(distinct i) from Inject i where i.createdAt > :creationDate")
   long globalCount(@Param("creationDate") Instant creationDate);
-
-  @Query(
-      value =
-          "WITH inject_teams AS ( "
-              + "    SELECT inject_id, array_agg(team_id) as team_ids "
-              + "    FROM injects_teams "
-              + "    WHERE inject_id IN (:ids) "
-              + "    GROUP BY inject_id "
-              + "), "
-              + "inject_assets AS ( "
-              + "    SELECT  "
-              + "        i.inject_id,  "
-              + "        array_agg(DISTINCT a.asset_id) as asset_ids "
-              + "    FROM injects i "
-              + "    LEFT JOIN injects_assets ia ON i.inject_id = ia.inject_id "
-              + "    LEFT JOIN injects_asset_groups iag ON i.inject_id = iag.inject_id "
-              + "    LEFT JOIN asset_groups_assets aga ON aga.asset_group_id = iag.asset_group_id "
-              + "    LEFT JOIN assets a ON a.asset_id = ia.asset_id OR aga.asset_id = a.asset_id "
-              + "    WHERE i.inject_id IN (:ids) "
-              + "    GROUP BY i.inject_id "
-              + "), "
-              + "inject_asset_groups AS ( "
-              + "    SELECT inject_id, array_agg(asset_group_id) as asset_group_ids "
-              + "    FROM injects_asset_groups "
-              + "    WHERE inject_id IN (:ids) "
-              + "    GROUP BY inject_id "
-              + "), "
-              + "inject_expectations AS ( "
-              + "    SELECT inject_id, array_agg(inject_expectation_id) as expectation_ids "
-              + "    FROM injects_expectations "
-              + "    WHERE inject_id IN (:ids) "
-              + "    GROUP BY inject_id "
-              + "), "
-              + "inject_communications AS ( "
-              + "    SELECT communication_inject as inject_id, array_agg(communication_id) as communication_ids "
-              + "    FROM communications "
-              + "    WHERE communication_inject IN (:ids) "
-              + "    GROUP BY communication_inject "
-              + "), "
-              + "inject_kill_chains AS ( "
-              + "    SELECT  "
-              + "        i.inject_id, "
-              + "        array_agg(DISTINCT apkcp.phase_id) as phase_ids "
-              + "    FROM injects i "
-              + "    JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract "
-              + "    JOIN attack_patterns_kill_chain_phases apkcp ON apkcp.attack_pattern_id = icap.attack_pattern_id "
-              + "    WHERE i.inject_id IN (:ids) "
-              + "    GROUP BY i.inject_id "
-              + "), "
-              + "inject_platforms AS ( "
-              + "    SELECT  "
-              + "        i.inject_id, "
-              + "        array_union_agg(injcon.injector_contract_platforms) as platform_ids "
-              + "    FROM injects i "
-              + "    JOIN injectors_contracts injcon ON injcon.injector_contract_id = i.inject_injector_contract "
-              + "    WHERE i.inject_id IN (:ids) "
-              + "    GROUP BY i.inject_id "
-              + ") "
-              + "SELECT  "
-              + "    i.inject_id, "
-              + "    ins.status_name, "
-              + "    i.inject_scenario, "
-              + "    COALESCE(it.team_ids, '{}') as inject_teams, "
-              + "    COALESCE(ia.asset_ids, '{}') as inject_assets, "
-              + "    COALESCE(iag.asset_group_ids, '{}') as inject_asset_groups, "
-              + "    COALESCE(ie.expectation_ids, '{}') as inject_expectations, "
-              + "    COALESCE(ic.communication_ids, '{}') as inject_communications, "
-              + "    COALESCE(ikc.phase_ids, '{}') as inject_kill_chain_phases, "
-              + "    COALESCE(ip.platform_ids, '{}') as inject_platforms "
-              + "FROM injects i "
-              + "LEFT JOIN injects_statuses ins ON ins.status_inject = i.inject_id "
-              + "LEFT JOIN inject_teams it ON it.inject_id = i.inject_id "
-              + "LEFT JOIN inject_assets ia ON ia.inject_id = i.inject_id "
-              + "LEFT JOIN inject_asset_groups iag ON iag.inject_id = i.inject_id "
-              + "LEFT JOIN inject_expectations ie ON ie.inject_id = i.inject_id "
-              + "LEFT JOIN inject_communications ic ON ic.inject_id = i.inject_id "
-              + "LEFT JOIN inject_kill_chains ikc ON ikc.inject_id = i.inject_id "
-              + "LEFT JOIN inject_platforms ip ON ip.inject_id = i.inject_id "
-              + "WHERE i.inject_id IN (:ids);",
-      nativeQuery = true)
-  List<RawInject> findRawByIds(@Param("ids") List<String> ids);
 
   @Query(
       value =
@@ -536,6 +491,7 @@ public interface InjectRepository
       value =
           "SELECT i.inject_id FROM injects i "
               + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
               + "WHERE p.payload_type = '"
               + DNS_RESOLUTION_TYPE
@@ -551,6 +507,7 @@ public interface InjectRepository
           "DELETE FROM injects i "
               + "USING injectors_contracts ic, payloads p "
               + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "AND ic.injector_contract_payload = p.payload_id "
               + "AND p.payload_type = '"
               + DNS_RESOLUTION_TYPE
@@ -564,6 +521,7 @@ public interface InjectRepository
       value =
           "SELECT i.inject_id FROM injects i "
               + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
               + "WHERE p.payload_type = '"
               + FILE_DROP_TYPE
@@ -579,6 +537,7 @@ public interface InjectRepository
           "DELETE FROM injects i "
               + "USING injectors_contracts ic, payloads p "
               + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "AND ic.injector_contract_payload = p.payload_id "
               + "AND p.payload_type = '"
               + FILE_DROP_TYPE
@@ -591,7 +550,9 @@ public interface InjectRepository
       value =
           "SELECT DISTINCT i.inject_id FROM injects i "
               + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "JOIN injectors_contracts_vulnerabilities icv ON ic.injector_contract_id = icv.injector_contract_id "
+              + "AND icv.tenant_id = ic.tenant_id "
               + "WHERE i.inject_scenario = :scenarioId",
       nativeQuery = true)
   List<String> findInjectIdsWithVulnerableContractsByScenarioId(
@@ -603,7 +564,9 @@ public interface InjectRepository
           "DELETE FROM injects i "
               + "USING injectors_contracts ic, injectors_contracts_vulnerabilities icv "
               + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "AND ic.injector_contract_id = icv.injector_contract_id "
+              + "AND icv.tenant_id = ic.tenant_id "
               + "AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithVulnerableContractsByScenarioId(@Param("scenarioId") String scenarioId);
@@ -612,7 +575,9 @@ public interface InjectRepository
       value =
           "SELECT DISTINCT i.inject_id FROM injects i "
               + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
+              + "AND icap.tenant_id = ic.tenant_id "
               + "WHERE i.inject_scenario = :scenarioId",
       nativeQuery = true)
   List<String> findInjectIdsWithAttackPatternContractsByScenarioId(
@@ -624,7 +589,9 @@ public interface InjectRepository
           "DELETE FROM injects i "
               + "USING injectors_contracts ic, injectors_contracts_attack_patterns icap "
               + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.tenant_id = i.tenant_id "
               + "AND ic.injector_contract_id = icap.injector_contract_id "
+              + "AND icap.tenant_id = ic.tenant_id "
               + "AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithAttackPatternContractsByScenarioId(

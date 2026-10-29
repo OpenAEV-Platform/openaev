@@ -25,6 +25,7 @@ import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.service.LogService;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -59,6 +60,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
 
   private static final String PAYLOAD_URI = "/api/payloads";
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private DomainComposer domainComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -93,15 +95,16 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
   class PayloadAtomicTestingLifecycle {
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     // Verifies end-to-end audit logging for payload + atomic testing lifecycle actions.
     void given_payloadAndAtomicTestingLifecycle_should_logExpectedAuditEvents() throws Exception {
       // Arrange
       // Register built-in injector under the active mock user context for deterministic tenant
       // scope.
-      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-      openaevInjectorIntegrationFactory.registerConnectorForTenant(
-          TenantContext.getCurrentTenant());
+      builtinConnectorRegistration.register(
+          emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+      builtinConnectorRegistration.register(
+          openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
       // Use unique labels to avoid collisions with existing data in integration environments.
       String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);

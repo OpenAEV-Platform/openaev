@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.util.ClassUtils;
 
 @DisplayName("DebugTracingContextInitializer")
 class DebugTracingContextInitializerTest {
@@ -40,6 +41,15 @@ class DebugTracingContextInitializerTest {
     return value != null
         && DebugTracingContextInitializer.TRACING_AUTO_CONFIGURATIONS.stream()
             .allMatch(value::contains);
+  }
+
+  @Test
+  @DisplayName("every excluded tracing auto-configuration exists on the classpath")
+  void excludedAutoConfigurationsExist() {
+    // Spring Boot silently ignores an exclusion naming a class that is not on the classpath, so a
+    // Boot upgrade that moves these classes would quietly turn tracing back on with debug off.
+    assertThat(DebugTracingContextInitializer.TRACING_AUTO_CONFIGURATIONS)
+        .allMatch(name -> ClassUtils.isPresent(name, getClass().getClassLoader()));
   }
 
   @Test

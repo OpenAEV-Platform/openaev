@@ -18,15 +18,22 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
+// Runs the test transaction in the default tenant's scope, where every fixture here is created, as
+// the scenario launch request runs in the scenario's tenant scope.
+@TestExecutionListeners(
+    listeners = DefaultTenantScopeTestListener.class,
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 class StepServiceScenarioIntegrationTest {
 
   @Autowired private WorkflowRepository workflowRepository;
@@ -175,7 +182,13 @@ class StepServiceScenarioIntegrationTest {
     assertEquals(1, copiedSteps.size());
     Step copiedStep = copiedSteps.getFirst();
     assertNotEquals(scenarioStep.getId(), copiedStep.getId());
-    assertEquals("{\"v\":\"original\"}", copiedStep.getData());
+    // The authored payload is carried over verbatim, except for the owner reference, which the copy
+    // re-points at the destination: the engine builds the inject from this snapshot, so a copy
+    // still
+    // naming the scenario would attach the simulation's injects to the scenario.
+    assertEquals("original", StepService.getField(copiedStep.getData(), "v"));
+    assertEquals(
+        savedSimulation.getId(), StepService.getField(copiedStep.getData(), "inject_exercise"));
 
     // ACT — edit the scenario step AFTER the copy
     scenarioStep.setData("{\"v\":\"edited\"}");
@@ -183,7 +196,7 @@ class StepServiceScenarioIntegrationTest {
 
     // ASSERT — the copied simulation step is untouched (isolation)
     Step reloadedCopiedStep = stepRepository.findById(copiedStep.getId()).orElseThrow();
-    assertEquals("{\"v\":\"original\"}", reloadedCopiedStep.getData());
+    assertEquals("original", StepService.getField(reloadedCopiedStep.getData(), "v"));
   }
 
   /**

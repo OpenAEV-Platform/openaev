@@ -7,12 +7,10 @@ import { AutonomousContext } from '../../autonomous/AutonomousContext';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
-// Permanent right-hand menu of the simulation Execution area (overview, mails,
-// validations, logs). The simulation Index pads the content area by the menu
-// width whenever the location is under /execution.
+// Navigates inside the Execution tab only, so it starts level with the tab bar.
+// The simulation shell reserves its gutter.
 const ExecutionMenu: FunctionComponent<Props> = ({ exerciseId }) => {
-  // Autonomous (AI-driven) runs reserve the right column for the reasoning
-  // panel, so the legacy execution right menu is suppressed to avoid overlap.
+  // Autonomous runs use the right column for the reasoning panel.
   const { isAutonomous } = useContext(AutonomousContext);
   if (isAutonomous) {
     return null;
@@ -42,7 +40,7 @@ const ExecutionMenu: FunctionComponent<Props> = ({ exerciseId }) => {
   ];
 
   return (
-    <RightMenu entries={entries} />
+    <RightMenu entries={entries} variant="sticky" />
   );
 };
 

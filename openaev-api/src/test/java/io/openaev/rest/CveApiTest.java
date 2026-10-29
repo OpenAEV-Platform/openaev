@@ -70,7 +70,7 @@ class CveApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("When working with CVEs")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   class WhenWorkingWithCves {
 
     @Test

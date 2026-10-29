@@ -28,16 +28,16 @@ const styles = theme => ({
 
 const inlineStyles = {
   green: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
+    backgroundColor: 'var(--color-feedback-success-secondary-transparency-30)',
+    color: 'var(--color-feedback-success-primary)',
   },
   red: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
+    backgroundColor: 'var(--color-feedback-error-secondary-transparency-30)',
+    color: 'var(--color-feedback-error-primary)',
   },
   blueGrey: {
-    backgroundColor: 'rgba(96, 125, 139, 0.08)',
-    color: '#607d8b',
+    backgroundColor: 'var(--color-feedback-neutral-secondary-transparency-30)',
+    color: 'var(--color-feedback-neutral-primary)',
   },
 };
 

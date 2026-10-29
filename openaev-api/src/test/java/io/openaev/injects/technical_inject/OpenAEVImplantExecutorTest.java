@@ -42,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class OpenAEVImplantExecutorTest extends IntegrationTest {
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectorContext injectorContext;
@@ -139,7 +140,8 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     io.openaev.executors.Injector openAEVImplantExecutor =
         new OpenAEVImplantExecutor(injectorContext, injectExpectationService, injectService);
 
@@ -213,7 +215,8 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     io.openaev.executors.Injector openAEVImplantExecutor =
         new OpenAEVImplantExecutor(injectorContext, injectExpectationService, injectService);
 

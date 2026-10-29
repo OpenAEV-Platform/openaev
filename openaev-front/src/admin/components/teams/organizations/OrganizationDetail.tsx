@@ -238,6 +238,7 @@ const OrganizationDetailContent = () => {
           title={organization.organization_name}
           action={(
             <OrganizationPopover
+              variant="toggle"
               organization={organization}
               tagsMap={tagsMap}
               onUpdate={(updated: Organization) => setOrganization(updated)}

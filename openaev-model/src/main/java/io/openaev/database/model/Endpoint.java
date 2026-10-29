@@ -16,7 +16,9 @@ import lombok.*;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 
-@EqualsAndHashCode(callSuper = true)
+// Identity comes from Asset (id only). Hashing the fields would initialize the lazy injects Set
+// (PersistentSet.hashCode reads it) and load every inject of the endpoint.
+@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @Data
 @Entity
 @DiscriminatorValue(AssetType.Values.ENDPOINT_TYPE)
@@ -169,7 +171,7 @@ public class Endpoint extends Asset implements AuditStateCapturable {
       inverseJoinColumns = @JoinColumn(name = "inject_id"))
   @JsonIgnore
   @AuditStateIgnore
-  private List<Inject> injects = new ArrayList<>();
+  private Set<Inject> injects = new HashSet<>();
 
   /**
    * Keeps the legacy invariants while platform/arch are optional at the API layer: agent and

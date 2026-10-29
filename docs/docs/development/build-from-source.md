@@ -1,22 +1,16 @@
-!!! tip "Prerequisites"
-
-    Ensure you have followed the steps for installing prerequisites according to your development
-    platform of choice:
-
-    * [Linux (Ubuntu used as example)](environment-ubuntu.md)
-    * [Windows](environment-windows.md)
-    * macOS — not yet documented; contributions welcome
-
 # Build from source
 
-!!! Info "Assumed shell location"
+This page explains how to start the development services, then build and run the OpenAEV backend and frontend.
+Run the commands from the root of the repository unless stated otherwise.
 
-    This documentation assumes that commands listed here are run from the root
-    folder of the git repository, unless stated otherwise.
+!!! tip "Prerequisites"
+
+    Install the tools for your platform first: [Ubuntu](environment-ubuntu.md), [macOS](environment-macos.md)
+    or [Windows](environment-windows.md).
 
 ## Clone the OpenAEV repository
 Obtain a clone of the main OpenAEV repository and navigate to it:
-```shell
+```bash
 git clone https://github.com/OpenAEV-Platform/openaev
 cd openaev
 ```
@@ -24,110 +18,111 @@ cd openaev
 ## Backend
 
 ### Configuring
-Development assumes that you are using a development-specific properties file. The file located at
-`./openaev-api/src/main/resources/application.properties` is a version-controlled example file and
-lacks many of the required configuration settings needed for OpenAEV to execute.
+Development uses a `dev` Spring profile. Create your local configuration from the example file:
 
-It is strongly recommended to make a copy of the sample `application.properties` file to create
-a development-specific profile called `dev`.
-
-Copy and paste the example `application.properties` file into the same directory:
-```shell
-cp ./openaev-api/src/main/resources/application.properties ./openaev-api/src/main/resources/application-dev.properties
+```bash
+cp ./openaev-api/src/main/resources/application-dev.properties.example \
+   ./openaev-api/src/main/resources/application-dev.properties
 ```
 
-#### Required dependencies
+`application-dev.properties` is gitignored. Generate a UUID for `openaev.admin.token` before the
+first start.
 
-**Start the development dependencies docker stack**
+!!! tip
 
-Preconfigured containers for all the needed support containers (PostgreSQL, Silo, RabbitMQ, Elasticsearch...)
-can be found as a docker compose file in `./openaev/openaev-dev`.
+    The example enables optional integrations (SAML, Caldera, IMAP, SMS, and others) that need
+    external credentials. If you do not have those accounts, set the corresponding `*.enable`
+    flags to `false` and set `openaev.listener.smtp.enabled=false`.
 
-Create a file a this location: `./openaev/openaev-dev/.env` and populate it with a minimal set of keys:
-```shell
-POSTGRES_USER=openaev	
-POSTGRES_PASSWORD=openaev
-KEYSTORE_PASSWORD=minioadmin
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=minioadmin
-RABBITMQ_DEFAULT_USER=rbit
-RABBITMQ_DEFAULT_PASS=rbitpass
+!!! note "`host.docker.internal` for RabbitMQ"
+
+    The example sets `openaev.rabbitmq.hostname=host.docker.internal` so Dockerized Injectors can reach
+    RabbitMQ. This name does not resolve from the host, so add this entry to your hosts file if it is missing
+    (`/etc/hosts` on Linux and macOS, `C:\Windows\System32\drivers\etc\hosts` on Windows, where Docker
+    Desktop usually adds it already):
+
+    ```text
+    127.0.0.1 host.docker.internal
+    ```
+
+    Use `localhost` instead if you do not run Injectors in Docker. Keep the value on its own
+    line with no trailing comment — Java properties treat `# ...` on the same line as part of
+    the hostname and RabbitMQ will fail to resolve it.
+
+#### Start the development services
+
+Preconfigured containers for the support services (PostgreSQL, Silo, RabbitMQ, Elasticsearch)
+live in `./openaev-dev`. Copy the example environment file, then start the four required services:
+
+```bash
+cd ./openaev-dev
+cp .env.example .env
+docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
+cd ..
 ```
-Note: these are example values, but will do in a development environment. Available environment variables
-can be examined in `./openaev/openaev-dev/docker-compose.yml`.
 
-Then start the stack:
-```shell
-cd ./openaev/openaev-dev
-docker compose up -d
-```
+| Service | Port | Description |
+|---|---|---|
+| PostgreSQL | 5432 | Database |
+| Silo | 10000, 10001 | S3-compatible object storage |
+| Elasticsearch | 9200, 9300 | Search engine |
+| RabbitMQ | 5672, 15672 | Message broker (`guest` / `guest`) |
 
-**Set up the local development configuration for the OpenAEV server**
+!!! warning
 
-Edit the `application-dev.properties` file, according to the .env file created earlier,
-and any additional configuration. Make sure the file contains settings for at the very minimum
-the following dependencies:
+    Ensure these ports are not already in use on your machine before starting the services.
 
-- PostgreSQL
-- S3 object storage (Silo in the development stack)
-- RabbitMQ
-- Engine (Elasticsearch or OpenSearch)
+The values in `.env.example` work for local development. See `./openaev-dev/README.md` for optional
+services (pgAdmin, Kibana, OpenSearch).
 
-All required settings are listed in the [Configuration documentation](../deployment/configuration.md#dependencies)
-
+The example `application-dev.properties` already points to these services (PostgreSQL, Silo, RabbitMQ,
+Elasticsearch). All settings are listed in the [Configuration documentation](../reference/deployment/configuration.md#dependencies).
 
 ### Building and running
 Maven is used for package management and building the main server binary.
-OpenAEV is a Spring Boot application and thus can be built and started
-in one (two) fell swoop(s) with
-```shell
-mvn clean install -DskipTests=true
-java -jar openaev-api/target/openaev-api.jar --spring.config.import=file:openaev-api/target/classes/application-dev.properties
+On a fresh clone, install all modules first, then start the API with the `dev`
+Spring profile:
+```bash
+mvn clean install -DskipTests
+mvn spring-boot:run -pl openaev-api -Dspring-boot.run.profiles=dev
 ```
 
-!!! tip "IntelliJ IDEA run configuration"
-
-    The OpenAEV repository provides predefined IntelliJ IDEA run configurations for
-    both the backend. After loading the OpenAEV cloned repository's root
-    directory in IDEA, the "Backend start" run configuration will show up in the Run
-    widget in the top right corner.
-
+The backend listens on port `8080`.
 
 ## Frontend
-!!! Info "Change the location of your shell"
 
-    In this section, commands need to be run from a subfolder: ./openaev-front
-
-Navigate to `./openaev-front`.
-```shell
+Run the commands in this section from `./openaev-front`:
+```bash
 cd ./openaev-front
 ```
 
 ### Building
-Execute `yarn install` to fetch all dependencies from npmjs.com:
-```shell
+Enable Corepack (Yarn 4 is pinned in `package.json`), then install dependencies:
+```bash
+corepack enable
 yarn install
 ```
 
+If `yarn install` fails during the link step with `ENOENT` while cloning a `node_modules`
+path, see [yarnpkg/berry#3214](https://github.com/yarnpkg/berry/issues/3214).
+
 ### Running
 Execute `yarn start` to start a frontend locally:
-```shell
+```bash
 yarn start
 ```
-The banner should come up soon after:
-```
-  VITE v6.3.4  ready in 168 ms
+When the Vite dev server is ready, it prints a local URL (by default
+http://localhost:3001/). Start the backend first, otherwise the UI does not load.
 
-  ➜  Local:   http://localhost:3001/
-  ➜  Network: use --host to expose
-  ➜  press h + enter to show help
-```
-It is possible to navigate to http://localhost:3001/ by default. Note that the backend needs
-to be running otherwise the GUI will not come up in the browser.
+!!! tip "IntelliJ IDEA run configurations"
 
-!!! tip "IntelliJ IDEA run configuration"
+    The repository provides IntelliJ IDEA run configurations in `./openaev-dev`. After you open the
+    repository root in IDEA, **Backend start** and **Frontend start** show up in the Run widget.
 
-    The OpenAEV repository provides predefined IntelliJ IDEA run configurations for
-    both the frontend. After loading the OpenAEV cloned repository's root
-    directory in IDEA, the "Frontend start" run configuration will show up in the Run
-    widget in the top right corner.
+## What's next?
+
+- [Platform development](platform.md) -- Day-to-day backend and frontend workflow
+- [Database migrations](database-migrations.md) -- Create Flyway migrations
+- [Prerequisites macOS](environment-macos.md) -- macOS toolchain setup
+- [Prerequisites Ubuntu](environment-ubuntu.md) -- Linux toolchain setup
+- [Prerequisites Windows](environment-windows.md) -- Windows toolchain setup

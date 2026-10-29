@@ -62,7 +62,7 @@ class StepServiceTimeoutGuardsTest {
       String stepId = stepReady.getId();
 
       StepEvent event = StepEvent.builder().stepId(stepId).build();
-      when(stepRepository.findById(stepId)).thenReturn(Optional.of(stepReady));
+      when(stepRepository.findForUpdateById(stepId)).thenReturn(Optional.of(stepReady));
       when(workflowService.isWorkflowEnded(endedWorkflow.getId())).thenReturn(true);
 
       // Act
@@ -83,7 +83,7 @@ class StepServiceTimeoutGuardsTest {
       String stepId = stepReady.getId();
 
       StepEvent event = StepEvent.builder().stepId(stepId).build();
-      when(stepRepository.findById(stepId)).thenReturn(Optional.of(stepReady));
+      when(stepRepository.findForUpdateById(stepId)).thenReturn(Optional.of(stepReady));
       when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
       when(stepService.factoryAction(stepReady.getStepAction(), stepId)).thenReturn(actionStep);
       when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));

@@ -1,7 +1,8 @@
+import { Checkbox } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
-import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -21,7 +22,7 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_GROUP_BASE_URL } from '../../../../constants/BaseUrls';
 import { type AssetGroup, type AssetGroupOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ToolBar from '../../common/ToolBar';
 import PostureScoreCell from '../PostureScoreCell';
@@ -37,10 +38,12 @@ const useStyles = makeStyles()(() => ({
 
 const inlineStyles: Record<string, CSSProperties> = {
   asset_group_name: { width: '18%' },
-  asset_group_description: { width: '18%' },
-  asset_group_assets: { width: '30%' },
+  asset_group_description: { width: '14%' },
+  // The rules cell holds several chips on one line; the width it needs comes
+  // from the description and the tags, which truncate gracefully.
+  asset_group_assets: { width: '38%' },
   asset_group_posture: { width: '10%' },
-  asset_group_tags: { width: '24%' },
+  asset_group_tags: { width: '20%' },
 };
 
 const AssetGroups = () => {
@@ -139,7 +142,7 @@ const AssetGroups = () => {
   };
 
   // Bulk selection
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
   const {
     selectedElements,
@@ -182,10 +185,21 @@ const AssetGroups = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-              <AssetGroupCreation onCreate={result => setAssetGroups([result, ...assetGroups])} />
+              <AssetGroupCreation
+                onCreate={(result) => {
+                  setAssetGroups([result, ...assetGroups]);
+                  queryableHelpers.paginationHelpers.incrementTotalElements(1);
+                }}
+              />
             </Can>
           </Box>
         )}
@@ -206,10 +220,9 @@ const AssetGroups = () => {
           {canManage && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -252,7 +265,10 @@ const AssetGroups = () => {
                     <AssetGroupPopover
                       assetGroup={assetGroup}
                       onUpdate={onUpdateList}
-                      onDelete={result => setAssetGroups(assetGroups.filter(ag => (ag.asset_group_id !== result)))}
+                      onDelete={(result) => {
+                        setAssetGroups(assetGroups.filter(ag => (ag.asset_group_id !== result)));
+                        queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                      }}
                       openEditOnInit={assetGroup.asset_group_id === searchId}
                       onRemoveEndpointFromAssetGroup={assetId => setAssetGroups(assetGroups.map(ag => (ag.asset_group_id !== assetGroup.asset_group_id
                         ? ag
@@ -275,12 +291,11 @@ const AssetGroups = () => {
                         onClick={event => onToggleEntity(assetGroup, event)}
                       >
                         <Checkbox
-                          edge="start"
+                          aria-label={assetGroup.asset_group_name}
                           checked={
                             (selectAll && !(assetGroup.asset_group_id in (deSelectedElements || {})))
                             || assetGroup.asset_group_id in (selectedElements || {})
                           }
-                          disableRipple
                         />
                       </ListItemIcon>
                     )}

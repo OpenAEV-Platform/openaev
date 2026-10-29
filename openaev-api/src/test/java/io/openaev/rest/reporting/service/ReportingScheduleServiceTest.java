@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,6 +27,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.reporting.ReportingService;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.FileService;
@@ -55,6 +57,7 @@ class ReportingScheduleServiceTest {
   private ReportingGenerationRepository generationRepository;
   private UserService userService;
   private EmailService emailService;
+  private PlatformMailSender platformMailSender;
   private FileService fileService;
   private OpenAEVConfig openAEVConfig;
   private TenantScopedJobRunner tenantScopedJobRunner;
@@ -67,6 +70,7 @@ class ReportingScheduleServiceTest {
     generationRepository = mock(ReportingGenerationRepository.class);
     userService = mock(UserService.class);
     emailService = mock(EmailService.class);
+    platformMailSender = mock(PlatformMailSender.class);
     fileService = mock(FileService.class);
     openAEVConfig = mock(OpenAEVConfig.class);
     tenantScopedJobRunner = mock(TenantScopedJobRunner.class);
@@ -77,15 +81,27 @@ class ReportingScheduleServiceTest {
             generationRepository,
             userService,
             emailService,
+            platformMailSender,
             fileService,
             openAEVConfig,
             tenantScopedJobRunner);
-    when(openAEVConfig.getDefaultMailer()).thenReturn("noreply@filigran.io");
+    when(platformMailSender.getEmail()).thenReturn("noreply@filigran.io");
     // The poll re-read runs inside supplyInTenant; here it just runs the supplied work so these
     // unit tests keep exercising the schedule logic (the scope itself is pinned on the real stack
     // in ReportingScheduleDocumentScopeTest).
     when(tenantScopedJobRunner.supplyInTenant(anyString(), any()))
         .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(1).get());
+    // markLastRun and requestGeneration now run inside runInTenant too (reporting_schedules and
+    // reportings are tenant-active): run the wrapped work so these unit tests keep exercising the
+    // schedule logic (the scope itself is pinned on the real stack in
+    // ReportingScheduleDocumentScopeTest).
+    doAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(tenantScopedJobRunner)
+        .runInTenant(anyString(), any());
   }
 
   // -- FIXTURES --

@@ -1,7 +1,6 @@
 package io.openaev.service.tenants;
 
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
-import static io.openaev.service.tenants.TenantService.SOFT_DELETE_RETENTION_DAYS;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.TENANT_NAME;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,6 +27,7 @@ import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFacto
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.TenantRoleService;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -36,10 +36,7 @@ import jakarta.persistence.EntityNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
-import org.hibernate.Session;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser
 class TenantServiceTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private TenantService tenantService;
 
   @Autowired private TenantComposer tenantComposer;
@@ -104,14 +102,14 @@ class TenantServiceTest extends IntegrationTest {
     boolean pathExists = results.iterator().hasNext();
     assertThat(pathExists).isTrue();
 
-    // domains and vulnerabilities are on v2 isolation: assert by explicit tenant attribution.
+    // domains, vulnerabilities and cwes are on v2 isolation (no v1 @Filter anymore): assert by
+    // explicit tenant attribution.
     assertThat(domainRepository.findAll())
         .filteredOn(domain -> created.getId().equals(domain.getTenant().getId()))
         .hasSize(10);
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
-    assertThat(vulnerabilityRepository.findAll()).hasSize(7);
-    // cwes is on v2 isolation (no v1 @Filter anymore): assert by explicit tenant attribution.
+    assertThat(vulnerabilityRepository.findAll())
+        .filteredOn(vulnerability -> created.getId().equals(vulnerability.getTenant().getId()))
+        .hasSize(7);
     assertThat(cweRepository.findAll())
         .filteredOn(cwe -> created.getId().equals(cwe.getTenant().getId()))
         .hasSize(7);
@@ -146,7 +144,8 @@ class TenantServiceTest extends IntegrationTest {
     // Precondition: the default tenant must already carry a built-in contract WITH a join row, so
     // the copy step has a contract-with-link to copy. Without this the copy step is a no-op and the
     // foreign-key path is never exercised.
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     entityManager.flush();
     entityManager.clear();
 
@@ -363,43 +362,6 @@ class TenantServiceTest extends IntegrationTest {
     // expires, even though the tenant is active again.
     assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
         .isTrue();
-  }
-
-  @Test
-  void should_purge_expired_tenants() {
-    // -- ARRANGE --
-    Tenant tenantExpired = getTenant("Tenant Expired");
-    tenantComposer.forTenant(tenantExpired).persist();
-    tenantExpired.setDeletedAt(
-        Instant.now().minus(SOFT_DELETE_RETENTION_DAYS + 1, ChronoUnit.DAYS));
-    tenantRepository.save(tenantExpired);
-    TenantContext.setCurrentTenant(tenantExpired.getId());
-
-    Tenant tenantRecent = getTenant("Tenant Recent");
-    tenantComposer.forTenant(tenantRecent).persist();
-    tenantService.softDelete(tenantRecent.getId());
-
-    // -- ACT --
-    int purged = tenantService.purgeExpiredTenants();
-
-    // -- ASSERT --
-    assertThat(purged).isEqualTo(1);
-    assertThat(tenantRepository.findById(tenantExpired.getId())).isEmpty();
-    assertThat(tenantRepository.findById(tenantRecent.getId())).isPresent();
-
-    // domains and vulnerabilities are on v2 isolation: assert by explicit tenant attribution.
-    assertThat(domainRepository.findAll())
-        .filteredOn(domain -> tenantExpired.getId().equals(domain.getTenant().getId()))
-        .isEmpty();
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
-    assertThat(vulnerabilityRepository.findAll()).isEmpty();
-    // cwes is on v2 isolation (no v1 @Filter anymore): assert by explicit tenant attribution.
-    assertThat(cweRepository.findAll())
-        .filteredOn(cwe -> tenantExpired.getId().equals(cwe.getTenant().getId()))
-        .isEmpty();
-    assertThat(tenantRoleService.findAll(tenantExpired.getId())).isEmpty();
-    assertThat(groupRepository.findAllByTenantId(tenantExpired.getId())).isEmpty();
   }
 
   @Test

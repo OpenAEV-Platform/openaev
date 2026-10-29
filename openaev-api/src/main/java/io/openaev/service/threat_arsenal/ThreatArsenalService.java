@@ -239,11 +239,11 @@ public class ThreatArsenalService {
    * @return the created threat arsenal action
    */
   @Transactional(rollbackFor = Exception.class)
-  public ThreatArsenalAction create(ThreatArsenalActionCreateInput actionInput) {
+  public ThreatArsenalAction create(TxCtx ctx, ThreatArsenalActionCreateInput actionInput) {
     PayloadCreateInput payloadCreateInput =
         convertActionCreateInputToPayloadCreateInput(actionInput);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(payloadCreateInput);
+        this.payloadCreationService.createPayload(ctx, payloadCreateInput);
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
   }
 

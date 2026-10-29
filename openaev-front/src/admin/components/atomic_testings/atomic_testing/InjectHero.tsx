@@ -1,6 +1,6 @@
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { EventAvailableOutlined, LabelOutlined, RouteOutlined, ScheduleOutlined, TimerOutlined } from '@mui/icons-material';
-import { alpha, Box, Chip, Tooltip, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { getInjectStatusWithGlobalExecutionTraces } from '../../../../actions/injects/inject-action';
@@ -58,7 +58,6 @@ const MetaItem = ({ icon, children }: {
  */
 const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions }) => {
   const { t, tPick, nsdt, du, locale, fld } = useFormatter();
-  const theme = useTheme();
 
   const statusName = injectResultOverview.inject_status?.status_name;
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
@@ -145,19 +144,11 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
           <InjectStatus status={statusName as InjectStatusType['status_name']} errorMessage={errorMessage} />
           <PayloadDeprecatedChip status={payload?.payload_status} />
           {isScheduled && (
-            <Tooltip title={scheduleLabel ?? ''}>
-              <Chip
-                size="small"
-                variant="outlined"
-                label={t('Scheduled')}
-                sx={{
-                  borderRadius: 1,
-                  height: 22,
-                  fontSize: 11,
-                  color: theme.palette.success.main,
-                  borderColor: alpha(theme.palette.success.main, 0.4),
-                }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Chip label={t('Scheduled')} severity="low" />
+              </TooltipTrigger>
+              {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
             </Tooltip>
           )}
         </>
@@ -204,10 +195,13 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
               {platforms.length > 0 && (
                 <MetaItem icon={null}>
                   {platforms.map(platform => (
-                    <Tooltip key={platform} title={platform}>
-                      <span style={{ display: 'inline-flex' }}>
-                        <PlatformIcon platform={platform} width={16} />
-                      </span>
+                    <Tooltip key={platform}>
+                      <TooltipTrigger asChild>
+                        <span style={{ display: 'inline-flex' }}>
+                          <PlatformIcon platform={platform} width={16} />
+                        </span>
+                      </TooltipTrigger>
+                      {platform && <TooltipContent>{platform}</TooltipContent>}
                     </Tooltip>
                   ))}
                 </MetaItem>

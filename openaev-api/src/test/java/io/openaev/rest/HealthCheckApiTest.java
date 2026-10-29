@@ -16,8 +16,10 @@ import io.openaev.service.HealthCheckService;
 import io.openaev.service.exception.HealthCheckFailureException;
 import io.openaev.utilstest.RabbitMQTestListener;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -30,6 +32,7 @@ import org.springframework.web.server.ResponseStatusException;
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(PER_CLASS)
+@ExtendWith(MockitoExtension.class)
 public class HealthCheckApiTest extends IntegrationTest {
 
   private static final String KEY = "KEY";

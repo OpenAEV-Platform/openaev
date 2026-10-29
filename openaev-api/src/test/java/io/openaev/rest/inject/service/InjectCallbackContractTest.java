@@ -12,6 +12,7 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import java.util.Collection;
@@ -54,9 +55,9 @@ class InjectCallbackContractTest {
   @Mock private InjectService injectService;
   @Mock private AgentExecutionProcessingHandler agentExecutionProcessingHandler;
   @Mock private InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
-  @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
   @Mock private TenantScopedTransaction tenantTx;
+  @Mock private WorkflowUpdateEventPublisher workflowUpdateEventPublisher;
 
   private InjectExecutionService injectExecutionService;
   private BatchingInjectStatusService batchingService;
@@ -69,6 +70,9 @@ class InjectCallbackContractTest {
   @BeforeEach
   void setUp() throws Exception {
     lenient().when(injectService.getValueTargetedAssetMap(any())).thenReturn(Map.of());
+    lenient()
+        .when(injectStatusService.updateInjectStatus(any(), any(), any(), any()))
+        .thenReturn(ExecutionTrace.getNewInfoTrace("trace", ExecutionTraceAction.EXECUTION));
     lenient()
         .doReturn(Optional.empty())
         .when(agentExecutionProcessingHandler)
@@ -95,8 +99,8 @@ class InjectCallbackContractTest {
         new BatchingInjectStatusService(
             injectRepository,
             agentRepository,
-            structuredOutputUtils,
             injectExecutionService,
+            workflowUpdateEventPublisher,
             tenantTx);
     batchingService.setInjectTraceQueueService(injectTraceQueueService);
 

@@ -1,7 +1,6 @@
 import { RichTextEditor } from '@filigran/rich-text-editor';
 import { InputLabel } from '@mui/material';
 
-// eslint-disable-next-line import/no-cycle
 import TextFieldAskAI from '../../admin/components/common/form/TextFieldAskAI';
 
 const SimpleRichTextField = (props) => {

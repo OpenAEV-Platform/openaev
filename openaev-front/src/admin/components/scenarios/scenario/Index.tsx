@@ -1,9 +1,9 @@
-import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Alert, AlertTitle, Box } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
-import { searchInjectTests } from '../../../../actions/inject_test/scenario-inject-test-actions';
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
@@ -25,7 +25,6 @@ import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
 import { useAutonomousRunForScenario } from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
-import useHasInjectTests from '../../injects/useHasInjectTests';
 import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
 import buildScenarioTabs from './scenarioTabs';
@@ -96,9 +95,6 @@ const IndexScenarioComponent: FunctionComponent<{
   const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
   const contentPaddingRight = hasCockpit ? `${panelWidth}px` : undefined;
   const permissions = useScenarioPermissions(scenario.scenario_id);
-  // The Tests tab only exists for email/SMS injects that have actually been
-  // tested; hide it entirely otherwise.
-  const hasInjectTests = useHasInjectTests(searchInjectTests, scenario.scenario_id);
   // Stable context identities: these providers wrap the whole scenario subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
   const permissionsContext: PermissionsContextType = useMemo(() => ({
@@ -131,21 +127,21 @@ const IndexScenarioComponent: FunctionComponent<{
   // cockpit lives on the resulting simulation's detail page, never on the reusable scenario.
   const renderTabs = () => {
     return (
-      <Tabs value={tabValue} variant="scrollable" scrollButtons="auto">
-        {buildScenarioTabs({
-          isChained,
-          hasInjectTests,
-          lessonsEnabled: scenario.scenario_lessons_enabled,
-          t,
-        }).map(([suffix, label]) => (
-          <Tab
-            key={suffix}
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}${suffix}`}
-            value={`/admin/scenarios/${scenario.scenario_id}${suffix}`}
-            label={label}
-          />
-        ))}
+      <Tabs value={tabValue} panels="external">
+        <TabsList>
+          {buildScenarioTabs({
+            isChained,
+            lessonsEnabled: scenario.scenario_lessons_enabled,
+            t,
+          }).map(([suffix, label]) => {
+            const path = `/admin/scenarios/${scenario.scenario_id}${suffix}`;
+            return (
+              <TabsTrigger key={suffix} value={path} asChild>
+                <Link to={path} aria-current={tabValue === path ? 'page' : undefined}>{label}</Link>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
       </Tabs>
     );
   };
@@ -262,7 +258,9 @@ const IndexScenarioComponent: FunctionComponent<{
 const Index = () => {
   // Standard hooks
   const dispatch = useAppDispatch();
-  const [pristine, setPristine] = useState(true);
+  // Navigating from one scenario to another keeps this component
+  // mounted and only changes the param.
+  const [loadedScenarioId, setLoadedScenarioId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const { t } = useFormatter();
   // Fetching data
@@ -292,15 +290,15 @@ const Index = () => {
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchScenario(scenarioId)).finally(() => {
-      setPristine(false);
+      setLoadedScenarioId(scenarioId);
       setLoading(false);
     });
-  });
+  }, [scenarioId]);
 
   const scenarioInjectContext = injectContextForScenario(scenario);
 
-  // avoid to show loader if something trigger useDataLoader
-  if ((pristine && loading) || !autonomousResolved) {
+  // Loader until the CURRENT scenario's fetch has completed
+  if (loadedScenarioId !== scenarioId || !autonomousResolved) {
     return <Loader />;
   }
   if (!loading && !scenario) {

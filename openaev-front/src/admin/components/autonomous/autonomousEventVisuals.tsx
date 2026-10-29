@@ -4,13 +4,13 @@ import {
   AutoAwesome,
   BoltOutlined,
   CancelOutlined,
-  CheckCircleOutline,
+  CheckCircleOutlineOutlined,
   ExtensionOutlined,
   FiberNewOutlined,
-  HelpOutline,
+  HelpOutlineOutlined,
   InfoOutlined,
-  PauseCircleOutline,
-  PlayCircleOutline,
+  PauseCircleOutlineOutlined,
+  PlayCircleOutlineOutlined,
   SendOutlined,
   SmartToyOutlined,
   WarningAmberOutlined,
@@ -457,9 +457,9 @@ export const eventIcon = (event: AutonomousEvent): ReactNode => {
     case 'GAP':
       return <WarningAmberOutlined fontSize="small" />;
     case 'QUESTION':
-      return <HelpOutline fontSize="small" />;
+      return <HelpOutlineOutlined fontSize="small" />;
     case 'PROOF':
-      return <CheckCircleOutline fontSize="small" />;
+      return <CheckCircleOutlineOutlined fontSize="small" />;
     case 'DIRECTIVE':
       return <SendOutlined fontSize="small" />;
     case 'HANDOVER':
@@ -471,13 +471,13 @@ export const eventIcon = (event: AutonomousEvent): ReactNode => {
         case 'created':
           return <FiberNewOutlined fontSize="small" />;
         case 'running':
-          return <PlayCircleOutline fontSize="small" />;
+          return <PlayCircleOutlineOutlined fontSize="small" />;
         case 'paused':
-          return <PauseCircleOutline fontSize="small" />;
+          return <PauseCircleOutlineOutlined fontSize="small" />;
         case 'ended':
           return <CancelOutlined fontSize="small" />;
         case 'completed':
-          return <CheckCircleOutline fontSize="small" />;
+          return <CheckCircleOutlineOutlined fontSize="small" />;
         default:
           return <InfoOutlined fontSize="small" />;
       }

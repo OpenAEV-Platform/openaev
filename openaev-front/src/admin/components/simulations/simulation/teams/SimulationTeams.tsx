@@ -14,9 +14,7 @@ import ContextualTeams from '../../../components/teams/ContextualTeams';
 import UpdateTeams from '../../../components/teams/UpdateTeams';
 import teamContextForExercise from './teamContextForExercise';
 
-interface Props { exerciseTeamsUsers: Exercise['exercise_teams_users'] }
-
-const SimulationTeams: FunctionComponent<Props> = ({ exerciseTeamsUsers }) => {
+const SimulationTeams: FunctionComponent = () => {
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
@@ -30,7 +28,7 @@ const SimulationTeams: FunctionComponent<Props> = ({ exerciseTeamsUsers }) => {
   });
 
   return (
-    <TeamContext.Provider value={teamContextForExercise(exerciseId, exerciseTeamsUsers)}>
+    <TeamContext.Provider value={teamContextForExercise(exerciseId)}>
       <ConfigurationSection
         title={t('Teams')}
         count={teamsStore.length}

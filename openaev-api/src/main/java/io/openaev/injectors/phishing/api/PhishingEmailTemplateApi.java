@@ -81,7 +81,7 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       TxCtx ctx, @Valid @RequestBody PhishingEmailTemplateInput input) {
     PhishingEmailTemplate emailTemplate = new PhishingEmailTemplate();
     applyInput(emailTemplate, input);
-    return emailTemplateService.upsert(emailTemplate);
+    return emailTemplateService.upsert(ctx, emailTemplate);
   }
 
   @PutMapping({PHISHING_EMAIL_TEMPLATE_URI + "/{id}", TENANT_PHISHING_EMAIL_TEMPLATE_URI + "/{id}"})
@@ -96,7 +96,7 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       TxCtx ctx, @PathVariable String id, @Valid @RequestBody PhishingEmailTemplateInput input) {
     PhishingEmailTemplate emailTemplate = emailTemplateService.emailTemplate(id);
     applyInput(emailTemplate, input);
-    return emailTemplateService.upsert(emailTemplate);
+    return emailTemplateService.upsert(ctx, emailTemplate);
   }
 
   @PostMapping({
@@ -122,7 +122,7 @@ public class PhishingEmailTemplateApi extends RestBehavior {
     copy.setFromName(source.getFromName());
     copy.setFromEmail(source.getFromEmail());
     copy.setAddTrackingPixel(source.isAddTrackingPixel());
-    return emailTemplateService.upsert(copy);
+    return emailTemplateService.upsert(ctx, copy);
   }
 
   @DeleteMapping({

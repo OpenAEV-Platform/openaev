@@ -11,16 +11,23 @@ import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
+// Runs the test transaction in the default tenant's scope, where every fixture here is created: the
+// delay-queue job pops across all tenants, which include it.
+@TestExecutionListeners(
+    listeners = DefaultTenantScopeTestListener.class,
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class StepDelayQueueIntegrationTest {
 
   @Autowired private StepDelayQueueRepository stepDelayQueueRepository;
@@ -30,11 +37,20 @@ public class StepDelayQueueIntegrationTest {
   @Autowired private ExerciseComposer simulationComposer;
 
   private StepDelayQueue buildEntry(Instant goal) {
+    return buildEntry(goal, WorkflowStatus.RUN);
+  }
+
+  private StepDelayQueue buildEntry(Instant goal, WorkflowStatus workflowRunStatus) {
     Step stepTemplate = StepFixture.getDefaultStepTemplate();
     Workflow workflow =
         workflowComposer
-            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowExecution(workflowRunStatus))
             .withStep(stepComposer.forStep(stepTemplate))
+            .withWorkflowTemplate(
+                workflowComposer
+                    .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+                    .withSimulation(
+                        simulationComposer.forExercise(ExerciseFixture.createDefaultExercise())))
             .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
             .persist()
             .get();
@@ -128,5 +144,16 @@ public class StepDelayQueueIntegrationTest {
     List<StepDelayQueue> results = stepDelayQueueRepository.popNextPerWorkflowRun();
 
     Assertions.assertTrue(results.isEmpty());
+  }
+
+  @Test
+  void popNextPerWorkflowRun_shouldKeepOverdueEntryOfStoppedWorkflowRun() {
+    StepDelayQueue overdue = buildEntry(Instant.now().minusSeconds(60), WorkflowStatus.STOP);
+    stepDelayQueueRepository.save(overdue);
+
+    List<StepDelayQueue> results = stepDelayQueueRepository.popNextPerWorkflowRun();
+
+    Assertions.assertTrue(results.isEmpty());
+    Assertions.assertEquals(1, stepDelayQueueRepository.findAll().size());
   }
 }

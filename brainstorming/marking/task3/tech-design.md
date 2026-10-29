@@ -342,7 +342,7 @@ the code a developer writes.
 
 ### Direction — Option C
 
-**Decided: Option C.** Recorded in [ADR-009](../../../adr/ADR-009-Marking-based-access-control.md);
+**Decided: Option C.** Recorded in [ADR-009](../../../adr/ADR-009-marking-based-access-control.md);
 detailed design, risks and PoC plan in [tech-design-option-c.md](./tech-design-option-c.md).
 
 The deciding argument is not cost, and it is not performance — it is that **A and B are opt-in by

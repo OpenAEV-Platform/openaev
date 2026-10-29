@@ -132,6 +132,46 @@ public class WidgetFixture {
     return widget;
   }
 
+  /**
+   * The attack-path widget the front builds: the security-coverage series plus the simulation
+   * filter {@code EsAttackPathService#extractSimulationIdFromSeriesFilter} reads the simulation id
+   * from, aggregated on {@code base_attack_patterns_side}.
+   */
+  public static Widget createAttackPathWidget(
+      final String simulationId, final BaseInjectExpectation.EXPECTATION_TYPE type) {
+    Widget widget = createWidgetWithDefaultTenant();
+    widget.setType(ATTACK_PATH);
+    StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
+    widgetConfig.setSeries(
+        List.of(
+            withSimulationFilter(
+                createSecurityCoverageSerie(type, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                simulationId),
+            withSimulationFilter(
+                createSecurityCoverageSerie(type, BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
+                simulationId)));
+    widgetConfig.setTitle("Attack path");
+    widgetConfig.setField("base_attack_patterns_side");
+    widgetConfig.setDateAttribute("base_created_at");
+    widgetConfig.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
+    widget.setWidgetConfiguration(widgetConfig);
+    widget.setLayout(new WidgetLayout());
+    return widget;
+  }
+
+  private static WidgetConfigurationWithSeries.Series withSimulationFilter(
+      WidgetConfigurationWithSeries.Series serie, final String simulationId) {
+    List<Filters.Filter> filters = new ArrayList<>(serie.getFilter().getFilters());
+    filters.add(
+        createFilter(
+            "base_simulation_side",
+            Filters.FilterMode.and,
+            Filters.FilterOperator.eq,
+            List.of(simulationId)));
+    serie.getFilter().setFilters(filters);
+    return serie;
+  }
+
   public static Widget createSecurityDomainWidget(
       CustomDashboardTimeRange timeRange, String dateAttribute) {
     Widget widget = createWidgetWithDefaultTenant();
@@ -402,6 +442,18 @@ public class WidgetFixture {
     widget.setWidgetConfiguration(flatConfiguration);
     // basic layout
     widget.setLayout(new WidgetLayout());
+    return widget;
+  }
+
+  /** A number widget counting the entities whose {@code key} matches the value under operator. */
+  public static Widget createNumberWidgetWithEntityAndFilter(
+      String entityName, String key, Filters.FilterOperator operator, String value) {
+    Widget widget = createNumberWidgetWithEntity(entityName);
+    Filters.FilterGroup filterGroup =
+        ((FlatConfiguration) widget.getWidgetConfiguration()).getSeries().getFirst().getFilter();
+    List<Filters.Filter> filters = new ArrayList<>(filterGroup.getFilters());
+    filters.add(createFilter(key, Filters.FilterMode.and, operator, List.of(value)));
+    filterGroup.setFilters(filters);
     return widget;
   }
 

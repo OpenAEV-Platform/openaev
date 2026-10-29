@@ -74,6 +74,10 @@ const ListWidgetItem = memo<{
   const expectationType = (element as EsInjectExpectation).inject_expectation_type;
   const LeadingIcon = expectationType ? expectationTypeIcon(expectationType) : getEntityLeadingIcon(element);
 
+  // Simulation rows drop the leading icon by request: only the simulations
+  // widget is affected, every other entity keeps its glyph.
+  const hideLeadingIcon = element.base_entity === 'simulation';
+
   const renderedColumns = useMemo(() => columns.map((col) => {
     const renderer = listConfigRenderer[col] ?? defaultRenderer;
     const value = element[col as keyof typeof element] as string | boolean | string[] | boolean[];
@@ -95,9 +99,11 @@ const ListWidgetItem = memo<{
 
   const rowContent = (
     <>
-      <ListItemIcon>
-        <LeadingIcon color="primary" />
-      </ListItemIcon>
+      {!hideLeadingIcon && (
+        <ListItemIcon>
+          <LeadingIcon color="primary" />
+        </ListItemIcon>
+      )}
       <ListItemText
         primary={(
           <div style={bodyItemsStyles.bodyItems}>

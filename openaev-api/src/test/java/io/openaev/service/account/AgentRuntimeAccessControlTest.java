@@ -24,13 +24,13 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -314,23 +314,19 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
       // Arrange
       InjectExecutionInput input = buildExecutionInput();
 
-      // Act & Assert — RBAC passes, business logic may throw (proves access granted)
-      try {
-        int status =
-            mvc.perform(
-                    post(INJECT_URI + "/execution/" + FAKE_AGENT_ID + "/callback/" + FAKE_INJECT_ID)
-                        .content(asJsonString(input))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andReturn()
-                .getResponse()
-                .getStatus();
-        assertThat(status).isNotEqualTo(403);
-      } catch (ServletException e) {
-        // Any exception other than access denied means RBAC passed
-        assertThat(e.getRootCause()).isNotNull();
-      }
+      // Act & Assert — the unknown inject is rejected by the object-level gate
+      // (ForbiddenException), not by the RBAC aspect (ResponseStatusException), which proves RBAC
+      // passed
+      mvc.perform(
+              post(INJECT_URI + "/execution/" + FAKE_AGENT_ID + "/callback/" + FAKE_INJECT_ID)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertThat(result.getResolvedException()).isInstanceOf(ForbiddenException.class));
     }
   }
 
@@ -356,11 +352,16 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     @DisplayName("should not be forbidden with AGENT_RUNTIME_ACCESS capability")
     @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
     void given_agentRuntimeAccess_should_allowGetPayload() throws Exception {
-      // Act & Assert — will get 404 (inject not found) which proves RBAC passed
+      // Act & Assert — the unknown inject is rejected by the object-level gate
+      // (ForbiddenException),
+      // not by the RBAC aspect (ResponseStatusException), which proves RBAC passed
       mvc.perform(
               get(INJECT_URI + "/" + FAKE_INJECT_ID + "/" + FAKE_AGENT_ID + "/executable-payload")
                   .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isNotFound());
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertThat(result.getResolvedException()).isInstanceOf(ForbiddenException.class));
     }
   }
 
@@ -419,7 +420,6 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
       // Arrange — create a real inject in DB
       Exercise exercise = ExerciseFixture.getExercise();
       exercise.setTeams(new ArrayList<>());
-      exercise.setFrom("test@email.com");
       Exercise exerciseSaved = exerciseRepository.saveAndFlush(exercise);
 
       Inject inject = InjectFixture.getDefaultInject();

@@ -75,8 +75,8 @@ public class AssetGroupApi extends RestBehavior {
    * is necessary and not sufficient. This is why the asset group detail screen showed no tags while
    * the list (served by the criteria-builder search endpoint) did.
    *
-   * <p>Same shape and same fix as {@code SecurityPlatformApi.withManagerLinksInitialized} (#7026).
-   * Pinned by {@code AssetAssociationSinkTest}, which is deliberately NOT {@code @Transactional}: a
+   * <p>Same shape and same fix as {@code SecurityPlatformApi.withLinksInitialized} (#7026). Pinned
+   * by {@code AssetAssociationSinkTest}, which is deliberately NOT {@code @Transactional}: a
    * transactional test keeps the scope alive through serialization and would pass while proving
    * nothing, which is exactly how this defect stayed invisible.
    */

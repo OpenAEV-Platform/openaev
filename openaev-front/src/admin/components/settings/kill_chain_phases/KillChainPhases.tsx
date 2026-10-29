@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 
 import { searchKillChainPhases } from '../../../../actions/KillChainPhase';
@@ -53,19 +54,7 @@ const KillChainPhases = () => {
       label: 'Kill chain',
       isSortable: true,
       value: (killChainPhase: KillChainPhase) => (
-        <Chip
-          variant="outlined"
-          color="primary"
-          label={killChainPhase.phase_kill_chain_name}
-          sx={{
-            fontSize: 12,
-            height: 20,
-            float: 'left',
-            textTransform: 'uppercase',
-            borderRadius: 1,
-            width: 120,
-          }}
-        />
+        <Chip label={killChainPhase.phase_kill_chain_name} severity="info" style={{ float: 'left' }} />
       ),
     },
     {
@@ -103,7 +92,11 @@ const KillChainPhases = () => {
 
   return (
     <div style={{ display: 'flex' }}>
-      <div style={{ flexGrow: 1 }}>
+      <div style={{
+        flexGrow: 1,
+        minWidth: 0,
+      }}
+      >
         <Breadcrumbs
           variant="list"
           elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Taxonomies') }, {
@@ -118,14 +111,23 @@ const KillChainPhases = () => {
           queryableHelpers={queryableHelpers}
           disableFilters
           topBarButtons={(
-            <Box display="flex" gap={1} alignItems="center">
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1,
+                alignItems: 'center',
+              }}
+            >
               <ExportButton
                 totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
                 exportProps={exportProps}
               />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
                 <CreateKillChainPhase
-                  onCreate={(result: KillChainPhase) => setKillChainPhases(prev => [result, ...prev])}
+                  onCreate={(result: KillChainPhase) => {
+                    setKillChainPhases(prev => [result, ...prev]);
+                    queryableHelpers.paginationHelpers.incrementTotalElements(1);
+                  }}
                 />
               </Can>
             </Box>
@@ -162,7 +164,10 @@ const KillChainPhases = () => {
                     <KillChainPhasePopover
                       killChainPhase={killChainPhase}
                       onUpdate={(result: KillChainPhase) => setKillChainPhases(prev => prev.map(k => (k.phase_id !== result.phase_id ? k : result)))}
-                      onDelete={(result: string) => setKillChainPhases(prev => prev.filter(k => (k.phase_id !== result)))}
+                      onDelete={(result: string) => {
+                        setKillChainPhases(prev => prev.filter(k => (k.phase_id !== result)));
+                        queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                      }}
                     />
                   )}
                 />

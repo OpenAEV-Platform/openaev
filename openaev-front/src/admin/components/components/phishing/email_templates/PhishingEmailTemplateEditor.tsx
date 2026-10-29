@@ -250,7 +250,7 @@ const PhishingEmailTemplateEditor: FunctionComponent = () => {
 
   const left = (
     <FormProvider {...methods}>
-      <form id={FORM_ID} onSubmit={handleSubmit(onSubmit)}>
+      <form noValidate id={FORM_ID} onSubmit={handleSubmit(onSubmit)}>
         <div style={{
           display: 'flex',
           flexDirection: 'column',
@@ -264,11 +264,11 @@ const PhishingEmailTemplateEditor: FunctionComponent = () => {
               gap: theme.spacing(2),
             }}
             >
-              <TextFieldController variant="standard" name="phishing_email_template_name" label={t('Name')} required />
-              <TextFieldController variant="standard" name="phishing_email_template_description" label={t('Description')} />
-              <TextFieldController variant="standard" name="phishing_email_template_subject" label={t('Subject')} required />
-              <TextFieldController variant="standard" name="phishing_email_template_from_name" label={t('Sender name override')} />
-              <TextFieldController variant="standard" name="phishing_email_template_from_email" label={t('Sender email override')} />
+              <TextFieldController name="phishing_email_template_name" label={t('Name')} required />
+              <TextFieldController name="phishing_email_template_description" label={t('Description')} />
+              <TextFieldController name="phishing_email_template_subject" label={t('Subject')} required />
+              <TextFieldController name="phishing_email_template_from_name" label={t('Sender name override')} />
+              <TextFieldController name="phishing_email_template_from_email" label={t('Sender email override')} />
               <SwitchFieldController name="phishing_email_template_add_tracking_pixel" label={t('Add tracking pixel')} />
             </div>
           </SectionBlock>
@@ -333,7 +333,7 @@ const PhishingEmailTemplateEditor: FunctionComponent = () => {
                 placeholder={t('Write HTML or generate it with AI')}
                 minHeight={260}
               />
-              <TextFieldController variant="standard" name="phishing_email_template_text_body" label={t('Text body')} multiline rows={6} />
+              <TextFieldController name="phishing_email_template_text_body" label={t('Text body')} multiline rows={6} />
             </div>
           </SectionBlock>
         </div>

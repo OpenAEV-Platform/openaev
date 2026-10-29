@@ -3,6 +3,8 @@ package io.openaev.rest.attack_pattern.form;
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.Tenant;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,4 +41,16 @@ public class AttackPatternCreateInput {
 
   @JsonProperty("attack_pattern_parent")
   private String parentId;
+
+  public AttackPattern toAttackPattern(String tenantId) {
+    AttackPattern attackPattern = new AttackPattern();
+    attackPattern.setName(name);
+    attackPattern.setStixId(stixId);
+    attackPattern.setDescription(description);
+    attackPattern.setExternalId(externalId);
+    attackPattern.setPlatforms(platforms);
+    attackPattern.setPermissionsRequired(permissionsRequired);
+    attackPattern.setTenant(new Tenant(tenantId));
+    return attackPattern;
+  }
 }

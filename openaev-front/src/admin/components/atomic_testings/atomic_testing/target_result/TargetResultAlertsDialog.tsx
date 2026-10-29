@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { CloseOutlined, NotificationsActiveOutlined, NotificationsOffOutlined, OpenInNew } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, IconButton, Skeleton, Typography } from '@mui/material';
+import { Box, Dialog, DialogContent, Skeleton, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
@@ -84,9 +85,9 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
       onClose={handleClose}
       fullWidth
       maxWidth="sm"
-      TransitionComponent={Transition}
       slotProps={{ paper: { elevation: 1 } }}
       data-testid="target-result-alerts-dialog"
+      slots={{ transition: Transition }}
     >
       {/* Header: framed platform logo + name + type context + close */}
       <Box sx={{
@@ -163,13 +164,13 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
           </Box>
         </div>
         <IconButton
+          icon={<CloseOutlined fontSize="small" />}
           aria-label={t('Close')}
-          size="small"
           onClick={handleClose}
-          sx={{ alignSelf: 'flex-start' }}
-        >
-          <CloseOutlined fontSize="small" />
-        </IconButton>
+          style={{ alignSelf: 'flex-start' }}
+          priority="tertiary"
+          size="md"
+        />
       </Box>
       <DialogContent sx={{
         padding: theme.spacing(0.5, 1.5, 2),

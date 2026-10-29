@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { type FunctionComponent, useContext } from 'react';
 import { Form } from 'react-final-form';
 import { makeStyles } from 'tss-react/mui';
@@ -53,15 +53,11 @@ const TeamForm: FunctionComponent<TeamFormProps> = ({
       {({ handleSubmit, form, values, submitting, pristine }) => (
         <form id="teamForm" onSubmit={handleSubmit}>
           <OldTextField
-            variant="standard"
             name="team_name"
-            fullWidth
             label={t('Name')}
           />
           <OldTextField
-            variant="standard"
             name="team_description"
-            fullWidth
             label={t('Description')}
             style={{ marginTop: 20 }}
           />
@@ -86,16 +82,10 @@ const TeamForm: FunctionComponent<TeamFormProps> = ({
             />
           )}
           <div className={classes.container} style={{ marginTop: 20 }}>
-            <Button variant="outlined" color="primary" onClick={handleClose} disabled={submitting}>
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting}>
               {t('Cancel')}
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              data-testid="team-form-submit-button"
-              disabled={pristine || submitting}
-            >
+            <Button type="submit" data-testid="team-form-submit-button" disabled={pristine || submitting}>
               {editing ? t('Update') : t('Create')}
             </Button>
           </div>

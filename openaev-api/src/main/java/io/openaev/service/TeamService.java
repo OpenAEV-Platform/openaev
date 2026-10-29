@@ -18,12 +18,14 @@ import io.openaev.database.repository.ScenarioTeamUserRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ResourceInUseException;
 import io.openaev.rest.team.form.TeamBulkProcessingInput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.CopyObjectListUtils;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
@@ -32,8 +34,10 @@ import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotNull;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
+import org.hibernate.Hibernate;
 import org.hibernate.TransientObjectException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
@@ -53,6 +57,58 @@ public class TeamService {
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final ScenarioTeamUserRepository scenarioTeamUserRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+
+  /**
+   * Tenant ids a request may read teams from, taken from its resolved scope. Replaces the v1
+   * ambient tenant, which {@code TenantInterceptor} sets only on the tenant-prefixed route: off
+   * that route an ambient-keyed read saw the default tenant while the request scope was another
+   * tenant.
+   */
+  public Set<String> readScope(@NotNull final TxCtx ctx) {
+    return TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+  }
+
+  /**
+   * Loads a team by id inside the request's tenant scope. An empty scope is fail-closed and reads
+   * nothing, same outcome as a team that belongs to another tenant.
+   */
+  public Team teamInScope(@NotNull final TxCtx ctx, @NotNull final String teamId) {
+    Set<String> tenantIds = readScope(ctx);
+    if (tenantIds.isEmpty()) {
+      throw new ElementNotFoundException();
+    }
+    return teamRepository
+        .findByIdAndTenantIdIn(teamId, tenantIds)
+        .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /**
+   * Loads a team in scope with its tags, for the endpoint that returns the raw entity. It is
+   * serialized open-in-view after the commit, when a lazy {@code tags} load fails closed to an
+   * empty array once {@code tags} is v2-active: the team edit form, filled from that response, then
+   * saved the empty list and erased the team's tags.
+   */
+  public Team teamInScopeWithTags(@NotNull final TxCtx ctx, @NotNull final String teamId) {
+    Team team = teamInScope(ctx, teamId);
+    Hibernate.initialize(team.getTags());
+    return team;
+  }
+
+  /**
+   * Loads the players of a team in scope with their tags and teams, for the endpoint that returns
+   * the raw users: {@code tags} and {@code teams} are both v2-active, so a lazy load at
+   * serialization time fails closed to an empty array. The player edit form is filled from that
+   * response, and an empty tag list erased the player's tags on save.
+   */
+  public List<User> teamPlayersInScope(@NotNull final TxCtx ctx, @NotNull final String teamId) {
+    List<User> players = teamInScope(ctx, teamId).getUsers();
+    players.forEach(
+        player -> {
+          Hibernate.initialize(player.getTags());
+          Hibernate.initialize(player.getTeams());
+        });
+    return players;
+  }
 
   /**
    * Bulk delete of teams, either from an explicit list of ids or from a search input (select all).

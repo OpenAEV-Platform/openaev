@@ -1,10 +1,9 @@
 import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { normalize, type Schema } from 'normalizr';
 
-interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  __isRetryRequest?: boolean;
-}
+import { MESSAGING$ } from './utils/Environment';
+
+interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig { __isRetryRequest?: boolean }
 
 interface ApiErrorResponse {
   status: number;
@@ -32,7 +31,6 @@ export const ensureCsrf = async (): Promise<void> => {
   await csrfBootstrapPromise;
 };
 
-// eslint-disable-next-line import/prefer-default-export
 export const api = <T>(schema?: Schema<T> | null): AxiosInstance => {
   const instance = axios.create({
     headers: { responseType: 'json' },
@@ -95,10 +93,17 @@ export const api = <T>(schema?: Schema<T> | null): AxiosInstance => {
         return axios(config);
       }
       if (res) {
+        // A write still refused after the CSRF retry is a real permission refusal.
+        // eslint-disable-next-line no-underscore-dangle
+        const forbiddenAction = res.status === 403 && !!config?.__isRetryRequest && (config.method ?? 'get').toLowerCase() !== 'get';
+        if (forbiddenAction) {
+          MESSAGING$.refreshMe.next();
+        }
         // eslint-disable-next-line prefer-promise-reject-errors
         return Promise.reject({
           status: res.status,
           ...res.data,
+          forbiddenAction,
         } as ApiErrorResponse);
       }
       // eslint-disable-next-line prefer-promise-reject-errors

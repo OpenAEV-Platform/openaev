@@ -7,6 +7,7 @@ import io.openaev.database.model.ReportingModule;
 import io.openaev.database.model.ReportingModuleType;
 import io.openaev.database.model.ReportingSchedulePeriod;
 import io.openaev.database.model.ReportingTimeRange;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.reporting.form.ReportingInput;
 import io.openaev.rest.reporting.form.ReportingScheduleInput;
 import java.util.ArrayList;
@@ -31,6 +32,8 @@ public class ReportingFixture {
     reporting.setModules(new ArrayList<>(List.of(createModule(ReportingModuleType.COVER))));
     reporting.setDefaultFormat(ReportingFormat.PDF);
     reporting.setTimeRange(ReportingTimeRange.LAST_30_DAYS);
+    // reportings has no v1 listener attribution left: fixtures must set the tenant explicitly.
+    reporting.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     return reporting;
   }
 

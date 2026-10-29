@@ -44,7 +44,7 @@ jobs:
 
   migrations-guard:
     name: "🔎 Migrations Guard"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v7
@@ -57,12 +57,26 @@ jobs:
         with:
           last-release-number: ${{ steps.latest-tag.outputs.latest-tag }}
 
+  # Blocking on purpose: a pull request must not merge an ADR number main already has.
+  adr-numbering:
+    name: "🔢 ADR Numbering"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # On a pull request: the merge commit and its first parent, the target branch.
+          fetch-depth: 2
+      - uses: ./.github/actions/adr-numbering
+        with:
+          pull-request: ${{ github.event_name == 'pull_request' }}
+
   ocsf-parser-generation-stability:
     strategy:
       matrix:
         version: [ "1.9.0" ]
     name: "🔎 OCSF Parser Generation Stability"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v7
@@ -84,7 +98,7 @@ jobs:
 
   backend-compile:
     name: "🔨 Backend Compile"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
@@ -94,7 +108,7 @@ jobs:
 
   frontend-build:
     name: "🎨 Frontend Build"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -104,14 +118,10 @@ jobs:
 
   prepare-bundled-assets:
     name: "📦 Prepare Bundled Assets"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-        with:
-          # git describe needs the commit graph, not historical file contents
-          fetch-depth: 0
-          filter: blob:none
       - uses: ./.github/actions/prepare-bundled-assets
 
   # ════════════════════════════════════════════════════════════════════
@@ -120,7 +130,7 @@ jobs:
 
   spotless-check:
     name: "🔍 Spotless Check"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
@@ -132,7 +142,7 @@ jobs:
   # on real PRs. Making it blocking means taking the job out of the advisory list in the gate below.
   bom-override-guard:
     name: "🔎 BOM Override Guard"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
@@ -144,7 +154,7 @@ jobs:
 
   frontend-quality:
     name: "🧪 Frontend Quality & Unit Tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -152,13 +162,37 @@ jobs:
         with:
           no-cache: ${{ inputs.no-cache }}
 
+  fds-conformity:
+    name: "🎨 FDS Conformity"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/fds-conformity
+
+  # Pull requests only: the gate reads what a PR adds against its target branch, and a push or a
+  # scheduled run has no target branch. Skipped counts as passed in the Pipeline Gate.
+  fds-mui-regression:
+    name: "🎨 FDS MUI Regression"
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The gate diffs against the merge base with the target branch.
+          fetch-depth: 0
+      - uses: ./.github/actions/fds-mui-regression
+        with:
+          base: origin/${{ github.base_ref }}
+
   # ════════════════════════════════════════════════════════════════════
   # API Tests — matrix passed from caller
   # ════════════════════════════════════════════════════════════════════
 
   api-tests:
     name: "🧪 API Tests (${{ matrix.shard_name }})"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     # A matrix entry may set continue_on_error: the multi-tenancy shadow runs are instruments, not
     # gates, and a red one must not fail the workflow while the migration is in progress.
@@ -173,8 +207,9 @@ jobs:
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
       MINIO_PORT: 11000
+      # No engine selector: the platform detects Elasticsearch 8, 9 or OpenSearch from ENGINE_URL,
+      # so a shard picks its client through the server it starts (matrix.search_engine).
       ENGINE_URL: http://localhost:9200
-      ENGINE_ENGINESELECTOR: ${{ matrix.engine_selector }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -191,11 +226,114 @@ jobs:
           no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
+  # Tenant shadow verdict: one readable result for the shadow shards
+  # ════════════════════════════════════════════════════════════════════
+
+  tenant-shadow-report:
+    name: "Tenant shadow verdict"
+    needs: [api-tests]
+    # Runs only when the caller's matrix actually has shadow entries, so Core CI never sees it.
+    if: ${{ !cancelled() && contains(inputs.api-matrix, 'tenant_mode') }}
+    # Deliberately absent from pipeline-gate's needs, and continue-on-error so its own red cannot
+    # reach the run conclusion. The shadow runs are instruments: a red one must be visible at a
+    # glance, and must not page the on-call, who is alerted on a failed Nightly run.
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download the per-shard verdicts
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          pattern: tenant-shadow-verdict-*
+          path: tenant-shadow-verdicts
+
+      - name: Report
+        shell: bash
+        env:
+          DOWNLOAD_OUTCOME: ${{ steps.download.outcome }}
+          API_MATRIX: ${{ inputs.api-matrix }}
+        run: |
+          set -uo pipefail
+          DIR=tenant-shadow-verdicts
+          S="$GITHUB_STEP_SUMMARY"
+          echo "# Tenant shadow verdict" >> "$S"
+          echo >> "$S"
+
+          # Every shadow entry the caller's matrix declares, as mode<TAB>shard. Counting only the
+          # rows that arrived would turn a shard that timed out, or whose upload failed, into
+          # silence: one PASS artifact out of thirty would read as "every shadow shard passed".
+          python3 - <<'PY' > /tmp/expected.tsv
+          import json, os
+          for entry in json.loads(os.environ["API_MATRIX"]):
+              mode = entry.get("tenant_mode")
+              if mode:
+                  print(f"{mode}\t{entry.get('shard_name')}")
+          PY
+
+          # || true: find exits 1 when the directory is missing, and the default shell is -e, so
+          # without it the step would die here instead of reporting the silence below.
+          FILES=$(find "$DIR" -name 'tenant-shadow-verdict.tsv' 2>/dev/null | sort || true)
+          if [ -z "$FILES" ]; then
+            echo "::warning title=Tenant shadow::No shard verdict was collected (download outcome: $DOWNLOAD_OUTCOME). The shadow runs produced nothing readable."
+            echo "No shard verdict was collected. The shadow runs produced nothing readable." >> "$S"
+            exit 1
+          fi
+
+          # One row per shard, then one total per mode. Sorted by mode so the two instruments read
+          # as two blocks.
+          # shellcheck disable=SC2086
+          cat $FILES | sort -t"$(printf '\t')" -k1,1 -k2,2 > /tmp/collected.tsv
+
+          # A declared shard with no verdict becomes an explicit NO RESULT row rather than a gap in
+          # the table, so the totals below count it and the exit status reflects it.
+          MISSING=0
+          cp /tmp/collected.tsv /tmp/verdicts.tsv
+          while IFS=$(printf '\t') read -r mode shard; do
+            [ -z "$mode" ] && continue
+            if ! awk -F'\t' -v m="$mode" -v s="$shard" '$1==m && $2==s {found=1} END {exit !found}' \
+                 /tmp/collected.tsv; then
+              printf '%s\t%s\tNO RESULT\t0\t0\t0\t0\t%s\n' "$mode" "$shard" \
+                "no verdict artifact was collected for this declared shard" >> /tmp/verdicts.tsv
+              MISSING=$((MISSING + 1))
+            fi
+          done < /tmp/expected.tsv
+          sort -t"$(printf '\t')" -k1,1 -k2,2 -o /tmp/verdicts.tsv /tmp/verdicts.tsv
+
+          {
+            echo "| Mode | Shard | Verdict | Tests | Failures | Errors | Skipped | Note |"
+            echo "|---|---|---|---|---|---|---|---|"
+            awk -F'\t' '{printf "| %s | %s | **%s** | %s | %s | %s | %s | %s |\n", $1,$2,$3,$4,$5,$6,$7,$8}' /tmp/verdicts.tsv
+            echo
+            echo "| Mode | Shards | Failed shards | Tests | Failures | Errors |"
+            echo "|---|---|---|---|---|---|"
+            awk -F'\t' '{n[$1]++; if ($3!="PASS") bad[$1]++; t[$1]+=$4; f[$1]+=$5; e[$1]+=$6}
+              END {for (m in n) printf "| %s | %d | %d | %d | %d | %d |\n", m, n[m], bad[m]+0, t[m], f[m], e[m]}' \
+              /tmp/verdicts.tsv | sort
+            echo
+          } >> "$S"
+
+          BAD=$(awk -F'\t' '$3!="PASS"' /tmp/verdicts.tsv | wc -l | tr -d ' ')
+          TOTALS=$(awk -F'\t' '{t+=$4; f+=$5; e+=$6} END {printf "%d tests, %d failures, %d errors", t, f, e}' /tmp/verdicts.tsv)
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::warning title=Tenant shadow::$MISSING declared shard(s) produced no verdict at all."
+            echo "**$MISSING declared shard(s) produced no verdict at all**, listed as NO RESULT above." >> "$S"
+          fi
+          if [ "$BAD" -gt 0 ]; then
+            echo "::warning title=Tenant shadow::$BAD shard(s) did not pass: $TOTALS. The workflow stays green on purpose; this job is the verdict."
+            echo "**$BAD shard(s) did not pass** ($TOTALS). This job is red and the workflow is green on purpose: the shadow runs report, they do not gate." >> "$S"
+            exit 1
+          fi
+          echo "::notice title=Tenant shadow::Every shadow shard passed ($TOTALS)."
+          echo "**Every shadow shard passed** ($TOTALS)." >> "$S"
+
+  # ════════════════════════════════════════════════════════════════════
   # E2E Tests — matrix passed from caller
   # ════════════════════════════════════════════════════════════════════
 
   e2e-tests:
-    name: "🧪 E2E (${{ matrix.shard_name || 'full' }} · ${{ matrix.project }} · ${{ matrix.variant }}${{ matrix.search_engine == 'opensearch' && ' · OS' || '' }})"
+    name: "🧪 E2E (${{ matrix.shard_name || 'full' }} · ${{ matrix.project }} · ${{ matrix.variant }}${{ matrix.search_engine == 'opensearch' && ' · OS' || '' }}${{ matrix.without_license && ' · no EE' || '' }})"
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
@@ -211,15 +349,16 @@ jobs:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
-      ENGINE_ENGINESELECTOR: ${{ matrix.search_engine == 'opensearch' && 'opensearch' || 'elk' }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       OPENAEV_ADMIN_EMAIL: admin@openaev.io
       OPENAEV_ADMIN_PASSWORD: admin
       OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
       OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
       OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      OPENAEV_RATELIMIT_ENABLED: false
       SPRING_PROFILES_ACTIVE: ci
-      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
+      # A cell with without_license runs the Community Edition: the EE specs skip themselves.
+      OPENAEV_APPLICATION_LICENSE: ${{ !matrix.without_license && secrets.OPENAEV_APPLICATION_LICENSE || '' }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
@@ -240,7 +379,7 @@ jobs:
 
   api-types-check:
     name: "🔎 API Types Check"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
@@ -266,14 +405,16 @@ jobs:
           no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
-  # Coverage Merge & Upload
+  # Coverage Upload — one job per Codecov flag, each starting as soon as its own tests finish
   # ════════════════════════════════════════════════════════════════════
+  # One upload per flag with explicit files: a single upload tags every file with every flag,
+  # and .codecov.yml counts uploads (after_n_builds) before it reports on the PR.
 
-  codecov:
-    name: "📊 Coverage Merge & Upload"
-    needs: [api-tests, frontend-quality, e2e-tests, api-types-check]
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+  coverage-backend:
+    name: "📊 Coverage Upload (backend)"
+    needs: [api-tests]
+    if: ${{ !cancelled() && (needs.api-tests.result == 'success' || needs.api-tests.result == 'failure') }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -295,7 +436,6 @@ jobs:
             maven-v2-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Download compiled Maven artifacts
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         uses: actions/download-artifact@v8
         with:
           name: backend-compiled
@@ -303,7 +443,6 @@ jobs:
         continue-on-error: true
 
       - name: Download API build output
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         uses: actions/download-artifact@v8
         with:
           name: api-build-output
@@ -311,7 +450,6 @@ jobs:
         continue-on-error: true
 
       - name: Download all JaCoCo exec shards
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         uses: actions/download-artifact@v8
         with:
           pattern: jacoco-exec-shard-*
@@ -320,7 +458,6 @@ jobs:
 
       - name: Merge JaCoCo exec files
         id: jacoco-merge
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         run: |
           echo "📦 Merging JaCoCo exec files from all shards..."
           EXEC_FILES=$(find jacoco-exec -name 'jacoco.exec' 2>/dev/null)
@@ -348,28 +485,73 @@ jobs:
           path: openaev-api/target/site/jacoco/jacoco.xml
           if-no-files-found: warn
 
+      - name: Upload backend coverage to Codecov
+        if: ${{ hashFiles('openaev-api/target/site/jacoco/jacoco.xml') != '' }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: openaev-api/target/site/jacoco/jacoco.xml
+          flags: backend
+          disable_search: true
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  coverage-frontend:
+    name: "📊 Coverage Upload (frontend)"
+    needs: [frontend-quality]
+    if: ${{ !cancelled() && needs.frontend-quality.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
       - name: Download vitest coverage
-        if: ${{ needs.frontend-quality.result == 'success' }}
         uses: actions/download-artifact@v8
         with:
           name: vitest-coverage
           path: coverage/frontend
         continue-on-error: true
 
+      - name: Upload frontend coverage to Codecov
+        if: ${{ hashFiles('coverage/frontend/lcov.info') != '' }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/frontend/lcov.info
+          flags: frontend
+          disable_search: true
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  coverage-e2e:
+    name: "📊 Coverage Upload (e2e)"
+    needs: [e2e-tests]
+    if: ${{ !cancelled() && needs.e2e-tests.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      # One directory per shard: every shard writes lcov.info, so merging would keep only the last one.
       - name: Download playwright coverage
-        if: ${{ needs.e2e-tests.result == 'success' }}
         uses: actions/download-artifact@v8
         with:
           pattern: playwright-coverage-*
           path: coverage/e2e
-          merge-multiple: true
         continue-on-error: true
 
-      - name: Upload to Codecov
+      - name: List E2E coverage files
+        id: e2e-coverage
+        run: echo "files=$(find coverage/e2e -name lcov.info 2>/dev/null | paste -sd, -)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload E2E coverage to Codecov
+        if: ${{ steps.e2e-coverage.outputs.files != '' }}
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          flags: backend,frontend,e2e
+          files: ${{ steps.e2e-coverage.outputs.files }}
+          flags: e2e
+          disable_search: true
           fail_ci_if_error: false
         continue-on-error: true
 
@@ -388,7 +570,7 @@ jobs:
         needs.backend-compile.result == 'success' &&
         (needs.prepare-bundled-assets.result == 'success' || needs.prepare-bundled-assets.result == 'skipped')
       }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-package
@@ -399,10 +581,10 @@ jobs:
   backend-package-musl:
     name: "📦 Backend Package (musl)"
     needs: [frontend-build, backend-compile, prepare-bundled-assets]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     container:
-      image: maven:3.9.16-eclipse-temurin-21-alpine
+      image: maven:3.10.0-eclipse-temurin-21-alpine
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-package-musl
@@ -412,7 +594,6 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
 
   # Docker builds fetch bundled assets inline, avoiding a serial dependency.
-  # fetch-depth 0 is required because the asset version comes from `git describe`.
   docker-build:
     name: "🐳 Docker Build (${{ matrix.variant }} ${{ matrix.arch }})"
     if: ${{ !cancelled() }}
@@ -424,7 +605,7 @@ jobs:
         include:
           - variant: standard
             arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             platform: linux/amd64
             dockerfile: ./Dockerfile
             artifact-name: openaev-image
@@ -442,7 +623,7 @@ jobs:
             tags: openaev:ci-${{ github.run_id }}
           - variant: ubi9
             arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             platform: linux/amd64
             dockerfile: ./Dockerfile_ubi9
             artifact-name: openaev-ubi9-image
@@ -460,10 +641,6 @@ jobs:
             tags: openaev-ubi9:ci-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          # git describe needs the commit graph, not historical file contents
-          fetch-depth: 0
-          filter: blob:none
       - uses: ./.github/actions/docker-build
         with:
           dockerfile: ${{ matrix.dockerfile }}
@@ -478,7 +655,7 @@ jobs:
   docker-merge:
     name: "🐳 Merge Platforms (${{ matrix.variant }})"
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       GH_TOKEN: ${{ github.token }}
@@ -503,7 +680,7 @@ jobs:
   container-vulnerability-scan:
     name: "🔒 Container Vulnerability Scan"
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: ${{ !inputs.vulnerability-scan-fail-on-error }}
     timeout-minutes: 25
     env:
@@ -525,6 +702,7 @@ jobs:
   pipeline-gate:
     name: "✅ Pipeline Gate"
     needs:
+      - adr-numbering
       - ocsf-parser-generation-stability
       - migrations-guard
       - backend-compile
@@ -533,7 +711,11 @@ jobs:
       - spotless-check
       - bom-override-guard
       - frontend-quality
+      - fds-conformity
+      - fds-mui-regression
       - api-tests
+      # tenant-shadow-report is deliberately absent: it is the shadow runs' verdict, and those
+      # report rather than gate. Adding it here would fail the Nightly run and page the on-call.
       - e2e-tests
       - api-types-check
       - backend-package
@@ -542,7 +724,7 @@ jobs:
       - docker-merge
       - container-vulnerability-scan
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Check all upstream job results

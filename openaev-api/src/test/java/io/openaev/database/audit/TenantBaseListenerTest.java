@@ -3,95 +3,141 @@ package io.openaev.database.audit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.CollectorType;
-import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.repository.CollectorTypeRepository;
-import io.openaev.database.repository.TeamRepository;
-import io.openaev.utils.fixtures.CollectorTypeFixture;
-import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.database.model.TenantBase;
+import jakarta.persistence.Table;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.transaction.annotation.Transactional;
 
-// collector_types is armed active here so the CollectorType cases below keep exercising the
-// throw path; teams is left out on purpose so WhenTheTableIsNotV2Active exercises the fallback.
-@TestPropertySource(properties = "openaev.tenant.active-tables=collector_types")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Transactional
-class TenantBaseListenerTest extends IntegrationTest {
-
-  @Autowired private CollectorTypeRepository collectorTypeRepository;
-  @Autowired private TeamRepository teamRepository;
+// Exercises the listener's @PrePersist logic directly, on a throwaway TenantBase, instead of
+// through a real entity's repository: any entity's own table can be activated (removing the
+// listener from that entity) or deactivated by a future PR, which would break a test pinned on
+// it. The listener's behavior does not depend on which entity carries it.
+class TenantBaseListenerTest {
 
   @AfterEach
   void clearTenant() {
     TenantContext.clearCurrentTenant();
   }
 
+  @Table(name = "probe_tenant_bases")
+  static class ProbeTenantBase implements TenantBase {
+
+    private String id;
+    private Tenant tenant;
+
+    @Override
+    public String getId() {
+      return id;
+    }
+
+    @Override
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    @Override
+    public Tenant getTenant() {
+      return tenant;
+    }
+
+    @Override
+    public void setTenant(Tenant tenant) {
+      this.tenant = tenant;
+    }
+  }
+
+  private static void persist(
+      TenantBaseListener<ProbeTenantBase> listener, ProbeTenantBase entity) {
+    try {
+      Method manageTenant =
+          TenantBaseListener.class.getDeclaredMethod("manageTenant", TenantBase.class);
+      manageTenant.setAccessible(true);
+      manageTenant.invoke(listener, entity);
+    } catch (InvocationTargetException e) {
+      if (e.getCause() instanceof RuntimeException runtimeException) {
+        throw runtimeException;
+      }
+      throw new IllegalStateException(e.getCause());
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   @Nested
-  class WhenNoTenantIsAmbient {
+  @DisplayName("when the entity's table is v2-active")
+  class WhenTheTableIsActive {
+
+    private final TenantBaseListener<ProbeTenantBase> listener =
+        new TenantBaseListener<>(List.of("probe_tenant_bases"));
 
     @Test
-    @WithMockUser
     void given_noTenantContext_should_throwOnPersist() {
       // Arrange
       TenantContext.clearCurrentTenant();
-      CollectorType collectorType = CollectorTypeFixture.createDefaultCollectorType();
+      ProbeTenantBase entity = new ProbeTenantBase();
 
       // Act & Assert
-      assertThatThrownBy(() -> collectorTypeRepository.save(collectorType))
-          .hasRootCauseInstanceOf(IllegalStateException.class)
-          .hasRootCauseMessage("unattributed tenant write: CollectorType");
+      assertThatThrownBy(() -> persist(listener, entity))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("unattributed tenant write: ProbeTenantBase");
     }
-  }
-
-  @Nested
-  class WhenATenantIsAmbient {
 
     @Test
-    @WithMockUser
     void given_tenantContextSet_should_stampTenantOnPersist() {
       // Arrange
       TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
-      CollectorType collectorType =
-          CollectorTypeFixture.createCollectorType("test_collector_type_stamped");
+      ProbeTenantBase entity = new ProbeTenantBase();
 
       // Act
-      CollectorType saved = collectorTypeRepository.save(collectorType);
+      persist(listener, entity);
 
       // Assert
-      assertThat(saved.getTenant()).isNotNull();
-      assertThat(saved.getTenant().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      assertThat(entity.getTenant()).isNotNull();
+      assertThat(entity.getTenant().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    @Test
+    void given_tenantAlreadySetOnEntity_should_leaveItUnchanged() {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+      ProbeTenantBase entity = new ProbeTenantBase();
+      Tenant explicitTenant = new Tenant("11111111-1111-1111-1111-111111111111");
+      entity.setTenant(explicitTenant);
+
+      // Act
+      persist(listener, entity);
+
+      // Assert
+      assertThat(entity.getTenant()).isSameAs(explicitTenant);
     }
   }
 
   @Nested
-  class WhenTheTableIsNotV2Active {
+  @DisplayName("when the entity's table is not v2-active")
+  class WhenTheTableIsNotActive {
+
+    private final TenantBaseListener<ProbeTenantBase> listener =
+        new TenantBaseListener<>(List.of());
 
     @Test
-    @WithMockUser
-    void given_noTenantContextOnInactiveTable_should_stampDefaultTenant() {
+    void given_noTenantContext_should_stampDefaultTenant() {
       // Arrange
-      // teams is not in openaev.tenant.active-tables: the legacy contract still owns its
-      // attribution, so an unattributed write must keep falling back to the default tenant
-      // instead of being refused.
       TenantContext.clearCurrentTenant();
-      Team team = new Team();
-      team.setName("unattributed team");
+      ProbeTenantBase entity = new ProbeTenantBase();
 
       // Act
-      Team saved = teamRepository.save(team);
+      persist(listener, entity);
 
       // Assert
-      assertThat(saved.getTenant()).isNotNull();
-      assertThat(saved.getTenant().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      assertThat(entity.getTenant()).isNotNull();
+      assertThat(entity.getTenant().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
     }
   }
 }

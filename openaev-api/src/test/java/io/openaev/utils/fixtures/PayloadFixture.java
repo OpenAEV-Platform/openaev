@@ -46,6 +46,14 @@ public class PayloadFixture {
     return createCommand("PowerShell", "cd ..", null, null);
   }
 
+  public static AiAttack createAiAttack(String content) {
+    AiAttack aiAttack =
+        new AiAttack(UUID.randomUUID().toString(), AiAttack.AI_ATTACK_TYPE, "ai attack payload");
+    aiAttack.setContent(content);
+    initializeDefaultPayload(aiAttack, LINUX_PLATFORM);
+    return aiAttack;
+  }
+
   public static DetectionRemediation createDetectionRemediation() {
     DetectionRemediation drCS = new DetectionRemediation();
     drCS.setValues("Detection Remediation");

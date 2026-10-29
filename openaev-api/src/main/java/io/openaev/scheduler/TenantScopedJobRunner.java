@@ -69,4 +69,35 @@ public class TenantScopedJobRunner {
       }
     }
   }
+
+  /**
+   * Cross-tenant read for the engine loaders (schedule, notification): opens the primitive under
+   * {@link TxCtx#allTenants()}. No v1 {@link TenantContext} bridge here, unlike {@link
+   * #supplyInTenant}: {@code allTenants()} has no single tenant to bridge to, and callers that join
+   * still-v1 tables disable the v1 filter themselves.
+   */
+  public <T> T supplyAcrossTenants(@NotNull final Supplier<T> work) {
+    return tenantTx.execute(TxCtx.allTenants(), work);
+  }
+
+  /**
+   * Scopes the caller's ALREADY-OPEN transaction to {@code tenantId} and runs {@code work} inside
+   * it. Opens nothing: for a synchronous write that belongs to the caller's unit of work (a
+   * fail-fast status update on a row the caller created earlier in that same transaction, still
+   * uncommitted).
+   *
+   * <p>Nesting a {@code REQUIRES_NEW} transaction there is wrong twice over. It reads its own
+   * snapshot and cannot see the caller's uncommitted row, so a {@code save} resolves to a merge
+   * whose select finds nothing and Hibernate rejects the entity outright ({@code
+   * StaleObjectStateException}), failing the caller's whole unit of work. And a status written in a
+   * separate transaction would outlive a caller rollback that also removes the row it describes.
+   *
+   * <p>No v1 {@link TenantContext} bridge: the caller thread's ambient tenant is already whatever
+   * it should be, and swapping it here would leak into the caller's remaining work.
+   */
+  public void runInCurrentTenantTransaction(
+      @NotNull final String tenantId, @NotNull final Runnable work) {
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    work.run();
+  }
 }

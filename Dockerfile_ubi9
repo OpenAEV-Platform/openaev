@@ -59,15 +59,31 @@ microdnf clean all
 RUN set -eux; \
     microdnf install -y nss nspr dbus-libs expat glib2 atk at-spi2-atk at-spi2-core \
         cups-libs libdrm libX11 libXcomposite libXdamage libXext libXfixes libXrandr \
-        libxcb libxkbcommon pango cairo alsa-lib mesa-libgbm; \
+        libxcb libxkbcommon alsa-lib mesa-libgbm; \
     microdnf clean all
+
+RUN set -eux; \
+    for purpose in server-auth client-auth email code-signing; do \
+      trust extract --format=pem-directory --filter=ca-anchors --purpose="$purpose" "/tmp/ca-anchors-$purpose"; \
+    done; \
+    find /tmp/ca-anchors-* -iname '*emsign*' -exec cp {} /etc/pki/ca-trust/source/blocklist/ \; ; \
+    rm -rf /tmp/ca-anchors-*; \
+    update-ca-trust; \
+    trust list --filter=ca-anchors > /tmp/anchors.txt; \
+    keytool -list -v -cacerts -storepass changeit >> /tmp/anchors.txt; \
+    if grep -iE 'emsign|emudhra' /tmp/anchors.txt; then exit 1; fi; \
+    rm /tmp/anchors.txt
 
 WORKDIR /opt/openaev
 COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 # The boot jar uses the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI
 RUN set -eux; \
-    java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install chromium; \
+    java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install --only-shell chromium; \
     chmod -R a+rX /ms-playwright
+
+# Set by CI to the built commit, exposed in the platform settings
+ARG OPENAEV_COMMIT
+ENV OPENAEV_COMMIT=${OPENAEV_COMMIT}
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["java", "-jar", "openaev-api.jar"]

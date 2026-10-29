@@ -11,6 +11,7 @@ import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUser;
@@ -23,6 +24,7 @@ import io.openaev.service.UserCreationScope;
 import io.openaev.service.UserService;
 import io.openaev.service.account.PrivilegeEscalationValidator;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
 import jakarta.persistence.EntityManager;
@@ -30,6 +32,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -45,6 +48,7 @@ public class TenantUserService implements DependenciesManager {
   private final UserRepository userRepository;
   private final TenantRepository tenantRepository;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final OrganizationService organizationService;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -61,14 +65,14 @@ public class TenantUserService implements DependenciesManager {
       userService.assignAutoAssignGroups(userId, List.of(tenantId));
       // Reload user after @Modifying queries cleared the persistence context
       User reloaded = userRepository.findById(userId).orElseThrow();
-      return UserMapper.toOutput(reloaded);
+      return toOutput(reloaded);
     }
     User user = userService.createUser(input, UserCreationScope.TENANT);
     attachToTenant(user.getId(), tenantId);
     userService.assignAutoAssignGroups(user.getId(), List.of(tenantId));
     // Reload user after @Modifying queries cleared the persistence context
     User reloaded = userRepository.findById(user.getId()).orElseThrow();
-    return UserMapper.toOutput(reloaded);
+    return toOutput(reloaded);
   }
 
   public void attachToTenant(@NotBlank String userId, @NotBlank String tenantId) {
@@ -83,7 +87,7 @@ public class TenantUserService implements DependenciesManager {
   public UserOutput user(@NotBlank final String userId) {
     return userRepository
         .findOne(inTenant(tenantId()).and(UserSpecification.byId(userId)))
-        .map(UserMapper::toOutput)
+        .map(this::toOutput)
         .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
   }
 
@@ -93,9 +97,7 @@ public class TenantUserService implements DependenciesManager {
     if (userIds.isEmpty()) {
       return List.of();
     }
-    return userRepository.findAll(inTenant(tenantId()).and(fromIds(userIds))).stream()
-        .map(UserMapper::toOutput)
-        .toList();
+    return toOutputs(userRepository.findAll(inTenant(tenantId()).and(fromIds(userIds))));
   }
 
   /** Returns all users belonging to the current tenant. */
@@ -141,7 +143,20 @@ public class TenantUserService implements DependenciesManager {
     ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
     userService.applyProfile(existing, input);
-    return UserMapper.toOutput(userRepository.save(existing));
+    return toOutput(userRepository.save(existing));
+  }
+
+  // -- OUTPUT --
+
+  // Only the current tenant's organization is exposed: a user may belong to another tenant's.
+  private UserOutput toOutput(User user) {
+    return toOutputs(List.of(user)).getFirst();
+  }
+
+  private List<UserOutput> toOutputs(List<User> users) {
+    Map<String, Organization> organizations =
+        organizationService.usersOrganizationsInTenant(users, tenantId());
+    return users.stream().map(user -> UserMapper.toOutput(user, organizations)).toList();
   }
 
   // -- DELETE --

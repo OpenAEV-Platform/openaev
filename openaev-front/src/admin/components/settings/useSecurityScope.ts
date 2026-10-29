@@ -1,8 +1,8 @@
-import { useCallback, useContext } from 'react';
+import { useCallback } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, CAPABILITY_SCOPES, type CapabilityScope, SUBJECTS, type Subjects } from '../../../utils/permissions/types';
 
 export type SecurityScope = CapabilityScope;
@@ -38,7 +38,7 @@ interface UseSecurityScope {
 }
 
 const useSecurityScope = (): UseSecurityScope => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const canAccessSession = useCallback(
     (forScope: SecurityScope) => ability.can(ACTIONS.MANAGE, SESSION_SUBJECT[forScope]),

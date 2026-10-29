@@ -11,14 +11,13 @@ import io.openaev.export.FileExportBase;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
+import io.openaev.service.organization.OrganizationService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.Getter;
-import org.hibernate.Hibernate;
 
 @Getter
 @JsonInclude(NON_NULL)
@@ -121,18 +120,13 @@ public class InjectsFileExport extends FileExportBase {
 
   @JsonProperty("inject_organizations")
   private List<Organization> getOrganizations() {
-    List<Organization> orgs = new ArrayList<>();
-    orgs.addAll(
-        this.getUsers().stream()
-            .map(user -> (Organization) Hibernate.unproxy(user.getOrganization()))
-            .filter(Objects::nonNull)
-            .toList());
-    orgs.addAll(
-        this.getTeams().stream()
-            .map(team -> (Organization) Hibernate.unproxy(team.getOrganization()))
-            .filter(Objects::nonNull)
-            .toList());
-    return orgs;
+    if (injects.isEmpty()) {
+      return List.of();
+    }
+    // Exported injects all belong to the request's tenant (v1 tenant filter on injects): only that
+    // tenant's organizations are exported, a player may belong to another tenant's.
+    String tenantId = injects.getFirst().getTenant().getId();
+    return organizationService.organizationsInTenant(this.getUsers(), this.getTeams(), tenantId);
   }
 
   @JsonProperty("inject_challenges")
@@ -151,8 +145,9 @@ public class InjectsFileExport extends FileExportBase {
       List<Inject> injects,
       ObjectMapper objectMapper,
       ChallengeService challengeService,
-      ArticleService articleService) {
-    super(objectMapper, challengeService, articleService);
+      ArticleService articleService,
+      OrganizationService organizationService) {
+    super(objectMapper, challengeService, articleService, organizationService);
     this.injects = injects;
   }
 
@@ -160,8 +155,10 @@ public class InjectsFileExport extends FileExportBase {
       List<Inject> injects,
       ObjectMapper objectMapper,
       ChallengeService challengeService,
-      ArticleService articleService) {
-    return new InjectsFileExport(injects, objectMapper, challengeService, articleService);
+      ArticleService articleService,
+      OrganizationService organizationService) {
+    return new InjectsFileExport(
+        injects, objectMapper, challengeService, articleService, organizationService);
   }
 
   @Override

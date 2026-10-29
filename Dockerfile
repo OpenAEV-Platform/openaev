@@ -1,4 +1,4 @@
-FROM node:24.21.0-alpine3.24 AS front-builder
+FROM node:24.22.1-alpine3.24 AS front-builder
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages
@@ -9,7 +9,7 @@ RUN yarn install
 COPY openaev-front /opt/openaev-build/openaev-front
 RUN yarn build
 
-FROM maven:3.9.16-eclipse-temurin-21-noble AS api-builder
+FROM maven:3.10.0-eclipse-temurin-21-noble AS api-builder
 
 WORKDIR /opt/openaev-build/openaev
 COPY openaev-build-services ./openaev-build-services
@@ -31,7 +31,11 @@ FROM eclipse-temurin:21.0.12_8-jre-noble AS app
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini && rm -rf /var/lib/apt/lists/*
+# Upgrade the base image's packages: it lags behind Ubuntu updates between two rebuilds.
+RUN DEBIAN_FRONTEND=noninteractive apt-get update -q \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 # Install Chromium and its system libraries for server-side report rendering. The boot jar uses
 # the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI (Spring Boot 3.x
@@ -39,6 +43,20 @@ COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-ap
 RUN DEBIAN_FRONTEND=noninteractive java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* \
     && chmod -R a+rX /ms-playwright
+RUN set -eux; \
+    sed -i -E 's|^(mozilla/emSign_.*\.crt)$|!\1|' /etc/ca-certificates.conf; \
+    update-ca-certificates --fresh; \
+    keytool -list -v -cacerts -storepass changeit > /tmp/cacerts.txt; \
+    sed -n 's/^Alias name: //p' /tmp/cacerts.txt | grep -i emsign > /tmp/emsign.txt || true; \
+    while IFS= read -r alias; do keytool -delete -noprompt -cacerts -storepass changeit -alias "$alias"; done < /tmp/emsign.txt; \
+    keytool -list -v -cacerts -storepass changeit > /tmp/cacerts.txt; \
+    grep -q '^Alias name: ' /tmp/cacerts.txt; \
+    if ls /etc/ssl/certs | grep -i emsign || grep -iE 'emsign|emudhra' /tmp/cacerts.txt; then exit 1; fi; \
+    rm /tmp/cacerts.txt /tmp/emsign.txt
+
+# Set by CI to the built commit, exposed in the platform settings
+ARG OPENAEV_COMMIT
+ENV OPENAEV_COMMIT=${OPENAEV_COMMIT}
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["java", "-jar", "openaev-api.jar"]

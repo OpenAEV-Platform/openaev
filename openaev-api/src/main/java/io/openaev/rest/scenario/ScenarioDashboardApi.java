@@ -66,7 +66,8 @@ public class ScenarioDashboardApi {
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardCountOnResourceId(scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardCountOnResourceId(
+        ctx, scenarioId, widgetId, parameters);
   }
 
   @PostMapping({
@@ -84,7 +85,7 @@ public class ScenarioDashboardApi {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.customDashboardService.dashboardAverageOnResourceId(
-        scenarioId, widgetId, parameters);
+        ctx, scenarioId, widgetId, parameters);
   }
 
   @PostMapping({
@@ -102,7 +103,7 @@ public class ScenarioDashboardApi {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.customDashboardService.dashboardSeriesOnResourceId(
-        scenarioId, widgetId, parameters);
+        ctx, scenarioId, widgetId, parameters);
   }
 
   @PostMapping({
@@ -119,7 +120,8 @@ public class ScenarioDashboardApi {
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody EntitiesPaginationInput input) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(scenarioId, widgetId, input);
+    return this.customDashboardService.dashboardEntitiesOnResourceId(
+        ctx, scenarioId, widgetId, input);
   }
 
   @PostMapping({
@@ -137,7 +139,7 @@ public class ScenarioDashboardApi {
       @PathVariable final String widgetId,
       @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
     return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
-        scenarioId, widgetId, input);
+        ctx, scenarioId, widgetId, input);
   }
 
   @PostMapping({
@@ -157,6 +159,6 @@ public class ScenarioDashboardApi {
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
     return this.customDashboardService.dashboardAttackPathsOnResourceId(
-        scenarioId, widgetId, parameters);
+        ctx, scenarioId, widgetId, parameters);
   }
 }

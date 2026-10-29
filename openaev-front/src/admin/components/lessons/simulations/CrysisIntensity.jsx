@@ -1,5 +1,4 @@
 import { TimelineOutlined } from '@mui/icons-material';
-import { Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 
@@ -32,14 +31,9 @@ const CrysisIntensity = ({ injects }) => {
     },
   ];
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        borderRadius: 1,
-        flex: 1,
-        overflow: 'hidden',
-      }}
-    >
+    /* No surface here: ConfigurationSection owns it now, with the library
+       header above it. Two Papers would nest — PAPER-GAP-INVENTORY §5.5. */
+    <>
       {injectsData.length > 0 ? (
         <Chart
           options={areaChartOptions(theme, true, nsdt, null, undefined)}
@@ -54,7 +48,7 @@ const CrysisIntensity = ({ injects }) => {
           message={t('No data to display or the simulation has not started yet')}
         />
       )}
-    </Paper>
+    </>
   );
 };
 

@@ -4,6 +4,7 @@ import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.model.EsBase;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -28,6 +29,16 @@ public final class EsIndexingUtils {
           "mapper_parsing_exception",
           "document_parsing_exception",
           "illegal_argument_exception");
+
+  /**
+   * Error types the engine answers a mapping update with when the existing index cannot take the
+   * new mapping - a field whose type changed, for instance. Elasticsearch and OpenSearch both use
+   * them, with a 400 status.
+   */
+  private static final Set<String> INCOMPATIBLE_MAPPING_ERROR_TYPES =
+      Set.of("illegal_argument_exception", "mapper_parsing_exception");
+
+  private static final int BAD_REQUEST = 400;
 
   /**
    * Sentinel cursor that requests a full reset of a model's index at the next startup: the engine
@@ -70,6 +81,13 @@ public final class EsIndexingUtils {
    */
   private static final Set<String> STARTUP_RESET_REQUESTS = ConcurrentHashMap.newKeySet();
 
+  /**
+   * Models whose in-place re-feed was requested in-process, by a Flyway migration applied during
+   * the startup in progress (see {@link #requestRefeedAtStartup}). Kept apart from {@link
+   * #STARTUP_RESET_REQUESTS}: a re-feed never wipes the index.
+   */
+  private static final Set<String> STARTUP_REFEED_REQUESTS = ConcurrentHashMap.newKeySet();
+
   private EsIndexingUtils() {}
 
   /**
@@ -78,6 +96,22 @@ public final class EsIndexingUtils {
    */
   public static boolean isPoisonError(String errorType) {
     return errorType != null && POISON_ERROR_TYPES.contains(errorType);
+  }
+
+  /**
+   * Whether the engine refused a mapping update because the existing index cannot take that
+   * mapping: only then may the index be reset to rebuild it with the current mapping. Every other
+   * failure - timeout, lost response, refused authorization, unavailable engine - says nothing
+   * about the mapping, and must never lead to deleting a populated index.
+   *
+   * @param status the HTTP status of the engine's answer
+   * @param errorType the error type of the engine's answer, when it has one
+   * @return true when the refusal is a confirmed mapping incompatibility
+   */
+  public static boolean isIncompatibleMappingError(int status, String errorType) {
+    return status == BAD_REQUEST
+        && errorType != null
+        && INCOMPATIBLE_MAPPING_ERROR_TYPES.contains(errorType);
   }
 
   /**
@@ -152,10 +186,50 @@ public final class EsIndexingUtils {
   }
 
   /**
-   * The cursor write of one sync round: the cursor the round read at its start ({@code null} when
-   * the row was missing) and the cursor it computed for the processed batch.
+   * Registers, in this process, an in-place re-feed of a model's index. Meant for a Flyway Java
+   * migration that moved the model's cursor back to epoch: the incremental sync then rewrites every
+   * document from PostgreSQL (bulk index = upsert), while the index stays complete throughout.
+   *
+   * <p>A re-feed is the rolling-deploy-safe choice when documents only need rewriting, not dropping
+   * - a change to how a document is built, for instance. Unlike a wipe, it never empties the index
+   * for the duration of the rebuild, and it has no "missing row" to lose to a pod still running. A
+   * reset ({@link #REINDEX_REQUESTED_CURSOR}) is still required when stale documents must
+   * disappear: a re-feed never deletes anything.
+   *
+   * <p>Pods still running a previous version take part in the re-feed with their own document
+   * building, and may overwrite the epoch cursor, so the pod that applied the migration re-asserts
+   * epoch once more after a delay ({@code IndexResetEpochReassertion}, which drains these
+   * registrations once the application is ready).
+   *
+   * @param modelName the engine model name (the {@code indexing_status_type})
    */
-  public record CursorAdvance(String modelName, Instant readCursor, Instant cursor) {}
+  public static void requestRefeedAtStartup(String modelName) {
+    STARTUP_REFEED_REQUESTS.add(modelName);
+  }
+
+  /**
+   * Returns the models whose re-feed was requested in-process ({@link #requestRefeedAtStartup}) and
+   * clears the registrations, so that each one is handed out once.
+   *
+   * @return the registered model names, possibly empty
+   */
+  public static Set<String> drainRefeedRequests() {
+    Set<String> drained = new HashSet<>();
+    for (String modelName : STARTUP_REFEED_REQUESTS) {
+      if (STARTUP_REFEED_REQUESTS.remove(modelName)) {
+        drained.add(modelName);
+      }
+    }
+    return drained;
+  }
+
+  /**
+   * The cursor write of one sync round: the cursor the round read at its start ({@code null} when
+   * the row was missing) and the cursor it computed for the processed batch. Both carry the keyset
+   * id alongside the timestamp: a keyset batch can advance on the id alone, so the id is part of
+   * the value the compare-and-set checks and writes.
+   */
+  public record CursorAdvance(String modelName, IndexingCursor readCursor, IndexingCursor cursor) {}
 
   /**
    * Persists the cursor of a sync round as a compare-and-set on the cursor the round read at its
@@ -179,11 +253,14 @@ public final class EsIndexingUtils {
       IndexingStatusRepository repository, CursorAdvance advance, Logger log) {
     int written =
         advance.readCursor() == null
-            ? repository.insertCursorIfAbsent(advance.modelName(), advance.cursor())
+            ? repository.insertCursorIfAbsent(
+                advance.modelName(), advance.cursor().timestamp(), advance.cursor().lastId())
             : repository.advanceCursorFrom(
                 advance.modelName(),
-                advance.readCursor(),
-                advance.cursor(),
+                advance.readCursor().timestamp(),
+                advance.readCursor().lastId(),
+                advance.cursor().timestamp(),
+                advance.cursor().lastId(),
                 REINDEX_REQUESTED_THRESHOLD);
     if (written == 0) {
       log.warn(
@@ -218,8 +295,8 @@ public final class EsIndexingUtils {
         + "'). The request is kept and retried at the next startup. Check the engine errors"
         + " logged above; to recover by hand, delete the index and its template in the engine and"
         + " restart the platform; to abandon the reset instead, set the model's cursor to epoch:"
-        + " UPDATE indexing_status SET indexing_status_indexing_date = to_timestamp(0)"
-        + " WHERE indexing_status_type = '"
+        + " UPDATE indexing_status SET indexing_status_indexing_date = to_timestamp(0),"
+        + " indexing_status_last_id = NULL WHERE indexing_status_type = '"
         + modelName
         + "' (INSERT that row when it is missing) - the index is then re-fed from epoch without"
         + " being wiped.";
@@ -296,5 +373,43 @@ public final class EsIndexingUtils {
       Instant cursor, Instant now, long graceWindowSeconds) {
     Instant maxSafeCursor = now.minusSeconds(Math.max(0, graceWindowSeconds));
     return cursor.isAfter(maxSafeCursor) ? maxSafeCursor : cursor;
+  }
+
+  /**
+   * Computes the next cursor for a keyset-paged handler.
+   *
+   * <p>Such a handler pages on the total order {@code (base_updated_at, base_id)}, so the last row
+   * of the batch is always a safe resume point: unlike {@link #computeNewCursor}, there is no
+   * boundary group to step back from, and the cursor advances by the full batch every round even
+   * when every row shares one timestamp.
+   *
+   * @param results the batch rows, ordered by ascending {@code (base_updated_at, base_id)}
+   * @return the last row's {@code (base_updated_at, base_id)}, or null when its timestamp is null
+   */
+  public static IndexingCursor computeKeysetCursor(List<? extends EsBase> results) {
+    EsBase last = results.getLast();
+    Instant boundary = last.getBase_updated_at();
+    if (boundary == null) {
+      return null;
+    }
+    return new IndexingCursor(boundary, last.getBase_id());
+  }
+
+  /**
+   * Applies {@link #capCursorToGraceWindow} to a keyset cursor.
+   *
+   * <p>When the cap moves the timestamp, the last id belongs to a later row and must be dropped:
+   * with a null id the fetch degrades to {@code updated_at >= cappedTs} and idempotently re-upserts
+   * the whole boundary group, which is the safe behaviour. Keeping the id would resume after a row
+   * that sits beyond the capped instant and skip everything in between.
+   *
+   * <p>Dropping the id also suspends keyset progress: a group of rows sharing one timestamp still
+   * inside the window re-serves its first batch every round, and only advances once that timestamp
+   * ages past the window. That is a stall, not the permanent skip this cursor exists to fix.
+   */
+  public static IndexingCursor capToGraceWindow(
+      IndexingCursor cursor, Instant now, long graceWindowSeconds) {
+    Instant capped = capCursorToGraceWindow(cursor.timestamp(), now, graceWindowSeconds);
+    return capped.equals(cursor.timestamp()) ? cursor : new IndexingCursor(capped, null);
   }
 }

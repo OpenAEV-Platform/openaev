@@ -33,6 +33,9 @@ public class ExecutorOutput extends ConnectorOutput {
   @JsonProperty("executor_doc")
   private String doc;
 
+  @JsonProperty("executor_enterprise")
+  private boolean enterprise;
+
   @JsonProperty("existing_executor")
   private boolean existing;
 

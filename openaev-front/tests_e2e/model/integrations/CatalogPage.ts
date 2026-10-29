@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import { TIMEOUT } from '../../utils/constants';
 class CatalogPage {
@@ -31,6 +31,7 @@ class CatalogPage {
 
   async searchConnector(text: string): Promise<void> {
     await this.searchInput.fill(text);
+    await expect.poll(() => new URL(this.page.url()).searchParams.get('search'), { timeout: TIMEOUT }).toBe(text);
   }
 
   /**
@@ -45,7 +46,7 @@ class CatalogPage {
 
   /** "Display name" field in the CreateConnectorInstanceDrawer form */
   get displayNameInput(): Locator {
-    return this.page.getByLabel('Display name*', { exact: true });
+    return this.page.getByLabel('Display name', { exact: true });
   }
 
   /** Submit button (labelled "Create") inside the connector-instance form */

@@ -1,4 +1,4 @@
-import { type FunctionComponent, useCallback, useContext } from 'react';
+import { type FunctionComponent, useCallback } from 'react';
 
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import useDialog from '../../../../components/common/dialog/useDialog';
@@ -6,7 +6,7 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import type { RoleInput, RoleOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED } from '../../../../utils/permissions/types';
 import RoleForm from './RoleForm';
 import { useRoleScope } from './RoleScopeContext';
@@ -29,7 +29,7 @@ const RoleCreate: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const { open, handleOpen, handleClose } = useDialog();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { create, schemaKey, subject } = useRoleScope();
 
   const canManage = ability.can(ACTIONS.MANAGE, subject);

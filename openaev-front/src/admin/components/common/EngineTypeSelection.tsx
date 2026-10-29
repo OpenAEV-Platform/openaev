@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Card, CardActionArea, CardContent, Stack, Tooltip, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -16,6 +17,7 @@ const DIAGRAM_HEIGHT = 60;
  * Drawn inline as SVG so it scales sharply and follows the palette / theme mode.
  */
 const ChainingDiagram: FunctionComponent = () => {
+  const { t } = useFormatter();
   const theme = useTheme();
   const accent = theme.palette.primary.main;
   const muted = theme.palette.text.disabled;
@@ -27,7 +29,7 @@ const ChainingDiagram: FunctionComponent = () => {
       viewBox={`0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`}
       fill="none"
       role="img"
-      aria-label="Chaining flow diagram"
+      aria-label={t('Chaining flow diagram')}
       style={{ filter: `drop-shadow(0 1px 3px ${alpha(accent, 0.3)})` }}
     >
       <defs>
@@ -57,6 +59,7 @@ const ChainingDiagram: FunctionComponent = () => {
  * timeline with tick marks, conveying execution at fixed scheduled intervals.
  */
 const TimeBasedDiagram: FunctionComponent = () => {
+  const { t } = useFormatter();
   const theme = useTheme();
   const accent = theme.palette.secondary.main;
   const line = theme.palette.text.disabled;
@@ -69,7 +72,7 @@ const TimeBasedDiagram: FunctionComponent = () => {
       viewBox={`0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`}
       fill="none"
       role="img"
-      aria-label="Time-based schedule diagram"
+      aria-label={t('Time-based schedule diagram')}
       style={{ filter: `drop-shadow(0 1px 3px ${alpha(accent, 0.25)})` }}
     >
       {/* Timeline. */}
@@ -156,7 +159,8 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
             variant="outlined"
             sx={{
               'position': 'relative',
-              'borderColor': isSelected ? theme.palette.primary.main : undefined,
+              // A choice card carries no outline: only the selected one does.
+              'borderColor': isSelected ? theme.palette.primary.main : 'transparent',
               'borderWidth': isSelected ? 2 : 1,
               'opacity': isDisabled ? 0.6 : 1,
               'transition': 'border-color 0.2s, opacity 0.2s',
@@ -165,18 +169,21 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
           >
             {/* Info affordance: sits above the action area so hovering it shows the
                 explanation without triggering the card selection. */}
-            <Tooltip title={option.description} placement="top">
-              <InfoOutlined
-                sx={{
-                  position: 'absolute',
-                  top: theme.spacing(1),
-                  right: theme.spacing(1),
-                  zIndex: 1,
-                  fontSize: 18,
-                  color: 'text.secondary',
-                  cursor: 'help',
-                }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InfoOutlined
+                  sx={{
+                    position: 'absolute',
+                    top: theme.spacing(1),
+                    right: theme.spacing(1),
+                    zIndex: 1,
+                    fontSize: 18,
+                    color: 'text.secondary',
+                    cursor: 'help',
+                  }}
+                />
+              </TooltipTrigger>
+              {option.description && <TooltipContent side="top">{option.description}</TooltipContent>}
             </Tooltip>
             <CardActionArea
               onClick={() => handleCardClick(option.type)}
@@ -203,7 +210,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
                   <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                     {option.title}
                   </Typography>
-                  {isChaining && !isEnterpriseEdition && <EEChip clickable />}
+                  {isChaining && !isEnterpriseEdition && <EEChip />}
                 </Stack>
                 {/* Illustrative workflow diagram (crisp inline SVG). */}
                 <Stack sx={{

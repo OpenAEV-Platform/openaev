@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, TextField as MuiTextField, Typography } from '@mui/material';
-import { type FunctionComponent, useContext } from 'react';
+import { Box, Typography } from '@mui/material';
+import { type FunctionComponent } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -9,12 +9,13 @@ import { type SecurityPlatformHelper } from '../../../../../../actions/assets/as
 import { fetchSecurityPlatforms } from '../../../../../../actions/assets/securityPlatform-actions';
 import { updateInjectExpectation } from '../../../../../../actions/Exercise';
 import SecurityPlatformField from '../../../../../../components/fields/SecurityPlatformField';
+import TextFieldFds from '../../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';
 import { type InjectExpectationResult, type SecurityPlatform } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import { zodImplement } from '../../../../../../utils/Zod';
@@ -33,7 +34,7 @@ interface FormProps {
 const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps> = ({ expectation, result, sourceIds = [], onUpdate }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { securityPlatformsMap }: { securityPlatformsMap: Record<string, SecurityPlatform> }
     = useHelper((helper: SecurityPlatformHelper) => ({ securityPlatformsMap: helper.getSecurityPlatformsMap() }));
   useDataLoader(() => {
@@ -113,15 +114,13 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
           />
         )}
       />
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Score')}
         type="number"
         error={!!errors.expectation_score}
         helperText={errors.expectation_score?.message ?? `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
-        slotProps={{ htmlInput: { ...register('expectation_score', { valueAsNumber: true }) } }}
-        sx={{ marginTop: 2.5 }}
+        {...{ ...register('expectation_score', { valueAsNumber: true }) }}
+        style={{ marginTop: 20 }}
       />
 
       {appliesToAllAgents && (

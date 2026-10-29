@@ -1,11 +1,11 @@
-import { Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type ExpectationResultsByType, type InjectResultOutput } from '../../../../utils/api-types';
-import { expectationTypeIcon } from '../../common/ExpectationIconByType';
+import { expectationResultColor, expectationTypeIcon } from '../../common/ExpectationIconByType';
 import { expectationResultTypes } from '../../common/injects/expectations/Expectation';
 
 // Human tooltip label per expectation type (icons come from the shared set).
@@ -36,17 +36,6 @@ const AtomicTestingResult: FunctionComponent<Props> = ({ expectations, injectId 
   const { t } = useFormatter();
   const theme = useTheme();
   const { classes } = useStyles();
-  const getColor = (result: string | undefined): string => {
-    const colorMap: Record<string, string> = {
-      SUCCESS: 'rgb(107, 235, 112)',
-      PARTIAL: 'rgb(245, 166, 35)',
-      PENDING: 'rgb(128,128,128)',
-      FAILED: 'rgb(220, 81, 72)',
-      UNKNOWN: 'rgba(128,127,127,0.37)',
-    };
-    return colorMap[result ?? ''] ?? 'rgb(245, 166, 35)';
-  };
-
   if (!expectations || expectations.length === 0) {
     return (
       <div className={classes.inline} id={`inject_expectations_${injectId}`}>
@@ -58,19 +47,22 @@ const AtomicTestingResult: FunctionComponent<Props> = ({ expectations, injectId 
   return (
     <div className={classes.inline} id={`inject_expectations_${injectId}`}>
       {expectations.sort((a, b) => expectationResultTypes.indexOf(a.type) - expectationResultTypes.indexOf(b.type)).map((expectation, index) => {
-        const color = getColor(expectation.avgResult);
+        const color = expectationResultColor(expectation.avgResult);
         const IconComponent = expectationTypeIcon(expectation.type);
         const tooltipLabel = t(EXPECTATION_TYPE_LABELS[expectation.type] ?? expectation.type);
 
         return (
-          <Tooltip key={index} title={tooltipLabel}>
-            <IconComponent
-              style={{
-                color,
-                marginRight: theme.spacing(1),
-                fontSize: 22,
-              }}
-            />
+          <Tooltip key={index}>
+            <TooltipTrigger asChild>
+              <IconComponent
+                style={{
+                  color,
+                  marginRight: theme.spacing(1),
+                  fontSize: 22,
+                }}
+              />
+            </TooltipTrigger>
+            {tooltipLabel && <TooltipContent>{tooltipLabel}</TooltipContent>}
           </Tooltip>
         );
       })}

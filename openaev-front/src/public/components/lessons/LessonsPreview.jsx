@@ -1,4 +1,5 @@
-import { Button, GridLegacy, Paper, Typography } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { Form } from 'react-final-form';
@@ -73,32 +74,32 @@ const LessonsPreview = (props) => {
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && source.isPlayerViewAvailable && (
           <Button
-            color="secondary"
-            variant="outlined"
-            component={Link}
-            to={`/lessons/${source.type}/${source.id}?user=${source.finalUserId}&preview=false`}
+            asChild
+            priority="secondary"
             style={{
               position: 'absolute',
               top: 20,
               right: 20,
             }}
           >
-            {t('Switch to player mode')}
+            <Link to={`/lessons/${source.type}/${source.id}?user=${source.finalUserId}&preview=false`}>
+              {t('Switch to player mode')}
+            </Link>
           </Button>
         )}
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="primary"
-            variant="outlined"
-            component={Link}
-            to={`/admin/${source.type}s/${source.id}/lessons`}
+            asChild
+            priority="secondary"
             style={{
               position: 'absolute',
               top: 20,
               left: 20,
             }}
           >
-            {t('Back to administration')}
+            <Link to={`/admin/${source.type}s/${source.id}/lessons`}>
+              {t('Back to administration')}
+            </Link>
           </Button>
         )}
         <div className={classes.container}>
@@ -164,12 +165,12 @@ const LessonsPreview = (props) => {
                           classes={{ root: classes.paper }}
                           style={{ marginTop: 14 }}
                         >
-                          <GridLegacy
+                          <Grid
                             container
                             spacing={3}
-                            style={{ marginTop: -10 }}
+                            style={{ marginTop: 14 }}
                           >
-                            <GridLegacy item xs={3}>
+                            <Grid size={3}>
                               <Typography
                                 variant="h4"
                                 style={{ marginBottom: 15 }}
@@ -185,8 +186,8 @@ const LessonsPreview = (props) => {
                                 {question.lessons_question_explanation
                                   || t('No explanation')}
                               </Typography>
-                            </GridLegacy>
-                            <GridLegacy item xs={3}>
+                            </Grid>
+                            <Grid size={3}>
                               <Typography
                                 variant="h4"
                                 style={{ marginBottom: 15 }}
@@ -205,8 +206,8 @@ const LessonsPreview = (props) => {
                                 max={100}
                                 defaultValue={0}
                               />
-                            </GridLegacy>
-                            <GridLegacy item xs={3}>
+                            </Grid>
+                            <Grid size={3}>
                               <Typography variant="h4">
                                 {t('What worked well')}
                               </Typography>
@@ -216,10 +217,9 @@ const LessonsPreview = (props) => {
                                 label={t('Comment (optional)')}
                                 multiline
                                 rows={2}
-                                fullWidth
                               />
-                            </GridLegacy>
-                            <GridLegacy item xs={3}>
+                            </Grid>
+                            <Grid size={3}>
                               <Typography variant="h4">
                                 {t('What didn\'t work well')}
                               </Typography>
@@ -228,11 +228,10 @@ const LessonsPreview = (props) => {
                                 name={`${question.lessonsquestion_id}_negative`}
                                 label={t('Comment (optional)')}
                                 multiline
-                                fullWidth
                                 rows={2}
                               />
-                            </GridLegacy>
-                          </GridLegacy>
+                            </Grid>
+                          </Grid>
                         </Paper>
                       );
                     })}
@@ -244,7 +243,7 @@ const LessonsPreview = (props) => {
                 textAlign: 'center',
               }}
               >
-                <Button color="secondary" variant="contained" disabled>
+                <Button type="button" disabled>
                   {t('Submit')}
                 </Button>
               </div>

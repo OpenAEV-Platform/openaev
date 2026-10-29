@@ -9,7 +9,7 @@ import {
 } from 'react-hook-form';
 
 import RichTextField from '../../../../../components/fields/RichTextField';
-import SelectFieldController from '../../../../../components/fields/SelectFieldController';
+import SelectFieldController, { type Item } from '../../../../../components/fields/SelectFieldController';
 import SeparatorFieldController from '../../../../../components/fields/SeparatorFieldController';
 import SwitchFieldController from '../../../../../components/fields/SwitchFieldController';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
@@ -22,11 +22,13 @@ import InjectEndpointsList from './endpoints/InjectEndpointsList';
 interface Props {
   field: EnhancedContractElement;
   readOnly?: boolean;
+  placeholder?: string;
 }
 
 const InjectContentFieldComponent = ({
   field,
   readOnly = false,
+  placeholder,
 }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -95,7 +97,7 @@ const InjectContentFieldComponent = ({
       case 'select':
       case 'choice':
       case 'dependency-select': {
-        let choices = [];
+        let choices: Item[];
 
         const makeChoiceItems = (entries: [string, string][]) =>
           entries.toSorted((a, b) => a[1].localeCompare(b[1]))
@@ -117,7 +119,7 @@ const InjectContentFieldComponent = ({
           <SelectFieldController
             name={field.key}
             label={t(label)}
-            items={choices as ChoiceItem[]}
+            items={choices}
             multiple={field.cardinality === 'n'}
             disabled={isSubmitting || readOnly}
             required={field.settings?.required}
@@ -166,6 +168,7 @@ const InjectContentFieldComponent = ({
           <TextFieldController
             name={field.key}
             label={t(label)}
+            placeholder={placeholder}
             disabled={isSubmitting || readOnly}
             multiline={field.type === 'textarea'}
             rows={field.type === 'textarea' ? (field.settings?.rows ?? 10) : 1}

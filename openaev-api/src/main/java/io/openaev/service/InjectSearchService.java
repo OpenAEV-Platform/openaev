@@ -165,6 +165,8 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
+    Expression<String[]> secretReferenceIdsExpression =
+        createJoinArrayAggOnId(cb, injectRoot, "secretReferences");
     Expression<String[]> domainsContractIdExpression =
         createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
@@ -183,17 +185,20 @@ public class InjectSearchService {
         teamIdsExpression.alias("inject_teams"),
         assetIdsExpression.alias("inject_assets"),
         assetGroupIdsExpression.alias("inject_asset_groups"),
+        secretReferenceIdsExpression.alias("inject_secret_references"),
         injectorJoin.get("type").alias("inject_type"),
         domainsContractIdExpression.alias("injector_contract_domains"),
         injectDependency.alias("inject_depends_on"));
 
-    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
+    // GROUP BY: the contract is selected whole, so grouping by the join expands to all its
+    // columns. Its primary key alone is not enough once the table is tenant-active, because the
+    // inspector then joins a derived table, which carries no key to derive the other columns from.
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
             injectExerciseJoin.get("id"),
             injectScenarioJoin.get("id"),
-            injectorContractJoin.get("compositeId"),
+            injectorContractJoin,
             injectorJoin.get("id"),
             injectorJoin.get("type"),
             injectDependency.get("id")));
@@ -279,6 +284,22 @@ public class InjectSearchService {
                                         AssetGroup assetGroup = new AssetGroup();
                                         assetGroup.setId(id);
                                         return assetGroup;
+                                      })
+                                  .collect(Collectors.toList()))
+                      .orElse(new ArrayList<>()));
+              // The timeline sends this light inject back on drag / reconnect: omitting the
+              // secret references would wipe them from the inject on the next update.
+              inject.setSecretReferences(
+                  ofNullable(tuple.get("inject_secret_references", String[].class))
+                      .map(
+                          ids ->
+                              Arrays.stream(ids)
+                                  .distinct()
+                                  .map(
+                                      id -> {
+                                        SecretReference secretReference = new SecretReference();
+                                        secretReference.setId(id);
+                                        return secretReference;
                                       })
                                   .collect(Collectors.toList()))
                       .orElse(new ArrayList<>()));
@@ -684,14 +705,20 @@ public class InjectSearchService {
         domainsContractIdExpression.alias("injector_contract_domains"),
         assetGroupIdsExpression.alias("inject_asset_groups"));
 
-    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
+    // GROUP BY: every projected contract column is grouped, not only the primary key, because
+    // once the table is tenant-active the inspector joins a derived table, which carries no key
+    // to derive the other columns from.
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
             injectorContractJoin.get("compositeId"),
+            injectorContractJoin.get("content"),
+            injectorContractJoin.get("platforms"),
+            injectorContractJoin.get("labels"),
             injectorJoin.get("id"),
             injectorJoin.get("type"),
             payloadJoin.get("id"),
+            payloadJoin.get("type"),
             collectorTypeJoin.get("name"),
             statusJoin.get("id"),
             exerciseJoin.get("id")));

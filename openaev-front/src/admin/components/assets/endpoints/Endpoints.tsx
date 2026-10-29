@@ -1,15 +1,7 @@
+import { Checkbox } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Checkbox,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ToggleButtonGroup,
-} from '@mui/material';
-import { type CSSProperties, useContext, useState } from 'react';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { type CSSProperties, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -36,7 +28,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
@@ -73,12 +65,18 @@ const Endpoints = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  // Gates the Markings column (and its data fetch below) so the flag-off platform looks exactly as
-  // it does today — mirrors the settings.config.tsx pattern used for the Marking Definitions menu.
+  // Gates the Markings column/filter (and the data fetch below) so a flag-off or unauthorized
+  // platform looks exactly as it did before this feature — mirrors the settings.config.tsx pattern
+  // used for the Marking Definitions menu.
   const markingEnabled = isFeatureEnabled('MARKING');
+  const ability = useAbility();
+  const canAccessMarkings = markingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
-  // the flag is off so the platform issues no marking-definitions request at all.
-  const markingDefinitions = useMarkingDefinitions({ skip: !markingEnabled });
+  // either gate is closed so the platform issues no marking-definitions request at all.
+  const markingDefinitions = useMarkingDefinitions({
+    skip: !markingEnabled,
+    assignableOnly: true,
+  });
 
   // Load the executors once for the whole page; the per-row Executors column
   // reads them from the store (previously each row fetched them, firing
@@ -101,9 +99,11 @@ const Endpoints = () => {
     'asset_cloud_provider',
     'asset_internet_facing',
     'asset_tags',
+    ...(canAccessMarkings ? ['asset_markings'] : []),
   ];
 
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
+  const [reloadCount, setReloadCount] = useState<number>(0);
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('asset', buildSearchPagination({
     sorts: initSorting('asset_name'),
     textSearch: search,
@@ -126,7 +126,6 @@ const Endpoints = () => {
   };
 
   // Bulk selection
-  const ability = useContext(AbilityContext);
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
   const {
     selectedElements,
@@ -178,7 +177,15 @@ const Endpoints = () => {
         }}
         >
           <AssetCategoryIcon category={endpoint.asset_category} fontSize="small" />
-          {endpoint.asset_category ? t(humanizeEnum(endpoint.asset_category)) : '-'}
+          <span style={{
+            width: 'fit-content',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          >
+            {endpoint.asset_category ? t(humanizeEnum(endpoint.asset_category)) : '-'}
+          </span>
         </span>
       ),
     },
@@ -224,8 +231,8 @@ const Endpoints = () => {
       isSortable: false,
       value: (endpoint: EndpointOutput) => <ItemTags variant="list" tags={endpoint.asset_tags ?? []} />,
     },
-    // Rendered only when MARKING is enabled — with the flag off, the list must look exactly as it
-    // did before this column was added.
+    // Rendered only when MARKING is enabled and the user can access marking definitions — with
+    // either gate closed, the list must look exactly as it did before this column was added.
     ...(markingEnabled
       ? [{
           field: 'asset_markings',
@@ -256,19 +263,39 @@ const Endpoints = () => {
         fetch={searchEndpointsToLoad}
         searchPaginationInput={searchPaginationInput}
         setContent={setEndpoints}
+        reloadContentCount={reloadCount}
         entityPrefix="asset"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
-            <ToggleButtonGroup value="fake" exclusive>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
+            {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
+                which announced a group of choices that never existed. */}
+            <Box sx={{
+              display: 'flex',
+              gap: 1,
+            }}
+            >
               <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
                 <ImportUploaderEndpoints />
               </Can>
-            </ToggleButtonGroup>
+            </Box>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-              <EndpointCreation onCreate={result => setEndpoints([result as EndpointOutput, ...endpoints])} agentless={true} />
+              <EndpointCreation
+                onCreate={(result) => {
+                  setEndpoints([result as EndpointOutput, ...endpoints]);
+                  queryableHelpers.paginationHelpers.incrementTotalElements(1);
+                }}
+                onAiTargetCreate={() => setReloadCount(count => count + 1)}
+                agentless={true}
+              />
             </Can>
           </Box>
         )}
@@ -289,10 +316,9 @@ const Endpoints = () => {
           {canManage && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -340,7 +366,10 @@ const Endpoints = () => {
                         endpoint={{ ...endpoint }}
                         agentless={endpoint.asset_agents?.length === 0}
                         onUpdate={result => setEndpoints(endpoints.map(e => (e.asset_id !== result.asset_id ? e : result as EndpointOutput)))}
-                        onDelete={result => setEndpoints(endpoints.filter(e => (e.asset_id !== result)))}
+                        onDelete={(result) => {
+                          setEndpoints(endpoints.filter(e => (e.asset_id !== result)));
+                          queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                        }}
                       />
                     )}
                     disablePadding
@@ -352,12 +381,11 @@ const Endpoints = () => {
                           onClick={event => onToggleEntity(endpoint, event)}
                         >
                           <Checkbox
-                            edge="start"
+                            aria-label={endpoint.asset_name}
                             checked={
                               (selectAll && !(endpoint.asset_id in (deSelectedElements || {})))
                               || endpoint.asset_id in (selectedElements || {})
                             }
-                            disableRipple
                           />
                         </ListItemIcon>
                       )}

@@ -38,10 +38,12 @@ const InjectTestPopover: FunctionComponent<Props> = ({
   const handleCloseDelete = () => setOpenDelete(false);
   const submitDelete = () => {
     if (deleteInjectTest) {
-      deleteInjectTest(contextId, injectTest.status_id);
-      if (onDelete) {
-        onDelete(injectTest.status_id!);
-      }
+      // Notify once the test is gone server side, so a refetch by the caller no longer returns it
+      deleteInjectTest(contextId, injectTest.status_id).then(() => {
+        if (onDelete) {
+          onDelete(injectTest.status_id!);
+        }
+      });
     }
     handleCloseDelete();
   };

@@ -17,6 +17,7 @@ import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -24,6 +25,7 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import jakarta.persistence.EntityManager;
@@ -70,6 +72,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
+  @Autowired private InjectorFixture injectorFixture;
   @Autowired private EntityManager entityManager;
 
   @Autowired private ComchecksExecutionJob comchecksExecutionJob;
@@ -77,11 +80,13 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private AgentRepository agentRepository;
   @Autowired private PlatformTransactionManager transactionManager;
   @MockitoSpyBean private ManagerFactory managerFactory;
+  @MockitoSpyBean private InjectStatusService injectStatusService;
 
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoSpyBean private HealthCheckUtils healthCheckUtils;
@@ -108,6 +113,19 @@ class InjectsExecutionJobTest extends IntegrationTest {
    */
   private void inTransaction(Runnable work) {
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
+  }
+
+  /** Removes the committed simulation and scenario of a scheduled-start test. */
+  private void sweepScheduledLaunch(String exerciseId, String scenarioId) {
+    inTransaction(
+        () -> {
+          exerciseRepository.deleteById(exerciseId);
+          if (scenarioId != null) {
+            scenarioRepository.deleteById(scenarioId);
+          }
+        });
+    exerciseComposer.reset();
+    scenarioComposer.reset();
   }
 
   /** Drops any committed status row for an inject; these outlive the entity association. */
@@ -220,33 +238,45 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
   @Test
   @DisplayName("buildComcheckEmail should set injector from email contract on the inject")
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void givenComcheckNeedingExecution_shouldBuildInjectWithInjectorSet()
       throws JobExecutionException {
     // -- ARRANGE --
-    // Ensure the email injector contract exists in the database
-    injectorContractFixture.getWellKnownSingleEmailContract();
+    // The job opens its own scoped transactions, so the rows are committed here and swept below.
+    String[] ids = new String[2]; // exerciseId, comcheckId
+    inTransaction(
+        () -> {
+          InjectorContract emailContract =
+              injectorContractFixture.getWellKnownSingleEmailContract();
+          Injector emailInjector = injectorFixture.getWellKnownEmailInjector(true);
+          if (emailContract.getInjectors().stream()
+              .noneMatch(injector -> injector.getId().equals(emailInjector.getId()))) {
+            emailContract.addInjector(emailInjector);
+          }
 
-    Exercise exercise = ExerciseFixture.getExercise();
-    exercise.setStart(Instant.now().minus(1, ChronoUnit.MINUTES));
-    Exercise exerciseSaved = exerciseService.createExercise(exercise);
+          Exercise exercise = ExerciseFixture.getExercise();
+          exercise.setStart(Instant.now().minus(1, ChronoUnit.MINUTES));
+          Exercise exerciseSaved = exerciseService.createExercise(exercise);
+          ids[0] = exerciseSaved.getId();
 
-    User user = userRepository.findAll().getFirst();
+          User user = userRepository.findAll().getFirst();
 
-    Comcheck comcheck = new Comcheck();
-    comcheck.setName("Test comcheck");
-    comcheck.setStart(Instant.now().minus(1, ChronoUnit.HOURS));
-    comcheck.setEnd(Instant.now().plus(1, ChronoUnit.HOURS));
-    comcheck.setState(Comcheck.COMCHECK_STATUS.RUNNING);
-    comcheck.setSubject("Comcheck subject");
-    comcheck.setMessage("Comcheck message");
-    comcheck.setExercise(exerciseSaved);
+          Comcheck comcheck = new Comcheck();
+          comcheck.setName("Test comcheck");
+          comcheck.setStart(Instant.now().minus(1, ChronoUnit.HOURS));
+          comcheck.setEnd(Instant.now().plus(1, ChronoUnit.HOURS));
+          comcheck.setState(Comcheck.COMCHECK_STATUS.RUNNING);
+          comcheck.setSubject("Comcheck subject");
+          comcheck.setMessage("Comcheck message");
+          comcheck.setExercise(exerciseSaved);
 
-    ComcheckStatus status = new ComcheckStatus(user);
-    status.setComcheck(comcheck);
-    // lastSent = null, receiveDate = null => matches thatNeedExecution()
-    comcheck.setComcheckStatus(new ArrayList<>(List.of(status)));
-    comcheckRepository.save(comcheck);
-    entityManager.flush();
+          ComcheckStatus status = new ComcheckStatus(user);
+          status.setComcheck(comcheck);
+          // lastSent = null, receiveDate = null => matches thatNeedExecution()
+          comcheck.setComcheckStatus(new ArrayList<>(List.of(status)));
+          ids[1] = comcheckRepository.save(comcheck).getId();
+          entityManager.flush();
+        });
 
     // Mock the email executor to capture the ExecutableInject
     io.openaev.executors.Injector mockEmailExecutor = mock(io.openaev.executors.Injector.class);
@@ -265,9 +295,17 @@ class InjectsExecutionJobTest extends IntegrationTest {
     verify(mockEmailExecutor).executeInjection(captor.capture());
 
     Inject emailInject = captor.getValue().getInjection().getInject();
-    assertNotNull(
-        emailInject.getInjectorContract().orElse(null), "Injector contract should be set");
-    assertNotNull(emailInject.getInjector(), "Injector should be set from the email contract");
+    try {
+      assertNotNull(
+          emailInject.getInjectorContract().orElse(null), "Injector contract should be set");
+      assertNotNull(emailInject.getInjector(), "Injector should be set from the email contract");
+    } finally {
+      inTransaction(
+          () -> {
+            comcheckRepository.deleteById(ids[1]);
+            exerciseRepository.deleteById(ids[0]);
+          });
+    }
   }
 
   @Nested
@@ -277,22 +315,29 @@ class InjectsExecutionJobTest extends IntegrationTest {
     @Test
     @DisplayName(
         "given scheduled simulation from scenario should log SCHEDULED_LAUNCH with scenario context")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void given_scheduledSimulationFromScenario_should_logScheduledLaunchWithScenarioContext() {
       // Arrange
-      Scenario scenario =
-          scenarioComposer
-              .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
-              .persist()
-              .get();
+      // The scheduled start opens its own scoped transactions: the rows are committed here and
+      // swept below.
+      Scenario scenario = ScenarioFixture.createDefaultIncidentResponseScenario();
       Exercise exercise =
           ExerciseFixture.createDefaultIncidentResponseExercise(Instant.now().minusSeconds(60));
-      exercise.setScenario(scenario);
-      exerciseComposer.forExercise(exercise).persist();
-      entityManager.flush();
+      inTransaction(
+          () -> {
+            scenarioComposer.forScenario(scenario).persist();
+            exercise.setScenario(scenario);
+            exerciseComposer.forExercise(exercise).persist();
+            entityManager.flush();
+          });
       clearInvocations(auditLogger);
 
       // Act
-      job.autoStartDueExercises();
+      try {
+        job.autoStartDueExercises();
+      } finally {
+        sweepScheduledLaunch(exercise.getId(), scenario.getId());
+      }
 
       // Assert
       ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
@@ -315,17 +360,25 @@ class InjectsExecutionJobTest extends IntegrationTest {
     @Test
     @DisplayName(
         "given scheduled simulation without scenario should log SCHEDULED_LAUNCH without scenario context")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void
         given_scheduledSimulationWithoutScenario_should_logScheduledLaunchWithoutScenarioContext() {
       // Arrange
       Exercise exercise =
           ExerciseFixture.createDefaultIncidentResponseExercise(Instant.now().minusSeconds(60));
-      exerciseComposer.forExercise(exercise).persist();
-      entityManager.flush();
+      inTransaction(
+          () -> {
+            exerciseComposer.forExercise(exercise).persist();
+            entityManager.flush();
+          });
       clearInvocations(auditLogger);
 
       // Act
-      job.autoStartDueExercises();
+      try {
+        job.autoStartDueExercises();
+      } finally {
+        sweepScheduledLaunch(exercise.getId(), null);
+      }
 
       // Assert
       ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
@@ -399,6 +452,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
         clearInvocations(auditLogger);
         doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+        doNothing().when(injectStatusService).deleteInjectAuthorisationIfExecutionEnded(any());
 
         // Act
         job.executeInject(getExecutableInject(ids[1]));
@@ -475,6 +529,9 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
               InjectorContract injectorContract =
                   injectorContractFixture.getWellKnownSingleEmailContract();
+              Injector emailInjector = injectorFixture.getWellKnownEmailInjector(true);
+              injectorContract.addInjector(emailInjector);
+
               Inject inject =
                   injectComposer
                       .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
@@ -482,6 +539,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
                       .persist()
                       .get();
               inject.setExercise(exercise);
+              inject.setInjector(emailInjector);
               injectRepository.save(inject);
               entityManager.flush();
 
@@ -492,6 +550,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
         clearInvocations(auditLogger);
         doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+        doNothing().when(injectStatusService).deleteInjectAuthorisationIfExecutionEnded(any());
 
         // Act
         job.executeInject(getExecutableInject(ids[1]));
@@ -502,6 +561,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
         List<String> teamIds =
             (List<String>) targetResolutionEvent.getContextData().get("team_ids");
         assertThat(teamIds).contains(ids[2]);
+        verify(injectStatusService, atLeastOnce()).deleteInjectAuthorisationIfExecutionEnded(any());
       } finally {
         inTransaction(() -> exerciseRepository.deleteById(ids[0]));
         exerciseComposer.reset();

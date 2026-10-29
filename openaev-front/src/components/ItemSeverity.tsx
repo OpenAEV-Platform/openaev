@@ -1,49 +1,5 @@
-﻿import { Chip } from '@mui/material';
+﻿import { Chip, type ChipSeverity } from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
-
-const useStyles = makeStyles()(() => ({
-  chip: {
-    fontSize: 12,
-    height: 25,
-    marginRight: 7,
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 100,
-  },
-  chipInList: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 100,
-  },
-}));
-
-const inlineStyles = {
-  green: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
-  },
-  blue: {
-    backgroundColor: 'rgba(92, 123, 245, 0.08)',
-    color: '#5c7bf5',
-  },
-  red: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
-  },
-  orange: {
-    backgroundColor: 'rgba(255, 152, 0, 0.08)',
-    color: '#ff9800',
-  },
-  blueGrey: {
-    backgroundColor: 'rgba(96, 125, 139, 0.08)',
-    color: '#607d8b',
-    fontStyle: 'italic',
-  },
-};
 
 interface ItemSeverityProps {
   label: string;
@@ -51,31 +7,27 @@ interface ItemSeverityProps {
   variant?: 'inList';
 }
 
-const computeSeverityStyle = (severity: string | undefined | null) => {
+const computeSeverity = (severity: string | undefined | null): ChipSeverity => {
   switch (severity) {
     case 'low':
-      return inlineStyles.green;
+      return 'low';
     case 'medium':
-      return inlineStyles.blue;
+      return 'info';
     case 'high':
-      return inlineStyles.orange;
+      return 'high';
     case 'critical':
-      return inlineStyles.red;
+      return 'critical';
     default:
-      return inlineStyles.blueGrey;
+      return 'neutral';
   }
 };
 
 const ItemSeverity: FunctionComponent<ItemSeverityProps> = ({
   label,
   severity,
-  variant,
 }) => {
-  const { classes } = useStyles();
-  const style = variant === 'inList' ? classes.chipInList : classes.chip;
-  const classStyle = computeSeverityStyle(severity);
   return (
-    <Chip classes={{ root: style }} style={classStyle} label={label} />
+    <Chip severity={computeSeverity(severity)} label={label} />
   );
 };
 

@@ -257,7 +257,7 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
     sseClient.addEventListener('bulk-operation', (event) => {
       // A malformed payload must never break the SSE processing of this tab: skip it, the
       // periodic seed endpoint reconciles the indicator anyway.
-      let justFinished = false;
+      let justFinished;
       try {
         justFinished = ingestBulkOperation(JSON.parse(event.data));
       } catch {

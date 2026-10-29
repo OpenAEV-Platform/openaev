@@ -1,11 +1,11 @@
-import { Box, GridLegacy } from '@mui/material';
+import { Box, Grid } from '@mui/material';
 import { type FunctionComponent, useContext, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchExerciseChallenges } from '../../../../../actions/challenge-action';
 import { type ArticlesHelper } from '../../../../../actions/channels/article-helper';
 import { fetchExerciseDocuments } from '../../../../../actions/documents/documents-actions';
-import { fetchExerciseTeams } from '../../../../../actions/Exercise';
+import { fetchExerciseInjectExpectations, fetchExerciseTeams } from '../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../../actions/helper';
 import { testInject } from '../../../../../actions/inject_test/simulation-inject-test-actions';
@@ -61,10 +61,9 @@ const ExerciseInjects: FunctionComponent = () => {
 
   const { permissions } = useContext(PermissionsContext);
 
-  const { exercise, teams, articles, variables } = useHelper(
+  const { teams, articles, variables } = useHelper(
     (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper & TeamsHelper) => {
       return {
-        exercise: helper.getExercise(exerciseId),
         teams: helper.getExerciseTeams(exerciseId),
         articles: helper.getExerciseArticles(exerciseId),
         variables: helper.getExerciseVariables(exerciseId),
@@ -76,9 +75,16 @@ const ExerciseInjects: FunctionComponent = () => {
     dispatch(fetchVariablesForExercise(exerciseId));
     dispatch(fetchExerciseDocuments(exerciseId));
   });
+  // The score distribution charts read the simulation expectations from the store: load them only
+  // when they are displayed
+  useDataLoader(() => {
+    if (viewMode === 'distribution') {
+      dispatch(fetchExerciseInjectExpectations(exerciseId));
+    }
+  }, [viewMode]);
 
   const articleContext = articleContextForExercise(exerciseId);
-  const teamContext = teamContextForExercise(exerciseId, exercise.exercise_teams_users, exercise.exercise_all_users_number, exercise.exercise_users_number);
+  const teamContext = teamContextForExercise(exerciseId);
   const endpointContext = endpointContextForExercise(exerciseId);
   // Stable context identities so the whole injects list does not re-render on each update
   const challengeContext = useMemo(() => ({ fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) }), [dispatch, exerciseId]);
@@ -131,7 +137,13 @@ const ExerciseInjects: FunctionComponent = () => {
               marginBottom: 1,
             }}
           >
-            <Box display="flex" gap={1} alignItems="center">
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1,
+                alignItems: 'center',
+              }}
+            >
               <InjectsListButtons
                 availableButtons={availableButtons}
                 setViewMode={handleViewMode}
@@ -141,82 +153,76 @@ const ExerciseInjects: FunctionComponent = () => {
               )}
             </Box>
           </Box>
-          <GridLegacy container spacing={3}>
-            <GridLegacy container item spacing={3}>
-              <GridLegacy
-                item
-                xs={6}
+          <Grid container spacing={3}>
+            <Grid container spacing={3} size={12}>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={6}
               >
                 <SectionBlock title={t('Distribution of injects by type')}>
                   <InjectDistributionByType exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-              <GridLegacy
-                item
-                xs={6}
+              </Grid>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={6}
               >
                 <SectionBlock title={t('Distribution of injects by team')}>
                   <InjectDistributionByTeam exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-              <GridLegacy
-                item
-                xs={3}
+              </Grid>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={3}
               >
                 <SectionBlock title={`${t('Distribution of expectations by inject type')} (%)`}>
                   <ExerciseDistributionScoreByTeamInPercentage exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-              <GridLegacy
-                item
-                xs={3}
+              </Grid>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={3}
               >
                 <SectionBlock title={t('Distribution of expected total score by inject type')}>
                   <ExerciseDistributionScoreOverTimeByInjectorContract exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-              <GridLegacy
-                item
-                xs={3}
+              </Grid>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={3}
               >
                 <SectionBlock title={t('Distribution of expectations by team')}>
                   <ExerciseDistributionScoreOverTimeByTeam exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-              <GridLegacy
-                item
-                xs={3}
+              </Grid>
+              <Grid
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}
+                size={3}
               >
                 <SectionBlock title={t('Distribution of expected total score by team')}>
                   <ExerciseDistributionScoreOverTimeByTeamInPercentage exerciseId={exerciseId} />
                 </SectionBlock>
-              </GridLegacy>
-            </GridLegacy>
-          </GridLegacy>
+              </Grid>
+            </Grid>
+          </Grid>
         </div>
       )}
     </ViewModeContext.Provider>

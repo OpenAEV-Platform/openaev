@@ -1,8 +1,18 @@
-import { Autocomplete, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { type FunctionComponent, useState } from 'react';
 import { type FieldError } from 'react-hook-form';
 
 import alphabet from '../admin/components/settings/data_ingestion/AttributeUtils';
+import RequiredMark from './fields/RequiredMark';
 import { useFormatter } from './i18n';
 
 interface Props {
@@ -26,34 +36,31 @@ const RegexComponent: FunctionComponent<Props> = ({
   const regexOptions = alphabet(26);
   const [value, setValue] = useState<string | null | undefined>(fieldValue ?? '');
 
-  const inputLabelProps = required ? { required: true } : {};
-
   return (
-    <Autocomplete
-      selectOnFocus
+    <Combobox<string>
       openOnFocus
-      autoHighlight
-      noOptionsText={t('No available options')}
-      renderInput={
-        params => (
-          <TextField
-            {...params}
-            label={t(label)}
-            variant="outlined"
-            size="small"
-            InputLabelProps={inputLabelProps}
-            error={!!error}
-            helperText={error?.message}
-          />
-        )
-      }
+      required={required}
+      error={!!error}
       options={regexOptions}
       value={regexOptions.find(r => r === value) ?? null}
-      onChange={(_event, newValue) => {
-        setValue(newValue);
-        onChange(newValue);
+      onValueChange={(newValue) => {
+        setValue(newValue as string | null);
+        onChange(newValue as string | null);
       }}
-    />
+    >
+      <ComboboxLabel>
+        {t(label)}
+        {required && <RequiredMark />}
+      </ComboboxLabel>
+      <ComboboxField>
+        <ComboboxInput />
+        <ComboboxControls>
+          <ComboboxTrigger />
+        </ComboboxControls>
+      </ComboboxField>
+      <ComboboxContent emptyMessage={t('No available options')} />
+      {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+    </Combobox>
   );
 };
 

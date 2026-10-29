@@ -145,11 +145,29 @@ class BatchQueueServiceDeliveryCallbackTest {
     Map<SerializableQueueable, DeliveryContext> deliveryTable = getDeliveryTable();
     assertEquals(1, deliveryTable.size());
 
-    SerializableQueueable element = new SerializableQueueable("key1");
+    // Deliveries are tracked by instance: look up the element that was actually buffered
+    SerializableQueueable element = getInternalQueue().get(0).peek();
     DeliveryContext ctx = deliveryTable.get(element);
     assertNotNull(ctx, "DeliveryContext should exist for the delivered element");
     assertEquals(42L, ctx.getTag());
     assertSame(consumerChannel, ctx.getDeliveryChannel());
+  }
+
+  @Test
+  @DisplayName("should ack every delivery of two equal elements (original and re-published copy)")
+  void shouldAckEveryDeliveryOfEqualElements() throws Exception {
+    when(queueExecution.perform(anyList())).thenAnswer(inv -> inv.getArgument(0));
+
+    // Same key, so the two elements are equal, as an event and its re-published copy are
+    deliverCallback.handle("tag", createDelivery("same", 1L));
+    deliverCallback.handle("tag", createDelivery("same", 2L));
+    assertEquals(2, getDeliveryTable().size(), "each delivery keeps its own tag");
+
+    service.processBufferedBatch(0);
+
+    verify(consumerChannel, timeout(5000)).basicAck(1L, false);
+    verify(consumerChannel, timeout(5000)).basicAck(2L, false);
+    verify(consumerChannel, never()).basicReject(anyLong(), anyBoolean());
   }
 
   @Test

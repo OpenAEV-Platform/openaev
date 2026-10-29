@@ -1,11 +1,11 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { UnfoldLessOutlined, UnfoldMoreOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { memo } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
 import LogicNodeTooltip from '../../../../../chaining/logic/chaining_flow/NodeTooltip';
-import graphTooltipSlotProps from '../../../../../chaining/logic/logic-graph/graphTooltipSlotProps';
 import attackPathStatusColor, { attackPathStatusLabel } from '../../attack-path-colors';
 import { type AttackPathFlowNodeData } from '../../attack-path-flow-helpers';
 import { buildCardSx, buildIconBoxSx, EYEBROW_SX, TITLE_COMPACT_SX } from './card-styles';
@@ -51,36 +51,39 @@ const EndpointClusterCard = ({ data, selected = false }: Props) => {
     />
   );
   return (
-    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300} slotProps={graphTooltipSlotProps}>
-      <Box
-        aria-label={`+${data.count ?? 0} ${sub}, ${statusText}`}
-        sx={buildCardSx({
-          theme,
-          accent,
-          selected,
-          dimmed: data.dimmed,
-          dashed: !expanded || isOverflow,
-        })}
-      >
-        <Box sx={buildIconBoxSx(theme, accent, 'small')}>
-          <Icon />
-        </Box>
-        <Box sx={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1px',
-        }}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Box
+          aria-label={`+${data.count ?? 0} ${sub}, ${statusText}`}
+          sx={buildCardSx({
+            theme,
+            accent,
+            selected,
+            dimmed: data.dimmed,
+            dashed: !expanded || isOverflow,
+          })}
         >
-          <Typography component="span" sx={EYEBROW_SX}>
-            {sub}
-          </Typography>
-          <Typography component="div" sx={TITLE_COMPACT_SX}>
-            {`+${data.count ?? 0}`}
-          </Typography>
+          <Box sx={buildIconBoxSx(theme, accent, 'small')}>
+            <Icon />
+          </Box>
+          <Box sx={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1px',
+          }}
+          >
+            <Typography component="span" sx={EYEBROW_SX}>
+              {sub}
+            </Typography>
+            <Typography component="div" sx={TITLE_COMPACT_SX}>
+              {`+${data.count ?? 0}`}
+            </Typography>
+          </Box>
         </Box>
-      </Box>
+      </TooltipTrigger>
+      {tooltip && <TooltipContent side="top">{tooltip}</TooltipContent>}
     </Tooltip>
   );
 };

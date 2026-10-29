@@ -1,4 +1,4 @@
-import { type FunctionComponent, useCallback, useContext, useMemo, useState } from 'react';
+import { type FunctionComponent, useCallback, useMemo, useState } from 'react';
 
 import {
   deletePlatformGroup,
@@ -10,7 +10,7 @@ import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import type { PlatformGroupOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import PlatformGroupManageRoles from './PlatformGroupManageRoles';
 import PlatformGroupManageUsers from './PlatformGroupManageUsers';
@@ -36,7 +36,7 @@ const PlatformGroupPopover: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const handleOpenEdit = useCallback(() => {

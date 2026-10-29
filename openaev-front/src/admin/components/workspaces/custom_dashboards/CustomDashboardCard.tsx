@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AnalyticsOutlined } from '@mui/icons-material';
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -25,42 +26,110 @@ const CustomDashboardCard: FunctionComponent<Props> = ({
   const { t, fldt } = useFormatter();
 
   return (
-    <Paper
-      variant="outlined"
-      data-testid="custom-dashboard-card"
-      // Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.
-      component={Link}
-      to={`/admin/workspaces/custom_dashboards/${customDashboard.custom_dashboard_id}`}
+    <Box
       sx={{
         'position': 'relative',
-        'display': 'flex',
-        'flexDirection': 'column',
-        'gap': 1.5,
-        'padding': 2,
-        'borderRadius': 1,
         'height': '100%',
-        'cursor': 'pointer',
-        'textDecoration': 'none',
-        'color': 'inherit',
-        'transition': theme.transitions.create(['border-color', 'box-shadow', 'transform']),
-        '&:hover': {
+        'transition': theme.transitions.create('transform'),
+        '&:hover': { transform: 'translateY(-2px)' },
+        '&:hover > a': {
           borderColor: alpha(theme.palette.primary.main, 0.5),
           boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.25)}`,
-          transform: 'translateY(-2px)',
         },
       }}
     >
+      <Paper
+        variant="outlined"
+        data-testid="custom-dashboard-card"
+        // Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.
+        component={Link}
+        to={`/admin/workspaces/custom_dashboards/${customDashboard.custom_dashboard_id}`}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.5,
+          padding: 2,
+          borderRadius: 1,
+          height: '100%',
+          cursor: 'pointer',
+          textDecoration: 'none',
+          color: 'inherit',
+          transition: theme.transitions.create(['border-color', 'box-shadow']),
+        }}
+      >
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          minWidth: 0,
+          paddingRight: 3,
+        }}
+        >
+          <Box sx={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'primary.main',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+          }}
+          >
+            <AnalyticsOutlined />
+          </Box>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Typography sx={{
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1.35,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                wordBreak: 'break-word',
+              }}
+              >
+                {customDashboard.custom_dashboard_name}
+              </Typography>
+            </TooltipTrigger>
+            {customDashboard.custom_dashboard_name && <TooltipContent>{customDashboard.custom_dashboard_name}</TooltipContent>}
+          </Tooltip>
+        </Box>
+
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            minHeight: 40,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          {customDashboard.custom_dashboard_description || '-'}
+        </Typography>
+
+        <Typography
+          variant="body2"
+          sx={{
+            marginTop: 'auto',
+            fontSize: 12,
+            color: 'text.secondary',
+          }}
+        >
+          {`${t('Updated at')} ${fldt(customDashboard.custom_dashboard_updated_at)}`}
+        </Typography>
+      </Paper>
       <Box
         sx={{
           position: 'absolute',
           top: 6,
           right: 6,
-        }}
-        onClick={(event) => {
-          // The card is a real link: also cancel the native anchor navigation,
-          // stopPropagation() alone only blocks the router's client-side handler.
-          event.preventDefault();
-          event.stopPropagation();
         }}
       >
         <CustomDashboardPopover
@@ -70,72 +139,7 @@ const CustomDashboardCard: FunctionComponent<Props> = ({
           inList
         />
       </Box>
-
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        minWidth: 0,
-        paddingRight: 3,
-      }}
-      >
-        <Box sx={{
-          width: 44,
-          height: 44,
-          flexShrink: 0,
-          borderRadius: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'primary.main',
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-          backgroundColor: alpha(theme.palette.primary.main, 0.08),
-        }}
-        >
-          <AnalyticsOutlined />
-        </Box>
-        <Tooltip title={customDashboard.custom_dashboard_name}>
-          <Typography sx={{
-            fontSize: 14,
-            fontWeight: 600,
-            lineHeight: 1.35,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            wordBreak: 'break-word',
-          }}
-          >
-            {customDashboard.custom_dashboard_name}
-          </Typography>
-        </Tooltip>
-      </Box>
-
-      <Typography
-        variant="body2"
-        sx={{
-          color: 'text.secondary',
-          minHeight: 40,
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-        }}
-      >
-        {customDashboard.custom_dashboard_description || '-'}
-      </Typography>
-
-      <Typography
-        variant="body2"
-        sx={{
-          marginTop: 'auto',
-          fontSize: 12,
-          color: 'text.secondary',
-        }}
-      >
-        {`${t('Updated at')} ${fldt(customDashboard.custom_dashboard_updated_at)}`}
-      </Typography>
-    </Paper>
+    </Box>
   );
 };
 

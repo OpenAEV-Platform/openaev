@@ -8,10 +8,14 @@
 #
 # Lines starting with # and blank lines are ignored.
 
-# BENIGN - eager init of the nullable Exercise.securityCoverage association (null under empty scope;
-# tenant is taken from the simulation, coverage is re-read under scope where it matters).
+# SCOPED-OK - SecurityCoverageJob reads the pending send jobs under TxCtx.allTenants() and loads,
+# bundles and consumes each one under TxCtx.forTenant of its simulation's tenant; a test that calls
+# these methods directly reads with no scope.
 io.openaev.service.SecurityCoverageSendJobService.getPendingSecurityCoverageSendJobs
 io.openaev.service.SecurityCoverageSendJobService.consumeJobs
+
+# BENIGN - eager init of the nullable Exercise.securityCoverage association (null under empty scope;
+# tenant is taken from the simulation, coverage is re-read under scope where it matters).
 io.openaev.database.model.Exercise.getInjects
 
 # SCOPED-OK - production path wraps the read in a scope; the test invokes the method directly.
@@ -33,6 +37,48 @@ io.openaev.engine.model.assetgroup.AssetGroupHandler.fetch
 # because the test that triggers it does.
 io.openaev.service.AssetGroupService.assetGroup
 
+# SCOPED-OK - challenges activation. The anonymous player challenges page on the legacy,
+# non-prefixed route resolves TxCtx.missing() (deny-all), so this read is empty by design instead
+# of crashing; pinned by SimulationChallengeApiPlayerLegacyRouteTest. Authenticated callers reach
+# the same method through the tenant-prefixed route with a scope.
+io.openaev.service.ChallengeService.playerChallenges
+
+# SCOPED-OK - kill_chain_phases activation. Both production callers are AttackPatternApi read
+# endpoints (the by-id read and the search), each @Transactional with a TxCtx parameter, so the
+# transaction aspect sets the scope before the service runs; a controller cannot drop that parameter,
+# the default-secure compile-time rule (#7726) refuses it. The waived read is
+# KillChainPhaseQueryCorrelationTest.unscopedReadReturnsNothing calling the service directly under an
+# empty scope on purpose, asserting the fail-closed result. Same shape as AssetGroupService.assetGroup
+# above. The scoped, non-empty outcome of both routes is pinned by
+# AttackPatternKillChainPhaseRouteScopeTest.
+io.openaev.rest.kill_chain_phase.service.KillChainPhaseService.phaseIdsByAttackPatternId
+
 # TEST-ARTIFACT / latent - tags is not active in production; this JSON serializer would fail closed
 # only if tags is ever activated (serialization runs after the request transaction closes).
 io.openaev.helper.MultiIdSetSerializer.serialize
+
+# SCOPED-OK - documents activation (#7904). DocumentByIdEmptyScopeTest asserts the by-id read and the
+# tags update are refused (404, row unchanged) under an empty request scope on purpose; same shape as
+# AssetGroupService.assetGroup and KillChainPhaseService.phaseIdsByAttackPatternId above. Newly
+# visible now that TenantIsolationTestHelper is a test frame, which no longer masks the real caller
+# underneath it.
+io.openaev.rest.document.DocumentApi.document
+io.openaev.rest.document.DocumentApi.documentTags
+
+# BENIGN - tenant onboarding copies the platform's default injector contracts into the new tenant,
+# and the source rows live in the default tenant. The contract table is not active, so the row is
+# found; its eagerly fetched domains collection is the gated read, and it comes back empty under the
+# empty scope a test creating a tenant leaves behind. Nothing is attributed from it: the copy writes
+# no domain join row for the new tenant either way, and the built-in injector registration that runs
+# later in the same onboarding transaction re-resolves every contract's domains inside the new
+# tenant's own scope. Measured under both scopes the copy step can see (none, and the default tenant
+# as an operator's request holds it) by InjectorContractTenantProvisioningDomainTest, which pins the
+# end state: the provisioned contracts carry domains, and all of them belong to the new tenant.
+io.openaev.rest.injector_contract.InjectorContractService.createDependencyForTenant
+
+# SCOPED-OK - the read half of the lazy per-tenant manager creation (see the matching write-side
+# group in writeattr-baseline.txt: ManagerCreator.createManager registers every builtin component for
+# a newly onboarded tenant, under the new tenant's scope). The waived read is the one reached before
+# that scope is set, by every test that creates a tenant through TenantIsolationTestHelper whatever
+# the test itself is about (DomainApiTest, ChallengeDocumentsBulkLoadTest, ...).
+io.openaev.service.InjectorService.createNewBuiltinInjector

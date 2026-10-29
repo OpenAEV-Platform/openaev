@@ -1,5 +1,6 @@
+import { Button, Chip } from '@filigran/design-system';
 import { LaunchOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, Dialog, DialogContent, DialogTitle, Divider, Link, Stack, Typography } from '@mui/material';
+import { Alert, Box, Dialog, DialogContent, DialogTitle, Divider, Link, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link as RouterLink } from 'react-router';
@@ -117,7 +118,13 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
   const hasTags = techniques.length > 0 || cves.length > 0;
 
   return (
-    <Dialog open onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ elevation: 1 }}>
+    <Dialog
+      open
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      slotProps={{ paper: { elevation: 1 } }}
+    >
       <DialogTitle sx={{
         display: 'flex',
         alignItems: 'flex-start',
@@ -137,7 +144,10 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
             {event.autonomous_event_title ?? (kind === 'PROOF' ? t('Proof') : t('Capability gap'))}
           </Typography>
           {event.autonomous_event_created_at && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              sx={{ color: 'text.secondary' }}
+            >
               {nsdt(event.autonomous_event_created_at)}
             </Typography>
           )}
@@ -153,28 +163,10 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
             }}
             >
               {cves.map(cve => (
-                <Chip
-                  key={cve}
-                  label={cve}
-                  size="small"
-                  sx={{
-                    borderRadius: 0.5,
-                    color: theme.palette.error.main,
-                    backgroundColor: alpha(theme.palette.error.main, 0.12),
-                  }}
-                />
+                <Chip key={cve} label={cve} severity="critical" />
               ))}
               {techniques.map(technique => (
-                <Chip
-                  key={technique}
-                  label={technique}
-                  size="small"
-                  sx={{
-                    borderRadius: 0.5,
-                    color: theme.palette.info.main,
-                    backgroundColor: alpha(theme.palette.info.main, 0.12),
-                  }}
-                />
+                <Chip key={technique} label={technique} severity="info" />
               ))}
             </Stack>
           )}
@@ -191,7 +183,10 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
           {kind === 'PROOF' && (
             <>
               <Divider textAlign="left">
-                <Typography variant="overline" color="text.secondary">
+                <Typography
+                  variant="overline"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Associated findings')}
                 </Typography>
               </Divider>
@@ -218,15 +213,7 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
                         }}
                       >
                         {finding.type && (
-                          <Chip
-                            label={finding.type}
-                            size="small"
-                            sx={{
-                              borderRadius: 0.5,
-                              color: theme.palette.success.main,
-                              backgroundColor: alpha(theme.palette.success.main, 0.12),
-                            }}
-                          />
+                          <Chip label={finding.type} severity="low" />
                         )}
                         <Typography
                           variant="body2"
@@ -262,7 +249,10 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
           {kind === 'GAP' && nextSteps.length > 0 && (
             <>
               <Divider textAlign="left">
-                <Typography variant="overline" color="text.secondary">
+                <Typography
+                  variant="overline"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Next steps in the platform')}
                 </Typography>
               </Divider>
@@ -312,7 +302,13 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
                         )}
                       </Stack>
                       {description && (
-                        <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            whiteSpace: 'pre-wrap',
+                          }}
+                        >
                           {description}
                         </Typography>
                       )}
@@ -349,7 +345,7 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
         paddingTop: 0,
       }}
       >
-        <Button onClick={onClose}>{t('Close')}</Button>
+        <Button type="button" priority="tertiary" onClick={onClose}>{t('Close')}</Button>
       </Box>
     </Dialog>
   );

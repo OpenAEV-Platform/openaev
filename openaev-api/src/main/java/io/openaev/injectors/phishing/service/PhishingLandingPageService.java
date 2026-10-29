@@ -17,7 +17,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.custom_domain.CustomDomainService;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.CustomDomain;
@@ -29,6 +31,7 @@ import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.PhishingEmailTemplate;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -120,6 +123,7 @@ public class PhishingLandingPageService {
   private final OrganizationService organizationService;
   private final CustomDomainService customDomainService;
   private final ObjectMapper mapper;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   /**
    * Resolves a landing page's linked custom domain from an id, enforcing that it exists in the
@@ -155,7 +159,11 @@ public class PhishingLandingPageService {
     return landingPageRepository.findById(id).orElseThrow(ElementNotFoundException::new);
   }
 
-  public PhishingLandingPage upsert(@NotNull final PhishingLandingPage landingPage) {
+  public PhishingLandingPage upsert(
+      final TxCtx ctx, @NotNull final PhishingLandingPage landingPage) {
+    if (landingPage.getTenant() == null) {
+      landingPage.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
+    }
     validateRedirectUrl(landingPage.getRedirectUrl());
     landingPage.setUpdatedAt(Instant.now());
     PhishingLandingPage saved = landingPageRepository.save(landingPage);
@@ -195,11 +203,14 @@ public class PhishingLandingPageService {
    * DocumentService.document}.
    */
   public PhishingLandingPage updateLogos(
-      @NotBlank final String id, final String logoDarkId, final String logoLightId) {
+      final TxCtx ctx,
+      @NotBlank final String id,
+      final String logoDarkId,
+      final String logoLightId) {
     PhishingLandingPage landingPage = landingPage(id);
     landingPage.setLogoDark(logoDarkId != null ? documentService.document(logoDarkId) : null);
     landingPage.setLogoLight(logoLightId != null ? documentService.document(logoLightId) : null);
-    return upsert(landingPage);
+    return upsert(ctx, landingPage);
   }
 
   public void delete(@NotBlank final String id) {
@@ -260,9 +271,15 @@ public class PhishingLandingPageService {
    * existing rows short-circuit both seeds. Always ends with {@link #resyncAllContracts()} so
    * existing landing pages keep (or regain) arsenal actions after injector re-registration.
    */
-  public void seedDefaultsIfEmpty() {
+  public void seedDefaultsIfEmpty(@NotBlank final String tenantId) {
+    // Tracks whether the seeded landing page below is created in this call: its own upsert()
+    // already synchronises its contract, so re-running resyncAllContracts() on it right after
+    // would call synchroniseInjectorContract() a second time for the same (contract, tenant)
+    // before the first save has flushed, inserting its injector link twice in the same batch.
+    boolean seededLandingPageHere = false;
     if (!emailTemplateRepository.findAll().iterator().hasNext()) {
       PhishingEmailTemplate emailTemplate = new PhishingEmailTemplate();
+      emailTemplate.setTenant(new Tenant(tenantId));
       emailTemplate.setName("Default lure email");
       emailTemplate.setDescription("A simple, reusable lure email created by the platform.");
       emailTemplate.setSubject("Action required: verify your account");
@@ -305,19 +322,27 @@ public class PhishingLandingPageService {
       landingPage.setCaptureSubmittedData(true);
       landingPage.setCapturePasswords(true);
       // upsert already synchronises the contract; resyncAllContracts below is still needed for
-      // tenants that already had landing pages before a wipe / upgrade.
-      upsert(landingPage);
+      // tenants that already had landing pages before a wipe / upgrade, but must skip this one.
+      upsert(TxCtx.forTenant(tenantId), landingPage);
+      seededLandingPageHere = true;
     }
 
-    resyncAllContracts();
+    if (!seededLandingPageHere) {
+      resyncAllContracts(tenantId);
+    }
   }
 
   /**
-   * Rebuilds the Threat Arsenal contract for every landing page in the current tenant. Safe to call
+   * Rebuilds the Threat Arsenal contract for every landing page of the given tenant. Safe to call
    * after injector registration and after email-template mutations that change select choices.
+   *
+   * <p>Explicitly tenant-scoped rather than a plain {@code findAll()}: a plain {@code findAll()}
+   * with no scope of its own (this table's v1 {@code @Filter} is gone, and a caller running before
+   * the table is v2-active in its own context carries no scope either) would resync every other
+   * tenant's landing pages too, re-inserting join rows that already exist for them.
    */
-  public void resyncAllContracts() {
-    landingPages().forEach(this::synchroniseInjectorContract);
+  public void resyncAllContracts(@NotBlank final String tenantId) {
+    landingPageRepository.findAllByTenantId(tenantId).forEach(this::synchroniseInjectorContract);
   }
 
   // -- CONTRACT SYNC --
@@ -344,6 +369,11 @@ public class PhishingLandingPageService {
                 () -> {
                   InjectorContract created = new InjectorContract();
                   created.setId(landingPage.getId());
+                  // Explicit, not left to InjectorContract's own v1 TenantBaseListener: that
+                  // listener reads TenantContext.getCurrentTenant(), which onboarding never
+                  // updates (it sets the v2 scope only), so it would stamp the ambient/default
+                  // tenant here while every other write in this method already uses tenantId.
+                  created.setTenant(new Tenant(tenantId));
                   return created;
                 });
 
@@ -373,7 +403,7 @@ public class PhishingLandingPageService {
     injectorContract.setDomains(
         this.domainService.upsertDomainEntities(contract.getDomains(), tenantId));
     injectorContract.setAuthorOrganization(
-        this.organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR));
+        this.organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR, tenantId));
 
     // MITRE ATT&CK association, resolved by external id against the tenant's imported patterns
     // exactly

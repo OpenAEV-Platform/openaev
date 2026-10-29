@@ -1,11 +1,11 @@
-import { lazy, Suspense, useContext } from 'react';
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { errorWrapper } from '../../../components/Error';
 import Loader from '../../../components/Loader';
 import NotFound from '../../../components/NotFound';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
@@ -35,7 +35,7 @@ const LegacyLessonsRedirect = () => {
 
 const Index = () => {
   const { classes } = useStyles();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const order = ['DOCUMENTS', 'CHANNELS', 'PHISHING', 'CHALLENGES'] as const;
 

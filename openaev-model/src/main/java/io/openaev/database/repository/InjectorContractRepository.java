@@ -46,6 +46,11 @@ public interface InjectorContractRepository
    * <p>Returns a lightweight projection containing only the contract ID and aggregated attack
    * pattern IDs for efficient bulk operations.
    *
+   * <p>The mapping join carries {@code tenant_id}: a contract id is not unique on its own (the
+   * primary key is {@code (injector_contract_id, tenant_id)} and every tenant registers the same
+   * built-in declarations), so joining on the id alone aggregates another tenant's mappings into
+   * this tenant's contract.
+   *
    * @return list of raw injector contract projections
    */
   @Query(
@@ -53,7 +58,9 @@ public interface InjectorContractRepository
           "SELECT injcon.injector_contract_id, "
               + "array_remove(array_agg(attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
               + "FROM injectors_contracts injcon "
-              + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
+              + "LEFT JOIN injectors_contracts_attack_patterns injconatt "
+              + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
+              + "  AND injcon.tenant_id = injconatt.tenant_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
               + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY injcon.injector_contract_id",
@@ -79,6 +86,8 @@ public interface InjectorContractRepository
    * <p>Returns only contracts where the user has a THREAT_ARSENAL grant on the injector contract ID
    * through their group memberships.
    *
+   * <p>Same tenant-carrying mapping join as {@link #getAllRawInjectorsContracts()}.
+   *
    * @param userId the ID of the user to check access for
    * @return list of raw injector contract projections the user has been granted access to
    */
@@ -91,7 +100,9 @@ public interface InjectorContractRepository
           "SELECT injcon.injector_contract_id, "
               + "array_remove(array_agg(attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
               + "FROM injectors_contracts injcon "
-              + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
+              + "LEFT JOIN injectors_contracts_attack_patterns injconatt "
+              + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
+              + "  AND injcon.tenant_id = injconatt.tenant_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
               + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "AND EXISTS ( "
@@ -207,16 +218,19 @@ public interface InjectorContractRepository
           SELECT array_remove(array_agg(icap.attack_pattern_id), NULL) AS attack_pattern_ids
           FROM injectors_contracts_attack_patterns icap
           WHERE icap.injector_contract_id = ic.injector_contract_id
+            AND icap.tenant_id = ic.tenant_id
       ) ap ON true
       LEFT JOIN LATERAL (
           SELECT array_remove(array_agg(icd.domain_id), NULL) AS domain_ids
           FROM injectors_contracts_domains icd
           WHERE icd.injector_contract_id = ic.injector_contract_id
+            AND icd.tenant_id = ic.tenant_id
       ) d ON true
       LEFT JOIN LATERAL (
           SELECT array_remove(array_agg(ict.tag_id), NULL) AS tag_ids
           FROM injector_contract_tags ict
           WHERE ict.injector_contract_id = ic.injector_contract_id
+            AND ict.tenant_id = ic.tenant_id
       ) t ON true
       WHERE ic.injector_contract_payload = :payloadId
       """,
@@ -224,20 +238,19 @@ public interface InjectorContractRepository
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
   /**
-   * Returns the (injector_contract_id, tenant_id) pair of EVERY contract row backed by the given
-   * payload, across all tenants. Deleting a payload cascades to its contracts at the database level
-   * ({@code injector_contract_payload ... ON DELETE CASCADE}), so the payload-delete path must
-   * resolve these pairs BEFORE the delete to cascade-clean the chaining steps that reference the
-   * doomed contracts (the step -> contract link lives only inside {@code step_data}, with no FK to
-   * cascade on).
+   * Returns the (injector_contract_id, tenant_id) pair of every contract row backed by the given
+   * payload that the transaction's tenant scope can read. Deleting a payload cascades to its
+   * contracts at the database level ({@code injector_contract_payload ... ON DELETE CASCADE}), so
+   * the payload-delete path must resolve these pairs BEFORE the delete to cascade-clean the
+   * chaining steps that reference the doomed contracts (the step -> contract link lives only inside
+   * {@code step_data}, with no FK to cascade on).
    *
-   * <p>Deliberately NOT tenant-scoped, unlike the other native queries here: the sweep set must be
-   * exactly what the database cascade deletes, whatever tenant it lives in. Today the schema
-   * guarantees at most one row - {@code unique_injector_contract_payload} (V4_98) is a
-   * single-column unique on the payload FK, so a payload backs one contract platform-wide - but
-   * returning the (contract, tenant) pair keeps the delete path correct even if that 1:1 constraint
-   * is ever relaxed. The caller sweeps each returned tenant separately; the sweep itself stays
-   * strictly tenant-scoped per pair.
+   * <p>Scoped like any other read once {@code injectors_contracts} is tenant-isolated, so it
+   * returns the contracts of the tenants in scope, normally the payload's own: {@code
+   * injector_contract_payload_unique} allows one contract per payload per tenant. A contract of
+   * another tenant referencing the same payload is a cross-tenant link the schema does not forbid
+   * yet; the database cascade still removes it, but its chaining steps are not swept. The caller
+   * sweeps each returned tenant separately; the sweep itself stays strictly tenant-scoped per pair.
    *
    * @param payloadId the payload whose contract rows are enumerated
    * @return one (contract id, tenant id) pair per contract row referencing the payload

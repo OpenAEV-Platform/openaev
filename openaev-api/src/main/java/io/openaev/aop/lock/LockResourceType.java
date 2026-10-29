@@ -5,7 +5,7 @@ public enum LockResourceType {
   INJECT_EXPECTATION(4096),
   PAYLOAD(4096),
   SECURITY_COVERAGE(4096),
-  MANAGER_FACTORY(1);
+  MANAGER_FACTORY(4096);
 
   private final int stripes;
 

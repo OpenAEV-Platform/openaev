@@ -1,5 +1,6 @@
-import { Close, SearchOutlined } from '@mui/icons-material';
-import { Alert, Box, IconButton, Pagination, Paper, TextField, Typography } from '@mui/material';
+import { IconButton, Paper, SearchField } from '@filigran/design-system';
+import { Close } from '@mui/icons-material';
+import { Alert, Box, Pagination, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import FindingIcon from '../../../../../components/FindingIcon';
@@ -53,8 +54,11 @@ const CategoryFindingsPanel = ({
   const { t } = useFormatter();
 
   return (
+    // `padding={0}`: the padding lives in the header and body rows below, which
+    // also carry the full-width divider between them — moving it up to the
+    // surface would pull that divider in (PAPER-GAP-INVENTORY §5.5).
     <Paper
-      variant="outlined"
+      padding={0}
       style={{
         flex: 1,
         minWidth: 0,
@@ -87,11 +91,22 @@ const CategoryFindingsPanel = ({
           >
             {`${label} (${count})`}
           </Typography>
-          <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
-            <Close fontSize="small" />
-          </IconButton>
+          <IconButton
+            icon={<Close fontSize="small" />}
+            aria-label={t('Close')}
+            onClick={onClose}
+            style={{ flexShrink: 0 }}
+            priority="tertiary"
+            size="md"
+          />
         </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.secondary',
+            display: 'block',
+          }}
+        >
           {t('Click any item to highlight it on the attack map and focus the producing action in the feed.')}
         </Typography>
       </Box>
@@ -105,23 +120,14 @@ const CategoryFindingsPanel = ({
         minHeight: 0,
       }}
       >
-        <TextField
-          size="small"
+        <SearchField
+          aria-label={t('Search')}
+          size="sm"
           fullWidth
           value={search}
           onChange={e => onSearchChange(e.target.value)}
+          onClear={() => onSearchChange('')}
           placeholder={t('Search')}
-          InputProps={{
-            startAdornment: (
-              <SearchOutlined
-                fontSize="small"
-                sx={{
-                  mr: 0.5,
-                  color: 'text.secondary',
-                }}
-              />
-            ),
-          }}
         />
         {loading && (
           <Box sx={{ minHeight: 120 }}>
@@ -191,7 +197,15 @@ const CategoryFindingsPanel = ({
                         title tooltip keeps the full (masked) value, like the graph's node labels. */}
                     <Typography variant="body2" noWrap title={maskedValue}>{maskedValue}</Typography>
                     {endpointName && (
-                      <Typography variant="caption" color="text.secondary" noWrap title={endpointName} sx={{ display: 'block' }}>
+                      <Typography
+                        variant="caption"
+                        noWrap
+                        title={endpointName}
+                        sx={{
+                          color: 'text.secondary',
+                          display: 'block',
+                        }}
+                      >
                         {endpointName}
                       </Typography>
                     )}
@@ -206,8 +220,10 @@ const CategoryFindingsPanel = ({
         {!loading && totalCount > loadedCount && (
           <Typography
             variant="caption"
-            color="text.secondary"
-            sx={{ textAlign: 'center' }}
+            sx={{
+              color: 'text.secondary',
+              textAlign: 'center',
+            }}
           >
             {t('Showing the first {count} of {total}', {
               count: loadedCount,

@@ -1,24 +1,28 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { deleteChannel, updateChannel } from '../../../../actions/channels/channel-action';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type VariantButtonPopover } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type Channel, type ChannelUpdateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ChannelForm, { type ChannelFormInput } from './ChannelForm';
 
-interface Props { channel: Channel }
+interface Props {
+  channel: Channel;
+  /** `toggle` in a detail header — the 36px kebab that lines up with the header controls. */
+  variant?: VariantButtonPopover;
+}
 
-const ChannelPopover: FunctionComponent<Props> = ({ channel }) => {
+const ChannelPopover: FunctionComponent<Props> = ({ channel, variant = 'icon' }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Edition
   const [openEdit, setOpenEdit] = useState(false);
@@ -63,7 +67,7 @@ const ChannelPopover: FunctionComponent<Props> = ({ channel }) => {
 
   return (
     <>
-      <ButtonPopover entries={entries} variant="icon" />
+      <ButtonPopover entries={entries} variant={variant} />
       <Drawer
         open={openEdit}
         handleClose={() => setOpenEdit(false)}

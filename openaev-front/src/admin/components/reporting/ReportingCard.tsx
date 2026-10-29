@@ -1,5 +1,6 @@
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined } from '@mui/icons-material';
-import { Box, Chip, IconButton, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -31,31 +32,122 @@ const ReportingCard: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete
   const downloadable = generation?.reporting_generation_status === 'SUCCESS' && generation.reporting_generation_document;
 
   return (
-    <Paper
-      variant="outlined"
-      data-testid="reporting-card"
-      // Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.
-      component={Link}
-      to={`/admin/reporting/${reporting.reporting_id}`}
+    <Box
       sx={{
         'position': 'relative',
-        'display': 'flex',
-        'flexDirection': 'column',
-        'gap': 1.5,
-        'padding': 2,
-        'borderRadius': 1,
         'height': '100%',
-        'cursor': 'pointer',
-        'textDecoration': 'none',
-        'color': 'inherit',
-        'transition': theme.transitions.create(['border-color', 'box-shadow', 'transform']),
-        '&:hover': {
+        'transition': theme.transitions.create('transform'),
+        '&:hover': { transform: 'translateY(-2px)' },
+        '&:hover > a': {
           borderColor: alpha(theme.palette.primary.main, 0.5),
           boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.25)}`,
-          transform: 'translateY(-2px)',
         },
       }}
     >
+      <Paper
+        variant="outlined"
+        data-testid="reporting-card"
+        // Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.
+        component={Link}
+        to={`/admin/reporting/${reporting.reporting_id}`}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.5,
+          padding: 2,
+          borderRadius: 1,
+          height: '100%',
+          cursor: 'pointer',
+          textDecoration: 'none',
+          color: 'inherit',
+          transition: theme.transitions.create(['border-color', 'box-shadow']),
+        }}
+      >
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          minWidth: 0,
+          paddingRight: 7,
+        }}
+        >
+          <Box sx={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'primary.main',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+          }}
+          >
+            <ContextIcon />
+          </Box>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Typography sx={{
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1.35,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                wordBreak: 'break-word',
+              }}
+              >
+                {reporting.reporting_name}
+              </Typography>
+            </TooltipTrigger>
+            {reporting.reporting_name && <TooltipContent>{reporting.reporting_name}</TooltipContent>}
+          </Tooltip>
+        </Box>
+
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            minHeight: 40,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          {reporting.reporting_description || '-'}
+        </Typography>
+
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          flexWrap: 'wrap',
+        }}
+        >
+          <Chip
+            startIcon={<ContextIcon sx={{ fontSize: 14 }} />}
+            label={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])}
+          />
+          <ReportingFormatFragment format={reporting.reporting_default_format} />
+          {generation && (
+            <ReportingStatusChip status={generation.reporting_generation_status} />
+          )}
+        </Box>
+
+        <Typography
+          variant="body2"
+          sx={{
+            marginTop: 'auto',
+            fontSize: 12,
+            color: 'text.secondary',
+          }}
+        >
+          {`${t('Updated at')} ${fldt(reporting.reporting_updated_at)}`}
+        </Typography>
+      </Paper>
       <Box
         sx={{
           position: 'absolute',
@@ -64,116 +156,24 @@ const ReportingCard: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete
           display: 'flex',
           alignItems: 'center',
         }}
-        onClick={(event) => {
-          // The card is a real link: also cancel the native anchor navigation,
-          // stopPropagation() alone only blocks the router's client-side handler.
-          event.preventDefault();
-          event.stopPropagation();
-        }}
       >
         {downloadable && (
-          <Tooltip title={t('Download latest generation')}>
-            <IconButton
-              size="small"
-              color="primary"
-              // Programmatic download instead of an <a href>: the card itself is
-              // an anchor, and the wrapper's preventDefault() (needed to cancel
-              // the card navigation) would also cancel a nested link's default.
-              // The endpoint replies Content-Disposition: attachment, so
-              // assigning the URL downloads without leaving the page.
-              onClick={() => window.location.assign(downloadReportingGenerationUrl(generation.reporting_generation_id))}
-            >
-              <FileDownloadOutlined fontSize="small" />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                icon={<FileDownloadOutlined fontSize="small" />}
+                aria-label={t('Download latest generation')}
+                onClick={() => window.location.assign(downloadReportingGenerationUrl(generation.reporting_generation_id))}
+                priority="tertiary"
+                size="md"
+              />
+            </TooltipTrigger>
+            <TooltipContent>{t('Download latest generation')}</TooltipContent>
           </Tooltip>
         )}
         <ReportingPopover reporting={reporting} onUpdate={onUpdate} onDelete={onDelete} />
       </Box>
-
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        minWidth: 0,
-        paddingRight: 7,
-      }}
-      >
-        <Box sx={{
-          width: 44,
-          height: 44,
-          flexShrink: 0,
-          borderRadius: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'primary.main',
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-          backgroundColor: alpha(theme.palette.primary.main, 0.08),
-        }}
-        >
-          <ContextIcon />
-        </Box>
-        <Tooltip title={reporting.reporting_name}>
-          <Typography sx={{
-            fontSize: 14,
-            fontWeight: 600,
-            lineHeight: 1.35,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            wordBreak: 'break-word',
-          }}
-          >
-            {reporting.reporting_name}
-          </Typography>
-        </Tooltip>
-      </Box>
-
-      <Typography
-        variant="body2"
-        sx={{
-          color: 'text.secondary',
-          minHeight: 40,
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-        }}
-      >
-        {reporting.reporting_description || '-'}
-      </Typography>
-
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1,
-        flexWrap: 'wrap',
-      }}
-      >
-        <Chip
-          icon={<ContextIcon sx={{ fontSize: 14 }} />}
-          label={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])}
-          size="small"
-          variant="outlined"
-        />
-        <ReportingFormatFragment format={reporting.reporting_default_format} />
-        {generation && (
-          <ReportingStatusChip status={generation.reporting_generation_status} />
-        )}
-      </Box>
-
-      <Typography
-        variant="body2"
-        sx={{
-          marginTop: 'auto',
-          fontSize: 12,
-          color: 'text.secondary',
-        }}
-      >
-        {`${t('Updated at')} ${fldt(reporting.reporting_updated_at)}`}
-      </Typography>
-    </Paper>
+    </Box>
   );
 };
 

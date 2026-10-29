@@ -7,6 +7,33 @@ import { type TenantOutput, type User } from '../api-types';
 import { useAppDispatch } from '../hooks';
 import { buildTenantUrl, extractTenantFromUrl, stripDetailSegments } from '../url-helper';
 
+const lastTenantKey = (userId?: string) => `lastTenantId:${userId}`;
+
+// Storage can be unavailable (disabled, private mode): the app then just opens the first tenant
+const readLastTenantId = (userId?: string): string | null => {
+  try {
+    return localStorage.getItem(lastTenantKey(userId));
+  } catch {
+    return null;
+  }
+};
+
+const saveLastTenantId = (userId: string | undefined, tenantId: string) => {
+  try {
+    localStorage.setItem(lastTenantKey(userId), tenantId);
+  } catch {
+    // ignored, see readLastTenantId
+  }
+};
+
+/**
+ * Tenant to open when the URL has none: the last one the user opened, else the first.
+ */
+export const pickDefaultTenantId = (tenants: TenantOutput[], userId?: string): string | undefined => {
+  const lastTenantId = readLastTenantId(userId);
+  return (tenants.find(t => t.tenant_id === lastTenantId) ?? tenants[0])?.tenant_id;
+};
+
 /**
  * Internal hook that encapsulates the current-tenant state and
  * dispatches TENANT_SWITCH_SUCCESS when the tenant actually changes.
@@ -40,7 +67,7 @@ const useTenantState = () => {
  * - Provides a switch function that navigates to the new tenant URL
  *
  * After login (when the URL has no tenant segment yet), the hook
- * falls back to the first tenant in the user's tenant list.
+ * falls back to the last tenant the user opened, else the first one.
  */
 const useTenant = (me: User | undefined, logged: unknown) => {
   const [userTenants, setUserTenants] = useState<TenantOutput[] | undefined>(undefined);
@@ -65,9 +92,10 @@ const useTenant = (me: User | undefined, logged: unknown) => {
       window.location.href = buildTenantUrl(target.tenant_id, safePath);
     } else {
       setTenant(target);
+      saveLastTenantId(me?.user_id, target.tenant_id);
     }
     return true;
-  }, [setTenant, location]);
+  }, [me?.user_id, setTenant, location]);
 
   const loadUserTenants = useCallback(async (newCurrentTenantId?: string) => {
     if (!me) return;
@@ -89,8 +117,9 @@ const useTenant = (me: User | undefined, logged: unknown) => {
         if (urlTenantId && navigateToTenant(urlTenantId, tenants)) {
           return;
         }
-        // URL tenant not found in user's tenant list — redirect to first valid tenant
-        navigateToTenant(tenants[0].tenant_id, tenants);
+        // URL tenant missing or not in the user's list
+        const defaultTenantId = pickDefaultTenantId(tenants, me.user_id);
+        if (defaultTenantId) navigateToTenant(defaultTenantId, tenants);
       } else {
         setUserTenants([]);
         setTenant(null);

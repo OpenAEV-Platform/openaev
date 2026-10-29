@@ -1,6 +1,5 @@
 package io.openaev.database.repository;
 
-import io.openaev.database.model.ArticleInjectExpectation;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.ChallengeInjectExpectation;
 import io.openaev.database.model.TechnicalInjectExpectation;
@@ -30,11 +29,20 @@ public interface InjectExpectationRepository
   // whole table). Without it, any query embedding these predicates that also touches a
   // tenant-active table (e.g. collectors) is refused with TENANT_FILTERING_REFUSED (#7007).
   String RESULTS_HAS_NO_RESULT_FOR_SOURCE =
-      "NOT EXISTS (SELECT 1 FROM LATERAL jsonb_array_elements(e.inject_expectation_results::jsonb) r "
-          + "WHERE r->>'sourceId' = :sourceId AND COALESCE(r->>'result', '') <> '') ";
+      """
+      NOT EXISTS (SELECT 1 FROM inject_expectation_results ier
+      WHERE ier.inject_expectation_result_result IS NOT NULL
+        AND ier.inject_expectation_result_result <> ''
+        AND ier.inject_expectation_result_source_id = :sourceId
+        AND ier.inject_expectation_result_inject_expectation_id = e.inject_expectation_id)
+      """;
   String RESULTS_HAS_NO_RESULT_AT_ALL =
-      "NOT EXISTS (SELECT 1 FROM LATERAL jsonb_array_elements(e.inject_expectation_results::jsonb) r "
-          + "WHERE COALESCE(r->>'result', '') <> '') ";
+      """
+      NOT EXISTS (SELECT 1 FROM inject_expectation_results ier
+      WHERE ier.inject_expectation_result_result IS NOT NULL
+        AND ier.inject_expectation_result_result <> ''
+        AND ier.inject_expectation_result_inject_expectation_id = e.inject_expectation_id)
+      """;
 
   @NotNull
   Optional<BaseInjectExpectation> findById(@NotNull String id);
@@ -111,12 +119,14 @@ public interface InjectExpectationRepository
       @Param("createdAfter") Instant createdAfter,
       @Param("limit") int limit);
 
+  // A pending expectation is an expectation without score.
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
               + "JOIN injects i ON i.inject_id = e.inject_id "
               + "WHERE i.tenant_id = :tenantId "
               + "AND e.inject_expectation_type = :type "
+              + "AND e.inject_expectation_score IS NULL "
               + "AND "
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
@@ -171,12 +181,14 @@ public interface InjectExpectationRepository
       @Param("sourceId") String sourceId,
       @Param("limit") int limit);
 
+  // A pending expectation is an expectation without score (see findExpectationsNotFilledForSource)
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
               + "JOIN injects i ON i.inject_id = e.inject_id "
               + "WHERE i.tenant_id = :tenantId "
               + "AND e.inject_expectation_type = :type "
+              + "AND e.inject_expectation_score IS NULL "
               + "AND "
               + RESULTS_HAS_NO_RESULT_AT_ALL
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
@@ -184,21 +196,53 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findExpectationsNotFilled(
       @Param("tenantId") String tenantId, @Param("type") String type, @Param("limit") int limit);
 
-  /** Finds unfilled and expired expectations for the expiration manager, scoped by tenant. */
+  /**
+   * Finds pending (without score) and expired LEAF expectations for the expiration manager.
+   *
+   * <p>A parent is never answered directly: it is derived from its children once they expire. It is
+   * therefore excluded from the batch, otherwise parents older than their children (a team is saved
+   * before its players) would fill the limit run after run and starve the leaves. The leaf rule
+   * mirrors the behaviors' {@code getLeaves}, on the target columns only (results may stay empty,
+   * e.g. no collector):
+   *
+   * <ul>
+   *   <li>an asset group expectation is always a parent;
+   *   <li>an asset expectation is a parent when agent expectations of the same asset exist;
+   *   <li>a team expectation is a parent when player expectations of the same team, name and
+   *       context (article, challenge) exist.
+   * </ul>
+   */
+  // Native: correlated NOT EXISTS on the same table and interval arithmetic; read-only, so no
+  // session side effect is lost.
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
               + "JOIN injects i ON i.inject_id = e.inject_id "
               + "WHERE i.tenant_id = :tenantId "
               + "AND e.inject_expectation_score IS NULL "
-              + "AND (e.agent_id IS NOT NULL OR "
-              + RESULTS_HAS_NO_RESULT_AT_ALL
-              + ") "
               + "AND e.inject_expectation_created_at + (e.inject_expiration_time * interval '1 second') < now() "
+              + "AND NOT (e.asset_group_id IS NOT NULL "
+              + "  AND e.asset_id IS NULL AND e.agent_id IS NULL) "
+              + "AND NOT (e.asset_id IS NOT NULL AND e.agent_id IS NULL "
+              + "  AND EXISTS (SELECT 1 FROM injects_expectations child "
+              + "    WHERE child.inject_id = e.inject_id "
+              + "    AND child.inject_expectation_type = e.inject_expectation_type "
+              + "    AND child.asset_id = e.asset_id "
+              + "    AND child.agent_id IS NOT NULL)) "
+              + "AND NOT (e.team_id IS NOT NULL AND e.user_id IS NULL "
+              + "  AND EXISTS (SELECT 1 FROM injects_expectations child "
+              + "    WHERE child.inject_id = e.inject_id "
+              + "    AND child.inject_expectation_type = e.inject_expectation_type "
+              + "    AND child.team_id = e.team_id "
+              + "    AND child.user_id IS NOT NULL "
+              + "    AND child.inject_expectation_name "
+              + "      IS NOT DISTINCT FROM e.inject_expectation_name "
+              + "    AND child.article_id IS NOT DISTINCT FROM e.article_id "
+              + "    AND child.challenge_id IS NOT DISTINCT FROM e.challenge_id)) "
               + "ORDER BY e.inject_expectation_created_at ASC "
               + "LIMIT :limit",
       nativeQuery = true)
-  List<BaseInjectExpectation> findExpectationsNotFilledAndExpired(
+  List<BaseInjectExpectation> findPendingExpiredLeafExpectations(
       @Param("tenantId") String tenantId, @Param("limit") int limit);
 
   @Query(value = "select i from InjectExpectation i where i.exercise.id = :exerciseId")
@@ -267,15 +311,6 @@ public interface InjectExpectationRepository
       @Param("userId") String userId,
       @Param("exerciseId") String exerciseId,
       @Param("challengeId") String challengeId);
-
-  @Query(
-      value =
-          "select i from InjectExpectation i where i.inject.id in (:injectIds) "
-              + "and i.article.id in (:articlesIds) and i.team.id in (:teamIds) and i.type = 'ARTICLE'")
-  List<ArticleInjectExpectation> findChannelExpectations(
-      @Param("injectIds") List<String> injectIds,
-      @Param("teamIds") List<String> teamIds,
-      @Param("articlesIds") List<String> articlesIds);
 
   // -- BY TARGET TYPE
 
@@ -384,7 +419,7 @@ public interface InjectExpectationRepository
               + "i.inject_expectation_type AS inject_expectation_type, "
               + "i.user_id AS user_id, "
               + "i.inject_expectation_score AS inject_expectation_score, "
-              + "i.inject_expectation_results AS inject_expectation_results, "
+              + "'[]'::jsonb AS inject_expectation_results, "
               + "i.inject_expectation_expected_score AS inject_expectation_expected_score, "
               + "i.inject_expectation_group AS inject_expectation_group "
               + "FROM injects_expectations i "
@@ -402,6 +437,19 @@ public interface InjectExpectationRepository
   // counting them again dilutes a failed group into a PARTIAL global score.
   List<RawInjectExpectationIndexing> rawForComputeGlobalByInjectIds(
       @Param("injectIds") Set<String> injectIds);
+
+  @Query(
+      value =
+          """
+    select i from InjectExpectation i
+      where i.inject.id in :injectIds
+      and i.user IS NULL
+      and i.agent IS NULL
+      and (i.asset IS NULL OR i.assetGroup IS NULL
+          or i.asset member of i.inject.assets)
+    """)
+  List<BaseInjectExpectation> forComputeGlobalByInjectIds(
+      @Param("injectIds") @NotBlank final Set<String> injectIds);
 
   @Query(
       value =
@@ -489,7 +537,7 @@ public interface InjectExpectationRepository
     base AS (
         -- One row per ranked expectation (1:1 joins only — no fan-out).
         SELECT ie.inject_expectation_id, ie.inject_expectation_name, ie.inject_expectation_description, ie.inject_expectation_type,
-               ie.inject_expectation_results, ie.inject_expectation_score, ie.inject_expectation_expected_score, ie.inject_expiration_time,
+               ie.inject_expectation_score, ie.inject_expectation_expected_score, ie.inject_expiration_time,
                ie.inject_expectation_group, ie.inject_expectation_created_at,
                ie.exercise_id, ie.inject_id, ie.user_id, ie.team_id, ie.agent_id, ie.asset_id, ie.asset_group_id,
                i.tenant_id, i.inject_title, i.inject_injector_contract AS contract_id,
@@ -501,16 +549,21 @@ public interface InjectExpectationRepository
                                         AND ic.tenant_id = i.tenant_id
     ),
     ap_agg AS (
-        SELECT ic_ap.injector_contract_id, array_agg(DISTINCT ic_ap.attack_pattern_id) AS attack_pattern_ids
+        -- Keyed on (contract, tenant), like the link table itself: a contract id is shared across
+        -- tenants, so aggregating on the id alone would carry another tenant's mapping into this
+        -- tenant's document.
+        SELECT ic_ap.injector_contract_id, ic_ap.tenant_id, array_agg(DISTINCT ic_ap.attack_pattern_id) AS attack_pattern_ids
         FROM injectors_contracts_attack_patterns ic_ap
-        WHERE ic_ap.injector_contract_id IN (SELECT contract_id FROM base WHERE contract_id IS NOT NULL)
-        GROUP BY ic_ap.injector_contract_id
+        WHERE (ic_ap.injector_contract_id, ic_ap.tenant_id)
+              IN (SELECT contract_id, tenant_id FROM base WHERE contract_id IS NOT NULL)
+        GROUP BY ic_ap.injector_contract_id, ic_ap.tenant_id
     ),
     dom_agg AS (
-        SELECT ic_d.injector_contract_id, array_agg(DISTINCT ic_d.domain_id) AS domain_ids
+        SELECT ic_d.injector_contract_id, ic_d.tenant_id, array_agg(DISTINCT ic_d.domain_id) AS domain_ids
         FROM injectors_contracts_domains ic_d
-        WHERE ic_d.injector_contract_id IN (SELECT contract_id FROM base WHERE contract_id IS NOT NULL)
-        GROUP BY ic_d.injector_contract_id
+        WHERE (ic_d.injector_contract_id, ic_d.tenant_id)
+              IN (SELECT contract_id, tenant_id FROM base WHERE contract_id IS NOT NULL)
+        GROUP BY ic_d.injector_contract_id, ic_d.tenant_id
     ),
     track_agg AS (
         SELECT ins.status_inject AS inject_id, max(ins.tracking_sent_date) AS tracking_sent_date
@@ -533,10 +586,10 @@ public interface InjectExpectationRepository
                COALESCE(array_agg(DISTINCT c.collector_security_platform::text) FILTER (WHERE c.collector_security_platform IS NOT NULL), ARRAY[]::text[])
                || COALESCE(array_agg(DISTINCT a.asset_id::text) FILTER (WHERE a.asset_id IS NOT NULL), ARRAY[]::text[]) AS ids
         FROM base b
-        LEFT JOIN LATERAL jsonb_array_elements(b.inject_expectation_results::jsonb) AS r(elem) ON true
-        LEFT JOIN collectors c ON r.elem->>'sourceId' = c.collector_id::text
+        LEFT JOIN inject_expectation_results ier ON b.inject_expectation_id = ier.inject_expectation_result_inject_expectation_id
+        LEFT JOIN collectors c ON ier.inject_expectation_result_source_id = c.collector_id::text
                               AND c.tenant_id = b.tenant_id
-        LEFT JOIN assets a ON r.elem->>'sourceId' = a.asset_id::text
+        LEFT JOIN assets a ON ier.inject_expectation_result_source_id = a.asset_id::text
         GROUP BY b.inject_expectation_id
     ),
     agent_security_platforms AS (
@@ -556,14 +609,14 @@ public interface InjectExpectationRepository
          AND child_ie.inject_expectation_type = b.inject_expectation_type
          AND (b.asset_id IS NULL OR child_ie.asset_id = b.asset_id)
          AND (b.asset_group_id IS NULL OR child_ie.asset_group_id = b.asset_group_id)
-        LEFT JOIN LATERAL jsonb_array_elements(child_ie.inject_expectation_results::jsonb) AS child_r(elem) ON true
-        LEFT JOIN collectors child_c ON child_r.elem->>'sourceId' = child_c.collector_id::text
+        LEFT JOIN inject_expectation_results child_ier ON child_ie.inject_expectation_id = child_ier.inject_expectation_result_inject_expectation_id
+        LEFT JOIN collectors child_c ON child_ier.inject_expectation_result_source_id = child_c.collector_id::text
                                     AND child_c.tenant_id = b.tenant_id
-        LEFT JOIN assets child_a ON child_r.elem->>'sourceId' = child_a.asset_id::text
+        LEFT JOIN assets child_a ON child_ier.inject_expectation_result_source_id = child_a.asset_id::text
         GROUP BY b.inject_expectation_id
     )
     SELECT b.inject_expectation_id, b.inject_expectation_name, b.inject_expectation_description, b.inject_expectation_type,
-           b.inject_expectation_results, b.inject_expectation_score, b.inject_expectation_expected_score, b.inject_expiration_time,
+           b.inject_expectation_score, b.inject_expectation_expected_score, b.inject_expiration_time,
            b.inject_expectation_group, b.inject_expectation_created_at,
            b.inject_expectation_updated_at,
            b.exercise_id, b.inject_id, b.user_id, b.team_id, b.agent_id, b.asset_id, b.asset_group_id, b.tenant_id, b.inject_title,
@@ -573,8 +626,8 @@ public interface InjectExpectationRepository
            sa.scenario_id,
            COALESCE(spself.ids, ARRAY[]::text[]) || COALESCE(asp.security_platform_ids, ARRAY[]::text[]) AS security_platform_ids
     FROM base b
-    LEFT JOIN ap_agg apa ON apa.injector_contract_id = b.contract_id
-    LEFT JOIN dom_agg da ON da.injector_contract_id = b.contract_id
+    LEFT JOIN ap_agg apa ON apa.injector_contract_id = b.contract_id AND apa.tenant_id = b.tenant_id
+    LEFT JOIN dom_agg da ON da.injector_contract_id = b.contract_id AND da.tenant_id = b.tenant_id
     LEFT JOIN track_agg ta ON ta.inject_id = b.inject_id
     LEFT JOIN scen_agg sa ON sa.exercise_id = b.exercise_id
     LEFT JOIN sp_self spself ON spself.inject_expectation_id = b.inject_expectation_id

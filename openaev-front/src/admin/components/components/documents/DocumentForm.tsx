@@ -1,7 +1,8 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Button, CircularProgress } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -64,11 +65,17 @@ const DocumentForm: FunctionComponent<Props> = ({
     formState: { isSubmitting, isDirty },
   } = methods;
 
+  const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleSubmit(onSubmit)(e);
+  };
+
   return (
     <FormProvider {...methods}>
       <form
         id="documentForm"
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmitWithoutPropagation}
       >
         <Box sx={{
           display: 'flex',
@@ -77,7 +84,6 @@ const DocumentForm: FunctionComponent<Props> = ({
         }}
         >
           <TextFieldController
-            variant="standard"
             name="document_description"
             multiline
             rows={2}
@@ -110,21 +116,10 @@ const DocumentForm: FunctionComponent<Props> = ({
           marginTop: theme.spacing(1),
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={!isDirty || isSubmitting}
-            startIcon={isSubmitting && <CircularProgress size={20} />}
-          >
+          <Button startIcon={isSubmitting && <CircularProgress size={20} />} type="submit" disabled={!isDirty || isSubmitting}>
             {editing ? t('Update') : t('Create')}
           </Button>
         </div>

@@ -47,13 +47,18 @@ public class V20260330_Default_tenant_data extends DataPack {
   @Override
   public boolean doProcess(Tenant tenant) {
     try {
+      // The default tenant's roles come from Flyway, its groups from
+      // V20261001_Default_tenant_roles_and_groups
       if (!Tenant.DEFAULT_TENANT_UUID.equals(tenant.getId())) {
         // Init vulnerabilities
         PresetTenantData.createDefaultVulnerabilityCwes()
             .forEach(
                 input -> {
-                  Cwe cwe = cweRepository.save(input.cwe());
+                  Cwe cwe = input.cwe();
+                  cwe.setTenant(entityManager.getReference(Tenant.class, tenant.getId()));
+                  cweRepository.save(cwe);
                   Vulnerability vulnerability = input.vulnerability();
+                  vulnerability.setTenant(entityManager.getReference(Tenant.class, tenant.getId()));
                   vulnerability.setCwes(new ArrayList<>(List.of(cwe)));
                   vulnerabilityRepository.save(vulnerability);
                 });

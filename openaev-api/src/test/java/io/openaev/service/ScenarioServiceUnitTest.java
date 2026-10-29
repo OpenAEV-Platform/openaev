@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.scenario.ScenarioService;
@@ -58,14 +58,14 @@ class ScenarioServiceUnitTest {
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
   @Mock private HealthCheckUtils healthCheckUtils;
-  @Mock private OpenAEVConfig openAEVConfig;
+  @Mock private PlatformMailSender platformMailSender;
   @InjectMocks private ScenarioService scenarioService;
 
   @BeforeEach
   void injectResourceFields() {
-    // openAEVConfig is a @Resource field, not a constructor argument: @InjectMocks only performs
-    // constructor injection here, so it has to be wired explicitly.
-    ReflectionTestUtils.setField(scenarioService, "openAEVConfig", openAEVConfig);
+    // platformMailSender is a @Resource field, not a constructor argument: @InjectMocks only
+    // performs constructor injection here, so it has to be wired explicitly.
+    ReflectionTestUtils.setField(scenarioService, "platformMailSender", platformMailSender);
   }
 
   @Test
@@ -158,18 +158,6 @@ class ScenarioServiceUnitTest {
   class CreateScenario {
 
     @Test
-    void shouldSaveScenario_andKeepExistingFrom() {
-      Scenario scenario = ScenarioFixture.getScenario();
-      when(scenarioRepository.save(any(Scenario.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
-
-      Scenario result = scenarioService.createScenario(scenario);
-
-      assertNotNull(result);
-      assertEquals("simulation@mail.fr", result.getFrom());
-    }
-
-    @Test
     void shouldReturnSavedScenario() {
       Scenario scenario = ScenarioFixture.getScenario();
       Scenario saved = ScenarioFixture.getScenario();
@@ -188,16 +176,6 @@ class ScenarioServiceUnitTest {
   class ComputeEmails {
 
     @Test
-    void shouldKeepExistingFrom_whenAlreadySet() {
-      Scenario scenario = new Scenario();
-      scenario.setFrom("existing@mail.com");
-
-      scenarioService.computeEmails(scenario);
-
-      assertEquals("existing@mail.com", scenario.getFrom());
-    }
-
-    @Test
     void given_a_scenario_with_reply_tos_should_not_override_them() {
       // -- PREPARE --
       Scenario scenario = new Scenario();
@@ -211,35 +189,29 @@ class ScenarioServiceUnitTest {
     }
 
     @Test
-    void given_a_scenario_with_a_from_name_and_no_from_should_not_override_the_from_name() {
+    void given_a_scenario_with_a_from_name_should_not_override_the_from_name() {
       // -- PREPARE --
-      // The creation input carries no `from`: gating the whole defaulting block on it used to
-      // wipe the display name the user had just typed in the creation form.
       Scenario scenario = new Scenario();
       scenario.setFromName("Custom sender");
-      when(openAEVConfig.getDefaultMailer()).thenReturn("default@mail.com");
 
       // -- EXECUTE --
       scenarioService.computeEmails(scenario);
 
       // -- ASSERT --
       assertEquals("Custom sender", scenario.getFromName());
-      assertEquals("default@mail.com", scenario.getFrom());
     }
 
     @Test
     void given_a_scenario_without_emails_should_apply_the_platform_defaults() {
       // -- PREPARE --
       Scenario scenario = new Scenario();
-      when(openAEVConfig.getDefaultMailer()).thenReturn("default@mail.com");
-      when(openAEVConfig.getDefaultMailerName()).thenReturn("Default sender");
-      when(openAEVConfig.getDefaultReplyTo()).thenReturn("reply@mail.com");
+      when(platformMailSender.getName()).thenReturn("Default sender");
+      when(platformMailSender.getReplyTo()).thenReturn("reply@mail.com");
 
       // -- EXECUTE --
       scenarioService.computeEmails(scenario);
 
       // -- ASSERT --
-      assertEquals("default@mail.com", scenario.getFrom());
       assertEquals("Default sender", scenario.getFromName());
       assertEquals(List.of("reply@mail.com"), scenario.getReplyTos());
     }
@@ -249,7 +221,7 @@ class ScenarioServiceUnitTest {
       // -- PREPARE --
       Scenario scenario = new Scenario();
       scenario.setReplyTos(null);
-      when(openAEVConfig.getDefaultReplyTo()).thenReturn("reply@mail.com");
+      when(platformMailSender.getReplyTo()).thenReturn("reply@mail.com");
 
       // -- EXECUTE --
       scenarioService.computeEmails(scenario);

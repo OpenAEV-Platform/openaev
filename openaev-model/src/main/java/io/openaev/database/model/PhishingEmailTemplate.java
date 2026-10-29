@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,20 +13,22 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
  * Reusable phishing email template (a "Component", like {@link Channel}). Holds the lure email
  * subject/body, optional sender identity override and a tracking-pixel toggle. Sent through the
  * platform's global SMTP by the internal phishing injector.
+ *
+ * <p>This entity is fully switched to v2 tenant isolation (statement inspector + {@code
+ * can_access_tenant}). Keep the v1 {@code @Filter} and {@code TenantBaseListener} removed to avoid
+ * mixed isolation/write-attribution modes; every create path stamps {@code tenant} explicitly.
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "phishing_email_templates")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
 public class PhishingEmailTemplate implements TenantBase {
 
   @Id

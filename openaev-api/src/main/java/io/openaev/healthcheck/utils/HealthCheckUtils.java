@@ -16,6 +16,8 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import jakarta.validation.constraints.NotNull;
@@ -29,6 +31,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class HealthCheckUtils {
+  // Caps how long health checks and expectations drift may hold a pooled DB connection.
+  public static final int READINESS_CHECK_TIMEOUT_SECONDS = 30;
+
   private static final ObjectMapper mapper = new ObjectMapper();
 
   /** Scope allowlist entry types consumed by asset/IP-centric (technical) steps. */
@@ -47,6 +52,7 @@ public class HealthCheckUtils {
   private final ExecutorUtils executorUtils;
   private final StepTargetingService stepTargetingService;
   private final ConditionService conditionService;
+  private final PreviewFeatureService previewFeatureService;
 
   /**
    * Run all mail service checks for one inject
@@ -87,10 +93,17 @@ public class HealthCheckUtils {
     List<HealthCheck> result = new ArrayList<>();
     InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
     Set<Agent> agents = agentsAndAssetsAgentless.agents();
+    // An inject without any configured target is a missing content issue, not a missing agent one
+    boolean hasTargets =
+        !ofNullable(inject.getAssets()).orElse(List.of()).isEmpty()
+            || !ofNullable(inject.getAssetGroups()).orElse(List.of()).isEmpty();
     agents = executorUtils.removeInactiveAgentsFromAgents(agents);
     agents = executorUtils.removeAgentsWithoutExecutorFromAgents(agents);
 
-    if (injectorContract != null && injectorContract.getNeedsExecutor() && agents.isEmpty()) {
+    if (injectorContract != null
+        && injectorContract.getNeedsExecutor()
+        && hasTargets
+        && agents.isEmpty()) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.AGENT_OR_EXECUTOR,
@@ -278,6 +291,21 @@ public class HealthCheckUtils {
   }
 
   /**
+   * Credential reference fields are only rendered while the {@code CREDENTIAL_ASSET} preview
+   * feature is enabled: checking them when it is disabled would report a mandatory field the user
+   * has no way to fill, and block the inject at execution time.
+   *
+   * @param jsonField the contract field to check
+   * @return {@code false} only for a credential reference field while the preview feature is
+   *     disabled; any other field is always checked
+   */
+  private boolean isContractCredentialFieldEnabled(JsonNode jsonField) {
+    return !CONTRACT_ELEMENT_CONTENT_CREDENTIAL_REFERENCE.equals(
+            jsonField.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText())
+        || previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET);
+  }
+
+  /**
    * Run content checks by inject
    *
    * @param inject to verify
@@ -296,6 +324,9 @@ public class HealthCheckUtils {
             .orElse(new ArrayList<>()),
         ofNullable(inject.getAssetGroups())
             .map(assetGroups -> assetGroups.stream().map(AssetGroup::getId).toList())
+            .orElse(new ArrayList<>()),
+        ofNullable(inject.getSecretReferences())
+            .map(secretReferences -> secretReferences.stream().map(SecretReference::getId).toList())
             .orElse(new ArrayList<>()));
   }
 
@@ -316,7 +347,8 @@ public class HealthCheckUtils {
       boolean allTeams,
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
-      @NotNull final List<String> assetGroups) {
+      @NotNull final List<String> assetGroups,
+      @NotNull final List<String> secretReferences) {
     List<HealthCheck> result = new ArrayList<>();
 
     if (injectorContract == null) {
@@ -352,14 +384,23 @@ public class HealthCheckUtils {
       return result;
     }
     List<JsonNode> contractFields =
-        stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false).toList();
+        stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false)
+            .filter(this::isContractCredentialFieldEnabled)
+            .toList();
 
     for (JsonNode jsonField : contractFields) {
 
       // If field is mandatory
       if (jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()
           && !InjectModelHelper.isFieldSet(
-              allTeams, teams, assets, assetGroups, jsonField, content, injectContractFields)) {
+              allTeams,
+              teams,
+              assets,
+              assetGroups,
+              secretReferences,
+              jsonField,
+              content,
+              injectContractFields)) {
         result.add(
             new HealthCheck(
                 HealthCheck.Type.fromValue(jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()),
@@ -389,6 +430,7 @@ public class HealthCheckUtils {
                     teams,
                     assets,
                     assetGroups,
+                    secretReferences,
                     groupField.get(),
                     content,
                     injectContractFields)) {
@@ -471,6 +513,7 @@ public class HealthCheckUtils {
                   teams,
                   assets,
                   assetGroups,
+                  secretReferences,
                   fieldOpt.get(),
                   content,
                   injectContractFields)) {

@@ -222,16 +222,22 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * Ensures a {@link CollectorType} row exists for the given type name. Creates one if it does not
    * already exist (upsert semantics scoped to the current tenant).
    *
+   * <p>The dedup lookup is narrowed to {@code tenantId}, not the caller's ambient scope: {@code
+   * collector_type_name} is unique per tenant, not globally, so a request whose {@code
+   * X-Tenant-Ids} header spans several tenants could otherwise match another tenant's row and link
+   * it as the FK of the collector being created for {@code tenantId} here.
+   *
+   * @param tenantId the tenant the caller is scoped to; stamped explicitly on a newly created row
    * @param type the collector type name (e.g. "openaev_crowdstrike")
    * @return the existing or newly created {@link CollectorType}
    */
-  public CollectorType ensureCollectorTypeExists(String type) {
+  public CollectorType ensureCollectorTypeExists(String tenantId, String type) {
     return collectorTypeRepository
-        .findByName(type)
+        .findByNameAndTenantId(type, tenantId)
         .orElseGet(
             () -> {
               CollectorType ct = new CollectorType(type);
-              // Tenant is auto-assigned by TenantBaseListener @PrePersist
+              ct.setTenant(new Tenant(tenantId));
               return collectorTypeRepository.save(ct);
             });
   }
@@ -270,7 +276,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
     }
 
-    CollectorType collectorType = ensureCollectorTypeExists(type);
+    CollectorType collectorType = ensureCollectorTypeExists(tenantId, type);
 
     // Full composite key lookup: identity is (collector_id, tenant_id).
     Collector collector =

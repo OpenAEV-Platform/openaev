@@ -115,6 +115,10 @@ class AiDefenseFeedTenantScopeTest extends IntegrationTest {
             SecurityPlatformFixture.createDefault(
                 "LLM_FIREWALL-platform-" + UUID.randomUUID(), "LLM_FIREWALL"));
     CollectorType collectorType = new CollectorType(UUID.randomUUID().toString());
+    // collector_types no longer carries a v1 TenantBaseListener (removed on its v2 activation,
+    // #7933): the tenant must be stamped explicitly, same convention as
+    // CollectorService#ensureCollectorTypeExists.
+    collectorType.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     collectorTypeRepository.save(collectorType);
     Collector collector = new Collector();
     collector.setId(UUID.randomUUID().toString());

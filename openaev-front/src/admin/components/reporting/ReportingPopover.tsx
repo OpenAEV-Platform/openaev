@@ -1,4 +1,4 @@
-import { type FunctionComponent, useCallback, useContext, useState } from 'react';
+import { type FunctionComponent, useCallback, useState } from 'react';
 
 import { deleteReporting, updateReporting } from '../../../actions/reporting/reporting-actions';
 import ButtonPopover from '../../../components/common/ButtonPopover';
@@ -6,7 +6,7 @@ import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import { type Reporting, type ReportingInput } from '../../../utils/api-types';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ReportingForm from './form/ReportingForm';
 
@@ -23,7 +23,7 @@ interface Props {
  */
 const ReportingPopover: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete, inList = false }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [modal, setModal] = useState<'edit' | 'delete' | null>(null);
 

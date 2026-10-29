@@ -76,7 +76,7 @@ public class PhishingLandingPageApi extends RestBehavior {
       TxCtx ctx, @Valid @RequestBody PhishingLandingPageInput input) {
     PhishingLandingPage landingPage = new PhishingLandingPage();
     applyInput(landingPage, input);
-    return landingPageService.upsert(landingPage);
+    return landingPageService.upsert(ctx, landingPage);
   }
 
   @PutMapping({PHISHING_LANDING_PAGE_URI + "/{id}", TENANT_PHISHING_LANDING_PAGE_URI + "/{id}"})
@@ -91,7 +91,7 @@ public class PhishingLandingPageApi extends RestBehavior {
       TxCtx ctx, @PathVariable String id, @Valid @RequestBody PhishingLandingPageInput input) {
     PhishingLandingPage landingPage = landingPageService.landingPage(id);
     applyInput(landingPage, input);
-    return landingPageService.upsert(landingPage);
+    return landingPageService.upsert(ctx, landingPage);
   }
 
   @PutMapping({
@@ -108,7 +108,7 @@ public class PhishingLandingPageApi extends RestBehavior {
       // for the transaction (updateLogos calls upsert -> synchroniseInjectorContract, same reason
       // as createLandingPage above).
       TxCtx ctx, @PathVariable String id, @Valid @RequestBody PhishingLandingPageLogoInput input) {
-    return landingPageService.updateLogos(id, input.getLogoDark(), input.getLogoLight());
+    return landingPageService.updateLogos(ctx, id, input.getLogoDark(), input.getLogoLight());
   }
 
   @PostMapping({
@@ -139,7 +139,7 @@ public class PhishingLandingPageApi extends RestBehavior {
     copy.setLogoDark(source.getLogoDark());
     copy.setLogoLight(source.getLogoLight());
     copy.setCustomDomain(source.getCustomDomain());
-    return landingPageService.upsert(copy);
+    return landingPageService.upsert(ctx, copy);
   }
 
   @DeleteMapping({PHISHING_LANDING_PAGE_URI + "/{id}", TENANT_PHISHING_LANDING_PAGE_URI + "/{id}"})

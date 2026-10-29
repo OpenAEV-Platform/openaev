@@ -1,4 +1,4 @@
-import { Button, Chip } from '@mui/material';
+import { Button, Chip } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -72,18 +72,13 @@ const CatalogActiveFilters = ({ filters, onToggleFacet, onClearAll }: Props) => 
       {chips.map(chip => (
         <Chip
           key={`${chip.groupId}-${chip.value}`}
-          size="small"
-          variant="outlined"
-          color="primary"
-          sx={{
-            borderRadius: 1,
-            textTransform: chip.capitalize ? 'capitalize' : 'none',
-          }}
           label={chip.label}
           onDelete={() => onToggleFacet(chip.groupId, chip.value)}
+          severity="info"
+          deleteLabel={t('Remove')}
         />
       ))}
-      <Button size="small" onClick={onClearAll}>
+      <Button type="button" priority="tertiary" size="sm" onClick={onClearAll}>
         {t('Clear all')}
       </Button>
     </div>

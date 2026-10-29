@@ -1,13 +1,14 @@
+import { Button, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip, Typography } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type KeyboardEvent, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { tint } from '../../../utils/tint';
 import { type PostureBreakdownEntry } from './useExpectationPosture';
 
-// Human label per expectation-type pillar (same taxonomy as the home
-// command-center exposure breakdown).
+// Human label per expectation-type pillar.
 const PILLAR_LABELS: Record<string, string> = {
   PREVENTION: 'Prevention',
   DETECTION: 'Detection',
@@ -30,12 +31,8 @@ interface Props {
 }
 
 /**
- * The posture score hero element: a mini ring gauge + score, rendered in the
- * hero stats row but visually distinct from the plain HeroStat counters.
- * Like the home exposure orb, clicking it opens a dialog explaining the
- * rationale behind the number (formula, per-pillar breakdown, severity bands).
- * Posture = share of validated expectations the defenses met - HIGHER is
- * BETTER (the inverse reading of the home exposure score).
+ * Share of validated expectations the defenses met — HIGHER is better, the inverse
+ * reading of the home exposure score. Clicking it explains the number.
  */
 const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, loading = false, scope = 'asset' }) => {
   const theme = useTheme();
@@ -104,7 +101,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
     };
     if (score >= 25) return {
       label: t('Weak posture'),
-      color: '#ff7043',
+      color: 'var(--color-feedback-warning-primary)',
       desc: t('More than half of the validated expectations were missed.'),
     };
     return {
@@ -132,7 +129,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
     {
       range: '25 - 49',
       label: t('Weak posture'),
-      color: '#ff7043',
+      color: 'var(--color-feedback-warning-primary)',
       desc: t('More than half of the validated expectations were missed.'),
     },
     {
@@ -145,9 +142,10 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
 
   const pillars = breakdown.filter(entry => entry.success + entry.failed > 0);
 
-  // Mini ring gauge geometry (sized to sit next to the 30px HeroStat icon boxes).
-  const ringSize = 30;
-  const ringRadius = 12;
+  // Mini ring gauge geometry, sized on the 24px glyph the neighbouring
+  // HeroStat tiles carry, so the row of icons reads level.
+  const ringSize = 24;
+  const ringRadius = 9.5;
   const circumference = 2 * Math.PI * ringRadius;
   const fill = score === null ? 0 : score / 100;
 
@@ -170,94 +168,94 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
 
   return (
     <>
-      <Tooltip title={t('Posture score - click to understand how it is computed')}>
-        <Box
-          onClick={() => setExplainOpen(true)}
-          {...explainA11yProps}
-          sx={{
-            'display': 'flex',
-            'alignItems': 'center',
-            'gap': 1,
-            'minWidth': 0,
-            'padding': 0.5,
-            'borderRadius': 1,
-            'cursor': 'pointer',
-            'transition': 'background-color 120ms',
-            '&:hover': { backgroundColor: alpha(color, 0.08) },
-          }}
-        >
-          {/* Ring gauge instead of the standard tinted icon box: the posture
-              score reads as a gauge, not a counter. */}
-          <Box sx={{
-            position: 'relative',
-            width: ringSize,
-            height: ringSize,
-            flexShrink: 0,
-          }}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Box
+            onClick={() => setExplainOpen(true)}
+            {...explainA11yProps}
+            // The tile is one of the hero stats beside it, so it wears their
+            // chrome: 8px inset, the subtle-soft border, the 24px glyph slot.
+            sx={{
+              'display': 'flex',
+              'alignItems': 'center',
+              'gap': 1,
+              'minWidth': 0,
+              'padding': 1,
+              'borderRadius': 1,
+              'border': '1px solid var(--border-elevation-subtle-soft)',
+              'cursor': 'pointer',
+              'transition': 'background-color 120ms',
+              '&:hover': { backgroundColor: tint(color, 8) },
+            }}
           >
-            <svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`} style={{ transform: 'rotate(-90deg)' }}>
-              <circle
-                cx={ringSize / 2}
-                cy={ringSize / 2}
-                r={ringRadius}
-                fill={alpha(color, 0.1)}
-                stroke={alpha(theme.palette.text.primary, 0.12)}
-                strokeWidth={2.5}
-              />
-              <circle
-                cx={ringSize / 2}
-                cy={ringSize / 2}
-                r={ringRadius}
-                fill="none"
-                stroke={color}
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={circumference * (1 - fill)}
-                style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.22, 1, 0.36, 1)' }}
-              />
-            </svg>
+            {/* Ring gauge instead of the standard tinted icon box: the posture
+              score reads as a gauge, not a counter. */}
             <Box sx={{
-              position: 'absolute',
-              inset: 0,
+              position: 'relative',
+              width: ringSize,
+              height: ringSize,
+              flexShrink: 0,
+            }}
+            >
+              <svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`} style={{ transform: 'rotate(-90deg)' }}>
+                <circle
+                  cx={ringSize / 2}
+                  cy={ringSize / 2}
+                  r={ringRadius}
+                  fill={tint(color, 10)}
+                  stroke={alpha(theme.palette.text.primary, 0.12)}
+                  strokeWidth={2.5}
+                />
+                <circle
+                  cx={ringSize / 2}
+                  cy={ringSize / 2}
+                  r={ringRadius}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={circumference * (1 - fill)}
+                  style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+                />
+              </svg>
+              <Box sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              >
+                <Box sx={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: '50%',
+                  background: color,
+                  boxShadow: `0 0 6px ${tint(color, 80)}`,
+                }}
+                />
+              </Box>
+            </Box>
+            {/* Value and label on ONE line, in the hero stat's own type: the
+                score's colour stays on the ring, which is what carries it. */}
+            <Box sx={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: 0.5,
+              minWidth: 0,
             }}
             >
-              <Box sx={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: color,
-                boxShadow: `0 0 6px ${alpha(color, 0.8)}`,
-              }}
-              />
+              <Text variant="content-base-bold" className="text-default-primary">
+                {displayValue}
+              </Text>
+              <Text variant="content-compact" className="text-default-secondary">
+                {t('Posture score')}
+              </Text>
             </Box>
           </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{
-              fontFamily: '"Geologica", sans-serif',
-              fontSize: 18,
-              fontWeight: 500,
-              lineHeight: 1.05,
-              color: score === null ? 'text.primary' : color,
-            }}
-            >
-              {displayValue}
-            </Typography>
-            <Typography sx={{
-              fontSize: 9.5,
-              fontWeight: 600,
-              letterSpacing: '0.07em',
-              textTransform: 'uppercase',
-              color: 'text.secondary',
-            }}
-            >
-              {t('Posture score')}
-            </Typography>
-          </Box>
-        </Box>
+        </TooltipTrigger>
+        <TooltipContent>{t('Posture score - click to understand how it is computed')}</TooltipContent>
       </Tooltip>
 
       <Dialog
@@ -265,7 +263,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
         onClose={() => setExplainOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: 1 } } }}
       >
         <DialogTitle sx={{
           display: 'flex',
@@ -285,8 +283,8 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
             padding: 2,
             borderRadius: 1,
             marginBottom: 2,
-            border: `1px solid ${alpha(color, 0.3)}`,
-            background: alpha(color, 0.08),
+            border: `1px solid ${tint(color, 30)}`,
+            background: tint(color, 8),
           }}
           >
             <Typography sx={{
@@ -309,14 +307,23 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
               >
                 {band.label}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary' }}
+              >
                 {total === 0 ? strings.empty : strings.verdict}
               </Typography>
             </Box>
           </Box>
 
           <Typography variant="h4" gutterBottom>{t('What it measures')}</Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'text.secondary',
+              marginBottom: '16px',
+            }}
+          >
             {strings.measures}
           </Typography>
           <Box sx={{
@@ -347,7 +354,13 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
               {score === null ? '-' : score}
             </Box>
           </Box>
-          <Typography variant="body2" color="text.secondary" paragraph>
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'text.secondary',
+              marginBottom: '16px',
+            }}
+          >
             {t('Every validated expectation counts equally - there is no per-pillar weighting. Pending or unscored expectations are excluded until they resolve.')}
           </Typography>
 
@@ -369,7 +382,10 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {t(PILLAR_LABELS[pillar.key.toUpperCase()] ?? pillar.key)}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography
+                        variant="body2"
+                        sx={{ color: 'text.secondary' }}
+                      >
                         {t('{met} / {total} met ({pct}%)', {
                           met: pillar.success,
                           total: pillarTotal,
@@ -377,30 +393,34 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                         })}
                       </Typography>
                     </Box>
-                    <Tooltip title={t('{met} met - {missed} missed', {
-                      met: pillar.success,
-                      missed: pillar.failed,
-                    })}
-                    >
-                      <Box sx={{
-                        display: 'flex',
-                        height: 8,
-                        borderRadius: 999,
-                        overflow: 'hidden',
-                        background: theme.palette.action.hover,
-                      }}
-                      >
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                         <Box sx={{
-                          width: `${metPct}%`,
-                          background: theme.palette.success.main,
+                          display: 'flex',
+                          height: 8,
+                          borderRadius: 999,
+                          overflow: 'hidden',
+                          background: theme.palette.action.hover,
                         }}
-                        />
-                        <Box sx={{
-                          width: `${100 - metPct}%`,
-                          background: theme.palette.error.main,
-                        }}
-                        />
-                      </Box>
+                        >
+                          <Box sx={{
+                            width: `${metPct}%`,
+                            background: theme.palette.success.main,
+                          }}
+                          />
+                          <Box sx={{
+                            width: `${100 - metPct}%`,
+                            background: theme.palette.error.main,
+                          }}
+                          />
+                        </Box>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t('{met} met - {missed} missed', {
+                          met: pillar.success,
+                          missed: pillar.failed,
+                        })}
+                      </TooltipContent>
                     </Tooltip>
                   </Box>
                 );
@@ -424,7 +444,12 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                     background: theme.palette.success.main,
                   }}
                   />
-                  <Typography variant="body2" color="text.secondary">{t('Met')}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    {t('Met')}
+                  </Typography>
                 </Box>
                 <Box sx={{
                   display: 'flex',
@@ -439,7 +464,12 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                     background: theme.palette.error.main,
                   }}
                   />
-                  <Typography variant="body2" color="text.secondary">{t('Missed')}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    {t('Missed')}
+                  </Typography>
                 </Box>
               </Box>
             </>
@@ -459,8 +489,8 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                   paddingBlock: 0.75,
                   paddingInline: 1,
                   borderRadius: 1,
-                  background: isCurrent ? alpha(entry.color, 0.1) : 'transparent',
-                  border: `1px solid ${isCurrent ? alpha(entry.color, 0.4) : 'transparent'}`,
+                  background: isCurrent ? tint(entry.color, 10) : 'transparent',
+                  border: `1px solid ${isCurrent ? tint(entry.color, 40) : 'transparent'}`,
                 }}
               >
                 <Box sx={{
@@ -470,7 +500,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                   marginTop: 0.5,
                   flexShrink: 0,
                   background: entry.color,
-                  boxShadow: `0 0 6px ${alpha(entry.color, 0.7)}`,
+                  boxShadow: `0 0 6px ${tint(entry.color, 70)}`,
                 }}
                 />
                 <Box>
@@ -478,14 +508,19 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                     {`${entry.range} - ${entry.label}`}
                     {isCurrent ? ` - ${t('current')}` : ''}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">{entry.desc}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    {entry.desc}
+                  </Typography>
                 </Box>
               </Box>
             );
           })}
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
+          <Button type="button" priority="secondary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
         </DialogActions>
       </Dialog>
     </>

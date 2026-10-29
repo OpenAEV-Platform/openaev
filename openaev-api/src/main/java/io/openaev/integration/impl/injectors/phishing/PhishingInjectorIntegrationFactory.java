@@ -126,6 +126,6 @@ public class PhishingInjectorIntegrationFactory extends BuiltinIntegrationFactor
     // Seed a platform-themed default landing page + email template so a tenant has a ready-to-use
     // phishing action immediately. Runs after the injector is registered so the seeded landing
     // page's Threat Arsenal contract can be synthesized.
-    landingPageService.seedDefaultsIfEmpty();
+    landingPageService.seedDefaultsIfEmpty(tenantId);
   }
 }

@@ -5,7 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.utils.challenge.ChallengeAttemptUtils.buildChallengeAttempt;
 import static io.openaev.utils.challenge.ChallengeAttemptUtils.buildChallengeAttemptID;
-import static io.openaev.utils.challenge.ChallengeExpectationUtils.buildChallengeUpdateInput;
+import static io.openaev.utils.challenge.ChallengeExpectationUtils.buildChallengeVerdict;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,8 +22,8 @@ import io.openaev.rest.challenge.response.ChallengeResult;
 import io.openaev.rest.challenge.response.SimulationChallengesReader;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.service.challenge.ChallengeAttemptService;
+import io.openaev.service.expectation.ExpectationVerdict;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -54,7 +54,9 @@ public class ChallengeService {
 
   public Challenge enrichChallengeWithExercisesOrScenarios(@NotNull Challenge challenge) {
     List<Inject> injects =
-        fromIterable(this.injectRepository.findAllForChallengeId("%" + challenge.getId() + "%"));
+        fromIterable(
+            this.injectRepository.findAllById(
+                this.injectRepository.findAllIdsForChallengeId("%" + challenge.getId() + "%")));
     List<String> exerciseIds =
         injects.stream()
             .filter(i -> i.getExercise() != null)
@@ -76,6 +78,35 @@ public class ChallengeService {
     // instead of one SELECT per challenge.
     Hibernate.initialize(challenge.getDocuments());
     return challenge;
+  }
+
+  /**
+   * Loads every in-scope challenge with its documents and tags. The challenge read endpoints return
+   * the raw entity, serialized open-in-view after the scoped transaction commits: a lazy {@code
+   * documents} or {@code tags} load at that point fails closed to an empty array, so both are
+   * loaded here, inside the scope.
+   */
+  public List<Challenge> findAllWithDocumentsAndTags() {
+    List<Challenge> challenges = challengeRepository.findAllFetchingDocuments();
+    fetchTags(challenges);
+    return challenges;
+  }
+
+  /**
+   * Loads the given challenges with their documents and tags, for the same reason as {@link
+   * #findAllWithDocumentsAndTags()}.
+   */
+  public List<Challenge> findAllByIdWithDocumentsAndTags(@NotNull final List<String> ids) {
+    List<Challenge> challenges = challengeRepository.findAllByIdInFetchingDocuments(ids);
+    fetchTags(challenges);
+    return challenges;
+  }
+
+  private void fetchTags(List<Challenge> challenges) {
+    if (!challenges.isEmpty()) {
+      challengeRepository.findAllByIdInFetchingTags(
+          challenges.stream().map(Challenge::getId).toList());
+    }
   }
 
   public Iterable<Challenge> getExerciseChallenges(@NotBlank final String exerciseId) {
@@ -212,9 +243,8 @@ public class ChallengeService {
                     ? playerExpectation.getExpectedScore()
                     : 0;
 
-            ExpectationUpdateInput expectationUpdateInput = buildChallengeUpdateInput(score);
             this.injectExpectationService.updateInjectExpectation(
-                playerExpectation.getId(), expectationUpdateInput);
+                playerExpectation.getId(), buildChallengeVerdict(score));
           });
     } else {
       // Failure: Find and update the user's challenge attempt
@@ -243,7 +273,7 @@ public class ChallengeService {
       List<ChallengeAttempt> challengeAttempts =
           challengeAttemptService.getChallengeAttempts(challengeAttemptIds);
       List<ChallengeAttempt> attemptsToSave = new ArrayList<>();
-      Map<String, ExpectationUpdateInput> expectationsToUpdate = new HashMap<>();
+      Map<String, ExpectationVerdict> expectationsToUpdate = new HashMap<>();
       for (ChallengeAttemptId id : challengeAttemptIds) {
         ChallengeInjectExpectation expectation = expectationMap.get(id);
         ChallengeAttempt attempt =
@@ -257,7 +287,7 @@ public class ChallengeService {
 
         if (expectation.getChallenge().getMaxAttempts() != null
             && attempt.getAttempt() >= expectation.getChallenge().getMaxAttempts()) {
-          expectationsToUpdate.put(expectation.getId(), buildChallengeUpdateInput(0D));
+          expectationsToUpdate.put(expectation.getId(), buildChallengeVerdict(0D));
         }
       }
 

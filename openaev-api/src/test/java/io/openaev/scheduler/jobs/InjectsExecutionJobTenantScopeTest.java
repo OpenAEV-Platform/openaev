@@ -3,9 +3,11 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,14 +26,14 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.hibernate.Session;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -69,7 +71,6 @@ class InjectsExecutionJobTenantScopeTest {
   @Mock private InjectStatusService injectStatusService;
   @Mock private io.openaev.executors.Executor executor;
   @Mock private ActionMetricCollector actionMetricCollector;
-  @Mock private EntityManager entityManager;
   @Mock private TenantScopedTransaction tenantTx;
   @Mock private TenantScopedJobRunner tenantScopedJobRunner;
   @Mock private HealthCheckUtils healthCheckUtils;
@@ -90,7 +91,6 @@ class InjectsExecutionJobTenantScopeTest {
   @BeforeEach
   void setUp() throws Exception {
     ReflectionTestUtils.setField(job, "auditLogger", Optional.empty());
-    when(entityManager.unwrap(Session.class)).thenReturn(mock(Session.class));
 
     // The scoping is what this suite asserts, so the runner is the real one over the mocked
     // primitive - a stub would run the work with no scope opened at all.
@@ -105,6 +105,8 @@ class InjectsExecutionJobTenantScopeTest {
         .runInTenant(anyString(), any(Runnable.class));
 
     // Every sweep around the execution is a no-op here: this test is about the execution scope.
+    when(tenantScopedJobRunner.supplyAcrossTenants(any()))
+        .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(0).get());
     when(exerciseRepository.findAllShouldBeInRunningState(any())).thenReturn(List.of());
     doReturn(List.of()).when(exerciseRepository).saveAll(any());
     when(injectService.resolveAllAssetsToExecute(any(Inject.class))).thenReturn(List.of());
@@ -140,7 +142,7 @@ class InjectsExecutionJobTenantScopeTest {
               return null;
             })
         .when(injectStatusService)
-        .failInjectStatus(anyString(), anyString());
+        .persistErrorStatusInTransaction(anyString(), anyString());
   }
 
   @AfterEach
@@ -232,7 +234,47 @@ class InjectsExecutionJobTenantScopeTest {
 
     job.execute(null);
 
-    verify(injectStatusService).failInjectStatus(anyString(), anyString());
+    verify(injectStatusService).persistErrorStatusInTransaction(anyString(), anyString());
+    assertThat(tenantDuringFailStatus.get()).isEqualTo(INJECT_TENANT);
+  }
+
+  @Test
+  @DisplayName(
+      "an execution failure is persisted in the execution transaction, not in a second one")
+  void failedStatusIsPersistedInTheExecutionTransaction() throws Exception {
+    when(executor.execute(any(ExecutableInject.class))).thenThrow(new RuntimeException("boom"));
+
+    job.execute(null);
+
+    // A single transaction: the traces written before the failure commit with the ERROR status.
+    verify(tenantTx, times(1)).execute(any(TxCtx.class), any(Runnable.class));
+    verify(injectStatusService, times(1)).persistErrorStatusInTransaction(anyString(), eq("boom"));
+  }
+
+  @Test
+  @DisplayName(
+      "when the execution transaction cannot commit, the ERROR status is persisted in a fresh one")
+  void failedCommitFallsBackToAFreshTransaction() throws Exception {
+    // First transaction (the execution) fails at commit; the second one (the fallback) runs.
+    AtomicInteger transactions = new AtomicInteger();
+    doAnswer(
+            invocation -> {
+              primitiveScope.set(invocation.getArgument(0));
+              invocation.getArgument(1, Runnable.class).run();
+              if (transactions.incrementAndGet() == 1) {
+                throw new IllegalStateException(
+                    "commit failed", new RuntimeException("rollback-only"));
+              }
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
+
+    job.execute(null);
+
+    assertThat(transactions.get()).isEqualTo(2);
+    verify(injectStatusService, times(1))
+        .persistErrorStatusInTransaction(anyString(), eq("rollback-only"));
     assertThat(tenantDuringFailStatus.get()).isEqualTo(INJECT_TENANT);
   }
 

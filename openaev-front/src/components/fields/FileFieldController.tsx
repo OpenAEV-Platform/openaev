@@ -1,7 +1,8 @@
+import { type FileRejection, FileSelect } from '@filigran/design-system';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
-import CustomFileUploader from '../common/CustomFileUploader';
+import { useFormatter } from '../i18n';
 
 interface Props {
   name: string;
@@ -38,7 +39,9 @@ const FileFieldController: FunctionComponent<Props> = ({
   style,
   disabled = false,
 }) => {
-  const { control, formState: { errors } } = useFormContext();
+  const { t } = useFormatter();
+  const { control } = useFormContext();
+  const maxSize = sizeLimit && sizeLimit > 0 ? sizeLimit : undefined;
 
   return (
     <Controller
@@ -46,17 +49,22 @@ const FileFieldController: FunctionComponent<Props> = ({
       control={control}
       render={({ field: { onChange, value }, fieldState: { error } }) => (
         <div style={style}>
-          <CustomFileUploader
-            name={name}
+          <FileSelect
             label={label}
             required={required}
             disabled={disabled}
-            fieldOnChange={onChange}
-            acceptMimeTypes={acceptMimeTypes ?? toAcceptMimeTypes(filters)}
-            sizeLimit={sizeLimit}
-            errors={errors}
-            errorMessage={error?.message}
-            initialFileName={typeof value === 'string' ? value : undefined}
+            accept={acceptMimeTypes ?? toAcceptMimeTypes(filters)}
+            maxSize={maxSize}
+            showSizeCounter={maxSize !== undefined}
+            value={value instanceof File ? value : null}
+            // Edit mode carries the stored file as a plain string; it names the
+            // kept file instead of leaving the control looking empty.
+            placeholder={typeof value === 'string' ? value : undefined}
+            onValueChange={next => onChange((next as File | null) ?? undefined)}
+            error={error?.message}
+            rejectionMessage={(rejections: FileRejection[]) => (rejections.some(rejection => rejection.reason === 'maxSize')
+              ? t('This file is too large')
+              : t('This file is not in the specified format'))}
           />
         </div>
       )}

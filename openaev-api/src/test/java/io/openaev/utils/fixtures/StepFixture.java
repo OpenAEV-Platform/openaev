@@ -31,4 +31,11 @@ public class StepFixture {
     step.setStatus(status);
     return step;
   }
+
+  /** A step execution whose data names the inject it runs, as the engine writes it at run. */
+  public static Step getInjectExecutionStep(StepStatus status, String injectId) {
+    Step step = getDefaultStepExecution(status);
+    step.setData("{\"inject_id\": \"" + injectId + "\"}");
+    return step;
+  }
 }

@@ -8,6 +8,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationSignature;
@@ -23,19 +24,30 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
+import java.util.stream.Stream;
 
 /** Shared behavior for technical expectations (detection/prevention/vulnerability). */
-@RequiredArgsConstructor
 public abstract class AbstractTechnicalBehavior
-    implements ExpectationBehavior<TechnicalInjectExpectation> {
+    extends ExpectationBehavior<TechnicalInjectExpectation> {
 
   @Resource protected ExpectationPropertiesConfig expectationPropertiesConfig;
 
   protected final CollectorService collectorService;
   protected final InjectService injectService;
   protected final InjectExpectationRepository injectExpectationRepository;
+
+  protected AbstractTechnicalBehavior(
+      CollectorService collectorService,
+      InjectService injectService,
+      InjectExpectationRepository injectExpectationRepository,
+      InjectExpectationResultRepository injectExpectationResultRepository) {
+    super(injectExpectationResultRepository);
+    this.collectorService = collectorService;
+    this.injectService = injectService;
+    this.injectExpectationRepository = injectExpectationRepository;
+  }
 
   /** Builds the concrete technical expectation instance handled by this behavior. */
   protected abstract TechnicalInjectExpectation newTechnicalExpectation();
@@ -307,45 +319,79 @@ public abstract class AbstractTechnicalBehavior
 
   // -- RECOMPUTE PARENT SCORE --
 
-  /** {@inheritDoc} Recomputes asset-level then asset-group-level scores from their children. */
+  /**
+   * The affected parents are the assets the expectations belong to (every row of an asset, one per
+   * asset group it is targeted through), then the asset groups of those assets. A given asset group
+   * recomputes all its assets, as its leaves are all affected.
+   */
   @Override
-  public List<? extends BaseInjectExpectation> recomputeParentScores(
-      BaseInjectExpectation expectation) {
-    if (!(expectation instanceof TechnicalInjectExpectation tech)) {
-      return List.of();
-    }
-    Inject inject = tech.getInject();
-    BaseInjectExpectation.EXPECTATION_TYPE type = tech.getType();
-
-    List<TechnicalInjectExpectation> sameType =
+  public List<TechnicalInjectExpectation> recomputeAffectedParents(
+      Inject inject,
+      BaseInjectExpectation.EXPECTATION_TYPE type,
+      List<TechnicalInjectExpectation> expectations) {
+    List<TechnicalInjectExpectation> expectationsOfInjectWithSameType =
         inject.getExpectations().stream()
             .filter(TechnicalInjectExpectation.class::isInstance)
             .map(TechnicalInjectExpectation.class::cast)
             .filter(e -> type.equals(e.getType()))
             .toList();
 
+    // Affected assets: the asset of each agent or asset, every asset of each asset group
+    Set<String> givenAssetGroupIds =
+        expectations.stream()
+            .filter(ExpectationUtils::isAssetGroupExpectation)
+            .map(e -> e.getAssetGroup().getId())
+            .collect(Collectors.toSet());
+    Set<String> affectedAssetIds =
+        Stream.concat(
+                expectations.stream()
+                    .filter(e -> e.getAsset() != null)
+                    .map(e -> e.getAsset().getId()),
+                expectationsOfInjectWithSameType.stream()
+                    .filter(ExpectationUtils::isAssetExpectation)
+                    .filter(
+                        e ->
+                            e.getAssetGroup() != null
+                                && givenAssetGroupIds.contains(e.getAssetGroup().getId()))
+                    .map(e -> e.getAsset().getId()))
+            .collect(Collectors.toSet());
+
+    // Affected asset groups: the given ones and those the affected assets are targeted through. An
+    // asset targeted directly has no asset group
+    Set<String> affectedAssetGroupIds =
+        Stream.concat(
+                givenAssetGroupIds.stream(),
+                expectationsOfInjectWithSameType.stream()
+                    .filter(ExpectationUtils::isAssetExpectation)
+                    .filter(e -> e.getAssetGroup() != null)
+                    .filter(e -> affectedAssetIds.contains(e.getAsset().getId()))
+                    .map(e -> e.getAssetGroup().getId()))
+            .collect(Collectors.toSet());
+
     Map<String, List<TechnicalInjectExpectation>> agentsByAssetId =
-        sameType.stream()
+        expectationsOfInjectWithSameType.stream()
             .filter(ExpectationUtils::isAgentExpectation)
             .filter(e -> e.getAsset() != null)
             .collect(Collectors.groupingBy(e -> e.getAsset().getId()));
-
     Map<String, List<TechnicalInjectExpectation>> assetsByAssetGroupId =
-        sameType.stream()
+        expectationsOfInjectWithSameType.stream()
             .filter(ExpectationUtils::isAssetExpectation)
             .filter(e -> e.getAssetGroup() != null)
             .collect(Collectors.groupingBy(e -> e.getAssetGroup().getId()));
 
     List<TechnicalInjectExpectation> updatedParents = new ArrayList<>();
-    sameType.stream()
+    // Assets first: an asset group reads the scores of its assets
+    expectationsOfInjectWithSameType.stream()
         .filter(ExpectationUtils::isAssetExpectation)
+        .filter(asset -> affectedAssetIds.contains(asset.getAsset().getId()))
         .forEach(
             asset ->
                 recomputeParent(
                         asset, agentsByAssetId.getOrDefault(asset.getAsset().getId(), List.of()))
                     .ifPresent(updatedParents::add));
-    sameType.stream()
+    expectationsOfInjectWithSameType.stream()
         .filter(ExpectationUtils::isAssetGroupExpectation)
+        .filter(group -> affectedAssetGroupIds.contains(group.getAssetGroup().getId()))
         .forEach(
             group ->
                 recomputeParent(

@@ -1,15 +1,6 @@
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DescriptionOutlined, HelpOutlineOutlined, RowingOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Chip,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ToggleButtonGroup,
-  Tooltip,
-} from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -50,20 +41,6 @@ const useStyles = makeStyles()(() => ({
   item: {
     paddingLeft: 10,
     height: 50,
-  },
-  exercise: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
-    marginRight: 7,
-    width: 120,
-  },
-  scenario: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
-    marginRight: 7,
-    width: 120,
   },
 }));
 
@@ -177,6 +154,7 @@ const Documents = () => {
     // If the document was already in the list displayed, we don't add it to the list
     if (documents.find(element => element.document_id === result.document_id) === undefined) {
       setDocuments([result, ...documents]);
+      queryableHelpers.paginationHelpers.incrementTotalElements(1);
     }
   };
 
@@ -215,13 +193,25 @@ const Documents = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
-            <ToggleButtonGroup value="fake" exclusive>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
+            {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
+                which announced a group of choices that never existed. */}
+            <Box sx={{
+              display: 'flex',
+              gap: 1,
+            }}
+            >
               <ExportButton
                 totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
                 exportProps={exportProps}
               />
-            </ToggleButtonGroup>
+            </Box>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
               <CreateDocument onCreate={handleCreateDocuments} />
             </Can>
@@ -268,7 +258,10 @@ const Documents = () => {
                     <DocumentPopover
                       document={document}
                       onUpdate={(result: Document) => setDocuments(documents.map(d => (d.document_id !== result.document_id ? d : result)))}
-                      onDelete={(result: string) => setDocuments(documents.filter(d => (d.document_id !== result)))}
+                      onDelete={(result: string) => {
+                        setDocuments(documents.filter(d => (d.document_id !== result)));
+                        queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                      }}
                       managedMessage={document.document_can_be_updated === false
                         ? 'Generated report files are managed by the Reporting module and are read-only here.'
                         : undefined}
@@ -313,22 +306,19 @@ const Documents = () => {
                                     return <span key={e}>-</span>;
                                   }
                                   return (
-                                    <Tooltip
-                                      key={exercise.exercise_id}
-                                      title={exercise.exercise_name}
-                                    >
-                                      <Chip
-                                        icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                                        classes={{ root: classes.exercise }}
-                                        variant="outlined"
-                                        label={exercise.exercise_name}
-                                        clickable
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          event.preventDefault();
-                                          navigate(`/admin/simulations/${exercise.exercise_id}`);
-                                        }}
-                                      />
+                                    <Tooltip key={exercise.exercise_id}>
+                                      <TooltipTrigger asChild>
+                                        <Chip
+                                          startIcon={<RowingOutlined style={{ fontSize: 12 }} />}
+                                          label={exercise.exercise_name}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            event.preventDefault();
+                                            navigate(`/admin/simulations/${exercise.exercise_id}`);
+                                          }}
+                                        />
+                                      </TooltipTrigger>
+                                      {exercise.exercise_name && <TooltipContent>{exercise.exercise_name}</TooltipContent>}
                                     </Tooltip>
                                   );
                                 })
@@ -346,22 +336,19 @@ const Documents = () => {
                                     return <span key={e}>-</span>;
                                   }
                                   return (
-                                    <Tooltip
-                                      key={scenario.scenario_id}
-                                      title={scenario.scenario_name}
-                                    >
-                                      <Chip
-                                        icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                                        classes={{ root: classes.scenario }}
-                                        variant="outlined"
-                                        label={scenario.scenario_name}
-                                        clickable
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          event.preventDefault();
-                                          navigate(`/admin/scenarios/${scenario.scenario_id}`);
-                                        }}
-                                      />
+                                    <Tooltip key={scenario.scenario_id}>
+                                      <TooltipTrigger asChild>
+                                        <Chip
+                                          startIcon={<RowingOutlined style={{ fontSize: 12 }} />}
+                                          label={scenario.scenario_name}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            event.preventDefault();
+                                            navigate(`/admin/scenarios/${scenario.scenario_id}`);
+                                          }}
+                                        />
+                                      </TooltipTrigger>
+                                      {scenario.scenario_name && <TooltipContent>{scenario.scenario_name}</TooltipContent>}
                                     </Tooltip>
                                   );
                                 })

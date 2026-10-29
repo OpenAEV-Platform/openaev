@@ -19,11 +19,11 @@ Your job is to ensure no code introduces cross-tenant data leaks or breaks tenan
 3. **Read `.github/instructions/multi-tenancy.instructions.md`** for tenant isolation patterns and anti-patterns
 4. **Read `.github/instructions/security.instructions.md`** for RBAC and tenant isolation rules
 5. **Read `.github/instructions/database.instructions.md`** for schema and migration conventions
-6. **Read `.github/skills/activate-tenant-table/SKILL.md`** for how a table moves from v1 to v2 (eligibility gates, call-graph inventory) — needed to judge whether a v2 gap is a real regression or expected pre-activation state
+6. **Read `.claude/skills/activate-tenant-table/SKILL.md`** for how a table moves from v1 to v2 (eligibility gates, call-graph inventory) — needed to judge whether a v2 gap is a real regression or expected pre-activation state
 
 ## Review Procedure
 
-Follow `.github/skills/review-multi-tenancy/SKILL.md` step-by-step, running
+Follow `.claude/skills/review-multi-tenancy/SKILL.md` step-by-step, running
 every command — that is the single source of truth for the procedure
 (Step 1 inventory → Step 2/2b @Filter + v1-vs-v2 classification → Step 3
 native queries → Step 4 migrations → Step 5 async/background → Step 6 API
@@ -51,6 +51,20 @@ of the intended finding:
   code path that isn't v2 yet. Only recommend removing the call when the
   block is read-only, every touched table is v2-active, and no legacy path is
   reached — otherwise flag its *absence* as 🔴 CRITICAL, never its presence.
+  A `session.disableFilter("tenantFilter")` presented as what makes a read
+  cross-tenant is not: it widens nothing (see `multi-tenancy.instructions.md`
+  > Background Threads Carry Both Scopes), and `TenantFilterDisableArchTest`
+  rejects any new call. Ask for the primitive with an explicit scope instead.
+- **Step 3 (native queries)**: besides the v1/v2 shape checks, look at what the
+  join is *keyed on*. An id that repeats across tenants by design, which is any
+  key whose uniqueness is composite with `tenant_id`, is not a tenant boundary:
+  joining on it alone admits another tenant's row even when every table in the
+  statement is v2-active, because the inspector restricts tables and not join
+  keys. `openaev-api/src/test/resources/shared-tenant-keys.txt` is the list.
+  A join on one of them either constrains both sides to the same tenant or
+  carries a reasoned waiver, and the waiver's `reaches-active-table:` and
+  `until-active:` reasons are themselves checked against the activation list,
+  so an activation can expire one. Flag an unwaived one as 🟠 HIGH.
 
 ## Model Policy
 

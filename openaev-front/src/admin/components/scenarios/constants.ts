@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/prefer-default-export
 export const scenarioCategories = new Map([
   ['global-crisis', 'Global Crisis'],
   ['attack-scenario', 'Attack Scenario'],

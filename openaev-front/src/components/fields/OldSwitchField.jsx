@@ -1,4 +1,5 @@
-import { FormControl, FormControlLabel, FormGroup, FormHelperText, Switch as MuiSwitch } from '@mui/material';
+import { Switch } from '@filigran/design-system';
+import { FormControl, FormHelperText } from '@mui/material';
 import { Field } from 'react-final-form';
 
 const renderSwitch = ({
@@ -9,26 +10,18 @@ const renderSwitch = ({
   ...others
 }) => (
   <FormControl error={touched && invalid}>
-    <FormGroup
-      row={true}
-      style={{
-        ...style,
-        marginLeft: 5,
-      }}
+    <div style={{
+      ...style,
+      marginLeft: 5,
+    }}
     >
-      <FormControlLabel
-        control={(
-          <MuiSwitch
-            checked={!!input.value}
-            onChange={(event) => {
-              input.onChange(event.target.checked);
-            }}
-            {...others}
-          />
-        )}
+      <Switch
+        checked={!!input.value}
+        onCheckedChange={checked => input.onChange(checked === true)}
         label={label}
+        {...others}
       />
-    </FormGroup>
+    </div>
     <FormHelperText>{touched && (error || submitError)}</FormHelperText>
   </FormControl>
 );

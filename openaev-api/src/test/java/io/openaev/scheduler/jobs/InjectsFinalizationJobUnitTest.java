@@ -15,15 +15,14 @@ import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.NotificationEventService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,7 +42,6 @@ class InjectsFinalizationJobUnitTest {
   @Mock private WorkflowService workflowService;
   @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private NotificationEventService notificationEventService;
-  @Mock private EntityManager entityManager;
   @Mock private TenantScopedJobRunner tenantScopedJobRunner;
 
   @InjectMocks private InjectsFinalizationJob finalizationJob;
@@ -64,6 +62,14 @@ class InjectsFinalizationJobUnitTest {
     @Captor private ArgumentCaptor<List<Exercise>> simulationCaptor;
 
     @Captor private ArgumentCaptor<NotificationEvent> notificationEventCaptor;
+
+    @BeforeEach
+    void runTheCrossTenantReadInline() {
+      // The candidate read spans every tenant through the runner; this unit test runs it in place.
+      lenient()
+          .when(tenantScopedJobRunner.supplyAcrossTenants(any()))
+          .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(0).get());
+    }
 
     private Exercise createMockSimulation(String id, Scenario scenario) {
       Exercise simulation = mock(Exercise.class, withSettings().strictness(LENIENT));
@@ -288,6 +294,7 @@ class InjectsFinalizationJobUnitTest {
     @DisplayName("should filter all simulations when all are chaining simulations")
     void shouldFilterAllSimulationsWhenAllAreChaining() {
       // Prepare
+      mockTenantRunnerInline();
       String simulationId1 = UUID.randomUUID().toString();
       String simulationId2 = UUID.randomUUID().toString();
 
@@ -303,9 +310,25 @@ class InjectsFinalizationJobUnitTest {
       finalizationJob.handleAutoClosingSimulations();
 
       // Assert
+      verify(exerciseRepository, never()).findAllById(anyIterable());
       verify(exerciseRepository, never()).saveAll(anyList());
       verify(securityCoverageSendJobService, never())
           .createOrUpdateCoverageSendJobForSimulationsIfReady(anyList());
+    }
+
+    @Test
+    @DisplayName("given candidates, the chaining check should run inside the tenant scope")
+    void given_candidates_should_checkChainingInsideTenantScope() {
+      // Arrange: the tenant runner is a bare mock, so nothing runs inside the scoped block
+      Exercise simulation = createMockSimulation(UUID.randomUUID().toString(), null);
+      when(exerciseRepository.thatMustBeFinished()).thenReturn(List.of(simulation));
+
+      // Act
+      finalizationJob.handleAutoClosingSimulations();
+
+      // Assert
+      verify(tenantScopedJobRunner).runInTenant(eq("tenant-test"), any(Runnable.class));
+      verify(workflowService, never()).existsBySimulationId(anyString());
     }
 
     @Test
@@ -339,7 +362,7 @@ class InjectsFinalizationJobUnitTest {
   // Inject expectation collect status
   // ========================================================================
   @Nested
-  @DisplayName("handleInjectExpectationCollectStatus")
+  @DisplayName("completeFinishedCollections")
   class HandleInjectExpectationCollectStatusTests {
 
     @Captor private ArgumentCaptor<List<Inject>> injectsCaptor;
@@ -348,10 +371,7 @@ class InjectsFinalizationJobUnitTest {
 
     @BeforeEach
     void setUpCollectStatus() {
-      Session session = mock(Session.class, withSettings().strictness(LENIENT));
-      when(entityManager.unwrap(Session.class)).thenReturn(session);
       inject = new Inject();
-      when(injectService.getExecutedAndNotFinished()).thenReturn(List.of(inject));
     }
 
     private BaseInjectExpectation buildExpectation(
@@ -367,7 +387,7 @@ class InjectsFinalizationJobUnitTest {
     }
 
     private List<Inject> actAndCaptureSaved() {
-      finalizationJob.handleInjectExpectationCollectStatus();
+      finalizationJob.completeFinishedCollections(List.of(inject));
       verify(injectService).saveAll(injectsCaptor.capture());
       return injectsCaptor.getValue();
     }

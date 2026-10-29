@@ -32,13 +32,6 @@ const useStyles = makeStyles()(() => ({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  typeChip: {
-    height: 20,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-    width: 100,
-    marginBottom: 5,
-  },
 }));
 
 interface Props<T extends AssetOutput> {

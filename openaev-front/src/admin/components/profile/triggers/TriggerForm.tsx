@@ -1,8 +1,10 @@
-import { Autocomplete, Button, Checkbox, Chip, FormControlLabel, FormGroup, MenuItem, TextField } from '@mui/material';
+import { Button, Checkbox, Combobox, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 
 import { searchNotificationTriggers } from '../../../../actions/notifications/notification-trigger-actions';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
+import TimeField from '../../../../components/fields/TimeField';
 import { useFormatter } from '../../../../components/i18n';
 import { type FilterGroup, type NotificationTriggerInput, type NotificationTriggerOutput } from '../../../../utils/api-types';
 import NotifierField from './NotifierField';
@@ -19,6 +21,16 @@ interface Props {
 }
 
 /** Creation / edition form for live and digest notification triggers. */
+// The stored value is an HH:mm wall clock in UTC; the field speaks Date.
+const timeAsDate = (value: string): Date | null => {
+  const [hours, minutes] = value.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return new Date(Date.UTC(1970, 0, 1, hours, minutes));
+};
+
+const timeAsString = (value: Date): string =>
+  `${String(value.getUTCHours()).padStart(2, '0')}:${String(value.getUTCMinutes()).padStart(2, '0')}`;
+
 const TriggerForm: FunctionComponent<Props> = ({
   triggerType,
   onSubmit,
@@ -108,9 +120,7 @@ const TriggerForm: FunctionComponent<Props> = ({
 
   return (
     <form id="triggerForm" onSubmit={handleSubmit}>
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Name')}
         value={name}
         onChange={e => setName(e.target.value)}
@@ -119,50 +129,55 @@ const TriggerForm: FunctionComponent<Props> = ({
       />
       {triggerType === 'LIVE' && (
         <>
-          <TextField
-            variant="standard"
-            fullWidth
-            select
-            label={t('Resource type')}
-            value={resourceType}
-            onChange={(e) => {
-              setResourceType(e.target.value as NotificationTriggerInput['notification_trigger_resource_type']);
-              setFilters(undefined);
-              if (e.target.value !== 'SCENARIO') {
-                // Score degradation is only available for scenarios
-                setEventTypes(existing => existing.filter(eventType => eventType !== 'SCORE_DEGRADATION'));
-              }
-            }}
-            style={{ marginTop: 20 }}
-            disabled={!!initialValues?.notification_trigger_instance_id}
+          <div style={{ marginTop: 20 }}>
+            <Select
+              value={resourceType}
+              onValueChange={(next) => {
+                setResourceType(next as NotificationTriggerInput['notification_trigger_resource_type']);
+                setFilters(undefined);
+                if (next !== 'SCENARIO') {
+                  // Score degradation is only available for scenarios
+                  setEventTypes(existing => existing.filter(eventType => eventType !== 'SCORE_DEGRADATION'));
+                }
+              }}
+              disabled={!!initialValues?.notification_trigger_instance_id}
+            >
+              <SelectLabel>{t('Resource type')}</SelectLabel>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('Resource type')} />
+              </SelectTrigger>
+              <SelectContent>
+                {TRIGGER_RESOURCE_TYPES.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {t(option.label)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 16,
+            marginTop: 20,
+          }}
           >
-            {TRIGGER_RESOURCE_TYPES.map(option => (
-              <MenuItem key={option.value} value={option.value}>
-                {t(option.label)}
-              </MenuItem>
-            ))}
-          </TextField>
-          <FormGroup row style={{ marginTop: 20 }}>
             {[
               ...TRIGGER_EVENT_TYPES,
               // Score degradation is a scenario-only semantic event
               ...(resourceType === 'SCENARIO' ? SCENARIO_ONLY_EVENT_TYPES : []),
             ].map(eventType => (
-              <FormControlLabel
+              <Checkbox
                 key={eventType}
-                control={(
-                  <Checkbox
-                    checked={eventTypes.includes(eventType)}
-                    onChange={() => toggleEventType(eventType)}
-                  />
-                )}
+                checked={eventTypes.includes(eventType)}
+                onCheckedChange={() => toggleEventType(eventType)}
                 label={t(eventTypeLabel(eventType))}
               />
             ))}
-          </FormGroup>
+          </div>
           {eventTypesError && (
             <div style={{
-              color: '#f44336',
+              color: 'var(--color-feedback-error-primary)',
               fontSize: 12,
             }}
             >
@@ -181,92 +196,96 @@ const TriggerForm: FunctionComponent<Props> = ({
       )}
       {triggerType === 'DIGEST' && (
         <>
-          <Autocomplete
-            multiple
-            options={liveTriggers}
-            value={selectedChildren}
-            onChange={(_, newValue) => setChildTriggerIds(newValue.map(trigger => trigger.notification_trigger_id))}
-            getOptionLabel={trigger => trigger.notification_trigger_name ?? ''}
-            isOptionEqualToValue={(option, val) => option.notification_trigger_id === val.notification_trigger_id}
-            style={{ marginTop: 20 }}
-            renderTags={(tagValue, getTagProps) =>
-              tagValue.map((option, index) => (
-                <Chip
-                  {...getTagProps({ index })}
-                  key={option.notification_trigger_id}
-                  label={option.notification_trigger_name}
-                  size="small"
-                />
-              ))}
-            renderInput={params => (
-              <TextField
-                {...params}
-                variant="standard"
-                label={t('Composed triggers')}
-                error={!!childrenError}
-                helperText={childrenError}
-              />
-            )}
-          />
-          <TextField
-            variant="standard"
-            fullWidth
-            select
-            label={t('Period')}
-            value={period}
-            onChange={e => setPeriod(e.target.value as typeof period)}
-            style={{ marginTop: 20 }}
-          >
-            {DIGEST_PERIODS.map(option => (
-              <MenuItem key={option} value={option}>
-                {t(option.charAt(0) + option.slice(1).toLowerCase())}
-              </MenuItem>
-            ))}
-          </TextField>
-          {period === 'WEEK' && (
-            <TextField
-              variant="standard"
-              fullWidth
-              select
-              label={t('Day of week')}
-              value={day}
-              onChange={e => setDay(e.target.value)}
-              style={{ marginTop: 20 }}
+          <div style={{ marginTop: 20 }}>
+            <Combobox
+              multiple
+              options={liveTriggers}
+              value={selectedChildren}
+              onValueChange={newValue => setChildTriggerIds((newValue as typeof liveTriggers).map(trigger => trigger.notification_trigger_id))}
+              getOptionLabel={trigger => trigger.notification_trigger_name ?? ''}
+              isOptionEqualToValue={(option, val) => option.notification_trigger_id === val.notification_trigger_id}
+              error={!!childrenError}
             >
-              {WEEK_DAYS.map(option => (
-                <MenuItem key={option.value} value={option.value}>
-                  {t(option.label)}
-                </MenuItem>
-              ))}
-            </TextField>
+              <ComboboxLabel>{t('Composed triggers')}</ComboboxLabel>
+              <ComboboxField>
+                <ComboboxChips />
+                <ComboboxInput />
+                <ComboboxControls>
+                  <ComboboxClear />
+                  <ComboboxTrigger />
+                </ComboboxControls>
+              </ComboboxField>
+              <ComboboxContent />
+              {childrenError ? <ComboboxHelperText>{childrenError}</ComboboxHelperText> : null}
+            </Combobox>
+          </div>
+          <div style={{ marginTop: 20 }}>
+            <Select
+              value={period}
+              onValueChange={next => setPeriod(next as typeof period)}
+            >
+              <SelectLabel>{t('Period')}</SelectLabel>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('Period')} />
+              </SelectTrigger>
+              <SelectContent>
+                {DIGEST_PERIODS.map(option => (
+                  <SelectItem key={option} value={option}>
+                    {t(option.charAt(0) + option.slice(1).toLowerCase())}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {period === 'WEEK' && (
+            <div style={{ marginTop: 20 }}>
+              <Select
+                value={day}
+                onValueChange={next => setDay(next)}
+              >
+                <SelectLabel>{t('Day of week')}</SelectLabel>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t('Day of week')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEEK_DAYS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {t(option.label)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
           {period === 'MONTH' && (
-            <TextField
-              variant="standard"
-              fullWidth
-              select
-              label={t('Day of month')}
-              value={day}
-              onChange={e => setDay(e.target.value)}
-              style={{ marginTop: 20 }}
-            >
-              {Array.from({ length: 31 }, (_, index) => `${index + 1}`).map(option => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
+            <div style={{ marginTop: 20 }}>
+              <Select
+                value={day}
+                onValueChange={next => setDay(next)}
+              >
+                <SelectLabel>{t('Day of month')}</SelectLabel>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t('Day of month')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 31 }, (_, index) => `${index + 1}`).map(option => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
           {period !== 'HOUR' && (
-            <TextField
-              variant="standard"
-              fullWidth
-              type="time"
+            <TimeField
               label={t('Time (UTC)')}
-              value={time}
-              onChange={e => setTime(e.target.value)}
-              style={{ marginTop: 20 }}
-              slotProps={{ inputLabel: { shrink: true } }}
+              // A wall clock in UTC, not an instant: the same HH:mm the backend keeps.
+              timezone="UTC"
+              format="HH:mm"
+              value={timeAsDate(time)}
+              onChange={next => setTime(next ? timeAsString(next) : '')}
+              className="w-full mt-5"
             />
           )}
         </>
@@ -285,19 +304,11 @@ const TriggerForm: FunctionComponent<Props> = ({
       }}
       >
         {onDelete && (
-          <Button
-            variant="contained"
-            color="error"
-            onClick={onDelete}
-          >
+          <Button type="button" variant="destructive" onClick={onDelete}>
             {t('Delete')}
           </Button>
         )}
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-        >
+        <Button type="submit">
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

@@ -49,7 +49,6 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -171,7 +170,7 @@ class CredentialAuditLogTest extends IntegrationTest {
     return objectMapper.writeValueAsString(eventCaptor.getAllValues());
   }
 
-  private MockHttpServletRequestBuilder multipartCreate(
+  private MockMultipartHttpServletRequestBuilder multipartCreate(
       String uri, CredentialInput input, byte[] gcpPrivateKeyJson) {
     MockMultipartHttpServletRequestBuilder builder = multipart(uri);
     builder.file(

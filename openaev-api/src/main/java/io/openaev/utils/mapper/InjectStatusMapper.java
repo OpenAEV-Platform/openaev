@@ -20,7 +20,12 @@ public class InjectStatusMapper {
         .map(
             status ->
                 this.<InjectStatusOutput>buildInjectStatusOutput(
-                    InjectStatusOutput.builder().build(), status, status.getTraces()))
+                    InjectStatusOutput.builder().build(),
+                    status,
+                    status.getTraces().stream()
+                        .filter(
+                            trace -> trace.getAgent() == null && trace.getIdentifiers().isEmpty())
+                        .toList()))
         .orElseGet(() -> InjectStatusOutput.builder().build());
   }
 
@@ -44,9 +49,17 @@ public class InjectStatusMapper {
         .orElseGet(() -> InjectStatusOutput.builder().build());
   }
 
+  /**
+   * Builds the test status output. Unlike {@link #toInjectStatusOutput}, user-scoped traces are
+   * kept: a test is only sent to the current user, so the traces email and SMS injectors attach to
+   * the recipient's user id are the test result itself.
+   */
   public InjectTestStatusOutput toInjectTestStatusOutput(InjectTestStatus injectTestStatus) {
     InjectTestStatusOutput output = InjectTestStatusOutput.builder().build();
-    buildInjectStatusOutput(output, injectTestStatus, injectTestStatus.getTraces());
+    buildInjectStatusOutput(
+        output,
+        injectTestStatus,
+        injectTestStatus.getTraces().stream().filter(trace -> trace.getAgent() == null).toList());
 
     output.setInjectId(injectTestStatus.getInject().getId());
     output.setInjectType(injectTestStatus.getInject().getType());
@@ -56,14 +69,10 @@ public class InjectStatusMapper {
   }
 
   private <T extends InjectStatusOutput> T buildInjectStatusOutput(
-      T output, BaseInjectStatus status, List<ExecutionTrace> executionTraces) {
+      T output, BaseInjectStatus status, List<ExecutionTrace> mainTraces) {
     output.setId(status.getId());
     output.setName(status.getName().name());
-    output.setTraces(
-        toExecutionTracesOutput(
-            executionTraces.stream()
-                .filter(trace -> trace.getAgent() == null && trace.getIdentifiers().isEmpty())
-                .toList()));
+    output.setTraces(toExecutionTracesOutput(mainTraces));
     output.setTrackingSentDate(status.getTrackingSentDate());
     output.setTrackingEndDate(status.getTrackingEndDate());
     return output;

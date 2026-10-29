@@ -1,6 +1,5 @@
-import { InfoOutlined } from '@mui/icons-material';
-import { Button, InputAdornment, Tooltip } from '@mui/material';
-import { type FunctionComponent, useContext } from 'react';
+import { Button, Icon, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
+import { type FunctionComponent } from 'react';
 import { Form } from 'react-final-form';
 import { z } from 'zod';
 
@@ -9,7 +8,7 @@ import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 import OrganizationField from '../../../../components/OrganizationField';
 import TagField from '../../../../components/TagField';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { PHONE_REGEX, schemaValidator } from '../../../../utils/Zod';
 import { type PlayerInputForm } from './Player';
@@ -29,7 +28,19 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const phoneTooltip = (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {/* The library colours its icons from the text colour: the same highlight
+              token the app's other info icons read. */}
+          <span tabIndex={0} aria-label={t('Information')} className="text-icon-highlight"><Icon name="info" size={16} aria-hidden /></span>
+        </TooltipTrigger>
+        <TooltipContent><span style={{ whiteSpace: 'pre-line' }}>{t('phone_number_tooltip')}</span></TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+  const ability = useAbility();
 
   const playerFormSchemaValidation = z.object({
     user_email: z.email(t('Should be a valid email address')),
@@ -65,23 +76,17 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
       {({ handleSubmit, form, values, submitting, pristine }) => (
         <form id="playerForm" onSubmit={handleSubmit}>
           <OldTextField
-            variant="standard"
             name="user_email"
-            fullWidth
             label={t('Email address')}
             disabled={editing}
           />
           <OldTextField
-            variant="standard"
             name="user_firstname"
-            fullWidth
             label={t('Firstname')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
-            variant="standard"
             name="user_lastname"
-            fullWidth
             label={t('Lastname')}
             style={{ marginTop: 20 }}
           />
@@ -97,41 +102,19 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             setFieldValue={form.mutators.setValue}
           />
           <OldTextField
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="start">
-                  <Tooltip title={<span style={{ whiteSpace: 'pre-line' }}>{t('phone_number_tooltip')}</span>}>
-                    <InfoOutlined />
-                  </Tooltip>
-                </InputAdornment>
-              ),
-            }}
-            variant="standard"
+            infoTooltip={phoneTooltip}
             name="user_phone"
-            fullWidth
             label={t('Phone number (mobile)')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="start">
-                  <Tooltip title={<span style={{ whiteSpace: 'pre-line' }}>{t('phone_number_tooltip')}</span>}>
-                    <InfoOutlined />
-                  </Tooltip>
-                </InputAdornment>
-              ),
-            }}
-            variant="standard"
+            infoTooltip={phoneTooltip}
             name="user_phone2"
-            fullWidth
             label={t('Phone number (landline)')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
-            variant="standard"
             name="user_pgp_key"
-            fullWidth
             multiline
             rows={5}
             label={t('PGP public key')}
@@ -149,21 +132,10 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             marginTop: 20,
           }}
           >
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleClose}
-              style={{ marginRight: 10 }}
-              disabled={submitting}
-            >
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: 10 }}>
               {t('Cancel')}
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={pristine || submitting}
-            >
+            <Button type="submit" disabled={pristine || submitting}>
               {editing ? t('Update') : t('Create')}
             </Button>
           </div>

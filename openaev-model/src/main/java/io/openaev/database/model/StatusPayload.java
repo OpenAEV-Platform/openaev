@@ -2,15 +2,25 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Singular;
 
+/**
+ * The payload an inject ran, stored as JSON on its status.
+ *
+ * <p>Value equality on this type and on every type it nests is what lets Hibernate's dirty check
+ * see a loaded value as unchanged. Declaring it here without the nested types is worse than not at
+ * all: the comparison then reaches their identity and every load of a status rewrites the row.
+ */
 @Getter
 @Setter
-public class StatusPayload {
+@EqualsAndHashCode
+public class StatusPayload implements Serializable {
 
   @JsonProperty("payload_name")
   private String name;

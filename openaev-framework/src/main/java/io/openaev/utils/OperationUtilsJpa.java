@@ -43,6 +43,13 @@ public final class OperationUtilsJpa {
     // Utility class - prevent instantiation
   }
 
+  public static final char LIKE_ESCAPE = '\\';
+
+  /** User text must match literally: "_" and "%" are LIKE wildcards. */
+  public static String escapeLike(String text) {
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+  }
+
   // -- NOT CONTAINS --
 
   /**
@@ -106,7 +113,7 @@ public final class OperationUtilsJpa {
       return cb.conjunction();
     }
 
-    String pattern = "%" + text.toLowerCase() + "%";
+    String pattern = "%" + escapeLike(text.toLowerCase()) + "%";
 
     Subquery<Integer> subquery = query.subquery(Integer.class);
     Root<T> subRoot = subquery.correlate(root);
@@ -114,7 +121,7 @@ public final class OperationUtilsJpa {
 
     subquery
         .select(cb.literal(1))
-        .where(cb.like(cb.lower(join.get(labelPath).as(String.class)), pattern));
+        .where(cb.like(cb.lower(join.get(labelPath).as(String.class)), pattern, LIKE_ESCAPE));
 
     return cb.not(cb.exists(subquery));
   }
@@ -141,7 +148,7 @@ public final class OperationUtilsJpa {
       return cb.conjunction();
     }
 
-    String pattern = "%" + text.toLowerCase() + "%";
+    String pattern = "%" + escapeLike(text.toLowerCase()) + "%";
     Expression<String> value;
 
     if (isCollection(type)) {
@@ -152,7 +159,7 @@ public final class OperationUtilsJpa {
       value = cb.lower(paths);
     }
 
-    return cb.or(cb.isNull(value), cb.notLike(value, pattern));
+    return cb.or(cb.isNull(value), cb.notLike(value, pattern, LIKE_ESCAPE));
   }
 
   // -- CONTAINS --
@@ -184,7 +191,7 @@ public final class OperationUtilsJpa {
       return cb.conjunction();
     }
 
-    String pattern = "%" + text.toLowerCase() + "%";
+    String pattern = "%" + escapeLike(text.toLowerCase()) + "%";
     Expression<String> value;
 
     if (isCollection(type)) {
@@ -194,7 +201,7 @@ public final class OperationUtilsJpa {
     } else {
       value = cb.lower(paths);
     }
-    return cb.and(cb.isNotNull(paths), cb.like(value, pattern));
+    return cb.and(cb.isNotNull(paths), cb.like(value, pattern, LIKE_ESCAPE));
   }
 
   // -- NOT EQUALS --
@@ -320,15 +327,15 @@ public final class OperationUtilsJpa {
 
     if (isCollection(type)) {
       Expression<String> values = lower(arrayToString(avals(paths, cb), cb), cb);
-      return cb.like(values, text.toLowerCase() + "%");
+      return cb.like(values, escapeLike(text.toLowerCase()) + "%", LIKE_ESCAPE);
     }
     if (isArray(type)) {
       // Array columns: lower() cannot be applied to the array expression directly.
       Expression<String> values = lower(arrayToString(paths, cb), cb);
-      return cb.like(values, text.toLowerCase() + "%");
+      return cb.like(values, escapeLike(text.toLowerCase()) + "%", LIKE_ESCAPE);
     }
 
-    return cb.like(cb.lower(paths), text.toLowerCase() + "%");
+    return cb.like(cb.lower(paths), escapeLike(text.toLowerCase()) + "%", LIKE_ESCAPE);
   }
 
   // -- NOT EMPTY --

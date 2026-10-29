@@ -1,6 +1,6 @@
-import { ListItem, ListItemText, Paper, Switch } from '@mui/material';
+import { Paper, Switch } from '@filigran/design-system';
+import { ListItem, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext } from 'react';
 
 import { fetchPlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
 import type { LoggedHelper } from '../../../actions/helper';
@@ -19,7 +19,7 @@ import type { PlatformSettings, SettingsPlatformWhitemarkUpdateInput, TenantSett
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
 import { SETTINGS_LABEL } from '../nav/config/settings.config';
@@ -32,7 +32,7 @@ const TenantParameters = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const cannotManage = ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   const { currentUserTenant } = useAuth();
 
@@ -75,6 +75,7 @@ const TenantParameters = () => {
     paper_color: tenantSettings.platform_dark_theme?.paper_color ?? '',
     primary_color: tenantSettings.platform_dark_theme?.primary_color ?? '',
     secondary_color: tenantSettings.platform_dark_theme?.secondary_color ?? '',
+    text_color: tenantSettings.platform_dark_theme?.text_color ?? '',
   };
 
   const initialValuesLight = {
@@ -87,6 +88,7 @@ const TenantParameters = () => {
     paper_color: tenantSettings.platform_light_theme?.paper_color ?? '',
     primary_color: tenantSettings.platform_light_theme?.primary_color ?? '',
     secondary_color: tenantSettings.platform_light_theme?.secondary_color ?? '',
+    text_color: tenantSettings.platform_light_theme?.text_color ?? '',
   };
 
   return (
@@ -119,11 +121,8 @@ const TenantParameters = () => {
           >
             <SectionLabel>{t('Configuration')}</SectionLabel>
             <Paper
-              variant="outlined"
-              style={{
-                padding: theme.spacing(2),
-                flex: 1,
-              }}
+              padding={16}
+              style={{ flex: 1 }}
             >
               <TenantParametersForm
                 onSubmit={onSubmit}
@@ -174,10 +173,13 @@ const TenantParameters = () => {
                       </span>
                     )}
                     />
+                    {/* The row's text is a ListItemText sibling, not a <label>
+                        bound to the control, so the name is carried directly. */}
                     <Switch
+                      aria-label={t('Remove Filigran logos')}
                       disabled={settings.platform_license?.license_is_validated === false || ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
                       checked={settings.platform_whitemark === 'true'}
-                      onChange={(_event, checked) => updatePlatformWhitemark({ platform_whitemark: checked.toString() })}
+                      onCheckedChange={checked => updatePlatformWhitemark({ platform_whitemark: String(checked === true) })}
                     />
                   </ListItem>
                 </>
@@ -193,8 +195,9 @@ const TenantParameters = () => {
         >
           <div>
             <SectionLabel>{t('Dark theme')}</SectionLabel>
-            <Paper variant="outlined" style={{ padding: theme.spacing(2) }}>
+            <Paper padding={16}>
               <ThemeForm
+                mode="dark"
                 onSubmit={onUpdateDarkTheme}
                 initialValues={initialValuesDark}
                 canNotManage={cannotManage}
@@ -203,8 +206,9 @@ const TenantParameters = () => {
           </div>
           <div>
             <SectionLabel>{t('Light theme')}</SectionLabel>
-            <Paper variant="outlined" style={{ padding: theme.spacing(2) }}>
+            <Paper padding={16}>
               <ThemeForm
+                mode="light"
                 onSubmit={onUpdateLightTheme}
                 initialValues={initialValuesLight}
                 canNotManage={cannotManage}

@@ -1,6 +1,6 @@
 import { GroupsOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
 import PaginatedList from '../../../../../components/common/list/PaginatedList';
@@ -13,7 +13,7 @@ import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { GROUP_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { Group } from '../../../../../utils/api-types';
 import useMarkingDefinitions from '../../../../../utils/hooks/useMarkingDefinitions';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../../utils/utils';
 import CreateTenantGroup from './CreateTenantGroup';
@@ -29,7 +29,7 @@ import {
 } from './tenantGroups.queryable';
 
 const TenantGroupsTab = () => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   // MANAGE is greyed out rather than hidden: the affordance stays discoverable.
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const { t } = useFormatter();
@@ -69,7 +69,14 @@ const TenantGroupsTab = () => {
         availableFilterNames={TENANT_GROUP_FILTERS}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <CreateTenantGroup onCreate={addGroup} disabled={!canManage} disabledMessage={PERMISSION_REQUIRED} />
+          <CreateTenantGroup
+            onCreate={(group) => {
+              addGroup(group);
+              queryableHelpers.paginationHelpers.incrementTotalElements(1);
+            }}
+            disabled={!canManage}
+            disabledMessage={PERMISSION_REQUIRED}
+          />
         )}
       />
       <List>
@@ -103,7 +110,10 @@ const TenantGroupsTab = () => {
                     groupMarkingIds={group.group_markings ?? []}
                     markingEnabled={markingEnabled}
                     onUpdate={updateGroupInList}
-                    onDelete={removeGroup}
+                    onDelete={(groupId: string) => {
+                      removeGroup(groupId);
+                      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                    }}
                   />
                 )}
                 headers={headers}

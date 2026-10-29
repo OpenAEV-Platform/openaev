@@ -1,12 +1,14 @@
 import { PlayCircleOutlineOutlined, RouteOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent } from 'react';
 
 import ContextLink from '../../../components/ContextLink';
 import { ATOMIC_BASE_URL, SCENARIO_BASE_URL, SIMULATION_BASE_URL } from '../../../constants/BaseUrls';
 import { INJECT, SCENARIO, SIMULATION } from '../../../constants/Entities';
 import { type RelatedFindingOutput } from '../../../utils/api-types';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+
+const chipIconStyle = { fontSize: '1rem' };
 
 interface Props {
   finding: RelatedFindingOutput;
@@ -14,7 +16,7 @@ interface Props {
 }
 
 const FindingContextLink: FunctionComponent<Props> = ({ finding, type }) => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   switch (type) {
     case INJECT: {
@@ -35,7 +37,7 @@ const FindingContextLink: FunctionComponent<Props> = ({ finding, type }) => {
 
       // TrackChangesOutlined is the platform-wide inject icon (menus, hero
       // stats, inject results): keep this pivot aligned with it.
-      return userRight ? <ContextLink title={title} url={url} icon={<TrackChangesOutlined />} /> : title;
+      return userRight ? <ContextLink title={title} url={url} icon={<TrackChangesOutlined style={chipIconStyle} />} /> : title;
     }
 
     case SIMULATION: {
@@ -44,7 +46,7 @@ const FindingContextLink: FunctionComponent<Props> = ({ finding, type }) => {
 
       if (!title || !id) return '-';
 
-      return ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_simulation?.exercise_id) ? <ContextLink title={title} url={`${SIMULATION_BASE_URL}/${id}`} icon={<PlayCircleOutlineOutlined />} /> : title;
+      return ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_simulation?.exercise_id) ? <ContextLink title={title} url={`${SIMULATION_BASE_URL}/${id}`} icon={<PlayCircleOutlineOutlined style={chipIconStyle} />} /> : title;
     }
 
     case SCENARIO: {
@@ -53,7 +55,7 @@ const FindingContextLink: FunctionComponent<Props> = ({ finding, type }) => {
 
       if (!title || !id) return '-';
 
-      return ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_scenario?.scenario_id) ? <ContextLink title={title} url={`${SCENARIO_BASE_URL}/${id}`} icon={<RouteOutlined />} /> : title;
+      return ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_scenario?.scenario_id) ? <ContextLink title={title} url={`${SCENARIO_BASE_URL}/${id}`} icon={<RouteOutlined style={chipIconStyle} />} /> : title;
     }
 
     default:

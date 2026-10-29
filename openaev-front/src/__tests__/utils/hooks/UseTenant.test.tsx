@@ -99,6 +99,7 @@ const mockTenantsResponse = (tenants: TenantOutput[]) => {
 describe('useTenant', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockExtractTenantFromUrl.mockReturnValue(null);
     // Reset window.location.href tracking
     Object.defineProperty(window, 'location', {
@@ -254,6 +255,87 @@ describe('useTenant', () => {
         );
       });
       expect(window.location.href).toContain(TENANT_ALPHA.tenant_id);
+    });
+  });
+
+  // -- LAST OPENED TENANT --
+
+  describe('Last opened tenant', () => {
+    // Opens a tenant through its URL so the hook remembers it
+    const openTenantOnce = async (user: User, tenants: TenantOutput[], tenantId: string) => {
+      const useTenant = await importUseTenant();
+      mockTenantsResponse(tenants);
+      mockExtractTenantFromUrl.mockReturnValue(tenantId);
+      const { result, unmount } = renderHook(() => useTenant(user, true), { wrapper: createWrapper() });
+      await waitFor(() => {
+        expect(result.current.currentUserTenant?.tenant_id).toBe(tenantId);
+      });
+      unmount();
+      mockExtractTenantFromUrl.mockReturnValue(null);
+      mockBuildTenantUrl.mockClear();
+    };
+
+    it('given_tenantOpenedBefore_should_reopenItWhenUrlHasNone', async () => {
+      // Arrange
+      await openTenantOnce(MOCK_USER, [TENANT_ALPHA, TENANT_BETA], TENANT_BETA.tenant_id);
+      const useTenant = await importUseTenant();
+
+      // Act
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert
+      await waitFor(() => {
+        expect(mockBuildTenantUrl).toHaveBeenCalledWith(TENANT_BETA.tenant_id, expect.any(String));
+      });
+    });
+
+    it('given_otherTabOpenedAnotherTenant_should_keepUrlTenant', async () => {
+      // Arrange
+      await openTenantOnce(MOCK_USER, [TENANT_ALPHA, TENANT_BETA], TENANT_BETA.tenant_id);
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
+      const useTenant = await importUseTenant();
+
+      // Act
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert
+      await waitFor(() => {
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
+      });
+      expect(mockBuildTenantUrl).not.toHaveBeenCalled();
+    });
+
+    it('given_lastTenantNoLongerAccessible_should_navigateToFirstTenant', async () => {
+      // Arrange
+      await openTenantOnce(MOCK_USER, [TENANT_ALPHA, TENANT_BETA, TENANT_GAMMA], TENANT_GAMMA.tenant_id);
+      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
+      const useTenant = await importUseTenant();
+
+      // Act
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert
+      await waitFor(() => {
+        expect(mockBuildTenantUrl).toHaveBeenCalledWith(TENANT_ALPHA.tenant_id, expect.any(String));
+      });
+    });
+
+    it('given_tenantOpenedByAnotherUser_should_navigateToFirstTenant', async () => {
+      // Arrange
+      const otherUser = {
+        user_id: faker.string.uuid(),
+        user_email: faker.internet.email(),
+      } as User;
+      await openTenantOnce(otherUser, [TENANT_ALPHA, TENANT_BETA], TENANT_BETA.tenant_id);
+      const useTenant = await importUseTenant();
+
+      // Act
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert
+      await waitFor(() => {
+        expect(mockBuildTenantUrl).toHaveBeenCalledWith(TENANT_ALPHA.tenant_id, expect.any(String));
+      });
     });
   });
 

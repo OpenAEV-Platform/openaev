@@ -1,7 +1,7 @@
-import { TextField } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { type Control, Controller, type UseFormSetValue } from 'react-hook-form';
 
+import TextFieldFds from '../../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../../components/i18n';
 import { type Widget } from '../../../../../../utils/api-types';
 import { type WidgetInputWithoutLayout } from '../../../../../../utils/api-types-custom';
@@ -36,10 +36,8 @@ const WidgetConfigurationParameters: FunctionComponent<{
         control={control}
         name="widget_config.title"
         render={({ field }) => (
-          <TextField
+          <TextFieldFds
             {...field}
-            variant="standard"
-            fullWidth
             label={t('Title')}
             value={field.value ?? ''}
             onChange={e => field.onChange(e.target.value)}

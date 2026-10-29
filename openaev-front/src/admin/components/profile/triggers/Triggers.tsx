@@ -106,7 +106,12 @@ const Triggers = () => {
         queryableHelpers={queryableHelpers}
         entityPrefix="notification_trigger"
         topBarButtons={(
-          <TriggerCreate onCreate={result => setTriggers([result, ...triggers])} />
+          <TriggerCreate
+            onCreate={(result) => {
+              setTriggers([result, ...triggers]);
+              queryableHelpers.paginationHelpers.incrementTotalElements(1);
+            }}
+          />
         )}
       />
       <List>
@@ -136,7 +141,10 @@ const Triggers = () => {
                 onUpdate={result => setTriggers(triggers.map(existing => (
                   existing.notification_trigger_id !== result.notification_trigger_id ? existing : result
                 )))}
-                onDelete={result => setTriggers(triggers.filter(existing => existing.notification_trigger_id !== result))}
+                onDelete={(result) => {
+                  setTriggers(triggers.filter(existing => existing.notification_trigger_id !== result));
+                  queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                }}
               />
             )}
             divider

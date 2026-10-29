@@ -116,7 +116,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @TestInstance(PER_CLASS)
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents,domains")
+@TestPropertySource(properties = "openaev.tenant.active-tables=documents,domains,attack_patterns")
 @WithMockUser(isAdmin = true)
 @DisplayName("An import attributes the whole bundle to the request's write tenant")
 class ImportBundleAttributionTest extends IntegrationTest {
@@ -593,9 +593,9 @@ class ImportBundleAttributionTest extends IntegrationTest {
     void
         given_contractBundleDeclaresAnotherTenantOnEveryResource_should_attributeAllToHeaderTenant()
             throws Exception {
-      // Arrange: a genuine export from the default tenant, to which a domain is added (the export
-      // runs outside a request scope here and so reads none), and in which every resource is then
-      // made to declare tenant C.
+      // Arrange: a genuine export from the default tenant, to which a domain and an attack pattern
+      // are added (the export runs outside a request scope here and so reads neither), and in which
+      // every resource is then made to declare tenant C.
       String domainName = "import-bundle-declared-domain-" + UUID.randomUUID();
       AttackPattern attackPattern =
           AttackPatternFixture.createAttackPatternsWithExternalId("T-" + UUID.randomUUID());
@@ -623,7 +623,8 @@ class ImportBundleAttributionTest extends IntegrationTest {
                   null)
               .getBody();
       entityManager.clear();
-      byte[] zip = declareTenantOnEveryResource(export, domainName, tenantC);
+      byte[] zip =
+          declareTenantOnEveryResource(export, domainName, attackPattern.getExternalId(), tenantC);
       Map<String, Long> before = rowsOutsideTenant(tenantB);
 
       // Act
@@ -696,7 +697,8 @@ class ImportBundleAttributionTest extends IntegrationTest {
      * Rewrites the JSON:API entry of {@code zip}: the root gains a new domain, then every resource
      * declares a tenant.
      */
-    private byte[] declareTenantOnEveryResource(byte[] zip, String domainName, String tenantId)
+    private byte[] declareTenantOnEveryResource(
+        byte[] zip, String domainName, String attackPatternExternalId, String tenantId)
         throws Exception {
       ByteArrayOutputStream out = new ByteArrayOutputStream();
       try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zip));
@@ -707,6 +709,7 @@ class ImportBundleAttributionTest extends IntegrationTest {
           if (entry.getName().endsWith(".json") && !"meta.json".equals(entry.getName())) {
             JsonNode root = objectMapper.readTree(content);
             addDomain((ObjectNode) root, domainName);
+            addAttackPattern((ObjectNode) root, attackPatternExternalId);
             declareTenant(root.get("data"), tenantId);
             for (JsonNode included : root.path("included")) {
               declareTenant(included, tenantId);
@@ -733,6 +736,30 @@ class ImportBundleAttributionTest extends IntegrationTest {
       ObjectNode domain = root.withArray("/included").addObject();
       domain.put("id", domainId).put("type", "domains");
       domain.putObject("attributes").put("domain_name", domainName).put("domain_color", "#000000");
+    }
+
+    /**
+     * The exported contract carries no attack pattern: the export above runs in the test's own
+     * transaction, which has no request scope, and {@code attack_patterns} is active, so the
+     * association reads nothing. Injecting the resource keeps the subject of this test intact - a
+     * bundle resource that declares tenant C must be created in the header tenant.
+     */
+    private void addAttackPattern(ObjectNode root, String externalId) {
+      String attackPatternId = UUID.randomUUID().toString();
+      ((ObjectNode) root.get("data"))
+          .withObject("/relationships")
+          .putObject("injector_contract_attack_patterns")
+          .putArray("data")
+          .addObject()
+          .put("id", attackPatternId)
+          .put("type", "attack_patterns");
+      ObjectNode attackPattern = root.withArray("/included").addObject();
+      attackPattern.put("id", attackPatternId).put("type", "attack_patterns");
+      attackPattern
+          .putObject("attributes")
+          .put("attack_pattern_name", "declared-" + externalId)
+          .put("attack_pattern_external_id", externalId)
+          .put("attack_pattern_stix_id", "attack-pattern--" + UUID.randomUUID());
     }
 
     private void declareTenant(JsonNode resource, String tenantId) {

@@ -26,6 +26,7 @@ import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SelectItem;
 import net.sf.jsqlparser.statement.select.TableFunction;
 import net.sf.jsqlparser.statement.select.Values;
+import net.sf.jsqlparser.statement.select.WithItem;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
@@ -425,6 +426,15 @@ public class ScopeStatementInspector implements StatementInspector {
     public <S> Void visit(PlainSelect plainSelect, S context) {
       collected.add(plainSelect);
       return super.visit(plainSelect, context);
+    }
+
+    @Override
+    public <S> Void visit(WithItem<?> withItem, S context) {
+      // Only SELECT bodies are rewritten, so a data-modifying CTE would pass unfiltered.
+      if (!(withItem.getParenthesedStatement() instanceof ParenthesedSelect)) {
+        throw new TenantFilteringException("data-modifying CTE not supported by scope filtering");
+      }
+      return super.visit(withItem, context);
     }
   }
 }

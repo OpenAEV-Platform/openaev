@@ -199,8 +199,7 @@ public class ThreatArsenalApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalAction createAction(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody ThreatArsenalActionCreateInput input) {
-    writeScopeResolver.tenantForWrite(ctx, null);
-    return threatArsenalService.create(input);
+    return threatArsenalService.create(ctx, input);
   }
 
   @PutMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})

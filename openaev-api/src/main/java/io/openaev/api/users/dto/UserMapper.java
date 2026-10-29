@@ -5,6 +5,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.model.User;
 import io.openaev.injector_contract.variables.contract.UserContract;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -12,14 +13,25 @@ public class UserMapper {
 
   private UserMapper() {}
 
-  /** Maps a User entity to output without tenant information (tenant-scoped APIs). */
-  public static UserOutput toOutput(User user) {
-    return toOutput(user, false);
+  /**
+   * Maps a User entity to output without tenant information (tenant-scoped APIs).
+   *
+   * @param user the user to map
+   * @param visibleOrganizations the organizations the caller may see, keyed by id
+   */
+  public static UserOutput toOutput(User user, Map<String, Organization> visibleOrganizations) {
+    return toOutput(user, visibleOrganizations, false);
   }
 
-  /** Maps a User entity to output with tenant information (platform-scoped APIs only). */
-  public static UserOutput toPlatformOutput(User user) {
-    return toOutput(user, true);
+  /**
+   * Maps a User entity to output with tenant information (platform-scoped APIs only).
+   *
+   * @param user the user to map
+   * @param visibleOrganizations the organizations the caller may see, keyed by id
+   */
+  public static UserOutput toPlatformOutput(
+      User user, Map<String, Organization> visibleOrganizations) {
+    return toOutput(user, visibleOrganizations, true);
   }
 
   /**
@@ -40,8 +52,14 @@ public class UserMapper {
     return user;
   }
 
-  private static UserOutput toOutput(User user, boolean includeTenants) {
-    Organization org = user.getOrganization();
+  private static UserOutput toOutput(
+      User user, Map<String, Organization> visibleOrganizations, boolean includeTenants) {
+    // A user is platform-level but its organization belongs to one tenant: never initialize the
+    // lazy reference (fail-closed, it throws when out of scope), only expose a resolved one.
+    Organization org =
+        user.getOrganization() != null
+            ? visibleOrganizations.get(user.getOrganization().getId())
+            : null;
     Set<String> tagIds =
         user.getTags() != null
             ? user.getTags().stream().map(Tag::getId).collect(Collectors.toSet())

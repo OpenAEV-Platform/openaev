@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { type ReactElement } from 'react';
@@ -26,7 +27,7 @@ vi.mock('../../../../../../actions/inject_status/inject-status-action', () => ({
 vi.mock('../../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (s: string) => s }) }));
 
 const renderWithTheme = (element: ReactElement) => render(
-  <ThemeProvider theme={createTheme()}>{element}</ThemeProvider>,
+  <ThemeProvider theme={createTheme()}><TooltipProvider>{element}</TooltipProvider></ThemeProvider>,
 );
 
 describe('ExecutionRowStatusBadge', () => {
@@ -276,7 +277,9 @@ describe('ExecutionRowStatusBadge', () => {
 
     rerender(
       <ThemeProvider theme={createTheme()}>
-        <ExecutionRowStatusBadge simulationId="sim-1" />
+        <TooltipProvider>
+          <ExecutionRowStatusBadge simulationId="sim-1" />
+        </TooltipProvider>
       </ThemeProvider>,
     );
 

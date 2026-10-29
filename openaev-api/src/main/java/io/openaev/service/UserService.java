@@ -18,6 +18,7 @@ import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.GroupSpecification;
 import io.openaev.rest.exception.BadRequestException;
@@ -128,6 +129,14 @@ public class UserService {
    */
   public long globalCount() {
     return userRepository.globalCount();
+  }
+
+  /**
+   * Returns the platform users of the given tenants (players and reserved accounts excluded), with
+   * the XTM Hub news feed types they unsubscribed from.
+   */
+  public List<RawNewsFeedRecipient> newsFeedRecipients(Collection<String> tenantIds) {
+    return userRepository.rawNewsFeedRecipients(tenantIds);
   }
 
   // -- CREATE --
@@ -610,6 +619,14 @@ public class UserService {
         userRepository
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    // Reserved/service accounts (service-*@openaev.invalid, connector-*@openaev.invalid) never log
+    // in as themselves: anyone who authenticates as one only got there by replaying a disclosed
+    // bearer token. Self-renewal would let that holder keep indefinite control of the credential
+    // (and lock out whoever rotates it), defeating the admin-only rotation path.
+    if (ReservedKeyValidator.isReservedUserEmail(user.getEmail())) {
+      throw new AccessDeniedException(
+          "Service accounts cannot self-renew their token; an administrator must rotate it");
+    }
     Token token = tokenRepository.findById(tokenId).orElseThrow(ElementNotFoundException::new);
     if (!user.equals(token.getUser())) {
       throw new AccessDeniedException("You are not allowed to renew this token");

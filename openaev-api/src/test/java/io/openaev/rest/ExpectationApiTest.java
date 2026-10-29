@@ -26,19 +26,17 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.model.inject.form.Expectation;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -110,7 +108,9 @@ class ExpectationApiTest extends IntegrationTest {
 
     // -- Collector --
     CollectorType collectorType1 = new CollectorType(UUID.randomUUID().toString());
+    collectorType1.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     CollectorType collectorType2 = new CollectorType(UUID.randomUUID().toString());
+    collectorType2.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
 
     collectorTypeRepository.save(collectorType1);
     collectorTypeRepository.save(collectorType2);
@@ -189,7 +189,7 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
-      ExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromUIInput expectationUpdateInput =
           getExpectationUpdateInput(savedEDRCollector.getId(), 100.0);
       callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
 
@@ -270,7 +270,7 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent 1 expectation
-      ExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromUIInput expectationUpdateInput =
           getExpectationUpdateInput(savedEDRCollector.getId(), 100.0);
       callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
 
@@ -400,7 +400,7 @@ class ExpectationApiTest extends IntegrationTest {
       em.clear();
 
       // Fill the same source's result on both agents, like a security platform collector does
-      ExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromUIInput expectationUpdateInput =
           getExpectationUpdateInput(savedEDRCollector.getId(), 100.0);
       callUpdateInjectExpectationFromUI(
           injectExpectationRepository
@@ -489,15 +489,17 @@ class ExpectationApiTest extends IntegrationTest {
       injectExpectations
           .getFirst()
           .setResults(
-              List.of(
-                  InjectExpectationResult.builder()
-                      .sourceId(savedEDRCollector.getId())
-                      .sourceName(savedEDRCollector.getName())
-                      .sourceType(savedEDRCollector.getType())
-                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                      .sourceAssetId(UUID.randomUUID().toString())
-                      .score(50.0)
-                      .build()));
+              new ArrayList<>(
+                  List.of(
+                      InjectExpectationResult.builder()
+                          .sourceId(savedEDRCollector.getId())
+                          .sourceName(savedEDRCollector.getName())
+                          .sourceType(savedEDRCollector.getType())
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
+                          .score(50.0)
+                          .date(Instant.now())
+                          .build())));
 
       injectExpectationRepository.save(injectExpectations.getFirst());
 
@@ -651,16 +653,18 @@ class ExpectationApiTest extends IntegrationTest {
       injectExpectations
           .get(0)
           .setResults(
-              List.of(
-                  InjectExpectationResult.builder()
-                      .sourceId(savedEDRCollector.getId())
-                      .sourceName(savedEDRCollector.getName())
-                      .sourceType(savedEDRCollector.getType())
-                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                      .sourceAssetId(UUID.randomUUID().toString())
-                      .result("result")
-                      .score(80.0)
-                      .build()));
+              new ArrayList<>(
+                  List.of(
+                      InjectExpectationResult.builder()
+                          .sourceId(savedEDRCollector.getId())
+                          .sourceName(savedEDRCollector.getName())
+                          .sourceType(savedEDRCollector.getType())
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
+                          .result("result")
+                          .score(80.0)
+                          .date(Instant.now())
+                          .build())));
 
       injectExpectationRepository.save(injectExpectations.get(0));
 
@@ -739,16 +743,18 @@ class ExpectationApiTest extends IntegrationTest {
       injectExpectations
           .get(0)
           .setResults(
-              List.of(
-                  InjectExpectationResult.builder()
-                      .sourceId(savedEDRCollector.getId())
-                      .sourceName(savedEDRCollector.getName())
-                      .sourceType(savedEDRCollector.getType())
-                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                      .sourceAssetId(UUID.randomUUID().toString())
-                      .result("result")
-                      .score(90.0)
-                      .build()));
+              new ArrayList<>(
+                  List.of(
+                      InjectExpectationResult.builder()
+                          .sourceId(savedEDRCollector.getId())
+                          .sourceName(savedEDRCollector.getName())
+                          .sourceType(savedEDRCollector.getType())
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
+                          .result("result")
+                          .score(90.0)
+                          .date(Instant.now())
+                          .build())));
 
       injectExpectationRepository.save(injectExpectations.get(0));
 
@@ -800,7 +806,7 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
-      InjectExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInput =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), DETECTION.successLabel, true);
       callUpdateInjectExpectation(injectExpectationsAgent.getFirst(), expectationUpdateInput);
 
@@ -882,12 +888,12 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
-      InjectExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInput =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), DETECTION.successLabel, true);
       callUpdateInjectExpectation(injectExpectations.getFirst(), expectationUpdateInput);
 
       // Add Failure result to Agent expectation
-      InjectExpectationUpdateInput expectationUpdateInput2 =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInput2 =
           getInjectExpectationUpdateInput(
               savedSIEMCollector.getId(), DETECTION.failureLabel, false);
       callUpdateInjectExpectation(injectExpectations.getFirst(), expectationUpdateInput2);
@@ -939,13 +945,13 @@ class ExpectationApiTest extends IntegrationTest {
       List<BaseInjectExpectation> injectExpectationsAgent1 =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
-      InjectExpectationUpdateInput expectationUpdateInputAgent1 =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInputAgent1 =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), "Detected", true);
       // Fetch BaseInjectExpectation created for agent 2
       List<BaseInjectExpectation> injectExpectationsAgent2 =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent2.getId());
-      InjectExpectationUpdateInput expectationUpdateInputAgent2 =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInputAgent2 =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), "Not detected", false);
 
       InjectExpectationBulkUpdateInput inputs =
@@ -1086,9 +1092,9 @@ class ExpectationApiTest extends IntegrationTest {
     }
 
     /**
-     * Regression test: a collector writing a failed result DIRECTLY on an asset-level parent
-     * expectation (asset with agent children) must not clobber the score derived from the agents.
-     * The green verdict rolled up from the agents stays, the direct result is only recorded.
+     * Regression test: a collector answering an asset-level parent expectation (asset with agent
+     * children) with a failure must not clobber the score derived from the agents. The result is
+     * written on the agents, where the green verdict of another source still settles them.
      */
     @Test
     @DisplayName("Direct collector failure cannot clobber a parent whose agents are green")
@@ -1126,12 +1132,15 @@ class ExpectationApiTest extends IntegrationTest {
               savedSIEMCollector.getId(), DETECTION.failureLabel, false));
 
       // -- ASSERT --
-      // The direct result is recorded on the parent row...
+      // The result is written on the agents (the leaves), never on the parent row...
+      agentExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
+      assertEquals(0.0, getResultScoreForCollector(agentExpectations, savedSIEMCollector).get());
+      // ...where the green EDR result still settles the agent, hence the parent
       assetExpectations =
           injectExpectationRepository.findAllByInjectAndAsset(
               savedInject.getId(), savedEndpoint.getId());
-      assertEquals(0.0, getResultScoreForCollector(assetExpectations, savedSIEMCollector).get());
-      // ...but the children-derived verdict is untouched
       assertEquals(detectionExpectation.getScore(), getScore(assetExpectations));
       List<BaseInjectExpectation> assetGroupExpectations =
           injectExpectationRepository.findAllByInjectAndAssetGroup(
@@ -1186,6 +1195,7 @@ class ExpectationApiTest extends IntegrationTest {
               SecurityPlatformFixture.createDefault(
                   platformType + "-platform-" + UUID.randomUUID(), platformType));
       CollectorType collectorType = new CollectorType(UUID.randomUUID().toString());
+      collectorType.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       collectorTypeRepository.save(collectorType);
       Collector collector = new Collector();
       collector.setId(UUID.randomUUID().toString());
@@ -1241,7 +1251,7 @@ class ExpectationApiTest extends IntegrationTest {
 
   private void callUpdateInjectExpectation(
       @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final InjectExpectationUpdateInput expectationUpdateInput)
+      @NotNull final InjectExpectationUpdateFromCollectorInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(INJECTS_EXPECTATIONS_URI + "/" + baseInjectExpectation.getId())
@@ -1254,7 +1264,7 @@ class ExpectationApiTest extends IntegrationTest {
 
   private void callUpdateInjectExpectationFromUI(
       @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExpectationUpdateInput expectationUpdateInput)
+      @NotNull final InjectExpectationUpdateFromUIInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(EXPECTATIONS_URI + "/" + baseInjectExpectation.getId())
@@ -1267,7 +1277,7 @@ class ExpectationApiTest extends IntegrationTest {
 
   private void callDeleteInjectExpectationFromUI(
       @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExpectationUpdateInput expectationUpdateInput)
+      @NotNull final InjectExpectationUpdateFromUIInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(EXPECTATIONS_URI

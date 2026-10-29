@@ -117,7 +117,6 @@ class AutonomousRunServiceScopeTest {
   @Mock private AutonomousRunReconciliationWriter reconciliationWriter;
   @Mock private TenantWriteScopeResolver writeScopeResolver;
   @Mock private TenantScopedTransaction tenantTx;
-  @Mock private AutonomousRunAccessControl accessControl;
 
   @InjectMocks private AutonomousRunService runService;
 
@@ -208,7 +207,9 @@ class AutonomousRunServiceScopeTest {
     // The scope stays recorded, the OTHER best-effort projection still ran, and the DECISION
     // timeline entry is still appended - the mirror failure is contained to its own step.
     verify(runRepository).save(run);
-    verify(exerciseService).enableTargetedTeamMembersIsolated(SIMULATION_ID, List.of("team-1"));
+    verify(exerciseService)
+        .enableTargetedTeamMembersIsolated(
+            TxCtx.forTenant("tenant-1"), SIMULATION_ID, List.of("team-1"));
     verify(eventService)
         .append(
             eq(RUN_ID),
@@ -225,7 +226,7 @@ class AutonomousRunServiceScopeTest {
   void given_teamEnablementThrows_when_settingScope_then_callbackStillSucceeds() {
     doThrow(new IllegalStateException("exercise_teams_users insert race"))
         .when(exerciseService)
-        .enableTargetedTeamMembersIsolated(anyString(), anyList());
+        .enableTargetedTeamMembersIsolated(any(), anyString(), anyList());
     List<AutonomousScopeTarget> scope = List.of(new AutonomousScopeTarget("TEAMS", "team-1"));
 
     AutonomousRun saved = runService.setRunScope(RUN_ID, scope);
@@ -250,7 +251,8 @@ class AutonomousRunServiceScopeTest {
 
     runService.setRunScope(RUN_ID, scope);
 
-    verify(exerciseService, never()).enableTargetedTeamMembersIsolated(anyString(), anyList());
+    verify(exerciseService, never())
+        .enableTargetedTeamMembersIsolated(any(), anyString(), anyList());
   }
 
   @Test
@@ -276,7 +278,7 @@ class AutonomousRunServiceScopeTest {
               return null;
             })
         .when(exerciseService)
-        .enableTargetedTeamMembersIsolated(anyString(), anyList());
+        .enableTargetedTeamMembersIsolated(any(), anyString(), anyList());
 
     runService.setRunScope(RUN_ID, List.of(new AutonomousScopeTarget("TEAMS", "team-1")));
 
@@ -407,7 +409,12 @@ class AutonomousRunServiceScopeTest {
             existingEventIdsCaptor.capture()))
         .thenReturn("sim-step-2");
     when(workflowService.appendChainedStepToScenarioIsolated(
-            anyString(), any(), any(), anyList(), scenarioEventIdsCaptor.capture()))
+            eq(TxCtx.forTenant("tenant-1")),
+            anyString(),
+            any(),
+            any(),
+            anyList(),
+            scenarioEventIdsCaptor.capture()))
         .thenReturn("scenario-step-2");
 
     AutonomousStepTrigger trigger = new AutonomousStepTrigger();
@@ -458,7 +465,12 @@ class AutonomousRunServiceScopeTest {
     when(workflowService.resolveEventRootAsInputs("sim-evt-smb"))
         .thenReturn(List.of(ConditionCreateInput.builder().type(ConditionType.AND).build()));
     when(workflowService.appendChainedStepToScenarioIsolated(
-            anyString(), any(), any(), anyList(), scenarioEventIdsCaptor.capture()))
+            eq(TxCtx.forTenant("tenant-1")),
+            anyString(),
+            any(),
+            any(),
+            anyList(),
+            scenarioEventIdsCaptor.capture()))
         .thenReturn("scenario-step-copy");
     when(workflowService.findStepTriggerEventRootId("scenario-step-copy"))
         .thenReturn("scenario-evt-copy");

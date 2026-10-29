@@ -1,5 +1,5 @@
 import type { AxiosResponse } from 'axios';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 
 import { searchAssetGroupByIdAsOption } from '../../../../actions/asset_groups/assetgroup-action';
 import { searchAssetsByIdAsOption, searchEndpointByIdAsOption } from '../../../../actions/assets/endpoint-actions';
@@ -11,6 +11,7 @@ import { searchExerciseByIdAsOption } from '../../../../actions/exercises/exerci
 import { searchInjectorByIdAsOptions } from '../../../../actions/injectors/injector-action';
 import { searchInjectByIdAsOption, searchTargetOptionsById } from '../../../../actions/injects/inject-action';
 import { searchKillChainPhasesByIdAsOption } from '../../../../actions/kill_chain_phases/killChainPhase-action';
+import { searchMarkingDefinitionByIdAsOption } from '../../../../actions/marking_definitions/marking-definition-actions';
 import { searchOrganizationByIdAsOptions } from '../../../../actions/organizations/organization-actions';
 import { searchScenarioByIdAsOption } from '../../../../actions/scenarios/scenario-actions';
 import { searchSimulationByIdAsOptions } from '../../../../actions/simulations/simulation-action';
@@ -20,7 +21,7 @@ import { searchPlayerByIdAsOption } from '../../../../actions/users/User';
 import ContractOutputElementType from '../../../../admin/components/findings/ContractOutputElementType';
 import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
 import { type GroupOption, type Option } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { useFormatter } from '../../../i18n';
 import { CUSTOM_DASHBOARD, SCENARIOS, SIMULATIONS } from './constants';
@@ -34,7 +35,7 @@ interface RetrieveOptionsConfig {
 const useRetrieveOptions = () => {
   const { t } = useFormatter();
   const [options, setOptions] = useState<Option[]>([]);
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const handleOptions = (response: AxiosResponse<GroupOption[] | Option[]>, filterDefaultValues: GroupOption[]) => {
     if (filterDefaultValues && filterDefaultValues.length > 0) {
@@ -175,6 +176,11 @@ const useRetrieveOptions = () => {
       case 'payload_author_user':
       case 'asset_linked_person':
         searchPlayerByIdAsOption(ids).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'asset_markings':
+        searchMarkingDefinitionByIdAsOption(ids).then((response) => {
           setOptions(response.data);
         });
         break;

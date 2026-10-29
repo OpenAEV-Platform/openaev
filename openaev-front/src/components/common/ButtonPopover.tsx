@@ -1,5 +1,6 @@
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from '@mui/material';
+import { Divider, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
 import { type CSSProperties, type Dispatch, type FunctionComponent, type ReactNode, type SetStateAction, useState } from 'react';
 
 import { useFormatter } from '../i18n';
@@ -21,7 +22,7 @@ export type VariantButtonPopover = 'toggle' | 'icon';
 interface Props {
   entries: PopoverEntry[];
   style?: CSSProperties;
-  /** @deprecated kept for API compatibility; every kebab renders the same OpenCTI-style compact squared button now. */
+  /** Placement: `icon` in a list row (24px kebab), `toggle` in a detail header (36px kebab, the height of the header controls). */
   variant?: VariantButtonPopover;
   disabled?: boolean;
   disabledTooltip?: string;
@@ -33,6 +34,7 @@ interface Props {
 const ButtonPopover: FunctionComponent<Props> = ({
   entries,
   style,
+  variant = 'icon',
   disabled = false,
   disabledTooltip,
   className,
@@ -46,10 +48,9 @@ const ButtonPopover: FunctionComponent<Props> = ({
   const allDisabled = disabled || visibleEntries.every(entry => entry.disabled);
   const button = (
     <IconButton
+      icon={<MoreVert fontSize="small" />}
       className={className}
       value="popover"
-      size="small"
-      color="primary"
       aria-label={t('More actions')}
       onClick={(ev) => {
         // The kebab may live inside a real link (card / row wrapped in a
@@ -62,10 +63,9 @@ const ButtonPopover: FunctionComponent<Props> = ({
       }}
       style={{ ...style }}
       disabled={allDisabled}
-      sx={{ borderRadius: 1 }}
-    >
-      <MoreVert fontSize="small" color={allDisabled ? 'disabled' : 'primary'} />
-    </IconButton>
+      priority="tertiary"
+      size={variant === 'toggle' ? 'md' : 'sm'}
+    />
   );
 
   return (
@@ -78,8 +78,11 @@ const ButtonPopover: FunctionComponent<Props> = ({
         && (
           allDisabled && disabledTooltip
             ? (
-                <Tooltip title={t(disabledTooltip)}>
-                  <span>{button}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>{button}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>{t(disabledTooltip)}</TooltipContent>
                 </Tooltip>
               )
             : button
@@ -105,8 +108,11 @@ const ButtonPopover: FunctionComponent<Props> = ({
           );
           const item = (entry.disabled && entry.disabledMessage)
             ? (
-                <Tooltip key={entry.label} title={t(entry.disabledMessage)}>
-                  <span>{menuItem}</span>
+                <Tooltip key={entry.label}>
+                  <TooltipTrigger asChild>
+                    <span>{menuItem}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>{t(entry.disabledMessage)}</TooltipContent>
                 </Tooltip>
               )
             : menuItem;

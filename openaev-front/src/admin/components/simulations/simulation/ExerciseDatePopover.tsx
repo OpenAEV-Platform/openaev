@@ -1,5 +1,6 @@
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { UpdateOutlined } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle, IconButton, Tooltip } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { updateExerciseStartDate } from '../../../../actions/Exercise';
@@ -48,21 +49,32 @@ const ExerciseDatePopover: FunctionComponent<Props> = ({ exercise, open, onOpenC
   return (
     <>
       {showTrigger && (
-        <Tooltip title={(t('Modify the scheduling'))}>
-          <span>
-            <IconButton size="small" color="primary" onClick={() => setOpenEdit(true)} style={{ marginRight: 5 }} disabled={exercise.exercise_status !== 'SCHEDULED'}>
-              <UpdateOutlined />
-            </IconButton>
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <span className="inline-flex">
+                <IconButton
+                  icon={<UpdateOutlined />}
+                  aria-label={t('Scheduling')}
+                  onClick={() => setOpenEdit(true)}
+                  style={{ marginRight: 5 }}
+                  disabled={exercise.exercise_status !== 'SCHEDULED'}
+                  priority="tertiary"
+                  size="sm"
+                />
+              </span>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('Modify the scheduling')}</TooltipContent>
         </Tooltip>
       )}
       <Dialog
-        TransitionComponent={Transition}
         open={openEdit}
         onClose={() => setOpenEdit(false)}
-        PaperProps={{ elevation: 1 }}
         maxWidth="xs"
         fullWidth
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Update simulation start date and time')}</DialogTitle>
         <DialogContent>

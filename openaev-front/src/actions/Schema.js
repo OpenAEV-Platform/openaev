@@ -10,6 +10,13 @@ export const document = new schema.Entity(
 );
 export const arrayOfDocuments = new schema.Array(document);
 
+export const credential = new schema.Entity(
+  'credentials',
+  {},
+  { idAttribute: 'credential_id' },
+);
+export const arrayOfCredentials = new schema.Array(credential);
+
 export const injectorContract = new schema.Entity(
   'injector_contracts',
   {},
@@ -383,6 +390,10 @@ export const storeHelper = state => ({
   // documents
   getDocuments: () => entities('documents', state),
   getDocumentsMap: () => maps('documents', state),
+  // credentials
+  getCredential: id => entity(id, 'credentials', state),
+  getCredentials: () => entities('credentials', state),
+  getCredentialsMap: () => maps('credentials', state),
   // teams
   getTeam: id => entity(id, 'teams', state),
   getTeamUsers: (id) => {

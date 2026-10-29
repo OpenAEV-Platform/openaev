@@ -444,6 +444,24 @@ public class CredentialService {
         CredentialSecretReference.class);
   }
 
+  /**
+   * Resolves a set of credentials from their identifiers. {@code secret_references} is v2-active:
+   * the read is scoped to the caller's tenants by the transaction's {@link TxCtx}, so crafted ids
+   * can never reach another tenant's credentials.
+   *
+   * @param ctx transaction context carrying tenant scope
+   * @param credentialIds credential identifiers to resolve
+   * @return the matching credentials, in no particular order
+   */
+  @Transactional(readOnly = true)
+  public List<CredentialSecretReference> findCredentialsByIds(
+      @NotNull final TxCtx ctx, final List<String> credentialIds) {
+    if (CollectionUtils.isEmpty(credentialIds)) {
+      return List.of();
+    }
+    return credentialSecretReferenceRepository.findAll(SpecificationUtils.hasIdIn(credentialIds));
+  }
+
   private Page<CredentialSecretReference> findAllByTenantIds(
       Set<String> tenantIds,
       Specification<CredentialSecretReference> specification,

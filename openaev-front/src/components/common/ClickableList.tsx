@@ -1,4 +1,5 @@
-import { Box, Checkbox, List, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { Checkbox } from '@filigran/design-system';
+import { Box, List, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { type ReactElement, useMemo } from 'react';
 
 export interface ClickableListHeader<T> {
@@ -59,10 +60,9 @@ const ClickableList = <T extends object>({
                 {onDeselect
                   ? (
                       <Checkbox
-                        edge="start"
+                        presentational
                         checked={false}
                         disabled
-                        disableRipple
                       />
                     )
                   : <Skeleton variant="circular" width={24} height={24} />}
@@ -109,10 +109,9 @@ const ClickableList = <T extends object>({
                 {onDeselect
                   ? (
                       <Checkbox
-                        edge="start"
+                        presentational
                         checked={isSelected}
                         tabIndex={-1}
-                        disableRipple
                       />
                     )
                   : elements.icon.value(value)}

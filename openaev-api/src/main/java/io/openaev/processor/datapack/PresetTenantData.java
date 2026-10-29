@@ -19,6 +19,9 @@ public class PresetTenantData {
 
   public record MarkingSeed(String type, String definition, String color, int order) {}
 
+  // `definition` stores the type baked in for TLP (e.g. `"TLP:CLEAR"`), matching the historical
+  // seed values already present for existing tenants - see issue #7635 for why this differs from
+  // a tenant-created custom type (whose definition is stored bare, e.g. "AMBER").
   public static List<MarkingSeed> createDefaultMarkings() {
     return List.of(
         new MarkingSeed("TLP", "TLP:CLEAR", "#E6E7E8", 1),
@@ -27,6 +30,17 @@ public class PresetTenantData {
         new MarkingSeed("TLP", "TLP:AMBER+STRICT", "#FF8F00", 4),
         new MarkingSeed("TLP", "TLP:RED", "#E53935", 5));
   }
+
+  /**
+   * The TLP marking (by its {@link MarkingSeed#definition()}) each default group is granted at
+   * tenant creation — the clearance the group's members get on top of their {@link #DEFAULT_ROLES}
+   * capabilities. Keyed by the same role/group name used in {@link #DEFAULT_ROLES}.
+   */
+  public static final Map<String, String> DEFAULT_GROUP_MARKINGS =
+      Map.of(
+          ADMIN, "TLP:RED",
+          MANAGER, "TLP:AMBER",
+          OBSERVER, "TLP:GREEN");
 
   /**
    * Creates fresh {@link VulnerabilityCwe} instances for each call. Must not be a static field
@@ -180,7 +194,7 @@ public class PresetTenantData {
   /**
    * Capability sets of the auto-generated roles for every new tenant. Observer holds every
    * user-facing "access" capability, Manager every "access"/"manage"/"delete" one (tenant settings
-   * excluded on both — those stay Admin-only).
+   * and marking definitions excluded on both — those stay Admin-only).
    *
    * <p>When introducing a new capability group, add it here too (and ship a {@code
    * io.openaev.processor.core.RuntimeMigration} to heal already-created tenants), otherwise
@@ -193,7 +207,6 @@ public class PresetTenantData {
               Capability.ACCESS_ASSESSMENT,
               Capability.ACCESS_ASSETS,
               Capability.ACCESS_CREDENTIALS,
-              Capability.ACCESS_MARKING_DEFINITION,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.ACCESS_DASHBOARDS,
               Capability.ACCESS_REPORTINGS,
@@ -217,9 +230,6 @@ public class PresetTenantData {
               Capability.DELETE_ASSETS,
               Capability.MANAGE_CREDENTIALS,
               Capability.DELETE_CREDENTIALS,
-              Capability.ACCESS_MARKING_DEFINITION,
-              Capability.MANAGE_MARKING_DEFINITION,
-              Capability.DELETE_MARKING_DEFINITION,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.MANAGE_THREAT_ARSENALS,
               Capability.DELETE_THREAT_ARSENALS,

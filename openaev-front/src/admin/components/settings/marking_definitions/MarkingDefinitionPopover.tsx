@@ -1,7 +1,9 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { Alert, DialogContentText } from '@mui/material';
+import { type FunctionComponent, useMemo, useState } from 'react';
 
 import {
   deleteMarkingDefinition,
+  fetchMarkingDefinitionAssigned,
   updateMarkingDefinition,
 } from '../../../../actions/marking_definitions/marking-definition-actions';
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
@@ -14,7 +16,7 @@ import {
   type MarkingDefinitionOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import MarkingDefinitionForm from './MarkingDefinitionForm';
 import {
@@ -35,25 +37,26 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_DEFINITION);
   const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.MARKING_DEFINITION);
 
   const [openUpdate, setOpenUpdate] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const [isAssigned, setIsAssigned] = useState(false);
   const [openOrderConfirm, setOpenOrderConfirm] = useState(false);
   const [pendingUpdateInput, setPendingUpdateInput] = useState<MarkingDefinitionInput | null>(null);
 
   const isProtected = markingDefinition.marking_definition_protected;
   const protectedTooltip = t('This marking definition is protected. It cannot be updated or deleted.');
 
-  const updateInputFromDefinition
-    = (value: MarkingDefinitionOutput): MarkingDefinitionInput => ({
-      marking_definition_type: value.marking_definition_type,
-      marking_definition_definition: value.marking_definition_definition,
-      marking_definition_color: value.marking_definition_color,
-      marking_definition_order: value.marking_definition_order,
-    });
+  // Stable reference: the form resets whenever its default values change.
+  const updateDefaultValues = useMemo<MarkingDefinitionInput>(() => ({
+    marking_definition_type: markingDefinition.marking_definition_type,
+    marking_definition_definition: markingDefinition.marking_definition_definition,
+    marking_definition_color: markingDefinition.marking_definition_color,
+    marking_definition_order: markingDefinition.marking_definition_order,
+  }), [markingDefinition]);
 
   const performUpdate = (input: MarkingDefinitionInput) => {
     return dispatch(updateMarkingDefinition(markingDefinition.marking_definition_id, input))
@@ -88,6 +91,17 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
     });
   };
 
+  // The backend still deletes an assigned definition (removing it from every entity that holds
+  // it), so the check only warns the user before they confirm.
+  const handleOpenDelete = () => {
+    fetchMarkingDefinitionAssigned(markingDefinition.marking_definition_id)
+      .then((result: { data: boolean }) => {
+        setIsAssigned(result.data);
+      })
+      .catch(() => setIsAssigned(false))
+      .finally(() => setOpenDelete(true));
+  };
+
   const submitDelete = () => {
     return dispatch(deleteMarkingDefinition(markingDefinition.marking_definition_id))
       .then(() => {
@@ -107,7 +121,7 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
     },
     {
       label: 'Delete',
-      action: () => setOpenDelete(true),
+      action: handleOpenDelete,
       disabled: isProtected,
       disabledMessage: protectedTooltip,
       userRight: canDelete,
@@ -120,7 +134,7 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
       <Drawer open={openUpdate} handleClose={() => setOpenUpdate(false)} title={t('Update a marking definition')}>
         <MarkingDefinitionForm
           isEdit
-          defaultValues={updateInputFromDefinition(markingDefinition)}
+          defaultValues={updateDefaultValues}
           onSubmit={submitUpdate}
         />
       </Drawer>
@@ -129,6 +143,16 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
         handleClose={() => setOpenDelete(false)}
         handleSubmit={submitDelete}
         text={t('Do you want to delete this marking definition?')}
+        richContent={isAssigned ? (
+          <>
+            <DialogContentText>
+              {t('Do you want to delete this marking definition?')}
+            </DialogContentText>
+            <Alert severity="warning" style={{ marginTop: 16 }}>
+              {t('This marking definition is currently assigned. Deleting it will remove it from every entity that carries it.')}
+            </Alert>
+          </>
+        ) : undefined}
       />
       <DialogConfirmation
         open={openOrderConfirm}

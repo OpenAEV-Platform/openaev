@@ -129,9 +129,6 @@ class ExecutionTraceUtilsTest {
     }
   }
 
-  /* ============================================================
-   * Delete inject statuses for a list of injects
-   * ============================================================ */
   @Nested
   @DisplayName("deleteAllInjectStatusByInjects")
   class DeleteAllInjectStatusByInjectsTest {
@@ -151,6 +148,25 @@ class ExecutionTraceUtilsTest {
       assertEquals(
           expectedIds.size(), capturedIds.size(), "Size mismatch for scenario: " + description);
       assertTrue(capturedIds.containsAll(expectedIds), "IDs mismatch for scenario: " + description);
+    }
+
+    @Test
+    @DisplayName("given list of injects should delete status rows")
+    void given_inject_list_should_delete_status_rows() {
+      // -- ARRANGE --
+      Inject inject1 = mock(Inject.class);
+      Inject inject2 = mock(Inject.class);
+      InjectStatus status1 = mock(InjectStatus.class);
+      InjectStatus status2 = mock(InjectStatus.class);
+      when(inject1.getStatus()).thenReturn(Optional.of(status1));
+      when(inject2.getStatus()).thenReturn(Optional.of(status2));
+      when(status1.getId()).thenReturn("status-1");
+      when(status2.getId()).thenReturn("status-2");
+
+      // -- ACT --
+      injectStatusService.deleteAllInjectStatusByInjects(List.of(inject1, inject2));
+      // -- ASSERT --
+      verify(injectStatusRepository).deleteAllByIds(List.of("status-1", "status-2"));
     }
 
     private static Stream<Arguments> injectsProvider() {

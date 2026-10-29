@@ -1,4 +1,5 @@
 import { type ChatPanelProps } from '@filigran/chatbot';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { IntlProvider } from 'react-intl';
@@ -8,6 +9,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AskArianePanel from '../../../../admin/components/ariane/AskArianePanel';
 import { type PlatformSettings, type User } from '../../../../utils/api-types';
 import { UserContext, type UserContextType } from '../../../../utils/hooks/useAuth';
+
+// The panel reads the accent straight off the palette, with no fallback.
+const theme = createTheme({ palette: { ai: { main: '#B286FF' } } });
 
 const { chatPanelRenders } = vi.hoisted(() => ({ chatPanelRenders: [] as ChatPanelProps[] }));
 
@@ -44,11 +48,13 @@ interface IntlSetup {
 
 const renderPanel = async ({ locale = 'en', messages = {}, onError = () => {} }: IntlSetup = {}) => {
   const Providers = ({ children }: { children: ReactNode }) => (
-    <IntlProvider locale={locale} defaultLocale="en" messages={messages} onError={onError}>
-      <UserContext.Provider value={userContext}>
-        <MemoryRouter initialEntries={['/admin']}>{children}</MemoryRouter>
-      </UserContext.Provider>
-    </IntlProvider>
+    <ThemeProvider theme={theme}>
+      <IntlProvider locale={locale} defaultLocale="en" messages={messages} onError={onError}>
+        <UserContext.Provider value={userContext}>
+          <MemoryRouter initialEntries={['/admin']}>{children}</MemoryRouter>
+        </UserContext.Provider>
+      </IntlProvider>
+    </ThemeProvider>
   );
   render(
     <AskArianePanel mode="sidebar" onClose={() => {}} onModeChange={() => {}} />,
@@ -99,6 +105,15 @@ describe('AskArianePanel', () => {
     // Assert: the chatbot appends '/{conversationId}/messages/{messageId}/feedback',
     // which is the proxy's POST / DELETE route under /api/xtmone/chat.
     expect(props.apiEndpoints?.feedback).toBe('/conversations');
+  });
+
+  it('given_theChatPanel_should_nameTheArtifactRoutesOfTheProxy', async () => {
+    // Act
+    const props = await renderPanel();
+
+    // Assert: the cards append '/{kind}/{id}' and '/{kind}/{id}/download',
+    // which are the proxy's GET and POST routes under /api/xtmone/chat.
+    expect(props.apiEndpoints?.artifacts).toBe('/artifacts');
   });
 
   it('given_aFrenchUser_should_passTheLocaleToTheChatPanel', async () => {

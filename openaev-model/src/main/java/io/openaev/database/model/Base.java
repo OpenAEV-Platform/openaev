@@ -113,6 +113,31 @@ public interface Base {
   }
 
   /**
+   * Returns the id of the resource whose READ permission governs this entity.
+   *
+   * <p>Defaults to the entity itself. Entities readable through a parent (an inject through its
+   * simulation, an expectation through its simulation or atomic testing, ...) override it with that
+   * parent, so permissions can be resolved from the identifiers alone, without reloading the entity
+   * (which may already be deleted).
+   *
+   * @return the id of the resource to check permissions against
+   */
+  @JsonIgnore
+  default String getPermissionResourceId() {
+    return getId();
+  }
+
+  /**
+   * Returns the type of the resource returned by {@link #getPermissionResourceId()}.
+   *
+   * @return the resource type to check permissions against
+   */
+  @JsonIgnore
+  default ResourceType getPermissionResourceType() {
+    return getResourceType();
+  }
+
+  /**
    * Compares two entity collections by their ids, ignoring ordering and duplicates.
    *
    * <p>Used by entities that manually bump their {@code updatedAt} timestamp when an association

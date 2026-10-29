@@ -1,5 +1,5 @@
+import { Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxTrigger, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FilterListOffOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, IconButton, TextField, Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -9,13 +9,17 @@ import { useFormatter } from '../../../i18n';
 import { type FilterHelpers } from './FilterHelpers';
 import { buildEmptyFilter } from './FilterUtils';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   container: {
     display: 'flex',
-    gap: 10,
-    // In a width-constrained toolbar the autocomplete is allowed to shrink
-    // (see minWidth on the input below) instead of pushing the actions on the
-    // right out of view (#7340).
+    // One axis, one gap: the field and the clear button are centred on the same
+    // line as the search box, 8px from it and 8px from each other. Measured
+    // before: 0px to the search box and 20px to the button.
+    alignItems: 'center',
+    gap: theme.spacing(1),
+    // In a width-constrained toolbar this field is allowed to shrink (see the
+    // minWidth below) instead of pushing the actions on the right out of view
+    // (#7340, kept from main).
     minWidth: 0,
     flexShrink: 1,
   },
@@ -60,52 +64,70 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
   };
 
   return (
-    <div className={classes.container}>
-      <MuiAutocomplete
-        options={options}
-        sx={{
-          // 200px when space allows, shrinkable down to 120px in a tight
-          // toolbar (the label truncates but the control stays usable).
-          width: domains ? '95%' : 200,
-          minWidth: domains ? undefined : 120,
-          flexShrink: 1,
-        }}
-        value={null}
-        onChange={(_, selectOptionValue) => {
-          if (selectOptionValue) {
-            handleChange(selectOptionValue.id, selectOptionValue.operator);
-          }
-        }}
-        inputValue={inputValue}
-        onInputChange={(_, newValue, reason) => {
-          if (reason === 'reset') {
-            return;
-          }
-          setInputValue(newValue);
-        }}
-        renderInput={params => (
-          <TextField
-            {...params}
-            variant="outlined"
-            size="small"
-            label={domains ? t('Please choose a scenario or simulation, or leave this field blank to include all scenarios and atomic tests') : t('Add filter')}
-            style={style}
-          />
-        )}
-        renderOption={(props, option) => <li {...props} key={props.key}>{option.label}</li>}
-      />
-      <Tooltip title={t('Clear filters')}>
-        <IconButton
-          style={{
-            ...style,
-            maxHeight: 40,
+    // `style` used to be spread onto the clear button, where it leaked margins
+    // and made the gap to it 20px. It belongs to the row.
+    <div className={classes.container} style={style}>
+      {/* 200px when space allows, shrinkable down to 120px in a tight toolbar
+          (the label truncates but the control stays usable) — from main, #7340. */}
+      <div style={{
+        width: domains ? '95%' : 200,
+        minWidth: domains ? undefined : 120,
+        flexShrink: 1,
+      }}
+      >
+        <Combobox
+          labelPosition="none"
+          options={options}
+          value={null}
+          onValueChange={(selectOptionValue) => {
+            const next = selectOptionValue as typeof options[number] | null;
+            if (next) {
+              handleChange(next.id, next.operator);
+              // The filter is added elsewhere and this field holds no value, so
+              // the text must go with it. MUI cleared it through its own `reset`
+              // cause, which the `type`-only guard below drops.
+              setInputValue('');
+            }
           }}
-          color="primary"
-          onClick={handleClearFilters}
-          size="small"
+          inputValue={inputValue}
+          onInputChange={(newValue, meta) => {
+            // MUI reported `reason === 'reset'` here to protect the typed text
+            // from a programmatic reset; the library states the same cause.
+            if (meta.cause !== 'type') {
+              return;
+            }
+            setInputValue(newValue);
+          }}
+          getOptionLabel={option => option.label}
         >
-          <FilterListOffOutlined fontSize="small" />
-        </IconButton>
+          <ComboboxField>
+            <ComboboxInput
+              aria-label={t('Add filter')}
+              placeholder={domains
+                ? t('Please choose a scenario or simulation, or leave this field blank to include all scenarios and atomic tests')
+                : t('Add filter')}
+            />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+        </Combobox>
+      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton
+            size="md"
+            priority="tertiary"
+            // The button keeps its 36px; the field to its left is the part that compresses.
+            className="shrink-0"
+            data-testid="clear-filters"
+            aria-label={t('Clear filters')}
+            onClick={handleClearFilters}
+            icon={<FilterListOffOutlined fontSize="small" />}
+          />
+        </TooltipTrigger>
+        <TooltipContent>{t('Clear filters')}</TooltipContent>
       </Tooltip>
     </div>
   );

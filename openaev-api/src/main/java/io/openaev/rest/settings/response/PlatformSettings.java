@@ -57,6 +57,10 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "Current version of the platform")
   private String platformVersion;
 
+  @JsonProperty("platform_commit")
+  @Schema(description = "Git commit the platform was built from, when the build provides it")
+  private String platformCommit;
+
   @JsonProperty("postgre_version")
   @Schema(description = "Current version of the PostgreSQL")
   private String postgreVersion;

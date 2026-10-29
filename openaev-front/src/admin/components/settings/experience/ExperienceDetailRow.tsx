@@ -1,4 +1,4 @@
-import { Typography } from '@mui/material';
+import { Text } from '@filigran/design-system';
 import { alpha, useTheme } from '@mui/material/styles';
 import type React from 'react';
 import type { ReactNode } from 'react';
@@ -27,7 +27,7 @@ const ExperienceDetailRow: React.FC<ExperienceDetailRowProps> = ({ label, divide
         borderBottom: divider ? `1px solid ${alpha(theme.palette.text.primary, 0.08)}` : 'none',
       }}
     >
-      <Typography variant="body2" color="text.secondary">{label}</Typography>
+      <Text variant="content-base" className="text-default-secondary">{label}</Text>
       {children}
     </div>
   );

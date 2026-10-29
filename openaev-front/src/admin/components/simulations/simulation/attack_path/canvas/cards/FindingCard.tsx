@@ -1,11 +1,11 @@
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { memo } from 'react';
 
 import FindingIcon from '../../../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../../../components/i18n';
 import LogicNodeTooltip from '../../../../../chaining/logic/chaining_flow/NodeTooltip';
-import graphTooltipSlotProps from '../../../../../chaining/logic/logic-graph/graphTooltipSlotProps';
 import attackPathStatusColor, { attackPathStatusLabel } from '../../attack-path-colors';
 import { type AttackPathFlowNodeData, displayFindingValue } from '../../attack-path-flow-helpers';
 import { buildCardSx, buildIconBoxSx, EYEBROW_SX, TITLE_COMPACT_SX } from './card-styles';
@@ -63,46 +63,49 @@ const FindingCard = ({ data, selected = false }: Props) => {
   );
 
   return (
-    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300} slotProps={graphTooltipSlotProps}>
-      <Box sx={buildCardSx({
-        theme,
-        accent: verdict,
-        selected,
-        dimmed: data.dimmed,
-      })}
-      >
-        <Box sx={buildIconBoxSx(theme, verdict, 'small')}>
-          <FindingIcon findingType={data.typeFindings ?? ''} />
-        </Box>
-        <Box sx={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1px',
-        }}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Box sx={buildCardSx({
+          theme,
+          accent: verdict,
+          selected,
+          dimmed: data.dimmed,
+        })}
         >
-          <Typography
-            component="span"
-            sx={{
-              ...EYEBROW_SX,
-              ...(isOutputOnly ? { fontStyle: 'italic' } : {}),
-            }}
+          <Box sx={buildIconBoxSx(theme, verdict, 'small')}>
+            <FindingIcon findingType={data.typeFindings ?? ''} />
+          </Box>
+          <Box sx={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1px',
+          }}
           >
-            {isOutputOnly ? t('Output only') : data.typeFindings}
-          </Typography>
-          <Typography
-            component="div"
-            sx={{
-              ...TITLE_COMPACT_SX,
-              fontFamily: 'Consolas, monaco, monospace',
-              fontSize: '0.6875rem',
-            }}
-          >
-            {displayValue}
-          </Typography>
+            <Typography
+              component="span"
+              sx={{
+                ...EYEBROW_SX,
+                ...(isOutputOnly ? { fontStyle: 'italic' } : {}),
+              }}
+            >
+              {isOutputOnly ? t('Output only') : data.typeFindings}
+            </Typography>
+            <Typography
+              component="div"
+              sx={{
+                ...TITLE_COMPACT_SX,
+                fontFamily: 'Consolas, monaco, monospace',
+                fontSize: '0.6875rem',
+              }}
+            >
+              {displayValue}
+            </Typography>
+          </Box>
         </Box>
-      </Box>
+      </TooltipTrigger>
+      {tooltip && <TooltipContent side="top">{tooltip}</TooltipContent>}
     </Tooltip>
   );
 };

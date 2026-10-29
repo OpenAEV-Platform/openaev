@@ -40,6 +40,20 @@ class AttackPatternTest {
   }
 
   @Test
+  @DisplayName(
+      "setKillChainPhases with the same phase ids keeps the stored collection, so Hibernate does"
+          + " not rewrite the join rows")
+  void setKillChainPhases_same_ids_keeps_collection() {
+    AttackPattern attackPattern = attackPatternAtSentinel();
+    List<KillChainPhase> stored = attackPattern.getKillChainPhases();
+
+    attackPattern.setKillChainPhases(
+        new ArrayList<>(List.of(killChainPhase("k2"), killChainPhase("k1"))));
+
+    assertThat(attackPattern.getKillChainPhases()).isSameAs(stored);
+  }
+
+  @Test
   @DisplayName("setKillChainPhases with different phase ids bumps updatedAt")
   void setKillChainPhases_different_ids_bumps() {
     AttackPattern attackPattern = attackPatternAtSentinel();

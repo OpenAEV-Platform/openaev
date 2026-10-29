@@ -1,4 +1,5 @@
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -6,6 +7,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type ExpectationResultsByType } from '../../../../utils/api-types';
 import { computeInjectExpectationLabel, getStatusColor } from '../../../../utils/statusUtils';
 import { capitalize } from '../../../../utils/String';
+import { tint } from '../../../../utils/tint';
 import { expectationTypeIcon } from '../../common/ExpectationIconByType';
 import { expectationResultTypes } from '../../common/injects/expectations/Expectation';
 
@@ -83,7 +85,7 @@ const InjectScoreTiles: FunctionComponent<Props> = ({ expectationResultsByTypes 
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: alpha(statusColor, 0.12),
+                  backgroundColor: tint(statusColor, 12),
                 }}
               >
                 <Icon sx={{
@@ -133,12 +135,15 @@ const InjectScoreTiles: FunctionComponent<Props> = ({ expectationResultsByTypes 
                 {entry.distribution
                   .filter(item => (item.value ?? 0) > 0)
                   .map(item => (
-                    <Tooltip key={item.id} title={`${t(item.label)} (${item.value})`}>
-                      <div style={{
-                        flexGrow: item.value ?? 0,
-                        backgroundColor: getStatusColor(theme, item.label),
-                      }}
-                      />
+                    <Tooltip key={item.id}>
+                      <TooltipTrigger asChild>
+                        <div style={{
+                          flexGrow: item.value ?? 0,
+                          backgroundColor: getStatusColor(theme, item.label),
+                        }}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>{`${t(item.label)} (${item.value})`}</TooltipContent>
                     </Tooltip>
                   ))}
               </div>

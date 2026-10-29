@@ -99,7 +99,9 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfi
   const accent = useMemo(() => {
     if (counts.resilience >= 75) return theme.palette.success.main;
     if (counts.resilience >= 50) return theme.palette.warning.main;
-    if (counts.resilience >= 25) return '#ff7043';
+    // The other three rungs read the theme; this one held a literal. `warn` is
+    // the palette entry carrying --color-feedback-warning-primary.
+    if (counts.resilience >= 25) return theme.palette.warn.main;
     return theme.palette.error.main;
   }, [counts.resilience, theme]);
 

@@ -394,16 +394,19 @@ public class AttackPathExecutionIngestionService {
     }
 
     List<AttackPathExecutionRemediation> snapshots =
-        remediationRows.stream().map(row -> toExecutionRemediation(step.getId(), row)).toList();
+        remediationRows.stream()
+            .map(row -> toExecutionRemediation(inject.getTenant(), step.getId(), row))
+            .toList();
     executionRemediationRepository.saveAll(snapshots);
   }
 
   private static AttackPathExecutionRemediation toExecutionRemediation(
-      String stepId, DetectionRemediationRepository.SnapshotRow row) {
+      Tenant tenant, String stepId, DetectionRemediationRepository.SnapshotRow row) {
     AttackPathExecutionRemediation remediation = new AttackPathExecutionRemediation();
     remediation.setId(
         AttackPathIds.executionRemediationRow(
             stepId, row.getCollectorType(), row.getSecurityPlatformId()));
+    remediation.setTenant(tenant);
     remediation.setStepId(stepId);
     remediation.setValues(row.getValues());
     remediation.setAuthorRule(row.getAuthorRule());
@@ -909,10 +912,10 @@ public class AttackPathExecutionIngestionService {
               row.setSourceName(result.getSourceName());
               row.setSourceAssetId(result.getSourceAssetId());
               row.setResultStatusLabel(statusLabel);
-              row.setDetectionTime(result.getDate());
+              row.setDetectionTime(result.getDate().toString());
               row.setAlerts(buildAlertsNode(expectation.getId(), result));
               row.setResultScore(result.getScore());
-              row.setResultDate(result.getDate());
+              row.setResultDate(result.getDate().toString());
               rows.add(row);
             }
           }

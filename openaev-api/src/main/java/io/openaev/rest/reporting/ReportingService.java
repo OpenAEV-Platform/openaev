@@ -3,7 +3,8 @@ package io.openaev.rest.reporting;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Reporting;
@@ -14,6 +15,7 @@ import io.openaev.database.model.ReportingGenerationStatus;
 import io.openaev.database.model.ReportingGenerationTrigger;
 import io.openaev.database.model.ReportingSchedule;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.database.repository.ReportingRepository;
@@ -81,6 +83,7 @@ public class ReportingService {
   private final ReportingRenderer reportingRenderer;
   private final PermissionService permissionService;
   private final GrantService grantService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- SEARCH --
 
@@ -97,11 +100,14 @@ public class ReportingService {
     // must stay invisible to users without access to that scenario).
     Specification<Reporting> accessSpecification =
         subjectAccessSpecification(this.userService.currentUser());
-    return buildPaginationJPA(
-        (specification, pageable) ->
-            this.reportingRepository.findAll(accessSpecification.and(specification), pageable),
-        searchPaginationInput,
-        Reporting.class);
+    Page<Reporting> reportings =
+        buildPaginationJPA(
+            (specification, pageable) ->
+                this.reportingRepository.findAll(accessSpecification.and(specification), pageable),
+            searchPaginationInput,
+            Reporting.class);
+    withHistoryLoaded(reportings.getContent());
+    return reportings;
   }
 
   /**
@@ -116,25 +122,30 @@ public class ReportingService {
       @NotNull final ReportingContextType contextType, final String contextId) {
     checkSubjectAccess(contextType, contextId);
     if (contextId == null || contextId.isBlank()) {
-      return this.reportingRepository.findAllByContextTypeAndContextIdIsNullOrderByUpdatedAtDesc(
-          contextType);
+      return withHistoryLoaded(
+          this.reportingRepository.findAllByContextTypeAndContextIdIsNullOrderByUpdatedAtDesc(
+              contextType));
     }
-    return this.reportingRepository.findAllByContextTypeAndContextIdOrderByUpdatedAtDesc(
-        contextType, contextId);
+    return withHistoryLoaded(
+        this.reportingRepository.findAllByContextTypeAndContextIdOrderByUpdatedAtDesc(
+            contextType, contextId));
   }
 
   // -- CREATE --
 
   /**
-   * Creates a new {@link Reporting} template; the tenant is set automatically by the tenant
-   * listener.
+   * Creates a new {@link Reporting} template, attributed to the single tenant of the request's
+   * write scope (reportings has no v1 listener attribution left: the tenant must be set explicitly
+   * before save).
    *
+   * @param ctx the request's tenant write scope
    * @param reporting the {@link Reporting} to save
    * @return the saved {@link Reporting}
    */
   @Transactional
-  public Reporting createReporting(@NotNull final Reporting reporting) {
+  public Reporting createReporting(final TxCtx ctx, @NotNull final Reporting reporting) {
     checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
+    reporting.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
     return this.reportingRepository.save(reporting);
   }
 
@@ -151,6 +162,7 @@ public class ReportingService {
   public Reporting reporting(@NotBlank final String id) {
     Reporting reporting = resolveReporting(id);
     checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
+    withHistoryLoaded(List.of(reporting));
     return reporting;
   }
 
@@ -243,6 +255,9 @@ public class ReportingService {
     }
     ReportingGeneration generation = new ReportingGeneration();
     generation.setReporting(reporting);
+    // reporting_generations has no v1 listener attribution left: a generation always belongs to
+    // its parent reporting's tenant, never a possibly different write scope.
+    generation.setTenant(reporting.getTenant());
     generation.setFormat(format != null ? format : reporting.getDefaultFormat());
     generation.setGenerationTrigger(trigger);
     generation.setStatus(ReportingGenerationStatus.PENDING);
@@ -366,6 +381,9 @@ public class ReportingService {
     checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
     ReportingSchedule schedule = new ReportingSchedule();
     schedule.setReporting(reporting);
+    // reporting_schedules has no v1 listener attribution left: a schedule always belongs to its
+    // parent reporting's tenant, never a possibly different write scope.
+    schedule.setTenant(reporting.getTenant());
     schedule.setOwner(this.userService.currentUser());
     applyScheduleInput(schedule, input);
     return this.reportingScheduleRepository.save(schedule);
@@ -490,15 +508,33 @@ public class ReportingService {
 
   // -- INTERNAL --
 
+  /**
+   * Loads the generations and schedules of the reportings inside the scoped transaction. The
+   * reporting endpoints return the raw entity, serialized open-in-view after the commit, when a
+   * lazy load of either collection fails closed to an empty array.
+   */
+  private List<Reporting> withHistoryLoaded(final List<Reporting> reportings) {
+    if (!reportings.isEmpty()) {
+      List<String> ids = reportings.stream().map(Reporting::getId).toList();
+      this.reportingRepository.findAllByIdInFetchingGenerations(ids);
+      this.reportingRepository.findAllByIdInFetchingSchedules(ids);
+    }
+    return reportings;
+  }
+
   private Reporting resolveReporting(final String id) {
+    // Plain findById: reportings is tenant-active, so the statement inspector already scopes
+    // this read to the request's TxCtx on both routes. An explicit tenantId predicate taken from
+    // TenantContext would be wrong on the X-Tenant-Ids route, where that ambient value is never
+    // set by the request and falls back to the default tenant.
     return this.reportingRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id)
         .orElseThrow(() -> new ElementNotFoundException("Reporting not found with id: " + id));
   }
 
   private ReportingGeneration resolveGeneration(final String id) {
     return this.reportingGenerationRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id)
         .orElseThrow(
             () -> new ElementNotFoundException("Reporting generation not found with id: " + id));
   }
@@ -506,7 +542,7 @@ public class ReportingService {
   private ReportingSchedule resolveSchedule(final String reportingId, final String scheduleId) {
     ReportingSchedule schedule =
         this.reportingScheduleRepository
-            .findByIdAndTenantId(scheduleId, TenantContext.getCurrentTenant())
+            .findById(scheduleId)
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(

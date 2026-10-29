@@ -21,10 +21,10 @@ const DigestNotificationDialog = ({ notification, onClose }: {
     <Dialog
       open={notification !== null}
       onClose={onClose}
-      TransitionComponent={Transition}
       fullWidth
       maxWidth="md"
-      PaperProps={{ elevation: 1 }}
+      slots={{ transition: Transition }}
+      slotProps={{ paper: { elevation: 1 } }}
     >
       <DialogTitle>{t('Digest details')}</DialogTitle>
       <DialogContent>

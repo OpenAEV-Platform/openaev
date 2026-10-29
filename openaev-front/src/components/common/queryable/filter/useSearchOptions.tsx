@@ -12,6 +12,7 @@ import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { searchInjectorsByNameAsOption } from '../../../../actions/injectors/injector-action';
 import { searchInjectLinkedToFindingsAsOption, searchTargetOptions } from '../../../../actions/injects/inject-action';
 import { searchKillChainPhasesByNameAsOption } from '../../../../actions/kill_chain_phases/killChainPhase-action';
+import { searchMarkingDefinitionAsOption } from '../../../../actions/marking_definitions/marking-definition-actions';
 import { searchOrganizationsByNameAsOption } from '../../../../actions/organizations/organization-actions';
 import { searchScenarioAsOption, searchScenarioCategoryAsOption } from '../../../../actions/scenarios/scenario-actions';
 import { searchScenarioSimulationsAsOption } from '../../../../actions/scenarios/scenario-simulation-action';
@@ -215,6 +216,11 @@ const useSearchOptions = () => {
       case 'secret_reference_created_by':
       case 'asset_linked_person':
         searchPlayersAsOption(search).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'asset_markings':
+        searchMarkingDefinitionAsOption(search).then((response) => {
           setOptions(response.data);
         });
         break;

@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useEffect } from 'react';
 import { type FieldValues, FormProvider, type Resolver, type SubmitHandler, useForm, useWatch } from 'react-hook-form';
@@ -71,13 +72,13 @@ const ThreatArsenalActionForm = ({
   type ThreatArsenalActionCreateInput = z.infer<typeof schema>;
 
   const regexGroupObject = z.object({
-    ...editing && { regex_group_id: z.string().optional() },
+    ...(editing && { regex_group_id: z.string().optional() }),
     regex_group_field: z.string().min(1, { error: t('Should not be empty') }),
     regex_group_index_values: z.string().min(1, { error: t('Should not be empty') }),
   });
 
   const contractOutputElementObject = z.object({
-    ...editing && { contract_output_element_id: z.string().optional() },
+    ...(editing && { contract_output_element_id: z.string().optional() }),
     contract_output_element_is_finding: z.boolean(),
     contract_output_element_name: z.string().min(1, { error: t('Should not be empty') }),
     contract_output_element_key: z.string().min(1, { error: t('Should not be empty') }),
@@ -87,7 +88,7 @@ const ThreatArsenalActionForm = ({
     contract_output_element_regex_groups: z.array(regexGroupObject),
   });
   const outputParserObject = z.object({
-    ...editing && { output_parser_id: z.string().optional() },
+    ...(editing && { output_parser_id: z.string().optional() }),
     output_parser_mode: z.enum(['STDOUT', 'STDERR', 'READ_FILE'], { error: t('Should not be empty') }),
     output_parser_type: z.enum(['REGEX'], { error: t('Should not be empty') }),
     output_parser_contract_output_elements: z.array(contractOutputElementObject),
@@ -221,7 +222,13 @@ const ThreatArsenalActionForm = ({
       // The theme lowercases MuiTab labels and re-capitalises via ::first-letter,
       // which only works on block containers: this flex label silently rendered
       // as "remediation". Neutralise the transform, the i18n key is capitalised.
-      <Box display="flex" alignItems="center" sx={{ textTransform: 'none' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          textTransform: 'none',
+        }}
+      >
         {t('Remediation')}
         {!isValidatedEnterpriseEdition && (
           <EEChip
@@ -337,20 +344,10 @@ const ThreatArsenalActionForm = ({
             marginBottom: theme.spacing(2),
           }}
           >
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleClose}
-              disabled={isSubmitting}
-            >
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
               {t('Cancel')}
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={isSubmitting || !isDirty}
-            >
+            <Button type="submit" disabled={isSubmitting || !isDirty}>
               {editing ? t('Update') : t('Create')}
             </Button>
           </div>

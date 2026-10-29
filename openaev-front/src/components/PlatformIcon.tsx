@@ -1,3 +1,4 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AndroidOutlined,
   DevicesOtherOutlined,
@@ -8,7 +9,7 @@ import {
   type SvgIconComponent,
   ViewInArOutlined,
 } from '@mui/icons-material';
-import { type PaletteMode, Tooltip } from '@mui/material';
+import { type PaletteMode } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -77,7 +78,9 @@ const renderIcon = (platform: string, width: number | undefined = 40, borderRadi
           width,
           borderRadius,
           marginRight,
-          height: 'fit-content',
+          // The logos are square. An explicit height keeps a flex row from stretching the
+          // image, and WebKit resolves `fit-content` to the bitmap's own 800px height.
+          height: width,
         }}
         src={brand}
         alt={platform}
@@ -107,7 +110,14 @@ const PlatformIcon: FunctionComponent<PlatformIconProps> = ({ platform, width, b
     return null;
   }
   if (tooltip) {
-    return <Tooltip title={platform}>{rendered}</Tooltip>;
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{rendered}</span>
+        </TooltipTrigger>
+        <TooltipContent>{platform}</TooltipContent>
+      </Tooltip>
+    );
   }
   return rendered;
 };

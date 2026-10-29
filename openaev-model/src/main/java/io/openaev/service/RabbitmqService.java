@@ -361,7 +361,10 @@ public class RabbitmqService {
   }
 
   /**
-   * Deletes all tenant-scoped queues and exchanges for each provided queue configuration.
+   * Deletes everything {@link #declareQueuesForTenant} declares for a tenant: the queue and
+   * exchange of each provided queue configuration, and the tenant-scoped connector exchange.
+   *
+   * <p>Idempotent: deleting a queue or exchange that does not exist is a no-op on RabbitMQ.
    *
    * @param tenantId the tenant ID whose queues should be deleted
    * @param queueConfigs the queue configurations to delete
@@ -389,6 +392,10 @@ public class RabbitmqService {
             exchangeName,
             tenantId);
       }
+
+      String connectorExchange = tenantPrefix + EXCHANGE_KEY;
+      channel.exchangeDelete(connectorExchange);
+      log.debug("Deleted connector exchange '{}' for tenant '{}'", connectorExchange, tenantId);
     }
   }
 

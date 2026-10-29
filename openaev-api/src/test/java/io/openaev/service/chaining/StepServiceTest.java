@@ -60,6 +60,7 @@ class StepServiceTest {
   @Mock private StepDelayQueueRepository stepDelayQueueRepository;
   @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private TenantScopedTransaction tenantScopedTransaction;
+  @Mock private StepEventService stepEventService;
 
   @Spy @InjectMocks StepService stepService;
   private QueueChainingJob queueChainingJob;
@@ -75,9 +76,17 @@ class StepServiceTest {
 
   @BeforeEach
   void setUp() {
+    // By default every hash handed to commitHashes is newly committed (no concurrent evaluation).
+    lenient()
+        .when(conditionService.commitHashes(any(), any(), any()))
+        .thenAnswer(invocation -> new HashSet<>(invocation.<Set<String>>getArgument(2)));
     queueChainingJob =
         new QueueChainingJob(
-            stepDelayQueueService, stepService, workflowService, tenantScopedTransaction);
+            stepDelayQueueService,
+            stepService,
+            workflowService,
+            tenantScopedTransaction,
+            stepEventService);
     lenient()
         .doAnswer(
             invocation -> {
@@ -690,6 +699,63 @@ class StepServiceTest {
         // The step is NOT re-readied: the recomputed fallback hash is deterministic and matches the
         // committed one, so the batch is filtered out. ready() was invoked exactly once overall.
         assertTrue(secondCycle.isEmpty());
+        verify(localActionStep, times(1)).ready(persistedTemplate, input, workflowRun);
+      }
+    }
+
+    @Nested
+    class AntiReplayCommit {
+
+      /**
+       * ADR-011: hashes are committed before READY steps are created, and a READY step is created
+       * only for the hashes this call actually committed. A hash already committed — e.g. by a
+       * concurrent evaluation of the same step that committed it first — must not produce a second
+       * execution of its combination.
+       */
+      @Test
+      void given_hashAlreadyCommittedConcurrently_should_notCreateReadyStepForIt()
+          throws Exception {
+        // Arrange
+        Step nextStepTemplateToExecute = mock(Step.class);
+        Step persistedTemplate = mock(Step.class);
+        Workflow workflowRun = mock(Workflow.class);
+        ActionStep localActionStep = mock(ActionStep.class);
+
+        String input = "{}";
+        String stepId = UUID.randomUUID().toString();
+
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(persistedTemplate.getId()).thenReturn(stepId);
+        when(persistedTemplate.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+        when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepId))
+            .thenReturn(localActionStep);
+        when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
+            .thenReturn(Optional.of(persistedTemplate));
+        when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
+            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, List.of(), null)));
+        when(injectExecutionStep.expandTargetBatches(any(), eq(workflowRun), eq(persistedTemplate)))
+            .thenReturn(
+                List.of(
+                    new ConditionService.ExecutionBatch(input, List.of(), "combo:asset-1"),
+                    new ConditionService.ExecutionBatch(input, List.of(), "combo:asset-2")));
+        when(conditionService.getCommittedHashes(persistedTemplate, workflowRun))
+            .thenReturn(Set.of());
+        // "combo:asset-1" was committed by a concurrent evaluation in the meantime.
+        when(conditionService.commitHashes(
+                persistedTemplate, workflowRun, Set.of("combo:asset-1", "combo:asset-2")))
+            .thenReturn(Set.of("combo:asset-2"));
+
+        Step stepReady = mock(Step.class);
+        when(localActionStep.ready(persistedTemplate, input, workflowRun))
+            .thenReturn(Optional.of(stepReady));
+        when(stepRepository.save(stepReady)).thenReturn(stepReady);
+
+        // Act
+        List<Step> result =
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+
+        // Assert: a single READY step, for the only hash this call committed.
+        assertEquals(List.of(stepReady), result);
         verify(localActionStep, times(1)).ready(persistedTemplate, input, workflowRun);
       }
     }
@@ -1893,6 +1959,49 @@ class StepServiceTest {
       assertEquals(ConditionType.AND, savedConditions.get(0).getType());
       assertEquals(ConditionType.MAPPER, savedConditions.get(1).getType());
       assertEquals("leaf", savedConditions.get(2).getValue());
+    }
+
+    @Test
+    void given_dependOnConditionWithoutCopiedTarget_should_failFastInsteadOfKeepingSourceId() {
+      // Arrange
+      Workflow sourceWorkflow = new Workflow();
+      sourceWorkflow.setId("src-wf");
+
+      Step sourceStep = new Step();
+      sourceStep.setId("src-step");
+      sourceStep.setWorkflow(sourceWorkflow);
+
+      Workflow targetWorkflow = new Workflow();
+      targetWorkflow.setId("tgt-wf");
+
+      Step targetStep = new Step();
+      targetStep.setId("tgt-step");
+      targetStep.setWorkflow(targetWorkflow);
+
+      Condition dependOnRoot =
+          Condition.builder()
+              .type(ConditionType.DEPEND_ON)
+              .value("missing-step-template")
+              .workflowId("src-wf")
+              .build();
+      dependOnRoot.setId("depend-on-root");
+
+      when(conditionService.findAllConditionsByStepId("src-step"))
+          .thenReturn(List.of(dependOnRoot));
+      when(conditionService.findAllNonMapperConditionsByWorkflowId("src-wf"))
+          .thenReturn(List.of(dependOnRoot));
+
+      // Act
+      IllegalArgumentException exception =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>()));
+
+      // Assert
+      assertEquals(
+          "DEPEND_ON condition depend-on-root references step template missing-step-template which is not part of the copy",
+          exception.getMessage());
+      verify(conditionService, never()).saveCondition(any(Condition.class));
     }
   }
 

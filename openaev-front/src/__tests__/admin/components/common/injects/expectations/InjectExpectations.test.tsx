@@ -10,7 +10,7 @@ import { type ExpectationInput } from '../../../../../../admin/components/common
 import InjectExpectations from '../../../../../../admin/components/common/injects/expectations/InjectExpectations';
 import { store } from '../../../../../../store';
 import { defineAbility } from '../../../../../../utils/permissions/ability';
-import { AbilityContext } from '../../../../../../utils/permissions/permissionsContext';
+import { AbilityProvider } from '../../../../../../utils/permissions/permissionsContext';
 import { INHERITED_CONTEXT } from '../../../../../../utils/permissions/types';
 
 // -- TEST DATA --
@@ -73,11 +73,11 @@ const renderInjectExpectations = (
     <Provider store={store}>
       <ThemeProvider theme={theme}>
         <IntlProvider locale="en" messages={{}} defaultLocale="en" onError={() => {}}>
-          <AbilityContext.Provider value={ability}>
+          <AbilityProvider value={ability}>
             <PermissionsContext.Provider value={permissionsOverride}>
               {children}
             </PermissionsContext.Provider>
-          </AbilityContext.Provider>
+          </AbilityProvider>
         </IntlProvider>
       </ThemeProvider>
     </Provider>

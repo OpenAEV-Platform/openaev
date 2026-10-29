@@ -1,5 +1,6 @@
+import { Checkbox, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { KeyboardArrowRight } from '@mui/icons-material';
-import { Box, Checkbox, Chip, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
 
@@ -100,11 +101,8 @@ const InjectContractListRow: FunctionComponent<Props> = ({
           }}
         >
           <Checkbox
-            edge="start"
             checked={checked}
-            disableRipple
-            size="small"
-            slotProps={{ input: { 'aria-label': name } }}
+            aria-label={name}
           />
         </Box>
       )}
@@ -128,19 +126,22 @@ const InjectContractListRow: FunctionComponent<Props> = ({
         />
       </Box>
 
-      <Tooltip title={name} enterDelay={500}>
-        <Typography
-          variant="body2"
-          sx={{
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            minWidth: 0,
-          }}
-        >
-          {name}
-        </Typography>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              minWidth: 0,
+            }}
+          >
+            {name}
+          </Typography>
+        </TooltipTrigger>
+        {name && <TooltipContent>{name}</TooltipContent>}
       </Tooltip>
 
       <Box sx={{
@@ -182,31 +183,14 @@ const InjectContractListRow: FunctionComponent<Props> = ({
       }}
       >
         {externalIds.slice(0, 2).map(externalId => (
-          <Chip
-            key={externalId}
-            size="small"
-            variant="outlined"
-            color="primary"
-            label={externalId}
-            sx={{
-              height: 20,
-              fontSize: 10.5,
-              borderRadius: 0.75,
-            }}
-          />
+          <Chip key={externalId} label={externalId} severity="info" />
         ))}
         {externalIds.length > 2 && (
-          <Tooltip title={externalIds.slice(2).join(', ')}>
-            <Chip
-              size="small"
-              variant="outlined"
-              label={`+${externalIds.length - 2}`}
-              sx={{
-                height: 20,
-                fontSize: 10.5,
-                borderRadius: 0.75,
-              }}
-            />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Chip label={`+${externalIds.length - 2}`} />
+            </TooltipTrigger>
+            {externalIds.slice(2).join(', ') && <TooltipContent>{externalIds.slice(2).join(', ')}</TooltipContent>}
           </Tooltip>
         )}
       </Box>

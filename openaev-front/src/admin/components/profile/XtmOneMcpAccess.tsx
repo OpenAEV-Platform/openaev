@@ -1,5 +1,6 @@
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ContentCopyOutlined, OpenInNewOutlined } from '@mui/icons-material';
-import { Button, IconButton, Tooltip, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 
 import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Paper from '../../../components/common/Paper';
@@ -62,31 +63,35 @@ const XtmOneMcpAccess = () => {
         >
           {mcpEndpointUrl}
         </pre>
-        <Tooltip title={t('Copy MCP endpoint URL')}>
-          <IconButton
-            size="small"
-            aria-label={t('Copy MCP endpoint URL')}
-            onClick={() => copyToClipboard(t, mcpEndpointUrl)}
-          >
-            <ContentCopyOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              icon={<ContentCopyOutlined fontSize="small" />}
+              aria-label={t('Copy MCP endpoint URL')}
+              onClick={() => copyToClipboard(t, mcpEndpointUrl)}
+              priority="tertiary"
+              size="sm"
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Copy MCP endpoint URL')}</TooltipContent>
         </Tooltip>
       </div>
       <Typography variant="body2" style={{ marginTop: 20 }}>
         {t('Authenticate with a personal XTM One API key passed as a bearer token. Your endpoint, connection status and ready-to-copy client configuration are available in your XTM One profile.')}
       </Typography>
-      <Button
-        variant="contained"
-        color="primary"
-        component="a"
-        href={xtmOneProfileUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        endIcon={<OpenInNewOutlined />}
-        style={{ marginTop: 20 }}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        marginTop: 20,
+      }}
       >
-        {t('Manage in XTM One')}
-      </Button>
+        <Button asChild>
+          <a href={xtmOneProfileUrl} target="_blank" rel="noopener noreferrer">
+            {t('Manage in XTM One')}
+            <OpenInNewOutlined fontSize="small" />
+          </a>
+        </Button>
+      </div>
     </Paper>
   );
 };

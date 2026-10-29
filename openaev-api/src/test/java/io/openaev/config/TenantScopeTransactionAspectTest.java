@@ -50,6 +50,7 @@ class TenantScopeTransactionAspectTest {
   /** The marking write always follows the tenant write, so every scoped test needs it stubbed. */
   private static Query stubMarkingWrite(EntityManager entityManager) {
     Query marking = mock(Query.class);
+    when(marking.setFlushMode(any())).thenReturn(marking);
     when(entityManager.createNativeQuery(SET_MARKING_SQL)).thenReturn(marking);
     when(marking.setParameter(eq("scope"), any())).thenReturn(marking);
     return marking;
@@ -66,6 +67,7 @@ class TenantScopeTransactionAspectTest {
   // TenantScopeTransactionAspectIntegrationTest.
   private static void stubEmptyCurrentScope(EntityManager entityManager) {
     Query currentScope = mock(Query.class);
+    when(currentScope.setFlushMode(any())).thenReturn(currentScope);
     when(entityManager.createNativeQuery(CURRENT_SETTING_SQL)).thenReturn(currentScope);
     when(currentScope.getSingleResult()).thenReturn("");
   }
@@ -106,6 +108,7 @@ class TenantScopeTransactionAspectTest {
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
     Query query = mock(Query.class);
+    when(query.setFlushMode(any())).thenReturn(query);
     when(entityManager.createNativeQuery(SET_CONFIG_SQL)).thenReturn(query);
     when(query.setParameter("scope", "t1")).thenReturn(query);
     stubMarkingWrite(entityManager);
@@ -123,6 +126,7 @@ class TenantScopeTransactionAspectTest {
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
     Query query = mock(Query.class);
+    when(query.setFlushMode(any())).thenReturn(query);
     when(entityManager.createNativeQuery(SET_CONFIG_SQL)).thenReturn(query);
     when(query.setParameter("scope", "")).thenReturn(query);
     stubMarkingWrite(entityManager);
@@ -138,6 +142,7 @@ class TenantScopeTransactionAspectTest {
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
     Query query = mock(Query.class);
+    when(query.setFlushMode(any())).thenReturn(query);
     when(entityManager.createNativeQuery(SET_CONFIG_SQL)).thenReturn(query);
     when(query.setParameter("scope", "a")).thenReturn(query);
     stubMarkingWrite(entityManager);
@@ -156,6 +161,7 @@ class TenantScopeTransactionAspectTest {
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
     Query tenant = mock(Query.class);
+    when(tenant.setFlushMode(any())).thenReturn(tenant);
     when(entityManager.createNativeQuery(SET_CONFIG_SQL)).thenReturn(tenant);
     when(tenant.setParameter("scope", "t1")).thenReturn(tenant);
     Query marking = stubMarkingWrite(entityManager);
@@ -178,6 +184,7 @@ class TenantScopeTransactionAspectTest {
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
     Query tenant = mock(Query.class);
+    when(tenant.setFlushMode(any())).thenReturn(tenant);
     when(entityManager.createNativeQuery(SET_CONFIG_SQL)).thenReturn(tenant);
     when(tenant.setParameter("scope", "t1")).thenReturn(tenant);
     Query marking = stubMarkingWrite(entityManager);
@@ -198,6 +205,7 @@ class TenantScopeTransactionAspectTest {
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
     Query tenant = mock(Query.class);
+    when(tenant.setFlushMode(any())).thenReturn(tenant);
     when(entityManager.createNativeQuery(SET_CONFIG_SQL)).thenReturn(tenant);
     when(tenant.setParameter("scope", "t1")).thenReturn(tenant);
     Query marking = stubMarkingWrite(entityManager);

@@ -207,7 +207,7 @@ public class ExecutableInjectService {
     if (PrimitiveType.Document == type && !value.isEmpty()) {
       try {
         Document doc = documentService.document(value);
-        value = "#{location}/" + doc.getName();
+        value = "#{location}/" + DocumentService.safeFileName(doc.getName());
         missing = false;
       } catch (ElementNotFoundException e) {
         log.error("Payload argument target unexisting document", e);
@@ -296,7 +296,7 @@ public class ExecutableInjectService {
     // but it would require more changes in the implant code and change this endpoint from a get to
     // a post.
     Instant startTime = Instant.now();
-    Payload payloadToExecute = getExecutablePayloadInject(injectId);
+    Payload payloadToExecute = getExecutablePayloadInject(injectId, agentId);
     this.injectStatusService.addStartImplantExecutionTraceByInject(
         injectId, agentId, "Implant is up and starting execution", startTime);
     this.injectExpectationService.addStartDateSignatureToInjectExpectationsByAgent(
@@ -304,7 +304,8 @@ public class ExecutableInjectService {
     return payloadToExecute;
   }
 
-  private Payload getExecutablePayloadInject(String injectId) throws Exception {
+  private Payload getExecutablePayloadInject(String injectId, String agentId) throws Exception {
+    injectService.checkAgentTargetsInject(injectId, agentId);
     Inject inject = injectService.inject(injectId);
     InjectorContract contract =
         inject

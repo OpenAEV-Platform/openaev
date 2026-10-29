@@ -1,19 +1,5 @@
-import {
-  Box,
-  Button,
-  Checkbox,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Skeleton,
-} from '@mui/material';
+import { Button, Checkbox, Chip } from '@filigran/design-system';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { type Breakpoint } from '@mui/material/styles';
 import { type CSSProperties, type ReactElement, type ReactNode, useMemo, useState } from 'react';
 
@@ -83,6 +69,8 @@ interface Props<T> {
   /** Drawer width when not `inline`. */
   variant?: 'half' | 'full';
   containerTestId?: string;
+  /** Show the "{count} selected" chip in the header (hidden for single-selection pickers). */
+  showSelectedCount?: boolean;
 }
 
 /**
@@ -115,6 +103,7 @@ const SelectListPicker = <T extends object>({
   submitDisabled = false,
   variant = 'half',
   containerTestId,
+  showSelectedCount = true,
 }: Props<T>) => {
   const { t } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
@@ -135,12 +124,12 @@ const SelectListPicker = <T extends object>({
         flexShrink: 0,
       }}
     >
-      <Chip
-        size="small"
-        variant="outlined"
-        color={selectedCount > 0 ? 'primary' : 'default'}
-        label={t('{count} selected', { count: selectedCount })}
-      />
+      {showSelectedCount && (
+        <Chip
+          severity={selectedCount > 0 ? 'info' : 'neutral'}
+          label={String(t('{count} selected', { count: selectedCount }))}
+        />
+      )}
       {headerActions}
       {buttonComponent}
     </Box>
@@ -282,14 +271,12 @@ const SelectListPicker = <T extends object>({
                       </Box>
                     )}
                   />
-                  <Checkbox
-                    size="small"
-                    checked={checked}
-                    disabled={disabled}
-                    disableRipple
-                    tabIndex={-1}
-                    sx={{ padding: 0.5 }}
-                  />
+                  {/* The row (a ListItemButton) owns the selection, so the box
+                      is presentational and must not announce a second state. No
+                      `disabled` passed: the presentational branch has no disabled
+                      tone, so the prop would be inert — the row carries the
+                      disabled treatment, as it did before. */}
+                  <Checkbox presentational checked={checked} />
                 </ListItemButton>
               );
             })}
@@ -334,13 +321,8 @@ const SelectListPicker = <T extends object>({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={onSubmit}
-            disabled={submitDisabled || isLoading}
-          >
+          <Button type="button" priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="button" onClick={onSubmit} disabled={submitDisabled || isLoading}>
             {submitLabel ?? t('Update')}
           </Button>
         </DialogActions>

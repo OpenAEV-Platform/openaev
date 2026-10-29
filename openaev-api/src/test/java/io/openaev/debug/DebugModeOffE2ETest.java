@@ -50,14 +50,30 @@ class DebugModeOffE2ETest extends IntegrationTest {
   @Test
   @DisplayName("datasource is not proxied and no debug beans exist")
   void noDebugFootprintByDefault() {
-    assertThat(dataSource)
-        .as("no SQL proxy on the query hot path when debug mode is off")
-        .isNotInstanceOf(ProxyDataSource.class);
+    if (detectorInstrumentingSuite()) {
+      // An opt-in suite-wide detector (fail-closed or write-attribution) proxies every datasource;
+      // that is test instrumentation, not a debug footprint. The debug guarantee still holds: no
+      // debug SQL-logging listener rides on that proxy.
+      if (dataSource instanceof ProxyDataSource proxy) {
+        assertThat(proxy.getProxyConfig().getQueryListener().getListeners())
+            .as("debug SQL logging must not be installed when debug mode is off")
+            .noneMatch(MaskingSqlLoggingListener.class::isInstance);
+      }
+    } else {
+      assertThat(dataSource)
+          .as("no SQL proxy on the query hot path when debug mode is off")
+          .isNotInstanceOf(ProxyDataSource.class);
+    }
 
     assertThat(context.getBeanNamesForType(DataSourceProxyBeanPostProcessor.class)).isEmpty();
     assertThat(context.getBeanNamesForType(MaskingSqlLoggingListener.class)).isEmpty();
     assertThat(context.getBeanNamesForType(JfrRecordingManager.class)).isEmpty();
     assertThat(context.getBeanNamesForType(DebugModeManager.class)).isEmpty();
+  }
+
+  private static boolean detectorInstrumentingSuite() {
+    return "on".equals(System.getProperty("openaev.failclosed.detector"))
+        || "on".equals(System.getProperty("openaev.writeattr.detector"));
   }
 
   @Test

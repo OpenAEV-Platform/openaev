@@ -1,15 +1,7 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  IconButton,
-  Menu,
-  MenuItem,
-} from '@mui/material';
-import { type MouseEvent, useContext, useState } from 'react';
+import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
+import { type MouseEvent, useState } from 'react';
 
 import {
   deleteThreatArsenalAction,
@@ -28,7 +20,7 @@ import {
   type ThreatArsenalActionUpdateInput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
@@ -123,7 +115,7 @@ const ThreatArsenalActionPopover = ({
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const { t, tPick } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // -- Popover --
   const handlePopoverOpen = (event: MouseEvent<HTMLButtonElement>) => {
@@ -234,9 +226,15 @@ const ThreatArsenalActionPopover = ({
 
   return (
     <>
-      <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="small" disabled={allDisabled} sx={{ borderRadius: 1 }}>
-        <MoreVert fontSize="small" color={allDisabled ? 'disabled' : 'primary'} />
-      </IconButton>
+      <IconButton
+        icon={<MoreVert fontSize="small" />}
+        aria-label={t('More actions')}
+        onClick={handlePopoverOpen}
+        aria-haspopup="true"
+        disabled={allDisabled}
+        priority="tertiary"
+        size="sm"
+      />
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
@@ -273,8 +271,8 @@ const ThreatArsenalActionPopover = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitDuplicate}>{t('Duplicate')}</Button>
+          <Button type="button" priority="secondary" onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
+          <Button type="button" onClick={submitDuplicate}>{t('Duplicate')}</Button>
         </DialogActions>
       </Dialog>
 

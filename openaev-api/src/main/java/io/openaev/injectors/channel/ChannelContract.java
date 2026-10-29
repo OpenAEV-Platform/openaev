@@ -86,7 +86,7 @@ public class ChannelContract extends Contractor {
     List<ContractElement> publishInstance =
         contractBuilder()
             // built in
-            .optional(teamField(Multiple))
+            .mandatory(teamField(Multiple))
             .optional(attachmentField(Multiple))
             .mandatory(articleField(Multiple))
             // Contract specific

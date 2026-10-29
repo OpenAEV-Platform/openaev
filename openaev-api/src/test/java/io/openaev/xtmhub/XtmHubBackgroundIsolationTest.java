@@ -82,7 +82,8 @@ class XtmHubBackgroundIsolationTest extends IntegrationTest {
       "given one tenant fails after its write when refreshing all tenants then only that tenant rolls back")
   void givenOneTenantFailsAfterItsWrite_whenRefreshingAllTenants_thenOnlyThatTenantRollsBack() {
     // Arrange
-    when(xtmHubClient.refreshRegistrationStatusAllTenants(anyString(), anyString(), any()))
+    when(xtmHubClient.refreshRegistrationStatusAllTenants(
+            anyString(), anyString(), anyString(), any()))
         .thenReturn(
             Map.of(
                 tenantA, XtmHubConnectivityStatus.INACTIVE,

@@ -9,7 +9,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Optional.ofNullable;
 
-import io.openaev.config.EngineConfig;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.RunMode;
@@ -24,6 +23,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.form.*;
@@ -31,13 +31,18 @@ import io.openaev.rest.settings.response.OAuthProvider;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.rest.settings.response.PublicPlatformSettings;
 import io.openaev.rest.stream.ai.AiConfig;
+import io.openaev.service.settings.ThemeAssetUrlValidator;
+import io.openaev.utils.InstanceCreationDate;
 import io.openaev.xtmhub.XtmHubConnectivityService;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import io.openaev.xtmone.XtmOneConfig;
 import io.openaev.xtmone.XtmOneIdentity;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -45,8 +50,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientProperties;
-import org.springframework.boot.autoconfigure.security.saml2.Saml2RelyingPartyProperties;
+import org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientProperties;
+import org.springframework.boot.security.saml2.autoconfigure.Saml2RelyingPartyProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -70,20 +75,16 @@ public class PlatformSettingsService {
   private final XtmHubConnectivityService xtmHubConnectivityService;
   private final XtmOneConfig xtmOneConfig;
   private final XtmOneIdentity xtmOneIdentity;
+  private final OpenTelemetry openTelemetry;
+  private final ThemeAssetUrlValidator themeAssetUrlValidator;
 
   @Value("${server.servlet.session.timeout:1440m}")
   private java.time.Duration sessionTimeout;
 
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
-
-  @Value("${openaev.mail.imap.username}")
-  private String imapUsername;
-
   @Resource private OpenAEVConfig openAEVConfig;
+  @Resource private PlatformMailSender platformMailSender;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   @Resource private RabbitmqService rabbitmqService;
-  @Resource private EngineConfig engineConfig;
   @Autowired private LicenseCacheManager licenseCacheManager;
 
   // -- PROVIDERS --
@@ -281,14 +282,9 @@ public class PlatformSettingsService {
 
     // Authenticated-only fields
     platformSettings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
-    if (this.imapEnabled) {
-      platformSettings.setDefaultMailer(this.imapUsername);
-      platformSettings.setDefaultReplyTo(this.imapUsername);
-    } else {
-      platformSettings.setDefaultMailer(openAEVConfig.getDefaultMailer());
-      platformSettings.setDefaultReplyTo(openAEVConfig.getDefaultReplyTo());
-    }
-    platformSettings.setDefaultMailerName(openAEVConfig.getDefaultMailerName());
+    platformSettings.setDefaultMailer(platformMailSender.getEmail());
+    platformSettings.setDefaultReplyTo(platformMailSender.getReplyTo());
+    platformSettings.setDefaultMailerName(platformMailSender.getName());
     platformSettings.setSmtpServiceAvailable(
         ofNullable(dbSettings.get(SMTP_SERVICE_AVAILABLE.key()))
             .map(Setting::getValue)
@@ -313,6 +309,8 @@ public class PlatformSettingsService {
     platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
     platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
     platformSettings.setPlatformVersion(openAEVConfig.getVersion());
+    platformSettings.setPlatformCommit(
+        StringUtils.hasText(openAEVConfig.getCommit()) ? openAEVConfig.getCommit() : null);
     platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
     // Where the browser opens XTM One: its published identity, not an internal address.
     platformSettings.setXtmOneUrl(xtmOneIdentity.browserUrl());
@@ -329,7 +327,7 @@ public class PlatformSettingsService {
       platformSettings.setChatbotAiCguStatus("pending");
     }
     platformSettings.setExecutorTaniumEnable(false);
-    platformSettings.setTelemetryManagerEnable(true);
+    platformSettings.setTelemetryManagerEnable(openTelemetry instanceof OpenTelemetrySdk);
 
     // Admin-only settings
     OpenAEVPrincipal user = currentUser();
@@ -337,7 +335,7 @@ public class PlatformSettingsService {
       platformSettings.setPostgreVersion(settingRepository.getServerVersion());
       platformSettings.setJavaVersion(Runtime.version().toString());
       platformSettings.setRabbitMQVersion(rabbitmqService.getVersion());
-      platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
+      platformSettings.setAnalyticsEngineType(engineService.getEngineType().getKey());
       platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
     }
 
@@ -386,6 +384,20 @@ public class PlatformSettingsService {
     return openAEVConfig.getVersion();
   }
 
+  /**
+   * Get this instance's creation date, written once at first startup (see {@link
+   * InstanceCreationDate}). It bounds the validity of a {@code ci} XTM license, which must not
+   * outlive the pipeline that created the instance.
+   *
+   * @return the creation date, or empty when it is missing or unreadable
+   */
+  public Optional<Instant> findInstanceCreationDate() {
+    return this.settingRepository
+        .findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key())
+        .map(Setting::getValue)
+        .flatMap(InstanceCreationDate::parse);
+  }
+
   public Map<String, Setting> findSettingsByKeys(List<String> keys) {
     return mapOfSettings(this.settingRepository.findAllByKeyInAndTenantIsNull(keys));
   }
@@ -410,6 +422,8 @@ public class PlatformSettingsService {
     themeInput.setAccentColor(
         getValueFromMapOfSettings(
             dbSettings, themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key()));
+    themeInput.setTextColor(
+        getValueFromMapOfSettings(dbSettings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key()));
     themeInput.setLogoUrl(
         getValueFromMapOfSettings(dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key()));
     themeInput.setLogoLoginUrl(
@@ -509,6 +523,11 @@ public class PlatformSettingsService {
   }
 
   private PlatformSettings updateTheme(ThemeInput input, String themeType) {
+    validateThemeUrl(input.getLogoUrl());
+    validateThemeUrl(input.getLogoUrlCollapsed());
+    validateThemeUrl(input.getLogoLoginUrl());
+    validateThemeUrl(input.getLoginAsideImage());
+
     Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
 
@@ -542,6 +561,9 @@ public class PlatformSettingsService {
             dbSettings,
             themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key(),
             input.getAccentColor()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key(), input.getTextColor()));
     settingsToSave.add(
         resolveFromMap(
             dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key(), input.getLogoUrl()));
@@ -590,6 +612,16 @@ public class PlatformSettingsService {
     settingRepository.deleteAllById(delete);
     settingRepository.saveAll(update);
     return findSettings();
+  }
+
+  /**
+   * Rejects theme image/logo urls that are not well-formed http(s) urls pointing at a public
+   * target, to prevent SSRF via platform-level theme configuration.
+   */
+  private void validateThemeUrl(String url) {
+    if (StringUtils.hasText(url)) {
+      themeAssetUrlValidator.validateUrl(url);
+    }
   }
 
   /**

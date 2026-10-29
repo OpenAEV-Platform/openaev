@@ -1,5 +1,6 @@
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { VisibilityOutlined } from '@mui/icons-material';
-import { IconButton, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { green, orange } from '@mui/material/colors';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
@@ -50,25 +51,29 @@ const headerStyles: {
     float: 'left',
     width: '30%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   article_author: {
     float: 'left',
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   article_channel: {
     float: 'left',
     width: '25%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   article_is_scheduled: {
     float: 'left',
     width: '25%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -81,7 +86,7 @@ const inlineStyles: {
   article_name: {
     float: 'left',
     width: '30%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -90,7 +95,7 @@ const inlineStyles: {
   article_author: {
     float: 'left',
     width: '20%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -98,7 +103,7 @@ const inlineStyles: {
   article_channel: {
     float: 'left',
     width: '25%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -106,7 +111,7 @@ const inlineStyles: {
   article_is_scheduled: {
     float: 'left',
     width: '25%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -235,15 +240,19 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
             divider
             secondaryAction={(
               <>
-                <Tooltip title={t('Preview')}>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    component={Link}
-                    to={previewArticleUrl(article)}
-                  >
-                    <VisibilityOutlined fontSize="small" />
-                  </IconButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <IconButton
+                      asChild
+                      icon={<VisibilityOutlined fontSize="small" />}
+                      aria-label={t('Preview')}
+                      priority="tertiary"
+                      size="sm"
+                    >
+                      <Link to={previewArticleUrl(article)} />
+                    </IconButton>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Preview')}</TooltipContent>
                 </Tooltip>
                 <ArticlePopover article={article} onRemoveArticle={undefined} />
               </>

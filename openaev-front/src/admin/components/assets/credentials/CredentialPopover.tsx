@@ -1,39 +1,45 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import {
   deleteCredential,
   updateCredential,
 } from '../../../../actions/assets/credential-actions';
-import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type PopoverEntry, type VariantButtonPopover } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type CredentialOutput } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CredentialForm from './CredentialForm';
 import { type CredentialFormInitialValues } from './credentialUtils';
 
-interface CredentialPopoverProps {
+export interface CredentialPopoverProps {
+  /** Placement, forwarded to the kebab: `icon` in a list row, `toggle` in a
+      detail header, where the controls are 36px. */
+  variant?: VariantButtonPopover;
   credentialId: string;
   credentialName: string;
   resolveInitialValues?: () => Promise<CredentialFormInitialValues>;
-  onUpdate: (result: CredentialOutput) => void;
-  onDelete: (credentialId: string) => void;
+  onUpdate?: (result: CredentialOutput) => void;
+  onDelete?: (credentialId: string) => void;
+  onRemove?: (credentialId: string) => void;
   disabled?: boolean;
 }
 
 const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
+  variant = 'icon',
   credentialId,
   credentialName,
   resolveInitialValues,
   onUpdate,
   onDelete,
+  onRemove,
   disabled = false,
 }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
@@ -77,21 +83,32 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
   };
 
   const entries: PopoverEntry[] = [
-    {
-      label: 'Update',
-      action: handleOpenEdit,
-      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.CREDENTIALS),
-    },
-    {
-      label: 'Delete',
-      action: handleOpenDelete,
-      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.CREDENTIALS),
-    },
+    ...(onUpdate
+      ? [{
+          label: 'Update',
+          action: handleOpenEdit,
+          userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.CREDENTIALS),
+        }]
+      : []),
+    ...(onRemove
+      ? [{
+          label: 'Remove from the inject',
+          action: () => onRemove(credentialId),
+          userRight: true,
+        }]
+      : []),
+    ...(onDelete
+      ? [{
+          label: 'Delete',
+          action: handleOpenDelete,
+          userRight: ability.can(ACTIONS.DELETE, SUBJECTS.CREDENTIALS),
+        }]
+      : []),
   ];
 
   return (
     <>
-      <ButtonPopover disabled={disabled} entries={entries} />
+      <ButtonPopover variant={variant} disabled={disabled} entries={entries} />
       {openEdit && (
         <Drawer
           open

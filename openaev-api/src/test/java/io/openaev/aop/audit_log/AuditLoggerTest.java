@@ -166,7 +166,9 @@ class AuditLoggerTest extends IntegrationTest {
   class UpdateEndpoint {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given team update should append mutation update audit event")
     void given_teamUpdate_should_appendMutationUpdateAuditEvent() throws Exception {
       // Arrange
@@ -194,7 +196,9 @@ class AuditLoggerTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given authenticated request should populate session_id in audit log")
     void given_authenticatedRequest_should_populateSessionIdInAuditLog() throws Exception {
       // Arrange

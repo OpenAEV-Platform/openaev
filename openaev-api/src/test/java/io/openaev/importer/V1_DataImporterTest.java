@@ -25,6 +25,7 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.ImportEntry;
 import io.openaev.utils.constants.Constants;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.KillChainPhaseFixture;
@@ -57,6 +58,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_METHOD)
 class V1_DataImporterTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private V1_DataImporter importer;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private TeamRepository teamRepository;
@@ -141,7 +143,8 @@ class V1_DataImporterTest extends IntegrationTest {
     Optional<Exercise> exercise = this.exerciseRepository.findOne(exerciseByName(EXERCISE_NAME));
     assertTrue(exercise.isPresent());
 
-    Optional<Team> team = this.teamRepository.findByName(TEAM_NAME);
+    Optional<Team> team =
+        this.teamRepository.findByNameAndTenantIdIn(TEAM_NAME, List.of(Tenant.DEFAULT_TENANT_UUID));
     assertTrue(team.isPresent());
     assertEquals(1, team.get().getUsersNumber());
     assertEquals(ORGANIZATION_NAME, team.get().getOrganization().getName());
@@ -153,7 +156,8 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(1, user.get().getTags().size());
 
     List<Organization> organization =
-        this.organizationRepository.findByNameIgnoreCase(ORGANIZATION_NAME);
+        this.organizationRepository.findByNameIgnoreCaseAndTenantId(
+            ORGANIZATION_NAME, TenantContext.getCurrentTenant());
     assertFalse(organization.isEmpty());
     assertEquals(ORGANIZATION_NAME, organization.getFirst().getName());
 
@@ -207,7 +211,8 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   void testScenario_with_attackpattern() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     MockitoAnnotations.openMocks(this);
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
@@ -249,7 +254,8 @@ class V1_DataImporterTest extends IntegrationTest {
     payloadRepository.deleteAll();
     entityManager.flush();
     entityManager.clear();
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     this.importer.importData(
         txCtx(),
@@ -623,6 +629,192 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(step1.getId(), conds2.getFirst().getStepFrom().getId());
   }
 
+  // In import-scenario-with-workflow.json, step-0001 runs at most 3 times and step-0002 once: the
+  // limits tell the two imported steps apart.
+  private static final int FIRST_STEP_LIMIT = 3;
+  private static final int SECOND_STEP_LIMIT = 1;
+
+  private JsonNode workflowImport() throws Exception {
+    return new ObjectMapper()
+        .readTree(
+            Files.readAllBytes(
+                Paths.get("src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+  }
+
+  /**
+   * Turns {@code condition} into a root DEPEND_ON on {@code awaitedStepId}, as an export holds it.
+   */
+  private static void dependOn(ObjectNode condition, String awaitedStepId) {
+    condition.put("condition_type", ConditionType.DEPEND_ON.name());
+    condition.put("condition_value", awaitedStepId);
+    condition.putNull("condition_key");
+    condition.putArray("condition_key_types");
+    condition.putNull("condition_step_from_id");
+    condition.remove("condition_parent_id");
+    condition.put("condition_is_root", true);
+  }
+
+  private static ObjectNode stepCondition(JsonNode workflowImport, int step) {
+    return (ObjectNode)
+        workflowImport
+            .get("scenario_workflow")
+            .get("workflow_steps")
+            .get(step)
+            .get("step_conditions")
+            .get(0);
+  }
+
+  private Workflow importWorkflow(JsonNode workflowImport) {
+    this.importer.importData(
+        txCtx(),
+        workflowImport,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Scenario scenario =
+        scenarioRepository.findAll().stream()
+            .filter(s -> expectedName.equals(s.getName()))
+            .findFirst()
+            .orElseThrow();
+    return workflowRepository
+        .findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE)
+        .getFirst();
+  }
+
+  private Optional<Step> importedStep(Workflow workflow, int limitExecution) {
+    return stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId()).stream()
+        .filter(s -> s.getLimitExecution() == limitExecution)
+        .findFirst();
+  }
+
+  private Condition rootConditionOf(Step step) {
+    List<Condition> conditions = conditionRepository.findAllLinkedToStepId(step.getId());
+    assertEquals(1, conditions.size());
+    return conditions.getFirst();
+  }
+
+  @Test
+  @Transactional
+  void given_dependOnConditionOnAnImportedStep_when_importing_should_pointAtTheNewStep()
+      throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport = workflowImport();
+    dependOn(stepCondition(workflowImport, 1), "step-0001");
+
+    // -- Act --
+    Workflow workflow = importWorkflow(workflowImport);
+
+    // -- Assert --
+    Step awaited = importedStep(workflow, FIRST_STEP_LIMIT).orElseThrow();
+    Condition dependOn = rootConditionOf(importedStep(workflow, SECOND_STEP_LIMIT).orElseThrow());
+    assertEquals(ConditionType.DEPEND_ON, dependOn.getType());
+    assertEquals(awaited.getId(), dependOn.getValue());
+    // What the run resolves the value against: a step template of this very workflow.
+    Step named = stepRepository.findById(dependOn.getValue()).orElseThrow();
+    assertEquals(workflow.getId(), named.getWorkflow().getId());
+    assertNull(named.getStepTemplate()); // a template, not a step of a run
+  }
+
+  @Test
+  @Transactional
+  void given_dependOnConditionDeclaredBeforeItsStep_when_importing_should_pointAtTheNewStep()
+      throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport = workflowImport();
+    ObjectNode first = stepCondition(workflowImport, 0);
+    dependOn(first, "step-0002");
+    ((ArrayNode)
+            workflowImport
+                .get("scenario_workflow")
+                .get("workflow_steps")
+                .get(0)
+                .get("step_conditions"))
+        .removeAll()
+        .add(first);
+    stepCondition(workflowImport, 1).putNull("condition_step_from_id");
+
+    // -- Act --
+    Workflow workflow = importWorkflow(workflowImport);
+
+    // -- Assert --
+    Step awaited = importedStep(workflow, SECOND_STEP_LIMIT).orElseThrow();
+    Condition dependOn = rootConditionOf(importedStep(workflow, FIRST_STEP_LIMIT).orElseThrow());
+    assertEquals(awaited.getId(), dependOn.getValue());
+  }
+
+  @Test
+  @Transactional
+  void given_dependOnConditionOnAStepNotInTheImport_when_importing_should_leaveItUnset()
+      throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport = workflowImport();
+    dependOn(stepCondition(workflowImport, 1), "step-not-in-the-import");
+
+    // -- Act --
+    Workflow workflow = importWorkflow(workflowImport);
+
+    // -- Assert --
+    Condition dependOn = rootConditionOf(importedStep(workflow, SECOND_STEP_LIMIT).orElseThrow());
+    assertEquals(ConditionType.DEPEND_ON, dependOn.getType());
+    assertNull(dependOn.getValue());
+  }
+
+  @Test
+  @Transactional
+  void given_dependOnConditionOnASkippedStep_when_importing_should_leaveItUnset() throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport = workflowImport();
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode stepData = om.createObjectNode();
+    stepData.put("inject_title", "unresolvable step");
+    stepData.set(
+        "inject_injector_contract",
+        om.createObjectNode().put("injector_contract_id", "no-such-contract"));
+    ((ObjectNode) workflowImport.get("scenario_workflow").get("workflow_steps").get(0))
+        .set("step_data", stepData);
+    dependOn(stepCondition(workflowImport, 1), "step-0001");
+
+    // -- Act --
+    Workflow workflow = importWorkflow(workflowImport);
+
+    // -- Assert --
+    assertTrue(importedStep(workflow, FIRST_STEP_LIMIT).isEmpty()); // skipped as unresolvable
+    Condition dependOn = rootConditionOf(importedStep(workflow, SECOND_STEP_LIMIT).orElseThrow());
+    assertNull(dependOn.getValue());
+  }
+
+  @Test
+  @Transactional
+  void given_standaloneDependOnCondition_when_importing_should_pointAtTheNewStep()
+      throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport = workflowImport();
+    ObjectNode standalone = new ObjectMapper().createObjectNode();
+    standalone.put("condition_id", "cond-standalone");
+    standalone.put("condition_name", "standalone");
+    dependOn(standalone, "step-0001");
+    ((ObjectNode) workflowImport.get("scenario_workflow"))
+        .putArray("workflow_standalone_conditions")
+        .add(standalone);
+
+    // -- Act --
+    Workflow workflow = importWorkflow(workflowImport);
+
+    // -- Assert --
+    Step awaited = importedStep(workflow, FIRST_STEP_LIMIT).orElseThrow();
+    Condition imported =
+        conditionRepository.findAll().stream()
+            .filter(c -> workflow.getId().equals(c.getWorkflowId()))
+            .filter(c -> "standalone".equals(c.getName()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(awaited.getId(), imported.getValue());
+  }
+
   @Test
   @Transactional
   void given_scenarioWithWorkflowContainingAssetScopeRules_should_importOnlyNonAssetScopeRules()
@@ -861,7 +1053,9 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Assert --
     Team importedTeam =
-        teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).stream()
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .stream()
             .findFirst()
             .orElseThrow();
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -917,7 +1111,9 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Assert --
     Team importedTeam =
-        teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).stream()
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .stream()
             .findFirst()
             .orElseThrow();
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -1187,7 +1383,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // The step references the OpenAEV implant injector and a contract id: both must be resolvable
     // on
     // the target, otherwise importWorkflowSteps now skips the step (no step_data persisted).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     persistResolvableStepContract("dddddddd-0001-0001-0001-000000000098");
     String sourceUserId = "ffffffff-ffff-ffff-ffff-ffffffffffff";
     assertTrue(
@@ -2038,7 +2235,10 @@ class V1_DataImporterTest extends IntegrationTest {
     Workflow workflow = findImportedWorkflow(scenarioName);
     assertEquals(2, workflow.getWorkflowScopeRules().size());
 
-    Team createdTeam = teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).getFirst();
+    Team createdTeam =
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .getFirst();
     assertEquals(teamName, createdTeam.getName());
 
     User createdPlayer = userRepository.findByEmailIgnoreCase(playerEmail).orElseThrow();
@@ -2121,7 +2321,10 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);
-    Team createdTeam = teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).getFirst();
+    Team createdTeam =
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .getFirst();
     assertEquals(2, createdTeam.getUsers().size());
     assertTrue(
         createdTeam.getUsers().stream()
@@ -2165,7 +2368,8 @@ class V1_DataImporterTest extends IntegrationTest {
     String externalId = "T1021.002";
     AttackPattern existing =
         attackPatternRepository.save(
-            AttackPatternFixture.createAttackPatternsWithExternalId(externalId));
+            AttackPatternFixture.createAttackPatternsWithExternalId(
+                externalId, TenantContext.getCurrentTenant()));
     String targetId = existing.getId();
     String sourceId = UUID.randomUUID().toString();
     assertNotEquals(targetId, sourceId);
@@ -2389,7 +2593,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // be preserved when it still exists on the target, not silently wiped to an empty array.
     AttackPattern existing =
         attackPatternRepository.save(
-            AttackPatternFixture.createAttackPatternsWithExternalId("T1105-" + UUID.randomUUID()));
+            AttackPatternFixture.createAttackPatternsWithExternalId(
+                "T1105-" + UUID.randomUUID(), TenantContext.getCurrentTenant()));
     ObjectMapper om = new ObjectMapper();
     ObjectNode contractNode = om.createObjectNode();
     contractNode.set("injector_contract_attack_patterns", tagIdArray(om, existing.getId()));
@@ -2626,7 +2831,8 @@ class V1_DataImporterTest extends IntegrationTest {
             KillChainPhaseFixture.getKillChainPhase(
                 "execution", 2L, TenantContext.getCurrentTenant()));
     AttackPattern targetAttackPattern =
-        AttackPatternFixture.createAttackPatternsWithExternalId("T1059.001");
+        AttackPatternFixture.createAttackPatternsWithExternalId(
+            "T1059.001", TenantContext.getCurrentTenant());
     targetAttackPattern.setKillChainPhases(new ArrayList<>(List.of(targetPhase)));
     targetAttackPattern = attackPatternRepository.save(targetAttackPattern);
 
@@ -2879,7 +3085,8 @@ class V1_DataImporterTest extends IntegrationTest {
       given_missingContractWithManualPayload_when_importing_should_bindInjectInjectorToResolvedOpenaevInjector()
           throws Exception {
     // -- Arrange --
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // -- Act --
     this.importer.importData(
@@ -2925,7 +3132,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // resolveStepData recreates the payload/contract and the step is imported normally.
     // (Regression: it used to be wrongly skipped because the read-only external-id lookup found
     // nothing and the contract was absent.)
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     ObjectMapper mapper = new ObjectMapper();
     JsonNode importData =
@@ -2990,7 +3198,8 @@ class V1_DataImporterTest extends IntegrationTest {
       given_twoInjectorsWithSameTypeForTenant_when_importingWorkflowStep_shouldRemainResolvableWithoutNonUniqueFailure()
           throws Exception {
     // -- Arrange --
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
     String injectorType =
         importData
@@ -3045,7 +3254,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // Re-importing the same chaining simulation must NOT pile up duplicate payloads: the embedded
     // Command payload is recreated once, then reused on the second import — provided the current
     // user can read its injector contract (RBAC on THREAT_ARSENAL grants).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     long payloadCountBefore = payloadRepository.count();
 
     // First import: creates the payload + its injector contract.
@@ -3104,7 +3314,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // RBAC is a priority filter but must NEVER block the import: when the equivalent existing
     // payload's contract is NOT readable by the current user, the dedup cascade falls through and a
     // fresh payload is recreated (product goal: maximise the chance the imported simulation runs).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // First import: creates the payload + contract, WITHOUT granting the user any read access.
     this.importer.importData(
@@ -3153,7 +3364,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // command name/executor/content but differing on an execution-relevant field (here: platforms)
     // must NOT be reused - reusing it would silently change the runtime behaviour of the imported
     // chain. The dedup must fall through and create a fresh payload.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // First import: creates the payload (Linux) + its injector contract, readable by the user so
     // only the semantics check can block reuse.
@@ -3223,7 +3435,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // The embedded payload node carries only a stale payload_id: buildPayload() would NPE on the
     // mandatory fields (payload_type/name/source/status) and roll back the whole import. Such a
     // partial shape must take the skip path and be reported as a missing action instead.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     ObjectMapper om = new ObjectMapper();
     ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
     ObjectNode contractNode =
@@ -3277,7 +3490,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Arrange --
     // Output parsers drive runtime result processing: a candidate sharing name/executor/content
     // but differing on parsers must not be reused.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // First import: creates the payload WITHOUT parsers, readable by the user.
     this.importer.importData(
@@ -3333,7 +3547,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // Counterpart of the mismatch test: identical parsers must still deduplicate, proving the
     // normalized signature comparison aligns the export JSON shape with the entity shape
     // (ids/timestamps/tags never break the equivalence).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     ObjectMapper om = new ObjectMapper();
 
     ObjectNode firstImport = (ObjectNode) readMissingContractWithPayloadFixture();
@@ -3396,7 +3611,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // unrelated (different name/content). The Step 1 UUID fast path must not trust the id alone:
     // the candidate has to pass the same name + content + semantics equivalence as Step 2,
     // otherwise the imported chain would execute an unrelated existing payload.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     String sourcePayloadId = "cccccccc-0003-0003-0003-000000000004";
     Command colliding = PayloadFixture.createCommand("sh", "rm -f /tmp/unrelated", null, null);
     colliding.setId(sourcePayloadId);
@@ -3458,7 +3674,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // Recreation goes through PayloadUtils.buildPayload(): runtime fields present in exports
     // (elevation requirement, expected security platform map) must survive, otherwise a recreated
     // elevated payload runs unelevated and expectation collectors are pre-seeded differently.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     ObjectMapper om = new ObjectMapper();
     ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
     ObjectNode payloadNode = fixtureEmbeddedPayloadNode(importData);
@@ -3507,7 +3724,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // Same name/executor/content, but the second import carries an expected security platform map
     // the candidate does not have: the dedup must not reuse it (different runtime expectation
     // behaviour).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     this.importer.importData(
         txCtx(),
         readMissingContractWithPayloadFixture(),
@@ -3565,7 +3783,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // (matching only compositeId.id) would link the inject to the foreign tenant's contract; the
     // tenant-scoped lookup must miss and fall through to recreating the embedded payload/contract
     // in the current tenant.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     Tenant foreignTenant =
         tenantRepository.save(TenantFixture.getTenant("v1-import-foreign-tenant-classic"));
     String sourceContractId = "bb128f18-c5ad-4f1a-b08b-93582ff0ae1c";
@@ -3667,7 +3886,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // PK is (tenant_id, id), so a non-tenant-scoped existence check would treat the foreign row as
     // "already present" and persist step_data pointing at another tenant's contract. The embedded
     // payload must instead be recreated locally, exactly as if the contract did not exist at all.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     Tenant foreignTenant =
         tenantRepository.save(TenantFixture.getTenant("v1-import-foreign-tenant-contract"));
     String sourceContractId = "cccccccc-0003-0003-0003-000000000003";
@@ -3846,7 +4066,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // QA regression: tags were dropped from the recreated payload. The step_data contract carries
     // bare tag ids (no root tag object seeds baseIds on this path); an id that already exists on
     // the target tenant must land on the recreated payload's contract instead of being dropped.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     Tag existing =
         tagRepository.save(
             TagFixture.getTagWithTextAndColour(
@@ -3897,10 +4118,12 @@ class V1_DataImporterTest extends IntegrationTest {
     // already normalized on the source instance carry SCALAR ids that importAttackPattern used to
     // ignore; an id that still exists on the target tenant must land on the recreated payload's
     // contract instead of being dropped.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     AttackPattern existing =
         attackPatternRepository.save(
-            AttackPatternFixture.createAttackPatternsWithExternalId("T1105-" + UUID.randomUUID()));
+            AttackPatternFixture.createAttackPatternsWithExternalId(
+                "T1105-" + UUID.randomUUID(), TenantContext.getCurrentTenant()));
     String existingAttackPatternId = existing.getId();
 
     ObjectMapper om = new ObjectMapper();
@@ -3948,7 +4171,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // embedded payload (nothing to recreate). The injector type IS registered, so the only
     // unresolvable dependency is the injector contract itself: the step must be skipped and the
     // missing action reported (the "keep current behaviour" branch of the resolvability check).
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode importData =
@@ -4314,7 +4538,6 @@ class V1_DataImporterTest extends IntegrationTest {
     // importWorkflow must associate the workflow with the exercise instead of a scenario.
     Exercise exercise = new Exercise();
     exercise.setName("wf simulation " + UUID.randomUUID());
-    exercise.setFrom("test@openaev.io");
     exercise = exerciseRepository.save(exercise);
 
     ObjectMapper om = new ObjectMapper();

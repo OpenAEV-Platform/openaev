@@ -1,6 +1,7 @@
-import { Box, Grid, Paper, Tab, Tabs } from '@mui/material';
+import { Paper, Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Box, Grid } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -17,26 +18,6 @@ import TargetResultsDetail from './target_result/TargetResultsDetail';
 import { TargetResultsSkeleton, TargetsPaneSkeleton } from './TargetSkeletons';
 
 const useStyles = makeStyles()({
-  chip: {
-    fontSize: 12,
-    height: 25,
-    margin: '0 7px 7px 0',
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 180,
-  },
-  paper: {
-    padding: 15,
-    borderRadius: 4,
-  },
-  dividerL: {
-    position: 'absolute',
-    backgroundColor: 'rgba(105, 103, 103, 0.45)',
-    width: '2px',
-    bottom: '0',
-    height: '99%',
-    left: '-10px',
-  },
   tabs: {
     marginLeft: 'auto',
     marginBottom: 12,
@@ -157,7 +138,7 @@ const AtomicTesting = () => {
     }
     if (hasAiTargets) {
       tabs.push({
-        key: index++,
+        key: index,
         // AI targets are assets too, so the tab carries the same label as the
         // endpoint-backed one; keep the specific label only in the (theoretical)
         // case where both tabs coexist, to avoid two tabs named "Assets".
@@ -310,8 +291,8 @@ const AtomicTesting = () => {
     }
   };
 
-  const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
-    const location = tabConfig.find(tc => newValue == tc.key);
+  const handleTabChange = (newValue: string) => {
+    const location = tabConfig.find(tc => newValue === String(tc.key));
     navigateToTab(location);
     if (location) {
       storeTargetTab(injectId, location.type);
@@ -357,7 +338,7 @@ const AtomicTesting = () => {
       <Grid
         size={{
           xs: 12,
-          md: 6,
+          xl: 6,
         }}
         sx={{
           display: 'flex',
@@ -365,20 +346,20 @@ const AtomicTesting = () => {
         }}
       >
         <SectionLabel>{t('Targets')}</SectionLabel>
-        <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
+        <Paper padding={16} style={{ flex: 1 }}>
           {allTargetsChecked ? (
             <>
               <Tabs
-                value={activeTabKey}
-                onChange={handleTabChange}
-                indicatorColor="primary"
-                textColor="primary"
+                value={String(activeTabKey)}
+                onValueChange={handleTabChange}
+                panels="external"
                 className={classes.tabs}
               >
-                {tabConfig
-                  .map(tab => (
-                    <Tab key={`tab-${tab.key}`} label={tab.label} />
+                <TabsList>
+                  {tabConfig.map(tab => (
+                    <TabsTrigger key={`tab-${tab.key}`} value={String(tab.key)}>{tab.label}</TabsTrigger>
                   ))}
+                </TabsList>
               </Tabs>
               {drawTabs()}
             </>
@@ -390,7 +371,7 @@ const AtomicTesting = () => {
       <Grid
         size={{
           xs: 12,
-          md: 6,
+          xl: 6,
         }}
         sx={{
           display: 'flex',
@@ -419,7 +400,7 @@ const AtomicTesting = () => {
           </Box>
         )}
         {!selectedTarget && (
-          <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
+          <Paper padding={16} style={{ flex: 1 }}>
             {/* While the target probes or the target page are still loading, no
                 target is selected yet: show the results skeleton instead of
                 flashing "No target data available." before the data lands. */}

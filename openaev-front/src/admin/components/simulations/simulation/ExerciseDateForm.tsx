@@ -1,10 +1,12 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, FormControlLabel, Stack, Switch } from '@mui/material';
-import { DatePicker, TimePicker } from '@mui/x-date-pickers';
+import { FormControlLabel, Stack, Switch } from '@mui/material';
 import { type ChangeEvent, type FunctionComponent, useState } from 'react';
-import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
+import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import DateField from '../../../../components/fields/DateField';
+import TimeField from '../../../../components/fields/TimeField';
 import { useFormatter } from '../../../../components/i18n';
 import { type ExerciseUpdateStartDateInput } from '../../../../utils/api-types';
 import { minutesInFuture } from '../../../../utils/Time';
@@ -107,63 +109,31 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
 
   return (
     <form id="exerciseDateForm" onSubmit={handleSubmit(submit)}>
+      {/* The switch is one of the fields, not a caption above them: same 16px
+          between it and the date as between the date and the time. */}
       <FormControlLabel
         control={<Switch onChange={handleChange} checked={checked} />}
         label={t('Manual launch')}
+        sx={{ marginBottom: 2 }}
       />
 
       <Stack spacing={{ xs: 2 }}>
-        <Controller
+        <DateField
           control={control}
           name="date"
-          render={({ field, fieldState }) => (
-            <DatePicker
-              views={['year', 'month', 'day']}
-              label={t('Start date (optional)')}
-              disabled={checked}
-              minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
-              value={field.value ? new Date(field.value) : null}
-              onChange={date => field.onChange(date?.toISOString())}
-              onAccept={() => {
-                clearErrors('time');
-              }}
-              slotProps={{
-                textField: {
-                  fullWidth: true,
-                  error: !!fieldState.error,
-                  helperText: fieldState.error?.message,
-                  variant: 'standard',
-                },
-              }}
-            />
-          )}
+          label={t('Start date (optional)')}
+          disabled={checked}
+          minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
+          onAccept={() => clearErrors('time')}
         />
 
-        <Controller
+        <TimeField
           control={control}
           name="time"
-          render={({ field, fieldState }) => (
-            <TimePicker
-              label={t('Scheduling_time')}
-              openTo="hours"
-              timeSteps={{ minutes: 15 }}
-              skipDisabled
-              thresholdToRenderTimeInASingleColumn={100}
-              disabled={checked}
-              closeOnSelect={false}
-              value={field.value ? new Date(field.value) : null}
-              minTime={new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() === new Date(getValues('date')).getTime() ? new Date() : undefined}
-              onChange={time => (field.onChange(time?.toISOString()))}
-              slotProps={{
-                textField: {
-                  fullWidth: true,
-                  error: !!fieldState.error,
-                  helperText: fieldState.error?.message,
-                  variant: 'standard',
-                },
-              }}
-            />
-          )}
+          label={t('Scheduling_time')}
+          disabled={checked}
+          minutesStep={15}
+          minTime={new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() === new Date(getValues('date')).getTime() ? new Date() : undefined}
         />
       </Stack>
 
@@ -173,20 +143,11 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
       }}
       >
         {handleClose && (
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose.bind(this)}
-            style={{ marginRight: 10 }}
-          >
+          <Button type="button" priority="secondary" onClick={handleClose.bind(this)} style={{ marginRight: 10 }}>
             {t('Cancel')}
           </Button>
         )}
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-        >
+        <Button type="submit">
           {t('Save')}
         </Button>
       </div>

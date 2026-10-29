@@ -80,6 +80,9 @@ public class UserApi extends RestBehavior {
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
+        if (httpRequest.getSession(false) != null) {
+          httpRequest.changeSessionId();
+        }
         userService.createUserSession(user);
         // Capture auth context in session for reliable expiry audit metadata.
         SessionManager.markAuthenticatedSession(httpRequest, user.getId());

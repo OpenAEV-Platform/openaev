@@ -38,6 +38,7 @@ public class TenantSettingsService {
 
   private final SettingRepository settingRepository;
   private final OpenAEVConfig openAEVConfig;
+  private final ThemeAssetUrlValidator themeAssetUrlValidator;
 
   public String buildTenantUrl(String tenantId) {
     return openAEVConfig.getBaseUrl() + "/" + tenantId;
@@ -97,6 +98,11 @@ public class TenantSettingsService {
 
   /** Update theme settings for a tenant. */
   public void updateTheme(@NotBlank String tenantId, @NotBlank String themeType, ThemeInput input) {
+    validateThemeUrl(input.getLogoUrl());
+    validateThemeUrl(input.getLogoUrlCollapsed());
+    validateThemeUrl(input.getLogoLoginUrl());
+    validateThemeUrl(input.getLoginAsideImage());
+
     Tenant tenant = new Tenant(tenantId);
     upsertThemeKey(
         tenant, themeType, Theme.THEME_KEYS.BACKGROUND_COLOR, input.getBackgroundColor());
@@ -106,6 +112,7 @@ public class TenantSettingsService {
     upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.PRIMARY_COLOR, input.getPrimaryColor());
     upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.SECONDARY_COLOR, input.getSecondaryColor());
     upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.ACCENT_COLOR, input.getAccentColor());
+    upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.TEXT_COLOR, input.getTextColor());
     upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.LOGO_URL, input.getLogoUrl());
     upsertThemeKey(
         tenant, themeType, Theme.THEME_KEYS.LOGO_URL_COLLAPSED, input.getLogoUrlCollapsed());
@@ -124,6 +131,16 @@ public class TenantSettingsService {
         input.getLoginAsideGradientEnd());
     upsertThemeKey(
         tenant, themeType, Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE, input.getLoginAsideImage());
+  }
+
+  /**
+   * Rejects theme image/logo urls that are not well-formed http(s) urls pointing at a public
+   * target, to prevent SSRF via tenant-controlled theme configuration.
+   */
+  private void validateThemeUrl(String url) {
+    if (StringUtils.hasText(url)) {
+      themeAssetUrlValidator.validateUrl(url);
+    }
   }
 
   /** Clear a tenant setting value if it matches the given value. */
@@ -220,6 +237,8 @@ public class TenantSettingsService {
         getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.SECONDARY_COLOR.key()));
     theme.setAccentColor(
         getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key()));
+    theme.setTextColor(
+        getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key()));
     theme.setLogoUrl(getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key()));
     theme.setLogoUrlCollapsed(
         getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.LOGO_URL_COLLAPSED.key()));

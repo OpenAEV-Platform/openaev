@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
@@ -51,7 +51,7 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="lessonsTemplateQuestionForm" onSubmit={handleSubmit(onSubmit)}>
+    <form noValidate id="lessonsTemplateQuestionForm" onSubmit={handleSubmit(onSubmit)}>
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -59,33 +59,27 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
       }}
       >
         <TextField
-          variant="standard"
-          fullWidth
+          required
           label={t('Content')}
           error={!!errors.lessons_template_question_content}
           helperText={errors.lessons_template_question_content?.message}
-          inputProps={register('lessons_template_question_content')}
-          InputLabelProps={{ required: true }}
+          {...register('lessons_template_question_content')}
           control={control}
         />
         <TextField
-          variant="standard"
-          fullWidth
           label={t('Explanation')}
           error={!!errors.lessons_template_question_explanation}
           helperText={errors.lessons_template_question_explanation?.message}
-          inputProps={register('lessons_template_question_explanation')}
+          {...register('lessons_template_question_explanation')}
           control={control}
         />
         <TextField
-          variant="standard"
-          fullWidth
+          required
           label={t('Order')}
           error={!!errors.lessons_template_question_order}
           helperText={errors.lessons_template_question_order?.message}
-          inputProps={register('lessons_template_question_order')}
+          {...register('lessons_template_question_order')}
           type="number"
-          InputLabelProps={{ required: true }}
           control={control}
         />
       </div>
@@ -97,20 +91,10 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
         gap: theme.spacing(1),
       }}
       >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          disabled={isSubmitting}
-        >
+        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
-        >
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

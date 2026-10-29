@@ -1,20 +1,19 @@
+import { Button } from '@filigran/design-system';
 import { HubOutlined } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
-import { useContext, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import type { LoggedHelper } from '../../../../../actions/helper';
 import { fetchXtmHubRegistration, refreshConnectivity } from '../../../../../actions/xtmhub/xtmhub-actions';
-import GradientButton from '../../../../../components/GradientButton';
 import { useFormatter } from '../../../../../components/i18n';
 import InfoChip from '../../../../../components/InfoChip';
 import { useHelper } from '../../../../../store';
 import { type PlatformSettings, type XtmHubRegistrationOutput } from '../../../../../utils/api-types';
-import { XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
+import { isDemoInstance, XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import ExperienceCard from '../ExperienceCard';
 import XtmHubRegisteredSection from './XtmHubRegisteredSection';
@@ -28,7 +27,7 @@ const XtmHubSettings: React.FC = () => {
   const registration: XtmHubRegistrationOutput | null = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const hasFetchedRegistration = useRef(false);
   const hasRefreshedConnectivity = useRef(false);
 
@@ -51,6 +50,7 @@ const XtmHubSettings: React.FC = () => {
   const isXTMHubRegistered = registrationStatus === 'REGISTERED' || registrationStatus === 'LOST_CONNECTIVITY';
   const canInteract = isXTMHubAccessible && !!settings.xtm_hub_reachable;
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+  const isDemoMode = isDemoInstance(settings);
   const hubUrl = settings?.xtm_hub_url ?? XTM_HUB_DEFAULT_URL;
 
   const statusChip = (() => {
@@ -59,65 +59,57 @@ const XtmHubSettings: React.FC = () => {
     return <InfoChip label={t('Not connected')} tone="accent" />;
   })();
 
-  const buildFooter = (handleOpen?: () => void) => (isXTMHubRegistered
+  const renderActionButton = (handleOpen?: () => void) => (isXTMHubRegistered
+    ? (
+        <Button type="button" variant="destructive" priority="secondary" onClick={handleOpen} disabled={!handleOpen}>
+          {t('Disconnect XTM Hub')}
+        </Button>
+      )
+    : (
+        <Button type="button" variant="highlight" onClick={handleOpen} disabled={!handleOpen}>
+          {t('Connect to XTM Hub')}
+        </Button>
+      ));
+
+  const actionButton = (() => {
+    if (isDemoMode) return null;
+    if (canInteract && canManage) return <XtmHubTab renderTrigger={renderActionButton} />;
+    return renderActionButton();
+  })();
+
+  const footer = isXTMHubRegistered
     ? (
         <>
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={handleOpen}
-            disabled={!handleOpen}
-          >
-            {t('Disconnect XTM Hub')}
+          {actionButton}
+          <Button variant="highlight" asChild>
+            <a href={hubUrl} target="_blank" rel="noreferrer"><span className="text-gradient-focus">{t('Go to the Hub')}</span></a>
           </Button>
-          <GradientButton
-            component="a"
-            href={hubUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t('Go to the Hub')}
-          </GradientButton>
         </>
       )
     : (
         <>
-          <Button
-            variant="outlined"
-            component="a"
-            href={hubUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t('Explore XTM Hub')}
+          <Button asChild priority="secondary">
+            <a href={hubUrl} target="_blank" rel="noreferrer">
+              {t('Explore XTM Hub')}
+            </a>
           </Button>
-          <GradientButton
-            onClick={handleOpen}
-            disabled={!handleOpen}
-          >
-            {t('Connect to XTM Hub')}
-          </GradientButton>
+          {actionButton}
         </>
-      ));
+      );
 
-  const renderCard = (handleOpen?: () => void) => (
+  return (
     <ExperienceCard
       icon={<HubOutlined />}
       overline={t('Filigran Experience')}
       title={t('XTM Hub')}
       accent={theme.palette.xtmhub.main}
       statusChip={statusChip}
-      footer={buildFooter(handleOpen)}
+      footer={footer}
       testId="experience-xtm-hub-card"
     >
       {isXTMHubRegistered ? <XtmHubRegisteredSection /> : <XtmHubUnregisteredSection />}
     </ExperienceCard>
   );
-
-  if (canInteract && canManage) {
-    return <XtmHubTab renderTrigger={handleOpen => renderCard(handleOpen)} />;
-  }
-  return renderCard();
 };
 
 export default XtmHubSettings;

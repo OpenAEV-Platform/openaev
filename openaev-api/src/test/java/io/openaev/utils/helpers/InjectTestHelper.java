@@ -1,5 +1,6 @@
 package io.openaev.utils.helpers;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.utils.fixtures.*;
@@ -61,6 +62,11 @@ public class InjectTestHelper {
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Payload forceSavePayload(Payload payload) {
+    // The listener no longer stamps an unattributed write; fall back to the ambient tenant when
+    // the caller left it unset, mirroring PayloadComposer.
+    if (payload.getTenant() == null) {
+      payload.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    }
     return payloadRepository.save(payload);
   }
 

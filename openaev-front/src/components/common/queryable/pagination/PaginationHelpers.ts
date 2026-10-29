@@ -2,6 +2,7 @@ export interface PaginationHelpers {
   handleChangePage: (newPage: number) => void;
   handleChangeRowsPerPage: (rowsPerPage: number) => void;
   handleChangeTotalElements: (value: number) => void;
+  incrementTotalElements: (delta: number) => void;
   handleChangePagination: (object: {
     size: number;
     page: number;

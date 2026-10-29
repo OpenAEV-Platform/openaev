@@ -24,8 +24,10 @@ import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +57,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p>Deliberately not {@code @Transactional}: once the write opens its own scoped transaction it
  * commits independently of any test transaction, so the rows outlive a rollback. Explicit cleanup
- * instead, per the activate-tenant-table runbook.
+ * instead, per the activate-tenant-table runbook, and fresh simulation / inject ids per test so a
+ * row a failed test left behind cannot leak into another test's raw count.
+ *
+ * <p>Only the two tables below are v2-active in this context: the test {@code
+ * application.properties} carries no tenant activation list, so assets, agents and the other
+ * attack-path tables are not tenant-filtered here. A test whose premise depends on one of them
+ * being isolated must not assume it.
  */
 @TestPropertySource(
     properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
@@ -63,8 +71,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @DisplayName("attack path Phase A: the create attributes rows to the inject's tenant")
 class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
-  private static final String SIM = "SIM-REALPATH";
-  private static final String INJECT_ID = "inj-realpath";
+  private static final String STEP_ID = "step-realpath";
 
   @Autowired private AttackPathExecutionIngestionService ingestionService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -86,10 +93,17 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
   private JdbcTemplate jdbc;
   private Tenant tenant;
+  // Fresh per test: the rows commit (no test transaction), so a fixed id would let a row one test
+  // left behind (a failed cleanup, an aborted run) satisfy or break another test's raw count.
+  private String sim;
+  private String injectId;
 
   @BeforeEach
   void createTenantAndDropAnyAmbientScope() throws Exception {
     jdbc = new JdbcTemplate(dataSource);
+    String suffix = UUID.randomUUID().toString();
+    sim = "SIM-REALPATH-" + suffix;
+    injectId = "inj-realpath-" + suffix;
     tenant = tenantHelper.createTenantWithCurrentUser("ap-realpath");
     // The point of the test: reproduce the executor's context, which has no scope. Clearing it
     // explicitly stops a scope leaked by another test from handing us a false green.
@@ -98,8 +112,18 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
   @AfterEach
   void cleanCommittedRows() {
+    // Every attack-path table of the simulation, not only the executions: the rows of a test that
+    // failed midway must not survive into the next one.
     jdbc.update(
-        "DELETE FROM attackpath_execution WHERE attackpath_execution_simulation_id = ?", SIM);
+        "DELETE FROM attackpath_execution_collector"
+            + " WHERE attackpath_execution_collector_simulation_id = ?",
+        sim);
+    jdbc.update("DELETE FROM attackpath_finding WHERE attackpath_finding_simulation_id = ?", sim);
+    jdbc.update(
+        "DELETE FROM attackpath_execution WHERE attackpath_execution_simulation_id = ?", sim);
+    jdbc.update(
+        "DELETE FROM attackpath_graph_version WHERE attackpath_graph_version_simulation_id = ?",
+        sim);
     tenantHelper.deleteCommittedTenants(tenant.getId());
     TenantContext.clearCurrentTenant();
   }
@@ -113,7 +137,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
 
     String rowId =
-        AttackPathIds.executionNode(INJECT_ID, target.endpoint().getId(), target.agent().getId());
+        AttackPathIds.executionNode(injectId, target.endpoint().getId(), target.agent().getId());
     assertThat(rawTenantOf(rowId))
         .as("the run's row must exist and carry the inject's tenant, with no ambient scope set")
         .isEqualTo(tenant.getId());
@@ -132,11 +156,11 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     InjectExpectationResult first = new InjectExpectationResult();
     first.setSourceName("Defender");
     first.setResult("Prevented");
-    first.setDate("2026-07-28T10:00:00Z");
+    first.setDate(Instant.parse("2026-07-28T10:00:00Z"));
     InjectExpectationResult second = new InjectExpectationResult();
     second.setSourceName("Defender");
     second.setResult("Partially Prevented");
-    second.setDate("2026-07-28T10:01:00Z");
+    second.setDate(Instant.parse("2026-07-28T10:01:00Z"));
     prevention.setResults(List.of(first, second));
 
     // Act
@@ -145,14 +169,14 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
     // Assert
     String executionId =
-        AttackPathIds.executionNode(INJECT_ID, target.endpoint().getId(), target.agent().getId());
+        AttackPathIds.executionNode(injectId, target.endpoint().getId(), target.agent().getId());
     Integer rowCount =
         jdbc.queryForObject(
             "SELECT count(*) FROM attackpath_execution_collector "
                 + "WHERE attackpath_execution_collector_simulation_id = ? "
                 + "AND attackpath_execution_id = ? AND tenant_id = ?",
             Integer.class,
-            SIM,
+            sim,
             executionId,
             tenant.getId());
 
@@ -182,7 +206,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     result.setSourceName("Defender");
     result.setSourceType("EDR");
     result.setResult("Vulnerable");
-    result.setDate("2026-07-29T10:00:00Z");
+    result.setDate(Instant.parse("2026-07-29T10:00:00Z"));
     vulnerability.setResults(List.of(result));
     VulnerabilityInjectExpectation savedExpectation =
         injectExpectationRepository.save(vulnerability);
@@ -194,7 +218,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
     // Assert
     String executionId =
-        AttackPathIds.executionNode(INJECT_ID, target.endpoint().getId(), target.agent().getId());
+        AttackPathIds.executionNode(injectId, target.endpoint().getId(), target.agent().getId());
     Integer rowCount =
         jdbc.queryForObject(
             "SELECT count(*) FROM attackpath_execution_collector "
@@ -202,7 +226,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
                 + "AND attackpath_execution_id = ? AND tenant_id = ? "
                 + "AND attackpath_execution_collector_expectation_type = 'VULNERABILITY'",
             Integer.class,
-            SIM,
+            sim,
             executionId,
             tenant.getId());
 
@@ -235,7 +259,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     result.setSourceName("Trace platform");
     result.setSourceType("EDR");
     result.setResult("Prevented");
-    result.setDate("2026-07-31T10:00:00Z");
+    result.setDate(Instant.parse("2026-07-31T10:00:00Z"));
     prevention.setResults(List.of(result));
     PreventionInjectExpectation savedExpectation = injectExpectationRepository.save(prevention);
 
@@ -254,7 +278,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
     // Assert
     String executionId =
-        AttackPathIds.executionNode(INJECT_ID, target.endpoint().getId(), target.agent().getId());
+        AttackPathIds.executionNode(injectId, target.endpoint().getId(), target.agent().getId());
     String alertsJson =
         jdbc.queryForObject(
             "SELECT attackpath_execution_collector_alerts FROM attackpath_execution_collector "
@@ -262,7 +286,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
                 + "AND attackpath_execution_id = ? AND tenant_id = ? "
                 + "AND attackpath_execution_collector_expectation_type = 'PREVENTION'",
             String.class,
-            SIM,
+            sim,
             executionId,
             tenant.getId());
     assertThat(alertsJson).contains("Trace Alert A").contains("trace-a");
@@ -276,7 +300,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
                 + "AND attackpath_execution_id = ? AND tenant_id = ? "
                 + "AND attackpath_execution_collector_expectation_type = 'PREVENTION'",
             String.class,
-            SIM,
+            sim,
             executionId,
             tenant.getId());
     assertThat(alertsJsonbType).isEqualTo("array");
@@ -309,7 +333,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     result.setSourceName("Collector source");
     result.setSourceType("SIEM");
     result.setResult("Prevented");
-    result.setDate("2026-08-01T11:00:00Z");
+    result.setDate(Instant.parse("2026-08-01T11:00:00Z"));
     prevention.setResults(List.of(result));
     PreventionInjectExpectation savedExpectation = injectExpectationRepository.save(prevention);
 
@@ -328,7 +352,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
     // Assert
     String executionId =
-        AttackPathIds.executionNode(INJECT_ID, target.endpoint().getId(), target.agent().getId());
+        AttackPathIds.executionNode(injectId, target.endpoint().getId(), target.agent().getId());
     String alertsJson =
         jdbc.queryForObject(
             "SELECT attackpath_execution_collector_alerts FROM attackpath_execution_collector "
@@ -336,7 +360,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
                 + "AND attackpath_execution_id = ? AND tenant_id = ? "
                 + "AND attackpath_execution_collector_expectation_type = 'PREVENTION'",
             String.class,
-            SIM,
+            sim,
             executionId,
             tenant.getId());
     assertThat(alertsJson).contains("External reference alert").contains("ext-ref");
@@ -360,7 +384,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
   private List<?> scopedGraphRowsFor(String tenantId) {
     return tenantTx.execute(
-        TxCtx.forTenant(tenantId), () -> executionRepository.findGraphRows(SIM));
+        TxCtx.forTenant(tenantId), () -> executionRepository.findGraphRows(sim));
   }
 
   @Test
@@ -384,9 +408,9 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     TenantContext.clearCurrentTenant();
 
     Inject inject = new Inject();
-    inject.setId(INJECT_ID);
+    inject.setId(injectId);
     Exercise exercise = new Exercise();
-    exercise.setId(SIM);
+    exercise.setId(sim);
     inject.setExercise(exercise);
     Injector injector = new Injector();
     injector.setName("OpenAEV Implant");
@@ -398,7 +422,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
     runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
 
-    assertThat(rawRowCountForStep("step-realpath"))
+    assertThat(rawRowCountForStep(STEP_ID))
         .as("an inject targeting only an asset group must still record its member endpoints")
         .isPositive();
   }
@@ -416,9 +440,9 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     TenantContext.clearCurrentTenant();
 
     Inject inject = new Inject();
-    inject.setId(INJECT_ID);
+    inject.setId(injectId);
     Exercise exercise = new Exercise();
-    exercise.setId(SIM);
+    exercise.setId(sim);
     inject.setExercise(exercise);
     Injector injector = new Injector();
     injector.setId("injector-nmap");
@@ -436,7 +460,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
     runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
 
-    String rowId = AttackPathIds.executionNode(INJECT_ID, endpoint.getId(), "injector-nmap");
+    String rowId = AttackPathIds.executionNode(injectId, endpoint.getId(), "injector-nmap");
     assertThat(rawTenantOf(rowId))
         .as("the injector 'assets' selector must record an injector->asset row for the target")
         .isEqualTo(tenant.getId());
@@ -477,9 +501,9 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
           // it until unproxied. This is what the resolver's Hibernate.unproxy guards against.
           Asset proxy = entityManager.getReference(Asset.class, endpointId);
           Inject inject = new Inject();
-          inject.setId(INJECT_ID);
+          inject.setId(injectId);
           Exercise exercise = new Exercise();
-          exercise.setId(SIM);
+          exercise.setId(sim);
           inject.setExercise(exercise);
           Injector injector = new Injector();
           injector.setName("OpenAEV Implant");
@@ -495,7 +519,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
               ingestionService.getAttackPathExecution(inject, step(), ""));
         });
 
-    assertThat(rawRowCountForStep("step-realpath"))
+    assertThat(rawRowCountForStep(STEP_ID))
         .as("a proxied endpoint must be recognised and recorded, not dropped by a bare instanceof")
         .isPositive();
   }
@@ -503,28 +527,39 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @Test
   @DisplayName("a failing create cannot roll back the run that triggered it")
   void aFailingCreateDoesNotPoisonTheRunTransaction() {
+    // Arrange
     Inject doomed = injectFor(persistTarget().endpoint());
-    // A tenant that does not exist: the endpoint resolves only under the real tenant, so reading it
-    // under this one throws inside the create, whatever the reason.
-    doomed.setTenant(new Tenant("no-such-tenant"));
-    String marker = "ap-poison-marker";
+    // A tenant id that is not in the registry. The run builds its rows in memory from the inject
+    // (no read goes through the tenant scope here), so the create fails at its first write: the
+    // tenant_id foreign key of the attack-path tables rejects the unknown tenant. The premise is
+    // checked, not assumed, since a row with this id would let the create succeed silently.
+    String missingTenantId = "no-such-tenant-" + UUID.randomUUID();
+    assertThat(rawTenantCountById(missingTenantId)).as("the doomed tenant must not exist").isZero();
+    doomed.setTenant(new Tenant(missingTenantId));
+    String marker = "ap-poison-marker-" + UUID.randomUUID();
 
-    // The create's failure must not poison the run's own transaction: the caller catches it and the
-    // run carries on, exactly as InjectExecutionStep's guard lets it.
-    runAsTheExecutorWould(
-        () -> {
-          // Asserted, not assumed: if the doomed create silently succeeded, the catch below would
-          // never fire and this test would prove nothing at all.
-          assertThatThrownBy(() -> ingestionService.onRun(doomed, step(), ""))
-              .isInstanceOf(RuntimeException.class);
-          // Then the run carries on, exactly as InjectExecutionStep's guard lets it.
-          tenantRepository.save(TenantFixture.getTenant(marker));
-        });
+    try {
+      // Act: the create's failure must not poison the run's own transaction. The caller catches it
+      // and the run carries on, exactly as InjectExecutionStep's guard lets it.
+      runAsTheExecutorWould(
+          () -> {
+            // Asserted, not assumed: if the doomed create silently succeeded, the catch below
+            // would never fire and this test would prove nothing at all.
+            assertThatThrownBy(() -> ingestionService.onRun(doomed, step(), ""))
+                .isInstanceOf(RuntimeException.class)
+                .rootCause()
+                .hasMessageContaining("violates foreign key constraint")
+                .hasMessageContaining("tenant");
+            tenantRepository.save(TenantFixture.getTenant(marker));
+          });
 
-    assertThat(rawTenantCountByName(marker))
-        .as("the run's own work must have committed despite the create failing")
-        .isEqualTo(1);
-    jdbc.update("DELETE FROM tenants WHERE tenant_name = ?", marker);
+      // Assert
+      assertThat(rawTenantCountByName(marker))
+          .as("the run's own work must have committed despite the create failing")
+          .isEqualTo(1);
+    } finally {
+      jdbc.update("DELETE FROM tenants WHERE tenant_name = ?", marker);
+    }
   }
 
   @Test
@@ -539,10 +574,10 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     Map<String, Object> row =
         rawRow(
             AttackPathIds.executionNode(
-                INJECT_ID, target.endpoint().getId(), target.agent().getId()));
+                injectId, target.endpoint().getId(), target.agent().getId()));
     assertThat(row)
-        .containsEntry("attackpath_execution_simulation_id", SIM)
-        .containsEntry("attackpath_execution_step_id", "step-realpath")
+        .containsEntry("attackpath_execution_simulation_id", sim)
+        .containsEntry("attackpath_execution_step_id", STEP_ID)
         .containsEntry("attackpath_execution_contract_external_id", "contract-realpath")
         .containsEntry("attackpath_execution_payload_id", "cmd-realpath")
         .containsEntry("attackpath_execution_payload_name", "crackmapexec")
@@ -566,13 +601,20 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @DisplayName("an inject with no simulation is out of the attack path and records nothing")
   void createRecordsNothingWithoutASimulation() {
     Inject inject = new Inject();
-    inject.setId(INJECT_ID);
+    inject.setId(injectId);
     inject.setTenant(tenant);
     // no exercise set
 
     runAsTheExecutorWould(() -> ingestionService.onRun(inject, new Step(), ""));
 
-    assertThat(rawRowCountForStep("step-realpath")).isZero();
+    // By tenant, not by simulation: a row written without one would carry no simulation id. The
+    // tenant is fresh, so any row under it comes from this run.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM attackpath_execution WHERE tenant_id = ?",
+                Integer.class,
+                tenant.getId()))
+        .isZero();
   }
 
   @Test
@@ -582,20 +624,27 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   void deleteClearsTheSimulationScopedToItsTenant() throws Exception {
     Tenant other = tenantHelper.createTenantWithCurrentUser("ap-realpath-del-other");
     try {
-      // The same simulation id under two tenants, seeded by native INSERT with an explicit
-      // tenant_id
-      // (the inspector does not block VALUES inserts): one execution + one finding + their link
-      // each.
-      seedExecutionFindingLink(tenant.getId(), "exec-own", "find-own");
-      seedExecutionFindingLink(other.getId(), "exec-other", "find-other");
+      // Arrange: the same simulation id under two tenants, seeded by native INSERT with an
+      // explicit tenant_id (the inspector does not block VALUES inserts): one execution + one
+      // finding + one collector + their link each.
+      String ownExec = "exec-own-" + sim;
+      String otherExec = "exec-other-" + sim;
+      seedExecutionFindingLink(tenant.getId(), ownExec, "find-own-" + sim);
+      seedExecutionFindingLink(other.getId(), otherExec, "find-other-" + sim);
+      // Positive control: a zero after the delete only means something if the rows were there.
+      assertThat(rawExecCount(tenant.getId())).as("own execution seeded").isEqualTo(1);
+      assertThat(rawFindingCount(tenant.getId())).as("own finding seeded").isEqualTo(1);
+      assertThat(rawCollectorCount(tenant.getId())).as("own collector seeded").isEqualTo(1);
+      assertThat(rawLinkCount(ownExec)).as("own link seeded").isEqualTo(1);
 
-      // The delete runs with no ambient scope, exactly as the reset/delete flow triggers it.
-      runAsTheExecutorWould(() -> ingestionService.deleteAllBySimulationId(SIM, tenant.getId()));
+      // Act: the delete runs with no ambient scope, exactly as the reset/delete flow triggers it.
+      runAsTheExecutorWould(() -> ingestionService.deleteAllBySimulationId(sim, tenant.getId()));
 
+      // Assert
       assertThat(rawExecCount(tenant.getId())).as("own executions deleted").isZero();
       assertThat(rawFindingCount(tenant.getId())).as("own findings deleted").isZero();
       assertThat(rawCollectorCount(tenant.getId())).as("own collectors deleted").isZero();
-      assertThat(rawLinkCount("exec-own")).as("own link cascade-cleared").isZero();
+      assertThat(rawLinkCount(ownExec)).as("own link cascade-cleared").isZero();
       assertThat(rawExecCount(other.getId()))
           .as("other tenant's executions untouched")
           .isEqualTo(1);
@@ -605,7 +654,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
       assertThat(rawCollectorCount(other.getId()))
           .as("other tenant's collectors untouched")
           .isEqualTo(1);
-      assertThat(rawLinkCount("exec-other")).as("other tenant's link untouched").isEqualTo(1);
+      assertThat(rawLinkCount(otherExec)).as("other tenant's link untouched").isEqualTo(1);
     } finally {
       tenantHelper.deleteCommittedTenants(other.getId());
     }
@@ -626,24 +675,28 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     workflowService.launchWorkflowSimulation(workflow);
 
     String simId = exercise.getId();
+    String execId = "hd-exec-" + simId;
+    String findId = "hd-find-" + simId;
     jdbc.update(
         "INSERT INTO attackpath_execution (attackpath_execution_id, tenant_id,"
             + " attackpath_execution_simulation_id, attackpath_execution_source_kind,"
             + " attackpath_execution_target_kind, attackpath_execution_target_key,"
-            + " attackpath_execution_executed_at) VALUES ('hd-exec', ?, ?, 'INJECTOR', 'ASSET', 'k',"
-            + " now())",
+            + " attackpath_execution_executed_at) VALUES (?, ?, ?, 'INJECTOR', 'ASSET', 'k', now())",
+        execId,
         tenant.getId(),
         simId);
     jdbc.update(
         "INSERT INTO attackpath_finding (attackpath_finding_id, tenant_id,"
             + " attackpath_finding_simulation_id, attackpath_finding_type,"
             + " attackpath_finding_value, attackpath_finding_endpoint_key)"
-            + " VALUES ('hd-find', ?, ?, 'cve', 'CVE-1', 'k')",
+            + " VALUES (?, ?, ?, 'cve', 'CVE-1', 'k')",
+        findId,
         tenant.getId(),
         simId);
     jdbc.update(
-        "INSERT INTO attackpath_execution_finding (execution_id, finding_id)"
-            + " VALUES ('hd-exec', 'hd-find')");
+        "INSERT INTO attackpath_execution_finding (execution_id, finding_id) VALUES (?, ?)",
+        execId,
+        findId);
 
     exerciseService.deleteById(simId);
     TenantContext.clearCurrentTenant();
@@ -695,14 +748,22 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         "SELECT count(*) FROM tenants WHERE tenant_name = ?", Integer.class, name);
   }
 
+  private Integer rawTenantCountById(String tenantId) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM tenants WHERE tenant_id = ?", Integer.class, tenantId);
+  }
+
   private Integer rawRowCountForStep(String stepId) {
     return jdbc.queryForObject(
-        "SELECT count(*) FROM attackpath_execution WHERE attackpath_execution_step_id = ?",
+        "SELECT count(*) FROM attackpath_execution"
+            + " WHERE attackpath_execution_simulation_id = ? AND attackpath_execution_step_id = ?",
         Integer.class,
+        sim,
         stepId);
   }
 
-  // Seeds one execution + one finding + their link for SIM under the given tenant, native INSERTs
+  // Seeds one execution + one finding + one collector + their link for the simulation under the
+  // given tenant, native INSERTs
   // with an explicit tenant_id (VALUES inserts pass the inspector; this is ground-truth seeding).
   private void seedExecutionFindingLink(String tenantId, String execId, String findId) {
     jdbc.update(
@@ -713,7 +774,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
             + " now())",
         execId,
         tenantId,
-        SIM);
+        sim);
     jdbc.update(
         "INSERT INTO attackpath_finding (attackpath_finding_id, tenant_id,"
             + " attackpath_finding_simulation_id, attackpath_finding_type,"
@@ -721,7 +782,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
             + " VALUES (?, ?, ?, 'cve', 'CVE-1', 'dc-01')",
         findId,
         tenantId,
-        SIM);
+        sim);
     jdbc.update(
         "INSERT INTO attackpath_execution_finding (execution_id, finding_id) VALUES (?, ?)",
         execId,
@@ -733,7 +794,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
             + "attackpath_execution_collector_result_status_label) VALUES (?, ?, ?, ?, 'DETECTION', 'Detected')",
         "col-" + execId,
         tenantId,
-        SIM,
+        sim,
         execId);
   }
 
@@ -742,7 +803,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         "SELECT count(*) FROM attackpath_execution"
             + " WHERE attackpath_execution_simulation_id = ? AND tenant_id = ?",
         Integer.class,
-        SIM,
+        sim,
         tenantId);
   }
 
@@ -751,7 +812,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         "SELECT count(*) FROM attackpath_finding"
             + " WHERE attackpath_finding_simulation_id = ? AND tenant_id = ?",
         Integer.class,
-        SIM,
+        sim,
         tenantId);
   }
 
@@ -767,7 +828,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         "SELECT count(*) FROM attackpath_execution_collector"
             + " WHERE attackpath_execution_collector_simulation_id = ? AND tenant_id = ?",
         Integer.class,
-        SIM,
+        sim,
         tenantId);
   }
 
@@ -800,9 +861,9 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     injector.setName("OpenAEV Implant");
     injector.setType("openaev_implant");
     Exercise exercise = new Exercise();
-    exercise.setId(SIM);
+    exercise.setId(sim);
     Inject inject = new Inject();
-    inject.setId(INJECT_ID);
+    inject.setId(injectId);
     inject.setTitle(
         "crackmapexec"); // frozen as payload_name (setGlobalInformation reads getTitle())
     inject.setExercise(exercise);
@@ -830,7 +891,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     Step template = new Step();
     template.setId("tmpl-realpath");
     Step step = new Step();
-    step.setId("step-realpath");
+    step.setId(STEP_ID);
     step.setStepTemplate(template);
     return step;
   }

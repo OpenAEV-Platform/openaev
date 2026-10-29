@@ -1,5 +1,5 @@
 import { Alert } from '@mui/material';
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { deleteExercise, duplicateExercise, updateExercise, updateExerciseLessons } from '../../../../actions/Exercise';
@@ -17,7 +17,7 @@ import {
   type UpdateExerciseInput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
@@ -49,7 +49,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Form
   const initialValues: ExerciseUpdateFormInput = {

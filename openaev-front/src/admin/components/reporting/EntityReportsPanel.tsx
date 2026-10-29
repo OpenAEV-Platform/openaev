@@ -1,8 +1,9 @@
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined } from '@mui/icons-material';
-import { alpha, Box, Button, CircularProgress, IconButton, Popover, Skeleton, Tooltip, Typography } from '@mui/material';
+import { alpha, Box, CircularProgress, Popover, Skeleton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FileChartOutline } from 'mdi-material-ui';
-import { type FunctionComponent, type MouseEvent, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import {
@@ -15,7 +16,7 @@ import {
 import { useFormatter } from '../../../components/i18n';
 import { type Reporting, type ReportingGeneration, type ReportingInput } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { latestGeneration, REPORTING_CONTEXT_LABELS } from './ReportingContexts';
 import { ReportingFormatFragment, ReportingStatusChip } from './ReportingFragments';
@@ -56,7 +57,7 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
   const theme = useTheme();
   const { t, fldt } = useFormatter();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   // null = not fetched yet (skeleton state while the popover is open).
@@ -176,15 +177,17 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
 
   return (
     <>
-      <Tooltip title={t('Reports')}>
-        <IconButton
-          size="small"
-          color="primary"
-          aria-label={t('Reports')}
-          onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
-        >
-          <FileChartOutline fontSize="small" />
-        </IconButton>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton
+            icon={<FileChartOutline fontSize="small" />}
+            aria-label={t('Reports')}
+            onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
+            priority="tertiary"
+            size="md"
+          />
+        </TooltipTrigger>
+        <TooltipContent>{t('Reports')}</TooltipContent>
       </Tooltip>
       <Popover
         open={!!anchorEl}
@@ -323,16 +326,20 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
                     />
                   )}
                   {downloadable && (
-                    <Tooltip title={t('Download latest generation')}>
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        component="a"
-                        href={downloadReportingGenerationUrl(generation.reporting_generation_id)}
-                        onClick={event => event.stopPropagation()}
-                      >
-                        <FileDownloadOutlined fontSize="small" />
-                      </IconButton>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <IconButton
+                          asChild
+                          icon={<FileDownloadOutlined fontSize="small" />}
+                          aria-label={t('Download latest generation')}
+                          onClick={event => event.stopPropagation()}
+                          priority="tertiary"
+                          size="sm"
+                        >
+                          <a href={downloadReportingGenerationUrl(generation.reporting_generation_id)} />
+                        </IconButton>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('Download latest generation')}</TooltipContent>
                     </Tooltip>
                   )}
                 </Box>
@@ -374,12 +381,7 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
           gap: 1,
         }}
         >
-          <Button
-            size="small"
-            variant="text"
-            onClick={() => navigate('/admin/reporting')}
-            sx={{ marginRight: 'auto' }}
-          >
+          <Button type="button" priority="tertiary" size="sm" onClick={() => navigate('/admin/reporting')} style={{ marginRight: 'auto' }}>
             {t('Browse all')}
           </Button>
           {generating
@@ -397,12 +399,7 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
                 </Box>
               )
             : canManage && (
-              <Button
-                size="small"
-                variant="contained"
-                color="primary"
-                onClick={handleGenerate}
-              >
+              <Button type="button" size="sm" onClick={handleGenerate}>
                 {t('Generate report')}
               </Button>
             )}

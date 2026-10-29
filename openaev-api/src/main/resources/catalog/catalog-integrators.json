@@ -2008,8 +2008,8 @@
                         "writeOnly": true
                     },
                     "SPLUNKES_ALERTS_INDEX": {
-                        "default": "_notable",
-                        "description": "Index to search for alerts (default: _notable).",
+                        "default": "notable",
+                        "description": "Index to search for alerts (default: notable, the Splunk ES notable index).",
                         "type": "string"
                     },
                     "SPLUNKES_TIME_WINDOW": {
@@ -2019,19 +2019,18 @@
                         "type": "string"
                     },
                     "SPLUNKES_MAX_RETRY": {
-                        "default": 3,
-                        "description": "Maximum number of retry attempts for API calls.",
+                        "default": 5,
+                        "description": "Maximum number of retry attempts for API calls. Combined with offset, this defines how long the collector keeps looking for a notable after an inject (default 5 x 120s covers ~10 min of detection latency: SIEM ingestion + correlation-search schedule).",
                         "type": "integer"
                     },
                     "SPLUNKES_OFFSET": {
-                        "default": "PT30S",
-                        "description": "Time offset between retry attempts.",
+                        "default": "PT2M",
+                        "description": "Time waited between retry attempts, also used to extend the search window forward on each retry.",
                         "format": "duration",
                         "type": "string"
                     },
                     "SPLUNKES_QUERY_TEMPLATE": {
-                        "description": "SPL query template for fetching alerts. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values, quoted for IN operator), {target_ips} (target IP values, quoted for IN operator), {implant_urls} (implant callback URL paths, quoted for IN operator; * if none), {implant_names} (implant process names, quoted for IN operator; * if none), {start_date} (inject start date or relative time like -3600s), {end_date} (inject end date or 'now'), {ip_conditions} (legacy: auto-generated IP filters with all CIM field names), {process_conditions} (legacy: auto-generated URL path filters), {time_window} (time window in seconds, legacy). The query MUST include '| table _time' for proper alert parsing. Leave empty to use the default query.",
-                        "default": "index={alerts_index} (src_ip IN ({source_ips}) OR src IN ({source_ips}) OR source_ip IN ({source_ips}) OR client_ip IN ({source_ips})) (dst_ip IN ({target_ips}) OR dest IN ({target_ips}) OR dest_ip IN ({target_ips}) OR destination_ip IN ({target_ips}) OR server_ip IN ({target_ips})) (url_path IN ({implant_urls}) OR url IN ({implant_urls}) OR path IN ({implant_urls}) OR query IN ({implant_urls}) OR process_name IN ({implant_names}) OR parent_process_name IN ({implant_names})) earliest={start_date} latest={end_date} | table _time, src_ip, src, source_ip, client_ip, dst_ip, dest, dest_ip, destination_ip, server_ip, signature, rule_name, event_type, severity, url_path, url, path, query, process_name, parent_process_name, _raw | sort -_time",
+                        "description": "SPL query template for fetching alerts. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values, quoted for IN operator; * if none), {target_ips} (target IP values, quoted for IN operator; * if none), {hostnames} (hostname values, quoted for IN operator; * if none), {start_date} (inject start date or relative time like -3600s), {end_date} (inject end date or 'now'). Implant names, URLs and other signatures are not query placeholders: they are matched afterwards in each alert's _raw text. The query MUST include '| table _time' for proper alert parsing. Leave empty to use the collector's built-in query.",
                         "type": "string"
                     }
                 },
@@ -3829,6 +3828,15 @@
                         "type": "string",
                         "default": ".alerts-security.alerts-*"
                     },
+                    "ELASTIC_QUERY_TEMPLATE": {
+                        "description": "Lucene query_string template used to correlate alerts with an expectation. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values), {target_ips} (target IP values), {implant_urls} (implant callback URL paths), {implant_names} (implant process names), {start_date} (inject start date), {end_date} (inject end date), {time_window} (time window). Each list placeholder is rendered as an OR-joined set of quoted values, so write e.g. 'host.ip:({source_ips})'. The time range is always applied separately as an @timestamp filter. Leave empty to use the collector's built-in query.",
+                        "type": "string"
+                    },
+                    "ELASTIC_EVENTS_INDEX": {
+                        "description": "Index pattern of raw endpoint/process events used to drill down from a detection alert to its source process and recover the OpenAEV implant marker. This enables deterministic per-inject correlation. Leave empty to disable the drilldown and fall back to host/IP + time correlation only.",
+                        "type": "string",
+                        "default": "logs-windows.sysmon_operational-*,logs-endpoint.events.process-*"
+                    },
                     "ELASTIC_KIBANA_URL": {
                         "description": "Kibana base URL used to build trace links. When unset, it is derived from the base URL.",
                         "type": "string"
@@ -3852,7 +3860,7 @@
                     },
                     "ELASTIC_VERIFY_SSL": {
                         "default": true,
-                        "description": "Whether to verify the Elasticsearch TLS certificate.",
+                        "description": "Whether to verify the Elasticsearch TLS certificate. Keep enabled in production: disabling it exposes credentials to interception.",
                         "type": "boolean"
                     }
                 },

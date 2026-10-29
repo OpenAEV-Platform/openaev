@@ -1,16 +1,7 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  IconButton,
-  Menu,
-  MenuItem,
-} from '@mui/material';
-import { type FunctionComponent, type MouseEvent, useContext, useState } from 'react';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Menu, MenuItem } from '@mui/material';
+import { type FunctionComponent, type MouseEvent, useState } from 'react';
 
 import { deleteChallenge, updateChallenge } from '../../../../actions/challenge-action';
 import Drawer from '../../../../components/common/Drawer';
@@ -18,7 +9,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Challenge, type ChallengeInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ChallengeForm from './ChallengeForm';
 
@@ -33,7 +24,7 @@ const ChallengePopover: FunctionComponent<Props> = ({ challenge, onRemoveChallen
   // utils
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // states
   const [openDelete, setOpenDelete] = useState(false);
@@ -109,9 +100,15 @@ const ChallengePopover: FunctionComponent<Props> = ({ challenge, onRemoveChallen
   return (
     <>
       {(ability.can(ACTIONS.MANAGE, SUBJECTS.CHALLENGES) || ability.can(ACTIONS.DELETE, SUBJECTS.CHALLENGES) || onRemoveChallenge) && (
-        <IconButton disabled={disabled} onClick={handlePopoverOpen} aria-haspopup="true" size="small" color="primary" sx={{ borderRadius: 1 }}>
-          <MoreVert fontSize="small" />
-        </IconButton>
+        <IconButton
+          icon={<MoreVert fontSize="small" />}
+          aria-label={t('More actions')}
+          disabled={disabled}
+          onClick={handlePopoverOpen}
+          aria-haspopup="true"
+          priority="tertiary"
+          size="sm"
+        />
       )}
       <Menu
         anchorEl={anchorEl}
@@ -142,8 +139,8 @@ const ChallengePopover: FunctionComponent<Props> = ({ challenge, onRemoveChallen
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="contained" color="error" onClick={submitDelete}>
+          <Button type="button" priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button type="button" variant="destructive" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>
@@ -185,8 +182,8 @@ const ChallengePopover: FunctionComponent<Props> = ({ challenge, onRemoveChallen
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitRemove}>
+          <Button type="button" priority="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button type="button" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

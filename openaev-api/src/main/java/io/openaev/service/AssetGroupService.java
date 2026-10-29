@@ -90,10 +90,22 @@ public class AssetGroupService {
     return computeDynamicAssets(assetGroups);
   }
 
+  /**
+   * The asset groups targeted by the inject, without loading the inject. Dynamic members are not
+   * computed: use {@link #isAssetInDynamicGroup(Asset, AssetGroup)} to check a given asset.
+   */
+  public List<AssetGroup> assetGroupsOfInject(@NotBlank final String injectId) {
+    return this.assetGroupRepository.findAllByInjectId(injectId);
+  }
+
+  /**
+   * Asset groups targeted by the injects of a simulation, with their assets and tags loaded: see
+   * {@link #withLinksInitialized(List)}.
+   */
   public List<AssetGroup> assetGroupsForSimulation(@NotBlank final String simulationId) {
     List<AssetGroup> assetGroups =
         fromIterable(this.assetGroupRepository.findDistinctByInjectsSimulationId(simulationId));
-    return computeDynamicAssets(assetGroups);
+    return withLinksInitialized(computeDynamicAssets(assetGroups));
   }
 
   public List<AssetGroupOutput> assetGroupsByIdsForSimulation(
@@ -107,10 +119,31 @@ public class AssetGroupService {
         .toList();
   }
 
+  /**
+   * Asset groups targeted by the injects of a scenario, with their assets and tags loaded: see
+   * {@link #withLinksInitialized(List)}.
+   */
   public List<AssetGroup> assetGroupsForScenario(@NotBlank final String scenarioId) {
     List<AssetGroup> assetGroups =
         fromIterable(this.assetGroupRepository.findDistinctByInjectsScenarioId(scenarioId));
-    return computeDynamicAssets(assetGroups);
+    return withLinksInitialized(computeDynamicAssets(assetGroups));
+  }
+
+  /**
+   * Loads the assets and tags of the asset groups inside the scoped transaction. The simulation and
+   * scenario asset group endpoints return the raw entity, serialized open-in-view after the commit,
+   * when a lazy load on the v2-active {@code assets} and {@code tags} tables fails closed to an
+   * empty array: the inject form reuses these asset groups for its update and "Manage assets"
+   * actions, so saving erased their tags or assets. Same fix as {@code
+   * AssetGroupApi.withAssetsInitialized}.
+   */
+  private static List<AssetGroup> withLinksInitialized(List<AssetGroup> assetGroups) {
+    assetGroups.forEach(
+        assetGroup -> {
+          Hibernate.initialize(assetGroup.getAssets());
+          Hibernate.initialize(assetGroup.getTags());
+        });
+    return assetGroups;
   }
 
   public List<AssetGroupOutput> assetGroupsByIdsForScenario(
@@ -263,7 +296,7 @@ public class AssetGroupService {
   }
 
   /** True when the group's dynamic filter matches the given asset (id-constrained query). */
-  private boolean isAssetInDynamicGroup(
+  public boolean isAssetInDynamicGroup(
       @NotNull final Asset asset, @NotNull final AssetGroup assetGroup) {
     if (Hibernate.unproxy(asset) instanceof Endpoint) {
       Specification<Endpoint> filterSpecification =

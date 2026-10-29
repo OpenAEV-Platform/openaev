@@ -23,6 +23,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
+import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
@@ -30,17 +31,14 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
-import io.openaev.service.chaining.ConditionService;
-import io.openaev.service.chaining.ScopeService;
-import io.openaev.service.chaining.StepService;
-import io.openaev.service.chaining.StepTargetingService;
-import io.openaev.service.chaining.WorkflowStateService;
+import io.openaev.service.chaining.*;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -57,6 +55,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 /**
  * Implementation of {@link ActionStep} for executing Inject steps.
@@ -98,6 +97,7 @@ public class InjectExecutionStep implements ActionStep {
   private final ExecutableInjectService executableInjectService;
   private final ExerciseTeamUserService exerciseTeamUserService;
   private final ExecutionContextService executionContextService;
+  private final InjectStatusService injectStatusService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -180,13 +180,29 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
+   * A READY step that already ran carries the id of the inject it created ({@link #run} bakes it
+   * into the step data): its presence means this READY request is a duplicate.
+   */
+  @Override
+  public boolean isAlreadyRun(Step readyStep) {
+    if (readyStep.getData() == null) {
+      return false;
+    }
+    String injectId = StepService.getField(readyStep.getData(), "inject_id");
+    return injectId != null && !injectId.isBlank();
+  }
+
+  /**
    * Runs a READY step by executing the corresponding to inject.
    *
    * <p>Handles deserialization of step data, creation of the inject, execution via {@link
    * Executor}, and updates the step data with inject ID.
    *
    * @param readyStep the step currently in READY status
-   * @return the updated step with execution info, or null if execution fails
+   * @return the updated step with execution info, or an empty Optional if no agent could run the
+   *     inject: the inject is set to ERROR and the caller ends the step without retry
+   * @throws ChainingException on any other failure: the transaction is rolled back and the event is
+   *     retried
    */
   @Override
   @Transactional(rollbackFor = Exception.class)
@@ -235,6 +251,19 @@ public class InjectExecutionStep implements ActionStep {
       executor.directExecute(executableInject);
 
       return Optional.of(readyStep);
+    } catch (ExecutionExecutorException e) {
+      // No agent could run the inject (all inactive, agentless, or every executor call failed).
+      // That outcome is final, not transient: record it on the inject and end the step. Rolling
+      // back instead drops the inject with its traces and makes StepEventService re-publish the
+      // same event, which is what leaves RabbitMQ deliveries unacknowledged. The exception is
+      // thrown by the non-transactional ExecutionExecutorService, so the transaction is still
+      // sound, unless an inner transactional call failed earlier: keep the rollback then.
+      if (TransactionAspectSupport.currentTransactionStatus().isRollbackOnly()) {
+        throw new ChainingException(
+            "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
+      }
+      injectStatusService.failInjectStatus(inject, e.getMessage());
+      return Optional.empty();
     } catch (Exception e) {
       throw new ChainingException(
           "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
@@ -1371,13 +1400,31 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
+  /**
+   * Builds the base content of an inject: the contract default values, overridden by the values
+   * explicitly defined on the inject. A default value is therefore only a last resort, used when
+   * the input argument has no defined value and no pool value (pool values are applied afterwards
+   * by {@link #applyMapping}).
+   */
   private ObjectNode resolveBaseInjectContent(Inject inject, InjectorContract injectorContract) {
-    if (inject != null && inject.getContent() != null && !inject.getContent().isEmpty()) {
-      return inject.getContent();
-    }
     ObjectNode defaults =
         injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract);
-    return defaults != null ? defaults : mapper.createObjectNode();
+    ObjectNode base = defaults != null ? defaults : mapper.createObjectNode();
+    if (inject == null || inject.getContent() == null) {
+      return base;
+    }
+    inject
+        .getContent()
+        .fields()
+        .forEachRemaining(
+            entry -> {
+              boolean blankDefinedValue =
+                  entry.getValue().isTextual() && entry.getValue().asText().isBlank();
+              if (!(blankDefinedValue && base.has(entry.getKey()))) {
+                base.set(entry.getKey(), entry.getValue());
+              }
+            });
+    return base;
   }
 
   /**

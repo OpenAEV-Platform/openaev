@@ -40,10 +40,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -53,6 +55,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
+@ExtendWith(MockitoExtension.class)
 public class KillChainPhaseApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -90,10 +93,6 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     KILL_CHAIN_PHASE_ID_3 = this.killChainPhaseRepository.save(KILL_CHAIN_PHASE_3).getId();
 
     killChainPhaseList = Arrays.asList(KILL_CHAIN_PHASE_1, KILL_CHAIN_PHASE_2, KILL_CHAIN_PHASE_3);
-
-    when(mockKillChainPhaseRepository.findAll(
-            spec, Sort.by(Sort.Order.asc("killChainName"), Sort.Order.asc("order"))))
-        .thenReturn(killChainPhaseList);
   }
 
   @AfterAll
@@ -506,6 +505,11 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   @DisplayName("Test optionsByName")
   @Test
   void optionsByNameTest() throws Exception {
+    // Stubbed here, not in @BeforeAll: MockitoExtension only creates the @Mock fields before each
+    // test, so they are still null while @BeforeAll runs.
+    when(mockKillChainPhaseRepository.findAll(
+            spec, Sort.by(Sort.Order.asc("killChainName"), Sort.Order.asc("order"))))
+        .thenReturn(killChainPhaseList);
 
     try (MockedStatic<KillChainPhaseSpecification> mocked =
         Mockito.mockStatic(KillChainPhaseSpecification.class)) {

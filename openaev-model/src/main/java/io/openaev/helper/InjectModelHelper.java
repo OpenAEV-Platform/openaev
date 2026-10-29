@@ -3,7 +3,6 @@ package io.openaev.helper;
 import static io.openaev.database.model.Inject.SPEED_STANDARD;
 import static io.openaev.database.model.InjectorContract.*;
 import static java.time.Duration.between;
-import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -79,7 +78,7 @@ public class InjectModelHelper {
    * @return the computed execution timestamp
    */
   public static Instant computeInjectDate(
-      Instant source, int speed, Long dependsDuration, Exercise exercise) {
+      Instant source, int speed, Long dependsDuration, Exercise exercise, Instant nowReference) {
     // Compute origin execution date
     long duration = ofNullable(dependsDuration).orElse(0L) / speed;
     Instant standardExecutionDate = source.plusSeconds(duration);
@@ -113,7 +112,7 @@ public class InjectModelHelper {
           exercise
               .getCurrentPause()
               .filter(pauseTime -> pauseTime.isBefore(finalAfterPausesExecutionDate))
-              .map(pauseTime -> between(pauseTime, now()).getSeconds())
+              .map(pauseTime -> between(pauseTime, nowReference).getSeconds())
               .orElse(0L);
     }
     long globalPauseDelay = previousPauseDelay + currentPauseDelay;
@@ -141,9 +140,9 @@ public class InjectModelHelper {
    * @return the computed date, or empty if not applicable
    */
   public static Optional<Instant> getDate(
-      Exercise exercise, Scenario scenario, Long dependsDuration) {
+      Exercise exercise, Scenario scenario, Long dependsDuration, Instant nowReference) {
     if (exercise == null && scenario == null) {
-      return Optional.ofNullable(now().minusSeconds(30));
+      return Optional.ofNullable(nowReference.minusSeconds(30));
     }
 
     if (scenario != null) {
@@ -158,7 +157,9 @@ public class InjectModelHelper {
     }
     return exercise
         .getStart()
-        .map(source -> computeInjectDate(source, SPEED_STANDARD, dependsDuration, exercise));
+        .map(
+            source ->
+                computeInjectDate(source, SPEED_STANDARD, dependsDuration, exercise, nowReference));
   }
 
   /**
@@ -176,6 +177,7 @@ public class InjectModelHelper {
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
       @NotNull final List<String> assetGroups,
+      @NotNull final List<String> secretReferences,
       @NotNull final JsonNode jsonField,
       @NotNull final ObjectNode content,
       @NotNull final ArrayNode injectContractFields) {
@@ -195,6 +197,11 @@ public class InjectModelHelper {
       }
       case CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP -> {
         if (assetGroups.isEmpty()) {
+          isSet = false;
+        }
+      }
+      case CONTRACT_ELEMENT_CONTENT_CREDENTIAL_REFERENCE -> {
+        if (secretReferences.isEmpty()) {
           isSet = false;
         }
       }

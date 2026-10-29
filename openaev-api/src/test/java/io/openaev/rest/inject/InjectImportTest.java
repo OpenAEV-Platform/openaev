@@ -59,6 +59,7 @@ class InjectImportTest extends IntegrationTest {
   private final Map<String, ArticleComposer.Composer> staticArticleWrappers = new HashMap<>();
   private final String KNOWN_ARTICLE_WRAPPER_KEY = "known article key";
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired ObjectMapper objectMapper;
   @Autowired MockMvc mvc;
   @Autowired InjectExportService exportService;
@@ -98,9 +99,10 @@ class InjectImportTest extends IntegrationTest {
       tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
     }
 
-    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(
-        TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        channelInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        challengeInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     teamComposer.reset();
     userComposer.reset();

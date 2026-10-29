@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { CheckCircleOutlined, ErrorOutlineOutlined, VerifiedUserOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
@@ -105,13 +106,7 @@ const CustomDomainInstructionsPanel: FunctionComponent<Props> = ({ customDomain,
           </Typography>
           <CustomDomainStatusChip status={domain.custom_domain_status} />
         </Box>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={verifying ? <CircularProgress size={16} color="inherit" /> : <VerifiedUserOutlined />}
-          onClick={onVerify}
-          disabled={verifying}
-        >
+        <Button type="button" startIcon={verifying ? <CircularProgress size={16} color="inherit" /> : <VerifiedUserOutlined />} onClick={onVerify} disabled={verifying}>
           {isVerified ? t('Re-check DNS') : t('Verify domain')}
         </Button>
       </Box>
@@ -132,7 +127,13 @@ const CustomDomainInstructionsPanel: FunctionComponent<Props> = ({ customDomain,
       )}
 
       <Box>
-        <Typography variant="body2" color="text.secondary" sx={{ marginBottom: 2 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            marginBottom: 2,
+          }}
+        >
           {t('Publish the two DNS records below at your DNS provider, then run the verification. DNS changes can take a few minutes to propagate.')}
         </Typography>
 
@@ -174,19 +175,28 @@ const CustomDomainInstructionsPanel: FunctionComponent<Props> = ({ customDomain,
                 </Typography>
               </Box>
               <Box sx={{ paddingLeft: '30px' }}>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Record type')}
                 </Typography>
                 <Box sx={{ marginBottom: 1 }}>
                   <CodeBlock content={record.type} />
                 </Box>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Name / host')}
                 </Typography>
                 <Box sx={{ marginBottom: 1 }}>
                   <CodeBlock content={record.name} />
                 </Box>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Value')}
                 </Typography>
                 <CodeBlock content={record.value} />
@@ -197,7 +207,10 @@ const CustomDomainInstructionsPanel: FunctionComponent<Props> = ({ customDomain,
       </Box>
 
       {domain.custom_domain_last_checked_at && (
-        <Typography variant="caption" color="text.secondary">
+        <Typography
+          variant="caption"
+          sx={{ color: 'text.secondary' }}
+        >
           {t('Last checked')}
           {': '}
           {fldt(domain.custom_domain_last_checked_at)}

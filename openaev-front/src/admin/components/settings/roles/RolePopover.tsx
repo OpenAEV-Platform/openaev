@@ -1,4 +1,4 @@
-import { type FunctionComponent, useCallback, useContext, useMemo } from 'react';
+import { type FunctionComponent, useCallback, useMemo } from 'react';
 
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import useDialog from '../../../../components/common/dialog/useDialog';
@@ -6,7 +6,7 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../components/i18n';
 import type { RoleOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS } from '../../../../utils/permissions/types';
 import { useRoleScope } from './RoleScopeContext';
 import RoleUpdate from './RoleUpdate';
@@ -31,7 +31,7 @@ const RolePopover: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { remove, subject } = useRoleScope();
 
   const editDialog = useDialog();

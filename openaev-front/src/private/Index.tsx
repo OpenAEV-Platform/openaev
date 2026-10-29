@@ -16,7 +16,11 @@ const useStyles = makeStyles()(theme => ({
   content: {
     height: '100%',
     flexGrow: 1,
-    backgroundColor: theme.palette.background.default,
+    // fds-migration/TOKEN-MAPPING.md § ISO OpenCTI — do NOT set an opaque background here.
+    // This container sits directly on top of <body>, which now carries the two-stop FDS
+    // gradient (ThemeDark/Light.ts, MuiCssBaseline). A flat backgroundColor here painted
+    // over that gradient completely, hiding it everywhere. OpenCTI's equivalent root
+    // (private/Index.tsx) deliberately leaves this transparent for the same reason.
     padding: '24px 24px 24px 204px',
     minWidth: 0,
   },

@@ -2,7 +2,6 @@ import { type FunctionComponent, type ReactNode, useCallback, useMemo } from 're
 
 import { fetchExerciseDocuments, fetchScenarioDocuments } from '../../../../../actions/documents/documents-actions';
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { fetchScenarioTeams } from '../../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
 import { findTeams } from '../../../../../actions/teams/team-actions';
@@ -100,18 +99,12 @@ const ExerciseInjectTargetsProvider: FunctionComponent<{
   children: ReactNode;
 }> = ({ exerciseId, validTeams, children }) => {
   const dispatch = useAppDispatch();
-  const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   useDataLoader(() => {
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchExerciseDocuments(exerciseId));
   });
   const searchTeams = useScopeTeamSearch(validTeams);
-  const teamContext = teamContextForExercise(
-    exerciseId,
-    exercise?.exercise_teams_users,
-    exercise?.exercise_all_users_number,
-    exercise?.exercise_users_number,
-  );
+  const teamContext = teamContextForExercise(exerciseId);
   return (
     <TeamContext.Provider value={{
       ...teamContext,

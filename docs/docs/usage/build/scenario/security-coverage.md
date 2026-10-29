@@ -112,7 +112,7 @@ Inject creation depends on matching the **Object Reference** values between Open
 
 ![Inject Scenario](assets/inject-scenario-openaev.png)  
 ![Inject Placeholder Scenario](assets/inject-placeholder.png)
-![Asset Rules](../../assets/asset_rules.png)
+![Asset Rules](assets/asset_rules.png)
 
 After injects are generated:
 
@@ -132,7 +132,7 @@ Once the scenario is finalized and scheduled:
 - OpenAEV executes the scenario according to the periodicity.
 - After simulation, the results are compiled into new SROs (STIX Relationship Objects).
 - OpenAEV sends these results back to OpenCTI as part of
-  automated [Enriched Security Posture Assessment](../../evaluate/xtm-suite-connector.md) in the same **STIX 2.1 bundle**
+  automated [Enriched Security Posture Assessment](../../../integrations/xtm-suite/xtm-suite-connector.md) in the same **STIX 2.1 bundle**
   representing the Security Coverage.
 - OpenCTI displays the updated coverage assessment.
 
@@ -142,8 +142,8 @@ This creates a complete feedback loop between threat intelligence and security v
 
 ## What’s next?
 
-- [Security Coverage enrichment (XTM Suite)](../../evaluate/xtm-suite-connector.md) -- Push Simulation results back to OpenCTI automatically
+- [Security Coverage enrichment (XTM Suite)](../../../integrations/xtm-suite/xtm-suite-connector.md) -- Push Simulation results back to OpenCTI automatically
 - [Scenarios](scenario.md) -- Create and manage Scenarios manually
-- [Injects](../../evaluate/injects/inject-overview.md) -- Understand how Injects are created and executed
+- [Injects](../../run-and-evaluate/injects/inject-overview.md) -- Understand how Injects are created and executed
 
 

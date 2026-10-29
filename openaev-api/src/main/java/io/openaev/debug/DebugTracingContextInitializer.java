@@ -27,9 +27,9 @@ public class DebugTracingContextInitializer
   // that then fails on the missing trace context.
   static final List<String> TRACING_AUTO_CONFIGURATIONS =
       List.of(
-          "org.springframework.boot.actuate.autoconfigure.tracing.BraveAutoConfiguration",
-          "org.springframework.boot.actuate.autoconfigure.tracing.MicrometerTracingAutoConfiguration",
-          "org.springframework.boot.actuate.autoconfigure.tracing.NoopTracerAutoConfiguration");
+          "org.springframework.boot.micrometer.tracing.brave.autoconfigure.BraveAutoConfiguration",
+          "org.springframework.boot.micrometer.tracing.autoconfigure.MicrometerTracingAutoConfiguration",
+          "org.springframework.boot.micrometer.tracing.autoconfigure.NoopTracerAutoConfiguration");
 
   @Override
   public void initialize(ConfigurableApplicationContext applicationContext) {

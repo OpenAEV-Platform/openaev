@@ -7,6 +7,7 @@ This page explains how to set up a local development environment for the OpenAEV
 Before starting, install the required tools for your operating system:
 
 - [Prerequisites Ubuntu](environment-ubuntu.md)
+- [Prerequisites macOS](environment-macos.md)
 - [Prerequisites Windows](environment-windows.md)
 
 ## Architecture overview
@@ -33,10 +34,10 @@ docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsear
 
 ## Building the backend
 
-1. Build all modules with the development profile:
+1. Build all modules:
 
 ```bash
-mvn clean install -DskipTests -Pdev
+mvn clean install -DskipTests
 ```
 
 2. Check code formatting with Google Java Format:
@@ -56,7 +57,7 @@ mvn spotless:apply
 Run the main application class from your IDE or with Maven:
 
 ```bash
-mvn spring-boot:run -pl openaev-api -Pdev
+mvn spring-boot:run -pl openaev-api -Dspring-boot.run.profiles=dev
 ```
 
 The backend starts on port `8080` by default.
@@ -99,6 +100,9 @@ mvn jacoco:check                                  # Verify coverage thresholds
 cd openaev-front
 yarn lint                  # ESLint (must pass with 0 warnings)
 yarn check-ts              # TypeScript type checking
+yarn depcruise             # Import cycles and dependency rules (dependency-cruiser)
+yarn knip --dependencies   # Unused or undeclared dependencies (knip)
+yarn test:eslint-rules     # Tests of the local ESLint rules (packages/eslint-plugin-custom-rules)
 yarn test                  # Unit tests (Vitest)
 yarn test:e2e              # E2E tests (Playwright, requires running application)
 ```

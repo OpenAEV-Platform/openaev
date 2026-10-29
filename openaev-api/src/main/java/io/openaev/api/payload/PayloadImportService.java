@@ -86,7 +86,9 @@ public class PayloadImportService {
 
     List<AttackPattern> attackPatterns =
         extractRelationshipObjects(
-            "attack_patterns", this::handleAttackPatternImport, response.sourceDocument());
+            "attack_patterns",
+            object -> handleAttackPatternImport(ctx, object),
+            response.sourceDocument());
     List<Domain> domains =
         extractRelationshipObjects("domains", this::handleDomainImport, response.sourceDocument());
     List<Tag> tags =
@@ -112,7 +114,7 @@ public class PayloadImportService {
   public record PayloadImportResult(
       ZipJsonService.ImportOutput<Payload> payloadOutput, InjectorContract injectorContract) {}
 
-  private AttackPattern handleAttackPatternImport(ResourceObject object) {
+  private AttackPattern handleAttackPatternImport(TxCtx ctx, ResourceObject object) {
     AttackPatternCreateInput input = new AttackPatternCreateInput();
     input.setName(object.attributes().get("attack_pattern_name").toString());
     input.setDescription(object.attributes().get("attack_pattern_description").toString());
@@ -121,7 +123,7 @@ public class PayloadImportService {
     input.setPlatforms(asStringArray(object.attributes().get("attack_pattern_platforms")));
     input.setPermissionsRequired(
         asStringArray(object.attributes().get("attack_pattern_permissions_required")));
-    return attackPatternService.findOrCreate(input);
+    return attackPatternService.findOrCreate(ctx, input);
   }
 
   private Domain handleDomainImport(ResourceObject object) {

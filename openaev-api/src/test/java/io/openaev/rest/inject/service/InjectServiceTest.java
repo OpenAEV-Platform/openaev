@@ -12,7 +12,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TxCtx;
+import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -29,20 +31,20 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
+import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.AssetService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.InjectorService;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.UserService;
+import io.openaev.secrets.service.SecretReferenceService;
+import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetGroupFixture;
+import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
@@ -52,12 +54,10 @@ import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
 import java.util.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
+import org.hibernate.LazyInitializationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -79,67 +79,49 @@ class InjectServiceTest {
   private static final String INJECT_ID = "injectid";
 
   @Mock private InjectRepository injectRepository;
-
   @Mock private AssetService assetService;
-
   @Mock private AssetGroupService assetGroupService;
-
+  @Mock private InjectAgentResolverService injectAgentResolverService;
   @Mock private TeamRepository teamRepository;
-
+  @Mock private AgentRepository agentRepository;
+  @Mock private SecretReferenceService secretReferenceService;
+  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
-
   @Mock private InjectStatusRepository injectStatusRepository;
-
   @Mock private InjectDocumentRepository injectDocumentRepository;
-
   @Mock private InjectUtils injectUtils;
-
   @Mock private InjectStatusMapper injectStatusMapper;
-
   @Mock private PayloadMapper payloadMapper;
-
   @Mock private InjectExpectationMapper injectExpectationMapper;
-
   @Mock private InjectorContractService injectorContractService;
-
   @Mock private UserService userService;
-
   @Mock private EnterpriseEditionService enterpriseEditionService;
-
   @Mock private EndpointService endpointService;
-
   @Mock private MethodSecurityExpressionHandler methodSecurityExpressionHandler;
-
   @Mock private TagRuleService tagRuleService;
-
   @Mock private TagService tagService;
-
   @Mock private DocumentService documentService;
-
   @Mock private TagRepository tagRepository;
-
   @Mock private DocumentRepository documentRepository;
-
   @Mock private PayloadRepository payloadRepository;
-
   @Mock private ThreatArsenalService threatArsenalService;
-
   @Mock private LicenseCacheManager licenseCacheManager;
-
   @Mock private SmtpService smtpService;
-
   @Mock private ImapService imapService;
-
   @Mock private CollectorService collectorService;
-
   @Mock private InjectorService injectorService;
-
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
-
   @Mock private StepTargetingService stepTargetingService;
-
   @Mock private ConditionService conditionService;
+  @Mock private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
+  @Mock private EntityManager entityManager;
+
+  @Mock private io.openaev.config.cache.MarkingClearanceCacheManager markingClearanceCacheManager;
+  // Not previously mocked: pre-existing tests never reached resolveAllAssetsToExecute(), whose
+  // AI-target resolution dereferences this via a method reference (aiTargetRepository::...),
+  // which throws NPE immediately if null, even when the Optional it's chained from is empty.
+  @Mock private AiTargetRepository aiTargetRepository;
 
   @Spy
   private InjectorContractContentUtils injectorContractContentUtils =
@@ -150,21 +132,38 @@ class InjectServiceTest {
   ObjectMapper mapper;
 
   @InjectMocks private InjectService injectService;
-  @InjectMocks private InjectStatusService injectStatusService;
+
+  private InjectStatusService injectStatusService;
 
   @BeforeEach
   void setUp() {
     // InjectStatusService serializes the inject (Instant / Optional fields) into the SSE
     // BaseEvent payload on status transitions, so the mapper needs the JSR-310/JDK8 modules.
     mapper = new ObjectMapper().findAndRegisterModules();
+    injectStatusService =
+        spy(
+            new InjectStatusService(
+                injectRepository,
+                agentRepository,
+                injectAgentResolverService,
+                injectUtils,
+                injectAuthorisationRepository,
+                injectStatusRepository,
+                executionTraceRepositoryHelper,
+                Optional.empty(),
+                eventPublisher,
+                mapper,
+                entityManager));
     ReflectionTestUtils.setField(injectService, "mapper", mapper);
-    ReflectionTestUtils.setField(injectStatusService, "mapper", mapper);
-    ReflectionTestUtils.setField(injectStatusService, "auditLogger", Optional.empty());
+    ReflectionTestUtils.setField(injectService, "injectStatusService", injectStatusService);
     ReflectionTestUtils.setField(
         injectService,
         "healthCheckUtils",
         new HealthCheckUtils(
-            new ExecutorUtils(assetAgentJobRepository), stepTargetingService, conditionService));
+            new ExecutorUtils(assetAgentJobRepository),
+            stepTargetingService,
+            conditionService,
+            previewFeatureService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -176,7 +175,8 @@ class InjectServiceTest {
             new HealthCheckUtils(
                 new ExecutorUtils(assetAgentJobRepository),
                 stepTargetingService,
-                conditionService)));
+                conditionService,
+                previewFeatureService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -209,6 +209,36 @@ class InjectServiceTest {
     assertEquals(
         new HashSet<>(List.of(assetGroup1, assetGroup2, assetGroup3, assetGroup4)),
         new HashSet<>(capturedInject.getAssetGroups()));
+  }
+
+  @DisplayName("resetInjectByExercise should reset execution state and delete authorisations")
+  @Test
+  void
+      given_resetInjectByExercise_should_clear_status_trigger_now_collect_status_and_authorisation() {
+    // -- ARRANGE --
+    Inject inject = new Inject();
+    inject.setId("inject-reset");
+    InjectStatus status = new InjectStatus();
+    status.setId("status-reset");
+    inject.setStatus(status);
+    InjectAuthorisation authorisation = new InjectAuthorisation();
+    inject.setAuthorisation(authorisation);
+    inject.setTriggerNowDate(now());
+    inject.setCollectExecutionStatus(CollectExecutionStatus.COLLECTING);
+    when(injectRepository.findAllInjectBySimulationId("exercise-reset"))
+        .thenReturn(List.of(inject));
+
+    // -- ACT --
+    injectService.resetInjectByExercise("exercise-reset");
+
+    // -- ASSERT --
+    verifyNoInteractions(
+        injectAuthorisationRepository, injectStatusService, injectStatusRepository);
+    assertTrue(inject.getStatus().isEmpty());
+    assertNull(inject.getAuthorisation());
+    assertNull(inject.getTriggerNowDate());
+    assertEquals(CollectExecutionStatus.COLLECTING, inject.getCollectExecutionStatus());
+    verify(injectRepository).saveAll(List.of(inject));
   }
 
   @Test
@@ -1015,6 +1045,7 @@ class InjectServiceTest {
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
     inject.setTenant(new Tenant("test-tenant-id"));
     inject.getInjectorContract().get().setNeedsExecutor(true);
+    inject.setAssets(new ArrayList<>(List.of(EndpointFixture.createEndpoint())));
 
     // MOCK
     when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
@@ -1035,6 +1066,40 @@ class InjectServiceTest {
     assertEquals(HealthCheck.Type.AGENT_OR_EXECUTOR, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  @DisplayName(
+      "given MARKING on and a marked target with a live agent, should not report a missing agent")
+  void given_markedTargetWithALiveAgent_should_notReportAMissingAgent()
+      throws JsonProcessingException {
+    // -- ARRANGE --
+    // A health check describes the inject before any launch: no launcher, so no launch clearance.
+    lenient().when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)).thenReturn(true);
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
+    inject.getInjectorContract().get().setNeedsExecutor(true);
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setMarkingIds(new String[] {"m-green"});
+    Agent agent = AgentFixture.createAgent(endpoint, "agent-green");
+    agent.setExecutor(new Executor());
+    endpoint.setAgents(List.of(agent));
+    inject.setAssets(new ArrayList<>(List.of(endpoint)));
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
+
+    // -- ACT --
+    List<HealthCheck> healthChecks = injectService.runChecks(inject);
+
+    // -- ASSERT --
+    assertThat(healthChecks)
+        .extracting(HealthCheck::getType)
+        .doesNotContain(HealthCheck.Type.AGENT_OR_EXECUTOR);
+    verifyNoInteractions(markingClearanceCacheManager);
+    verify(injectRepository, never()).findLauncherId(any());
   }
 
   @Test
@@ -1356,6 +1421,549 @@ class InjectServiceTest {
 
       assertThat(code).isNull();
       verifyNoInteractions(injectAuthorisationRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("updateInject credential references")
+  class UpdateInjectCredentialReferencesTests {
+
+    @Test
+    @DisplayName("given_requestedCredentials_should_setTheResolvedReferencesOnTheInject")
+    void given_requestedCredentials_should_setTheResolvedReferencesOnTheInject() {
+      // Arrange
+      Inject inject = new Inject();
+      inject.setId(INJECT_ID);
+      when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
+      CredentialSecretReference credential = new CredentialSecretReference();
+      credential.setId("credential-1");
+      InjectInput input = new InjectInput();
+      input.setTitle("inject");
+      input.setDependsDuration(0L);
+      input.setSecretReferences(List.of("credential-1"));
+      when(secretReferenceService.secretReferences(List.of("credential-1")))
+          .thenReturn(List.of(credential));
+
+      // Act
+      Inject result = injectService.updateInject(INJECT_ID, input);
+
+      // Assert
+      assertThat(result.getSecretReferences()).containsExactly(credential);
+    }
+
+    @Test
+    @DisplayName("given_noRequestedCredential_should_detachTheExistingOnes")
+    void given_noRequestedCredential_should_detachTheExistingOnes() {
+      // Arrange
+      CredentialSecretReference credential = new CredentialSecretReference();
+      credential.setId("credential-1");
+      Inject inject = new Inject();
+      inject.setId(INJECT_ID);
+      inject.setSecretReferences(new ArrayList<>(List.of(credential)));
+      when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
+      InjectInput input = new InjectInput();
+      input.setTitle("inject");
+      input.setDependsDuration(0L);
+      input.setSecretReferences(List.of());
+
+      // Act
+      Inject result = injectService.updateInject(INJECT_ID, input);
+
+      // Assert
+      assertThat(result.getSecretReferences()).isEmpty();
+      verify(secretReferenceService).secretReferences(List.of());
+    }
+  }
+
+  @Nested
+  @DisplayName("launched_by / scheduled_by stamping")
+  class LaunchedByStampingTests {
+
+    @Test
+    @DisplayName("launch() stamps launchedBy from the current user")
+    void given_launch_should_stampLaunchedByFromCurrentUser() {
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      User currentUser = new User();
+      currentUser.setId("user-current");
+      doReturn(Optional.of(inject)).when(injectRepository).findById(INJECT_ID);
+      doReturn(currentUser).when(userService).currentUser();
+      doAnswer(invocation -> invocation.getArgument(0))
+          .when(injectRepository)
+          .save(any(Inject.class));
+
+      injectService.launch(INJECT_ID);
+
+      assertThat(inject.getLaunchedBy()).isEqualTo(currentUser);
+    }
+
+    @Test
+    @DisplayName(
+        "manual relaunch stamps launchedBy from the current user, never the original inject's launchedBy")
+    void given_manualRelaunch_should_stampLaunchedByFromCurrentUser_notOriginal() {
+      Inject origin = InjectFixture.getDefaultInject();
+      origin.setId(INJECT_ID);
+      User previousLauncher = new User();
+      previousLauncher.setId("user-previous");
+      origin.setLaunchedBy(previousLauncher);
+      User currentUser = new User();
+      currentUser.setId("user-current");
+
+      doReturn(Optional.of(origin)).when(injectRepository).findById(INJECT_ID);
+      doReturn(currentUser).when(userService).currentUser();
+      ArgumentCaptor<Inject> savedCaptor = ArgumentCaptor.forClass(Inject.class);
+      doAnswer(invocation -> invocation.getArgument(0))
+          .when(injectRepository)
+          .save(savedCaptor.capture());
+
+      injectService.relaunch(INJECT_ID, true);
+
+      assertThat(savedCaptor.getValue().getLaunchedBy()).isEqualTo(currentUser);
+    }
+
+    @Test
+    @DisplayName("scheduled relaunch stamps launchedBy from the original inject's scheduledBy")
+    void given_scheduledRelaunch_should_stampLaunchedByFromOriginalScheduledBy() {
+      Inject origin = InjectFixture.getDefaultInject();
+      origin.setId(INJECT_ID);
+      User scheduleOwner = new User();
+      scheduleOwner.setId("user-scheduler");
+      origin.setScheduledBy(scheduleOwner);
+
+      doReturn(Optional.of(origin)).when(injectRepository).findById(INJECT_ID);
+      ArgumentCaptor<Inject> savedCaptor = ArgumentCaptor.forClass(Inject.class);
+      doAnswer(invocation -> invocation.getArgument(0))
+          .when(injectRepository)
+          .save(savedCaptor.capture());
+
+      injectService.relaunch(INJECT_ID, false);
+
+      assertThat(savedCaptor.getValue().getLaunchedBy()).isEqualTo(scheduleOwner);
+      // The scheduled path must never resolve a live caller - there isn't one.
+      verifyNoInteractions(userService);
+    }
+
+    @Test
+    @DisplayName("duplicateInject() carries scheduledBy forward but never launchedBy")
+    void given_duplicateInject_should_copyScheduledBy_butNotLaunchedBy() {
+      Inject origin = InjectFixture.getDefaultInject();
+      User scheduleOwner = new User();
+      scheduleOwner.setId("user-scheduler");
+      User previousLauncher = new User();
+      previousLauncher.setId("user-previous");
+      origin.setScheduledBy(scheduleOwner);
+      origin.setLaunchedBy(previousLauncher);
+
+      Inject duplicated = InjectUtils.duplicateInject(origin);
+
+      assertThat(duplicated.getScheduledBy()).isEqualTo(scheduleOwner);
+      assertThat(duplicated.getLaunchedBy()).isNull();
+    }
+  }
+
+  /**
+   * The launcher as the dispatch reads it (#8730): its id from the inject, by query, then the user
+   * reloaded in the session; never through the inject's own associations.
+   */
+  private void stubLauncher(User launchedBy) {
+    lenient()
+        .when(injectRepository.findLauncherId(INJECT_ID))
+        .thenReturn(Optional.ofNullable(launchedBy).map(User::getId));
+    if (launchedBy != null) {
+      lenient().when(userService.find(List.of(launchedBy.getId()))).thenReturn(List.of(launchedBy));
+    }
+  }
+
+  @Nested
+  @DisplayName("dispatch with a launcher loaded by an earlier, closed transaction")
+  class LauncherOutsideItsSessionTests {
+
+    @BeforeEach
+    void markingEnabled() {
+      lenient()
+          .when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING))
+          .thenReturn(true);
+    }
+
+    @Test
+    @DisplayName("given MARKING on, should resolve the launcher by id, not through the inject")
+    void given_launcherOutsideItsSession_should_resolveTheClearanceById() {
+      // -- ARRANGE --
+      Asset assetGreen = new Asset();
+      assetGreen.setId("asset-green");
+      assetGreen.setMarkingIds(new String[] {"m-green"});
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      assetRed.setMarkingIds(new String[] {"m-red"});
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assetGreen, assetRed));
+      inject.setAssetGroups(List.of());
+
+      inject.setLaunchedBy(
+          mock(
+              User.class,
+              invocation -> {
+                throw new LazyInitializationException("Could not initialize proxy - no session");
+              }));
+      User reloaded = new User();
+      reloaded.setId("user-green");
+      when(injectRepository.findLauncherId(INJECT_ID)).thenReturn(Optional.of("user-green"));
+      when(userService.find(List.of("user-green"))).thenReturn(List.of(reloaded));
+      doReturn(MarkingCtx.forMarkings(List.of("m-green")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-green", "tenant-1", false);
+
+      // -- ACT --
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      // -- ASSERT --
+      assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetGreen);
+    }
+
+    @Test
+    @DisplayName("given no launcher, should resolve zero clearance and skip the marked target")
+    void given_noLauncher_should_skipTheMarkedTarget() {
+      // -- ARRANGE --
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      assetRed.setMarkingIds(new String[] {"m-red"});
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assetRed));
+      inject.setAssetGroups(List.of());
+      when(injectRepository.findLauncherId(INJECT_ID)).thenReturn(Optional.empty());
+
+      // -- ACT --
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      // -- ASSERT --
+      assertThat(resolved).isEmpty();
+      verifyNoInteractions(markingClearanceCacheManager);
+    }
+  }
+
+  @Nested
+  @DisplayName("dispatch with the MARKING preview feature off")
+  class MarkingFeatureOffTests {
+
+    /**
+     * Stands for the launcher of #8730: a lazy {@code User} reached outside its session, which
+     * throws on any access ("Could not initialize proxy ... no session").
+     */
+    private User launcherOutsideItsSession() {
+      return mock(
+          User.class,
+          invocation -> {
+            throw new LazyInitializationException("Could not initialize proxy - no session");
+          });
+    }
+
+    private Inject injectTargeting(Asset... assets) {
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assets));
+      inject.setAssetGroups(List.of());
+      inject.setLaunchedBy(launcherOutsideItsSession());
+      return inject;
+    }
+
+    @Test
+    @DisplayName("given MARKING off, should resolve every target without loading the launcher")
+    void given_markingOff_should_resolveEveryTargetWithoutTheLauncher() {
+      // -- ARRANGE --
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      assetRed.setMarkingIds(new String[] {"m-red"});
+      Asset assetPlain = new Asset();
+      assetPlain.setId("asset-plain");
+      Inject inject = injectTargeting(assetRed, assetPlain);
+
+      // -- ACT --
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      // -- ASSERT --
+      assertThat(resolved)
+          .extracting(AssetToExecute::asset)
+          .containsExactlyInAnyOrder(assetRed, assetPlain);
+      verifyNoInteractions(markingClearanceCacheManager);
+    }
+
+    @Test
+    @DisplayName("given MARKING off, should dispatch to every agentless target")
+    void given_markingOff_should_dispatchToEveryAgentlessTarget() {
+      // -- ARRANGE --
+      Endpoint endpointRed = new Endpoint();
+      endpointRed.setId("endpoint-red");
+      endpointRed.setMarkingIds(new String[] {"m-red"});
+      endpointRed.setAgents(List.of());
+      Inject inject = injectTargeting(endpointRed);
+
+      // -- ACT --
+      AgentsAndAssetsAgentless dispatched =
+          injectService.getAgentsAndAgentlessAssetsByInject(inject);
+
+      // -- ASSERT --
+      assertThat(dispatched.assetsAgentless()).containsExactly(endpointRed);
+      verifyNoInteractions(markingClearanceCacheManager);
+    }
+  }
+
+  @Nested
+  @DisplayName("dispatch-time marking clearance enforcement")
+  class MarkingClearanceFilterTests {
+
+    @BeforeEach
+    void markingEnabled() {
+      lenient()
+          .when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING))
+          .thenReturn(true);
+    }
+
+    private Asset assetWithMarking(String id, String... markingIds) {
+      Asset asset = new Asset();
+      asset.setId(id);
+      if (markingIds.length > 0) {
+        asset.setMarkingIds(markingIds);
+      }
+      return asset;
+    }
+
+    private Inject injectTargeting(User launchedBy, Asset... assets) {
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(assets));
+      inject.setAssetGroups(List.of());
+      inject.setLaunchedBy(launchedBy);
+      stubLauncher(launchedBy);
+      return inject;
+    }
+
+    @Test
+    @DisplayName("full clearance: the visible target is resolved")
+    void given_fullClearance_should_resolveTarget() {
+      User launcher = new User();
+      launcher.setId("user-1");
+      Asset assetGreen = assetWithMarking("asset-green", "m-green");
+      Inject inject = injectTargeting(launcher, assetGreen);
+      doReturn(MarkingCtx.forMarkings(List.of("m-green")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-1", "tenant-1", false);
+
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetGreen);
+    }
+
+    @Test
+    @DisplayName("partial clearance: the canonical ASSET_GREEN/ASSET_RED worked example")
+    void given_partialClearance_should_resolveOnlyVisibleTarget() {
+      User launcher = new User();
+      launcher.setId("user-green");
+      Asset assetGreen = assetWithMarking("asset-green", "m-green");
+      Asset assetRed = assetWithMarking("asset-red", "m-red");
+      Inject inject = injectTargeting(launcher, assetGreen, assetRed);
+      doReturn(MarkingCtx.forMarkings(List.of("m-green")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-green", "tenant-1", false);
+
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetGreen);
+    }
+
+    @Test
+    @DisplayName("zero clearance: the marked target is skipped, never runs")
+    void given_zeroClearance_should_skipMarkedTarget() {
+      User launcher = new User();
+      launcher.setId("user-1");
+      Asset assetRed = assetWithMarking("asset-red", "m-red");
+      Inject inject = injectTargeting(launcher, assetRed);
+      doReturn(MarkingCtx.none())
+          .when(markingClearanceCacheManager)
+          .findClearance("user-1", "tenant-1", false);
+
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      assertThat(resolved).isEmpty();
+    }
+
+    @Test
+    @DisplayName("an unmarked target is always resolved, even under zero clearance")
+    void given_zeroClearance_should_stillResolveUnmarkedTarget() {
+      User launcher = new User();
+      launcher.setId("user-1");
+      Asset assetUnmarked = assetWithMarking("asset-plain");
+      Inject inject = injectTargeting(launcher, assetUnmarked);
+      doReturn(MarkingCtx.none())
+          .when(markingClearanceCacheManager)
+          .findClearance("user-1", "tenant-1", false);
+
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetUnmarked);
+    }
+
+    @Test
+    @DisplayName("bypass actor: the marked target is resolved regardless of clearance")
+    void given_bypassActor_should_resolveTarget() {
+      User admin = new User();
+      admin.setId("user-admin");
+      admin.setAdmin(true);
+      Asset assetRed = assetWithMarking("asset-red", "m-red");
+      Inject inject = injectTargeting(admin, assetRed);
+      doReturn(MarkingCtx.forMarkings(List.of("m-red")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-admin", "tenant-1", true);
+
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetRed);
+      verify(markingClearanceCacheManager).findClearance("user-admin", "tenant-1", true);
+    }
+
+    @Test
+    @DisplayName(
+        "guardrail: AGENT_RUNTIME_ACCESS alone does not bypass here - only "
+            + "isAdminOrBypass() does. The HttpMarkingScopeSupplier agent-callback bypass must never "
+            + "leak into this path")
+    void given_agentRuntimeAccessOnlyActor_should_notBypass() {
+      User agentCapableUser =
+          new User() {
+            @Override
+            public Set<Capability> getCapabilities() {
+              // Deliberately holds AGENT_RUNTIME_ACCESS (the per-tenant agent/implant service
+              // account's capability) but is neither admin nor BYPASS - isAdminOrBypass() must
+              // still be false, and filterByMarkingClearance() must call findClearance with
+              // bypass=false, never consulting getCapabilities() for this decision.
+              return Set.of(Capability.AGENT_RUNTIME_ACCESS);
+            }
+          };
+      agentCapableUser.setId("user-agent");
+      Asset assetRed = assetWithMarking("asset-red", "m-red");
+      Inject inject = injectTargeting(agentCapableUser, assetRed);
+      doReturn(MarkingCtx.none())
+          .when(markingClearanceCacheManager)
+          .findClearance("user-agent", "tenant-1", false);
+
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      assertThat(resolved).isEmpty();
+      verify(markingClearanceCacheManager).findClearance("user-agent", "tenant-1", false);
+    }
+
+    @Test
+    @DisplayName(
+        "null actor (deleted user, or an old row never stamped): marked target skipped, never throws")
+    void given_nullActor_should_skipMarkedTarget_andNeverThrow() {
+      Asset assetRed = assetWithMarking("asset-red", "m-red");
+      Inject inject = injectTargeting(null, assetRed);
+
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      assertThat(resolved).isEmpty();
+      verifyNoInteractions(markingClearanceCacheManager);
+    }
+  }
+
+  @Nested
+  @DisplayName(
+      "Agent-routing dispatch marking clearance enforcement "
+          + "(getAgentsAndAgentlessAssetsByInject, the real dispatch decision)")
+  class AgentRoutingDispatchFilterTests {
+
+    @BeforeEach
+    void markingEnabled() {
+      lenient()
+          .when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING))
+          .thenReturn(true);
+    }
+
+    private Endpoint endpointWithAgent(
+        String assetId, String agentExternalRef, String... markingIds) {
+      Endpoint endpoint = EndpointFixture.createEndpoint(assetId);
+      endpoint.setId(assetId);
+      if (markingIds.length > 0) {
+        endpoint.setMarkingIds(markingIds);
+      }
+      Agent agent = AgentFixture.createAgent(endpoint, agentExternalRef);
+      endpoint.setAgents(List.of(agent));
+      return endpoint;
+    }
+
+    private Inject injectTargetingEndpoints(User launchedBy, Endpoint... endpoints) {
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant("tenant-1"));
+      inject.setAssets(List.of(endpoints));
+      inject.setAssetGroups(List.of());
+      inject.setLaunchedBy(launchedBy);
+      stubLauncher(launchedBy);
+      return inject;
+    }
+
+    @Test
+    @DisplayName(
+        "partial clearance: the canonical ASSET_GREEN/ASSET_RED worked example - the restricted "
+            + "endpoint's agent is excluded from the real dispatch set entirely, not just hidden "
+            + "from a result view")
+    void given_partialClearance_should_excludeRestrictedAgentFromRealDispatch() {
+      User launcher = new User();
+      launcher.setId("user-green");
+      Endpoint endpointGreen = endpointWithAgent("endpoint-green", "agent-green", "m-green");
+      Endpoint endpointRed = endpointWithAgent("endpoint-red", "agent-red", "m-red");
+      Inject inject = injectTargetingEndpoints(launcher, endpointGreen, endpointRed);
+      doReturn(MarkingCtx.forMarkings(List.of("m-green")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-green", "tenant-1", false);
+
+      AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
+
+      assertThat(result.agents())
+          .extracting(Agent::getExternalReference)
+          .containsExactly("agent-green");
+    }
+
+    @Test
+    @DisplayName("bypass actor: both agents are commanded to execute regardless of marking")
+    void given_bypassActor_should_includeBothAgentsInRealDispatch() {
+      User admin = new User();
+      admin.setId("user-admin");
+      admin.setAdmin(true);
+      Endpoint endpointGreen = endpointWithAgent("endpoint-green", "agent-green", "m-green");
+      Endpoint endpointRed = endpointWithAgent("endpoint-red", "agent-red", "m-red");
+      Inject inject = injectTargetingEndpoints(admin, endpointGreen, endpointRed);
+      doReturn(MarkingCtx.forMarkings(List.of("m-green", "m-red")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-admin", "tenant-1", true);
+
+      AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
+
+      assertThat(result.agents())
+          .extracting(Agent::getExternalReference)
+          .containsExactlyInAnyOrder("agent-green", "agent-red");
+    }
+
+    @Test
+    @DisplayName("zero clearance: an unmarked endpoint's agent is still returned")
+    void given_zeroClearance_should_stillIncludeUnmarkedAgent() {
+      User launcher = new User();
+      launcher.setId("user-1");
+      Endpoint endpointPlain = endpointWithAgent("endpoint-plain", "agent-plain");
+      Inject inject = injectTargetingEndpoints(launcher, endpointPlain);
+      doReturn(MarkingCtx.none())
+          .when(markingClearanceCacheManager)
+          .findClearance("user-1", "tenant-1", false);
+
+      AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
+
+      assertThat(result.agents())
+          .extracting(Agent::getExternalReference)
+          .containsExactly("agent-plain");
     }
   }
 }

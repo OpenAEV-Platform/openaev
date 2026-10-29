@@ -1,11 +1,11 @@
+import { Chip, type ChipSeverity } from '@filigran/design-system';
 import { EmailOutlined, NotificationsOutlined, WebhookOutlined } from '@mui/icons-material';
-import { Chip, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchNotifiers } from '../../../../actions/notifications/notifier-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import colorStyles from '../../../../components/Color';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -24,13 +24,6 @@ import NotifierPopover from './NotifierPopover';
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
   // Design system list chip (same pattern as ItemSeverity / the triggers list)
-  chipInList: {
-    fontSize: 12,
-    height: 20,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-    width: 120,
-  },
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
@@ -40,14 +33,14 @@ const inlineStyles: Record<string, CSSProperties> = {
   notifier_built_in: { width: '15%' },
 };
 
-const typeChipStyle = (type?: string): CSSProperties => {
+const typeChipSeverity = (type?: string): ChipSeverity => {
   switch (type) {
     case 'EMAIL':
-      return colorStyles.green;
+      return 'low';
     case 'WEBHOOK':
-      return colorStyles.orange;
+      return 'medium';
     default:
-      return colorStyles.blue;
+      return 'info';
   }
 };
 
@@ -91,8 +84,7 @@ const Notifiers = () => {
         };
         return (
           <Chip
-            classes={{ root: classes.chipInList }}
-            style={typeChipStyle(notifier.notifier_type)}
+            severity={typeChipSeverity(notifier.notifier_type)}
             label={t(labels[notifier.notifier_type ?? 'UI'])}
           />
         );
@@ -110,11 +102,7 @@ const Notifiers = () => {
       isSortable: false,
       value: (notifier: NotifierOutput) => (notifier.notifier_built_in
         ? (
-            <Chip
-              classes={{ root: classes.chipInList }}
-              style={colorStyles.grey}
-              label={t('Built-in')}
-            />
+            <Chip label={t('Built-in')} severity="neutral" />
           )
         : undefined),
     },
@@ -122,7 +110,11 @@ const Notifiers = () => {
 
   return (
     <div style={{ display: 'flex' }}>
-      <div style={{ flexGrow: 1 }}>
+      <div style={{
+        flexGrow: 1,
+        minWidth: 0,
+      }}
+      >
         <Breadcrumbs
           variant="list"
           elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Customization') }, {
@@ -139,7 +131,12 @@ const Notifiers = () => {
           entityPrefix="notifier"
           topBarButtons={(
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-              <NotifierCreate onCreate={result => setNotifiers([...notifiers, result])} />
+              <NotifierCreate
+                onCreate={(result) => {
+                  setNotifiers([...notifiers, result]);
+                  queryableHelpers.paginationHelpers.incrementTotalElements(1);
+                }}
+              />
             </Can>
           )}
         />
@@ -170,7 +167,10 @@ const Notifiers = () => {
                   onUpdate={result => setNotifiers(notifiers.map(existing => (
                     existing.notifier_id !== result.notifier_id ? existing : result
                   )))}
-                  onDelete={result => setNotifiers(notifiers.filter(existing => existing.notifier_id !== result))}
+                  onDelete={(result) => {
+                    setNotifiers(notifiers.filter(existing => existing.notifier_id !== result));
+                    queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                  }}
                 />
               )}
               divider

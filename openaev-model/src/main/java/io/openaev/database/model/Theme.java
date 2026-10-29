@@ -15,6 +15,7 @@ public class Theme implements Base {
     PRIMARY_COLOR("primary_color", ""),
     SECONDARY_COLOR("secondary_color", ""),
     ACCENT_COLOR("accent_color", ""),
+    TEXT_COLOR("text_color", ""),
     LOGO_URL("logo_url", ""),
     LOGO_URL_COLLAPSED("logo_url_collapsed", ""),
     LOGO_LOGIN_URL("logo_login_url", ""),

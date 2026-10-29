@@ -55,7 +55,12 @@ const PlatformGroupsTab = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES}>
-            <PlatformGroupCreate onCreate={addPlatformGroup} />
+            <PlatformGroupCreate
+              onCreate={(group) => {
+                addPlatformGroup(group);
+                queryableHelpers.paginationHelpers.incrementTotalElements(1);
+              }}
+            />
           </Can>
         )}
       />
@@ -88,7 +93,10 @@ const PlatformGroupsTab = () => {
                     platformGroup={group}
                     actions={['Update', 'Manage users', 'Manage roles', 'Delete']}
                     onUpdate={updatePlatformGroupInList}
-                    onDelete={removePlatformGroup}
+                    onDelete={(groupId) => {
+                      removePlatformGroup(groupId);
+                      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                    }}
                   />
                 )}
                 headers={headers}

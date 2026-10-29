@@ -2,14 +2,12 @@ export default function buildSimulationTabs(params: {
   lessonsEnabled: boolean | undefined;
   isAutonomous: boolean;
   hasWorkflow: boolean;
-  hasInjectTests: boolean;
   t: (value: string) => string;
 }): [string, string][] {
   const {
     lessonsEnabled,
     isAutonomous,
     hasWorkflow,
-    hasInjectTests,
     t,
   } = params;
 
@@ -41,7 +39,7 @@ export default function buildSimulationTabs(params: {
   return [
     ['', t('Overview')],
     ['/injects', t('Injects')],
-    ...(hasInjectTests ? [['/tests', t('Tests')] as [string, string]] : []),
+    ['/tests', t('Tests')],
     ['/execution', t('Execution')],
     ['/findings', t('Findings')],
     ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),

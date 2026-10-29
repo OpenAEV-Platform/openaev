@@ -5,10 +5,12 @@ import static io.openaev.service.ImportService.EXPORT_ENTRY_EXERCISE;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DocumentRepository;
+import io.openaev.export.FileExportBase;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
@@ -16,6 +18,7 @@ import io.openaev.rest.inject.exports.InjectsFileExport;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.FileService;
+import io.openaev.service.organization.OrganizationService;
 import jakarta.annotation.Resource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,6 +40,7 @@ public class InjectExportService {
   @Resource private ChallengeService challengeService;
   @Resource private ArticleService articleService;
   @Resource private FileService fileService;
+  @Resource private OrganizationService organizationService;
 
   public String getZipFileName(int exportOptionsMask) {
     String infos =
@@ -61,7 +65,11 @@ public class InjectExportService {
 
     InjectsFileExport importExport =
         InjectsFileExport.fromInjects(
-                injects, objectMapper, this.challengeService, this.articleService)
+                injects,
+                objectMapper,
+                this.challengeService,
+                this.articleService,
+                this.organizationService)
             .withOptions(exportOptionsMask);
 
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -69,11 +77,13 @@ public class InjectExportService {
     ZipEntry zipEntry = new ZipEntry("injects.json");
     zipEntry.setComment(EXPORT_ENTRY_EXERCISE);
     zipExport.putNextEntry(zipEntry);
+    ObjectNode exportNode = importExport.getObjectMapper().valueToTree(importExport);
+    FileExportBase.dropForeignOrganizationReferences(exportNode, "inject");
     zipExport.write(
         importExport
             .getObjectMapper()
             .writerWithDefaultPrettyPrinter()
-            .writeValueAsBytes(importExport));
+            .writeValueAsBytes(exportNode));
     zipExport.closeEntry();
     // The injects of one export belong to a single exercise or scenario, hence a single tenant. A
     // set spanning tenants is only reachable by crafting a cross-tenant selection on the header

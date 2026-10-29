@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
@@ -38,7 +39,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @EntityListeners(ModelBaseListener.class)
 @Table(name = "scope_variables")
-public class ScopeVariable implements Base {
+public class ScopeVariable implements TenantBase {
 
   @Id
   @Column(name = "scope_variable_id")
@@ -47,6 +48,11 @@ public class ScopeVariable implements Base {
   @JsonProperty("scope_variable_id")
   @NotNull
   private String id;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  private Tenant tenant;
 
   @Column(name = "scope_variable_key")
   @JsonProperty("scope_variable_key")
@@ -119,5 +125,11 @@ public class ScopeVariable implements Base {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  /** A scope variable belongs to its workflow's tenant. */
+  @PrePersist
+  void attributeTenantFromWorkflow() {
+    tenant = ParentTenant.inherit(this, tenant, workflow != null ? workflow.getTenant() : null);
   }
 }

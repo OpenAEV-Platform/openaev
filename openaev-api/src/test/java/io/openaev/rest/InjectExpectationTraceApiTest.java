@@ -74,6 +74,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
     savedSecurityPlatform = securityPlatformRepository.save(sp);
 
     CollectorType collectorType = new CollectorType("type");
+    collectorType.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     collectorTypeRepository.save(collectorType);
 
     Collector collector = new Collector();

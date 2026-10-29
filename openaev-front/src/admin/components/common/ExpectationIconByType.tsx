@@ -11,15 +11,7 @@ import {
 import { type SvgIconProps } from '@mui/material';
 import { type ComponentType, type CSSProperties, type ReactElement } from 'react';
 
-// Single source of truth for expectation-type icons (coherent Outlined set),
-// each chosen to read clearly at a glance:
-// - Prevention: shield with a check (the attack was blocked)
-// - Detection: sensor waves (the attack was picked up / alerted on)
-// - Vulnerability: a bug report
-// - Human response: a support agent (a person reacting to the attack)
-// - Manual: a completed task check (manually validated outcome)
-// - Article / media pressure: a newspaper
-// - Challenge: a trophy (capture-the-flag style)
+// Single source of truth for expectation-type icons.
 const EXPECTATION_TYPE_ICON: Record<string, ComponentType<SvgIconProps>> = {
   PREVENTION: GppGoodOutlined,
   DETECTION: SensorsOutlined,
@@ -30,7 +22,6 @@ const EXPECTATION_TYPE_ICON: Record<string, ComponentType<SvgIconProps>> = {
   CHALLENGE: EmojiEventsOutlined,
 };
 
-// Case-insensitive lookup returning the icon component itself.
 export const expectationTypeIcon = (expectationType: string | undefined): ComponentType<SvgIconProps> => {
   return EXPECTATION_TYPE_ICON[(expectationType ?? '').toUpperCase()] ?? HelpOutlineOutlined;
 };
@@ -46,6 +37,23 @@ const EXPECTATION_TYPE_IDENTITY_COLOR = '#0fbcff';
 // are ever reintroduced; today every expectation type resolves to the brand blue.
 export const expectationTypeColor = (_expectationType?: string): string => {
   return EXPECTATION_TYPE_IDENTITY_COLOR;
+};
+
+// Result colours for an expectation, taken from the library feedback palette.
+// PENDING (still running) stays brighter than UNKNOWN (never measured), so the
+// two neutral states keep reading apart. An unrecognised result falls back to
+// UNKNOWN rather than to the partial orange, which would claim a measurement
+// that was never made.
+const EXPECTATION_RESULT_COLOR: Record<string, string> = {
+  SUCCESS: 'var(--color-feedback-success-primary)',
+  PARTIAL: 'var(--color-feedback-warning-primary)',
+  PENDING: 'var(--color-feedback-neutral-primary)',
+  FAILED: 'var(--color-feedback-error-primary)',
+  UNKNOWN: 'var(--color-feedback-neutral-secondary)',
+};
+
+export const expectationResultColor = (result: string | undefined): string => {
+  return EXPECTATION_RESULT_COLOR[result ?? ''] ?? EXPECTATION_RESULT_COLOR.UNKNOWN;
 };
 
 export default function expectationIconByType(expectationType: string | undefined, style: CSSProperties = {}): ReactElement {

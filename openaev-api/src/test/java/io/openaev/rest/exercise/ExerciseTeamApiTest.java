@@ -16,6 +16,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.List;
@@ -44,11 +45,11 @@ public class ExerciseTeamApiTest extends IntegrationTest {
     @DisplayName("Returns global and exercise teams when searching teams")
     void givenContextualOnlyFalse_whenSearchingTeams_shouldReturnGlobalAndExerciseTeams()
         throws Exception {
-      Team team = new Team();
+      Team team = TeamFixture.getEmptyTeam();
       String teamName = "Team test";
       team.setName(teamName);
 
-      Team contextualTeam = new Team();
+      Team contextualTeam = TeamFixture.getEmptyTeam();
       contextualTeam.setName(teamName + " 2");
       contextualTeam.setContextual(true);
       List<Team> savedTeams = teamRepository.saveAll(List.of(team, contextualTeam));
@@ -80,18 +81,18 @@ public class ExerciseTeamApiTest extends IntegrationTest {
     @DisplayName("Returns only exercise teams")
     void givenContextualOnlyTrue_whenSearchingTeams_shouldReturnOnlyExerciseTeams()
         throws Exception {
-      Team team = new Team();
+      Team team = TeamFixture.getEmptyTeam();
       String teamName = "Team test";
       team.setName(teamName);
 
-      Team team1 = new Team();
+      Team team1 = TeamFixture.getEmptyTeam();
       team1.setName(teamName + "1");
 
-      Team contextualTeam = new Team();
+      Team contextualTeam = TeamFixture.getEmptyTeam();
       contextualTeam.setName(teamName + "3");
       contextualTeam.setContextual(true);
 
-      Team contextualTeam1 = new Team();
+      Team contextualTeam1 = TeamFixture.getEmptyTeam();
       contextualTeam1.setName(teamName + "4");
       contextualTeam1.setContextual(true);
 

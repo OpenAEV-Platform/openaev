@@ -65,7 +65,7 @@ class ScenarioImportApiTenantIsolationTest extends IntegrationTest {
     mapperB = seedMapper(tenantB, "scen-mapper-b");
     when(scenarioService.scenario(any())).thenReturn(new Scenario());
     when(injectImportService.importInjectIntoScenarioFromXLS(
-            any(), any(), any(), any(), anyInt(), anyBoolean()))
+            any(), any(), any(), any(), any(), anyInt(), anyBoolean()))
         .thenReturn(new ImportTestSummary());
   }
 

@@ -1,7 +1,8 @@
-import { CheckOutlined } from '@mui/icons-material';
 import { Box, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactElement } from 'react';
+
+import CheckboxIndicator from '../CheckboxIndicator';
 
 export interface FacetRow {
   value: string;
@@ -47,30 +48,7 @@ export const FacetRowItem = ({ row }: { row: FacetRow }) => {
         '&:hover': { backgroundColor: theme.palette.action.hover },
       }}
     >
-      <span
-        aria-hidden
-        style={{
-          width: 16,
-          height: 16,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: 2,
-          border: `1px solid ${row.checked ? theme.palette.primary.main : theme.palette.divider}`,
-          backgroundColor: row.checked ? theme.palette.primary.main : 'transparent',
-          boxShadow: row.checked ? `0 0 6px ${alpha(theme.palette.primary.main, 0.5)}` : 'none',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        {row.checked && (
-          <CheckOutlined sx={{
-            fontSize: 12,
-            color: theme.palette.primary.contrastText,
-          }}
-          />
-        )}
-      </span>
+      <CheckboxIndicator checked={row.checked} />
       {row.icon && (
         <Box
           aria-hidden
@@ -143,15 +121,16 @@ export const FacetSidebar = ({ sections }: FacetSidebarProps) => {
         position: 'sticky',
         top: theme.spacing(2),
         alignSelf: 'flex-start',
-        maxHeight: `calc(100vh - ${theme.spacing(20)})`,
-        overflowY: 'auto',
       }}
     >
+      {/* The card scrolls inside its own frame, so its border and radius stay whole. */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
         gap: theme.spacing(2),
         padding: theme.spacing(2),
+        maxHeight: `calc(100vh - ${theme.spacing(20)})`,
+        overflowY: 'auto',
         borderRadius: theme.shape.borderRadius,
         border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
         backgroundColor: theme.palette.background.paper,

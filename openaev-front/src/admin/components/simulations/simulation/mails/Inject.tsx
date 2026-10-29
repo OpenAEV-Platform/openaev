@@ -1,13 +1,13 @@
+import { Button } from '@filigran/design-system';
 import { ReplyOutlined } from '@mui/icons-material';
-import { Button, Dialog, DialogContent, DialogTitle, Grid, Paper, Typography } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle, Grid, Paper, Typography } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchInjectCommunications } from '../../../../../actions/Communication';
 import { type CommunicationHelper } from '../../../../../actions/communications/communication-helper';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { type UserHelper } from '../../../../../actions/helper';
+import { type LoggedHelper, type UserHelper } from '../../../../../actions/helper';
 import { executeInject, fetchExerciseInjects } from '../../../../../actions/Inject';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { fetchPlayers } from '../../../../../actions/users/User';
@@ -17,7 +17,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
-import { type Communication as CommunicationType, type Exercise } from '../../../../../utils/api-types';
+import { type Communication as CommunicationType } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { PermissionsContext } from '../../../common/Context';
@@ -65,9 +65,9 @@ const InjectComponent: FunctionComponent = () => {
   const { permissions } = useContext(PermissionsContext);
 
   // Fetching data
-  const { exercise, inject, communications, usersMap } = useHelper(
-    (helper: ExercisesHelper & InjectHelper & UserHelper & CommunicationHelper) => ({
-      exercise: helper.getExercise(exerciseId),
+  const { settings, inject, communications, usersMap } = useHelper(
+    (helper: LoggedHelper & InjectHelper & UserHelper & CommunicationHelper) => ({
+      settings: helper.getPlatformSettings(),
       inject: helper.getInject(injectId),
       communications: helper.getInjectCommunications(injectId),
       usersMap: helper.getUsersMap(),
@@ -204,7 +204,7 @@ const InjectComponent: FunctionComponent = () => {
               </Grid>
               <Grid size={6}>
                 <Typography variant="h3">{t('Sender email address')}</Typography>
-                {(exercise as Exercise).exercise_mail_from}
+                {settings.default_mailer}
               </Grid>
             </Grid>
           </Paper>
@@ -237,7 +237,6 @@ const InjectComponent: FunctionComponent = () => {
 
       <div className={classes.mailsSection}>
         <SectionLabel>{t('Mails')}</SectionLabel>
-        <div className="clearfix" />
         {topics.map((topic) => {
           const topicUsers = (topic.communication_users ?? []).map(
             (userId: string) => usersMap[userId] ?? {},
@@ -268,12 +267,7 @@ const InjectComponent: FunctionComponent = () => {
                   justifyContent: 'flex-end',
                 }}
                 >
-                  <Button
-                    variant="outlined"
-                    className={classes.replyAction}
-                    startIcon={<ReplyOutlined />}
-                    onClick={() => handleOpenReply(topic.communication_id)}
-                  >
+                  <Button type="button" priority="secondary" startIcon={<ReplyOutlined fontSize="small" />} className={classes.replyAction} onClick={() => handleOpenReply(topic.communication_id)}>
                     {t('Reply')}
                   </Button>
                 </div>

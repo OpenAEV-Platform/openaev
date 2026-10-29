@@ -34,8 +34,13 @@ class EsIndexingUtilsTest {
   private static final Instant T0 = Instant.parse("2026-01-01T00:00:00Z");
 
   private static EsBase row(Instant updatedAt) {
+    return row(updatedAt, null);
+  }
+
+  private static EsBase row(Instant updatedAt, String baseId) {
     EsBase row = new EsBase();
     row.setBase_updated_at(updatedAt);
+    row.setBase_id(baseId);
     return row;
   }
 
@@ -63,6 +68,40 @@ class EsIndexingUtilsTest {
       assertThat(EsIndexingUtils.isPoisonError("circuit_breaking_exception")).isFalse();
       assertThat(EsIndexingUtils.isPoisonError("cluster_block_exception")).isFalse();
       assertThat(EsIndexingUtils.isPoisonError(null)).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("isIncompatibleMappingError")
+  class IsIncompatibleMappingError {
+
+    @Test
+    @DisplayName("A mapping the existing index cannot take allows a reset")
+    void given_incompatibleMappingAnswer_should_allowAReset() {
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(400, "illegal_argument_exception"))
+          .isTrue();
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(400, "mapper_parsing_exception"))
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("An operational failure never allows a reset, whatever its error type")
+    void given_operationalFailure_should_neverAllowAReset() {
+      // Authorization, unavailable engine, overloaded engine: nothing about the mapping
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(403, "security_exception")).isFalse();
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(401, "security_exception")).isFalse();
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(503, "cluster_block_exception"))
+          .isFalse();
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(429, "es_rejected_execution_exception"))
+          .isFalse();
+      // A mapping-like type with a non-400 status is not a confirmed incompatibility either
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(500, "illegal_argument_exception"))
+          .isFalse();
+      assertThat(
+              EsIndexingUtils.isIncompatibleMappingError(
+                  400, "action_request_validation_exception"))
+          .isFalse();
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(400, null)).isFalse();
     }
   }
 
@@ -370,46 +409,58 @@ class EsIndexingUtilsTest {
     @DisplayName("A round that read a row writes through the compare-and-set on that value")
     void given_readCursor_should_advanceFromIt() {
       when(repository.advanceCursorFrom(
-              "asset", T0, ts(60), EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD))
+              "asset", T0, "a", ts(60), "b", EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD))
           .thenReturn(1);
 
       boolean persisted =
           EsIndexingUtils.persistCursor(
-              repository, new EsIndexingUtils.CursorAdvance("asset", T0, ts(60)), LOG);
+              repository,
+              new EsIndexingUtils.CursorAdvance(
+                  "asset", new IndexingCursor(T0, "a"), new IndexingCursor(ts(60), "b")),
+              LOG);
 
       assertThat(persisted).isTrue();
       verify(repository)
-          .advanceCursorFrom("asset", T0, ts(60), EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
-      verify(repository, never()).insertCursorIfAbsent(any(), any());
+          .advanceCursorFrom(
+              "asset", T0, "a", ts(60), "b", EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
+      verify(repository, never()).insertCursorIfAbsent(any(), any(), any());
     }
 
     @Test
     @DisplayName("A round that found no row only ever inserts, never overwrites")
     void given_noReadCursor_should_insertIfAbsent() {
-      when(repository.insertCursorIfAbsent("asset", ts(60))).thenReturn(1);
+      when(repository.insertCursorIfAbsent("asset", ts(60), null)).thenReturn(1);
 
       boolean persisted =
           EsIndexingUtils.persistCursor(
-              repository, new EsIndexingUtils.CursorAdvance("asset", null, ts(60)), LOG);
+              repository,
+              new EsIndexingUtils.CursorAdvance("asset", null, new IndexingCursor(ts(60), null)),
+              LOG);
 
       assertThat(persisted).isTrue();
-      verify(repository).insertCursorIfAbsent("asset", ts(60));
-      verify(repository, never()).advanceCursorFrom(any(), any(), any(), any());
+      verify(repository).insertCursorIfAbsent("asset", ts(60), null);
+      verify(repository, never()).advanceCursorFrom(any(), any(), any(), any(), any(), any());
     }
 
     @Test
     @DisplayName("A refused write (the row changed since it was read) is reported, not retried")
     void given_rowChangedSinceRead_should_reportRefusedWrite() {
-      when(repository.advanceCursorFrom(any(), any(), any(), any())).thenReturn(0);
-      when(repository.insertCursorIfAbsent(any(), any())).thenReturn(0);
+      when(repository.advanceCursorFrom(any(), any(), any(), any(), any(), any())).thenReturn(0);
+      when(repository.insertCursorIfAbsent(any(), any(), any())).thenReturn(0);
 
       assertThat(
               EsIndexingUtils.persistCursor(
-                  repository, new EsIndexingUtils.CursorAdvance("asset", T0, ts(60)), LOG))
+                  repository,
+                  new EsIndexingUtils.CursorAdvance(
+                      "asset", new IndexingCursor(T0, null), new IndexingCursor(ts(60), null)),
+                  LOG))
           .isFalse();
       assertThat(
               EsIndexingUtils.persistCursor(
-                  repository, new EsIndexingUtils.CursorAdvance("asset", null, ts(60)), LOG))
+                  repository,
+                  new EsIndexingUtils.CursorAdvance(
+                      "asset", null, new IndexingCursor(ts(60), null)),
+                  LOG))
           .isFalse();
     }
   }
@@ -430,8 +481,82 @@ class EsIndexingUtilsTest {
           .contains("'openaev_expectation-inject'")
           .contains("its index could not be deleted")
           .contains("retried at the next startup")
-          .contains("UPDATE indexing_status SET indexing_status_indexing_date = to_timestamp(0)")
+          .contains("UPDATE indexing_status SET indexing_status_indexing_date = to_timestamp(0),")
+          .contains("indexing_status_last_id = NULL")
           .contains("WHERE indexing_status_type = 'expectation-inject'");
+    }
+  }
+
+  @Nested
+  @DisplayName("Keyset cursor")
+  class KeysetCursor {
+
+    @Test
+    @DisplayName("Keyset batch returns the last row's timestamp and id")
+    void given_keysetBatch_should_returnLastRowTimestampAndId() {
+      // A batch with distinct timestamps: the cursor must be the last row's pair, not the greatest
+      // timestamp of the batch alone.
+      List<EsBase> batch = List.of(row(ts(1), "a"), row(ts(2), "b"), row(ts(3), "c"));
+
+      IndexingCursor cursor = EsIndexingUtils.computeKeysetCursor(batch);
+
+      assertThat(cursor).isEqualTo(new IndexingCursor(ts(3), "c"));
+    }
+
+    @Test
+    @DisplayName("Full batch sharing one timestamp advances on the id alone")
+    void given_fullKeysetBatchSharingOneTimestamp_should_advanceOnTheIdAlone() {
+      // Unlike computeNewCursor, a keyset handler can safely advance past a full batch where every
+      // row shares the same timestamp: the id makes progress observable even when the timestamp
+      // does not move.
+      List<EsBase> batch = List.of(row(ts(5), "a"), row(ts(5), "b"), row(ts(5), "c"));
+
+      IndexingCursor cursor = EsIndexingUtils.computeKeysetCursor(batch);
+
+      assertThat(cursor).isEqualTo(new IndexingCursor(ts(5), "c"));
+    }
+
+    @Test
+    @DisplayName("Null timestamp on the last row yields a null cursor")
+    void given_keysetBatchWithNullTimestamp_should_returnNull() {
+      List<EsBase> batch = List.of(row(ts(1), "a"), row(null, "b"));
+
+      IndexingCursor cursor = EsIndexingUtils.computeKeysetCursor(batch);
+
+      assertThat(cursor).isNull();
+    }
+
+    @Test
+    @DisplayName("Grace-window cap moving the timestamp drops the last id")
+    void given_capMovesTheTimestamp_should_dropTheLastId() {
+      Instant now = ts(1000);
+      IndexingCursor cursor = new IndexingCursor(ts(990), "a");
+
+      IndexingCursor capped = EsIndexingUtils.capToGraceWindow(cursor, now, 60);
+
+      assertThat(capped).isEqualTo(new IndexingCursor(ts(940), null));
+    }
+
+    @Test
+    @DisplayName("Grace-window cap not moving the timestamp keeps the last id")
+    void given_capDoesNotMoveTheTimestamp_should_keepTheLastId() {
+      Instant now = ts(1000);
+      IndexingCursor cursor = new IndexingCursor(ts(900), "a");
+
+      IndexingCursor capped = EsIndexingUtils.capToGraceWindow(cursor, now, 60);
+
+      assertThat(capped).isEqualTo(cursor);
+    }
+
+    @Test
+    @DisplayName("Negative grace window never caps into the future")
+    void given_negativeGraceWindow_should_notCapIntoTheFuture() {
+      Instant now = ts(1000);
+      IndexingCursor cursor = new IndexingCursor(ts(1030), "a");
+
+      IndexingCursor capped = EsIndexingUtils.capToGraceWindow(cursor, now, -30);
+
+      assertThat(capped).isEqualTo(new IndexingCursor(now, null));
     }
   }
 }

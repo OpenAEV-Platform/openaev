@@ -6,6 +6,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.when;
 
 import io.openaev.config.TenantUriUtils;
+import io.openaev.utils.RequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import java.util.Optional;
@@ -23,7 +24,7 @@ import org.springframework.web.servlet.HandlerMapping;
 
 @ExtendWith(MockitoExtension.class)
 public class TenantUriUtilsTest {
-  private final TenantUriUtils tenantUriUtils = new TenantUriUtils();
+  private final TenantUriUtils tenantUriUtils = new TenantUriUtils(new RequestUtils());
   @Mock private HttpServletRequest mockRequest;
 
   static final String tenantId = "c078ce91-d4b8-4d29-a17e-b8fea925dc2c";

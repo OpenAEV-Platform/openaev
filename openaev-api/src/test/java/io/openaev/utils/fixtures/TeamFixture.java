@@ -1,6 +1,8 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.rest.team.form.TeamCreateInput;
 import java.util.ArrayList;
@@ -73,10 +75,16 @@ public class TeamFixture {
     return createTeamWithName(null);
   }
 
+  /**
+   * Stamps the ambient tenant, which is what {@code TenantBaseListener} did for every team fixture
+   * until teams moved to v2. The listener is gone from {@code Team}, so an unattributed team now
+   * fails on the not-null tenant column instead; a test that needs another tenant overrides it.
+   */
   public static Team createTeamWithName(String name) {
     String new_name = name == null ? "team-%s".formatted(UUID.randomUUID()) : name;
     Team team = new Team();
     team.setName(new_name);
+    team.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return team;
   }
 }

@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,7 +13,6 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
@@ -26,16 +24,20 @@ import org.hibernate.annotations.UuidGenerator;
  * only a {@link CustomDomainStatus#VERIFIED} domain is offered to landing pages and answered by the
  * public {@code domain-check} endpoint that fronts on-demand TLS. The hostname is globally unique
  * so an inbound request can be mapped to exactly one tenant without ambiguity; because that mapping
- * is consulted from unauthenticated public requests, the two public lookups use native,
- * tenant-filter bypassing queries while all admin CRUD stays tenant-scoped through the Hibernate
- * {@code tenantFilter}.
+ * is consulted from an unauthenticated public request with no tenant of its own, the lookup behind
+ * it ({@code CustomDomainRepository#findStatusByHostname}) runs under an explicit {@code
+ * TxCtx.allTenants()} scope (see {@code CustomDomainPublicLookupService}) rather than the caller's
+ * request scope. All admin CRUD stays tenant-scoped through the v2 statement inspector.
+ *
+ * <p>This entity is fully switched to v2 tenant isolation (statement inspector + {@code
+ * can_access_tenant}). Keep the v1 {@code @Filter} and {@code TenantBaseListener} removed to avoid
+ * mixed isolation/write-attribution modes.
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "custom_domains")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
 public class CustomDomain implements TenantBase {
 
   public enum CustomDomainStatus {

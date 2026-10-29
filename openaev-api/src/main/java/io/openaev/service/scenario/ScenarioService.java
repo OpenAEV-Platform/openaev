@@ -5,7 +5,6 @@ import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.database.specification.TeamSpecification.fromScenario;
-import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
@@ -26,7 +25,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -38,12 +36,15 @@ import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.export.FileExportBase;
 import io.openaev.export.Mixins;
 import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
@@ -68,6 +69,7 @@ import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -101,7 +103,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.function.TriFunction;
 import org.hibernate.Hibernate;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -119,13 +120,8 @@ import org.springframework.validation.annotation.Validated;
 public class ScenarioService {
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
-
-  @Value("${openaev.mail.imap.username}")
-  private String imapUsername;
-
-  @Resource private OpenAEVConfig openAEVConfig;
+  @Resource private PlatformMailSender platformMailSender;
+  @Resource private OrganizationService organizationService;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -218,30 +214,13 @@ public class ScenarioService {
     return scenarios.stream().map(ScenarioSimple::fromScenario).toList();
   }
 
-  /**
-   * Fills in the platform email defaults for the fields the caller left empty.
-   *
-   * <p>Each field is defaulted independently: the creation input carries no {@code from}, so gating
-   * the whole block on it used to overwrite the sender display name and the reply-to addresses the
-   * user had just typed in the creation form.
-   */
+  /** Fills in the platform email defaults for the fields the caller left empty. */
   public void computeEmails(@NotNull Scenario scenario) {
-    // getFromName() derives the display name from `from` when unset, so it must be evaluated
-    // before `from` is defaulted, otherwise the derived value hides the missing display name.
-    boolean hasFromName = hasText(scenario.getFromName());
-    if (!hasText(scenario.getFrom())) {
-      scenario.setFrom(
-          this.imapEnabled ? this.imapUsername : this.openAEVConfig.getDefaultMailer());
-    }
-    if (!hasFromName) {
-      scenario.setFromName(
-          this.imapEnabled
-              ? resolveFromName(null, this.imapUsername)
-              : this.openAEVConfig.getDefaultMailerName());
+    if (!hasText(scenario.getFromName())) {
+      scenario.setFromName(platformMailSender.getName());
     }
     if (scenario.getReplyTos() == null || scenario.getReplyTos().isEmpty()) {
-      String defaultReplyTo =
-          this.imapEnabled ? this.imapUsername : this.openAEVConfig.getDefaultReplyTo();
+      String defaultReplyTo = platformMailSender.getReplyTo();
       scenario.setReplyTos(
           hasText(defaultReplyTo) ? new ArrayList<>(List.of(defaultReplyTo)) : new ArrayList<>());
     }
@@ -505,6 +484,25 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
+  /**
+   * Returns the tenant of a scenario, provided it is one of the given tenants. The scenario is
+   * resolved by its id whatever the ambient tenant, so a request whose scope spans several tenants
+   * finds it in any of them. A scenario outside those tenants is reported as not found, exactly
+   * like one that does not exist.
+   *
+   * @param scenarioId the scenario to locate
+   * @param tenantIds the tenants the caller may work in
+   * @return the scenario's tenant id
+   */
+  public String scenarioTenantWithin(
+      @NotBlank final String scenarioId, @NotNull final Set<String> tenantIds) {
+    return this.scenarioRepository
+        .findById(scenarioId)
+        .map(scenario -> scenario.getTenant().getId())
+        .filter(tenantIds::contains)
+        .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
+  }
+
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
     RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {
@@ -587,8 +585,9 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Latest exercise not found"));
   }
 
+  @Transactional
   public Scenario updateScenario(@NotNull final Scenario scenario) {
-    return this.updateScenario(scenario, null, false);
+    return updateScenarioInternal(scenario, null, false);
   }
 
   /**
@@ -600,6 +599,11 @@ public class ScenarioService {
    */
   @Transactional
   public Scenario updateScenario(
+      @NotNull final Scenario scenario, Set<Tag> currentTags, boolean applyRule) {
+    return updateScenarioInternal(scenario, currentTags, applyRule);
+  }
+
+  private Scenario updateScenarioInternal(
       @NotNull final Scenario scenario, Set<Tag> currentTags, boolean applyRule) {
     if (applyRule) {
       // Get asset groups from the TagRule of the added tags
@@ -831,15 +835,10 @@ public class ScenarioService {
       scenarioFileExport.setUsers(players);
       objectMapper.addMixIn(User.class, Mixins.User.class);
       scenarioTags.addAll(players.stream().flatMap(user -> user.getTags().stream()).toList());
-      // organizations
+      // organizations: only the scenario's tenant ones, a player may belong to another tenant's
       List<Organization> organizations =
-          new ArrayList<>(
-              players.stream().map(User::getOrganization).filter(Objects::nonNull).toList());
-      organizations.addAll(
-          scenario.getTeams().stream()
-              .map(Team::getOrganization)
-              .filter(Objects::nonNull)
-              .toList());
+          organizationService.organizationsInTenant(
+              players, scenario.getTeams(), scenario.getTenant().getId());
       scenarioFileExport.setOrganizations(organizations);
       objectMapper.addMixIn(Organization.class, Mixins.Organization.class);
       scenarioTags.addAll(organizations.stream().flatMap(org -> org.getTags().stream()).toList());
@@ -966,6 +965,7 @@ public class ScenarioService {
     zipEntry.setComment(EXPORT_ENTRY_SCENARIO);
     zipExport.putNextEntry(zipEntry);
     ObjectNode exportNode = objectMapper.valueToTree(scenarioFileExport);
+    FileExportBase.dropForeignOrganizationReferences(exportNode, "scenario");
     workflowExportInitializer.enrichWorkflowDataForExport(
         exportNode, "scenario_workflow", objectMapper);
     zipExport.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(exportNode));
@@ -1066,13 +1066,11 @@ public class ScenarioService {
   }
 
   public Scenario addScenarioPlayer(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
@@ -1084,13 +1082,11 @@ public class ScenarioService {
   }
 
   public Scenario enableAddScenarioTeamPlayer(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     return this.enablePlayers(scenarioId, team, playerIds);
   }
 
@@ -1131,8 +1127,68 @@ public class ScenarioService {
     return this.scenario(scenarioId);
   }
 
+  /**
+   * Duplicates a scenario in full: its authored content, plus the logic map when it is chained.
+   *
+   * <p>This is the entry point for the duplicate endpoint. The metadata-only {@link
+   * #getDuplicateScenario(String)} stays separate because {@code
+   * AutonomousRunService.convertToManual} calls it and then copies the workflow itself - folding
+   * the chaining copy into it would give that duplicate two TEMPLATE workflows.
+   *
+   * @param scenarioId the source scenario
+   * @return the persisted duplicate
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Scenario duplicateScenario(@NotBlank String scenarioId) throws ChainingException {
+    Scenario duplicate = copyScenarioContent(scenarioId);
+    duplicateChainingWorkflowIfAny(scenarioId, duplicate);
+    return duplicate;
+  }
+
+  /**
+   * Copies the logic map of a chained scenario onto its freshly created duplicate.
+   *
+   * <p>Chaining is an Enterprise Edition feature, but the duplicate endpoint also serves time-based
+   * scenarios, so it cannot carry an unconditional {@code isEnterpriseEdition = true} on {@code
+   * AccessControl} - that flag is applied before anything else. The licence is therefore checked
+   * programmatically, and only on the chained branch. Degrading silently to a metadata-only copy is
+   * not an option: the user would lose the logic map with no signal.
+   *
+   * @param scenarioId the source scenario
+   * @param duplicate the persisted duplicate to attach the copied workflow to
+   */
+  private void duplicateChainingWorkflowIfAny(
+      @NotBlank final String scenarioId, @NotNull final Scenario duplicate)
+      throws ChainingException {
+    if (!workflowService.isScenarioChaining(scenarioId)) {
+      return;
+    }
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
+      throw new EnterpriseEditionException("Enterprise Edition license required");
+    }
+    workflowService.duplicateScenarioWorkflow(scenarioId, duplicate);
+  }
+
+  /**
+   * Duplicates a scenario's authored content only, without its chaining logic map. {@code
+   * AutonomousRunService.convertToManual} relies on this: it copies the workflow itself afterwards.
+   * Use {@link #duplicateScenario(String)} for the full duplicate.
+   *
+   * @param scenarioId the source scenario
+   * @return the persisted duplicate
+   */
   @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
+    return copyScenarioContent(scenarioId);
+  }
+
+  /**
+   * The metadata copy itself. Free of {@code @Transactional} so both public entry points can call
+   * it without tripping the Spring self-invocation trap; they are the ones carrying the
+   * transaction. Package-private so it can be stubbed when unit-testing the orchestration.
+   */
+  Scenario copyScenarioContent(@NotBlank String scenarioId) {
     if (StringUtils.isNotBlank(scenarioId)) {
       Scenario scenarioOrigin =
           scenarioRepository
@@ -1208,7 +1264,6 @@ public class ScenarioService {
     scenarioDuplicate.setHeader(scenario.getHeader());
     scenarioDuplicate.setMainFocus(scenario.getMainFocus());
     scenarioDuplicate.setDefaultKillChain(scenario.getDefaultKillChain());
-    scenarioDuplicate.setFrom(scenario.getFrom());
     scenarioDuplicate.setFromName(scenario.getFromName());
     scenarioDuplicate.setExternalUrl(scenario.getExternalUrl());
     scenarioDuplicate.setLessonsEnabled(scenario.isLessonsEnabled());
@@ -1382,6 +1437,7 @@ public class ScenarioService {
     List<HealthCheck> injectsHealthChecks =
         healthCheckUtils.removeDuplicates(
             scenario.getInjects().stream()
+                .filter(Inject::isEnabled)
                 .flatMap(inject -> injectService.runChecks(inject).stream())
                 .toList());
 

@@ -1,14 +1,23 @@
-import { Autocomplete, Checkbox, TextField } from '@mui/material';
-import { DateTimePicker } from '@mui/x-date-pickers';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { type FunctionComponent, useCallback, useContext, useEffect, useState } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { debounce } from '../../../../utils/utils';
+import DateField from '../../../fields/DateField';
 import { useFormatter } from '../../../i18n';
 import { FilterContext } from './context';
 import { type FilterHelpers } from './FilterHelpers';
-import { getSelectedOptions } from './FilterUtils';
+import { getSelectedOptions, isNumericProperty } from './FilterUtils';
 import useRetrieveOptions from './useRetrieveOptions';
 import useSearchOptions, { type SearchOptionsConfig } from './useSearchOptions';
 import wordsToExcludeFromTranslation from './WordsToExcludeFromTranslation';
@@ -19,55 +28,68 @@ interface Props {
   contextId?: string; // used to give contextual information to the searchOptions function
 }
 
-export const BasicTextInput: FunctionComponent<Props> = ({
+const NUMBER_REGEX = /^-?\d+(\.\d+)?$/;
+
+export const BasicTextInput: FunctionComponent<Props & { numeric?: boolean }> = ({
   filter,
   helpers,
+  numeric = false,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
   const [inputValue, setInputValue] = useState('');
   const values = filter.values ?? [];
+  const isValid = (value: string) => !numeric || NUMBER_REGEX.test(value.trim());
   // Free-text filters accept several values (chips), like select-based filters:
   // "Value != 443 and 80" reads as NOT IN (443, 80) on the backend.
   const commit = (newValues: string[]) => {
     helpers.handleUpdateValuesById(
       filter.id,
-      Array.from(new Set(newValues.map(v => v.trim()).filter(v => v.length > 0))),
+      Array.from(new Set(newValues.map(v => v.trim()).filter(v => v.length > 0 && isValid(v)))),
     );
   };
   return (
-    <Autocomplete
+    <Combobox<string>
+      labelPosition="none"
       multiple
-      freeSolo
-      fullWidth
-      size="small"
+      allowCustomValue
+      createValueFromInput={input => input}
       options={[]}
       value={values}
       inputValue={inputValue}
-      onInputChange={(_, search) => setInputValue(search)}
-      onChange={(_, newValues) => {
-        commit(newValues as string[]);
-        setInputValue('');
+      onInputChange={(search, meta) => {
+        if (meta.cause === 'type') setInputValue(search);
       }}
-      renderInput={paramsInput => (
-        <TextField
-          {...paramsInput}
-          variant="outlined"
-          size="small"
-          label={t(filter.key)}
-          placeholder={t('Press Enter to add a value')}
+      onValueChange={(newValues) => {
+        const rejected = (newValues as string[]).find(v => !values.includes(v) && !isValid(v));
+        commit(newValues as string[]);
+        setInputValue(rejected ?? '');
+      }}
+      keepInputOnBlur
+    >
+      <ComboboxField>
+        <ComboboxChips />
+        <ComboboxInput
+          aria-label={t(filter.key)}
+          placeholder={numeric ? t('Enter a number') : t(filter.key)}
+          aria-invalid={!isValid(inputValue)}
           autoFocus
           onBlur={() => {
             // Clicking away with pending text must still register the value
             // (historical single-value behavior of this input).
-            if (inputValue.trim().length > 0) {
+            if (inputValue.trim().length > 0 && isValid(inputValue)) {
               commit([...values, inputValue]);
               setInputValue('');
             }
           }}
         />
-      )}
-    />
+        <ComboboxControls>
+          <ComboboxClear />
+          <ComboboxTrigger />
+        </ComboboxControls>
+      </ComboboxField>
+      <ComboboxContent />
+    </Combobox>
   );
 };
 
@@ -98,6 +120,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
     ...selectedOptions,
     ...options.filter(option => !selectedOptions.some(selectedOption => selectedOption.id === option.id)),
   ];
+  const hasGroups = mergedOptions.some(option => 'group' in option && !!option.group);
   const handleSearchOptions = (search: string) => {
     const searchOptionsConfig: SearchOptionsConfig = {
       filterKey: filter.key,
@@ -141,70 +164,51 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
     }
   }, []);
 
-  const onClick = (optionId: string) => {
-    const isIncluded = filter.values?.includes(optionId);
-    const newValues = isIncluded
-      ? (filter.values?.filter(v => v !== optionId) ?? [])
-      : [...(filter.values ?? []), optionId];
-    helpers.handleUpdateValuesById(filter.id, newValues);
-  };
-
   return (
-    <Autocomplete
+    <Combobox<GroupOption | Option>
+      labelPosition="none"
+      multiple
       selectOnFocus
       openOnFocus
-      autoHighlight
-      multiple
-      noOptionsText={t('No available options')}
       options={mergedOptions}
       value={selectedOptions}
       inputValue={inputValue}
-      renderValue={() => null}
+      loading={loading}
       isOptionEqualToValue={(option, value) => option.id === value.id}
-      groupBy={(option: GroupOption | Option) => 'group' in option ? option.group : ''}
+      // Only when the list actually groups — see AutocompleteField for why an
+      // unconditional `groupBy` draws an empty 32px band above the first option.
+      groupBy={hasGroups ? (option: GroupOption | Option) => 'group' in option ? option.group : '' : undefined}
       getOptionLabel={option => option.label ?? ''}
-      onInputChange={(_, search, reason) => {
-        if (reason === 'reset') {
+      onInputChange={(search, meta) => {
+        if (meta.cause !== 'type') {
           return;
         }
         setInputValue(search);
         debouncedSearchOptions(search);
       }}
-      renderInput={paramsInput => (
-        <TextField
-          {...paramsInput}
-          label={t(propertySchema.schema_property_name)}
-          variant="outlined"
-          size="small"
-        />
-      )}
-      loading={loading}
-      renderOption={(props, option) => {
-        const checked = filter.values?.includes(option.id);
-        return (
-          <li
-            {...props}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.stopPropagation();
-              }
-            }}
-            key={option.id}
-            onClick={() => onClick(option.id)}
-            style={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              padding: 0,
-              margin: 0,
-            }}
-          >
-            <Checkbox checked={checked} />
-            <span style={{ padding: '0 4px 0 4px' }}>{option.label}</span>
-          </li>
+      onValueChange={(next) => {
+        // The library hands over the whole new selection, so the filter is
+        // written once from it. Replaying the old per-row toggle for each moved
+        // id re-read the same, already stale `filter.values` on every call, so
+        // clearing several values at once only ever removed the last one.
+        helpers.handleUpdateValuesById(
+          filter.id,
+          (next as (GroupOption | Option)[]).map(option => option.id),
         );
       }}
-    />
+    >
+      <ComboboxField>
+        <ComboboxInput
+          placeholder={t(propertySchema.schema_property_name)}
+          aria-label={t(propertySchema.schema_property_name)}
+        />
+        <ComboboxControls>
+          <ComboboxClear />
+          <ComboboxTrigger />
+        </ComboboxControls>
+      </ComboboxField>
+      <ComboboxContent emptyMessage={t('No available options')} />
+    </Combobox>
   );
 };
 
@@ -218,18 +222,13 @@ export const BasicFilterDate: FunctionComponent<Props> = ({
     helpers.handleUpdateValuesById(filter.id, [date.toISOString()]);
   };
   return (
-    <DateTimePicker
+    <DateField
       label={t(filter.key)}
+      withTime
       onChange={(date) => {
         if (date) {
           handleValueChange(date);
         }
-      }}
-      slotProps={{
-        textField: {
-          variant: 'outlined',
-          fullWidth: true,
-        },
       }}
     />
   );
@@ -255,7 +254,7 @@ export const FilterChipPopoverInput: FunctionComponent<Props & { propertySchema:
       return (<BasicSelectInput propertySchema={propertySchema} filter={filter} helpers={helpers} contextId={contextId} />);
     }
     // Simple text field
-    return (<BasicTextInput filter={filter} helpers={helpers} contextId={contextId} />);
+    return (<BasicTextInput filter={filter} helpers={helpers} contextId={contextId} numeric={isNumericProperty(propertySchema)} />);
   };
   return (choice());
 };

@@ -1,5 +1,4 @@
-import { Chip } from '@mui/material';
-import { alpha } from '@mui/material/styles';
+import { Chip } from '@filigran/design-system';
 
 import { useFormatter } from '../../../../../../../../components/i18n';
 import { expectationTypeColor, expectationTypeIcon } from '../../../../../../common/ExpectationIconByType';
@@ -25,7 +24,7 @@ const ExpectationTypeChip = ({ type }: { type?: string }) => {
   const Icon = expectationTypeIcon(key);
   return (
     <Chip
-      icon={(
+      startIcon={(
         <Icon style={{
           fontSize: 14,
           color,
@@ -33,18 +32,7 @@ const ExpectationTypeChip = ({ type }: { type?: string }) => {
         />
       )}
       label={t(EXPECTATION_TYPE_LABELS[key] ?? type)}
-      size="small"
-      variant="outlined"
-      sx={{
-        'height': 22,
-        'fontSize': 11,
-        'fontWeight': 600,
-        'borderRadius': 1,
-        'color': color,
-        'borderColor': alpha(color, 0.4),
-        'backgroundColor': alpha(color, 0.08),
-        '& .MuiChip-icon': { marginLeft: 0.5 },
-      }}
+      color={color}
     />
   );
 };

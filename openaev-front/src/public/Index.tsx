@@ -17,7 +17,7 @@ const UrlAccess = lazy(() => import('./components/url_access/UrlAccess'));
 const PhishingPage = lazy(() => import('./components/phishing/PhishingPage'));
 const ErrorHandler = lazy(() => import('./components/error_handler/./ErrorHandler'));
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
   root: {
     minWidth: 1280,
     height: '100%',
@@ -26,7 +26,9 @@ const useStyles = makeStyles()(theme => ({
   content: {
     height: '100%',
     flexGrow: 1,
-    backgroundColor: theme.palette.background.default,
+    // fds-migration/TOKEN-MAPPING.md § ISO OpenCTI — see private/Index.tsx for the full
+    // rationale: this must stay transparent so <body>'s two-stop FDS gradient shows
+    // through (this wraps the login screen too, which reads platform_theme directly).
     padding: 0,
     minWidth: 0,
   },

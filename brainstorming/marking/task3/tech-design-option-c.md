@@ -399,15 +399,15 @@ classDiagram
     MarkingScopeResolver --> MarkingCtx
 
     note for ScopeStatementInspector "This is the class responsible for all SQL rewrite. \nHanding both dimention Tenant and Marking filtering at READ"
-    style ScopeStatementInspector fill:#fff59d,stroke:#b28900
-    style ScopeDimension fill:#fff59d,stroke:#b28900
-    style TenantDimension fill:#fff59d,stroke:#b28900
-    style MarkingDimension fill:#fff59d,stroke:#b28900
-    style TenantScopeTransactionAspect fill:#fff59d,stroke:#b28900
-    style ScopeCtx fill:#fff59d,stroke:#b28900
-    style MarkingCtx fill:#fff59d,stroke:#b28900
-    style MarkingClearanceCache fill:#fff59d,stroke:#b28900
-    style MarkingScopeResolver fill:#fff59d,stroke:#b28900
+    style ScopeStatementInspector fill:#fff59d,stroke:#b28900,color:#000
+    style ScopeDimension fill:#fff59d,stroke:#b28900,color:#000
+    style TenantDimension fill:#fff59d,stroke:#b28900,color:#000
+    style MarkingDimension fill:#fff59d,stroke:#b28900,color:#000
+    style TenantScopeTransactionAspect fill:#fff59d,stroke:#b28900,color:#000
+    style ScopeCtx fill:#fff59d,stroke:#b28900,color:#000
+    style MarkingCtx fill:#fff59d,stroke:#b28900,color:#000
+    style MarkingClearanceCache fill:#fff59d,stroke:#b28900,color:#000
+    style MarkingScopeResolver fill:#fff59d,stroke:#b28900,color:#000
 ```
 
 The `ScopeDimension` interface is the whole generalization: the inspector stops knowing *what* a tenant or

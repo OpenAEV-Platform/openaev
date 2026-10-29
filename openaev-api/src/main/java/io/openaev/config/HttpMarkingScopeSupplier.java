@@ -55,9 +55,17 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
     // own — it exists only to run the agent/implant API surface — so without this it would lose
     // sight of its own host asset the moment that asset is marked. An agent must always see the
     // asset it is installed on, independent of what markings are later applied to it.
+    //
+    // MANAGE_STIX_BUNDLE is the same kind of capability (hidden, held by the per-tenant OpenCTI
+    // connector user, which has no group-marking grants either): the security coverage it
+    // processes must build its scenario from every asset of the tenant, not from the unmarked
+    // subset a marking-less user would see. This is the READ clearance of the request only - the
+    // dispatch-time check (InjectService.resolveLaunchedByClearance) deliberately does not use it.
+    Set<Capability> capabilities = currentUser.getCapabilities();
     boolean bypass =
         currentUser.isAdminOrBypass()
-            || currentUser.getCapabilities().contains(Capability.AGENT_RUNTIME_ACCESS);
+            || capabilities.contains(Capability.AGENT_RUNTIME_ACCESS)
+            || capabilities.contains(Capability.MANAGE_STIX_BUNDLE);
 
     // A marking definition belongs to exactly one tenant, so ids cannot collide across them and the
     // union is unambiguous: acting on N tenants means holding each one's clearance in that tenant.

@@ -39,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestInstance(PER_CLASS)
 public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private VariableComposer variableComposer;
   @Autowired private VariableRepository variableRepository;
@@ -85,9 +86,10 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
       tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
     }
 
-    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(
-        TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        channelInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        challengeInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     lessonsQuestionsComposer.reset();
     lessonsCategoryComposer.reset();

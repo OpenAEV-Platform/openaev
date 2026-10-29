@@ -36,11 +36,11 @@ The Endpoints page lists all Endpoints imported in your platform. Click on any E
 
     OpenAEV marks an endpoint as inactive if none of its agents have communicated within one hour.
 
-![Example of list of Assets](../assets/assets_list.png)
+![Example of list of Assets](assets/assets_list.png)
 
 By clicking on an endpoint, you will be able to access and manage its details:
 
-![Overview endpoint](../assets/overview_endpoint.png)
+![Overview endpoint](assets/overview_endpoint.png)
 
 **Endpoint information panel**
 
@@ -59,7 +59,7 @@ By clicking on an endpoint, you will be able to access and manage its details:
 
 *You can manually add or remove IP and MAC addresses, but addresses reported by agents are always upserted.
 
-To register new endpoints, you will need to install an agent. You can find detailed instructions on the [agent installation page](../environment/openaev-agent.md).
+To register new endpoints, you will need to install an agent. You can find detailed instructions on the [agent installation page](../../integrations/agents/openaev-agent.md).
 
 **Agents panel**
 
@@ -83,12 +83,12 @@ To register new endpoints, you will need to install an agent. You can find detai
 
 In environments where agents cannot be deployed, or when working with theoretical Scenarios or sensitive systems, you can manually create Endpoints. Manually created Endpoints have the **Agentless** status.
 
-![Endpoints list with agentless](../assets/agentless_list.png)
+![Endpoints list with agentless](assets/agentless_list.png)
 
 You can create agentless Endpoints in two ways:
 
 - Use the form : the user clicks on the **+** sign, then a drawer opens with the appropriate form
-  ![Endpoints creation with form](../assets/agentless_creation.png)
+  ![Endpoints creation with form](assets/agentless_creation.png)
 - Import via a csv file : the user clicks on the appropriate icon, then selects a csv file and the endpoints are created
 
 !!! note
@@ -108,7 +108,7 @@ When creating a new asset group, administrators have the flexibility to specify 
 group's membership. Currently, the platform offers a range of filters such as platform type, hostname, and IP addresses.
 We plan to extend the possibilities by including additional filters in future updates.
 
-![Example of a Group configuration](../assets/assetsgroup_creation.png)
+![Example of a Group configuration](assets/assetsgroup_creation.png)
 
 ## Security platforms
 
@@ -118,11 +118,11 @@ etc., and can be viewed on this screen.
 OpenAEV strives to support as many integrations as possible with the most popular tools on the market. However, if your
 security platform integration is not yet available, you can create it manually here.
 
-![Security platforms](../assets/security-platforms.png)
+![Security platforms](assets/security-platforms.png)
 
 ## What's next?
 
-- [OpenAEV Agent](../environment/openaev-agent.md) -- Install agents on your endpoints
+- [OpenAEV Agent](../../integrations/agents/openaev-agent.md) -- Install agents on your endpoints
 - [Scenarios](scenario/scenario.md) -- Use your Assets in Scenarios
-- [Injects](../evaluate/injects/inject-overview.md) -- Target Assets with Injects
+- [Injects](../run-and-evaluate/injects/inject-overview.md) -- Target Assets with Injects
 - [People](people.md) -- Manage Players and Teams

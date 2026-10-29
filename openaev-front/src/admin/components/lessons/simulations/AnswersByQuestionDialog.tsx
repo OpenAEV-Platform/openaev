@@ -1,4 +1,5 @@
-import { Button, LinearProgress, Typography, useTheme } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { LinearProgress, Typography, useTheme } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import Dialog from '../../../../components/common/dialog/Dialog';
@@ -68,7 +69,10 @@ const AnswersByQuestionDialog: FunctionComponent<Props> = ({ open, onClose, ques
                     marginRight: 8,
                   }}
                 />
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {answer.lessons_answer_score}
                   %
                 </Typography>
@@ -78,7 +82,7 @@ const AnswersByQuestionDialog: FunctionComponent<Props> = ({ open, onClose, ques
             </div>
           );
         })}
-        <Button style={{ marginLeft: 'auto' }} onClick={onClose}>
+        <Button type="button" priority="tertiary" onClick={onClose} style={{ marginLeft: 'auto' }}>
           {' '}
           {t('Close')}
           {' '}

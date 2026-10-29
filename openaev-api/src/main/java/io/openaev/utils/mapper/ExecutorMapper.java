@@ -3,6 +3,7 @@ package io.openaev.utils.mapper;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Executor;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.executor.form.ExecutorOutput;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class ExecutorMapper {
         .platforms(executor.getPlatforms())
         .doc(executor.getDoc())
         .backgroundColor(executor.getBackgroundColor())
+        .enterprise(EnterpriseEditionService.isEnterpriseExecutorType(executor.getType()))
         .existing(existingExecutor)
         .connectorInstance(
             connectorInstance != null

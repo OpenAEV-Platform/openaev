@@ -78,6 +78,10 @@ public class EndpointOverviewOutput {
   @JsonProperty("asset_tags")
   private Set<String> tags;
 
+  @Schema(description = "Marking definition ids carried by the asset")
+  @JsonProperty("asset_markings")
+  private Set<String> markings;
+
   @Schema(description = "Asset groups the asset belongs to (static or dynamic membership)")
   @JsonProperty("asset_asset_groups")
   private List<AssetGroupSimple> assetGroups;

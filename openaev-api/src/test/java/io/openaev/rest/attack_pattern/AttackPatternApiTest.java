@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -29,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,7 @@ import org.springframework.web.client.RestTemplate;
 
 @Transactional
 @TestInstance(PER_CLASS)
+@TestPropertySource(properties = "openaev.tenant.active-tables=attack_patterns")
 public class AttackPatternApiTest extends IntegrationTest {
   @Autowired private Environment env;
 
@@ -47,7 +50,9 @@ public class AttackPatternApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Search Attack Patterns with AI Webservice")
-  @WithMockUser(isAdmin = true)
+  // attack_patterns is armed here, so the caller needs a real tenant membership: without one the
+  // request scope is empty and the external-id lookup correctly reads nothing.
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   class AttackPatternWithTTPAIWebservice {
 
     @Test
@@ -102,6 +107,9 @@ public class AttackPatternApiTest extends IntegrationTest {
     void given_textAndFiles_should_returnAttackPatternsIds() throws Exception {
       AttackPattern attackPattern = AttackPatternFixture.createDefaultAttackPattern();
       attackPattern.setExternalId("T1057");
+      // attack_patterns is v2-active, so the row carries no implicit tenant any more: the seed
+      // attributes it to the tenant the request resolves to.
+      attackPattern.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       AttackPattern attackPatternSaved = attackPatternRepository.save(attackPattern);
 
       String url = Objects.requireNonNull(env.getProperty("ttp.extraction.ai.webservice.url"));

@@ -4,6 +4,7 @@ import static io.jsonwebtoken.lang.Strings.hasText;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasLength;
 
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
@@ -41,6 +42,7 @@ public class SecurityService {
   private final Environment env;
   private final UserEventService userEventService;
   private final TenantRepository tenantRepository;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
   @Transactional(rollbackFor = Exception.class)
   public User userManagement(
@@ -63,16 +65,7 @@ public class SecurityService {
                 email, firstName, lastName, isAdmin, UUID.randomUUID().toString());
         this.userEventService.createUserCreatedEvent(user, registrationId);
         userEventService.createLoginSuccessEvent(user);
-        String groupsManagementObject =
-            env.getProperty(
-                OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
-                String.class,
-                "");
-        userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
-        attachTenant(registrationId, user)
-            .ifPresent(
-                tenantId -> userService.assignAutoAssignGroups(user.getId(), List.of(tenantId)));
-        return this.userService.saveUser(user);
+        return mapGroupsAttachTenantAndSave(registrationId, user, groups);
       } else {
         // If user exists, update it
         User currentUser = optionalUser.get();
@@ -82,17 +75,7 @@ public class SecurityService {
           currentUser.setAdmin(isAdmin);
         }
         userEventService.createLoginSuccessEvent(currentUser);
-        String groupsManagementObject =
-            env.getProperty(
-                OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
-                String.class,
-                "");
-        userMappingService.mapCurrentUserWithGroup(groupsManagementObject, currentUser, groups);
-        attachTenant(registrationId, currentUser)
-            .ifPresent(
-                tenantId ->
-                    userService.assignAutoAssignGroups(currentUser.getId(), List.of(tenantId)));
-        return this.userService.saveUser(currentUser);
+        return mapGroupsAttachTenantAndSave(registrationId, currentUser, groups);
       }
     }
     return null;
@@ -107,7 +90,6 @@ public class SecurityService {
 
   // -- PRIVATE --
 
-  /** Attaches the user to the tenant configured for the given SSO provider registration. */
   /**
    * Attaches the user to the tenant configured for this identity provider, and returns that tenant
    * ID when the user just entered it. Returns empty when nothing was attached, so a group
@@ -129,6 +111,29 @@ public class SecurityService {
     Tenant tenant = tenantRepository.getReferenceById(tenantId);
     user.getTenants().add(tenant);
     return Optional.of(tenantId);
+  }
+
+  /**
+   * Maps the SSO groups on the user, attaches the tenant of the identity provider, grants its
+   * auto-assign groups and saves the user.
+   */
+  private User mapGroupsAttachTenantAndSave(String registrationId, User user, List<String> groups) {
+    String groupsManagementObject =
+        env.getProperty(
+            OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
+            String.class,
+            "");
+    userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
+    Optional<String> attachedTenantId = attachTenant(registrationId, user);
+    attachedTenantId.ifPresent(
+        tenantId -> userService.assignAutoAssignGroups(user.getId(), List.of(tenantId)));
+    User savedUser = this.userService.saveUser(user);
+    // The new membership is only flushed at commit, but granting the auto-assign groups already
+    // cached the user's tenants without it (JDBC read), which would deny every request in the
+    // tenant until the entry expires. The eviction runs again after commit.
+    attachedTenantId.ifPresent(
+        tenantId -> tenantMembershipCacheManager.evict(savedUser.getId(), tenantId));
+    return savedUser;
   }
 
   private List<String> getAdminRoles(@NotBlank final String registrationId) {

@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { CancelOutlined, PauseOutlined, PlayArrowOutlined } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import {
@@ -38,38 +38,17 @@ const AutonomousRunControls: FunctionComponent<AutonomousRunControlsProps> = ({ 
   return (
     <>
       {status === 'RUNNING' && (
-        <Button
-          startIcon={<PauseOutlined />}
-          variant="outlined"
-          color="warning"
-          size="small"
-          disabled={busy}
-          onClick={() => withBusy(pauseAutonomousRun(runId))}
-        >
+        <Button type="button" variant="destructive" priority="secondary" startIcon={<PauseOutlined fontSize="small" />} disabled={busy} onClick={() => withBusy(pauseAutonomousRun(runId))}>
           {t('Pause')}
         </Button>
       )}
       {status === 'PAUSED' && (
-        <Button
-          startIcon={<PlayArrowOutlined />}
-          variant="outlined"
-          color="success"
-          size="small"
-          disabled={busy}
-          onClick={() => withBusy(resumeAutonomousRun(runId))}
-        >
+        <Button type="button" priority="secondary" startIcon={<PlayArrowOutlined fontSize="small" />} disabled={busy} onClick={() => withBusy(resumeAutonomousRun(runId))}>
           {t('Resume')}
         </Button>
       )}
       {(isActive || status === 'PAUSED' || status === 'PLANNING') && (
-        <Button
-          startIcon={<CancelOutlined />}
-          variant="outlined"
-          color="error"
-          size="small"
-          disabled={busy}
-          onClick={() => withBusy(cancelAutonomousRun(runId))}
-        >
+        <Button type="button" variant="destructive" priority="secondary" startIcon={<CancelOutlined fontSize="small" />} disabled={busy} onClick={() => withBusy(cancelAutonomousRun(runId))}>
           {t('Stop')}
         </Button>
       )}

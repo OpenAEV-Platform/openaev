@@ -1,10 +1,10 @@
 import { useTheme } from '@mui/material/styles';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import { useOutletContext } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { type CatalogContextType } from '../catalog_connectors/CatalogLayout';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
@@ -15,7 +15,7 @@ import DeployButton from './DeployButton';
 /** Catalog connector detail page (the "Available" tab drill-down). */
 const ConnectorDetails = () => {
   const theme = useTheme();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { t } = useFormatter();
 
   const { catalogConnector, isXtmComposerUp } = useOutletContext<CatalogContextType>();

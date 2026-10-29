@@ -12,6 +12,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Communication;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Tenant;
@@ -29,6 +31,8 @@ import jakarta.mail.internet.MimeMessage;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -50,6 +55,7 @@ class ImapServiceTenantScopeTest {
   @Mock private FileService fileService;
   @Mock private Environment env;
   @Mock private SettingRepository settingRepository;
+  @Mock private TenantScopedTransaction tenantScopedTransaction;
 
   private ImapService imapService;
 
@@ -62,8 +68,23 @@ class ImapServiceTenantScopeTest {
             communicationRepository,
             fileService,
             env,
-            settingRepository);
+            settingRepository,
+            tenantScopedTransaction);
     ReflectionTestUtils.setField(imapService, "username", "mailbox@openaev.test");
+    // Pass-through, so the body runs. What scope each call receives is asserted by the
+    // ScopeArguments tests below: the real-stack test cannot tell forTenant from allTenants,
+    // because every read after the resolve is keyed by a globally unique id.
+    lenient()
+        .when(tenantScopedTransaction.execute(any(TxCtx.class), any(Supplier.class)))
+        .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(1).get());
+    lenient()
+        .doAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(tenantScopedTransaction)
+        .execute(any(TxCtx.class), any(Runnable.class));
   }
 
   @Nested
@@ -83,7 +104,8 @@ class ImapServiceTenantScopeTest {
       inject.setId(injectId);
       inject.setTenant(new Tenant(tenantId));
 
-      when(injectRepository.findById(injectId)).thenReturn(java.util.Optional.of(inject));
+      when(injectRepository.findTenantRefById(injectId))
+          .thenReturn(java.util.Optional.of(tenantRef(injectId, tenantId)));
       when(communicationRepository.existsByIdentifierAndInjectTenantId(messageId, tenantId))
           .thenReturn(true);
 
@@ -110,7 +132,8 @@ class ImapServiceTenantScopeTest {
       inject.setId(injectId);
       inject.setTenant(new Tenant(tenantId));
 
-      when(injectRepository.findById(anyString())).thenReturn(java.util.Optional.of(inject));
+      when(injectRepository.findTenantRefById(anyString()))
+          .thenReturn(java.util.Optional.of(tenantRef(inject.getId(), tenantId)));
       when(communicationRepository.existsByIdentifierAndInjectTenantId(messageId, tenantId))
           .thenReturn(false);
       when(userRepository.findAllByEmailInIgnoreCaseAndTenantId(anyList(), eq(tenantId)))
@@ -152,7 +175,8 @@ class ImapServiceTenantScopeTest {
       emailContent.setBody("Hello team");
       String bodyWithFooter = emailContent.buildMessage(executableInject, "http://localhost:8080");
 
-      when(injectRepository.findById(injectId)).thenReturn(java.util.Optional.of(inject));
+      when(injectRepository.findTenantRefById(injectId))
+          .thenReturn(java.util.Optional.of(tenantRef(injectId, tenantId)));
       when(communicationRepository.existsByIdentifierAndInjectTenantId(messageId, tenantId))
           .thenReturn(false);
       when(userRepository.findAllByEmailInIgnoreCaseAndTenantId(anyList(), eq(tenantId)))
@@ -165,7 +189,7 @@ class ImapServiceTenantScopeTest {
 
       // Assert - the id extracted from the real footer must be exactly the inject id, not
       // polluted by the trailing "[base_url=...]" token that follows it in the same footer block
-      verify(injectRepository).findById(injectId);
+      verify(injectRepository).findTenantRefById(injectId);
       verify(communicationRepository).existsByIdentifierAndInjectTenantId(messageId, tenantId);
     }
 
@@ -209,6 +233,18 @@ class ImapServiceTenantScopeTest {
                 }
                 return java.util.Optional.empty();
               });
+      when(injectRepository.findTenantRefById(anyString()))
+          .thenAnswer(
+              invocation -> {
+                String injectId = invocation.getArgument(0);
+                if (injectId != null && injectId.contains(injectIdA)) {
+                  return java.util.Optional.of(tenantRef(injectIdA, tenantA));
+                }
+                if (injectId != null && injectId.contains(injectIdB)) {
+                  return java.util.Optional.of(tenantRef(injectIdB, tenantB));
+                }
+                return java.util.Optional.empty();
+              });
       when(communicationRepository.existsByIdentifierAndInjectTenantId(anyString(), anyString()))
           .thenReturn(false);
       when(userRepository.findAllByEmailInIgnoreCaseAndTenantId(anyList(), anyString()))
@@ -223,8 +259,21 @@ class ImapServiceTenantScopeTest {
                 }
                 return java.util.List.of();
               });
+      java.util.Map<String, Communication> savedById = new java.util.HashMap<>();
       when(communicationRepository.save(any(Communication.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
+          .thenAnswer(
+              invocation -> {
+                Communication saved = invocation.getArgument(0);
+                if (saved.getId() == null) {
+                  saved.setId(UUID.randomUUID().toString());
+                }
+                savedById.put(saved.getId(), saved);
+                return saved;
+              });
+      when(communicationRepository.findById(anyString()))
+          .thenAnswer(
+              invocation ->
+                  java.util.Optional.ofNullable(savedById.get(invocation.<String>getArgument(0))));
 
       Message[] messages =
           new Message[] {
@@ -282,5 +331,67 @@ class ImapServiceTenantScopeTest {
     lenient().doReturn(new Date()).when(spy).getSentDate();
     lenient().doReturn(new Date()).when(spy).getReceivedDate();
     return spy;
+  }
+
+  @Nested
+  @DisplayName("Scope arguments: which TxCtx each unit of work receives")
+  class ScopeArguments {
+
+    /**
+     * The resolve has to look across tenants, because an inbound mail carries no tenant. Everything
+     * after it must run in the inject's own tenant. Nothing else pins that narrowing: every read
+     * and write after the resolve is keyed by a globally unique id or filters on the tenant itself,
+     * so widening the scope to allTenants leaves the recorded data identical and every other test
+     * here and on the real stack stays green.
+     */
+    @Test
+    @DisplayName("given_aReply_should_resolveAcrossTenantsThenWorkInTheInjectTenantOnly")
+    void given_aReply_should_resolveAcrossTenantsThenWorkInTheInjectTenantOnly() throws Exception {
+      // Arrange
+      String injectId = "0b1c2d3e-4f50-4617-8829-aabbccddeeff";
+      String tenantId = "tenant-scope-args";
+      String messageId = "message-scope-args";
+      Inject inject = new Inject();
+      inject.setId(injectId);
+      inject.setTenant(new Tenant(tenantId));
+      when(injectRepository.findTenantRefById(injectId))
+          .thenReturn(java.util.Optional.of(tenantRef(injectId, tenantId)));
+      when(communicationRepository.existsByIdentifierAndInjectTenantId(messageId, tenantId))
+          .thenReturn(true);
+      Message[] messages = new Message[] {buildMessage(messageId, "[inject_id=" + injectId + "]")};
+
+      // Act
+      ReflectionTestUtils.invokeMethod(imapService, "parseMessages", messages, false);
+
+      // Assert
+      ArgumentCaptor<TxCtx> scopes = ArgumentCaptor.forClass(TxCtx.class);
+      verify(tenantScopedTransaction, Mockito.atLeastOnce())
+          .execute(scopes.capture(), any(Supplier.class));
+      List<TxCtx> used = scopes.getAllValues();
+      Assertions.assertEquals(
+          TxCtx.allTenants(),
+          used.get(0),
+          "the resolve must look across tenants: an inbound mail names no tenant");
+      Assertions.assertTrue(
+          used.subList(1, used.size()).stream().allMatch(c -> c.equals(TxCtx.forTenant(tenantId))),
+          "every unit of work after the resolve must be narrowed to the inject's own tenant, not"
+              + " left at allTenants. Got: "
+              + used);
+    }
+  }
+
+  /** The projection the cross-tenant resolve reads, which carries two columns and no entity. */
+  private static InjectRepository.InjectTenantRef tenantRef(String id, String tenantId) {
+    return new InjectRepository.InjectTenantRef() {
+      @Override
+      public String getId() {
+        return id;
+      }
+
+      @Override
+      public String getTenantId() {
+        return tenantId;
+      }
+    };
   }
 }

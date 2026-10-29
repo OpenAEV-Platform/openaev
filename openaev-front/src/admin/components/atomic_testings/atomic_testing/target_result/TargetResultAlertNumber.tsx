@@ -1,4 +1,5 @@
-import { Button, Tooltip, Typography } from '@mui/material';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Typography } from '@mui/material';
 import { type FunctionComponent, type MouseEvent, useEffect, useState } from 'react';
 
 import { getAlertLinksCount } from '../../../../../actions/atomic_testings/atomic-testing-actions';
@@ -22,7 +23,10 @@ const TargetResultAlertNumber: FunctionComponent<Props> = ({
   const [alertLinksNumber, setAlertLinksNumber] = useState<number | null>(0);
 
   useEffect(() => {
-    getAlertLinksCount(injectExpectationId, expectationResult.sourceId, expectationResult.sourceType).then((result: { data: number }) => setAlertLinksNumber(result.data ?? 0));
+    getAlertLinksCount(
+      injectExpectationId, expectationResult.sourceId,
+      expectationResult.sourceType)
+      .then((result: { data: number }) => setAlertLinksNumber(result.data ?? 0));
   }, [injectExpectationId, expectationResult.sourceId, expectationResult.sourceType]);
 
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
@@ -43,26 +47,13 @@ const TargetResultAlertNumber: FunctionComponent<Props> = ({
   }
 
   return (
-    <Tooltip title={t('Show alerts')}>
-      <Button
-        size="small"
-        variant="contained"
-        color="primary"
-        disableElevation
-        onClick={handleClick}
-        sx={{
-          minWidth: 32,
-          height: 24,
-          paddingInline: 1,
-          fontSize: 12,
-          fontWeight: 700,
-          lineHeight: 1,
-          borderRadius: 1,
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {alertLinksNumber}
-      </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button type="button" size="sm" onClick={handleClick} style={{ minWidth: 32 }}>
+          {alertLinksNumber}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{t('Show alerts')}</TooltipContent>
     </Tooltip>
   );
 };

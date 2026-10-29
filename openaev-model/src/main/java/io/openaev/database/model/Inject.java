@@ -15,11 +15,6 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.*;
-import io.openaev.helper.InjectModelHelper;
-import io.openaev.helper.MonoIdSerializer;
-import io.openaev.helper.MultiIdListSerializer;
-import io.openaev.helper.MultiIdSetSerializer;
-import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
@@ -47,17 +42,6 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   public static final int SPEED_STANDARD = 1; // Standard speed define by the user.
   public static final String ID_COLUMN_NAME = "inject_id";
   public static final String ID_FIELD_NAME = "id";
-
-  public static final Comparator<Inject> executionComparator =
-      (o1, o2) -> {
-        if (o1.getDate().isPresent() && o2.getDate().isPresent()) {
-          return o1.getDate().get().compareTo(o2.getDate().get());
-        }
-        if (o1.getId() != null && o2.getId() != null) {
-          return o1.getId().compareTo(o2.getId());
-        }
-        return 0;
-      };
 
   @Getter
   @Id
@@ -238,6 +222,40 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @Schema(implementation = String.class)
   private User user;
 
+  /**
+   * Root/atomic-testing injects only ({@code exercise == null && scenario == null}): the user who
+   * last configured (created or updated) this atomic testing's recurrence. This is distinct from
+   * {@link #user}, which tracks the last content editor and is re-stamped on every content save —
+   * {@code scheduledBy} is stamped only by the recurrence-update endpoint. It is the actor {@link
+   * #launchedBy} is resolved from when a scheduled relaunch fires with no live user present ({@code
+   * AtomicTestingExecutionJob}). No deserializer on purpose: server-stamped only.
+   */
+  @Getter
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "inject_scheduled_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("inject_scheduled_by")
+  @Schema(implementation = String.class)
+  private User scheduledBy;
+
+  /**
+   * Root/atomic-testing injects only ({@code exercise == null && scenario == null}): the actor
+   * whose marking clearance this inject's dispatch is filtered against. Stamped at launch/relaunch
+   * time — the live caller for a manual launch/relaunch, or the original inject's {@link
+   * #scheduledBy} for a scheduled relaunch ({@code AtomicTestingExecutionJob}). A relaunch's
+   * duplicate must overwrite this explicitly; it must never be copied forward from the inject being
+   * replaced the way {@link #user} is. Scenario-linked injects resolve clearance via {@code
+   * getExercise().getLaunchedBy()} instead and have no value here. No deserializer on purpose:
+   * server-stamped only, never accepted from client JSON.
+   */
+  @Getter
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "inject_launched_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("inject_launched_by")
+  @Schema(implementation = String.class)
+  private User launchedBy;
+
   // CascadeType.ALL is required here because inject status are embedded
   // Filter/sort on the execution status name (not the relation id), with the
   // enum values exposed to the UI so the filter is a picker instead of free text
@@ -343,7 +361,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @Schema(implementation = String[].class)
   @Getter
-  @ManyToMany(fetch = FetchType.LAZY)
+  @ManyToMany(fetch = FetchType.EAGER)
   @Fetch(FetchMode.SUBSELECT)
   @JoinTable(
       name = "injects_secret_references",
@@ -469,9 +487,15 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonIgnore
   public void clean() {
     this.setStatus(null); // note this does not delete the status record in the db
+    this.setAuthorisation(null);
     this.communications.clear();
     this.expectations.clear();
-    this.findings.clear();
+    this.setTriggerNowDate(null);
+    if (this.findings == null) {
+      this.findings = new ArrayList<>();
+    } else {
+      this.findings.clear();
+    }
     this.setCollectExecutionStatus(COLLECTING);
   }
 
@@ -491,11 +515,22 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @JsonIgnore
   public Instant computeInjectDate(Instant source, int speed) {
-    return InjectModelHelper.computeInjectDate(source, speed, getDependsDuration(), getExercise());
+    return InjectModelHelper.computeInjectDate(
+        source, speed, getDependsDuration(), getExercise(), now());
   }
 
+  /**
+   * Deprecated; prefer using getDate(Instant) This is kept for serialisation purposes
+   *
+   * @return the execution date if applicable
+   */
   @JsonProperty("inject_date")
   public Optional<Instant> getDate() {
+    return this.getDate(now());
+  }
+
+  @JsonIgnore
+  public Optional<Instant> getDate(Instant stableNowReference) {
     // If a trigger now was executed for this inject linked to an exercise, we ignore pauses and we
     // set inject inside of a range of execution
     if (getExercise() != null && triggerNowDate != null) {
@@ -503,10 +538,11 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       if (exerciseStartOpt.isPresent()
           && (exerciseStartOpt.get().equals(triggerNowDate)
               || exerciseStartOpt.get().isBefore(triggerNowDate))) {
-        return Optional.of(now().minusSeconds(60));
+        return Optional.of(stableNowReference.minusSeconds(60));
       }
     }
-    return InjectModelHelper.getDate(getExercise(), getScenario(), getDependsDuration());
+    return InjectModelHelper.getDate(
+        getExercise(), getScenario(), getDependsDuration(), stableNowReference);
   }
 
   @JsonIgnore
@@ -521,12 +557,14 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @JsonIgnore
   public boolean isPastInject() {
-    return this.getDate().map(date -> date.isBefore(now())).orElse(false);
+    Instant now = Instant.now();
+    return this.getDate(now).map(date -> date.isBefore(now)).orElse(false);
   }
 
   @JsonIgnore
   public boolean isFutureInject() {
-    return this.getDate().map(date -> date.isAfter(now())).orElse(false);
+    Instant now = Instant.now();
+    return this.getDate(now).map(date -> date.isAfter(now)).orElse(false);
   }
 
   // endregion
@@ -679,5 +717,17 @@ public class Inject implements GrantableBase, Injection, TenantBase {
     return this.getScenario() != null
         ? ResourceType.SCENARIO
         : this.getExercise() != null ? ResourceType.SIMULATION : ResourceType.ATOMIC_TESTING;
+  }
+
+  @JsonIgnore
+  @Override
+  public String getPermissionResourceId() {
+    return getParentResourceId();
+  }
+
+  @JsonIgnore
+  @Override
+  public ResourceType getPermissionResourceType() {
+    return getParentResourceType();
   }
 }

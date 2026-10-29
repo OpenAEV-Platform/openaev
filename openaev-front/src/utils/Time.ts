@@ -60,3 +60,18 @@ export const daysBetweenDates = (startDate: Moment, endDate: Moment) => {
   const end = parse(endDate);
   return end.diff(start, 'days') + 1;
 };
+
+/**
+ * UTC midnight, as an ISO string, of the calendar day a date picker shows.
+ * The picker returns local midnight, which east of UTC is the previous day in UTC.
+ */
+export const toUtcMidnightIso = (date: Date) => new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())).toISOString();
+
+/**
+ * The reverse of `toUtcMidnightIso`: the calendar day a UTC-midnight value stands for,
+ * as the local date a picker shows, optionally moved by whole days.
+ */
+export const utcMidnightToLocalDay = (iso: string, plusDays = 0) => {
+  const date = new Date(iso);
+  return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + plusDays);
+};

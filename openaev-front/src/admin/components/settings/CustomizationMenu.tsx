@@ -1,12 +1,12 @@
 import { AutoAwesome, DnsOutlined, NotificationsOutlined, SchoolOutlined } from '@mui/icons-material';
 import { SelectGroup } from 'mdi-material-ui';
-import { type FunctionComponent, memo, useContext } from 'react';
+import { type FunctionComponent, memo } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/RightMenu';
 import { LESSONS_TEMPLATES_BASE_URL } from '../../../constants/BaseUrls';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
 
@@ -16,7 +16,7 @@ import EEChip from '../common/entreprise_edition/EEChip';
  */
 const CustomizationMenuComponent: FunctionComponent = () => {
   const { settings } = useAuth();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   // The autonomous-attack customization is driven by XTM One (the AI brain); show it only when XTM
   // One is connected, matching the launch entry point's own gate.

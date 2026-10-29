@@ -52,12 +52,12 @@ When the Landing Page has *Capture submitted data* enabled, a submission creates
 - **Value**: the recognized username, plus the password when *Capture passwords* is enabled, as `username / password`
 - **Linked to**: the recipient and their Team, and the Inject
 
-Findings are visible on the Inject, on the Simulation, and in the global Findings list, and can be reused as input for [Inject chaining](../../../inject-chaining.md). See [Findings](../../../evaluate/findings/findings.md).
+Findings are visible on the Inject, on the Simulation, and in the global Findings list, and can be reused as input for [Inject chaining](../../../attack-chaining/inject-chaining.md). See [Findings](../../../run-and-evaluate/findings/findings.md).
 
 A Landing Page with capture disabled records the submission as an event and scores the step, but stores nothing.
 
 ## What's next?
 
-- [Expectations](../../../evaluate/expectations/expectations.md) -- How expectations and validation rules work in general
-- [Inject result](../../../evaluate/injects/inject-result.md) -- Read per-target Inject outcomes
-- [Findings](../../../evaluate/findings/findings.md) -- Work with the captured credentials
+- [Expectations](../../../run-and-evaluate/expectations/expectations.md) -- How expectations and validation rules work in general
+- [Inject result](../../../run-and-evaluate/injects/inject-result.md) -- Read per-target Inject outcomes
+- [Findings](../../../run-and-evaluate/findings/findings.md) -- Work with the captured credentials

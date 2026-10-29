@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import Transition from './common/Transition';
@@ -41,8 +42,8 @@ const ExternalLinkPopover: FunctionComponent<ExternalLinkPopoverProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={handleCloseExternalLink}>{t('Cancel')}</Button>
-        <Button variant="contained" color="primary" onClick={handleBrowseExternalLink}>
+        <Button type="button" priority="secondary" onClick={handleCloseExternalLink}>{t('Cancel')}</Button>
+        <Button type="button" onClick={handleBrowseExternalLink}>
           {t('Browse the link')}
         </Button>
       </DialogActions>

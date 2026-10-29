@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { DevicesOutlined, FormatListNumberedOutlined, Groups3Outlined, PersonOutlined, ShieldOutlined } from '@mui/icons-material';
-import { Box, Chip } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
@@ -76,7 +77,7 @@ const FindingOverview = () => {
         overline={typeLabel}
         title={finding.finding_value}
         chips={cvssScore != null
-          ? <Chip size="small" color="primary" variant="outlined" label={`CVSS ${cvssScore.toFixed(1)}`} sx={{ borderRadius: 1 }} />
+          ? <Chip label={`CVSS ${cvssScore.toFixed(1)}`} severity="info" />
           : undefined}
         stats={(
           <>

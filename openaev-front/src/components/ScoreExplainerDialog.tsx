@@ -1,8 +1,10 @@
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 
+import { tint } from '../utils/tint';
 import { useFormatter } from './i18n';
 
 // Shared score-explainer dialog (posture score + attack-path chokepoints).
@@ -86,7 +88,7 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { borderRadius: 1 } }}
+      slotProps={{ paper: { sx: { borderRadius: 1 } } }}
     >
       <DialogTitle sx={{
         display: 'flex',
@@ -105,8 +107,8 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
           padding: 2,
           borderRadius: 1,
           marginBottom: 2,
-          border: `1px solid ${alpha(scoreColor, 0.3)}`,
-          background: alpha(scoreColor, 0.08),
+          border: `1px solid ${tint(scoreColor, 30)}`,
+          background: tint(scoreColor, 8),
         }}
         >
           <Typography sx={{
@@ -129,14 +131,23 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
             >
               {bandLabel}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography
+              variant="body2"
+              sx={{ color: 'text.secondary' }}
+            >
               {verdict}
             </Typography>
           </Box>
         </Box>
 
         <Typography variant="h4" gutterBottom>{t('What it measures')}</Typography>
-        <Typography variant="body2" color="text.secondary" paragraph>
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            marginBottom: '16px',
+          }}
+        >
           {measures}
         </Typography>
         <Box sx={{
@@ -154,7 +165,13 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
           {formula}
         </Box>
         {footnote && (
-          <Typography variant="body2" color="text.secondary" paragraph>
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'text.secondary',
+              marginBottom: '16px',
+            }}
+          >
             {footnote}
           </Typography>
         )}
@@ -222,17 +239,27 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                     <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap title={row.label}>
                       {row.label}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography
+                      variant="body2"
+                      sx={{ color: 'text.secondary' }}
+                    >
                       {row.valueLabel}
                     </Typography>
                   </Box>
-                  {row.tooltip ? <Tooltip title={row.tooltip}>{bar}</Tooltip> : bar}
+                  {row.tooltip
+                    ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>{bar}</TooltipTrigger>
+                          <TooltipContent>{row.tooltip}</TooltipContent>
+                        </Tooltip>
+                      )
+                    : bar}
                   {row.sublabel && (
                     <Typography
                       variant="caption"
-                      color="text.secondary"
                       noWrap
                       sx={{
+                        color: 'text.secondary',
                         display: 'block',
                         mt: 0.25,
                       }}
@@ -266,7 +293,12 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                       background: l.color,
                     }}
                     />
-                    <Typography variant="body2" color="text.secondary">{l.label}</Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: 'text.secondary' }}
+                    >
+                      {l.label}
+                    </Typography>
                   </Box>
                 ))}
               </Box>
@@ -289,8 +321,8 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                     paddingBlock: 0.75,
                     paddingInline: 1,
                     borderRadius: 1,
-                    background: isCurrent ? alpha(entry.color, 0.1) : 'transparent',
-                    border: `1px solid ${isCurrent ? alpha(entry.color, 0.4) : 'transparent'}`,
+                    background: isCurrent ? tint(entry.color, 10) : 'transparent',
+                    border: `1px solid ${isCurrent ? tint(entry.color, 40) : 'transparent'}`,
                   }}
                 >
                   <Box sx={{
@@ -300,7 +332,7 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                     marginTop: 0.5,
                     flexShrink: 0,
                     background: entry.color,
-                    boxShadow: `0 0 6px ${alpha(entry.color, 0.7)}`,
+                    boxShadow: `0 0 6px ${tint(entry.color, 70)}`,
                   }}
                   />
                   <Box>
@@ -308,7 +340,12 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                       {`${entry.range} - ${entry.label}`}
                       {isCurrent ? ` - ${t('current')}` : ''}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">{entry.desc}</Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: 'text.secondary' }}
+                    >
+                      {entry.desc}
+                    </Typography>
                   </Box>
                 </Box>
               );
@@ -317,7 +354,7 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
         )}
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={onClose}>{t('Close')}</Button>
+        <Button type="button" priority="secondary" onClick={onClose}>{t('Close')}</Button>
       </DialogActions>
     </Dialog>
   );

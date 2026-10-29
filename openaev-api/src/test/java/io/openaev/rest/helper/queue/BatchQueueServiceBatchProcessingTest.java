@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -382,6 +383,63 @@ class BatchQueueServiceBatchProcessingTest {
 
       verify(failingChannel).basicReject(1L, false);
       verify(succeedingChannel).basicReject(2L, false);
+    }
+
+    @Test
+    @DisplayName("should release the worker when an unexpected exception escapes the batch")
+    void shouldReleaseWorkerWhenUnexpectedExceptionEscapes() throws Exception {
+      BatchQueueServiceTest.TestQueueable failingElem =
+          new BatchQueueServiceTest.TestQueueable("key1");
+      BatchQueueServiceTest.TestQueueable nextElem =
+          new BatchQueueServiceTest.TestQueueable("key2");
+
+      // Neither an IOException nor a ShutdownSignalException: not caught around the ack
+      Channel failingChannel = mock(Channel.class);
+      CountDownLatch failingAckCalled = new CountDownLatch(1);
+      doAnswer(
+              inv -> {
+                failingAckCalled.countDown();
+                throw new IllegalStateException("Unexpected ack failure");
+              })
+          .when(failingChannel)
+          .basicAck(eq(1L), eq(false));
+      Channel nextChannel = mock(Channel.class);
+      CountDownLatch nextAckCalled = new CountDownLatch(1);
+      doAnswer(
+              inv -> {
+                nextAckCalled.countDown();
+                return null;
+              })
+          .when(nextChannel)
+          .basicAck(eq(2L), eq(false));
+
+      when(queueExecution.perform(anyList()))
+          .thenAnswer(
+              invocation -> invocation.<List<BatchQueueServiceTest.TestQueueable>>getArgument(0));
+
+      Map<Integer, BlockingQueue<BatchQueueServiceTest.TestQueueable>> internalQueue =
+          getInternalQueue();
+      Map<BatchQueueServiceTest.TestQueueable, DeliveryContext> deliveryTable = getDeliveryTable();
+      internalQueue.get(0).add(failingElem);
+      deliveryTable.put(
+          failingElem, DeliveryContext.builder().tag(1L).deliveryChannel(failingChannel).build());
+
+      service.processBufferedBatch(0);
+      assertTrue(failingAckCalled.await(5, TimeUnit.SECONDS), "first ack should be attempted");
+
+      // The next batch of the same worker must still be processed
+      internalQueue.get(0).add(nextElem);
+      deliveryTable.put(
+          nextElem, DeliveryContext.builder().tag(2L).deliveryChannel(nextChannel).build());
+      Awaitility.await()
+          .atMost(5, TimeUnit.SECONDS)
+          .until(
+              () -> {
+                service.processBufferedBatch(0);
+                return nextAckCalled.await(100, TimeUnit.MILLISECONDS);
+              });
+
+      verify(nextChannel).basicAck(2L, false);
     }
   }
 

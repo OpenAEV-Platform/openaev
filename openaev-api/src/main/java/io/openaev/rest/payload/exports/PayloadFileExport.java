@@ -56,7 +56,7 @@ public class PayloadFileExport extends FileExportBase {
 
   private PayloadFileExport(
       Payload payload, ObjectMapper objectMapper, DocumentRepository documentRepository) {
-    super(objectMapper, null, null);
+    super(objectMapper, null, null, null);
     this.payload = payload;
     this.documentRepository = documentRepository;
   }

@@ -11,6 +11,7 @@ import logoDark from '../../../static/images/logo_text_dark.png';
 import logoLight from '../../../static/images/logo_text_light.png';
 import { useHelper } from '../../../store';
 import { type PlatformSettings, type ThemeInput } from '../../../utils/api-types';
+import { sanitizeThemeColors } from '../../../utils/Colors';
 import { fileUri } from '../../../utils/Environment';
 import { isNotEmptyField } from '../../../utils/utils';
 
@@ -86,9 +87,9 @@ const LoginLayout: FunctionComponent<Props> = ({ children }) => {
   const theme = useTheme();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
 
-  const themeSettings = theme.palette.mode === 'dark'
+  const themeSettings = sanitizeThemeColors(theme.palette.mode === 'dark'
     ? settings.platform_dark_theme
-    : settings.platform_light_theme;
+    : settings.platform_light_theme);
 
   const isWhitemarkEnable = settings.platform_whitemark === 'true'
     && settings.platform_license?.license_is_validated === true;
@@ -142,11 +143,12 @@ const LoginLayout: FunctionComponent<Props> = ({ children }) => {
   return (
     <Stack data-testid="login-page" direction="row" sx={{ height: '100vh' }}>
       <Stack
-        flex={1}
-        sx={contentSx}
-        justifyContent="center"
-        alignItems="center"
-        gap={4}
+        sx={[{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 4,
+        }, ...(Array.isArray(contentSx) ? contentSx : [contentSx])]}
       >
         <img
           src={loginLogo && loginLogo.length > 0
@@ -157,7 +159,9 @@ const LoginLayout: FunctionComponent<Props> = ({ children }) => {
         />
         {children}
       </Stack>
-      <Box flex={1} sx={asideSx}>
+      <Box
+        sx={[{ flex: 1 }, ...(Array.isArray(asideSx) ? asideSx : [asideSx])]}
+      >
         {loginAsideType === '' && <LogoFiligran />}
         {!isWhitemarkEnable && <LogoBaseline />}
       </Box>

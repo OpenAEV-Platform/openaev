@@ -33,7 +33,8 @@ import org.springframework.test.context.TestPropertySource;
  */
 @TestPropertySource(
     properties =
-        "openaev.tenant.active-tables=asset_groups,assets,import_mappers,findings,documents")
+        "openaev.tenant.active-tables=asset_groups,assets,import_mappers,findings,documents,teams,"
+            + "scenarios,injects,workflows")
 @DisplayName("product inventory gauges keep counting across tenants once a table is v2-active")
 class ProductInventoryTenantScopeTest extends IntegrationTest {
 
@@ -41,6 +42,7 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
   @Autowired private DataSource dataSource;
   @Autowired private io.openaev.database.repository.FindingRepository findingRepository;
   @Autowired private io.openaev.database.repository.DocumentRepository documentRepository;
+  @Autowired private io.openaev.database.repository.TeamRepository teamRepository;
 
   private JdbcTemplate jdbc;
   private final List<String> seededTenants = new ArrayList<>();
@@ -49,6 +51,10 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
   private long mapperBaseline;
   private long documentBaseline;
   private long findingBaseline;
+  private long teamBaseline;
+  private long injectBaseline;
+  private long workflowBaseline;
+  private long recurringScenarioBaseline;
 
   @BeforeEach
   void seedTwoTenantsWithOneAssetGroupEach() {
@@ -67,6 +73,17 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
         requireNonNull(jdbc.queryForObject("SELECT count(*) FROM findings", Long.class));
     documentBaseline =
         requireNonNull(jdbc.queryForObject("SELECT count(*) FROM documents", Long.class));
+    teamBaseline = requireNonNull(jdbc.queryForObject("SELECT count(*) FROM teams", Long.class));
+    injectBaseline =
+        requireNonNull(jdbc.queryForObject("SELECT count(*) FROM injects", Long.class));
+    workflowBaseline =
+        requireNonNull(jdbc.queryForObject("SELECT count(*) FROM workflows", Long.class));
+    recurringScenarioBaseline =
+        requireNonNull(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM scenarios"
+                    + " WHERE scenario_recurrence IS NOT NULL AND scenario_recurrence <> ''",
+                Long.class));
     seedAssetGroup(seedTenant("telemetry-a-" + UUID.randomUUID()), "telemetry-group-a");
     seedAssetGroup(seedTenant("telemetry-b-" + UUID.randomUUID()), "telemetry-group-b");
     seedEndpoint(seededTenants.get(0), "telemetry-vuln-endpoint-a");
@@ -80,6 +97,16 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
     // count can only hold if the supplier spans every tenant.
     seedDocument(seededTenants.get(0), "telemetry-document-a");
     seedDocument(seededTenants.get(1), "telemetry-document-b");
+    // Teams in BOTH tenants: the team gauge is platform-wide, so a per-tenant row in each is what
+    // makes a short count detectable.
+    seedTeam(seededTenants.get(0), "telemetry-team-a");
+    seedTeam(seededTenants.get(1), "telemetry-team-b");
+    // Workflows and recurring scenarios in BOTH tenants; the findings above already seed one inject
+    // in each.
+    seedWorkflow(
+        seededTenants.get(0), seedRecurringScenario(seededTenants.get(0), "telemetry-scenario-a"));
+    seedWorkflow(
+        seededTenants.get(1), seedRecurringScenario(seededTenants.get(1), "telemetry-scenario-b"));
   }
 
   @AfterEach
@@ -91,6 +118,9 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
       jdbc.update("DELETE FROM injects WHERE tenant_id = ?", tenantId);
       jdbc.update("DELETE FROM import_mappers WHERE tenant_id = ?", tenantId);
       jdbc.update("DELETE FROM documents WHERE tenant_id = ?", tenantId);
+      jdbc.update("DELETE FROM teams WHERE tenant_id = ?", tenantId);
+      jdbc.update("DELETE FROM workflows WHERE tenant_id = ?", tenantId);
+      jdbc.update("DELETE FROM scenarios WHERE tenant_id = ?", tenantId);
       jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", tenantId);
     }
     seededTenants.clear();
@@ -251,6 +281,39 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
         tenantId);
   }
 
+  @Test
+  @DisplayName("the teams gauge counts every tenant's rows, not zero")
+  void teamsGaugeCountsAcrossTenants() {
+    // Two tenants, one team each, one platform-wide count. The gauge groups by contextual, so the
+    // assertion sums the groups: what matters is that no tenant's rows drop out.
+    assertEquals(
+        teamBaseline + 2L,
+        collector.collectTeams().values().stream().mapToLong(Long::longValue).sum(),
+        "teams_total must span every tenant; a zero or short count here means the supplier runs"
+            + " with no scope on an active table and the gauge silently stopped counting");
+  }
+
+  @Test
+  @DisplayName("the same team count without a scope returns zero: this is what the scope prevents")
+  void teamsCountUnscopedIsZero() {
+    // The red half: with no scope set the inspector denies every row of an active table, so the
+    // assertion above can only hold because the supplier sets one.
+    assertEquals(
+        0L,
+        teamRepository.count(),
+        "an unscoped count on the active teams table must be zero; a non-zero result means the"
+            + " inspector is not firing and the scoped assertion proves nothing");
+  }
+
+  private void seedTeam(String tenantId, String name) {
+    jdbc.update(
+        "INSERT INTO teams (team_id, team_name, team_contextual, tenant_id)"
+            + " VALUES (?, ?, false, ?)",
+        UUID.randomUUID().toString(),
+        name,
+        tenantId);
+  }
+
   private void seedFinding(String tenantId, String value) {
     String injectId = UUID.randomUUID().toString();
     jdbc.update(
@@ -268,5 +331,68 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
         value,
         injectId,
         tenantId);
+  }
+
+  @Test
+  @DisplayName("the injects gauge counts every tenant's rows, not zero")
+  void given_injectsInTwoTenants_should_countBoth() {
+    // -- Act --
+    long count = collector.countInjects();
+
+    // -- Assert --
+    assertEquals(
+        injectBaseline + 2L,
+        count,
+        "injects_total must span every tenant once injects is v2-active; a short count means the"
+            + " supplier runs with no scope");
+  }
+
+  @Test
+  @DisplayName("the workflows gauge counts every tenant's rows, not zero")
+  void given_workflowsInTwoTenants_should_countBoth() {
+    // -- Act --
+    long count = collector.countWorkflows();
+
+    // -- Assert --
+    assertEquals(
+        workflowBaseline + 2L,
+        count,
+        "workflows_total must span every tenant once workflows is v2-active; a short count means"
+            + " the supplier runs with no scope");
+  }
+
+  @Test
+  @DisplayName("the recurring scenarios gauge counts every tenant's rows, not zero")
+  void given_recurringScenariosInTwoTenants_should_countBoth() {
+    // -- Act --
+    long count = collector.countRecurringScenarios();
+
+    // -- Assert --
+    assertEquals(
+        recurringScenarioBaseline + 2L,
+        count,
+        "scenarios_recurring_total must span every tenant once scenarios is v2-active; a short"
+            + " count means the supplier runs with no scope");
+  }
+
+  private void seedWorkflow(String tenantId, String scenarioId) {
+    jdbc.update(
+        "INSERT INTO workflows (workflow_id, workflow_status, workflow_version,"
+            + " workflow_scenario_id, tenant_id) VALUES (?, 'TEMPLATE', 0, ?, ?)",
+        UUID.randomUUID().toString(),
+        scenarioId,
+        tenantId);
+  }
+
+  private String seedRecurringScenario(String tenantId, String name) {
+    String scenarioId = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO scenarios (scenario_id, scenario_name,"
+            + " scenario_recurrence, tenant_id) VALUES (?, ?,"
+            + " '0 0 8 * * *', ?)",
+        scenarioId,
+        name,
+        tenantId);
+    return scenarioId;
   }
 }

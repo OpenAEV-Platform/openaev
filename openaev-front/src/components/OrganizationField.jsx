@@ -1,5 +1,5 @@
 import { DomainOutlined } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
@@ -87,19 +87,19 @@ class OrganizationFieldComponent extends Component {
           // player/team from its organization once one has been selected.
           disableClearable={false}
           openCreate={this.props.userRight && this.handleOpenOrganizationCreation.bind(this)}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
+          renderOption={option => (
+            <>
               <div className={classes.icon}>
                 <DomainOutlined />
               </div>
               <div className={classes.text}>{option.label}</div>
-            </Box>
+            </>
           )}
         />
         <Dialog
           open={this.state.organizationCreation}
           onClose={this.handleCloseOrganizationCreation.bind(this)}
-          PaperProps={{ elevation: 1 }}
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Create a new organization')}</DialogTitle>
           <DialogContent>

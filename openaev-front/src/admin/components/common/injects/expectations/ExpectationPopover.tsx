@@ -7,7 +7,7 @@ import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type InjectExpectationOutput, type PlatformSettings } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { PermissionsContext } from '../../Context';
 import { type ExpectationInput, type ExpectationInputForm } from './Expectation';
@@ -33,7 +33,7 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const { t } = useFormatter();
   const { permissions, inherited_context } = useContext(PermissionsContext);
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const userManageExpectations = permissions.canManage || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
     || (inherited_context === INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
 

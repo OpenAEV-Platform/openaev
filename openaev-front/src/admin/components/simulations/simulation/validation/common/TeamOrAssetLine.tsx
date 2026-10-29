@@ -20,7 +20,7 @@ import { type AssetGroup, type Endpoint, type Inject, type Team } from '../../..
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
 import AssetCategoryIcon from '../../../../assets/AssetCategoryIcon';
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
+import { ExpectationType, type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import ChallengeExpectation from '../expectations/ChallengeExpectation';
 import ChannelExpectation from '../expectations/ChannelExpectation';
 import ManualExpectations from '../expectations/ManualExpectations';
@@ -87,16 +87,27 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
   const asset: Endpoint = assetsMap[id];
   const assetGroup: AssetGroup = assetGroupsMap[id];
 
-  const groupByExpectationName = (es: InjectExpectationsStore[]) => {
+  const groupByExpectationContext = (es: InjectExpectationsStore[]): Map<string, InjectExpectationsStore[]> => {
     return es.reduce((group, expectation) => {
-      const { inject_expectation_name } = expectation;
+      const { inject_expectation_name, inject_expectation_article, inject_expectation_challenge } = expectation;
       if (inject_expectation_name) {
-        const values = group.get(inject_expectation_name) ?? [];
+        const key = [inject_expectation_name, inject_expectation_article ?? '', inject_expectation_challenge ?? ''].join('|');
+        const values = group.get(key) ?? [];
         values.push(expectation);
-        group.set(inject_expectation_name, values);
+        group.set(key, values);
       }
       return group;
-    }, new Map());
+    }, new Map<string, InjectExpectationsStore[]>());
+  };
+
+  const findMainExpectation = (es: InjectExpectationsStore[]): InjectExpectationsStore | undefined => {
+    if (assetGroup) {
+      return es.find(e => e.inject_expectation_asset_group === id && e.inject_expectation_asset == null);
+    }
+    if (asset) {
+      return es.find(e => e.inject_expectation_asset === id && e.inject_expectation_agent == null);
+    }
+    return es.find(e => e.inject_expectation_team === id && e.inject_expectation_user == null);
   };
 
   return (
@@ -122,29 +133,31 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
         />
       </ListItem>
       <List component="div" disablePadding>
-        {Array.from(groupByExpectationName(expectations)).map(([expectationName, es]) => {
-          if (es === 'ARTICLE') {
-            const expectation = es[0];
-            const article = articlesMap[expectation.inject_expectation_article] || {};
+        {Array.from(groupByExpectationContext(expectations)).map(([groupKey, es]) => {
+          const mainExpectation = findMainExpectation(es);
+          if (!mainExpectation) {
+            return null;
+          }
+          const type = mainExpectation.inject_expectation_type;
+          if (type === ExpectationType.ARTICLE) {
+            const article = articlesMap[mainExpectation.inject_expectation_article ?? ''] || {};
             const channel = channelsMap[article.article_channel] || {};
             return (
-              <ChannelExpectation key={expectationName} channel={channel} article={article} expectation={expectation} />
+              <ChannelExpectation key={groupKey} channel={channel} article={article} expectation={mainExpectation} />
             );
           }
-          if (es === 'CHALLENGE') {
-            const expectation = es[0];
-            const challenge = challengesMap[expectation.inject_expectation_challenge] || {};
+          if (type === ExpectationType.CHALLENGE) {
+            const challenge = challengesMap[mainExpectation.inject_expectation_challenge ?? ''] || {};
             return (
-              <ChallengeExpectation key={expectationName} challenge={challenge} expectation={expectation} />
+              <ChallengeExpectation key={groupKey} challenge={challenge} expectation={mainExpectation} />
             );
           }
-          if (es === 'PREVENTION' || es === 'DETECTION') {
-            const expectation = es[0];
+          if (type === ExpectationType.PREVENTION || type === ExpectationType.DETECTION) {
             if (asset) {
               return (
                 <TechnicalExpectationAsset
-                  key={expectationName}
-                  expectation={expectation}
+                  key={groupKey}
+                  expectation={mainExpectation}
                   injectContract={injectContract}
                 />
               );
@@ -154,8 +167,8 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
 
               return (
                 <TechnicalExpectationAssetGroup
-                  key={expectationName}
-                  expectation={expectation}
+                  key={groupKey}
+                  expectation={mainExpectation}
                   injectContract={injectContract}
                   relatedExpectations={relatedExpectations}
                   team={team}
@@ -163,10 +176,10 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
                 />
               );
             }
-            return (<div key={expectationName}></div>);
+            return (<div key={groupKey}></div>);
           }
           return (
-            <ManualExpectations key={expectationName} inject={inject} expectations={es} />
+            <ManualExpectations key={groupKey} inject={inject} expectations={es} />
           );
         })}
       </List>

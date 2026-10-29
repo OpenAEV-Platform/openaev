@@ -76,7 +76,7 @@ public class ScenarioImportApiTest extends IntegrationTest {
 
     when(importMapperRepository.findById(any())).thenReturn(Optional.of(new ImportMapper()));
     when(injectImportService.importInjectIntoScenarioFromXLS(
-            any(), any(), any(), any(), anyInt(), anyBoolean()))
+            any(), any(), any(), any(), any(), anyInt(), anyBoolean()))
         .thenReturn(new ImportTestSummary());
 
     // -- EXECUTE --
@@ -109,7 +109,7 @@ public class ScenarioImportApiTest extends IntegrationTest {
 
     when(importMapperRepository.findById(any())).thenReturn(Optional.of(new ImportMapper()));
     when(injectImportService.importInjectIntoScenarioFromXLS(
-            any(), any(), any(), any(), anyInt(), anyBoolean()))
+            any(), any(), any(), any(), any(), anyInt(), anyBoolean()))
         .thenReturn(new ImportTestSummary());
 
     // -- EXECUTE --

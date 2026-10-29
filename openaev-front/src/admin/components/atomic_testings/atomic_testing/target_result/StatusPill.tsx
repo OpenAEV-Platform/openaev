@@ -1,8 +1,8 @@
 import { Box } from '@mui/material';
-import { alpha } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { computeStatusStyle } from '../../../../../utils/statusUtils';
+import { tint } from '../../../../../utils/tint';
 
 interface Props {
   label: string;
@@ -22,7 +22,7 @@ const StatusPill: FunctionComponent<Props> = ({ label, status }) => {
         paddingInline: 1,
         paddingBlock: 0.25,
         borderRadius: 1,
-        backgroundColor: alpha(statusColor, 0.08),
+        backgroundColor: tint(statusColor, 8),
         color: statusColor,
         fontSize: 11,
         fontWeight: 700,

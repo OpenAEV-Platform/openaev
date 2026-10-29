@@ -1,6 +1,7 @@
+import { Checkbox } from '@filigran/design-system';
 import { MailOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -17,7 +18,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { type PhishingEmailTemplate, type SearchPaginationInput } from '../../../../../utils/api-types';
 import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import ToolBar from '../../../common/ToolBar';
 import PhishingEmailTemplatePopover from './PhishingEmailTemplatePopover';
@@ -39,7 +40,7 @@ const PhishingEmailTemplates = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Query param
   const [searchParams] = useSearchParams();
@@ -135,7 +136,13 @@ const PhishingEmailTemplates = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.PHISHING}>
               <ButtonCreate onClick={() => navigate('/admin/components/phishing/email_templates/create')} />
             </Can>
@@ -157,10 +164,9 @@ const PhishingEmailTemplates = () => {
           {canDelete && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -204,7 +210,10 @@ const PhishingEmailTemplates = () => {
                     emailTemplate={emailTemplate}
                     inList
                     openEditOnInit={emailTemplate.phishing_email_template_id === searchId}
-                    onDelete={result => setEmailTemplates(emailTemplates.filter(v => v.phishing_email_template_id !== result))}
+                    onDelete={(result) => {
+                      setEmailTemplates(emailTemplates.filter(v => v.phishing_email_template_id !== result));
+                      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                    }}
                   />
                 )}
               >
@@ -219,12 +228,11 @@ const PhishingEmailTemplates = () => {
                       onClick={event => onToggleEntity(emailTemplate, event)}
                     >
                       <Checkbox
-                        edge="start"
+                        aria-label={emailTemplate.phishing_email_template_name}
                         checked={
                           (selectAll && !(emailTemplate.phishing_email_template_id in (deSelectedElements || {})))
                           || emailTemplate.phishing_email_template_id in (selectedElements || {})
                         }
-                        disableRipple
                       />
                     </ListItemIcon>
                   )}

@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { GroupsOutlined, PermIdentityOutlined, VerifiedUserOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
@@ -86,7 +87,11 @@ const UserDetail = () => {
 
   return (
     <div style={{ display: 'flex' }}>
-      <div style={{ flexGrow: 1 }}>
+      <div style={{
+        flexGrow: 1,
+        minWidth: 0,
+      }}
+      >
         <Breadcrumbs
           variant="object"
           elements={[
@@ -113,15 +118,9 @@ const UserDetail = () => {
             title={displayName}
             chips={(
               <>
-                <Chip size="small" variant="outlined" label={user.user_email} sx={{ borderRadius: 1 }} />
+                <Chip label={user.user_email} />
                 {user.user_admin && (
-                  <Chip
-                    size="small"
-                    color="primary"
-                    icon={<VerifiedUserOutlined />}
-                    label={t('Administrator')}
-                    sx={{ borderRadius: 1 }}
-                  />
+                  <Chip startIcon={<VerifiedUserOutlined />} label={t('Administrator')} severity="info" />
                 )}
               </>
             )}

@@ -68,7 +68,7 @@ To create a new Action, follow these steps:
     ![Commands tab of the Action creation form](assets/threat-arsenal-command-view.png)
 
 4. In the **Output** tab, add [output parsers](output-parsers.md) to process the raw output of the execution, and
-    specify whether to generate [Findings](../../evaluate/findings/findings.md) from that output. This step is
+    specify whether to generate [Findings](../../run-and-evaluate/findings/findings.md) from that output. This step is
     optional.
 
     ![Output tab of the Action creation form](assets/threat-arsenal-output-parser-view.png)
@@ -186,6 +186,6 @@ development, test, and production environments.
 - [Action properties](action-properties.md) -- Reference of every field of the Action form
 - [Output parsers](output-parsers.md) -- Extract structured data from execution output
 - [Domains](domains.md) -- Understand how Domains classify Actions by security control
-- [Injects](../../evaluate/injects/inject-overview.md) -- Use Actions in Injects
-- [Atomic testing](../../evaluate/atomic-testing/atomic-testing.md) -- Run individual Actions as Atomic Tests
-- [Findings](../../evaluate/findings/findings.md) -- View parsed output from Action executions
+- [Injects](../../run-and-evaluate/injects/inject-overview.md) -- Use Actions in Injects
+- [Atomic testing](../../run-and-evaluate/atomic-testing/atomic-testing.md) -- Run individual Actions as Atomic Tests
+- [Findings](../../run-and-evaluate/findings/findings.md) -- View parsed output from Action executions

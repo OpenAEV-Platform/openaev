@@ -4,7 +4,6 @@ import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -50,11 +49,26 @@ public class ScenarioToExerciseService {
   private final TenantScopedTransaction tenantTx;
   @Resource protected ObjectMapper mapper;
 
+  /**
+   * @param launchedBy the actor whose marking clearance this Exercise's inject dispatch is filtered
+   *     against — the live caller for a manual/operator-triggered launch, or {@code
+   *     scenario.getScheduledBy()} when called with no live user present ({@code
+   *     ScenarioExecutionJob}). Resolved by the caller, not here: this method has no way to know
+   *     its own calling context (HTTP, cron, or autonomous).
+   */
   @Transactional(rollbackFor = Exception.class)
   public Exercise toExercise(
-      @NotBlank final Scenario scenario, @Nullable final Instant start, final boolean isRunning) {
+      @NotBlank final Scenario scenario,
+      @Nullable final Instant start,
+      final boolean isRunning,
+      @Nullable final User launchedBy) {
+    // The simulation and its dashboard setting belong to the scenario's tenant, whatever the
+    // caller's ambient tenant.
+    String tenantId = scenario.getTenant().getId();
     Exercise exercise = new Exercise();
+    exercise.setTenant(scenario.getTenant());
     exercise.setScenario(scenario);
+    exercise.setLaunchedBy(launchedBy);
     exercise.setName(scenario.getName());
     exercise.setDescription(scenario.getDescription());
     exercise.setSubtitle(scenario.getSubtitle());
@@ -64,7 +78,6 @@ public class ScenarioToExerciseService {
     exercise.setDefaultKillChain(scenario.getDefaultKillChain());
     exercise.setHeader(scenario.getHeader());
     exercise.setFooter(scenario.getFooter());
-    exercise.setFrom(scenario.getFrom());
     exercise.setFromName(scenario.getFromName());
     exercise.addReplyTos(scenario.getReplyTos());
     exercise.setStart(start);
@@ -79,9 +92,7 @@ public class ScenarioToExerciseService {
     // Custom Dashboard
     exercise.setCustomDashboard(
         this.tenantSettingsService
-            .findSetting(
-                TenantContext.getCurrentTenant(),
-                TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
+            .findSetting(tenantId, TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
             .map(Setting::getValue)
             .filter(v -> !v.isEmpty())
             .map(this.customDashboardService::customDashboard)
@@ -103,16 +114,11 @@ public class ScenarioToExerciseService {
             scenarioTeam -> {
               if (scenarioTeam.getContextual()) {
                 Team team = teamService.copyContextualTeam(scenarioTeam);
-                team.setExercises(
-                    new ArrayList<>() {
-                      {
-                        add(exerciseSaved);
-                      }
-                    });
+                team.setExercises(new HashSet<>(List.of(exerciseSaved)));
                 Team teamSaved = this.teamRepository.save(team);
                 contextualTeams.put(scenarioTeam.getId(), teamSaved);
               } else {
-                List<Exercise> exercises = scenarioTeam.getExercises();
+                Set<Exercise> exercises = scenarioTeam.getExercises();
                 exercises.add(exercise);
                 scenarioTeam.setExercises(exercises);
                 this.teamRepository.save(scenarioTeam);
@@ -281,6 +287,9 @@ public class ScenarioToExerciseService {
               CopyObjectListUtils.copy(scenarioInject.getAssets(), Asset.class));
           exerciseInject.setAssetGroups(
               CopyObjectListUtils.copy(scenarioInject.getAssetGroups(), AssetGroup.class));
+
+          // Credentials
+          exerciseInject.setSecretReferences(new ArrayList<>(scenarioInject.getSecretReferences()));
           Inject injectSaved = this.injectRepository.save(exerciseInject);
 
           mapExerciseInjectsByScenarioInject.put(scenarioInject.getId(), injectSaved);

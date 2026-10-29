@@ -37,9 +37,9 @@ The baseline is therefore also the conversion work list: every migration of a cl
    solved line, which is a store write. Refresh the baseline deliberately, in the same PR as the
    fix, with the one-off overrides documented in `archunit.properties`, and commit the smaller
    store. The full procedure (triage, sanctioned fix patterns, tests, re-freeze) is
-   `.github/skills/reduce-tx-baseline/SKILL.md`.
+   `.claude/skills/reduce-tx-baseline/SKILL.md`.
 4. Never edit these files by hand. A diff in this directory is an architecture event that the
    review must look at: shrinking is progress to verify, anything else is a red flag.
 
 Background: `docs/docs/development/tenant-isolation.md` and
-`adr/ADR-002-Multi-tenant-data-isolation-strategy.md`.
+`adr/ADR-002-multi-tenant-data-isolation-strategy.md`.

@@ -15,6 +15,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -47,6 +49,7 @@ class AttackPatternServiceTest {
 
   @Mock private Environment env;
   @Mock private AttackPatternRepository attackPatternRepository;
+  @Mock private TenantWriteScopeResolver writeScopeResolver;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private RestTemplate restTemplate;
   @Mock private SecurityCoverageUtils securityCoverageUtils;
@@ -132,7 +135,7 @@ class AttackPatternServiceTest {
     second.setId("internal-2");
     second.setExternalId("T1059");
 
-    when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
+    when(attackPatternRepository.findAllByExternalIdInIgnoreCase(anyList()))
         .thenReturn(List.of(first, second));
 
     // Act
@@ -162,7 +165,7 @@ class AttackPatternServiceTest {
     AttackPattern ap = new AttackPattern();
     ap.setId("internal-xtm-1");
     ap.setExternalId("T1003");
-    when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
+    when(attackPatternRepository.findAllByExternalIdInIgnoreCase(anyList()))
         .thenReturn(List.of(ap));
 
     // Act
@@ -193,7 +196,7 @@ class AttackPatternServiceTest {
     AttackPattern ap = new AttackPattern();
     ap.setId("internal-xtm-2");
     ap.setExternalId("T1059");
-    when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
+    when(attackPatternRepository.findAllByExternalIdInIgnoreCase(anyList()))
         .thenReturn(List.of(ap));
 
     // Act
@@ -254,7 +257,7 @@ class AttackPatternServiceTest {
     // Arrange
     AttackPattern found = new AttackPattern();
     found.setExternalId("T1003");
-    when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
+    when(attackPatternRepository.findAllByExternalIdInIgnoreCase(anyList()))
         .thenReturn(List.of(found));
 
     // Act / Assert
@@ -293,11 +296,13 @@ class AttackPatternServiceTest {
     input.setPlatforms(new String[] {"Windows"});
     input.setPermissionsRequired(new String[] {"Administrator"});
 
+    TxCtx ctx = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+    when(writeScopeResolver.tenantForWrite(ctx, null)).thenReturn(Tenant.DEFAULT_TENANT_UUID);
     when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
         .thenReturn(List.of(existing));
 
     // Act
-    AttackPattern result = attackPatternService.findOrCreate(input);
+    AttackPattern result = attackPatternService.findOrCreate(ctx, input);
 
     // Assert
     assertSame(existing, result);
@@ -316,6 +321,8 @@ class AttackPatternServiceTest {
     input.setPlatforms(new String[] {"Linux", "Windows"});
     input.setPermissionsRequired(new String[] {"User"});
 
+    TxCtx ctx = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+    when(writeScopeResolver.tenantForWrite(ctx, null)).thenReturn(Tenant.DEFAULT_TENANT_UUID);
     when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
         .thenReturn(new ArrayList<>());
 
@@ -324,7 +331,7 @@ class AttackPatternServiceTest {
     when(attackPatternRepository.save(any(AttackPattern.class))).thenReturn(saved);
 
     // Act
-    AttackPattern result = attackPatternService.findOrCreate(input);
+    AttackPattern result = attackPatternService.findOrCreate(ctx, input);
 
     // Assert
     ArgumentCaptor<AttackPattern> captor = ArgumentCaptor.forClass(AttackPattern.class);

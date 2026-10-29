@@ -84,10 +84,12 @@ public class InjectExpectationUtils {
    * not overwrite the proven vulnerable verdict with an absence-of-signal default.
    *
    * <p>Rows attributed to the expiration manager and rows expired to "Expired" are defaults, not
-   * signals, and are ignored.
+   * signals, and are ignored. A vulnerability leaf applies the same rule to its own results, so a
+   * finding reported after its expiration still wins.
    *
-   * @param expectation the parent expectation whose score is being recomputed from children
-   * @param childrenScore the score derived from the children rollup
+   * @param expectation the parent expectation whose score is being recomputed from children, or the
+   *     vulnerability leaf whose score is computed from its results
+   * @param childrenScore the score derived from the children rollup, or from the leaf results
    * @return the score to persist: the worst direct vulnerable score when one exists, otherwise the
    *     children score
    */
@@ -241,7 +243,7 @@ public class InjectExpectationUtils {
               existingResult.ifPresent(
                   injectExpectationResult ->
                       expectation.getResults().remove(injectExpectationResult));
-              expectation.getResults().add(newResultToAdd);
+              expectation.addResult(newResultToAdd.clone());
             }
 
             // IF RESULT TO ADD IS EXPIRATION MANAGER => SO I EXPIRE ALL the inject expectation with

@@ -7,6 +7,7 @@ import themeDark from '../../../../components/ThemeDark';
 import themeLight from '../../../../components/ThemeLight';
 import { useHelper } from '../../../../store';
 import { type PlatformSettings, type ReportingBranding, type TenantSettingsOutput } from '../../../../utils/api-types';
+import { sanitizeThemeColors } from '../../../../utils/Colors';
 
 /**
  * Scoped MUI theme for the standalone report render page.
@@ -39,9 +40,9 @@ const ReportingRenderTheme: FunctionComponent<Props> = ({ branding, children }) 
   if (branding?.theme_mode === 'LIGHT') mode = 'light';
   else if (branding?.theme_mode === 'DARK') mode = 'dark';
 
-  const platformThemeConfig = mode === 'light'
+  const platformThemeConfig = sanitizeThemeColors(mode === 'light'
     ? tenantSettings?.platform_light_theme ?? settings?.platform_light_theme
-    : tenantSettings?.platform_dark_theme ?? settings?.platform_dark_theme;
+    : tenantSettings?.platform_dark_theme ?? settings?.platform_dark_theme);
 
   const themeKey = [
     mode,

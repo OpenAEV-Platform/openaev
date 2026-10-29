@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, type Theme, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -348,14 +349,11 @@ const PostureGauges: FunctionComponent<Props> = ({ expectationResultsByTypes, hu
           justifyContent: 'center',
         }}
         >
-          <Button
-            startIcon={<InfoOutlined />}
-            color="primary"
-            size="small"
-            component={Link}
-            to={humanValidationLink}
-          >
-            {t('{count} validations needed', { count: pendingHumanValidations })}
+          <Button asChild priority="tertiary" size="sm">
+            <Link to={humanValidationLink}>
+              <InfoOutlined fontSize="small" />
+              {t('{count} validations needed', { count: pendingHumanValidations })}
+            </Link>
           </Button>
         </Box>
       )}

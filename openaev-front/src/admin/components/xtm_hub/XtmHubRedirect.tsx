@@ -1,8 +1,7 @@
-import { useContext } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router';
 
 import NotFound from '../../../components/NotFound';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 export const XTM_HUB_AUTO_REGISTER_QUERY_PARAM = 'xtmHubAutoRegister';
@@ -17,7 +16,7 @@ const normalizePathKey = (value?: string) => (value ?? '').replace(/^\/+|\/+$/g,
 const XtmHubRedirect = () => {
   const { '*': pathKey } = useParams();
   const { search } = useLocation();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const normalizedPathKey = normalizePathKey(pathKey);
   const targetPath = STATIC_PATH_REDIRECTS[normalizedPathKey];
   if (!targetPath) {

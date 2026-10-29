@@ -1,14 +1,19 @@
+import { Chip, IconButton, Radio, RadioGroup } from '@filigran/design-system';
 import {
   AutoAwesome,
-  ErrorOutline,
-  HelpOutline,
+  ErrorOutlineOutlined,
+  HelpOutlineOutlined,
   HourglassEmpty,
   SendOutlined,
   WarningAmber,
 } from '@mui/icons-material';
-import { Box, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
+// fds:keep-mui survives the AI/EE screens wave: the panel only renders during an autonomous
+// run, which needs an agent the development platform does not have — the screen could not be
+// opened, and this wave does not convert a screen nobody has seen.
+import { Box, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
 import {
   addAutonomousDirective,
@@ -157,6 +162,24 @@ interface AutonomousReasoningPanelProps {
  * (pause / resume / stop) live in the hero, not here, so operators keep the same control surface as
  * a normal run.
  */
+
+// The choice rows keep the accent border and fill the MUI control drew. The
+// accent is a runtime colour, so the hover shade travels as a CSS variable.
+// `marginTop` comes from main's own `sx` on the group.
+const useStyles = makeStyles()(theme => ({
+  choices: {
+    gap: theme.spacing(0.75),
+    marginTop: theme.spacing(1),
+  },
+  choice: {
+    'borderRadius': theme.spacing(1.5),
+    'border': '1px solid transparent',
+    'padding': theme.spacing(0.5, 1, 0.5, 0.5),
+    'transition': theme.transitions.create(['border-color', 'background-color']),
+    '&:hover': { borderColor: 'var(--choice-hover)' },
+  },
+}));
+
 const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps> = ({
   run: initialRun,
   onRunUpdate,
@@ -166,6 +189,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   readOnly = false,
 }) => {
   const theme = useTheme();
+  const { classes } = useStyles();
   const { t, nsdt } = useFormatter();
   const { settings } = useAuth();
   // Slide the panel left by exactly the width the Ask Ariane sidebar pushes the main content, so the
@@ -234,7 +258,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   }, [onWidthChange, width]);
 
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  const topOffset = 64 + bannerHeightNumber;
+  const topOffset = `calc(var(--fds-header-height, 68px) + ${bannerHeightNumber}px)`;
   const accent = theme.palette.ai?.main ?? theme.palette.primary.main;
 
   const applyRun = useCallback((next: AutonomousRun) => {
@@ -956,7 +980,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                   fontSize: 40,
                 }}
                 />
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('No decisions recorded for this run.')}
                 </Typography>
               </Stack>
@@ -1003,22 +1030,13 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                         >
                           {eventIcon(event)}
                         </Box>
-                        <Chip
-                          label={t(eventTypeLabel(event.autonomous_event_type))}
-                          size="small"
-                          sx={{
-                            height: 18,
-                            fontSize: 10,
-                            fontWeight: 600,
-                            letterSpacing: '0.04em',
-                            borderRadius: 0.5,
-                            color,
-                            backgroundColor: alpha(color, 0.12),
-                          }}
-                        />
+                        <Chip label={t(eventTypeLabel(event.autonomous_event_type))} color={color} />
                         <Box sx={{ flex: 1 }} />
                         {event.autonomous_event_created_at && (
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography
+                            variant="caption"
+                            sx={{ color: 'text.secondary' }}
+                          >
                             {nsdt(event.autonomous_event_created_at)}
                           </Typography>
                         )}
@@ -1072,7 +1090,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     }}
                     >
                       {runNotice.severity === 'error'
-                        ? <ErrorOutline fontSize="small" color="error" sx={{ marginTop: '2px' }} />
+                        ? <ErrorOutlineOutlined fontSize="small" color="error" sx={{ marginTop: '2px' }} />
                         : <WarningAmber fontSize="small" color="warning" sx={{ marginTop: '2px' }} />}
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="subtitle2" sx={{ margin: 0 }}>
@@ -1117,7 +1135,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                       gap: 1,
                     }}
                     >
-                      <HelpOutline fontSize="small" color="warning" sx={{ marginTop: '2px' }} />
+                      <HelpOutlineOutlined fontSize="small" color="warning" sx={{ marginTop: '2px' }} />
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="subtitle2" sx={{ margin: 0 }}>
                           {sanitizeEventText(pendingQuestion.autonomous_event_title) || t('The AI needs your input to continue')}
@@ -1133,44 +1151,27 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                         hidden in observe-only mode - they answer from the parent scenario). */}
                     {hasChoices && !readOnly && (
                       <RadioGroup
+                        aria-label={t('Response choices')}
                         value={selectedChoice ?? ''}
-                        onChange={event => setSelectedChoice(event.target.value)}
-                        sx={{
-                          gap: 0.75,
-                          marginTop: 1,
-                        }}
+                        onValueChange={setSelectedChoice}
+                        className={classes.choices}
                       >
                         {questionChoices.map((choice) => {
                           const isSelected = selectedChoice === choice.id;
                           return (
-                            <FormControlLabel
+                            <div
                               key={choice.id}
-                              value={choice.id}
-                              control={(
-                                <Radio
-                                  size="small"
-                                  sx={{
-                                    'color': accent,
-                                    '&.Mui-checked': { color: accent },
-                                  }}
-                                />
-                              )}
-                              label={choice.label}
-                              sx={{
-                                'margin': 0,
-                                'alignItems': 'flex-start',
-                                'borderRadius': 1.5,
-                                'border': `1px solid ${isSelected ? accent : theme.palette.divider}`,
-                                'backgroundColor': isSelected ? alpha(accent, 0.08) : theme.palette.background.paper,
-                                'padding': theme.spacing(0.5, 1, 0.5, 0.5),
-                                'transition': theme.transitions.create(['border-color', 'background-color']),
-                                '&:hover': { borderColor: alpha(accent, 0.6) },
-                                '& .MuiFormControlLabel-label': {
-                                  fontSize: '0.8125rem',
-                                  paddingTop: '5px',
-                                },
+                              className={classes.choice}
+                              style={{
+                                borderColor: isSelected ? accent : theme.palette.divider,
+                                // main paints the unselected rows on the paper colour
+                                // (was `transparent`); kept.
+                                backgroundColor: isSelected ? alpha(accent, 0.08) : theme.palette.background.paper,
+                                ['--choice-hover' as string]: alpha(accent, 0.6),
                               }}
-                            />
+                            >
+                              <Radio value={choice.id} label={choice.label} />
+                            </div>
                           );
                         })}
                       </RadioGroup>
@@ -1190,7 +1191,13 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           borderTop: `1px solid ${theme.palette.divider}`,
         }}
         >
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              display: 'block',
+            }}
+          >
             {t('Observe-only view. Steer and control this run from the parent scenario.')}
           </Typography>
         </Box>
@@ -1236,7 +1243,6 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               minRows={hasChoices ? 2 : 3}
               maxRows={8}
               variant="standard"
-              InputProps={{ disableUnderline: true }}
               sx={{
                 '& .MuiInputBase-root': {
                   alignItems: 'flex-start',
@@ -1244,6 +1250,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                   fontSize: '0.875rem',
                 },
               }}
+              slotProps={{ input: { disableUnderline: true } }}
             />
             <Stack sx={{
               flexDirection: 'row',
@@ -1254,8 +1261,8 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
             >
               <Typography
                 variant="caption"
-                color="text.secondary"
                 sx={{
+                  color: 'text.secondary',
                   fontSize: '0.6875rem',
                   opacity: 0.7,
                 }}
@@ -1263,22 +1270,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 {t('Enter to send - Shift+Enter for a new line')}
               </Typography>
               <IconButton
-                size="small"
+                icon={<SendOutlined fontSize="small" />}
                 onClick={handleComposerSubmit}
                 disabled={!canSubmitAnswer}
                 aria-label={t('Send')}
-                sx={{
-                  'backgroundColor': accent,
-                  'color': theme.palette.ai?.contrastText ?? theme.palette.primary.contrastText,
-                  '&:hover': { backgroundColor: theme.palette.ai?.dark ?? theme.palette.primary.dark },
-                  '&.Mui-disabled': {
-                    backgroundColor: alpha(accent, 0.3),
-                    color: alpha('#ffffff', 0.5),
-                  },
-                }}
-              >
-                <SendOutlined fontSize="small" />
-              </IconButton>
+                variant="ia"
+                priority="secondary"
+                size="md"
+              />
             </Stack>
           </Box>
         </Box>

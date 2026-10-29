@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { PlayCircleOutlineOutlined, RouteOutlined } from '@mui/icons-material';
-import { Box, Tooltip } from '@mui/material';
+import { Box } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Binoculars, Target } from 'mdi-material-ui';
 import { type FunctionComponent, memo, type ReactElement, useContext, useMemo } from 'react';
@@ -331,47 +332,50 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
             }}
           >
             {ctas.map((cta, i) => (
-              <Tooltip key={cta.to} title={`${cta.label} - ${cta.caption}`} placement="left">
-                <Box
+              <Tooltip key={cta.to}>
+                <TooltipTrigger asChild>
+                  <Box
                   // Real router link (not a JS navigate) so ctrl/cmd+click opens a
                   // new tab; native anchors also handle Enter activation themselves.
-                  component={Link}
-                  to={cta.to}
-                  aria-label={cta.label}
-                  sx={{
-                    'position': 'relative',
-                    'display': 'flex',
-                    'alignItems': 'center',
-                    'justifyContent': 'center',
-                    'width': 38,
-                    'height': 38,
-                    'borderRadius': 1,
-                    'cursor': 'pointer',
-                    'textDecoration': 'none',
-                    'color': cta.color,
-                    'background': alpha(cta.color, 0.08),
-                    'transition': 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
-                    '& svg': { fontSize: 20 },
-                    '&::after': i < ctas.length - 1
-                      ? {
-                          content: '""',
-                          position: 'absolute',
-                          bottom: -5,
-                          left: '25%',
-                          width: '50%',
-                          height: '1px',
-                          background: theme.palette.divider,
-                        }
-                      : undefined,
-                    '&:hover': {
-                      background: alpha(cta.color, 0.2),
-                      boxShadow: `inset 0 0 0 1px ${alpha(cta.color, 0.5)}, 0 0 12px ${alpha(cta.color, 0.35)}`,
-                      transform: 'translateX(-2px)',
-                    },
-                  }}
-                >
-                  {cta.icon}
-                </Box>
+                    component={Link}
+                    to={cta.to}
+                    aria-label={cta.label}
+                    sx={{
+                      'position': 'relative',
+                      'display': 'flex',
+                      'alignItems': 'center',
+                      'justifyContent': 'center',
+                      'width': 38,
+                      'height': 38,
+                      'borderRadius': 1,
+                      'cursor': 'pointer',
+                      'textDecoration': 'none',
+                      'color': cta.color,
+                      'background': alpha(cta.color, 0.08),
+                      'transition': 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+                      '& svg': { fontSize: 20 },
+                      '&::after': i < ctas.length - 1
+                        ? {
+                            content: '""',
+                            position: 'absolute',
+                            bottom: -5,
+                            left: '25%',
+                            width: '50%',
+                            height: '1px',
+                            background: theme.palette.divider,
+                          }
+                        : undefined,
+                      '&:hover': {
+                        background: alpha(cta.color, 0.2),
+                        boxShadow: `inset 0 0 0 1px ${alpha(cta.color, 0.5)}, 0 0 12px ${alpha(cta.color, 0.35)}`,
+                        transform: 'translateX(-2px)',
+                      },
+                    }}
+                  >
+                    {cta.icon}
+                  </Box>
+                </TooltipTrigger>
+                <TooltipContent side="left">{`${cta.label} - ${cta.caption}`}</TooltipContent>
               </Tooltip>
             ))}
           </Box>

@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useContext, useEffect, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -130,7 +130,7 @@ const InjectForm = ({
     // Enrich initialValues with default contract value
     if (injectorContractContent) {
       injectorContractContent.fields
-        .filter(f => !notDynamicFields.includes(f.key))
+        .filter(f => !notDynamicFields.includes(f.key) && isInjectContentType(f.type))
         .forEach((field: ContractElement) => {
           if (!initialValues.inject_content[field.key]) {
             initialValues.inject_content = {
@@ -235,6 +235,10 @@ const InjectForm = ({
       if (isVisibleField(fieldContract, injectorContractContent.fields, injectValues)) {
         return;
       }
+      if (fieldContract.type === 'credential-reference') {
+        injectValues.inject_secret_references = [];
+        return;
+      }
 
       const isNotDynamic = notDynamicFields.includes(fieldContract.key);
       const targetObj = (isNotDynamic ? injectValues : injectValues.inject_content) as Record<string, unknown>;
@@ -273,6 +277,7 @@ const InjectForm = ({
         inject_teams: data.inject_all_teams ? [] : data.inject_teams,
         inject_assets: data.inject_assets,
         inject_asset_groups: data.inject_asset_groups,
+        inject_secret_references: data.inject_secret_references,
         inject_documents: data.inject_documents,
         inject_depends_duration,
         inject_depends_on: data.inject_depends_on ? data.inject_depends_on : [],
@@ -525,17 +530,11 @@ const InjectForm = ({
         )}
 
         <div className={classes.injectFormButtonsContainer}>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           <Button
-            variant="contained"
-            color="primary"
+            type="button"
             data-testid="inject-form-submit-button"
             onClick={() => {
               onSubmit(getValues());

@@ -35,7 +35,7 @@ const useStyles = makeStyles()(() => ({
     alignItems: 'center',
   },
   bodyItem: {
-    height: 20,
+    minHeight: 20,
     fontSize: 13,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -71,7 +71,11 @@ const XlsMappers = () => {
 
   return (
     <div style={{ display: 'flex' }}>
-      <div style={{ flexGrow: 1 }}>
+      <div style={{
+        flexGrow: 1,
+        minWidth: 0,
+      }}
+      >
         <Breadcrumbs
           variant="list"
           elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Data ingestion') }, {

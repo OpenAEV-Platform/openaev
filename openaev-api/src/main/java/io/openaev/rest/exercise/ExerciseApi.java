@@ -3,6 +3,7 @@ package io.openaev.rest.exercise;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ExerciseSpecification.findGrantedFor;
+import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.exercise.form.SimulationDetails.fromRawExercise;
@@ -19,7 +20,6 @@ import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
@@ -70,6 +70,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -136,7 +137,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/healthchecks",
     TENANT_EXERCISE_URI + "/{exerciseId}/healthchecks"
   })
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, timeout = READINESS_CHECK_TIMEOUT_SECONDS)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -160,7 +161,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/expectations-drift",
     TENANT_EXERCISE_URI + "/{exerciseId}/expectations-drift"
   })
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, timeout = READINESS_CHECK_TIMEOUT_SECONDS)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -224,7 +225,12 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<Log> logs(TxCtx ctx, @PathVariable String exercise) {
-    return exerciseLogRepository.findAll(ExerciseLogSpecification.fromExercise(exercise));
+    List<Log> logs = exerciseLogRepository.findAll(ExerciseLogSpecification.fromExercise(exercise));
+    // log_tags is serialized open-in-view after the commit, when a lazy load on the v2-active tags
+    // table fails closed to an empty array: the log edit form, filled from this response, then
+    // erased the log's tags. Load them while the tenant scope is still set.
+    logs.forEach(log -> Hibernate.initialize(log.getTags()));
+    return logs;
   }
 
   @PostMapping({EXERCISE_URI + "/{exerciseId}/logs", TENANT_EXERCISE_URI + "/{exerciseId}/logs"})
@@ -403,11 +409,8 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
-    return hydrateKillChainPhases(
+    Team team = teamService.teamInScope(ctx, teamId);
+    return hydrateForResponse(
         exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds()));
   }
 
@@ -435,7 +438,7 @@ public class ExerciseApi extends RestBehavior {
               exerciseTeamUserId.setUserId(playerId);
               exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
             });
-    return hydrateKillChainPhases(exerciseService.exercise(exerciseId));
+    return hydrateForResponse(exerciseService.exercise(exerciseId));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -452,17 +455,14 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
     List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);
     team.getUsers().addAll(playersToAdd);
     teamRepository.save(team);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         exerciseService.enablePlayers(
             exerciseId, team, playersToAdd.stream().map(User::getId).toList()));
   }
@@ -481,10 +481,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     team.getUsers().removeAll(fromIterable(teamUsers));
     teamRepository.save(team);
@@ -498,7 +495,7 @@ public class ExerciseApi extends RestBehavior {
               exerciseTeamUserId.setUserId(playerId);
               exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
             });
-    return hydrateKillChainPhases(exerciseService.exercise(exerciseId));
+    return hydrateForResponse(exerciseService.exercise(exerciseId));
   }
 
   // endregion
@@ -549,8 +546,12 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
+  @Operation(
+      summary = "Duplicate a simulation",
+      description =
+          "Duplicates a simulation's authored content. A chained simulation also gets a copy of its logic map (workflow, steps and conditions); execution artefacts - including its runtime-generated injects - are never copied. Requires an Enterprise Edition license when the simulation is chained.")
   public Exercise duplicateExercise(TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
-    return hydrateKillChainPhases(exerciseService.getDuplicateExercise(exerciseId));
+    return hydrateForResponse(exerciseService.duplicateExercise(exerciseId));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -571,7 +572,7 @@ public class ExerciseApi extends RestBehavior {
     } else {
       exercise.setCustomDashboard(null);
     }
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule()));
   }
 
@@ -628,7 +629,8 @@ public class ExerciseApi extends RestBehavior {
     }
     exerciseService.throwIfExerciseNotLaunchable(exercise);
     exercise.setUpdateAttributes(input);
-    return exerciseRepository.save(exercise);
+    exercise.setLaunchedBy(userService.currentUser());
+    return hydrateForResponse(exerciseRepository.save(exercise));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}/tags", TENANT_EXERCISE_URI + "/{exerciseId}/tags"})
@@ -644,7 +646,7 @@ public class ExerciseApi extends RestBehavior {
     Exercise exercise = exerciseService.exercise(exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
     exercise.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule()));
   }
 
@@ -661,7 +663,7 @@ public class ExerciseApi extends RestBehavior {
     Exercise exercise = exerciseService.exercise(exerciseId);
     exercise.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
     exercise.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         exerciseService.withDocumentLinksInitialized(exerciseRepository.save(exercise)));
   }
 
@@ -708,7 +710,7 @@ public class ExerciseApi extends RestBehavior {
     if (input.getLessonsEnabled() != null) {
       exercise.setLessonsEnabled(input.getLessonsEnabled());
     }
-    return hydrateKillChainPhases(exerciseRepository.save(exercise));
+    return hydrateForResponse(exerciseRepository.save(exercise));
   }
 
   @DeleteMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -893,7 +895,7 @@ public class ExerciseApi extends RestBehavior {
       // Delete document from all exercise injects
       injectService.cleanInjectsDocExercise(exerciseId, documentId);
     }
-    return hydrateKillChainPhases(exerciseRepository.save(exercise));
+    return hydrateForResponse(exerciseRepository.save(exercise));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}/status", TENANT_EXERCISE_URI + "/{exerciseId}/status"})
@@ -911,7 +913,7 @@ public class ExerciseApi extends RestBehavior {
       @Valid @RequestBody ExerciseUpdateStatusInput input)
       throws ChainingException {
     ExerciseStatus status = input.getStatus();
-    return exerciseService.changeExerciseStatus(status, exerciseId);
+    return hydrateForResponse(exerciseService.changeExerciseStatus(status, exerciseId));
   }
 
   @LogExecutionTime
@@ -1211,11 +1213,21 @@ public class ExerciseApi extends RestBehavior {
           final String simulationId) {
     Scenario scenario = scenarioService.scenarioFromSimulationId(simulationId);
     KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
+    // Same open-in-view reason as hydrateForResponse: scenario_teams would serialize empty.
+    Hibernate.initialize(scenario.getTeams());
     return scenario;
   }
 
-  private static Exercise hydrateKillChainPhases(Exercise exercise) {
+  /**
+   * Hydrates, inside the scoped transaction, the lazy associations the response serializes. Both
+   * are read after the controller returns, through open-in-view, where the tenant scope is already
+   * gone: a lazy load at that point runs unscoped and fails closed, so {@code exercise_teams} comes
+   * back empty although the links exist. {@code exercise_kill_chain_phases} walks the injects down
+   * to the lazy attack-pattern phases, see {@link KillChainPhaseInitializer}.
+   */
+  private static Exercise hydrateForResponse(Exercise exercise) {
     KillChainPhaseInitializer.initializeFromInjects(exercise.getInjects());
+    Hibernate.initialize(exercise.getTeams());
     return exercise;
   }
 

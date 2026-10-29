@@ -1,0 +1,18 @@
+{
+  // Node runs these files as is, stripping the types, so only erasable syntax is allowed
+  // and relative imports keep their .ts extension.
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": ["lib", "tests"]
+}

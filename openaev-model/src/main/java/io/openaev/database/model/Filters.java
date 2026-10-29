@@ -3,6 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -83,7 +84,7 @@ public class Filters {
   @Builder
   @NoArgsConstructor
   @AllArgsConstructor
-  public static class FilterGroup {
+  public static class FilterGroup implements Serializable {
 
     @NotNull @Builder.Default private FilterMode mode = FilterMode.and;
     @Builder.Default private List<Filter> filters = new ArrayList<>();
@@ -158,7 +159,7 @@ public class Filters {
   @Builder
   @NoArgsConstructor
   @AllArgsConstructor
-  public static class Filter {
+  public static class Filter implements Serializable {
     @NotNull private String id;
     @NotNull private String key;
     @Builder.Default private FilterMode mode = FilterMode.and;

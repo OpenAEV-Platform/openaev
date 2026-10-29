@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { useEffect, useState } from 'react';
@@ -59,9 +60,11 @@ const theme = createTheme();
 
 const renderDashboard = () => render(
   <ThemeProvider theme={theme}>
-    <MemoryRouter>
-      <DefaultHomeDashboard />
-    </MemoryRouter>
+    <TooltipProvider>
+      <MemoryRouter>
+        <DefaultHomeDashboard />
+      </MemoryRouter>
+    </TooltipProvider>
   </ThemeProvider>,
 );
 

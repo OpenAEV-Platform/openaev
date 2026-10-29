@@ -23,6 +23,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +39,7 @@ import org.springframework.web.bind.annotation.*;
 public class AiTargetApi {
 
   public static final String AI_TARGET_URI = "/api/ai_targets";
-  private static final String TENANT_AI_TARGET_URI = TENANT_PREFIX + "/ai_targets";
+  static final String TENANT_AI_TARGET_URI = TENANT_PREFIX + "/ai_targets";
 
   private final TenantWriteScopeResolver writeScopeResolver;
   private final AiTargetRepository aiTargetRepository;
@@ -47,6 +48,17 @@ public class AiTargetApi {
   /** Restricts any search to AI target assets, on top of the caller-provided specification. */
   private Specification<Asset> aiTargetCategory() {
     return (root, query, cb) -> cb.equal(root.get("category"), AssetCategory.AI_TARGET);
+  }
+
+  /**
+   * Loads the tags inside the scoped transaction. These endpoints return the raw {@link Asset},
+   * serialized open-in-view after the commit, when a lazy {@code tags} load fails closed to an
+   * empty array once {@code tags} is v2 tenant-active: the edit form, filled from the response,
+   * then saved the empty list and erased the AI target's tags.
+   */
+  private static Asset withTagsInitialized(Asset aiTarget) {
+    Hibernate.initialize(aiTarget.getTags());
+    return aiTarget;
   }
 
   private Asset prepareAiTarget(Asset aiTarget, AiTargetInput input) {
@@ -60,7 +72,9 @@ public class AiTargetApi {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   public Iterable<Asset> aiTargets(TxCtx ctx) {
-    return aiTargetRepository.findAllAiTargets();
+    return aiTargetRepository.findAllAiTargets().stream()
+        .map(AiTargetApi::withTagsInitialized)
+        .toList();
   }
 
   @PostMapping({AI_TARGET_URI, TENANT_AI_TARGET_URI})
@@ -81,6 +95,7 @@ public class AiTargetApi {
   public Asset aiTarget(TxCtx ctx, @PathVariable @NotBlank final String aiTargetId) {
     return this.aiTargetRepository
         .findAiTargetById(aiTargetId)
+        .map(AiTargetApi::withTagsInitialized)
         .orElseThrow(ElementNotFoundException::new);
   }
 
@@ -90,10 +105,11 @@ public class AiTargetApi {
   public Page<Asset> aiTargets(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
-        (Specification<Asset> spec, org.springframework.data.domain.Pageable pageable) ->
-            this.aiTargetRepository.findAll(aiTargetCategory().and(spec), pageable),
-        searchPaginationInput,
-        Asset.class);
+            (Specification<Asset> spec, org.springframework.data.domain.Pageable pageable) ->
+                this.aiTargetRepository.findAll(aiTargetCategory().and(spec), pageable),
+            searchPaginationInput,
+            Asset.class)
+        .map(AiTargetApi::withTagsInitialized);
   }
 
   @PutMapping({AI_TARGET_URI + "/{aiTargetId}", TENANT_AI_TARGET_URI + "/{aiTargetId}"})

@@ -1,9 +1,10 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, TextField as MuiTextField } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type VariableInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
@@ -53,26 +54,20 @@ const VariableForm: FunctionComponent<Props> = ({
 
   return (
     <form id="variableForm" onSubmit={handleSubmit(onSubmit)}>
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Key')}
         error={!!errors.variable_key}
         helperText={errors.variable_key && errors.variable_key?.message}
-        inputProps={register('variable_key')}
+        {...register('variable_key')}
       />
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Value')}
         style={{ marginTop: 20 }}
         error={!!errors.variable_value}
         helperText={errors.variable_value && errors.variable_value?.message}
-        inputProps={register('variable_value')}
+        {...register('variable_value')}
       />
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         multiline
         rows={2}
         label={t('Description')}
@@ -81,28 +76,17 @@ const VariableForm: FunctionComponent<Props> = ({
         helperText={
           errors.variable_description && errors.variable_description?.message
         }
-        inputProps={register('variable_description')}
+        {...register('variable_description')}
       />
       <div style={{
         float: 'right',
         marginTop: 20,
       }}
       >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          style={{ marginRight: 10 }}
-          disabled={isSubmitting}
-        >
+        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 10 }}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
-        >
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

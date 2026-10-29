@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useContext, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -137,11 +138,7 @@ const TagRuleForm: FunctionComponent<Props> = ({
         marginTop: 20,
       }}
       >
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-        >
+        <Button type="submit">
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

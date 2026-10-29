@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.MarkingDefinition;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -12,6 +13,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface MarkingDefinitionRepository
     extends CrudRepository<MarkingDefinition, String>, JpaSpecificationExecutor<MarkingDefinition> {
+
+  Optional<MarkingDefinition> findByTypeAndDefinitionAndTenantId(
+      String type, String definition, String tenantId);
 
   @Query(
       """

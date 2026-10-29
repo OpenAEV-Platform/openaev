@@ -13,6 +13,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.MitigationRepository;
 import io.openaev.database.specification.AttackPatternSpecification;
+import io.openaev.rest.attack_pattern.AttackPatternInitializer;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.mitigation.form.MitigationCreateInput;
@@ -55,7 +56,7 @@ public class MitigationApi extends RestBehavior {
   // TxCtx is resolved from the request and applied by the transaction aspect; it scopes this read
   // to the caller's tenants. The handler does not use it directly.
   public Iterable<Mitigation> mitigations(TxCtx ctx) {
-    return mitigationRepository.findAll();
+    return hydrated(fromIterable(mitigationRepository.findAll()));
   }
 
   @PostMapping("/search")
@@ -67,11 +68,17 @@ public class MitigationApi extends RestBehavior {
   // TxCtx scopes the search to the caller's tenants. The handler does not use it directly.
   public Page<Mitigation> mitigations(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return buildPaginationJPA(
-        (Specification<Mitigation> specification, Pageable pageable) ->
-            this.mitigationRepository.findAll(specification, pageable),
-        searchPaginationInput,
-        Mitigation.class);
+    Page<Mitigation> page =
+        buildPaginationJPA(
+            (Specification<Mitigation> specification, Pageable pageable) ->
+                this.mitigationRepository.findAll(specification, pageable),
+            searchPaginationInput,
+            Mitigation.class);
+    // Same reason as the list and detail reads above: attackPatterns is lazy, so without this
+    // Jackson loads it after the transaction has closed, outside the scope, and an in-scope link
+    // serializes as an empty array.
+    hydrated(page.getContent());
+    return page;
   }
 
   @GetMapping("/{mitigationId}")
@@ -82,7 +89,8 @@ public class MitigationApi extends RestBehavior {
   // yet
   // TxCtx scopes this read to the caller's tenants. The handler does not use it directly.
   public Mitigation mitigation(TxCtx ctx, @PathVariable String mitigationId) {
-    return mitigationRepository.findById(mitigationId).orElseThrow(ElementNotFoundException::new);
+    return hydrated(
+        mitigationRepository.findById(mitigationId).orElseThrow(ElementNotFoundException::new));
   }
 
   @GetMapping("/{mitigationId}/attack_patterns")
@@ -113,7 +121,7 @@ public class MitigationApi extends RestBehavior {
     mitigation.setAttackPatterns(
         fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds())));
     mitigation.setTenant(new Tenant(tenantId));
-    return mitigationRepository.save(mitigation);
+    return hydrated(mitigationRepository.save(mitigation));
   }
 
   // -- UPDATE --
@@ -136,7 +144,7 @@ public class MitigationApi extends RestBehavior {
     mitigation.setAttackPatterns(
         fromIterable(this.attackPatternRepository.findAllById(input.getAttackPatternsIds())));
     mitigation.setUpdatedAt(Instant.now());
-    return mitigationRepository.save(mitigation);
+    return hydrated(mitigationRepository.save(mitigation));
   }
 
   // -- UPSERT --
@@ -151,7 +159,7 @@ public class MitigationApi extends RestBehavior {
       TxCtx ctx, @Valid @RequestBody MitigationUpsertInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     List<MitigationCreateInput> mitigations = input.getMitigations();
-    return new ArrayList<>(upsertMitigations(mitigations, tenantId));
+    return hydrated(new ArrayList<>(upsertMitigations(mitigations, tenantId)));
   }
 
   private List<Mitigation> upsertMitigations(
@@ -204,5 +212,18 @@ public class MitigationApi extends RestBehavior {
   // removes nothing. The handler does not use it directly.
   public void deleteMitigation(TxCtx ctx, @PathVariable String mitigationId) {
     mitigationRepository.deleteById(mitigationId);
+  }
+
+  /**
+   * See {@link AttackPatternInitializer}: {@code mitigation_attack_patterns} is serialized after
+   * the scoped transaction closed, so the association is hydrated while the scope is still set.
+   */
+  private List<Mitigation> hydrated(List<Mitigation> mitigations) {
+    AttackPatternInitializer.initializeFromMitigations(mitigations);
+    return mitigations;
+  }
+
+  private Mitigation hydrated(Mitigation mitigation) {
+    return hydrated(List.of(mitigation)).getFirst();
   }
 }

@@ -26,6 +26,8 @@ public enum Capability {
       pair(ResourceType.SCENARIO, Action.SEARCH),
       pair(ResourceType.SIMULATION, Action.READ),
       pair(ResourceType.SIMULATION, Action.SEARCH),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.READ),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.SEARCH),
       pair(ResourceType.ATOMIC_TESTING, Action.READ),
       pair(ResourceType.ATOMIC_TESTING, Action.SEARCH),
       pair(ResourceType.WORKFLOW, Action.READ),
@@ -41,6 +43,8 @@ public enum Capability {
       pair(ResourceType.SCENARIO, Action.CREATE),
       pair(ResourceType.SIMULATION, Action.WRITE),
       pair(ResourceType.SIMULATION, Action.DUPLICATE),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.WRITE),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.DUPLICATE),
       pair(ResourceType.SIMULATION, Action.CREATE),
       pair(ResourceType.ATOMIC_TESTING, Action.WRITE),
       pair(ResourceType.ATOMIC_TESTING, Action.DUPLICATE),
@@ -58,6 +62,7 @@ public enum Capability {
       MANAGE_ASSESSMENT,
       pair(ResourceType.SCENARIO, Action.DELETE),
       pair(ResourceType.SIMULATION, Action.DELETE),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.DELETE),
       pair(ResourceType.ATOMIC_TESTING, Action.DELETE),
       pair(ResourceType.STEP, Action.DELETE),
       pair(ResourceType.WORKFLOW, Action.DELETE),
@@ -66,6 +71,7 @@ public enum Capability {
       ACCESS_ASSESSMENT,
       pair(ResourceType.SCENARIO, Action.LAUNCH),
       pair(ResourceType.SIMULATION, Action.LAUNCH),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.LAUNCH),
       pair(ResourceType.ATOMIC_TESTING, Action.LAUNCH)),
 
   // Teams & Players
@@ -208,6 +214,15 @@ public enum Capability {
       pair(ResourceType.FINDING, Action.WRITE),
       pair(ResourceType.FINDING, Action.CREATE)),
   DELETE_FINDINGS(MANAGE_FINDINGS, true, pair(ResourceType.FINDING, Action.DELETE)),
+
+  // Vulnerability and attack snapshot — bulk export consumed by external GRC integrations.
+  // SEARCH only: the snapshot has no per-resource endpoint, so no resourceId is ever resolved and
+  // the capability is the sole authorisation gate.
+  ACCESS_SNAPSHOT_OBSERVATION(
+      null,
+      CapabilityGroup.FINDINGS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.SNAPSHOT_OBSERVATION, Action.SEARCH)),
 
   // Documents
   ACCESS_DOCUMENTS(
@@ -455,6 +470,15 @@ public enum Capability {
       pair(ResourceType.MARKING_DEFINITION, Action.CREATE)),
   DELETE_MARKING_DEFINITION(
       MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
+
+  // Marking assignment
+  ASSIGN_MARKING(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.MARKING_ASSIGNMENT, Action.WRITE)),
+  DELETE_MARKING_ASSIGNMENT(ASSIGN_MARKING, pair(ResourceType.MARKING_ASSIGNMENT, Action.DELETE)),
+
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(
       null,
@@ -719,12 +743,5 @@ public enum Capability {
           "Dropping out-of-scope capabilities {} not allowed for scope {}", dropped, requiredScope);
     }
     return valid;
-  }
-
-  public boolean isCredentialCapability() {
-    return this == ACCESS_CREDENTIALS
-        || this == MANAGE_CREDENTIALS
-        || this == DELETE_CREDENTIALS
-        || this == RESOLVE_INJECT_SECRET;
   }
 }

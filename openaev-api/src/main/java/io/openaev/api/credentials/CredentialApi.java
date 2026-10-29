@@ -17,6 +17,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -67,6 +68,18 @@ public class CredentialApi extends RestBehavior {
     Page<CredentialSecretReference> credentialPage =
         credentialService.searchCredentials(ctx, searchPaginationInput);
     return credentialPage.map(credentialMapper::toOutput);
+  }
+
+  @LogExecutionTime
+  @PostMapping("/find")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CREDENTIAL)
+  @Operation(summary = "Find credentials by their identifiers")
+  public List<CredentialOutput> findCredentials(
+      TxCtx ctx, @RequestBody @Valid @NotNull List<String> credentialIds) {
+    return credentialService.findCredentialsByIds(ctx, credentialIds).stream()
+        .map(credentialMapper::toOutput)
+        .toList();
   }
 
   @GetMapping("/{credentialId}")

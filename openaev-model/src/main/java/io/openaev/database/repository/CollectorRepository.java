@@ -31,12 +31,10 @@ public interface CollectorRepository
   void deleteByCollectorId(@Param("id") String id);
 
   /**
-   * Native query to bypass Hibernate's @Filter("tenantFilter"). This is called from
-   * InjectsExecutionJob (background scheduler) via buildAndSaveInjectExpectations(). InjectHelper
-   * disables the tenant filter at the start of the job, but the @Transactional on
-   * buildAndSaveInjectExpectations() re-enables it via HibernateFilterTransactionAspect with a
-   * potentially different TenantContext. Two options exist: disableFilter before the call, or use a
-   * native query. Native query is more robust as it is immune to filter re-activation.
+   * Native query with an explicit tenant, so no Hibernate filter applies. This is called from
+   * InjectsExecutionJob (background scheduler) via buildAndSaveInjectExpectations(), whose
+   * {@code @Transactional} arms the v1 filter through HibernateFilterTransactionAspect with
+   * whatever TenantContext the thread holds.
    */
   @Query(
       nativeQuery = true,

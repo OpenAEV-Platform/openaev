@@ -48,8 +48,8 @@ import java.util.*;
 import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
@@ -542,7 +542,7 @@ public class ExerciseApiTest extends IntegrationTest {
       User userTom = userRepository.save(UserFixture.getUser("Tom", "RT1", "tom-rt1@fake.email"));
       USER_IDS.add(userTom.getId());
 
-      Team sharedTeam = new Team();
+      Team sharedTeam = TeamFixture.getEmptyTeam();
       sharedTeam.setName("SharedTeam-RT1");
       sharedTeam.setUsers(List.of(userTom));
       teamRepository.save(sharedTeam);
@@ -609,17 +609,17 @@ public class ExerciseApiTest extends IntegrationTest {
     @DisplayName("Replacing teams should update the exercise team list in database")
     void replacingTeamsShouldPersistNewTeamListInDatabase() throws Exception {
       // -- PREPARE --
-      Team teamToRemove = new Team();
+      Team teamToRemove = TeamFixture.getEmptyTeam();
       teamToRemove.setName("TeamToRemove-RT3");
       teamRepository.save(teamToRemove);
       TEAM_IDS.add(teamToRemove.getId());
 
-      Team teamToKeep = new Team();
+      Team teamToKeep = TeamFixture.getEmptyTeam();
       teamToKeep.setName("TeamToKeep-RT3");
       teamRepository.save(teamToKeep);
       TEAM_IDS.add(teamToKeep.getId());
 
-      Team teamToAdd = new Team();
+      Team teamToAdd = TeamFixture.getEmptyTeam();
       teamToAdd.setName("TeamToAdd-RT3");
       teamRepository.save(teamToAdd);
       TEAM_IDS.add(teamToAdd.getId());
@@ -1299,13 +1299,11 @@ public class ExerciseApiTest extends IntegrationTest {
       String exerciseId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
-                  + " exercise_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :status, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO exercises (exercise_id, exercise_name, exercise_status, tenant_id)"
+                  + " VALUES (:id, :name, :status, CAST(:tenant AS uuid))")
           .setParameter("id", exerciseId)
           .setParameter("name", name)
           .setParameter("status", ExerciseStatus.SCHEDULED.name())
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenant.getId())
           .executeUpdate();
       entityManager.flush();

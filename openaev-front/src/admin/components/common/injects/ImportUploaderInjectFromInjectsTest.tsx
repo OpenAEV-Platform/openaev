@@ -1,5 +1,6 @@
+import { Button, Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete as MuiAutocomplete, Box, Button, MenuItem, TextField } from '@mui/material';
+import { Box } from '@mui/material';
 import moment from 'moment-timezone';
 import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -25,6 +26,12 @@ const useStyles = makeStyles()(() => ({
     marginTop: '24px',
   },
 }));
+
+// These two field labels were already untranslated before the Combobox
+// adoption (they were `label="Sheet"` / `label="Mapper"` on a MUI
+// TextField). They are kept untranslated rather than given invented
+// translations in nine locales; adding real keys is a separate task.
+const SHEET_LABEL = 'Sheet';
 
 interface FormProps {
   sheetName: string;
@@ -53,7 +60,6 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
 
   // Form
   const {
-    register,
     control,
     handleSubmit: handleSubmitForm,
     formState: { errors, isDirty, isSubmitting },
@@ -88,6 +94,8 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
     handleSubmitForm(onSubmitImportTest)(e);
   };
 
+  const [sheet, setSheet] = useState<string | null>(null);
+
   return (
     <form id="importUploadInjectForm" onSubmit={handleSubmitWithoutPropagation}>
       <div className={classes.container}>
@@ -95,48 +103,53 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
           control={control}
           name="sheetName"
           render={({ field: { onChange } }) => (
-            <MuiAutocomplete
-              size="small"
-              selectOnFocus
-              autoHighlight
-              clearOnBlur={false}
-              clearOnEscape={false}
+            <Combobox<string>
               options={sheets}
-              onChange={(_, v) => {
+              // The MUI field was uncontrolled; the library Combobox is always
+              // controlled, so the field's own selection lives in local state.
+              value={sheet}
+              onValueChange={(v) => {
+                setSheet(v as string | null);
                 onChange(v);
               }}
-              renderInput={params => (
-                <TextField
-                  {...params}
-                  label="Sheet"
-                  variant="standard"
-                  fullWidth
-                  error={!!errors.sheetName}
-                  helperText={errors.sheetName?.message}
-                  InputLabelProps={{ required: true }}
-                />
-              )}
-            />
+              required
+              error={!!errors.sheetName}
+            >
+              <ComboboxLabel>{SHEET_LABEL}</ComboboxLabel>
+              <ComboboxField>
+                <ComboboxInput />
+                <ComboboxControls>
+                  <ComboboxTrigger />
+                </ComboboxControls>
+              </ComboboxField>
+              <ComboboxContent />
+              {errors.sheetName?.message
+                ? <ComboboxHelperText>{errors.sheetName.message}</ComboboxHelperText>
+                : null}
+            </Combobox>
           )}
         />
         <Controller
           control={control}
           name="timezone"
           render={({ field }) => (
-            <TextField
-              select
-              variant="standard"
-              fullWidth
-              value={field.value}
-              label={t('Timezone')}
+            <Select
+              value={field.value ?? ''}
+              onValueChange={field.onChange}
+              name={field.name}
               error={!!errors.timezone}
-              helperText={errors.timezone?.message}
-              inputProps={register('timezone')}
             >
-              {timezones.map(tz => (
-                <MenuItem key={tz} value={tz}>{t(tz)}</MenuItem>
-              ))}
-            </TextField>
+              <SelectLabel>{t('Timezone')}</SelectLabel>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('Timezone')} />
+              </SelectTrigger>
+              <SelectContent>
+                {timezones.map(tz => (
+                  <SelectItem key={tz} value={tz}>{t(tz)}</SelectItem>
+                ))}
+              </SelectContent>
+              {errors.timezone?.message ? <SelectHelperText>{errors.timezone?.message}</SelectHelperText> : null}
+            </Select>
           )}
         />
       </div>
@@ -167,20 +180,10 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
         />
       </Box>
       <div className={classes.buttons}>
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          disabled={isSubmitting}
-        >
+        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
-        >
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {t('Test')}
         </Button>
       </div>

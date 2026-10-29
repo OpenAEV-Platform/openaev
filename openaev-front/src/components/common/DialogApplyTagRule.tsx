@@ -1,11 +1,5 @@
-import {
-  Button,
-  Dialog as DialogMUI,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-} from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 
@@ -31,7 +25,7 @@ const DialogApplyTagRule: FunctionComponent<DialogDeleteProps> = ({
     <DialogMUI
       open={open}
       onClose={handleClose}
-      PaperProps={{ elevation: 1 }}
+      slotProps={{ paper: { elevation: 1 } }}
     >
       <DialogContent>
         <DialogTitle sx={{ paddingLeft: 0 }}>
@@ -43,10 +37,10 @@ const DialogApplyTagRule: FunctionComponent<DialogDeleteProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={handleDontApplyRule}>
+        <Button type="button" priority="secondary" onClick={handleDontApplyRule}>
           {t('No')}
         </Button>
-        <Button variant="contained" color="primary" onClick={handleApplyRule}>
+        <Button type="button" onClick={handleApplyRule}>
           {t('Yes')}
         </Button>
       </DialogActions>

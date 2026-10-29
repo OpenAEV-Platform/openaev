@@ -220,7 +220,12 @@ const ExpectationPlatformsTable = ({ rows }: Props) => {
               <div style={{ flex: 1 }}>
                 <Typography variant="body2">{alert.title}</Typography>
                 {alert.date && (
-                  <Typography variant="caption" color="text.secondary">{fldt(alert.date)}</Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    {fldt(alert.date)}
+                  </Typography>
                 )}
               </div>
               {alert.link && (

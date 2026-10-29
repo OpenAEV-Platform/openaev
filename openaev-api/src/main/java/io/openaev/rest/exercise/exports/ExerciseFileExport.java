@@ -11,13 +11,12 @@ import io.openaev.database.model.*;
 import io.openaev.export.FileExportBase;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
+import io.openaev.service.organization.OrganizationService;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.Hibernate;
 
 @Getter
 @Setter
@@ -78,18 +77,9 @@ public class ExerciseFileExport extends FileExportBase {
       if (this.exercise == null) {
         return new ArrayList<>();
       }
-      List<Organization> orgs = new ArrayList<>();
-      orgs.addAll(
-          this.exercise.getUsers().stream()
-              .map(user -> (Organization) Hibernate.unproxy(user.getOrganization()))
-              .filter(Objects::nonNull)
-              .toList());
-      orgs.addAll(
-          this.exercise.getTeams().stream()
-              .map(team -> (Organization) Hibernate.unproxy(team.getOrganization()))
-              .filter(Objects::nonNull)
-              .toList());
-      return orgs;
+      // Only the simulation's tenant organizations: a player may belong to another tenant's.
+      return organizationService.organizationsInTenant(
+          this.exercise.getUsers(), this.exercise.getTeams(), this.exercise.getTenant().getId());
     }
     return organizations;
   }
@@ -284,8 +274,9 @@ public class ExerciseFileExport extends FileExportBase {
       Exercise exercise,
       ObjectMapper objectMapper,
       ChallengeService challengeService,
-      ArticleService articleService) {
-    super(objectMapper, challengeService, articleService);
+      ArticleService articleService,
+      OrganizationService organizationService) {
+    super(objectMapper, challengeService, articleService, organizationService);
     this.exercise = exercise;
   }
 
@@ -293,8 +284,10 @@ public class ExerciseFileExport extends FileExportBase {
       Exercise exercise,
       ObjectMapper objectMapper,
       ChallengeService challengeService,
-      ArticleService articleService) {
-    return new ExerciseFileExport(exercise, objectMapper, challengeService, articleService);
+      ArticleService articleService,
+      OrganizationService organizationService) {
+    return new ExerciseFileExport(
+        exercise, objectMapper, challengeService, articleService, organizationService);
   }
 
   private boolean isLessonsEnabled() {

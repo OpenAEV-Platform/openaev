@@ -8,9 +8,12 @@ import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,10 +51,19 @@ public class BatchQueueService<T extends Queueable> {
   // every future tick for this instance, permanently stalling the queue with no error logged.
   private final Map<Integer, BlockingQueue<T>> queue;
 
-  private final Map<T, DeliveryContext> deliveryTable = new ConcurrentHashMap<>();
+  // One entry per RabbitMQ delivery, keyed by instance rather than equals(): a re-published copy
+  // of an element (same id) arrives as a separate delivery, and must not overwrite the delivery
+  // tag of the original, which would then never be acknowledged. Synchronized wrapper because the
+  // AMQP delivery threads and the batch workers write to it concurrently.
+  private final Map<T, DeliveryContext> deliveryTable =
+      Collections.synchronizedMap(new IdentityHashMap<>());
 
   private final QueueConfig queueConfig;
   private final ScheduledExecutorService reconnectionExecutor;
+  // Several signals report the same failure (deleting a queue cancels each of its consumers): only
+  // the first schedules a reconnection, otherwise each extra attempt closes the healthy connection
+  // rebuilt by the previous one, losing its in-flight acks
+  private final AtomicBoolean reconnectionScheduled = new AtomicBoolean(false);
   private final ScheduledExecutorService scheduledExecutor;
   private final ShutdownListener shutdownListener;
 
@@ -203,8 +215,21 @@ public class BatchQueueService<T extends Queueable> {
               }
             };
 
+        // RabbitMQ can cancel the consumer while keeping the channel open (e.g. the quorum queue
+        // consumer timeout on RabbitMQ 4.3+): without a new subscription the queue is never read
+        // again, so reconnect
         CancelCallback cancelCallback =
-            consumerTag -> log.warn("Consumer {} was cancelled", consumerTag);
+            consumerTag -> {
+              log.error(
+                  "Consumer {} on queue {} was cancelled by the broker, reconnecting",
+                  consumerTag,
+                  queueName);
+              scheduleReconnection();
+            };
+
+        // A broker-side channel close (e.g. the delivery acknowledgement timeout on RabbitMQ
+        // before 4.3) leaves the connection open, so the connection listener never fires
+        consumerChannel.addShutdownListener(this::handleConsumerChannelShutdown);
 
         // Setting up the consumer itself
         consumerChannel.basicConsume(
@@ -240,6 +265,31 @@ public class BatchQueueService<T extends Queueable> {
     connection.removeShutdownListener(shutdownListener);
 
     // Start trying to reconnect
+    scheduleReconnection();
+  }
+
+  /**
+   * Handle the shutdown of a consumer channel
+   *
+   * @param cause the cause of the shutdown
+   */
+  private void handleConsumerChannelShutdown(ShutdownSignalException cause) {
+    // Closed by us (stop, reconnection) or by a connection loss, which is handled on its own
+    if (cause.isInitiatedByApplication() || cause.isHardError()) {
+      return;
+    }
+    log.error(
+        "Consumer channel of queue {} closed by the broker: {}", queueName, cause.getMessage());
+    scheduleReconnection();
+  }
+
+  /** Schedule a reconnection, unless one is already pending or the service is stopping */
+  private void scheduleReconnection() {
+    if (reconnectionExecutor == null
+        || reconnectionExecutor.isShutdown()
+        || !reconnectionScheduled.compareAndSet(false, true)) {
+      return;
+    }
     reconnectionExecutor.schedule(this::attemptReconnection, 10, TimeUnit.SECONDS);
   }
 
@@ -247,9 +297,19 @@ public class BatchQueueService<T extends Queueable> {
   private void attemptReconnection() {
     log.info("Attempting RabbitMQ reconnection");
 
+    // Released before the new connection exists, so a failure of the new connection still gets
+    // its own reconnection. Closing the old resources below cannot re-schedule one: those signals
+    // are initiated by the application and ignored
+    reconnectionScheduled.set(false);
+
     try {
       // Close the resources
       closeResources();
+
+      // Deliveries buffered from the closed channels can no longer be acked: RabbitMQ requeues
+      // them and delivers them again on the new channels, so drop them to avoid a double run
+      queue.values().forEach(BlockingQueue::clear);
+      deliveryTable.clear();
 
       // Trying to reestablish connection
       establishConnection();
@@ -259,8 +319,8 @@ public class BatchQueueService<T extends Queueable> {
     } catch (Exception e) {
       log.error(String.format("Reconnection attempt failed: %s", e.getMessage()), e);
 
-      // We failed. We schedule a new try ...
-      reconnectionExecutor.schedule(this::attemptReconnection, 10, TimeUnit.SECONDS);
+      // We failed. We schedule a new try, unless a signal of the new connection already did
+      scheduleReconnection();
     }
   }
 
@@ -321,16 +381,18 @@ public class BatchQueueService<T extends Queueable> {
 
     // 4. Reject any remaining unacknowledged messages (consumed from RabbitMQ but never batched)
     //    to free the consumer's prefetch (QOS) slots
-    for (DeliveryContext context : deliveryTable.values()) {
-      try {
-        if (context.getDeliveryChannel().isOpen()) {
-          context.getDeliveryChannel().basicReject(context.getTag(), false);
+    synchronized (deliveryTable) {
+      for (DeliveryContext context : deliveryTable.values()) {
+        try {
+          if (context.getDeliveryChannel().isOpen()) {
+            context.rejectWithoutRequeue();
+          }
+        } catch (Exception e) {
+          log.warn("Failed to reject message during purge: {}", e.getMessage());
         }
-      } catch (Exception e) {
-        log.warn("Failed to reject message during purge: {}", e.getMessage());
       }
+      deliveryTable.clear();
     }
-    deliveryTable.clear();
     insertInProgress.values().forEach(a -> a.set(false));
   }
 
@@ -352,64 +414,62 @@ public class BatchQueueService<T extends Queueable> {
         .compareAndSet(false, true)) {
       executor.execute(
           () -> {
-            do {
-              // Draining the queue into the list with a max size
-              List<T> currentBatch = new ArrayList<>();
-              queue.get(workerId).drainTo(currentBatch);
+            // Released in a finally: an exception escaping the loop would otherwise leave this
+            // worker marked as busy forever, and its buffered messages would never be processed
+            try {
+              do {
+                // Draining the queue into the list with a max size
+                List<T> currentBatch = new ArrayList<>();
+                queue.get(workerId).drainTo(currentBatch);
 
-              // If the list is not empty, we process it
-              List<T> processedElement = new ArrayList<>();
-              if (!currentBatch.isEmpty()) {
-                if (queueExecution == null) {
-                  log.warn(
-                      "Batch of {} elements skipped: queueExecution not set yet",
-                      currentBatch.size());
-                } else {
-                  log.info("Processing batch of {}", currentBatch.size());
+                // If the list is not empty, we process it
+                List<T> processedElement = new ArrayList<>();
+                if (!currentBatch.isEmpty()) {
+                  if (queueExecution == null) {
+                    log.warn(
+                        "Batch of {} elements skipped: queueExecution not set yet",
+                        currentBatch.size());
+                  } else {
+                    log.info("Processing batch of {}", currentBatch.size());
+                    try {
+                      processedElement.addAll(queueExecution.perform(currentBatch));
+                    } catch (Exception e) {
+                      log.error("Error processing batch - Error during ingestion", e);
+                    }
+                  }
+                }
+
+                // Every delivery of the batch is either acked (processed) or rejected (not
+                // processed), matched by instance: two equal elements are two deliveries
+                Set<T> processed = Collections.newSetFromMap(new IdentityHashMap<>());
+                processed.addAll(processedElement);
+                for (T element : currentBatch) {
+                  // Null when a purge or a reconnection already dropped the delivery
+                  DeliveryContext context = deliveryTable.remove(element);
+                  if (context == null) {
+                    continue;
+                  }
+                  boolean ack = processed.contains(element);
                   try {
-                    processedElement.addAll(queueExecution.perform(currentBatch));
-                  } catch (Exception e) {
-                    log.error("Error processing batch - Error during ingestion", e);
+                    if (ack) {
+                      context.ack();
+                    } else {
+                      // To avoid having elements that are not properly processed but can never
+                      // be, we're not requeueing them.
+                      context.rejectWithoutRequeue();
+                    }
+                  } catch (IOException | ShutdownSignalException e) {
+                    log.error(
+                        String.format(
+                            "Error processing batch - Cannot %s the message: %s",
+                            ack ? "Ack" : "Nack", e.getMessage()),
+                        e);
                   }
                 }
-              }
-
-              // Sending Ack for all the processed element in the batch
-              for (T element : processedElement) {
-                try {
-                  DeliveryContext elementToAck = deliveryTable.remove(element);
-                  if (elementToAck != null) {
-                    elementToAck.getDeliveryChannel().basicAck(elementToAck.getTag(), false);
-                    currentBatch.remove(element);
-                  }
-                } catch (IOException e) {
-                  log.error(
-                      String.format(
-                          "Error processing batch - Cannot Ack the message: %s", e.getMessage()),
-                      e);
-                }
-              }
-
-              // The elements that were not successfully processed are rejected
-              for (T element : currentBatch) {
-                try {
-                  DeliveryContext elementToReject = deliveryTable.remove(element);
-                  if (elementToReject != null) {
-                    // To avoid having elements that are not properly processed but can never be,
-                    // we're not requeueing them.
-                    elementToReject
-                        .getDeliveryChannel()
-                        .basicReject(elementToReject.getTag(), false);
-                  }
-                } catch (IOException e) {
-                  log.error(
-                      String.format(
-                          "Error processing batch - Cannot Nack the message: %s", e.getMessage()),
-                      e);
-                }
-              }
-            } while (queue.get(workerId).size() > (queueConfig.getMaxSize() * 0.75));
-            insertInProgress.get(workerId).set(false);
+              } while (queue.get(workerId).size() > (queueConfig.getMaxSize() * 0.75));
+            } finally {
+              insertInProgress.get(workerId).set(false);
+            }
           });
     }
   }

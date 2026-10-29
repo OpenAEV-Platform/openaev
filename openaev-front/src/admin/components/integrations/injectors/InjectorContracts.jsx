@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { SmartButtonOutlined } from '@mui/icons-material';
-import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -29,14 +30,6 @@ const useStyles = makeStyles()(() => ({
     height: '100%',
     fontSize: 13,
   },
-  chipInList: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    marginRight: 5,
-  },
 }));
 
 const headerStyles = {
@@ -51,7 +44,7 @@ const inlineStyles = {
   injector_contract_labels: {
     float: 'left',
     width: '20%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -59,7 +52,7 @@ const inlineStyles = {
   injector_contract_domains: {
     float: 'left',
     width: '20%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -67,7 +60,7 @@ const inlineStyles = {
   kill_chains: {
     float: 'left',
     width: '13%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -75,7 +68,7 @@ const inlineStyles = {
   attack_patterns: {
     float: 'left',
     width: '35%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -83,7 +76,7 @@ const inlineStyles = {
   injector_contract_updated_at: {
     float: 'left',
     width: '12%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -289,14 +282,7 @@ const InjectorContracts = () => {
                       return killChains.length > 0
                         ? (
                             killChains.map(killChain => (
-                              <Chip
-                                key={killChain}
-                                variant="outlined"
-                                classes={{ root: classes.chipInList }}
-                                style={{ width: 120 }}
-                                color="primary"
-                                label={killChain}
-                              />
+                              <Chip key={killChain} label={killChain} severity="info" />
                             ))
                           )
                         : (

@@ -27,7 +27,8 @@ import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
-import useTenant from './utils/hooks/useTenant';
+import useRefreshMe from './utils/hooks/useRefreshMe';
+import useTenant, { pickDefaultTenantId } from './utils/hooks/useTenant';
 import PermissionsProvider from './utils/permissions/PermissionsProvider';
 import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/url-helper';
 
@@ -63,6 +64,8 @@ const Root = () => {
     dispatch(fetchPublicPlatformParameters());
     dispatch(fetchMe());
   }, []);
+
+  useRefreshMe(Boolean(logged && me));
 
   // Fetch full settings once authenticated, re-fetch public settings on logout
   useEffect(() => {
@@ -145,7 +148,7 @@ const Root = () => {
     }
 
     const tenantId = currentUserTenant?.tenant_id
-      ?? userTenants[0]?.tenant_id
+      ?? pickDefaultTenantId(userTenants, me.user_id)
       ?? DEFAULT_TENANT_UUID;
     window.location.href = buildTenantUrl(tenantId);
     return <Loader />;

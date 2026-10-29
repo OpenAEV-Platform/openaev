@@ -37,6 +37,7 @@ import io.openaev.rest.exercise.form.ExerciseTeamPlayersEnableInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -72,13 +73,13 @@ class ScenarioTeamApiTest extends IntegrationTest {
   void given_validScenarioAndTeamInput_should_replaceTeamToScenarioSuccessfully() throws Exception {
     // -- PREPARE --
     Scenario scenario = getScenario();
-    Team teamToRemove = new Team();
+    Team teamToRemove = TeamFixture.getEmptyTeam();
     teamToRemove.setName("teamToRemove");
     Team teamToRemoveSaved = this.teamRepository.save(teamToRemove);
     scenario.setTeams(List.of(teamToRemoveSaved));
     Scenario scenarioCreated = this.scenarioRepository.save(scenario);
 
-    Team teamToAdd = new Team();
+    Team teamToAdd = TeamFixture.getEmptyTeam();
     teamToAdd.setName(TEAM_NAME);
     Team teamCreated = this.teamRepository.save(teamToAdd);
     ScenarioUpdateTeamsInput input = new ScenarioUpdateTeamsInput();
@@ -160,7 +161,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario and team, should add player to team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validScenarioAndTeam_should_addPlayerToTeamSuccessfully() throws Exception {
     // -- PREPARE --
     Team teamCreated = createTeam(TEAM_NAME);
@@ -201,7 +202,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @DisplayName(
       "Given a valid scenario and team with a player, should remove player from team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validScenarioAndTeamWithPlayer_should_removePlayerFromTeamSuccessfully()
       throws Exception {
     // -- PREPARE --
@@ -287,7 +288,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
   }
 
   private Team createTeam(String teamName) {
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setName(teamName);
     return this.teamRepository.save(team);
   }
@@ -330,11 +331,11 @@ class ScenarioTeamApiTest extends IntegrationTest {
     @DisplayName("Returns global and scenario teams when searching teams")
     void givenContextualOnlyFalse_whenSearchingTeams_shouldReturnGlobalAndScenarioTeams()
         throws Exception {
-      Team team = new Team();
+      Team team = TeamFixture.getEmptyTeam();
       String teamName = "Team test";
       team.setName(teamName);
 
-      Team contextualTeam = new Team();
+      Team contextualTeam = TeamFixture.getEmptyTeam();
       contextualTeam.setName(teamName + " 2");
       contextualTeam.setContextual(true);
       List<Team> savedTeams = teamRepository.saveAll(List.of(team, contextualTeam));
@@ -366,18 +367,18 @@ class ScenarioTeamApiTest extends IntegrationTest {
     @DisplayName("Returns only scenario teams")
     void givenContextualOnlyTrue_whenSearchingTeams_shouldReturnOnlyScenarioTeams()
         throws Exception {
-      Team team = new Team();
+      Team team = TeamFixture.getEmptyTeam();
       String teamName = "Team test";
       team.setName(teamName);
 
-      Team team1 = new Team();
+      Team team1 = TeamFixture.getEmptyTeam();
       team1.setName(teamName + "1");
 
-      Team contextualTeam = new Team();
+      Team contextualTeam = TeamFixture.getEmptyTeam();
       contextualTeam.setName(teamName + "3");
       contextualTeam.setContextual(true);
 
-      Team contextualTeam1 = new Team();
+      Team contextualTeam1 = TeamFixture.getEmptyTeam();
       contextualTeam1.setName(teamName + "4");
       contextualTeam1.setContextual(true);
 
@@ -421,7 +422,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
       // -- PREPARE --
       User userTom = userRepository.save(UserFixture.getUser("Tom", "RT1", "tom-rt1sc@fake.email"));
 
-      Team sharedTeam = new Team();
+      Team sharedTeam = TeamFixture.getEmptyTeam();
       sharedTeam.setName("SharedTeam-SC-RT1");
       sharedTeam.setUsers(List.of(userTom));
       teamRepository.save(sharedTeam);
@@ -493,7 +494,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
       // -- PREPARE --
       User userTom = userRepository.save(UserFixture.getUser("Tom", "RT2", "tom-rt2sc@fake.email"));
 
-      Team team = new Team();
+      Team team = TeamFixture.getEmptyTeam();
       team.setName("Team-SC-RT2");
       team.setUsers(List.of(userTom));
       teamRepository.save(team);
@@ -537,15 +538,15 @@ class ScenarioTeamApiTest extends IntegrationTest {
     @DisplayName("Replacing teams should update the scenario team list in database")
     void replacingTeamsShouldPersistNewTeamListInDatabase() throws Exception {
       // -- PREPARE --
-      Team teamToRemove = new Team();
+      Team teamToRemove = TeamFixture.getEmptyTeam();
       teamToRemove.setName("TeamToRemove-SC-RT3");
       teamRepository.save(teamToRemove);
 
-      Team teamToKeep = new Team();
+      Team teamToKeep = TeamFixture.getEmptyTeam();
       teamToKeep.setName("TeamToKeep-SC-RT3");
       teamRepository.save(teamToKeep);
 
-      Team teamToAdd = new Team();
+      Team teamToAdd = TeamFixture.getEmptyTeam();
       teamToAdd.setName("TeamToAdd-SC-RT3");
       teamRepository.save(teamToAdd);
 

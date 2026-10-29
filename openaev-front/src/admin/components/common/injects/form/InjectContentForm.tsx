@@ -1,7 +1,8 @@
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HelpOutlineOutlined, RotateLeftOutlined } from '@mui/icons-material';
-import { Button, IconButton, InputLabel, Tooltip } from '@mui/material';
+import { InputLabel } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 
 import type { ContractVariable } from '../../../../../actions/contract/contract';
@@ -9,8 +10,9 @@ import SwitchFieldController from '../../../../../components/fields/SwitchFieldC
 import { useFormatter } from '../../../../../components/i18n';
 import type { Article, Variable } from '../../../../../utils/api-types';
 import { type ContractElement, type EnhancedContractElement } from '../../../../../utils/api-types-custom';
-import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
 import InjectAddAssetGroups from '../../../simulations/simulation/injects/asset_groups/InjectAddAssetGroups';
@@ -19,6 +21,7 @@ import type { ExpectationInput } from '../expectations/Expectation';
 import InjectExpectations from '../expectations/InjectExpectations';
 import InjectArticlesList from './articles/InjectArticlesList';
 import InjectChallengesList from './challenges/InjectChallengesList';
+import InjectCredentialReferencesList from './credential-references/InjectCredentialReferencesList';
 import InjectDocumentsList from './documents/InjectDocumentsList';
 import InjectEndpointsList from './endpoints/InjectEndpointsList';
 import InjectContentFieldComponent from './InjectContentFieldComponent';
@@ -44,6 +47,7 @@ const InjectContentForm = ({
   injectorContractVariables,
   injectId,
   isAtomic,
+  isCreation,
   readOnly,
   articles = [],
   uriVariable = '',
@@ -52,7 +56,8 @@ const InjectContentForm = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const { control, setValue, getValues, formState: { errors } } = useFormContext();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
 
   // -- TEAMS --
   const renderTeams = (err?: string | null) => (
@@ -96,6 +101,7 @@ const InjectContentForm = ({
             disabled={enhancedFieldsMapByType.get('asset-group')?.readOnly || readOnly}
             assetGroup={assetGroup}
             inline
+            actions={['update', 'manage-asset', 'remove']}
             onRemoveAssetGroupFromList={removeAssetGroup}
           />
         )}
@@ -158,7 +164,7 @@ const InjectContentForm = ({
   // -- DYNAMIC FIELDS --
   const [openVariables, setOpenVariables] = useState(false);
   const openVariablesDialog = () => setOpenVariables(true);
-  const dynamicFields = enhancedFields.filter(field => field.isInjectContentType || field.type === 'asset-group' || field.type === 'asset');
+  const dynamicFields = enhancedFields.filter(field => field.isInjectContentType || field.type === 'asset-group' || field.type === 'asset' || field.type === 'credential-reference');
 
   const resetDefaultValue = () => {
     dynamicFields
@@ -178,6 +184,30 @@ const InjectContentForm = ({
       });
   };
 
+  // -- CREDENTIAL REFERENCES --
+  const injectSecretReferenceIds = useWatch({
+    control,
+    name: 'inject_secret_references',
+  }) as string[] | undefined;
+  // Visual-only error, flagged in update mode like the other mandatory fields: a missing credential
+  // must never block saving the inject (reported at execution time), so no zod rule is declared.
+  const getCredentialReferencesError = () => {
+    const isRequired = enhancedFieldsMapByType.get('credential-reference')?.settings?.required;
+    return !isCreation && isRequired && !injectSecretReferenceIds?.length ? t('Required') : null;
+  };
+
+  const renderCredentialReferences = (err?: string | null) => (
+    <div key="credential-reference">
+      <InputLabel required={enhancedFieldsMapByType.get('credential-reference')?.settings?.required} error={!!err}>{t(enhancedFieldsMapByType.get('credential-reference')?.label || 'Credential reference')}</InputLabel>
+      <InjectCredentialReferencesList
+        errorLabel={err}
+        disabled={enhancedFieldsMapByType.get('credential-reference')?.readOnly || readOnly}
+        multiple={enhancedFieldsMapByType.get('credential-reference')?.cardinality && enhancedFieldsMapByType.get('credential-reference')?.cardinality !== '1'}
+        credentialType={enhancedFieldsMapByType.get('credential-reference')?.credential_reference_type}
+      />
+    </div>
+  );
+
   const renderDynamicFields = () => (
     <div style={{
       display: 'flex',
@@ -193,6 +223,11 @@ const InjectContentForm = ({
           } else if (field.type === 'asset-group') {
             const key = enhancedFieldsMapByType.get('asset-group')?.key;
             return renderSourceAssetGroups(key ? errors[key]?.message as string : null, enhancedFieldsMapByType.get('asset-group')?.isInMandatoryGroup, enhancedFieldsMapByType.get('asset-group')?.mandatoryGroupContractElementLabels);
+          } else if (field.type === 'credential-reference') {
+            if (!isCredentialAssetEnabled) {
+              return null;
+            }
+            return renderCredentialReferences(getCredentialReferencesError());
           }
 
           return (
@@ -252,28 +287,26 @@ const InjectContentForm = ({
       title: t('Inject data'),
       helper: t('The content and targets specific to this inject.'),
       titleAdornment: canResetDefaults && (
-        <Tooltip title={t('Reset to default values')}>
-          <span>
-            <IconButton
-              color="primary"
-              disabled={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
-              onClick={resetDefaultValue}
-              size="small"
-              sx={{ borderRadius: 1 }}
-            >
-              <RotateLeftOutlined fontSize="small" />
-            </IconButton>
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <span className="inline-flex">
+                <IconButton
+                  icon={<RotateLeftOutlined fontSize="small" />}
+                  aria-label={t('Reset')}
+                  disabled={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
+                  onClick={resetDefaultValue}
+                  priority="tertiary"
+                  size="sm"
+                />
+              </span>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('Reset to default values')}</TooltipContent>
         </Tooltip>
       ),
       action: (
-        <Button
-          color="primary"
-          startIcon={<HelpOutlineOutlined />}
-          variant="outlined"
-          size="small"
-          onClick={openVariablesDialog}
-        >
+        <Button type="button" priority="secondary" size="sm" startIcon={<HelpOutlineOutlined fontSize="small" />} onClick={openVariablesDialog}>
           {t('Available variables')}
         </Button>
       ),

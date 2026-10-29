@@ -1,3 +1,7 @@
+import { type ChipSeverity } from '@filigran/design-system';
+
+import { type ThemeInput } from './api-types';
+
 export const stringToColour = (str: string | null | undefined, reversed = false): string => {
   if (!str) {
     return '#5d4037';
@@ -40,6 +44,19 @@ export interface SeverityAndColor {
   color: string;
 }
 
+/**
+ * The library severity a CVSS band reads as. The library Chip takes a tone,
+ * not a colour — its `color` prop accepts a hex only and would reject a token
+ * — so a consumer that renders a chip passes this instead of `color`.
+ */
+export const CVSS_SEVERITY: Record<SeverityAndColor['severity'], ChipSeverity> = {
+  CRITICAL: 'critical',
+  HIGH: 'high',
+  MEDIUM: 'info',
+  LOW: 'low',
+  NONE: 'neutral',
+};
+
 // CVSS - hex colors aligned with the severity chip palette used across the app
 // (see ItemSeverity / ItemCriticality) so CVSS reads the same everywhere.
 export const getSeverityAndColor = (score: number | string | null | undefined): SeverityAndColor => {
@@ -48,25 +65,25 @@ export const getSeverityAndColor = (score: number | string | null | undefined): 
   if (numScore >= 9.0) {
     return {
       severity: 'CRITICAL',
-      color: '#f44336',
+      color: 'var(--color-feedback-error-primary)',
     };
   }
   if (numScore >= 7.0) {
     return {
       severity: 'HIGH',
-      color: '#ff9800',
+      color: 'var(--color-feedback-warning-primary)',
     };
   }
   if (numScore >= 4.0) {
     return {
       severity: 'MEDIUM',
-      color: '#5c7bf5',
+      color: 'var(--color-feedback-info-primary)',
     };
   }
   if (numScore > 0.0) {
     return {
       severity: 'LOW',
-      color: '#4caf50',
+      color: 'var(--color-feedback-success-primary)',
     };
   }
   return {
@@ -77,5 +94,45 @@ export const getSeverityAndColor = (score: number | string | null | undefined): 
 
 const HEX_COLOR = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
+/**
+ * The color when it is a valid hex value, else undefined. Inline styles must never get an invalid
+ * value: the browser rejects it and keeps the element's previous color, which a reused DOM node
+ * (e.g. a filtered option list) then shows for the wrong item.
+ */
+export const validHexColor = (color: string | null | undefined): string | undefined =>
+  color?.trim().match(HEX_COLOR)?.[0];
+
 export const colorOrFallback = (color: string | null | undefined, fallback: string): string =>
-  color?.trim().match(HEX_COLOR)?.[0] ?? fallback;
+  validHexColor(color) ?? fallback;
+
+/** The only format the theme and marking forms accept (and the API enforces): #RRGGBB. */
+export const FORM_HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
+
+const THEME_COLOR_FIELDS = [
+  'background_color',
+  'paper_color',
+  'navigation_color',
+  'primary_color',
+  'secondary_color',
+  'accent_color',
+  'text_color',
+  'login_aside_color',
+  'login_aside_gradient_start',
+  'login_aside_gradient_end',
+] as const;
+
+/**
+ * The theme with every colour field that is not a valid hex dropped (undefined, so the library
+ * default applies). A stored value that is not a colour would otherwise make MUI's
+ * alpha()/lighten()/createTheme throw and take the whole app down, settings page included.
+ */
+export const sanitizeThemeColors = (theme: ThemeInput | null | undefined): ThemeInput | undefined => {
+  if (!theme) {
+    return undefined;
+  }
+  const sanitized = { ...theme };
+  THEME_COLOR_FIELDS.forEach((field) => {
+    sanitized[field] = validHexColor(theme[field]);
+  });
+  return sanitized;
+};

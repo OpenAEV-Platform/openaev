@@ -1,6 +1,7 @@
+import { Button } from '@filigran/design-system';
 import { Draggable, Droppable } from '@hello-pangea/dnd';
-import { AddOutlined, DeleteOutline } from '@mui/icons-material';
-import { Box, Button, Stack } from '@mui/material';
+import { AddOutlined, DeleteOutlineOutlined } from '@mui/icons-material';
+import { Box, Stack } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -85,33 +86,31 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
       p: 2,
     }}
     >
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Stack direction="row" alignItems="center" spacing={1}>
+      <Stack
+        direction="row"
+        sx={{
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 2,
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ alignItems: 'center' }}
+        >
           <LogicalOperatorSelect
             value={group.operator}
             onChange={handleOperatorChange}
             readOnly={readOnly}
           />
           {onDelete && (
-            <Button
-              size="small"
-              color="error"
-              disabled={readOnly}
-              startIcon={<DeleteOutline fontSize="small" />}
-              onClick={onDelete}
-              sx={{ ml: 1 }}
-            >
+            <Button type="button" variant="destructive" priority="tertiary" size="sm" startIcon={<DeleteOutlineOutlined fontSize="small" />} disabled={readOnly} onClick={onDelete} style={{ marginLeft: 8 }}>
               {t('Remove group')}
             </Button>
           )}
         </Stack>
-        <Button
-          size="small"
-          color="primary"
-          disabled={readOnly}
-          startIcon={<AddOutlined fontSize="small" />}
-          onClick={handleAddCondition}
-        >
+        <Button type="button" priority="tertiary" size="sm" startIcon={<AddOutlined fontSize="small" />} disabled={readOnly} onClick={handleAddCondition}>
           {t('Add Condition')}
         </Button>
       </Stack>

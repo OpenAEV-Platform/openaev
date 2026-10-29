@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { CheckCircleOutlined, HighlightOffOutlined, PendingActionsOutlined } from '@mui/icons-material';
-import { Alert, Button, IconButton, Typography } from '@mui/material';
+import { Alert, Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type JSX, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -137,30 +138,30 @@ const ChallengesPlayer = () => {
       {permissions.isLoggedIn && permissions.canAccess && (
         <>
           <Button
-            color="secondary"
-            variant="outlined"
-            component={Link}
-            to={`/admin/simulations/${exerciseId}/challenges`}
+            asChild
+            priority="secondary"
             style={{
               position: 'absolute',
               top: theme.spacing(2),
               right: theme.spacing(2),
             }}
           >
-            {t('Switch to preview mode')}
+            <Link to={`/admin/simulations/${exerciseId}/challenges`}>
+              {t('Switch to preview mode')}
+            </Link>
           </Button>
           <Button
-            color="primary"
-            variant="outlined"
-            component={Link}
-            to={`/admin/simulations/${exerciseId}/definition`}
+            asChild
+            priority="secondary"
             style={{
               position: 'absolute',
               top: theme.spacing(2),
               left: theme.spacing(2),
             }}
           >
-            {t('Back to administration')}
+            <Link to={`/admin/simulations/${exerciseId}/definition`}>
+              {t('Back to administration')}
+            </Link>
           </Button>
         </>
       )}
@@ -235,9 +236,16 @@ const ChallengesPlayer = () => {
                     }}
                     clickable
                     actionHeader={(
-                      <IconButton size="large" color={status.color}>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-flex',
+                          p: 1.5,
+                          color: `${status.color}.main`,
+                        }}
+                      >
                         {status.icon}
-                      </IconButton>
+                      </Box>
                     )}
                   />
                 );
@@ -289,7 +297,7 @@ const ChallengesPlayer = () => {
                 marginTop: theme.spacing(2),
               }}
               >
-                <Button variant="outlined" color="primary" onClick={handleClose} style={{ marginRight: theme.spacing(1) }}>
+                <Button type="button" priority="secondary" onClick={handleClose} style={{ marginRight: theme.spacing(1) }}>
                   {t('Close')}
                 </Button>
               </div>

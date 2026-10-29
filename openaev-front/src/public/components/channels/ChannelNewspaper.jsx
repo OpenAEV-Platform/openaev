@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { ChatBubbleOutlineOutlined, FavoriteBorderOutlined, MoreHorizOutlined, ShareOutlined } from '@mui/icons-material';
-import { Avatar, Button, Card, CardContent, CardHeader, CardMedia, Dialog, DialogContent, DialogTitle, GridLegacy, Typography } from '@mui/material';
+import { Avatar, Card, CardContent, CardHeader, CardMedia, Dialog, DialogContent, DialogTitle, Grid, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useState } from 'react';
@@ -105,9 +106,9 @@ const ChannelNewspaper = ({ channelReader }) => {
           <Empty message={t('No media pressure entry in this channel yet.')} />
         </div>
       )}
-      <GridLegacy container={true} spacing={3} style={{ marginTop: 10 }}>
+      <Grid container={true} spacing={3} style={{ marginTop: 34 }}>
         {firstArticle && (
-          <GridLegacy item={true} xs={headArticles.length > 0 ? 8 : 12}>
+          <Grid size={headArticles.length > 0 ? 8 : 12}>
             <Card
               variant="outlined"
               classes={{ root: classes.card }}
@@ -125,21 +126,17 @@ const ChannelNewspaper = ({ channelReader }) => {
                 title={firstArticle.article_author || t('Unknown')}
                 subheader={fldt(firstArticle.article_virtual_publication)}
               />
-              <GridLegacy container={true} spacing={3}>
+              <Grid container={true} spacing={3}>
                 {firstArticleImages.map(doc => (
-                  <GridLegacy
-                    key={doc.document_id}
-                    item={true}
-                    xs={firstArticleColumns}
-                  >
+                  <Grid key={doc.document_id} size={firstArticleColumns}>
                     <CardMedia
                       component="img"
                       height="200"
                       src={`${baseUri}/documents/${doc.document_id}/file${queryParams}`}
                     />
-                  </GridLegacy>
+                  </Grid>
                 ))}
-              </GridLegacy>
+              </Grid>
               <CardContent style={{ marginBottom: 30 }}>
                 <Typography
                   gutterBottom
@@ -166,37 +163,28 @@ const ChannelNewspaper = ({ channelReader }) => {
                 />
                 <div className={classes.footer}>
                   <div style={{ float: 'left' }}>
-                    <Button
-                      color="secondary"
-                      size="small"
-                      variant="outlined"
-                      startIcon={<MoreHorizOutlined />}
-                      onClick={() => setCurrentArticle(firstArticle)}
-                    >
+                    <Button type="button" priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(firstArticle)}>
                       {t('Read more')}
                     </Button>
                   </div>
                   <div style={{ float: 'right' }}>
-                    <Button
-                      size="small"
-                      startIcon={<ChatBubbleOutlineOutlined />}
-                    >
+                    <Button type="button" priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                       {firstArticle.article_comments || 0}
                     </Button>
-                    <Button size="small" startIcon={<ShareOutlined />}>
+                    <Button type="button" priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                       {firstArticle.article_shares || 0}
                     </Button>
-                    <Button size="small" startIcon={<FavoriteBorderOutlined />}>
+                    <Button type="button" priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                       {firstArticle.article_likes || 0}
                     </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </GridLegacy>
+          </Grid>
         )}
         {headArticles.length > 0 && (
-          <GridLegacy item={true} xs={4}>
+          <Grid size={4}>
             {headArticles.map((article, index) => {
               const images = article.article_documents
                 .map(docId => (documentsMap[docId] ? documentsMap[docId] : undefined))
@@ -227,17 +215,17 @@ const ChannelNewspaper = ({ channelReader }) => {
                     title={article.article_author || t('Unknown')}
                     subheader={fldt(article.article_virtual_publication)}
                   />
-                  <GridLegacy container={true} spacing={3}>
+                  <Grid container={true} spacing={3}>
                     {images.map(doc => (
-                      <GridLegacy key={doc.document_id} item={true} xs={columns}>
+                      <Grid key={doc.document_id} size={columns}>
                         <CardMedia
                           component="img"
                           height="100"
                           src={`${baseUri}/documents/${doc.document_id}/file${queryParams}`}
                         />
-                      </GridLegacy>
+                      </Grid>
                     ))}
-                  </GridLegacy>
+                  </Grid>
                   <CardContent style={{ marginBottom: 30 }}>
                     <Typography
                       gutterBottom
@@ -257,30 +245,18 @@ const ChannelNewspaper = ({ channelReader }) => {
                     />
                     <div className={classes.footer}>
                       <div style={{ float: 'left' }}>
-                        <Button
-                          color="secondary"
-                          size="small"
-                          variant="outlined"
-                          startIcon={<MoreHorizOutlined />}
-                          onClick={() => setCurrentArticle(article)}
-                        >
+                        <Button type="button" priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(article)}>
                           {t('Read more')}
                         </Button>
                       </div>
                       <div style={{ float: 'right' }}>
-                        <Button
-                          size="small"
-                          startIcon={<ChatBubbleOutlineOutlined />}
-                        >
+                        <Button type="button" priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                           {article.article_comments || 0}
                         </Button>
-                        <Button size="small" startIcon={<ShareOutlined />}>
+                        <Button type="button" priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                           {article.article_shares || 0}
                         </Button>
-                        <Button
-                          size="small"
-                          startIcon={<FavoriteBorderOutlined />}
-                        >
+                        <Button type="button" priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                           {article.article_likes || 0}
                         </Button>
                       </div>
@@ -289,10 +265,10 @@ const ChannelNewspaper = ({ channelReader }) => {
                 </Card>
               );
             })}
-          </GridLegacy>
+          </Grid>
         )}
-      </GridLegacy>
-      <GridLegacy container={true} spacing={3} style={{ marginTop: 0 }}>
+      </Grid>
+      <Grid container={true} spacing={3} style={{ marginTop: 24 }}>
         {otherArticles.map((article) => {
           const images = article.article_documents
             .map(docId => (documentsMap[docId] ? documentsMap[docId] : undefined))
@@ -307,7 +283,7 @@ const ChannelNewspaper = ({ channelReader }) => {
             columns = 3;
           }
           return (
-            <GridLegacy key={article.article_id} item={true} xs={4}>
+            <Grid key={article.article_id} size={4}>
               <Card
                 variant="outlined"
                 classes={{ root: classes.card }}
@@ -325,17 +301,17 @@ const ChannelNewspaper = ({ channelReader }) => {
                   title={article.article_author || t('Unknown')}
                   subheader={fldt(article.article_virtual_publication)}
                 />
-                <GridLegacy container={true} spacing={3}>
+                <Grid container={true} spacing={3}>
                   {images.map(doc => (
-                    <GridLegacy key={doc.document_id} item={true} xs={columns}>
+                    <Grid key={doc.document_id} size={columns}>
                       <CardMedia
                         component="img"
                         height="150"
                         src={`${baseUri}/documents/${doc.document_id}/file${queryParams}`}
                       />
-                    </GridLegacy>
+                    </Grid>
                   ))}
-                </GridLegacy>
+                </Grid>
                 <CardContent style={{ marginBottom: 30 }}>
                   <Typography
                     gutterBottom
@@ -355,47 +331,35 @@ const ChannelNewspaper = ({ channelReader }) => {
                   />
                   <div className={classes.footer}>
                     <div style={{ float: 'left' }}>
-                      <Button
-                        color="secondary"
-                        size="small"
-                        variant="outlined"
-                        startIcon={<MoreHorizOutlined />}
-                        onClick={() => setCurrentArticle(article)}
-                      >
+                      <Button type="button" priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(article)}>
                         {t('Read more')}
                       </Button>
                     </div>
                     <div style={{ float: 'right' }}>
-                      <Button
-                        size="small"
-                        startIcon={<ChatBubbleOutlineOutlined />}
-                      >
+                      <Button type="button" priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                         {article.article_comments || 0}
                       </Button>
-                      <Button size="small" startIcon={<ShareOutlined />}>
+                      <Button type="button" priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                         {article.article_shares || 0}
                       </Button>
-                      <Button
-                        size="small"
-                        startIcon={<FavoriteBorderOutlined />}
-                      >
+                      <Button type="button" priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                         {article.article_likes || 0}
                       </Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            </GridLegacy>
+            </Grid>
           );
         })}
-      </GridLegacy>
+      </Grid>
       <Dialog
-        TransitionComponent={Transition}
         open={currentArticle !== null}
         onClose={() => setCurrentArticle(null)}
         fullWidth={true}
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{currentArticle?.article_name}</DialogTitle>
         <DialogContent>

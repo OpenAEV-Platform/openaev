@@ -1,4 +1,5 @@
-import { Box, Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Box } from '@mui/material';
 import type React from 'react';
 
 import Loader from '../../../../../components/Loader';
@@ -23,7 +24,7 @@ const ProcessLoader: React.FC<ProcessLoaderProps> = ({
       }}
     >
       <Loader variant="inElement" />
-      <Button sx={{ marginTop: 4 }} variant="contained" onClick={onFocusTab}>
+      <Button type="button" onClick={onFocusTab} style={{ marginTop: 32 }}>
         {buttonText}
       </Button>
     </Box>

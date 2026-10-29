@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -7,11 +8,12 @@ import type { LoggedHelper } from '../../../../../actions/helper';
 import { registerPlatform, unregisterPlatform } from '../../../../../actions/xtmhub/xtmhub-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { isDemoInstance, MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
+import { MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import useExternalTab from '../../../../../utils/hooks/useExternalTab';
 import { getCurrentTenantId } from '../../../../../utils/url-helper';
+import { getXtmHubOrigin } from '../../../../../utils/xtm-hub-client';
 import { XTM_HUB_AUTO_REGISTER_QUERY_PARAM } from '../../../xtm_hub/XtmHubRedirect';
 import XtmHubConfirmationDialog from './XtmHubConfirmationDialog';
 import XtmHubProcessDialog from './XtmHubProcessDialog';
@@ -42,7 +44,6 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
   const { settings, currentUserTenant } = useAuth();
   const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
-  const isDemoMode = isDemoInstance(settings);
   const registrationHubUrl = settings?.xtm_hub_url ?? XTM_HUB_DEFAULT_URL;
   const registrationPlatformTitle = settings?.platform_name ?? 'OpenAEV Platform';
   const [processStep, setProcessStep] = useState<ProcessSteps>(
@@ -131,6 +132,7 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
   const { openTab, closeTab, focusTab } = useExternalTab({
     url: isRegistered ? unregistrationUrl : registrationUrl,
     tabName: isRegistered ? 'xtmhub-unregistration' : 'xtmhub-registration',
+    expectedOrigin: getXtmHubOrigin(registrationHubUrl),
     onMessage: handleTabMessage,
     onClosingTab: handleClosingTab,
   });
@@ -203,13 +205,13 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
     }
     const shouldAutoRegister = searchParams.get(XTM_HUB_AUTO_REGISTER_QUERY_PARAM) === 'true';
     clearAutoRegisterQueryParams();
-    if (isDemoMode || isRegistered || !shouldAutoRegister) {
+    if (isRegistered || !shouldAutoRegister) {
       return;
     }
     setOperationType(OperationType.REGISTER);
     setProcessStep(ProcessSteps.INSTRUCTIONS);
     setIsAutoRegistrationPromptOpen(true);
-  }, [clearAutoRegisterQueryParams, isDemoMode, isRegistered, location.search]);
+  }, [clearAutoRegisterQueryParams, isRegistered, location.search]);
 
   const config = useMemo(() => {
     const isUnregister = operationType === OperationType.UNREGISTER;
@@ -265,8 +267,6 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
     return renderer && isDialogOpen ? renderer() : null;
   };
 
-  if (isDemoMode) return null;
-
   return (
     <>
       <Dialog
@@ -282,10 +282,10 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={handleCancelAutoRegistration} color="primary">
+          <Button type="button" priority="secondary" onClick={handleCancelAutoRegistration}>
             {t('Cancel')}
           </Button>
-          <Button onClick={handleConfirmAutoRegistration} color="primary" autoFocus>
+          <Button type="button" priority="tertiary" onClick={handleConfirmAutoRegistration} autoFocus>
             {t('Continue')}
           </Button>
         </DialogActions>

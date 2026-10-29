@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.BulkOperationContext;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.ResourceType;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -46,6 +47,15 @@ public class BaseEvent implements Cloneable {
   /** The entity instance that triggered this event. */
   @JsonIgnore private final Base instance;
 
+  /**
+   * The resource whose READ permission governs the entity (see {@link
+   * Base#getPermissionResourceId()}), captured while the entity and its parents are still loaded:
+   * consumers run after commit, when a deleted entity can no longer be reloaded.
+   */
+  @JsonIgnore private final String permissionResourceId;
+
+  @JsonIgnore private final ResourceType permissionResourceType;
+
   /** The type of event (e.g., DATA_PERSIST, DATA_UPDATE, DATA_DELETE). */
   @JsonProperty("event_type")
   private String type;
@@ -83,6 +93,17 @@ public class BaseEvent implements Cloneable {
     this.listened = data.isListened() && !BulkOperationContext.isActive();
     RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
     this.sessionId = requestAttributes != null ? requestAttributes.getSessionId() : null;
+    String resolvedPermissionResourceId = data.getId();
+    ResourceType resolvedPermissionResourceType = data.getResourceType();
+    try {
+      resolvedPermissionResourceId = data.getPermissionResourceId();
+      resolvedPermissionResourceType = data.getPermissionResourceType();
+    } catch (RuntimeException e) {
+      // Falls back to the entity itself, which consumers resolve through its own resource type.
+      log.debug("Cannot resolve permission resource of {}", data.getClass().getSimpleName(), e);
+    }
+    this.permissionResourceId = resolvedPermissionResourceId;
+    this.permissionResourceType = resolvedPermissionResourceType;
     Class<?> baseClass = data.getClass();
 
     /*

@@ -56,7 +56,12 @@ const PlatformUsersTab = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES}>
-            <PlatformUserCreate onCreate={addPlatformUser} />
+            <PlatformUserCreate
+              onCreate={(user) => {
+                addPlatformUser(user);
+                queryableHelpers.paginationHelpers.incrementTotalElements(1);
+              }}
+            />
           </Can>
         )}
       />
@@ -89,7 +94,10 @@ const PlatformUsersTab = () => {
                     platformUser={user}
                     actions={['Update', 'Delete']}
                     onUpdate={updatePlatformUserInList}
-                    onDelete={removePlatformUser}
+                    onDelete={(userId) => {
+                      removePlatformUser(userId);
+                      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                    }}
                   />
                 )}
                 headers={headers}

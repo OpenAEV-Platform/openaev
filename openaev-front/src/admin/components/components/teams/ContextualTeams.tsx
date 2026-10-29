@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import ItemTags from '../../../../components/ItemTags';
 import { type Team } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import { PermissionsContext, TeamContext } from '../../common/Context';
@@ -24,7 +24,7 @@ const useStyles = makeStyles()(() => ({
     height: 50,
   },
   bodyItem: {
-    height: 20,
+    minHeight: 20,
     fontSize: 13,
     float: 'left',
     whiteSpace: 'nowrap',
@@ -44,31 +44,36 @@ const headerStylesContextual: Record<string, CSSProperties> = {
     float: 'left',
     width: '35%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   team_users_number: {
     float: 'left',
     width: '10%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   team_users_enabled_number: {
     float: 'left',
     width: '10%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   team_tags: {
     float: 'left',
     width: '29%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   team_contextual: {
     float: 'left',
     width: '8%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -76,7 +81,7 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   team_name: {
     float: 'left',
     width: '35%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -84,7 +89,7 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   team_users_number: {
     float: 'left',
     width: '10%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -92,7 +97,7 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   team_users_enabled_number: {
     float: 'left',
     width: '10%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -100,7 +105,7 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   team_tags: {
     float: 'left',
     width: '29%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -108,7 +113,7 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   team_contextual: {
     float: 'left',
     width: '8%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -125,7 +130,7 @@ const ContextualTeams: FunctionComponent<Props> = ({ teams }) => {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const { computeTeamUsersEnabled } = useContext(TeamContext);
   const { permissions } = useContext(PermissionsContext);
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Query param
   const [searchParams] = useSearchParams();

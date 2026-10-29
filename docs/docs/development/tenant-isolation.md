@@ -332,7 +332,7 @@ this page. Activating a table means, in one reviewed change:
 5. the build-time guards are extended for the new table.
 
 A step-by-step runbook for this procedure is maintained in the repository
-(`.github/skills/activate-tenant-table/SKILL.md`), including the eligibility gates, the required
+(`.claude/skills/activate-tenant-table/SKILL.md`), including the eligibility gates, the required
 tests and the go-live checklist.
 
 The list of currently isolated tables is the value of `openaev.tenant.active-tables` in
@@ -388,7 +388,7 @@ actually apply here.
    it into your PR. Even if it is unrelated to your change, it is still a regression that landed in
    your history — report it or fix it, do not just re-freeze past it.
 5. **Shrinking the baseline is opportunistic, not gated.** No CI step forces the list down. Use the
-   `reduce-tx-baseline` skill (`.github/skills/reduce-tx-baseline/SKILL.md`) whenever you happen to
+   `reduce-tx-baseline` skill (`.claude/skills/reduce-tx-baseline/SKILL.md`) whenever you happen to
    touch a class that already has an entry: one class per PR, fix + test + re-freeze together.
 
 ## Troubleshooting

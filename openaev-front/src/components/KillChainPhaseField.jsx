@@ -1,5 +1,5 @@
 import { RouteOutlined } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
@@ -23,7 +23,6 @@ const styles = () => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 });
 
 class KillChainPhaseFieldComponent extends Component {
@@ -94,21 +93,20 @@ class KillChainPhaseFieldComponent extends Component {
           style={style}
           openCreate={this.handleOpenKillChainPhaseCreation.bind(this)}
           onKeyDown={onKeyDown}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
+          renderOption={option => (
+            <>
               <div className={classes.icon}>
                 <RouteOutlined />
               </div>
               <div className={classes.text}>{option.label}</div>
-            </Box>
+            </>
           )}
-          classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <Dialog
             open={this.state.killChainPhaseCreation}
             onClose={this.handleCloseKillChainPhaseCreation.bind(this)}
-            PaperProps={{ elevation: 1 }}
+            slotProps={{ paper: { elevation: 1 } }}
           >
             <DialogTitle>{t('Create a new kill chain phase')}</DialogTitle>
             <DialogContent>

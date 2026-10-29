@@ -132,6 +132,7 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
               onCreate={(user: User) => {
                 setPlayers(prev => [user as unknown as PlayerOutput, ...prev]);
                 setUsersIds(prev => [...prev, user.user_id]);
+                queryableHelpers.paginationHelpers.incrementTotalElements(1);
               }}
             />
           </Can>

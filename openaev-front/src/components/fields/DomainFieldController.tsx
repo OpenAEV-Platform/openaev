@@ -1,9 +1,9 @@
-import { Box, Checkbox } from '@mui/material';
 import type { CSSProperties } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import type { Domain } from '../../utils/api-types';
 import { buildDomainAutocompleteState, TO_CLASSIFY } from '../../utils/domains/domainUtils';
+import { useFormatter } from '../i18n';
 import AutocompleteField from './AutocompleteField';
 
 interface DomainFieldControllerProps {
@@ -33,6 +33,8 @@ const DomainFieldController = ({
   style,
 }: DomainFieldControllerProps) => {
   const { control } = useFormContext();
+  const { t } = useFormatter();
+  const toClassifyId = domains.find(d => d.domain_name === TO_CLASSIFY)?.domain_id;
 
   return (
     <Controller
@@ -42,40 +44,26 @@ const DomainFieldController = ({
         field: { onChange, value },
         fieldState: { error },
       }) => {
-        const { currentIds, options }
+        const { currentIds, options: rawOptions }
           = buildDomainAutocompleteState(domains, value);
+        const options = rawOptions.map(option => ({
+          ...option,
+          label: t(option.label),
+        }));
 
         return (
           <AutocompleteField
             style={style}
             label={label}
-            variant="standard"
             multiple
             required={required}
             disabled={disabled}
             options={options}
             value={currentIds}
             error={!!error}
-            onInputChange={() => {
-            }}
+            onInputChange={() => {}}
             onChange={onChange}
-            renderOption={(props, option) => {
-              if (option.label === TO_CLASSIFY) return null;
-              return (
-                <Box
-                  component="li"
-                  {...props}
-                  key={option.id}
-                  sx={{
-                    px: 2,
-                    py: 1,
-                  }}
-                >
-                  <Checkbox checked={currentIds.includes(option.id)} sx={{ mr: 1 }} />
-                  {option.label}
-                </Box>
-              );
-            }}
+            hideOption={option => option.id === toClassifyId}
           />
         );
       }}

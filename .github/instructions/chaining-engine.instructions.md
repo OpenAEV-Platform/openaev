@@ -14,6 +14,7 @@ applyTo: |
   openaev-model/src/main/java/io/openaev/database/model/ConditionStep.java,
   openaev-model/src/main/java/io/openaev/database/model/WorkflowState.java,
   openaev-model/src/main/java/io/openaev/database/model/WorkflowStateEntries.java,
+  openaev-model/src/main/java/io/openaev/database/model/WorkflowStateEntry.java,
   openaev-model/src/main/java/io/openaev/database/model/StepDelayQueue.java,
   openaev-model/src/main/java/io/openaev/database/model/WorkflowScopeRule.java,
   openaev-model/src/main/java/io/openaev/database/model/ScopeVariable.java,
@@ -30,8 +31,7 @@ applyTo: |
   openaev-model/src/main/java/io/openaev/database/repository/WorkflowRepository.java,
   openaev-model/src/main/java/io/openaev/database/repository/ConditionRepository.java,
   openaev-model/src/main/java/io/openaev/database/repository/WorkflowStateRepository.java,
-  openaev-model/src/main/java/io/openaev/database/repository/WorkflowStateRepositoryCustom.java,
-  openaev-model/src/main/java/io/openaev/database/repository/WorkflowStateRepositoryCustomImpl.java,
+  openaev-model/src/main/java/io/openaev/database/repository/WorkflowStateEntryRepository.java,
   openaev-model/src/main/java/io/openaev/database/repository/StepDelayQueueRepository.java,
   openaev-model/src/main/java/io/openaev/database/repository/WorkflowScopeRuleRepository.java,
   openaev-model/src/main/java/io/openaev/database/repository/ScopeVariableRepository.java,
@@ -192,7 +192,7 @@ WorkflowTimeoutJob (Quartz, @DisallowConcurrentExecution)
 | **Step Template** | Blueprint step (status `TEMPLATE`). Defines action type, conditions, expected outputs. |
 | **Step (READY/RUN/END)** | Runtime instance cloned from a template during execution. |
 | **ActionStep** | Interface for step actions. Currently only `InjectExecutionStep` (creates and executes injects). |
-| **Global State (WorkflowState)** | Shared state holding all outputs produced during a workflow run. Stored as JSON entries. |
+| **Global State (WorkflowState)** | Shared state holding all outputs produced during a workflow run. Stored as normalized `workflow_state_entries` rows (one per input value, correlated-tuple field and execution hash, see ADR-011), accessed only through `WorkflowStateStore`. |
 | **Local State** | Per-step state populated by propagation from global state when conditions match. |
 | **Condition** | Tree-structured logical rules (AND/OR root + leaf comparisons). Evaluated against pool values. |
 | **ConditionStep** | Join entity linking conditions to steps. |
@@ -254,6 +254,8 @@ io.openaev.service.chaining/          ← Business logic layer
   ├── ConditionService.java           ← Condition tree CRUD, linking conditions to steps
   ├── ConditionFactory.java           ← Factory for special conditions (EXECUTION_TIME, DEPEND_ON)
   ├── WorkflowStateService.java       ← Global/local state sync, propagation to dependent steps
+  ├── WorkflowStateStore.java         ← State persistence: append-only deltas, key-restricted views, anti-replay hashes
+  ├── ChainingHashUtils.java          ← Execution-combination and correlated-tuple hashes
   ├── QueueChainingService.java       ← RabbitMQ queue management (ready + update queues)
   ├── QueueChainingServiceCallbackRegistrar.java ← Registers queue consumers at startup
   ├── StepEventService.java           ← Implements StepEventHandler + ExternalUpdateEventHandler
@@ -261,13 +263,14 @@ io.openaev.service.chaining/          ← Business logic layer
   ├── ExternalUpdateEventHandler.java ← Interface: handleExternalUpdateEvent()
   ├── StepEvent.java                  ← Queue message for ready steps (Queueable)
   ├── ExternalUpdateEvent.java        ← Queue message for external updates (Queueable)
+  ├── WorkflowUpdateEventPublisher.java ← Looks the steps up in the caller's scope, sends update events, retries refused ones
   ├── ScopeService.java               ← Asset scope resolution (allowlist/denylist)
   ├── StepDelayQueueService.java      ← DB-persisted delay queue for time conditions
   └── WorkflowEndService.java     ← Finds expired workflows, force-completes them
 
 io.openaev.aop/
   ├── WorkflowUpdateEvent.java        ← Annotation: marks methods that trigger workflow updates
-  └── WorkflowUpdateEventAspect.java  ← AOP aspect: publishes ExternalUpdateEvent after inject changes
+  └── WorkflowUpdateEventAspect.java  ← AOP aspect: resolves the annotation's ids, publishes through WorkflowUpdateEventPublisher
 
 io.openaev.scheduler.jobs/
   ├── QueueChainingJob.java           ← Quartz job: polls StepDelayQueue for time-delayed steps
@@ -289,8 +292,9 @@ io.openaev.database.model/
   ├── Step.java                       ← JPA entity: step template or runtime instance
   ├── Condition.java                  ← JPA entity: tree node (root OR/AND + leaf comparisons)
   ├── ConditionStep.java              ← JPA join entity: links conditions to steps
-  ├── WorkflowState.java             ← JPA entity: global/local state (JSON entries)
-  ├── WorkflowStateEntries.java       ← POJO: deserialized state entries
+  ├── WorkflowState.java             ← JPA entity: global/local state (one row per state)
+  ├── WorkflowStateEntry.java         ← JPA entity: one state entry (INPUT / CORRELATED / HASH_EXECUTION)
+  ├── WorkflowStateEntries.java       ← POJO: in-memory view of a state (delta or key-restricted view)
   ├── WorkflowScopeRule.java          ← JPA entity: scope allowlist/denylist rule
   ├── ScopeVariable.java              ← JPA entity: named scope variable
   ├── StepDelayQueue.java             ← JPA entity: pending delayed step execution
@@ -306,7 +310,8 @@ io.openaev.database.repository/
   ├── WorkflowRepository.java
   ├── StepRepository.java
   ├── ConditionRepository.java
-  ├── WorkflowStateRepository.java (+ Custom + CustomImpl)
+  ├── WorkflowStateRepository.java
+  ├── WorkflowStateEntryRepository.java
   ├── WorkflowScopeRuleRepository.java
   ├── ScopeVariableRepository.java
   └── StepDelayQueueRepository.java
@@ -415,7 +420,8 @@ openaev-front/src/components/common/chaining/
 ### External Updates (AOP)
 
 - `@WorkflowUpdateEvent` annotation on inject-related methods triggers the `WorkflowUpdateEventAspect`.
-- The aspect extracts inject/expectation IDs via SpEL expressions and publishes `ExternalUpdateEvent` to the update queue.
+- The aspect extracts inject/expectation IDs via SpEL expressions and hands them to `WorkflowUpdateEventPublisher`, which publishes `ExternalUpdateEvent` to the update queue and keeps the events the queue refused for a later retry.
+- The step lookup and each event's tenant are read in the caller's transaction, so the annotation only works on a method that runs inside a scoped transaction. A method with no transaction of its own (such as the batched callback handler, `NOT_SUPPORTED`) must not carry the annotation: it calls `WorkflowUpdateEventPublisher` from a transaction scoped to the injects' tenant, after its own writes are committed.
 - This is how inject status changes (from executors or human validation) flow back into the chaining engine.
 
 ### Scope
@@ -465,4 +471,4 @@ All endpoints use `@AccessControl` with appropriate `Action` and `ResourceType`.
 - `PreviewFeatureService.java` — Runtime feature flag service
 - `PlatformTriggers.java` / `PlatformJobDefinitions.java` — Quartz job registration
 - `ConditionUtils.java` — Shared condition evaluation logic
-- `BatchingInjectStatusService.java` — Annotated with `@WorkflowUpdateEvent`
+- `BatchingInjectStatusService.java`: notifies the engine per tenant group through `WorkflowUpdateEventPublisher`, not through the annotation

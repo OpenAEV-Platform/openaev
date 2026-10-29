@@ -1,49 +1,40 @@
-import { Tooltip } from '@mui/material';
-import { type CSSProperties } from 'react';
-import { makeStyles } from 'tss-react/mui';
+import { Chip, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
+import { type CSSProperties, type MouseEvent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
-
-const useStyles = makeStyles<{ isClickable: boolean }>()((theme, { isClickable }) => ({
-  container: {
-    fontSize: 'xx-small',
-    height: 14,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 21,
-    borderRadius: theme.borderRadius,
-    border: `1px solid ${theme.palette.ee.main}`,
-    color: theme.palette.ee.main,
-    backgroundColor: theme.palette.ee.background,
-    cursor: isClickable ? 'pointer' : 'default',
-  },
-}));
 
 const EEChip = ({ clickable = false, featureDetectedInfo = null, style = {} }: {
   clickable?: boolean;
   featureDetectedInfo?: string | null;
   style?: CSSProperties;
 }) => {
-  const { classes } = useStyles({ isClickable: clickable });
   const { t } = useFormatter();
   const { isValidated: isEnterpriseEdition, openDialog, setEEFeatureDetectedInfo } = useEnterpriseEdition();
-  if (featureDetectedInfo) {
-    setEEFeatureDetectedInfo(featureDetectedInfo);
-  }
+  // The feature context is recorded when the dialog is asked for, not during render.
+  const onClick = clickable && !isEnterpriseEdition
+    ? (event: MouseEvent<HTMLElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (featureDetectedInfo) {
+          setEEFeatureDetectedInfo(featureDetectedInfo);
+        }
+        openDialog();
+      }
+    : undefined;
+
+  const chip = <Chip label={t('EE')} severity="ee" size="sm" onClick={onClick} style={style} />;
 
   return (
-    <Tooltip
-      title={t('Enterprise Edition Feature')}
-      className={classes.container}
-      onClick={() => clickable && !isEnterpriseEdition && openDialog()}
-      style={style}
-    >
-      <span>
-        EE
-      </span>
-    </Tooltip>
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        {/* The trigger hands its own onClick to its child, which would turn a plain marker into a button. */}
+        <TooltipTrigger asChild>
+          {onClick ? chip : <span className="inline-flex">{chip}</span>}
+        </TooltipTrigger>
+        <TooltipContent>{t('Enterprise Edition Feature')}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 

@@ -50,4 +50,9 @@ public enum ExecutionStatus {
   public boolean isSuccess() {
     return SUCCESS_STATUSES.contains(this);
   }
+
+  /** The inject is finished: it ended with a success or an error (not draft nor in progress). */
+  public boolean isClosed() {
+    return isSuccess() || isError();
+  }
 }

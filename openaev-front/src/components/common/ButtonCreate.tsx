@@ -1,9 +1,8 @@
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add } from '@mui/icons-material';
-import { Button, Tooltip } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../i18n';
-import { INLINE_CONTROL_HEIGHT } from '../Theme';
 
 interface Props {
   onClick: () => void;
@@ -12,41 +11,48 @@ interface Props {
   disabled?: boolean;
   /** Reason shown on hover while disabled. Raw i18n key, translated here. */
   disabledMessage?: string;
+
+  // A list header keeps the default 36px button. A Paper header row passes `sm`:
+  // 24px, the height of that row; a taller control overflows it and eats into
+  // the 8px gap below.
+  size?: 'sm';
 }
 
 // Top-right inline creation button (OpenCTI-aligned): a contained primary
 // button rendered in the list header row instead of a floating bottom-right
 // Fab. The accessible name is the visible label (WCAG 2.5.3 Label in Name);
 // e2e selectors target the stable data-testid instead.
-const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, label, disabled, disabledMessage }) => {
+const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, label, disabled, disabledMessage, size }) => {
   const { t } = useFormatter();
+  const content = label ?? t('Create');
 
   const button = (
     <Button
+      type="button"
       onClick={onClick}
-      color="primary"
-      variant="contained"
-      size="small"
+      size={size}
       data-testid="button-create"
-      startIcon={<Add />}
-      style={style}
-      disabled={disabled}
-      sx={{
+      startIcon={<Add fontSize="small" />}
+      style={{
         whiteSpace: 'nowrap',
         flexShrink: 0,
-        minHeight: INLINE_CONTROL_HEIGHT,
+        ...style,
       }}
+      disabled={disabled}
     >
-      {label ?? t('Create')}
+      {content}
     </Button>
   );
 
-  // A disabled MUI button fires no pointer event, so the tooltip needs an
-  // enabled wrapper to hang on to.
+  // A disabled button fires no pointer event, so the tooltip needs an enabled
+  // wrapper to hang on to.
   if (disabled && disabledMessage) {
     return (
-      <Tooltip title={t(disabledMessage)}>
-        <span style={{ display: 'inline-flex' }}>{button}</span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span style={{ display: 'inline-flex' }}>{button}</span>
+        </TooltipTrigger>
+        <TooltipContent>{t(disabledMessage)}</TooltipContent>
       </Tooltip>
     );
   }

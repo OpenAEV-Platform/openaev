@@ -24,7 +24,7 @@ const StartTrialBanner = (settings: { settings: PlatformSettings }) => {
           <a
             href={freeTrialUrl}
             style={{
-              color: '#000000',
+              color: 'var(--text-negative-primary)',
               marginLeft: theme.spacing(0.5),
             }}
             target="_blank"

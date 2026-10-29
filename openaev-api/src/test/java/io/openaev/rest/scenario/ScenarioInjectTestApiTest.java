@@ -31,6 +31,7 @@ import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -44,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class ScenarioInjectTestApiTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private ManagerFactory managerFactory;
   @Autowired private MockMvc mvc;
@@ -51,6 +53,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
   @Autowired private ExerciseComposer simulationComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectTestStatusComposer injectTestStatusComposer;
+  @Autowired private ExecutionTraceComposer executionTraceComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private InjectorContractFixture injectorContractFixture;
@@ -66,7 +69,8 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
   @BeforeEach
   public void setup() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
     Mockito.reset(mailSender);
     // Fixtures here are created under the ambient default tenant, and SimulationInjectTestApi's
@@ -478,9 +482,14 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
     void setupData() throws Exception {
       InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
 
+      // Email / SMS injectors attach their traces to the recipient's user id
       InjectTestStatusComposer.Composer injectTestStatusComposer1 =
-          injectTestStatusComposer.forInjectTestStatus(
-              InjectTestStatusFixture.createSuccessInjectStatus());
+          injectTestStatusComposer
+              .forInjectTestStatus(InjectTestStatusFixture.createSuccessInjectStatus())
+              .withExecutionTrace(
+                  executionTraceComposer.forExecutionTrace(
+                      ExecutionTraceFixture.createDefaultExecutionTraceCompleteWithIdentifiers(
+                          List.of(UUID.randomUUID().toString()))));
 
       InjectTestStatusComposer.Composer injectTestStatusComposer2 =
           injectTestStatusComposer.forInjectTestStatus(
@@ -545,6 +554,29 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
                 get(SCENARIO_URI + "/injects/test/{testId}", injectTestStatus1Wrapper.get().getId())
                     .with(csrf()))
             .andExpect(status().isOk());
+      }
+
+      @Test
+      @DisplayName("Should return the user-scoped traces of a test status")
+      @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+      void given_userScopedTrace_should_returnItInMainTraces() throws Exception {
+        // Act
+        String response =
+            mvc.perform(
+                    get(
+                            SCENARIO_URI + "/injects/test/{testId}",
+                            injectTestStatus1Wrapper.get().getId())
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Assert
+        assertThatJson(response)
+            .inPath("$.status_main_traces[*].execution_message")
+            .isArray()
+            .containsExactly("Success");
       }
 
       @Test

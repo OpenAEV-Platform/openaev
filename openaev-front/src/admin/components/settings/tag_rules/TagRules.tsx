@@ -68,7 +68,11 @@ const TagRules = () => {
 
   return (
     <div style={{ display: 'flex' }}>
-      <div style={{ flexGrow: 1 }}>
+      <div style={{
+        flexGrow: 1,
+        minWidth: 0,
+      }}
+      >
         <Breadcrumbs
           variant="list"
           elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Customization') }, {
@@ -86,7 +90,10 @@ const TagRules = () => {
           topBarButtons={(
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
               <TagRuleCreate
-                onCreate={result => setTagRules([...tagRules, result])}
+                onCreate={(result) => {
+                  setTagRules([...tagRules, result]);
+                  queryableHelpers.paginationHelpers.incrementTotalElements(1);
+                }}
               />
             </Can>
           )}
@@ -116,7 +123,10 @@ const TagRules = () => {
               secondaryAction={(
                 <TagRulePopover
                   tagRule={tagRule}
-                  onDelete={result => setTagRules(tagRules.filter(ag => (ag.tag_rule_id !== result)))}
+                  onDelete={(result) => {
+                    setTagRules(tagRules.filter(ag => (ag.tag_rule_id !== result)));
+                    queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                  }}
                   onUpdate={result => setTagRules(tagRules.map(existing => (existing.tag_rule_id !== result.tag_rule_id ? existing : result)))}
                 />
               )}

@@ -154,4 +154,4 @@ step exposed the credential that made the lateral validation possible in the fir
 - [Logic Creation](logic-creation.md): adjust your Events and Actions based on what you observed.
 - [Scope Definition](scope-definition.md): revisit the Assets, timeout, and rate limit that bounded this run.
 - [Attack Chaining overview](overview.md): back to the feature hub.
-- [Findings](../evaluate/findings/findings.md): explore Findings platform-wide, beyond a single chained run.
+- [Findings](../run-and-evaluate/findings/findings.md): explore Findings platform-wide, beyond a single chained run.

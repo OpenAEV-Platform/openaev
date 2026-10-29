@@ -1,5 +1,6 @@
-import { Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Box } from '@mui/material';
+import { type FunctionComponent, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -19,18 +20,18 @@ const ScenarioConfiguration: FunctionComponent<{ initialTab?: ScenarioConfigurat
 
   return (
     <Box sx={{ paddingTop: 1 }}>
-      <Box sx={{
-        borderBottom: 1,
-        borderColor: 'divider',
-        marginBottom: 2,
-      }}
+      <Tabs
+        value={String(tab)}
+        onValueChange={value => setTab(Number(value) as ScenarioConfigurationTab)}
+        panels="external"
+        style={{ marginBottom: 16 }}
       >
-        <Tabs value={tab} onChange={(_: SyntheticEvent, value: number) => setTab(value)} variant="scrollable" scrollButtons="auto">
-          <Tab label={t('Teams')} />
-          <Tab label={t('Variables')} />
-          <Tab label={t('Media pressure')} />
-        </Tabs>
-      </Box>
+        <TabsList>
+          <TabsTrigger value={String(ScenarioConfigurationTab.TEAMS)}>{t('Teams')}</TabsTrigger>
+          <TabsTrigger value={String(ScenarioConfigurationTab.VARIABLES)}>{t('Variables')}</TabsTrigger>
+          <TabsTrigger value={String(ScenarioConfigurationTab.MEDIA_PRESSURE)}>{t('Media pressure')}</TabsTrigger>
+        </TabsList>
+      </Tabs>
       {tab === ScenarioConfigurationTab.TEAMS && <ScenarioTeams scenarioTeamsUsers={scenario.scenario_teams_users} />}
       {tab === ScenarioConfigurationTab.VARIABLES && <ScenarioVariables />}
       {tab === ScenarioConfigurationTab.MEDIA_PRESSURE && <ScenarioArticles />}

@@ -1,13 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CrisisAlertOutlined, DescriptionOutlined, EmojiEventsOutlined, SportsScoreOutlined } from '@mui/icons-material';
-import {
-  Avatar,
-  Card,
-  CardActions,
-  CardContent,
-  CardHeader,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Avatar, Card, CardActions, CardContent, CardHeader, Typography } from '@mui/material';
 import { type ReactNode } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -17,6 +10,11 @@ import ItemTags from '../../../../components/ItemTags';
 import type { Challenge, PublicChallenge } from '../../../../utils/api-types';
 
 const useStyles = makeStyles()(theme => ({
+  // A challenge is a category, not a severity: the hue comes from the library's
+  // categorical ramp. The token's name belongs to a sibling taxonomy and means
+  // nothing here — it was picked for perceptual distance from the value it
+  // replaces, and unlike that value it resolves per mode.
+  avatar: { backgroundColor: theme.palette.designSystem.entities.events },
   cardContainer: {
     display: 'flex',
     flexDirection: 'column',
@@ -66,7 +64,7 @@ const ChallengeCard = ({ challenge, showTags = false, clickable = false, onClick
     >
       <CardHeader
         avatar={(
-          <Avatar sx={{ backgroundColor: '#e91e63' }} aria-label="challenge-icon">
+          <Avatar className={classes.avatar} aria-label="challenge-icon">
             <EmojiEventsOutlined />
           </Avatar>
         )}
@@ -83,25 +81,34 @@ const ChallengeCard = ({ challenge, showTags = false, clickable = false, onClick
       <CardActions classes={{ root: classes.iconInfo }}>
         {showTags && (challenge.challenge_tags?.length ?? 0) > 0 && <ItemTags variant="list" tags={challenge.challenge_tags} />}
 
-        <Tooltip title={t('Score')}>
-          <span className={classes.metric} style={{ marginLeft: 'auto' }}>
-            <SportsScoreOutlined fontSize="small" color="primary" />
-            <Typography color="primary" variant="body2">{challenge.challenge_score ?? 0}</Typography>
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={classes.metric} style={{ marginLeft: 'auto' }}>
+              <SportsScoreOutlined fontSize="small" color="primary" />
+              <Typography color="primary" variant="body2">{challenge.challenge_score ?? 0}</Typography>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('Score')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={attempt === undefined ? t('Max number of attempts') : t('Attempts used out of the maximum')}>
-          <span className={classes.metric}>
-            <CrisisAlertOutlined fontSize="small" color="primary" />
-            <Typography color="primary" variant="body2">
-              {attempt === undefined ? maxAttempts : `${attempt}/${maxAttempts}`}
-            </Typography>
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={classes.metric}>
+              <CrisisAlertOutlined fontSize="small" color="primary" />
+              <Typography color="primary" variant="body2">
+                {attempt === undefined ? maxAttempts : `${attempt}/${maxAttempts}`}
+              </Typography>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{attempt === undefined ? t('Max number of attempts') : t('Attempts used out of the maximum')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('Documents')}>
-          <span className={classes.metric}>
-            <DescriptionOutlined fontSize="small" color="primary" />
-            <Typography color="primary" variant="body2">{challenge.challenge_documents?.length ?? 0}</Typography>
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={classes.metric}>
+              <DescriptionOutlined fontSize="small" color="primary" />
+              <Typography color="primary" variant="body2">{challenge.challenge_documents?.length ?? 0}</Typography>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('Documents')}</TooltipContent>
         </Tooltip>
       </CardActions>
     </Card>

@@ -17,5 +17,5 @@ public class InjectExpectationBulkUpdateInput {
   /** Map of expectation IDs to their corresponding update inputs. */
   @NotNull
   @JsonProperty("inputs")
-  private Map<String, InjectExpectationUpdateInput> inputs;
+  private Map<String, InjectExpectationUpdateFromCollectorInput> inputs;
 }

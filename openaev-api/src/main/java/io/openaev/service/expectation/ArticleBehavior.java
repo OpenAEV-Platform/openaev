@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.model.inject.form.Expectation;
@@ -26,8 +27,9 @@ public class ArticleBehavior extends AbstractTableTopBehavior {
   public ArticleBehavior(
       InjectExpectationRepository injectExpectationRepository,
       ArticleRepository articleRepository,
-      ObjectMapper mapper) {
-    super(injectExpectationRepository);
+      ObjectMapper mapper,
+      InjectExpectationResultRepository injectExpectationResultRepository) {
+    super(injectExpectationRepository, injectExpectationResultRepository);
     this.articleRepository = articleRepository;
     this.mapper = mapper;
   }
@@ -71,6 +73,13 @@ public class ArticleBehavior extends AbstractTableTopBehavior {
               return (TableTopInjectExpectation) expectation;
             })
         .toList();
+  }
+
+  /** The article, as each article has its own expectation tree. */
+  @Override
+  protected String contextId(TableTopInjectExpectation expectation) {
+    Article article = ((ArticleInjectExpectation) expectation).getArticle();
+    return article != null ? article.getId() : null;
   }
 
   private List<Article> resolveArticles(ExecutableInject executableInject) {

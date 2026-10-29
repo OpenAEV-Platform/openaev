@@ -124,7 +124,7 @@ public class TenantSettingsApi extends RestBehavior {
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardTenantService.homeDashboardCount(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardCount(ctx, tenantId, widgetId, parameters);
   }
 
   @PostMapping("/home-dashboard/average/{widgetId}")
@@ -137,7 +137,7 @@ public class TenantSettingsApi extends RestBehavior {
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardTenantService.homeDashboardAverage(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardAverage(ctx, tenantId, widgetId, parameters);
   }
 
   @PostMapping("/home-dashboard/series/{widgetId}")
@@ -150,7 +150,7 @@ public class TenantSettingsApi extends RestBehavior {
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardTenantService.homeDashboardSeries(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardSeries(ctx, tenantId, widgetId, parameters);
   }
 
   @PostMapping("/home-dashboard/entities/{widgetId}")
@@ -163,7 +163,7 @@ public class TenantSettingsApi extends RestBehavior {
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) EntitiesPaginationInput input) {
-    return customDashboardTenantService.homeDashboardEntities(tenantId, widgetId, input);
+    return customDashboardTenantService.homeDashboardEntities(ctx, tenantId, widgetId, input);
   }
 
   @PostMapping("/home-dashboard/entities-runtime/{widgetId}")
@@ -176,7 +176,8 @@ public class TenantSettingsApi extends RestBehavior {
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @Valid @RequestBody WidgetToEntitiesInput input) {
-    return customDashboardTenantService.homeDashboardEntitiesRuntime(tenantId, widgetId, input);
+    return customDashboardTenantService.homeDashboardEntitiesRuntime(
+        ctx, tenantId, widgetId, input);
   }
 
   @PostMapping("/home-dashboard/attack-paths/{widgetId}")
@@ -190,6 +191,7 @@ public class TenantSettingsApi extends RestBehavior {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return customDashboardTenantService.homeDashboardAttackPaths(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardAttackPaths(
+        ctx, tenantId, widgetId, parameters);
   }
 }

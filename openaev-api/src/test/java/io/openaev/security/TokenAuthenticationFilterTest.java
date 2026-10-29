@@ -1,6 +1,7 @@
 package io.openaev.security;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -23,14 +24,22 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
+@ExtendWith(MockitoExtension.class)
+// Lenient, as the Boot 3 MockitoTestExecutionListener that used to init these mocks was.
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class TokenAuthenticationFilterTest extends IntegrationTest {
   private static final String TRUSTED_ISSUER_URL = "https://xtmone.test.filigran.io";
 
@@ -40,7 +49,7 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
   @Autowired private OpenAEVConfig openAEVConfig;
 
   @MockitoBean private XtmOneConfig xtmOneConfig;
-  @MockitoBean private HttpClientFactory httpClientFactory;
+  @MockitoSpyBean private HttpClientFactory httpClientFactory;
   @Mock private CloseableHttpClient mockHttpClient;
 
   @Nested
@@ -143,7 +152,7 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
           public void before() {
             when(xtmOneConfig.isConfigured()).thenReturn(true);
             when(xtmOneConfig.getUrl()).thenReturn(TRUSTED_ISSUER_URL);
-            when(httpClientFactory.httpClientCustom()).thenReturn(mockHttpClient);
+            doReturn(mockHttpClient).when(httpClientFactory).httpClientCustom();
           }
 
           private void stubJwksResponse(String jwksJson) throws IOException {

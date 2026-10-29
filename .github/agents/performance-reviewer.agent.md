@@ -18,7 +18,7 @@ and memory issues before they degrade the platform.
 2. **Read `.github/copilot-instructions.md`** for build, conventions, and multi-tenancy model
 3. **Read `.github/instructions/performance.instructions.md`** for N+1, fetch strategy, pagination, and indexing rules
 4. **Read `.github/instructions/backend.instructions.md`** for layering, DTO mapping, and transaction patterns
-5. **Follow `.github/skills/review-performance/SKILL.md`** step-by-step — run every command
+5. **Follow `.claude/skills/review-performance/SKILL.md`** step-by-step — run every command
 
 ## Model Policy
 

@@ -34,8 +34,8 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
@@ -247,11 +247,10 @@ public class VariableApiTest extends IntegrationTest {
       String scenarioId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
           .setParameter("id", scenarioId)
           .setParameter("name", "Isolation Scenario")
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenantId)
           .executeUpdate();
       return scenarioId;
@@ -281,13 +280,11 @@ public class VariableApiTest extends IntegrationTest {
       String exerciseId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
-                  + " exercise_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :status, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO exercises (exercise_id, exercise_name, exercise_status, tenant_id)"
+                  + " VALUES (:id, :name, :status, CAST(:tenant AS uuid))")
           .setParameter("id", exerciseId)
           .setParameter("name", "Isolation Exercise")
           .setParameter("status", "SCHEDULED")
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenantId)
           .executeUpdate();
       return exerciseId;

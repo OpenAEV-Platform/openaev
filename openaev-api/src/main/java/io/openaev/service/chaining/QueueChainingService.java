@@ -102,11 +102,14 @@ public class QueueChainingService {
   }
 
   /**
-   * Server-side tenant source for a ready event: the workflow's simulation's tenant, resolved with
-   * a projection query (not {@code TenantContext}, not lazy entity navigation). Correct on any
-   * thread — the request thread, the chaining worker, or a scheduler ({@code QueueChainingJob}) —
-   * none of which is guaranteed to carry the tenant or keep a Hibernate session open. Null for a
-   * standalone/atomic run with no simulation; the consumer falls back rather than failing (#6357).
+   * Server-side tenant source for a ready event: the workflow row's own tenant, read with a
+   * projection query (not {@code TenantContext}, not lazy entity navigation), for a run owned by a
+   * simulation or a scenario alike. While {@code workflows} is not tenant-active, this is correct
+   * on any thread (the request thread, the chaining worker, or a scheduler such as {@code
+   * QueueChainingJob}), none of which is guaranteed to carry the tenant or keep a Hibernate session
+   * open; once it is, the read follows the transaction's scope (see {@link
+   * WorkflowRepository#findTenantIdByWorkflowId}). Null when the workflow row is not found; the
+   * consumer falls back rather than failing (#6357).
    */
   private String tenantIdOfWorkflow(Workflow workflowRun) {
     if (workflowRun == null || workflowRun.getId() == null) {
@@ -123,21 +126,33 @@ public class QueueChainingService {
    */
   public void updateStep(String stepRunId) throws IOException {
     log.info("[Chaining] PUBLISH STEP UPDATE : {}", stepRunId);
+    updateQueueService.publish(newUpdateEvent(stepRunId));
+  }
+
+  /**
+   * Build the external update event {@link #updateStep} publishes for a given step, without
+   * publishing it, so that an event the queue refused can be sent again later with the tenant it
+   * was built with, whatever the scope of the caller that resends it.
+   *
+   * @param stepRunId the step execution to update
+   * @return the event, stamped with the step's tenant read in the current scope
+   */
+  public ExternalUpdateEvent newUpdateEvent(String stepRunId) {
     ExternalUpdateEvent event = new ExternalUpdateEvent();
     event.setStepId(stepRunId);
     event.setTenantId(tenantIdOfStep(stepRunId));
     event.setEmissionDate(Instant.now().toEpochMilli());
-    updateQueueService.publish(event);
+    return event;
   }
 
   /**
-   * Server-side tenant for update-event stamping: step -&gt; workflow -&gt; simulation -&gt;
-   * tenant, resolved with a projection query. {@code Step}/{@code Workflow} are {@code Base} (not
-   * tenant-filtered), and the query touches no lazy association, so this resolves on any thread
-   * with no ambient tenant context and no open session (the update-event producer runs on a
-   * scheduler/queue thread via {@code WorkflowUpdateEventAspect}). Null when the step or its
-   * simulation is absent; the consumer falls back (#6357). Symmetric with {@link
-   * #tenantIdOfWorkflow} used by {@link #readyStep}.
+   * Server-side tenant for update-event stamping: the step row's own tenant, read with a projection
+   * query that touches no lazy association, so it needs no open session (the update-event producer
+   * runs on a scheduler or queue thread via {@code WorkflowUpdateEventAspect}). While {@code steps}
+   * is not tenant-active, it resolves with no ambient tenant context; once it is, the read follows
+   * the transaction's scope (see {@link StepRepository#findTenantIdByStepId}). Null when the step
+   * row is not found; the consumer falls back (#6357). Symmetric with {@link #tenantIdOfWorkflow}
+   * used by {@link #readyStep}.
    */
   private String tenantIdOfStep(String stepId) {
     return stepRepository.findTenantIdByStepId(stepId).orElse(null);

@@ -1,0 +1,17 @@
+# disableFilter("tenantFilter") baseline, read by TenantFilterDisableArchTest.
+#
+# Every production method still allowed to disable the v1 tenant filter, one per line. Any other call
+# fails the build. The list only shrinks: TenantFilterDisableArchTest pins its size, and a line whose
+# call is gone must be removed. A new cross-tenant read does not go here, it goes through
+# TenantScopedTransaction with an explicit scope.
+#
+# Format: <fully.qualified.Class>#<method>  # <classification>: <why, at least six words>
+#   restores-captured-state : the call puts the filter back to the state captured on entry to the
+#                             method, so the session leaves the call exactly as it came in.
+#   defensive               : the session can arrive with the filter armed by earlier work (say how)
+#                             and the call is what keeps the read below from narrowing to one tenant.
+#                             Disabling at the top of a fresh primitive transaction is NOT defensive:
+#                             the session has no filter to disable there, and the next method-level
+#                             @Transactional re-arms it anyway (TenantFilterToggleReachTest).
+
+io.openaev.context.AmbientTenantBridge#restoreTenantFilter  # restores-captured-state: the bridge found no filter on entry (a primitive transaction or a cross-tenant sweep) and must leave none, or the rest of that transaction narrows to the write tenant; goes with the ambient tenant layer (#6463)

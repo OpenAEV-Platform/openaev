@@ -7,11 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.service.expectation.ExpectationVerdict;
 import io.openaev.utils.fixtures.InjectExpectationFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,7 +64,14 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
     String id = expectations.getFirst().getId();
 
     // -- EXECUTE --
-    ExpectationUpdateInput input = ExpectationUpdateInput.builder().score(7.0).build();
+    ExpectationVerdict input =
+        ExpectationVerdict.builder()
+            .sourceId(UUID.randomUUID().toString())
+            .sourceType("unit-test")
+            .sourceName("Unit tests")
+            .sourcePlatform("test-harness")
+            .score(7.0)
+            .build();
     BaseInjectExpectation expectation =
         this.injectExpectationService.updateInjectExpectation(id, input);
 
@@ -75,14 +84,13 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
     exercise.setStatus(SCHEDULED);
-    exercise.setFrom("test@test.com");
     exercise.setReplyTos(List.of("test@test.com"));
     exercise.setStart(Instant.now());
     return this.exerciseRepository.save(exercise);
   }
 
   private Team getTeam() {
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setName("test");
     return this.teamRepository.save(team);
   }

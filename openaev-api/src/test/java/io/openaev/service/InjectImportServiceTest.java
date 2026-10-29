@@ -5,14 +5,20 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.ImportMapper;
+import io.openaev.database.model.InjectImporter;
 import io.openaev.database.model.RuleAttribute;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.scenario.response.ImportMessage;
+import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import java.text.SimpleDateFormat;
@@ -22,8 +28,12 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.Temporal;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -347,6 +357,7 @@ public class InjectImportServiceTest {
               scenarioRepository,
               importService,
               null,
+              null,
               null);
     }
 
@@ -435,7 +446,7 @@ public class InjectImportServiceTest {
     void shouldGenerateUniqueImportId() throws Exception {
       // -------- Prepare --------
       InjectImportService service =
-          new InjectImportService(null, null, null, null, null, null, null, null, null, null);
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
       MultipartFile file = mock(MultipartFile.class);
       Workbook wb = new XSSFWorkbook();
       wb.createSheet("Sheet1");
@@ -457,6 +468,75 @@ public class InjectImportServiceTest {
       assertEquals(2, result.getAvailableSheets().size());
       assertTrue(result.getAvailableSheets().contains("Sheet1"));
       assertTrue(result.getAvailableSheets().contains("Sheet2"));
+    }
+  }
+
+  @Nested
+  class ImportMessageRowNumbers {
+
+    @Test
+    void shouldReportRowNumbersAsShownInExcel() throws Exception {
+      // -------- Prepare --------
+      TeamRepository teamRepository = mock(TeamRepository.class);
+      when(teamRepository.findAll()).thenReturn(List.of());
+      InjectImportService service =
+          new InjectImportService(
+              null,
+              null,
+              null,
+              teamRepository,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              mock(TenantWriteScopeResolver.class));
+
+      // Excel row 1 holds the header, Excel row 2 an inject type no importer matches
+      Workbook wb = new XSSFWorkbook();
+      Sheet sheet = wb.createSheet("Sheet1");
+      sheet.createRow(0).createCell(0).setCellValue("Type");
+      sheet.createRow(1).createCell(0).setCellValue("sms");
+      java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+      wb.write(bos);
+      wb.close();
+      byte[] content = bos.toByteArray();
+      MultipartFile file = mock(MultipartFile.class);
+      when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream(content));
+      when(file.getBytes()).thenReturn(content);
+      when(file.getOriginalFilename()).thenReturn("injects.xlsx");
+      String importId = service.storeXlsFileForImport(file).getImportId();
+
+      InjectImporter importer = new InjectImporter();
+      importer.setId(UUID.randomUUID().toString());
+      importer.setImportTypeValue("^email$");
+      ImportMapper importMapper = new ImportMapper();
+      importMapper.setInjectTypeColumn("A");
+      importMapper.setInjectImporters(new HashSet<>(Set.of(importer)));
+
+      // -------- Act --------
+      ImportTestSummary summary =
+          service.importInjectIntoFromXLS(
+              TxCtx.forTenant("tenant-1"),
+              new Scenario(),
+              null,
+              importMapper,
+              importId,
+              "Sheet1",
+              0,
+              false);
+
+      // -------- Assert --------
+      List<String> rowNumbers =
+          summary.getImportMessage().stream()
+              .filter(
+                  message ->
+                      message.getErrorCode() == ImportMessage.ErrorCode.NO_POTENTIAL_MATCH_FOUND)
+              .map(message -> message.getParams().get("row_num"))
+              .sorted()
+              .toList();
+      assertEquals(List.of("1", "2"), rowNumbers);
     }
   }
 }

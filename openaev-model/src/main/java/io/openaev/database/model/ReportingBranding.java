@@ -1,6 +1,8 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.Serializable;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -8,11 +10,15 @@ import lombok.Setter;
 /**
  * Branding overrides of a {@link Reporting} template, stored as a JSONB object on the reporting
  * row. Null values mean "inherit from the platform theme".
+ *
+ * <p>See {@link ReportingModule} for why {@code @EqualsAndHashCode} is load-bearing, not stylistic,
+ * for a JSONB-typed field's dirty-checking.
  */
 @Getter
 @Setter
+@EqualsAndHashCode
 @NoArgsConstructor
-public class ReportingBranding {
+public class ReportingBranding implements Serializable {
 
   @JsonProperty("theme_mode")
   private ReportingThemeMode themeMode = ReportingThemeMode.DARK;

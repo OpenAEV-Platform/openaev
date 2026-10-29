@@ -1,4 +1,4 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 
 import AssetPlatformFragment from '../../../../../../../../components/common/list/fragments/AssetPlatformFragment';
 import AttackPatternFragment from '../../../../../../../../components/common/list/fragments/AttackPatternFragment';
@@ -50,19 +50,7 @@ const commonColumnsRenderers: RendererMap = {
     const label = (value as string) ?? '';
     const color = FINDING_TYPE_COLORS[label] ?? '#607d8b';
     return (
-      <Chip
-        label={label}
-        size="small"
-        variant="outlined"
-        sx={{
-          height: 20,
-          fontSize: 11,
-          fontWeight: 600,
-          color,
-          borderColor: `${color}66`,
-          backgroundColor: `${color}14`,
-        }}
-      />
+      <Chip label={label} color={color} />
     );
   },
   ['base_attack_patterns_side']: (attackPatternIds, opts) =>
@@ -117,8 +105,11 @@ const injectExpectationRenderers: RendererMap = {
 export const defaultRenderer: ColumnRenderer = (value) => {
   const text = value?.toString() ?? '';
   return (
-    <Tooltip title={text} placement="bottom-start">
-      <span>{text}</span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>{text}</span>
+      </TooltipTrigger>
+      {text && <TooltipContent side="bottom" align="start">{text}</TooltipContent>}
     </Tooltip>
   );
 };

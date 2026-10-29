@@ -36,7 +36,6 @@ class InjectCrudTest extends IntegrationTest {
     // -- PREPARE --
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
-    exercise.setFrom("test@test.com");
     exercise.setReplyTos(List.of("test@test.com"));
     Exercise exerciseCreated = this.exerciseRepository.save(exercise);
     Inject inject = new Inject();

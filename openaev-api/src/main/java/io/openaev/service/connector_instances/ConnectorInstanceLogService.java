@@ -5,71 +5,82 @@ import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ConnectorInstanceLogService {
-  public static final long LOG_SIZE_LIMIT = 10L;
+  /** Matches the tail XTM Composer sends on each push (the last 100 container log lines). */
+  public static final int LOG_SIZE_LIMIT = 100;
+
   private final ConnectorInstanceLogRepository connectorInstanceLogRepository;
   private final ConnectorInstanceService connectorInstanceService;
 
-  private void cleanupExcessLogs(String connectorInstanceId) {
-    long currentCount =
-        connectorInstanceLogRepository.countByConnectorInstanceId(connectorInstanceId);
-
-    if (currentCount > LOG_SIZE_LIMIT) {
-      long excessCount = (currentCount - LOG_SIZE_LIMIT);
-      connectorInstanceLogRepository.deleteOldestLogByConnectorInstanceId(
-          connectorInstanceId, excessCount);
-      log.info("Deleted {} old logs for instance {}", excessCount, connectorInstanceId);
-    }
-  }
-
   /**
-   * Transforms raw log lines into a single formatted log string.
+   * Cleans raw container log lines, keeping their order: strips the leading separator comma, trims,
+   * drops blank lines, and keeps only the last {@link #LOG_SIZE_LIMIT} lines.
    *
-   * @param rawLogLines the set of raw log lines to transform
-   * @return the formatted log string with lines separated by newlines
+   * @param rawLogLines the raw log lines, oldest first
+   * @return the cleaned log lines, oldest first
    */
-  public Set<String> transformRawLogsLineToLog(Set<String> rawLogLines) {
-    return rawLogLines.stream()
-        .map(line -> line.replaceAll("^,", ""))
-        .map(String::trim)
-        .filter(line -> !line.isEmpty())
-        .collect(Collectors.toSet());
+  public List<String> transformRawLogsLineToLog(List<String> rawLogLines) {
+    List<String> lines =
+        rawLogLines.stream()
+            .map(line -> line.replaceAll("^,", ""))
+            .map(String::trim)
+            .filter(line -> !line.isEmpty())
+            .toList();
+    return lines.subList(Math.max(0, lines.size() - LOG_SIZE_LIMIT), lines.size());
   }
 
   /**
-   * Creates a new log entry for a connector instance and maintains log limit.
+   * Replaces the stored logs of a connector instance with the latest snapshot.
    *
-   * @param connectorInstance the connector instance to log for
-   * @param rawLogs the log content to store
-   * @throws IllegalArgumentException if rawLog is empty
+   * <p>XTM Composer pushes the container's last lines on every report, so each push is a full
+   * snapshot rather than new lines: appending it piled up duplicates and the old 10-row cap kept an
+   * arbitrary subset. The snapshot replaces the stored logs, as OpenCTI does with the same
+   * composer. Each line gets a strictly increasing timestamp so the order survives the newest-first
+   * search. An identical snapshot (frequent between two collector runs) is not rewritten.
+   *
+   * @param connectorInstance the connector instance the logs belong to
+   * @param logLines the cleaned log lines, oldest first
    */
   @Transactional
   public void pushLogByConnectorInstance(
-      ConnectorInstancePersisted connectorInstance, Set<String> rawLogs)
-      throws IllegalArgumentException {
-    if (rawLogs.isEmpty()) {
+      ConnectorInstancePersisted connectorInstance, List<String> logLines) {
+    if (logLines.isEmpty()) {
       return;
     }
-    for (String log : rawLogs) {
+    List<String> storedLines =
+        connectorInstanceLogRepository
+            .findOrderedByConnectorInstanceId(connectorInstance.getId())
+            .stream()
+            .map(ConnectorInstanceLog::getLog)
+            .toList();
+    if (storedLines.equals(logLines)) {
+      return;
+    }
+    connectorInstanceLogRepository.deleteByConnectorInstanceId(connectorInstance.getId());
+
+    Instant firstLineAt = Instant.now();
+    List<ConnectorInstanceLog> snapshot = new ArrayList<>(logLines.size());
+    for (int i = 0; i < logLines.size(); i++) {
       ConnectorInstanceLog logEntry = new ConnectorInstanceLog();
       logEntry.setConnectorInstance(connectorInstance);
-      logEntry.setLog(log);
-      connectorInstanceLogRepository.save(logEntry);
+      logEntry.setLog(logLines.get(i));
+      // Microsecond steps: PostgreSQL timestamps keep microseconds, not nanoseconds.
+      logEntry.setConnector_instance_log_created_at(firstLineAt.plus(i, ChronoUnit.MICROS));
+      snapshot.add(logEntry);
     }
-
-    cleanupExcessLogs(connectorInstance.getId());
+    connectorInstanceLogRepository.saveAll(snapshot);
   }
 
   /**

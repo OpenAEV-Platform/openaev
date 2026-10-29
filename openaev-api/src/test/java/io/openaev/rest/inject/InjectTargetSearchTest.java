@@ -255,7 +255,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
 
         List<FilterUtilsJpa.Option> expected = List.of();
 
-        assertThatJson(response).isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
     }
 
@@ -501,7 +503,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
         // expect two out of three endpoints in the resultset, i.e. not the extra one
         List<AgentTarget> expected = List.of(expectedTarget1, expectedTarget2);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -581,7 +586,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 agent1Wrapper.get().getExecutor().getType());
         List<AgentTarget> expected = List.of(expectedTarget);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -684,7 +692,14 @@ public class InjectTargetSearchTest extends IntegrationTest {
                     agent3Wrapper.get().getAsset().getId(),
                     agent3Wrapper.get().getExecutor().getType()));
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        // The adaptor sorts on target_name, mapped to agent_executed_by_user, and all three
+        // agents come from createDefaultAgentService() with the same ADMIN_SYSTEM_WINDOWS
+        // value. The ORDER BY is a complete tie, so the order among these rows is whatever
+        // the plan yields and asserting one is asserting nothing.
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -778,7 +793,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 agent2Wrapper.get().getExecutor().getType());
         List<AgentTarget> expected = List.of(expectedTarget);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -859,7 +877,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 agent1Wrapper.get().getExecutor().getType());
         List<AgentTarget> expected = List.of(expectedTarget);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -941,7 +962,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 agent2Wrapper.get().getExecutor().getType());
         List<AgentTarget> expected = List.of(expectedTarget);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -1027,7 +1051,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 agent1Wrapper.get().getExecutor().getType());
         List<AgentTarget> expected = List.of(expectedTarget);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Nested
@@ -1115,7 +1142,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                   agent1Wrapper.get().getExecutor().getType());
           List<AgentTarget> expected = List.of(expectedTarget);
 
-          assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+          assertThatJson(response)
+              .when(Option.IGNORING_ARRAY_ORDER)
+              .node("content")
+              .isEqualTo(mapper.writeValueAsString(expected));
         }
 
         @Test
@@ -1200,7 +1230,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                   agent2Wrapper.get().getExecutor().getType());
           List<AgentTarget> expected = List.of(expectedTarget);
 
-          assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+          assertThatJson(response)
+              .when(Option.IGNORING_ARRAY_ORDER)
+              .node("content")
+              .isEqualTo(mapper.writeValueAsString(expected));
         }
 
         @Test
@@ -1284,7 +1317,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                   agent2Wrapper.get().getExecutor().getType());
           List<AgentTarget> expected = List.of(expectedTarget);
 
-          assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+          assertThatJson(response)
+              .when(Option.IGNORING_ARRAY_ORDER)
+              .node("content")
+              .isEqualTo(mapper.writeValueAsString(expected));
         }
 
         @Test
@@ -1369,7 +1405,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                   agent1Wrapper.get().getExecutor().getType());
           List<AgentTarget> expected = List.of(expectedTarget);
 
-          assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+          assertThatJson(response)
+              .when(Option.IGNORING_ARRAY_ORDER)
+              .node("content")
+              .isEqualTo(mapper.writeValueAsString(expected));
         }
       }
     }
@@ -1594,7 +1633,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
             List.of(
                 new FilterUtilsJpa.Option(ep2Wrapper.get().getId(), ep2Wrapper.get().getName()));
 
-        assertThatJson(response).isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -1655,7 +1696,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
             List.of(
                 new FilterUtilsJpa.Option(ep1Wrapper.get().getId(), ep1Wrapper.get().getName()));
 
-        assertThatJson(response).isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
     }
 
@@ -1737,7 +1780,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 expectedEndpointTarget(ep2Wrapper),
                 expectedEndpointTarget(ep3Wrapper));
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
     }
 
@@ -1903,7 +1949,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
         EndpointTarget expectedTarget = expectedEndpointTarget(ep1Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -2036,7 +2085,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
         EndpointTarget expectedTarget = expectedEndpointTarget(ep2Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -2096,7 +2148,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
         EndpointTarget expectedTarget = expectedEndpointTarget(ep1Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -2156,7 +2211,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
         EndpointTarget expectedTarget = expectedEndpointTarget(ep2Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -2219,7 +2277,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
         EndpointTarget expectedTarget = expectedEndpointTarget(ep1Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
     }
   }
@@ -2468,7 +2529,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                               .collect(Collectors.toSet())))
               .toList();
 
-      assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+      assertThatJson(response)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("content")
+          .isEqualTo(mapper.writeValueAsString(expected));
     }
 
     @Test
@@ -2518,7 +2582,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                               .collect(Collectors.toSet())))
               .toList();
 
-      assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+      assertThatJson(response)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("content")
+          .isEqualTo(mapper.writeValueAsString(expected));
     }
 
     @Nested
@@ -2594,7 +2661,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
             BaseInjectExpectation.EXPECTATION_STATUS.PENDING);
         List<AssetGroupTarget> expected = List.of(expectedAssetGroup);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
     }
   }
@@ -2893,7 +2963,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           team.getTags().stream().map(Tag::getId).collect(Collectors.toSet())))
               .toList();
 
-      assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+      assertThatJson(response)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("content")
+          .isEqualTo(mapper.writeValueAsString(expected));
     }
 
     @Test
@@ -2941,7 +3014,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           team.getTags().stream().map(Tag::getId).collect(Collectors.toSet())))
               .toList();
 
-      assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+      assertThatJson(response)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("content")
+          .isEqualTo(mapper.writeValueAsString(expected));
     }
 
     @Test
@@ -2998,7 +3074,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           team.getTags().stream().map(Tag::getId).collect(Collectors.toSet())))
               .toList();
 
-      assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+      assertThatJson(response)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("content")
+          .isEqualTo(mapper.writeValueAsString(expected));
     }
 
     @Nested
@@ -3055,7 +3134,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
         expectedTeam.setTargetHumanResponseStatus(BaseInjectExpectation.EXPECTATION_STATUS.PENDING);
         List<TeamTarget> expected = List.of(expectedTeam);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
     }
   }
@@ -3152,7 +3234,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                   })
               .toList();
 
-      assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+      assertThatJson(response)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("content")
+          .isEqualTo(mapper.writeValueAsString(expected));
     }
 
     @Test
@@ -3209,7 +3294,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                   })
               .toList();
 
-      assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+      assertThatJson(response)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("content")
+          .isEqualTo(mapper.writeValueAsString(expected));
     }
 
     @Test
@@ -3269,7 +3357,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                   })
               .toList();
 
-      assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+      assertThatJson(response)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("content")
+          .isEqualTo(mapper.writeValueAsString(expected));
     }
 
     @Test
@@ -3329,7 +3420,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                   })
               .toList();
 
-      assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+      assertThatJson(response)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("content")
+          .isEqualTo(mapper.writeValueAsString(expected));
     }
 
     @Nested
@@ -3391,7 +3485,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
             BaseInjectExpectation.EXPECTATION_STATUS.PENDING);
         List<PlayerTarget> expected = List.of(expectedPlayer);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
     }
   }

@@ -9,7 +9,6 @@ import {
 import { type CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
 import { useHelper } from '../../../../store';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -24,7 +23,6 @@ export type CatalogContextType = {
 const CatalogLayout = () => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const [loading, setLoading] = useState<boolean>(true);
   const { catalogConnectorId } = useParams() as { catalogConnectorId: CatalogConnectorOutput['catalog_connector_id'] };
   const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean>(false);
 
@@ -34,9 +32,9 @@ const CatalogLayout = () => {
   }));
 
   useDataLoader(() => {
-    dispatch(fetchCatalogConnectors()).finally(() => setLoading(false));
+    dispatch(fetchCatalogConnectors());
     if (catalogConnectorId) {
-      dispatch(fetchConnector(catalogConnectorId)).finally(() => setLoading(false));
+      dispatch(fetchConnector(catalogConnectorId));
     }
   });
   useEffect(() => {
@@ -71,7 +69,6 @@ const CatalogLayout = () => {
         variant="list"
         elements={breadcrumbElements}
       />
-      {loading && <Loader />}
       <Outlet context={{
         catalogConnector,
         catalogConnectors,
