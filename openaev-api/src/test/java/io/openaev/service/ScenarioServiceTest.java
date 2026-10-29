@@ -36,6 +36,7 @@ import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.ScopeService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -82,6 +83,7 @@ class ScenarioServiceTest extends IntegrationTest {
 
   private static final TxCtx DEFAULT_TENANT_SCOPE = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
 
+  @Autowired private WorkflowOwnerScope workflowOwnerScope;
   @Autowired ScenarioRepository scenarioRepository;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
@@ -174,6 +176,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthCheckUtils,
         scenarioMapper,
         workflowService,
+        workflowOwnerScope,
         workflowExportInitializer,
         bulkDeleteExecutor,
         autonomousRunServiceProvider,
