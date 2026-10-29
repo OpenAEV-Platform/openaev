@@ -49,7 +49,7 @@ public class ExerciseDashboardApi {
   public ResponseEntity<CustomDashboard> dashboard(
       TxCtx ctx, @PathVariable final String simulationId) {
     return ResponseEntity.ok(
-        this.customDashboardService.findCustomDashboardByResourceId(simulationId));
+        this.customDashboardService.findCustomDashboardByResourceId(ctx, simulationId));
   }
 
   @PostMapping({

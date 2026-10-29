@@ -24,13 +24,18 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.autonomous.AutonomousRun;
+import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exercise.form.UpdateExerciseInput;
 import io.openaev.rest.scenario.form.UpdateScenarioInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import java.util.ArrayList;
@@ -74,6 +79,8 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
   @Autowired private TestUserHolder testUserHolder;
   @Autowired private TenantMembershipCacheManager membershipCache;
   @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private AutonomousRunRepository autonomousRunRepository;
 
   /** A tenant the caller is a member of. */
   String memberTenant;
@@ -98,9 +105,13 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
   @AfterEach
   void cleanup() {
     JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+    seededExercises.forEach(id -> jdbc.update("DELETE FROM injects WHERE inject_exercise = ?", id));
     seededExercises.forEach(id -> jdbc.update("DELETE FROM exercises WHERE exercise_id = ?", id));
+    seededScenarios.forEach(
+        id -> jdbc.update("DELETE FROM autonomous_runs WHERE autonomous_run_scenario_id = ?", id));
     seededScenarios.forEach(id -> jdbc.update("DELETE FROM scenarios WHERE scenario_id = ?", id));
     seededTeams.forEach(id -> jdbc.update("DELETE FROM teams WHERE team_id = ?", id));
+    injectorContractComposer.reset();
     tenantHelper.deleteCommittedTenants(memberTenant, otherTenant);
   }
 
@@ -150,6 +161,54 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
         .update(
             "INSERT INTO scenarios_teams (scenario_id, team_id) VALUES (?, ?)", scenarioId, teamId);
     return teamId;
+  }
+
+  /** Seeds a contract linked to an injector, in the given tenant. */
+  String seedInjectorContract(String tenantId) {
+    return inTenantScope(
+        tenantId,
+        () ->
+            injectorContractComposer
+                .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                .persist()
+                .get()
+                .getId());
+  }
+
+  /** Seeds a still-active autonomous run of the scenario, in the scenario's tenant. */
+  void seedActiveRunOfScenario(String tenantId, String scenarioId) {
+    inTenantScope(
+        tenantId,
+        () -> {
+          AutonomousRun run = new AutonomousRun();
+          run.setTenant(new Tenant(tenantId));
+          run.setObjective("by-id");
+          run.setStatus(AutonomousRunStatus.RUNNING);
+          run.setScenarioId(scenarioId);
+          return autonomousRunRepository.save(run).getId();
+        });
+  }
+
+  int injectCount(String simulationId) {
+    return count("SELECT count(*) FROM injects WHERE inject_exercise = ?", simulationId);
+  }
+
+  boolean simulationDriftDismissed(String id) {
+    return Boolean.TRUE.equals(
+        new JdbcTemplate(dataSource)
+            .queryForObject(
+                "SELECT exercise_expectations_drift_dismissed FROM exercises WHERE exercise_id = ?",
+                Boolean.class,
+                id));
+  }
+
+  boolean scenarioDriftDismissed(String id) {
+    return Boolean.TRUE.equals(
+        new JdbcTemplate(dataSource)
+            .queryForObject(
+                "SELECT scenario_expectations_drift_dismissed FROM scenarios WHERE scenario_id = ?",
+                Boolean.class,
+                id));
   }
 
   void linkSimulationToScenario(String simulationId, String scenarioId) {
@@ -258,6 +317,13 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     String scenarioChallenges(String id) {
       return (pathTenant == null ? "/api" : "/api/tenants/" + pathTenant)
           + "/observer/scenarios/"
+          + id
+          + "/challenges";
+    }
+
+    String simulationPlayerChallenges(String id) {
+      return (pathTenant == null ? "/api" : "/api/tenants/" + pathTenant)
+          + "/player/simulations/"
           + id
           + "/challenges";
     }
@@ -376,7 +442,7 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     return mvc.perform(request).andReturn().getResponse().getStatus();
   }
 
-  private <T> T inTenantScope(String tenantId, Supplier<T> work) {
+  <T> T inTenantScope(String tenantId, Supplier<T> work) {
     TenantContext.setCurrentTenant(tenantId);
     try {
       return tenantTx.execute(TxCtx.forTenant(tenantId), work);
