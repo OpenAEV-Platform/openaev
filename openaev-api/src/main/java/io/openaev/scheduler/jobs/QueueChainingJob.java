@@ -12,6 +12,7 @@ import io.openaev.service.chaining.StepEventService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowService;
+import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class QueueChainingJob implements Job {
   private final WorkflowService workflowService;
   private final TenantScopedTransaction tenantTx;
   private final StepEventService stepEventService;
+  private final EntityManager entityManager;
 
   /** Periodically processes the next eligible step from the delay queue. */
   @Override
@@ -83,6 +85,10 @@ public class QueueChainingJob implements Job {
             // table. That returns empty, expandTargetBatches takes its "scope resolves to no asset"
             // branch, and the delayed inject fires with no per-asset target. No exception, no log.
             String tenantId = tenantOf(stepDelayQueue);
+            // The previous entry's changes are written before its scope is left, whether it
+            // succeeded or failed: flushed later, under this entry's tenant, an update of the
+            // previous tenant's row matches nothing on an active table and fails the whole pass.
+            entityManager.flush();
             if (tenantId == null) {
               // Cleared, not left alone. Every entry shares this transaction, so the PREVIOUS
               // entry's scope is still set here: doing nothing would process a tenant-less entry
