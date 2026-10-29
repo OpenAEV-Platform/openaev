@@ -3475,7 +3475,6 @@
   "Scenario ID not found": "Идентификатор сценария не найден",
   "Scenario input cannot be null": "Входные данные сценария не могут быть пустыми",
   "Scenario is currently unavailable or you do not have sufficient permissions to access it.": "Сценарий в настоящее время недоступен или у вас нет достаточных прав для доступа к нему.",
-  "Scenario library": "Библиотека сценариев",
   "Scenario planner": "Планировщик сценария",
   "scenario_category": "Категория",
   "scenario_dependencies": "Зависимости",

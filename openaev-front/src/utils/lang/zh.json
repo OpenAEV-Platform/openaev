@@ -3475,7 +3475,6 @@
   "Scenario ID not found": "未找到场景 ID",
   "Scenario input cannot be null": "场景输入不能为空",
   "Scenario is currently unavailable or you do not have sufficient permissions to access it.": "方案當前不可用，抑或你冇足夠嘅權限嚟訪問它。",
-  "Scenario library": "场景库",
   "Scenario planner": "场景规划器",
   "scenario_category": "类别",
   "scenario_dependencies": "依赖项",

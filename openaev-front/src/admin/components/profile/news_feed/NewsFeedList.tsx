@@ -1,4 +1,4 @@
-import { Button, Chip } from '@filigran/design-system';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CampaignOutlined, OpenInNewOutlined, RouteOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
@@ -18,6 +18,7 @@ import SimpleError from '../../../../components/SimpleError';
 import { type NewsFeedItemOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { XTM_HUB_DEFAULT_URL } from '../../../../utils/Environment';
 import useAuth from '../../../../utils/hooks/useAuth';
+import TopBarIconLink from '../../nav/TopBarIconLink';
 
 const MAX_DISPLAYED_TAGS = 3;
 
@@ -34,11 +35,11 @@ const buildHubUrl = (urlPath: string, hubUrl: string): string | null => {
 };
 
 const inlineStyles: Record<string, CSSProperties> = {
-  news_feed_item_type: { width: '18%' },
-  news_feed_item_title: { width: '32%' },
-  news_feed_item_creation_date: { width: '16%' },
+  news_feed_item_type: { width: '12%' },
+  news_feed_item_title: { width: '36%' },
+  news_feed_item_creation_date: { width: '22%' },
   news_feed_item_tags: { width: '22%' },
-  news_feed_item_hub_action: { width: '12%' },
+  news_feed_item_hub_action: { width: '8%' },
 };
 
 const NewsFeedList = () => {
@@ -73,7 +74,7 @@ const NewsFeedList = () => {
   );
 
   const typeLabel = (item: NewsFeedItemOutput) => (
-    item.news_feed_item_type === 'RESOURCE_SCENARIO' ? t('Scenario library') : '-'
+    item.news_feed_item_type === 'RESOURCE_SCENARIO' ? t('Scenario') : '-'
   );
 
   const headers = [
@@ -131,12 +132,19 @@ const NewsFeedList = () => {
           return '-';
         }
         return (
-          <Button size="sm" priority="secondary" asChild>
-            <a href={url} target="_blank" rel="noreferrer" title={t('Open in XTM Hub')}>
-              <OpenInNewOutlined fontSize="small" />
-              {t('Open in XTM Hub')}
-            </a>
-          </Button>
+          <Tooltip>
+            {/* TopBarIconLink does not forward the trigger's ref and handlers: a span carries them. */}
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <TopBarIconLink
+                  aria-label={t('Open in XTM Hub')}
+                  href={url}
+                  icon={<OpenInNewOutlined fontSize="small" />}
+                />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{t('Open in XTM Hub')}</TooltipContent>
+          </Tooltip>
         );
       },
     },
@@ -182,7 +190,7 @@ const NewsFeedList = () => {
         {!loading && !failed && items.map(item => (
           <ListItem key={item.news_feed_item_id} divider sx={{ height: 50 }}>
             <ListItemIcon style={{ minWidth: 40 }}>
-              <RouteOutlined fontSize="small" />
+              <RouteOutlined fontSize="small" color="primary" />
             </ListItemIcon>
             <ListItemText
               primary={(

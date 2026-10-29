@@ -3475,7 +3475,6 @@
   "Scenario ID not found": "Szenario-ID nicht gefunden",
   "Scenario input cannot be null": "Szenario-Eingabe darf nicht null sein",
   "Scenario is currently unavailable or you do not have sufficient permissions to access it.": "Das Szenario ist derzeit nicht verfügbar oder Sie haben keine ausreichenden Rechte, um darauf zuzugreifen.",
-  "Scenario library": "Szenario-Bibliothek",
   "Scenario planner": "Szenario-Planer",
   "scenario_category": "Kategorie",
   "scenario_dependencies": "Abhängigkeiten",

@@ -3475,7 +3475,6 @@
   "Scenario ID not found": "シナリオ ID が見つかりません",
   "Scenario input cannot be null": "シナリオ入力は null にしてはなりません",
   "Scenario is currently unavailable or you do not have sufficient permissions to access it.": "シナリオは現在利用できません、またはアクセスするための十分な権限がありません。",
-  "Scenario library": "シナリオライブラリ",
   "Scenario planner": "シナリオプランナー",
   "scenario_category": "カテゴリー",
   "scenario_dependencies": "依存関係",
