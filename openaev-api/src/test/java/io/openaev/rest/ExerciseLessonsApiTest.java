@@ -30,6 +30,7 @@ import io.openaev.service.MailingService;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +55,7 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
   static User USER;
 
   @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
+  @Autowired private RowTenantScope rowTenantScope;
   @Autowired private MockMvc mvc;
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExerciseRepository exerciseRepository;
@@ -78,10 +80,15 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.lessonsCategoryRepository.delete(LESSONCATEGORY);
-    this.exerciseRepository.delete(EXERCISE);
-    this.teamRepository.delete(TEAM);
-    this.userRepository.delete(USER);
+    // The class's rows were committed in the default tenant: delete them in its scope.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          this.lessonsCategoryRepository.delete(LESSONCATEGORY);
+          this.exerciseRepository.delete(EXERCISE);
+          this.teamRepository.delete(TEAM);
+          this.userRepository.delete(USER);
+        });
   }
 
   private LessonsCategory getLessonCategory() {

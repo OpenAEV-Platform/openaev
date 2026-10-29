@@ -212,7 +212,7 @@ public class StreamServiceTest {
             mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
         .thenReturn(true);
 
-    Scenario scenario = ScenarioFixture.getScenario();
+    Scenario scenario = tenantlessScenario();
     scenario.setId(RESOURCE_ID);
     BaseEvent event = new BaseEvent(DATA_UPDATE, scenario, mock(ObjectMapper.class));
 
@@ -250,8 +250,18 @@ public class StreamServiceTest {
     return expectation;
   }
 
-  private static Scenario restrictedScenario() {
+  /**
+   * A scenario that belongs to no tenant, the premise of the tests that check permissions without a
+   * tenant: the scenario fixture now carries the ambient tenant.
+   */
+  private static Scenario tenantlessScenario() {
     Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setTenant(null);
+    return scenario;
+  }
+
+  private static Scenario restrictedScenario() {
+    Scenario scenario = tenantlessScenario();
     scenario.setId(RESOURCE_ID);
     return scenario;
   }
@@ -633,7 +643,7 @@ public class StreamServiceTest {
             mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
         .thenReturn(true);
 
-    Scenario scenario = ScenarioFixture.getScenario();
+    Scenario scenario = tenantlessScenario();
     scenario.setId(RESOURCE_ID);
 
     streamService.listenDatabaseUpdate(

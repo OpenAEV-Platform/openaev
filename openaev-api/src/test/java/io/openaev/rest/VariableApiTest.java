@@ -29,6 +29,7 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.util.Set;
 import java.util.UUID;
@@ -52,6 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class VariableApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @Autowired private ScenarioService scenarioService;
   @Autowired private ScenarioRepository scenarioRepository;
@@ -65,8 +67,13 @@ public class VariableApiTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.scenarioRepository.deleteById(SCENARIO_ID);
-    this.variableRepository.deleteById(VARIABLE_ID);
+    // The class's rows were committed in the default tenant: delete them in its scope.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          this.scenarioRepository.deleteById(SCENARIO_ID);
+          this.variableRepository.deleteById(VARIABLE_ID);
+        });
   }
 
   // -- SCENARIOS --
@@ -74,11 +81,12 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Create variable for scenario succeed")
   @Test
   @Order(1)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createVariableForScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
+    scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
     SCENARIO_ID = scenarioCreated.getId();
     Variable variable = new Variable();
@@ -142,7 +150,7 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Update variable for scenario")
   @Test
   @Order(3)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateVariableForScenarioTest() throws Exception {
     // -- PREPARE --
     String response =
@@ -183,7 +191,7 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Delete variable for scenario")
   @Test
   @Order(4)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void deleteVariableForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     this.mvc

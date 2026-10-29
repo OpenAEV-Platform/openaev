@@ -51,6 +51,7 @@ import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -402,7 +403,10 @@ class ScenarioServiceTest extends IntegrationTest {
   void given_scenarioOwnedByNonDefaultTenant_should_attributeDuplicatedContextualTeamToItsTenant() {
     // -- PREPARE --
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("scenario-duplication-tenant"));
+    // The scenario belongs to that tenant, so the test runs in its scope on both channels: the v1
+    // ambient tenant and the transaction's tenant scope.
     TenantContext.setCurrentTenant(tenant.getId());
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
     try {
       List<Team> scenarioTeams = new ArrayList<>();
       Team contextualTeam = this.teamRepository.save(getTeam(null, "fakeTeamName1", true));

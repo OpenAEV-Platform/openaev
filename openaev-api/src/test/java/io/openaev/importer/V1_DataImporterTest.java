@@ -4538,6 +4538,7 @@ class V1_DataImporterTest extends IntegrationTest {
     // importWorkflow must associate the workflow with the exercise instead of a scenario.
     Exercise exercise = new Exercise();
     exercise.setName("wf simulation " + UUID.randomUUID());
+    exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     exercise = exerciseRepository.save(exercise);
 
     ObjectMapper om = new ObjectMapper();
