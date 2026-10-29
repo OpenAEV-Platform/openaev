@@ -544,7 +544,11 @@ class CredentialApiTest extends IntegrationTest {
       Tenant tenant = createCommittedTenantWithCurrentUser("credential-create-aws-ak");
       CredentialInput input = awsAccessKeyInput("aws-ak-create");
       when(awsCredentialConnectivityCheck.validateAccessKey(
-              eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), eq(null)))
+              eq(AWS_DEFAULT_REGION),
+              eq(AWS_ACCESS_KEY_ID),
+              eq(AWS_SECRET_ACCESS_KEY),
+              eq(null),
+              eq(null)))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -560,7 +564,8 @@ class CredentialApiTest extends IntegrationTest {
 
       // Assert
       verify(awsCredentialConnectivityCheck)
-          .validateAccessKey(AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null);
+          .validateAccessKey(
+              AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null, null);
       assertThatJson(response).node("credential_status").isEqualTo(ACTIVE.name());
       assertThatJson(response).node("credential_last_verified_at").isPresent();
 
@@ -587,7 +592,8 @@ class CredentialApiTest extends IntegrationTest {
               eq(AWS_EXTERNAL_ID),
               eq(STATIC_ACCESS_KEY),
               eq(AWS_SOURCE_PROFILE_ACCESS_KEY_ID),
-              eq(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY)))
+              eq(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY),
+              eq(null)))
           .thenReturn(SecretConnectionResult.authFailed());
 
       // Act
@@ -609,7 +615,8 @@ class CredentialApiTest extends IntegrationTest {
               AWS_EXTERNAL_ID,
               STATIC_ACCESS_KEY,
               AWS_SOURCE_PROFILE_ACCESS_KEY_ID,
-              AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
+              AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY,
+              null);
       assertThatJson(response).node("credential_status").isEqualTo(AUTH_FAILED.name());
       assertThatJson(response).node("credential_last_verified_at").isPresent();
 
@@ -1411,7 +1418,11 @@ class CredentialApiTest extends IntegrationTest {
 
       CredentialInput updateInput = awsAccessKeyInput("aws-ak-update");
       when(awsCredentialConnectivityCheck.validateAccessKey(
-              eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), eq(null)))
+              eq(AWS_DEFAULT_REGION),
+              eq(AWS_ACCESS_KEY_ID),
+              eq(AWS_SECRET_ACCESS_KEY),
+              eq(null),
+              eq(null)))
           .thenReturn(SecretConnectionResult.timeout());
 
       // Act
@@ -1428,7 +1439,8 @@ class CredentialApiTest extends IntegrationTest {
 
       // Assert
       verify(awsCredentialConnectivityCheck)
-          .validateAccessKey(AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null);
+          .validateAccessKey(
+              AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null, null);
       assertThatJson(response).node("credential_status").isEqualTo(TIMEOUT.name());
       assertThatJson(response).node("credential_last_verified_at").isPresent();
 

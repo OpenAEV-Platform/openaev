@@ -80,7 +80,7 @@ class SecretHandlerValidateConnectionTest {
 
       @Test
       @DisplayName(
-          "The stored external id and source profile secret are decrypted before they reach the validator")
+          "The external id and source secret are decrypted, the endpoint override passed through")
       void given_staticSourceIdentity_should_decryptThenDelegate() {
         // Arrange
         AwsAssumeRoleSecret secret = new AwsAssumeRoleSecret();
@@ -91,12 +91,13 @@ class SecretHandlerValidateConnectionTest {
             AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY);
         secret.setAwsSourceProfileAccessKeyId(AWS_SOURCE_PROFILE_ACCESS_KEY_ID);
         secret.setAwsSourceProfileSecretAccessKey(ENCRYPTED_AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
+        secret.setAwsEndpointUrl(AWS_ENDPOINT_URL);
         when(nativeEncryptionService.decrypt(ENCRYPTED_AWS_EXTERNAL_ID))
             .thenReturn(AWS_EXTERNAL_ID);
         when(nativeEncryptionService.decrypt(ENCRYPTED_AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY))
             .thenReturn(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
         when(awsCredentialConnectivityCheck.validateAssumeRole(
-                any(), any(), any(), any(), any(), any()))
+                any(), any(), any(), any(), any(), any(), any()))
             .thenReturn(SecretConnectionResult.active());
 
         // Act
@@ -113,7 +114,8 @@ class SecretHandlerValidateConnectionTest {
                 eq(AWS_EXTERNAL_ID),
                 eq(AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY),
                 eq(AWS_SOURCE_PROFILE_ACCESS_KEY_ID),
-                eq(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY));
+                eq(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY),
+                eq(AWS_ENDPOINT_URL));
       }
 
       @Test
@@ -126,7 +128,7 @@ class SecretHandlerValidateConnectionTest {
         secret.setAwsSourceIdentityType(
             AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.INSTANCE_DEFAULT);
         when(awsCredentialConnectivityCheck.validateAssumeRole(
-                any(), any(), isNull(), any(), isNull(), isNull()))
+                any(), any(), isNull(), any(), isNull(), isNull(), isNull()))
             .thenReturn(SecretConnectionResult.active());
 
         // Act
@@ -141,6 +143,7 @@ class SecretHandlerValidateConnectionTest {
                 eq(AWS_ROLE_ARN),
                 isNull(),
                 eq(AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.INSTANCE_DEFAULT),
+                isNull(),
                 isNull(),
                 isNull());
       }
@@ -160,7 +163,7 @@ class SecretHandlerValidateConnectionTest {
     }
 
     @Test
-    @DisplayName("The stored AWS secrets are decrypted before they reach the validator")
+    @DisplayName("The stored AWS secrets are decrypted, the endpoint override passed through")
     void given_accessKeySecretWithSessionToken_should_decryptThenDelegate() {
       // Arrange
       AwsAccessKeySecret secret = new AwsAccessKeySecret();
@@ -168,11 +171,12 @@ class SecretHandlerValidateConnectionTest {
       secret.setAwsAccessKeyId(AWS_ACCESS_KEY_ID);
       secret.setAwsSecretAccessKey(ENCRYPTED_AWS_SECRET_ACCESS_KEY);
       secret.setAwsSessionToken(ENCRYPTED_AWS_SESSION_TOKEN);
+      secret.setAwsEndpointUrl(AWS_ENDPOINT_URL);
       when(nativeEncryptionService.decrypt(ENCRYPTED_AWS_SECRET_ACCESS_KEY))
           .thenReturn(AWS_SECRET_ACCESS_KEY);
       when(nativeEncryptionService.decrypt(ENCRYPTED_AWS_SESSION_TOKEN))
           .thenReturn(AWS_SESSION_TOKEN);
-      when(awsCredentialConnectivityCheck.validateAccessKey(any(), any(), any(), any()))
+      when(awsCredentialConnectivityCheck.validateAccessKey(any(), any(), any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -187,7 +191,8 @@ class SecretHandlerValidateConnectionTest {
               eq(AWS_DEFAULT_REGION),
               eq(AWS_ACCESS_KEY_ID),
               eq(AWS_SECRET_ACCESS_KEY),
-              eq(AWS_SESSION_TOKEN));
+              eq(AWS_SESSION_TOKEN),
+              eq(AWS_ENDPOINT_URL));
     }
 
     @Test
@@ -201,7 +206,8 @@ class SecretHandlerValidateConnectionTest {
       secret.setAwsSessionToken(" ");
       when(nativeEncryptionService.decrypt(ENCRYPTED_AWS_SECRET_ACCESS_KEY))
           .thenReturn(AWS_SECRET_ACCESS_KEY);
-      when(awsCredentialConnectivityCheck.validateAccessKey(any(), any(), any(), isNull()))
+      when(awsCredentialConnectivityCheck.validateAccessKey(
+              any(), any(), any(), isNull(), isNull()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -212,7 +218,11 @@ class SecretHandlerValidateConnectionTest {
       verify(nativeEncryptionService, never()).decrypt(" ");
       verify(awsCredentialConnectivityCheck)
           .validateAccessKey(
-              eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), isNull());
+              eq(AWS_DEFAULT_REGION),
+              eq(AWS_ACCESS_KEY_ID),
+              eq(AWS_SECRET_ACCESS_KEY),
+              isNull(),
+              isNull());
     }
 
     @Test
@@ -375,7 +385,7 @@ class SecretHandlerValidateConnectionTest {
     }
 
     @Test
-    @DisplayName("The stored key file is decrypted before it reaches the validator")
+    @DisplayName("The stored key file is decrypted, the endpoint overrides passed through")
     void given_serviceAccountSecret_should_decryptThenDelegate() {
       // Arrange
       byte[] encryptedKey = "encrypted-key".getBytes(StandardCharsets.UTF_8);
@@ -384,8 +394,10 @@ class SecretHandlerValidateConnectionTest {
       secret.setScope(GCP_SCOPE);
       secret.setProjectId(GCP_PROJECT_ID);
       secret.setPrivateKeyJson(encryptedKey);
+      secret.setCustomResourceManagerUri(GCP_CUSTOM_RESOURCE_MANAGER_URI);
+      secret.setCustomProjectsUri(GCP_CUSTOM_PROJECTS_URI);
       when(nativeEncryptionService.decrypt(encryptedKey)).thenReturn(plaintextKey);
-      when(gcpCredentialConnectivityCheck.validateServiceAccount(any(), any(), any()))
+      when(gcpCredentialConnectivityCheck.validateServiceAccount(any(), any(), any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -395,7 +407,12 @@ class SecretHandlerValidateConnectionTest {
       assertThat(result.status()).isEqualTo(ACTIVE);
       verify(gcpCredentialConnectivityCheck)
           // The plaintext, never the stored ciphertext.
-          .validateServiceAccount(eq(plaintextKey), eq(GCP_SCOPE), eq(GCP_PROJECT_ID));
+          .validateServiceAccount(
+              eq(plaintextKey),
+              eq(GCP_SCOPE),
+              eq(GCP_PROJECT_ID),
+              eq(GCP_CUSTOM_RESOURCE_MANAGER_URI),
+              eq(GCP_CUSTOM_PROJECTS_URI));
     }
 
     @Test
@@ -427,7 +444,7 @@ class SecretHandlerValidateConnectionTest {
     }
 
     @Test
-    @DisplayName("The client secret and the refresh token are decrypted before delegating")
+    @DisplayName("The secrets are decrypted and the endpoint overrides passed through")
     void given_oauth2Secret_should_decryptThenDelegate() {
       // Arrange
       GcpOAuth2Secret secret = new GcpOAuth2Secret();
@@ -436,11 +453,14 @@ class SecretHandlerValidateConnectionTest {
       secret.setOauthClientId(GCP_OAUTH_CLIENT_ID);
       secret.setOauthClientSecret(ENCRYPTED_OAUTH_CLIENT_SECRET);
       secret.setOauthRefreshToken(ENCRYPTED_OAUTH_REFRESH_TOKEN);
+      secret.setCustomTokenUri(GCP_CUSTOM_TOKEN_URI);
+      secret.setCustomProjectsUri(GCP_CUSTOM_PROJECTS_URI);
       when(nativeEncryptionService.decrypt(ENCRYPTED_OAUTH_CLIENT_SECRET))
           .thenReturn(GCP_OAUTH_CLIENT_SECRET);
       when(nativeEncryptionService.decrypt(ENCRYPTED_OAUTH_REFRESH_TOKEN))
           .thenReturn(GCP_OAUTH_REFRESH_TOKEN);
-      when(gcpCredentialConnectivityCheck.validateOAuth2(any(), any(), any(), any(), any()))
+      when(gcpCredentialConnectivityCheck.validateOAuth2(
+              any(), any(), any(), any(), any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -455,7 +475,9 @@ class SecretHandlerValidateConnectionTest {
               eq(GCP_OAUTH_CLIENT_SECRET),
               eq(GCP_OAUTH_REFRESH_TOKEN),
               eq(GCP_SCOPE),
-              eq(GCP_PROJECT_ID));
+              eq(GCP_PROJECT_ID),
+              eq(GCP_CUSTOM_TOKEN_URI),
+              eq(GCP_CUSTOM_PROJECTS_URI));
     }
 
     @Test

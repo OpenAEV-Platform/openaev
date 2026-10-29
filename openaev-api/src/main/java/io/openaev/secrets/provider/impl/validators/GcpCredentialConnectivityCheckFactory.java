@@ -20,11 +20,14 @@ public interface GcpCredentialConnectivityCheckFactory {
    *
    * @param privateKeyJson the decrypted key file content
    * @param scope the OAuth scope the credential is stored for
+   * @param customResourceManagerUri optional token server of a sovereign or mocked cloud; the
+   *     {@code token_uri} of the key file is used when blank
    * @return a credential able to request tokens for that service account
    * @throws IOException when the key material cannot be parsed — a stored-configuration problem,
    *     never a rejection
    */
-  GoogleCredentials forServiceAccount(byte[] privateKeyJson, String scope) throws IOException;
+  GoogleCredentials forServiceAccount(
+      byte[] privateKeyJson, String scope, String customResourceManagerUri) throws IOException;
 
   /**
    * Builds a credential from an OAuth 2.0 installed-application grant.
@@ -33,8 +36,14 @@ public interface GcpCredentialConnectivityCheckFactory {
    * @param clientSecret the decrypted OAuth client secret
    * @param refreshToken the decrypted refresh token
    * @param scope the OAuth scope the credential is stored for
+   * @param customTokenUri optional token server of a sovereign or mocked cloud; the library default
+   *     is used when blank
    * @return a credential able to exchange the refresh token for an access token
    */
   GoogleCredentials forOAuth2(
-      String clientId, String clientSecret, String refreshToken, String scope);
+      String clientId,
+      String clientSecret,
+      String refreshToken,
+      String scope,
+      String customTokenUri);
 }
