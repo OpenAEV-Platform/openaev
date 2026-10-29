@@ -1,6 +1,7 @@
 package io.openaev.rest.reporting;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromHTTPCtx;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.config.TenantWriteScopeResolver;
@@ -38,6 +39,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -91,15 +93,17 @@ public class ReportingService {
    * Retrieves a paginated list of {@link Reporting} entities according to the provided pagination
    * input.
    *
+   * @param ctx the request scope
    * @param searchPaginationInput the pagination and filtering input
    * @return a {@link Page} of {@link Reporting} entities
    */
   @Transactional(readOnly = true)
-  public Page<Reporting> reportings(@NotNull final SearchPaginationInput searchPaginationInput) {
+  public Page<Reporting> reportings(
+      @NotNull final TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
     // RBAC: never list a reporting whose subject the user cannot read (a scenario reporting
     // must stay invisible to users without access to that scenario).
     Specification<Reporting> accessSpecification =
-        subjectAccessSpecification(this.userService.currentUser());
+        subjectAccessSpecification(ctx, this.userService.currentUser());
     Page<Reporting> reportings =
         buildPaginationJPA(
             (specification, pageable) ->
@@ -113,14 +117,18 @@ public class ReportingService {
   /**
    * Lists the reportings built around a given subject, most recently updated first.
    *
+   * @param ctx the request scope
    * @param contextType the subject type
    * @param contextId the subject id; null for PLATFORM-wide reportings
    * @return the matching {@link Reporting} entities
    */
   @Transactional(readOnly = true)
   public List<Reporting> reportingsByContext(
-      @NotNull final ReportingContextType contextType, final String contextId) {
-    checkSubjectAccess(contextType, contextId);
+      @NotNull final TxCtx ctx,
+      @NotNull final ReportingContextType contextType,
+      final String contextId) {
+    // Checked before the read, so the reportings can come from any tenant of the scope.
+    checkSubjectAccessInScope(ctx, contextType, contextId);
     if (contextId == null || contextId.isBlank()) {
       return withHistoryLoaded(
           this.reportingRepository.findAllByContextTypeAndContextIdIsNullOrderByUpdatedAtDesc(
@@ -144,8 +152,8 @@ public class ReportingService {
    */
   @Transactional
   public Reporting createReporting(final TxCtx ctx, @NotNull final Reporting reporting) {
-    checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
     reporting.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
+    checkSubjectAccess(reporting);
     return this.reportingRepository.save(reporting);
   }
 
@@ -161,7 +169,7 @@ public class ReportingService {
   @Transactional(readOnly = true)
   public Reporting reporting(@NotBlank final String id) {
     Reporting reporting = resolveReporting(id);
-    checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
+    checkSubjectAccess(reporting);
     withHistoryLoaded(List.of(reporting));
     return reporting;
   }
@@ -178,7 +186,7 @@ public class ReportingService {
   public Reporting updateReporting(@NotNull final Reporting reporting) {
     // The context may have been repointed by the update input: the NEW subject must be
     // readable too (the previous one was checked when the reporting was resolved).
-    checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
+    checkSubjectAccess(reporting);
     return this.reportingRepository.save(reporting);
   }
 
@@ -193,7 +201,7 @@ public class ReportingService {
   @Transactional
   public void deleteReporting(@NotBlank final String id) {
     Reporting reporting = resolveReporting(id);
-    checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
+    checkSubjectAccess(reporting);
     this.reportingRepository.delete(reporting);
   }
 
@@ -251,7 +259,7 @@ public class ReportingService {
     // fetch), so the subject must be readable by that user - both for manual generations and
     // for scheduled ones (owner identity), including owners whose access was revoked since.
     if (actingUser != null) {
-      checkSubjectAccess(reporting.getContextType(), reporting.getContextId(), actingUser);
+      checkSubjectAccess(reporting, actingUser);
     }
     ReportingGeneration generation = new ReportingGeneration();
     generation.setReporting(reporting);
@@ -275,7 +283,7 @@ public class ReportingService {
   @Transactional(readOnly = true)
   public List<ReportingGeneration> generations(@NotBlank final String reportingId) {
     Reporting reporting = resolveReporting(reportingId);
-    checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
+    checkSubjectAccess(reporting);
     return this.reportingGenerationRepository.findAllByReportingIdOrderByCreatedAtDesc(reportingId);
   }
 
@@ -289,8 +297,7 @@ public class ReportingService {
   @Transactional(readOnly = true)
   public ReportingGeneration generation(@NotBlank final String generationId) {
     ReportingGeneration generation = resolveGeneration(generationId);
-    checkSubjectAccess(
-        generation.getReporting().getContextType(), generation.getReporting().getContextId());
+    checkSubjectAccess(generation.getReporting());
     return generation;
   }
 
@@ -303,8 +310,7 @@ public class ReportingService {
   @Transactional
   public void deleteGeneration(@NotBlank final String generationId) {
     ReportingGeneration generation = resolveGeneration(generationId);
-    checkSubjectAccess(
-        generation.getReporting().getContextType(), generation.getReporting().getContextId());
+    checkSubjectAccess(generation.getReporting());
     Document document = generation.getDocument();
     this.reportingGenerationRepository.delete(generation);
     if (document != null) {
@@ -341,8 +347,7 @@ public class ReportingService {
     ReportingGeneration generation = resolveGeneration(generationId);
     // The produced document contains the subject's actual data: downloading it requires read
     // access to the subject, exactly like reading the reporting itself.
-    checkSubjectAccess(
-        generation.getReporting().getContextType(), generation.getReporting().getContextId());
+    checkSubjectAccess(generation.getReporting());
     if (!ReportingGenerationStatus.SUCCESS.equals(generation.getStatus())) {
       throw new BadRequestException("Generation is not successful: " + generationId);
     }
@@ -378,7 +383,7 @@ public class ReportingService {
   public ReportingSchedule createSchedule(
       @NotBlank final String reportingId, @NotNull final ReportingScheduleInput input) {
     Reporting reporting = resolveReporting(reportingId);
-    checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
+    checkSubjectAccess(reporting);
     ReportingSchedule schedule = new ReportingSchedule();
     schedule.setReporting(reporting);
     // reporting_schedules has no v1 listener attribution left: a schedule always belongs to its
@@ -404,8 +409,7 @@ public class ReportingService {
       @NotBlank final String scheduleId,
       @NotNull final ReportingScheduleInput input) {
     ReportingSchedule schedule = resolveSchedule(reportingId, scheduleId);
-    checkSubjectAccess(
-        schedule.getReporting().getContextType(), schedule.getReporting().getContextId());
+    checkSubjectAccess(schedule.getReporting());
     applyScheduleInput(schedule, input);
     return this.reportingScheduleRepository.save(schedule);
   }
@@ -421,8 +425,7 @@ public class ReportingService {
   public void deleteSchedule(
       @NotBlank final String reportingId, @NotBlank final String scheduleId) {
     ReportingSchedule schedule = resolveSchedule(reportingId, scheduleId);
-    checkSubjectAccess(
-        schedule.getReporting().getContextType(), schedule.getReporting().getContextId());
+    checkSubjectAccess(schedule.getReporting());
     this.reportingScheduleRepository.delete(schedule);
   }
 
@@ -432,30 +435,58 @@ public class ReportingService {
    * Enforces that the current user can read the subject a reporting is built around: a user without
    * access to a scenario must never see (or generate, or download) a reporting about that scenario.
    * Platform-wide reportings (no subject) are gated by the REPORTINGS capabilities alone, which the
-   * API layer already verified.
+   * API layer already verified. The check is taken in the reporting's own tenant, which can be any
+   * tenant of the request scope.
    *
-   * @param contextType the reporting subject type
-   * @param contextId the reporting subject id; null/blank for platform-wide reportings
+   * @param reporting the reporting whose subject is checked
    * @throws AccessDeniedException when the subject is not readable by the current user
    */
-  private void checkSubjectAccess(final ReportingContextType contextType, final String contextId) {
-    checkSubjectAccess(contextType, contextId, this.userService.currentUser());
+  private void checkSubjectAccess(final Reporting reporting) {
+    checkSubjectAccess(reporting, this.userService.currentUser());
   }
 
   /**
-   * Same as {@link #checkSubjectAccess(ReportingContextType, String)} for an explicit user
-   * (scheduled generations run under the schedule owner's identity).
+   * Same as {@link #checkSubjectAccess(Reporting)} for an explicit user (scheduled generations run
+   * under the schedule owner's identity).
    */
-  private void checkSubjectAccess(
+  private void checkSubjectAccess(final Reporting reporting, @NotNull final User user) {
+    ReportingContextType contextType = reporting.getContextType();
+    String contextId = reporting.getContextId();
+    requireSubjectAccess(
+        this.permissionService.holdsInTenant(
+            reporting.getTenant().getId(), subjectReadable(contextType, contextId, user)),
+        contextType,
+        contextId);
+  }
+
+  /**
+   * Same as {@link #checkSubjectAccess(Reporting)} before any reporting is read: the reportings can
+   * then come from any tenant of the scope, so the subject must be readable in each of them.
+   */
+  private void checkSubjectAccessInScope(
+      final TxCtx ctx, final ReportingContextType contextType, final String contextId) {
+    requireSubjectAccess(
+        this.permissionService.holdsInScope(
+            ctx, subjectReadable(contextType, contextId, this.userService.currentUser())),
+        contextType,
+        contextId);
+  }
+
+  /** Whether the user can read the subject; a platform-wide reporting has none to check. */
+  private BooleanSupplier subjectReadable(
       final ReportingContextType contextType, final String contextId, @NotNull final User user) {
     ResourceType subjectType = contextType == null ? null : SUBJECT_RESOURCE_TYPES.get(contextType);
     if (subjectType == null || !StringUtils.hasText(contextId)) {
       // PLATFORM reporting (or subject-less legacy row): capability gate only.
-      return;
+      return () -> true;
     }
-    boolean allowed =
+    return () ->
         this.permissionService.hasPermission(
             user, Optional.empty(), contextId, subjectType, Action.READ);
+  }
+
+  private static void requireSubjectAccess(
+      final boolean allowed, final ReportingContextType contextType, final String contextId) {
     if (!allowed) {
       throw new AccessDeniedException(
           "Access denied to the subject of this reporting: " + contextType + " " + contextId);
@@ -463,15 +494,32 @@ public class ReportingService {
   }
 
   /**
-   * Search-time counterpart of {@link #checkSubjectAccess(ReportingContextType, String)}: a JPA
-   * specification keeping only the reportings whose subject the user can read. Mirrors the platform
-   * RBAC model: admin/BYPASS see everything; capability holders see every reporting of the covered
+   * Search-time counterpart of {@link #checkSubjectAccess(Reporting)}: a JPA specification keeping
+   * only the reportings whose subject the user can read in the reporting's own tenant, one branch
+   * per tenant of the request scope.
+   */
+  private Specification<Reporting> subjectAccessSpecification(
+      @NotNull final TxCtx ctx, @NotNull final User user) {
+    Specification<Reporting> readable = (root, query, cb) -> cb.disjunction();
+    for (String tenantId : tenantIdsFromHTTPCtx(ctx)) {
+      readable = readable.or(subjectAccessSpecification(tenantId, user));
+    }
+    return readable;
+  }
+
+  /**
+   * The reportings of one tenant whose subject the user can read there. Mirrors the platform RBAC
+   * model: admin/BYPASS see everything; capability holders see every reporting of the covered
    * subject type; open subject types (players, teams) are visible to all; grant-based subject types
    * (scenario, simulation, atomic testing) fall back to the user's read grants.
    */
-  private Specification<Reporting> subjectAccessSpecification(@NotNull final User user) {
-    if (user.isAdminOrBypass()) {
-      return (root, query, cb) -> cb.conjunction();
+  private Specification<Reporting> subjectAccessSpecification(
+      @NotNull final String tenantId, @NotNull final User user) {
+    Specification<Reporting> inTenant =
+        (root, query, cb) -> cb.equal(root.get("tenant").get("id"), tenantId);
+    if (this.permissionService.holdsInTenant(
+        tenantId, () -> this.permissionService.hasUserAdminPrivileges(user))) {
+      return inTenant;
     }
     List<ReportingContextType> visibleTypes = new ArrayList<>();
     List<ReportingContextType> grantFilteredTypes = new ArrayList<>();
@@ -479,7 +527,10 @@ public class ReportingService {
       ReportingContextType contextType = entry.getKey();
       ResourceType subjectType = entry.getValue();
       if (PermissionService.isOpenResource(subjectType, Action.READ)
-          || this.permissionService.hasCapabilityPermission(user, subjectType, Action.READ)) {
+          || this.permissionService.holdsInTenant(
+              tenantId,
+              () ->
+                  this.permissionService.hasCapabilityPermission(user, subjectType, Action.READ))) {
         visibleTypes.add(contextType);
       } else if (GRANT_MANAGED_CONTEXT_TYPES.contains(contextType)) {
         grantFilteredTypes.add(contextType);
@@ -489,21 +540,22 @@ public class ReportingService {
         grantFilteredTypes.isEmpty()
             ? List.of()
             : this.grantService.findReadGrantedResourceIds(user);
-    return (root, query, cb) -> {
-      List<Predicate> anyOf = new ArrayList<>();
-      // Platform-wide reportings carry no subject: the capability gate suffices.
-      anyOf.add(cb.isNull(root.get("contextId")));
-      if (!visibleTypes.isEmpty()) {
-        anyOf.add(root.get("contextType").in(visibleTypes));
-      }
-      if (!grantFilteredTypes.isEmpty() && !grantedIds.isEmpty()) {
-        anyOf.add(
-            cb.and(
-                root.get("contextType").in(grantFilteredTypes),
-                root.get("contextId").in(grantedIds)));
-      }
-      return cb.or(anyOf.toArray(new Predicate[0]));
-    };
+    return inTenant.and(
+        (root, query, cb) -> {
+          List<Predicate> anyOf = new ArrayList<>();
+          // Platform-wide reportings carry no subject: the capability gate suffices.
+          anyOf.add(cb.isNull(root.get("contextId")));
+          if (!visibleTypes.isEmpty()) {
+            anyOf.add(root.get("contextType").in(visibleTypes));
+          }
+          if (!grantFilteredTypes.isEmpty() && !grantedIds.isEmpty()) {
+            anyOf.add(
+                cb.and(
+                    root.get("contextType").in(grantFilteredTypes),
+                    root.get("contextId").in(grantedIds)));
+          }
+          return cb.or(anyOf.toArray(new Predicate[0]));
+        });
   }
 
   // -- INTERNAL --
