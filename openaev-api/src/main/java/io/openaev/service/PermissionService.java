@@ -18,11 +18,18 @@ import io.openaev.service.chaining.WorkflowService;
 import jakarta.validation.constraints.NotNull;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -139,6 +146,117 @@ public class PermissionService {
     return decision.getAsBoolean()
         && tenantIdsFromHTTPCtx(ctx).stream()
             .allMatch(tenantId -> holdsInTenant(tenantId, decision));
+  }
+
+  /**
+   * Takes {@code decision} once in the ambient tenant and once in each tenant of {@code ctx}, as
+   * {@link #holdsInTenant} evaluates it. For a list whose rows can come from several tenants and
+   * whose decision, such as "every row, or only the granted ones", must hold in the tenant of each
+   * row.
+   *
+   * @param ctx the request scope
+   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   */
+  public TenantDecision decideInEachTenant(
+      @NotNull final TxCtx ctx, final BooleanSupplier decision) {
+    Set<String> holding = new HashSet<>();
+    Set<String> notHolding = new HashSet<>();
+    for (String tenantId : tenantIdsFromHTTPCtx(ctx)) {
+      (holdsInTenant(tenantId, decision) ? holding : notHolding).add(tenantId);
+    }
+    return new TenantDecision(holding, notHolding, decision.getAsBoolean());
+  }
+
+  /**
+   * A row filter that applies {@code decision} in the tenant of each row: the rows of a tenant
+   * where it holds pass {@code rows.apply(true)}, the others {@code rows.apply(false)}. The filter
+   * has no tenant predicate when the decision is the same in every tenant, and two branches
+   * otherwise, whatever the number of tenants.
+   *
+   * @param ctx the request scope
+   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   * @param rows the filter of the rows of one tenant, given the decision taken there
+   */
+  public <T extends Base> Specification<T> filterInEachTenant(
+      @NotNull final TxCtx ctx,
+      final BooleanSupplier decision,
+      final Function<Boolean, Specification<T>> rows) {
+    TenantDecision taken = decideInEachTenant(ctx, decision);
+    if (taken.everywhere() || taken.nowhere()) {
+      return rows.apply(taken.everywhere());
+    }
+    Specification<T> holdingRows =
+        taken.inAmbient()
+            ? Specification.not(tenantIn(taken.notHolding()))
+            : tenantIn(taken.holding());
+    return holdingRows
+        .and(rows.apply(true))
+        .or(Specification.not(holdingRows).and(rows.apply(false)));
+  }
+
+  /**
+   * Lists the rows {@code decision} lets the caller read, deciding in the tenant of each row: the
+   * rows of {@code all} whose tenant passes it, and the rows of {@code granted}. Reads one of the
+   * two lists when the decision is the same in every tenant, both otherwise.
+   *
+   * @param ctx the request scope
+   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   * @param all every row the caller could read
+   * @param granted the rows the caller holds a grant on
+   * @param tenantOf the tenant of a row of {@code all}
+   * @param idOf the identifier of a row, to list a row of both lists once
+   */
+  public <R> List<R> listInEachTenant(
+      @NotNull final TxCtx ctx,
+      final BooleanSupplier decision,
+      final Supplier<List<R>> all,
+      final Supplier<List<R>> granted,
+      final Function<R, String> tenantOf,
+      final Function<R, String> idOf) {
+    TenantDecision taken = decideInEachTenant(ctx, decision);
+    if (taken.everywhere()) {
+      return all.get();
+    }
+    if (taken.nowhere()) {
+      return granted.get();
+    }
+    Map<String, R> readable = new LinkedHashMap<>();
+    all.get().stream()
+        .filter(row -> taken.holdsIn(tenantOf.apply(row)))
+        .forEach(row -> readable.put(idOf.apply(row), row));
+    granted.get().forEach(row -> readable.putIfAbsent(idOf.apply(row), row));
+    return List.copyOf(readable.values());
+  }
+
+  private static <T extends Base> Specification<T> tenantIn(Set<String> tenantIds) {
+    return (root, query, cb) -> root.get("tenant").get("id").in(tenantIds);
+  }
+
+  /**
+   * A decision taken in each tenant of a request scope and in the ambient tenant. The ambient
+   * answer applies to a row of a tenant outside the scope, which a table still isolated by the
+   * ambient tenant returns.
+   *
+   * @param holding the tenants of the scope where the decision holds
+   * @param notHolding the tenants of the scope where it does not
+   * @param inAmbient whether it holds in the ambient tenant
+   */
+  public record TenantDecision(Set<String> holding, Set<String> notHolding, boolean inAmbient) {
+
+    /** Whether the decision holds for a row of {@code tenantId}. */
+    public boolean holdsIn(String tenantId) {
+      return holding.contains(tenantId) || (inAmbient && !notHolding.contains(tenantId));
+    }
+
+    /** Whether it holds for a row of any tenant. */
+    public boolean everywhere() {
+      return inAmbient && notHolding.isEmpty();
+    }
+
+    /** Whether it holds for no row. */
+    public boolean nowhere() {
+      return !inAmbient && holding.isEmpty();
+    }
   }
 
   private boolean checkPermission(

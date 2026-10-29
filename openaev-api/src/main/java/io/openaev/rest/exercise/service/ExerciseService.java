@@ -81,12 +81,14 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -162,6 +164,9 @@ public class ExerciseService {
 
   private final io.openaev.database.repository.autonomous.AutonomousRunRepository
       autonomousRunRepository;
+
+  // Lazy: PermissionService reaches the services this one is built from.
+  private final ObjectProvider<PermissionService> permissionServiceProvider;
 
   // region properties
   @Resource private PlatformMailSender platformMailSender;
@@ -240,15 +245,15 @@ public class ExerciseService {
     return rawSimulation;
   }
 
-  public List<ExerciseSimple> exercises(final List<String> exerciseIds) {
-
+  /** The simulations of {@code exerciseIds} the caller reads, as {@link #exercises(TxCtx)}. */
+  public List<ExerciseSimple> exercises(@NotNull final TxCtx ctx, final List<String> exerciseIds) {
     User currentUser = userService.currentUser();
-    List<RawExerciseSimple> exercises =
-        currentUser.isAdminOrBypass()
-                || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
-            ? exerciseRepository.rawByExerciseIds(exerciseIds)
-            : exerciseRepository.rawGrantedByExerciseIds(currentUser().getId(), exerciseIds);
-    return exerciseMapper.getExerciseSimples(exercises);
+    return exerciseMapper.getExerciseSimples(
+        readableInEachTenant(
+            ctx,
+            currentUser,
+            () -> exerciseRepository.rawByExerciseIds(exerciseIds),
+            () -> exerciseRepository.rawGrantedByExerciseIds(currentUser.getId(), exerciseIds)));
   }
 
   @Transactional(readOnly = true)
@@ -589,15 +594,54 @@ public class ExerciseService {
   }
 
   // -- EXERCISES --
-  public List<ExerciseSimple> exercises() {
-    // We get the exercises depending on whether or not we are granted or have the capa
+  /**
+   * The simulations the caller reads: every simulation of a tenant where it holds the access right,
+   * and the simulations it holds a grant on.
+   */
+  public List<ExerciseSimple> exercises(@NotNull final TxCtx ctx) {
     User currentUser = userService.currentUser();
-    List<RawExerciseSimple> exercises =
-        currentUser.isAdminOrBypass()
-                || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
-            ? exerciseRepository.rawAll()
-            : exerciseRepository.rawAllGranted(currentUser().getId());
-    return exerciseMapper.getExerciseSimples(exercises);
+    return exerciseMapper.getExerciseSimples(
+        readableInEachTenant(
+            ctx,
+            currentUser,
+            exerciseRepository::rawAll,
+            () -> exerciseRepository.rawAllGranted(currentUser.getId())));
+  }
+
+  private List<RawExerciseSimple> readableInEachTenant(
+      TxCtx ctx,
+      User currentUser,
+      Supplier<List<RawExerciseSimple>> all,
+      Supplier<List<RawExerciseSimple>> granted) {
+    return permissionServiceProvider
+        .getObject()
+        .listInEachTenant(
+            ctx,
+            () -> canAccessEverySimulation(currentUser),
+            all,
+            granted,
+            RawExerciseSimple::getTenant_id,
+            RawExerciseSimple::getExercise_id);
+  }
+
+  private static boolean canAccessEverySimulation(User user) {
+    return user.isAdminOrBypass() || user.getCapabilities().contains(Capability.ACCESS_ASSESSMENT);
+  }
+
+  /**
+   * The simulations the caller reads in a search: every simulation of a tenant where it holds the
+   * access right, and the simulations it holds a grant on.
+   */
+  public Specification<Exercise> readableInEachTenant(
+      @NotNull final TxCtx ctx, @NotNull final User currentUser) {
+    return permissionServiceProvider
+        .getObject()
+        .filterInEachTenant(
+            ctx,
+            () -> canAccessEverySimulation(currentUser),
+            accessRight ->
+                SpecificationUtils.hasGrantAccess(
+                    currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
   }
 
   public Page<ExerciseSimple> exercises(
@@ -720,15 +764,21 @@ public class ExerciseService {
                 specification =
                     specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
               }
-              // Restrict to simulations the user is granted to plan on (no-op for admins and users
-              // with the delete capability)
+              // Restrict to simulations the user is granted to plan on (no-op in a tenant where
+              // the user is an admin or holds the delete capability)
               specification =
                   specification.and(
-                      SpecificationUtils.hasGrantAccess(
-                          user.getId(),
-                          user.isAdminOrBypass(),
-                          user.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
-                          Grant.GRANT_TYPE.PLANNER));
+                      permissionServiceProvider
+                          .getObject()
+                          .filterInEachTenant(
+                              ctx,
+                              () ->
+                                  user.isAdminOrBypass()
+                                      || user.getCapabilities()
+                                          .contains(Capability.DELETE_ASSESSMENT),
+                              deleteRight ->
+                                  SpecificationUtils.hasGrantAccess(
+                                      user.getId(), false, deleteRight, Grant.GRANT_TYPE.PLANNER)));
               return exerciseRepository.findAll(specification).stream()
                   .map(Exercise::getId)
                   .toList();

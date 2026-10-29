@@ -57,7 +57,7 @@ public class EndpointApi extends RestBehavior {
   public static final String ENDPOINT_URI = "/api/endpoints";
   private static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
   public static final String ASSET_URI = "/api/assets";
-  private static final String TENANT_ASSET_URI = TENANT_PREFIX + "/assets";
+  public static final String TENANT_ASSET_URI = TENANT_PREFIX + "/assets";
 
   private final EndpointService endpointService;
   private final AssetService assetService;
@@ -334,14 +334,13 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   @Transactional(readOnly = true)
-  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
-  // injectors/executors tables (inject results resolve their injector and, through agents, their
-  // executor).
+  // The aspect also reads ctx to scope this transaction against the v2-active injectors/executors
+  // tables (inject results resolve their injector and, through agents, their executor).
   public Page<InjectResultOutput> searchInjectsForAsset(
       TxCtx ctx,
       @PathVariable @NotBlank final String assetId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return injectSearchService.getPageOfInjectResultsForAsset(assetId, searchPaginationInput);
+    return injectSearchService.getPageOfInjectResultsForAsset(ctx, assetId, searchPaginationInput);
   }
 
   /**

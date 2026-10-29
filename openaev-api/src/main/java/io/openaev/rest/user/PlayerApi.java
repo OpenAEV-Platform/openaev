@@ -94,7 +94,7 @@ public class PlayerApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String userId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return injectSearchService.getPageOfInjectResultsForPlayer(userId, searchPaginationInput);
+    return injectSearchService.getPageOfInjectResultsForPlayer(ctx, userId, searchPaginationInput);
   }
 
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
