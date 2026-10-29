@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.openaev.IntegrationTest;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
@@ -293,7 +294,10 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     INJECT_ID = injectDefaultEmailSaved.getId();
 
     // -- EXECUTE --
-    this.exerciseService.removeTeams(exerciseSaved.getId(), List.of(teamSaved.getId()));
+    this.exerciseService.removeTeams(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        exerciseSaved.getId(),
+        List.of(teamSaved.getId()));
 
     // -- ASSERT --
     List<Team> teams = this.teamRepository.findAll(fromExercise(exerciseSaved.getId()));

@@ -403,7 +403,7 @@ public class AutonomousRunService {
       // scenario type, so the scenario is a plain reusable chained scenario and is NOT stamped
       // autonomous. The AI cockpit is discovered from the run row (by-simulation / by-scenario
       // lookups), not from a flag on the scenario.
-      scenario = scenarioService.scenario(scenarioId);
+      scenario = scenarioService.scenario(ctx, scenarioId);
       if (!workflowService.isScenarioChaining(scenarioId)) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,
@@ -585,6 +585,8 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Before any read or write keyed on the scenario id alone
+    scenarioService.existsInScope(ctx, scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,

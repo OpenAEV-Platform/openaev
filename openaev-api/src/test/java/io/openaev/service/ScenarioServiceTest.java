@@ -197,7 +197,7 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.clear();
 
     assertThat(injectRepository.findById(injectWrapper.get().getId())).isEmpty();
-    assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+    assertThatThrownBy(() -> scenarioService.getScenarioById(DEFAULT_TENANT_SCOPE, scenarioId))
         .isInstanceOf(ElementNotFoundException.class);
   }
 
@@ -252,9 +252,9 @@ class ScenarioServiceTest extends IntegrationTest {
     assertEquals(Set.of("Windows"), platformsByScenarioId.get(chainedScenario.getId()));
 
     ScenarioOutput chainedScenarioOutput =
-        scenarioServiceBean.getScenarioById(chainedScenario.getId());
+        scenarioServiceBean.getScenarioById(DEFAULT_TENANT_SCOPE, chainedScenario.getId());
     ScenarioOutput timeBasedScenarioOutput =
-        scenarioServiceBean.getScenarioById(timeBasedScenario.getId());
+        scenarioServiceBean.getScenarioById(DEFAULT_TENANT_SCOPE, timeBasedScenario.getId());
     assertEquals(Set.of("Windows"), chainedScenarioOutput.getPlatforms());
     assertEquals(Set.of("Linux"), timeBasedScenarioOutput.getPlatforms());
   }
@@ -314,7 +314,8 @@ class ScenarioServiceTest extends IntegrationTest {
         .isEmpty();
     assertThat(injectRepository.findById(persistedInjectA.getId())).isEmpty();
     assertThat(injectRepository.findById(persistedInjectB.getId())).isEmpty();
-    assertThatThrownBy(() -> scenarioServiceBean.getScenarioById(scenario.getId()))
+    assertThatThrownBy(
+            () -> scenarioServiceBean.getScenarioById(DEFAULT_TENANT_SCOPE, scenario.getId()))
         .isInstanceOf(ElementNotFoundException.class);
   }
 
@@ -343,7 +344,7 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+    assertThatThrownBy(() -> scenarioService.getScenarioById(DEFAULT_TENANT_SCOPE, scenarioId))
         .isInstanceOf(ElementNotFoundException.class);
 
     assertThat(exerciseRepository.findById(simulationWrapper.get().getId()))
@@ -483,7 +484,8 @@ class ScenarioServiceTest extends IntegrationTest {
     INJECT_ID = injectDefaultEmailSaved.getId();
 
     // -- EXECUTE --
-    this.scenarioService.removeTeams(scenarioSaved.getId(), List.of(teamSaved.getId()));
+    this.scenarioService.removeTeams(
+        DEFAULT_TENANT_SCOPE, scenarioSaved.getId(), List.of(teamSaved.getId()));
 
     // -- ASSERT --
     List<Team> teams = this.teamRepository.findAll(fromScenario(scenarioSaved.getId()));
