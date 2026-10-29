@@ -14,15 +14,20 @@ import org.springframework.stereotype.Component;
  * Runs the chaining work of a simulation or scenario in that simulation's or scenario's own tenant,
  * whatever the scope of the request that reached it.
  *
- * <p>Access to the simulation or scenario is decided before, as for any other resource. Once it is
- * granted, its workflow follows it: a workflow inherits its owner's tenant and can never move (see
- * {@code Workflow#attributeTenantFromOwner}), so reading it under the caller's scope would miss it
- * whenever that scope does not include the owner's tenant, and a status change, a duplicate or an
- * export would then go on as if the owner were not chained.
+ * <p>It moves the request's transaction to the owner's one tenant, which may lie outside the
+ * request's scope, and checks nothing about the caller. The caller must have checked its access to
+ * the simulation or scenario first, by loading it through the request's access check, and pass that
+ * loaded entity. Once access is granted, its workflow follows it: a workflow inherits its owner's
+ * tenant and can never move (see {@code Workflow#attributeTenantFromOwner}), so reading it under
+ * the caller's scope would miss it whenever that scope does not include the owner's tenant, and a
+ * status change, a duplicate or an export would then go on as if the owner were not chained. The
+ * classes allowed to call this one are an allowlist pinned by an architecture test, each with the
+ * reason its owner was loaded that way.
  *
  * <p>The work runs on the request's own transaction (see {@link
- * TenantScopedTransaction#executeOnCurrentTransaction}), so it keeps the transaction's locks,
- * visibility and outcome, and the request's scope is put back after it.
+ * TenantScopedTransaction#executeOnCurrentTransaction}, including what it flushes when the work
+ * throws), so it keeps the transaction's locks, visibility and outcome, and the request's scope is
+ * put back after it.
  */
 @Component
 @RequiredArgsConstructor
