@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
  * An architecture rule without {@link ArchTest} compiles, reads like a guard, and never runs: the
  * ArchUnit engine only executes annotated members, so nothing goes red when the rule is broken. Two
  * tenant-active-table rules lived that way, one of them since another rule was inserted between it
- * and its annotation. This test makes every rule of the architecture tests run, whatever its shape:
+ * and its annotation. This test checks where each rule of the architecture tests is registered:
  *
  * <ul>
  *   <li>a rule member, meaning an {@link ArchRule} field, a method returning one, or a {@code void}
@@ -51,10 +51,12 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Denominator: the test classes of {@code io.openaev.architecture}, its subpackages included,
  * which today hold every {@link ArchRule} of the test tree. A rule declared in another package is
- * not seen. A helper read only from a lambda counts as not run, so that shape fails closed.
+ * not seen. A helper read only from a lambda counts as not run, so that shape fails closed. It does
+ * not check what the runner does with the helper it reads: a read whose rule is never passed to
+ * {@code check} still counts as run.
  */
 @DisplayName(
-    "Every architecture rule runs: an @ArchTest, or a listed helper read where the build runs it")
+    "Every architecture rule is an @ArchTest the build runs, or a listed helper read where it runs")
 class ArchRuleRegistrationTest {
 
   private static final JavaClasses ARCHITECTURE_TESTS =
