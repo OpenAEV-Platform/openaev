@@ -13,7 +13,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * test, so without this a request would inherit the scope set by {@link
  * DefaultTenantScopeTestListener} (or by a previous request) and TenantScopeTransactionAspect would
  * refuse to switch it to the request's own tenants. In production each request has its own
- * transaction and always starts unscoped; this restores that starting point.
+ * transaction and always starts unscoped; this restores that starting point. Fixture writes still
+ * pending from {@link RowTenantScope} are flushed first, in the scope they were written in, as they
+ * would have been committed before the request.
  */
 @Configuration
 public class RequestTenantScopeTestConfiguration {
@@ -23,6 +25,7 @@ public class RequestTenantScopeTestConfiguration {
     Filter resetScope =
         (request, response, chain) -> {
           if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            RowTenantScope.flushPendingWrites(entityManager);
             entityManager
                 .createNativeQuery("SELECT set_config('app.current_tenants', '', true)")
                 .setFlushMode(FlushModeType.COMMIT)

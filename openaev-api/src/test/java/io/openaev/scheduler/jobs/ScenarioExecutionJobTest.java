@@ -19,6 +19,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ScenarioFixture;
@@ -69,9 +70,20 @@ class ScenarioExecutionJobTest extends IntegrationTest {
   void after() {
     entityManager.unwrap(org.hibernate.Session.class).disableFilter("tenantFilter");
     entityManager.clear();
-    workflowRepository.deleteAll();
-    exerciseRepository.deleteAll();
-    scenarioRepository.deleteAll();
+    // The rows of a test can sit in any tenant (one test spreads them over two), and the test runs
+    // outside a transaction: clean up in a scope that names every tenant.
+    tenantTx.execute(
+        TxCtx.allTenants(),
+        () -> {
+          workflowRepository.deleteAll();
+          exerciseRepository.deleteAll();
+          scenarioRepository.deleteAll();
+        });
+  }
+
+  /** Every simulation, read the way the job reads them: in a scope naming every tenant. */
+  private List<Exercise> allSimulations() {
+    return tenantTx.execute(TxCtx.allTenants(), () -> fromIterable(exerciseRepository.findAll()));
   }
 
   @Nested
@@ -99,7 +111,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
       // -- ASSERT --
       List<Exercise> createdExercises =
-          fromIterable(exerciseRepository.findAll()).stream()
+          allSimulations().stream()
               .filter(exercise -> exercise.getScenario() != null)
               .filter(exercise -> SCENARIO_ID_1.equals(exercise.getScenario().getId()))
               .toList();
@@ -127,7 +139,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
       // -- ASSERT --
       List<Exercise> createdExercises =
-          fromIterable(exerciseRepository.findAll()).stream()
+          allSimulations().stream()
               .filter(exercise -> exercise.getScenario() != null)
               .filter(exercise -> SCENARIO_ID_2.equals(exercise.getScenario().getId()))
               .toList();
@@ -161,14 +173,25 @@ class ScenarioExecutionJobTest extends IntegrationTest {
       Scenario scenario = ScenarioFixture.getScenario();
       scenario.setRecurrence(
           "0 " + minuteToStart + " " + hourToStart + " * * *"); // Every day now + 1 minute
-      Scenario scenarioSaved = scenarioService.createScenario(scenario);
-      scenarioSaved = scenarioService.createScenarioChaining(scenarioSaved);
+      // Created, then updated by the chaining set-up: both in the scenario's tenant scope, as the
+      // request that creates a chained scenario runs them.
+      Scenario scenarioSaved =
+          tenantTx.execute(
+              TxCtx.forTenant(scenario.getTenant().getId()),
+              () -> {
+                try {
+                  return scenarioService.createScenarioChaining(
+                      scenarioService.createScenario(scenario));
+                } catch (ChainingException e) {
+                  throw new IllegalStateException(e);
+                }
+              });
       SCENARIO_ID_3 = scenarioSaved.getId();
 
       job.execute(null);
 
       List<Exercise> createdExercises =
-          fromIterable(exerciseRepository.findAll()).stream()
+          allSimulations().stream()
               .filter(exercise -> exercise.getScenario() != null)
               .filter(exercise -> SCENARIO_ID_3.equals(exercise.getScenario().getId()))
               .toList();
@@ -210,7 +233,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
       // -- PREPARE --
       Exercise createdExercise = createDueChainedScheduledExercise();
       createdExercise.setStart(Instant.now().minusSeconds(60));
-      exerciseRepository.save(createdExercise);
+      inTenantOf(createdExercise, () -> exerciseRepository.save(createdExercise));
 
       // -- EXECUTE --
       // injectsExecutionJob.execute(...) both auto-starts due simulations and starts their
@@ -222,7 +245,9 @@ class ScenarioExecutionJobTest extends IntegrationTest {
       // completes immediately (no step is ever ready) and the simulation is finished in the same
       // call. This still proves the RUN was created and started: without the auto-start wiring,
       // no RUN would exist at all and the simulation would remain SCHEDULED.
-      Exercise startedExercise = exerciseRepository.findById(createdExercise.getId()).orElseThrow();
+      Exercise startedExercise =
+          inTenantOf(createdExercise, () -> exerciseRepository.findById(createdExercise.getId()))
+              .orElseThrow();
       assertThat(startedExercise.getStatus()).isEqualTo(ExerciseStatus.FINISHED);
       assertThat(
               inTenantOf(
@@ -259,7 +284,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
       // -- ASSERT --
       List<Exercise> createdExercises =
-          fromIterable(exerciseRepository.findAll()).stream()
+          allSimulations().stream()
               .filter(exercise -> exercise.getScenario() != null)
               .filter(exercise -> SCENARIO_ID_2.equals(exercise.getScenario().getId()))
               .toList();
@@ -290,7 +315,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
       // -- ASSERT --
       List<Exercise> createdExercises =
-          fromIterable(exerciseRepository.findAll()).stream()
+          allSimulations().stream()
               .filter(exercise -> exercise.getScenario() != null)
               .filter(exercise -> SCENARIO_ID_3.equals(exercise.getScenario().getId()))
               .toList();
@@ -335,7 +360,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
         for (Scenario scenario : List.of(recurringScenarioInTenantA, recurringScenarioInTenantB)) {
           tenantIsolationTestHelper.switchToTenantNoFlush(scenario.getTenant().getId());
           List<Exercise> createdExercises =
-              fromIterable(exerciseRepository.findAll()).stream()
+              allSimulations().stream()
                   .filter(
                       exercise -> exercise.getTenant().getId().equals(scenario.getTenant().getId()))
                   .toList();
@@ -381,7 +406,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
         // -- ASSERT --
         List<Exercise> createdExercises =
-            fromIterable(exerciseRepository.findAll()).stream()
+            allSimulations().stream()
                 .filter(exercise -> exercise.getScenario() != null)
                 .filter(
                     exercise ->
@@ -408,7 +433,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
         // -- ASSERT --
         List<Exercise> createdExercises =
-            fromIterable(exerciseRepository.findAll()).stream()
+            allSimulations().stream()
                 .filter(exercise -> exercise.getScenario() != null)
                 .filter(
                     exercise ->
@@ -442,7 +467,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
         // -- ASSERT --
         List<Exercise> createdExercises =
-            fromIterable(exerciseRepository.findAll()).stream()
+            allSimulations().stream()
                 .filter(exercise -> exercise.getScenario() != null)
                 .filter(
                     exercise ->
@@ -476,7 +501,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
         // -- ASSERT --
         List<Exercise> createdExercises =
-            fromIterable(exerciseRepository.findAll()).stream()
+            allSimulations().stream()
                 .filter(exercise -> exercise.getScenario() != null)
                 .filter(
                     exercise ->
@@ -500,7 +525,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
     // -- ASSERT --
     List<Exercise> createdExercises =
-        fromIterable(exerciseRepository.findAll()).stream()
+        allSimulations().stream()
             .filter(exercise -> exercise.getScenario() != null)
             .filter(
                 exercise -> scenarioWrapper.get().getId().equals(exercise.getScenario().getId()))

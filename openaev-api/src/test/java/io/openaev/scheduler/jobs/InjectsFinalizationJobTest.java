@@ -12,6 +12,7 @@ import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -23,10 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -39,7 +38,7 @@ class InjectsFinalizationJobTest extends IntegrationTest {
   @Autowired private SecurityCoverageSendJobRepository securityCoverageSendJobRepository;
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
   @Autowired private EntityManager entityManager;
-  @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
@@ -56,8 +55,13 @@ class InjectsFinalizationJobTest extends IntegrationTest {
    * their own short-lived transaction here. Rows are committed for real, hence the manual cleanup
    * in each test's {@code finally} block.
    */
+  /**
+   * Runs fixture writes, clean-ups and reads in the default tenant's scope, where every fixture of
+   * this class lives: in a transaction of their own when the test runs outside one, in the test's
+   * transaction otherwise.
+   */
   private void inTransaction(Runnable work) {
-    new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, work);
   }
 
   @Test

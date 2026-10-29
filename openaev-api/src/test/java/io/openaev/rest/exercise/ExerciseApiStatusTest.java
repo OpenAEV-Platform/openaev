@@ -34,6 +34,7 @@ import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.annotation.Resource;
 import jakarta.servlet.ServletException;
 import java.time.Clock;
@@ -54,10 +55,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 // Once the chaining tables are tenant-active, a status change reads the simulation's workflow in
 // the caller's tenant membership scope, so each test that reaches it acts as a member of the
@@ -127,13 +126,18 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private OpenAEVConfig openAEVConfig;
   @Autowired private CacheManager cacheManager;
-  @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @MockitoSpyBean private WorkflowEndService workflowEndService;
   @MockitoSpyBean private InjectRepository injectRepositorySpy;
 
+  /**
+   * Runs fixture writes and clean-ups in the default tenant's scope, where every fixture of this
+   * class lives: in a transaction of their own when the test runs outside one, in the test's
+   * transaction otherwise.
+   */
   private void inTransaction(Runnable work) {
-    new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, work);
   }
 
   @BeforeEach
@@ -798,7 +802,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise next status")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void checkExerciseNextStatusTest() {
     // --PREPARED--
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();

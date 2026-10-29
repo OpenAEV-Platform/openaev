@@ -23,6 +23,7 @@ import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -34,6 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
 public class ScenarioInjectApiSearchTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @Autowired private InjectRepository injectRepository;
   @Autowired private ScenarioRepository scenarioRepository;
@@ -73,8 +75,13 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.injectRepository.deleteAllById(INJECT_IDS);
-    this.scenarioRepository.deleteById(SCENARIO_ID);
+    // The class's rows were committed in the default tenant: delete them in its scope.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          this.injectRepository.deleteAllById(INJECT_IDS);
+          this.scenarioRepository.deleteById(SCENARIO_ID);
+        });
   }
 
   @Nested
