@@ -145,22 +145,30 @@ public class TenantScopedTransaction {
   }
 
   /**
-   * Runs {@code work} on the CURRENT, already-active transaction under {@code ctx}, then puts back
-   * the tenant scope the transaction had before. For a row whose own tenant decides where its
-   * dependent rows are read and written, whatever the scope the transaction was opened with: the
-   * caller has already been granted the row, and its dependents follow it.
+   * Moves the CURRENT, already-active transaction to the one tenant of {@code ctx}, runs {@code
+   * work} there, then puts back the tenant scope the transaction had before. For a row whose own
+   * tenant decides where its dependent rows are read and written, whatever the scope the
+   * transaction was opened with.
+   *
+   * <p>That tenant may lie outside the scope of the request that opened the transaction: this
+   * method does not check that the caller may see it. The caller must have checked its access to
+   * the row first, and pass that row's own tenant, never one taken from the request. The only
+   * caller is {@code WorkflowOwnerScope}, and an architecture test limits who may call it.
    *
    * <p>One transaction throughout, unlike {@link #executeNew}: the work sees the uncommitted writes
    * made before it, its writes share the transaction's fate, and it never waits on a lock the
-   * suspended transaction holds. Pending changes are flushed before the scope changes and again
-   * before it is put back, so every statement runs under the scope its change was made in. An
-   * association loaded inside the work and first read after it is read under the scope put back.
+   * suspended transaction holds. Pending changes are flushed before the scope changes. When the
+   * work returns normally they are flushed again before the scope is put back, so every statement
+   * runs under the scope its change was made in. When the work throws, the scope is put back
+   * without that second flush: a change the work left pending would be written later under the
+   * restored scope, so a caller that catches the exception and goes on to commit must not rely on
+   * the work's pending changes. An association loaded inside the work and first read after it is
+   * read under the scope put back.
    *
    * <p>Only the tenant scope changes. The marking scope is left as it is: the caller's clearance
    * still applies to what the work reads.
    *
-   * <p>Refuses to run outside an active transaction, and refuses any scope but exactly one tenant:
-   * the work follows one row's tenant, and a request must never widen its own scope through it.
+   * <p>Refuses to run outside an active transaction, and refuses any scope but exactly one tenant.
    */
   public <T, E extends Exception> T executeOnCurrentTransaction(TxCtx ctx, ScopedWork<T, E> work)
       throws E {
