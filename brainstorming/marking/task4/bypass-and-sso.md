@@ -52,7 +52,7 @@ Tenant A has four assets: `web-01` (no marking), `db-01` (`TLP:GREEN`), `hr-01` 
 | First admin | none needed | ✅ | ✅ | ✅ | ✅ |
 | Bob, tenant admin (`BYPASS` in tenant A) | `TLP:GREEN` | ✅ | ✅ | ❌ | ❌ |
 | Carole, ops in a platform group with `BYPASS` | none (markings belong to a tenant) | ✅ | ❌ | ❌ | ❌ |
-| Alice, SSO admin in the "Admin" group of tenant A | `TLP:RED` (group default) | ✅ | ✅ | ✅ | ✅ |
+| Alice, SSO admin in the "Admin" group of tenant A | every marking of tenant A | ✅ | ✅ | ✅ | ✅ |
 | Dave, `user_admin` from an old SSO login, in no group | none | ✅ | ❌ | ❌ | ❌ |
 | Agent account of tenant A | every marking of tenant A | ✅ | ✅ | ✅ | ✅ |
 
@@ -62,8 +62,7 @@ What changes for them:
   `db-01`, for reading and launching alike.
 - Carole already sees only `web-01` today: a platform `BYPASS` does not give the agent's hidden rights.
 - Dave sees all four today. Afterwards, only `web-01`, until someone who holds the markings adds him to "Admin".
-- "Admin" holds `TLP:RED` only: an asset marked with another type (PAP, a custom type) stays hidden from Alice unless the
-  group is given that marking too.
+- "Admin" receives every marking of the tenant, PAP and custom types included, so Alice sees every asset of tenant A.
 
 How the agent and OpenCTI groups get every marking: like in OpenCTI, a group can be set to **receive new markings**.
 When a marking is created, every group of the tenant with this setting gets it. The agent and OpenCTI groups have it
@@ -71,7 +70,11 @@ on, and get every existing marking when they are created (the OpenCTI group is c
 registers; all connectors of a tenant share it). At upgrade, a data pack turns it on for the existing technical groups
 and gives them the markings that already exist. Nobody can change these groups' markings through the API.
 
-The setting is not in the API yet. Later, it can be turned on for other groups, for example "Admin".
+Like in OpenCTI, the admin groups have it on too: "Admin" in every tenant and "Administrators" in the default tenant.
+
+Unlike OpenCTI, turning it on in the API needs more than managing groups, because it gives every marking of the tenant:
+the `ASSIGN_MARKING` capability and every marking of the tenant. Otherwise Bob (`TLP:GREEN`) could turn it on for his
+own group and get `TLP:RED`. Turning it off only needs to manage groups; the group keeps the markings it already has.
 
 The task 3 design had set this option aside as fragile, because a missed marking breaks the agent. It is fine now: the
 groups get new markings automatically, and a miss only hides an asset from the agent, it never shows an asset to
@@ -85,7 +88,7 @@ From now on, a user who signs in with the admin role:
 
 | Provider (`openaev.provider.<id>.tenant_id`) | The admin joins | `user_admin` |
 |---|---|---|
-| set to tenant A | the "Admin" group of tenant A (`TLP:RED` by default, #7639) | not set |
+| set to tenant A | the "Admin" group of tenant A (every marking of the tenant) | not set |
 | not set | the "Admin" group of the default tenant, where these users already land today | not set |
 
 With `all_admin=true`, every user of the provider joins that group. The admin role comes from the IdP roles, as today.
@@ -94,7 +97,7 @@ It works like a #8739 group rule: IdP admin role → "Admin" group of the provid
 the IdP role is removed.
 
 Why SSO is in this change: once `user_admin` no longer skips markings, a new SSO admin would see no marked asset at all.
-Putting them in "Admin" gives them the tenant's default markings.
+Putting them in "Admin" gives them every marking of the tenant.
 
 Existing `user_admin` users keep the flag (they keep all their rights except skipping markings, see Dave). When they sign
 in again with the admin role, they also join "Admin". As today, losing the IdP role sets `user_admin` to `false`.
@@ -133,9 +136,13 @@ for (group : groupsOfTenant(tenantId).where(autoNewMarking)) {
   evictClearance(group.users());
 }
 
-// when the agent or OpenCTI group is created, and once at upgrade (data pack)
+// when the agent, OpenCTI, "Admin" or "Administrators" group is created, and once at upgrade (data pack)
 group.autoNewMarking = true;
 addIfMissing(group.markings, tenantMarkings(tenantId));
+
+// TenantGroupService.createGroup / updateGroup, when the API turns it on
+assertCapability(currentUser, ASSIGN_MARKING);
+assertCanAssignMarkings(findClearance(currentUser, tenantId), tenantMarkings(tenantId));
 ```
 
 **4. Joining a group, or making it a default group, needs its markings.**
@@ -167,8 +174,9 @@ else {
 | 1 | Team review of this doc and the ADR (this draft PR) | in progress |
 | 2 | Agent and OpenCTI groups receive every marking (group flag) | done, in the code PR |
 | 3 | One rule: only the first admin ignores markings; joining a group or making it a default group needs its markings | done, in the code PR |
-| 4 | SSO admins join the "Admin" group | after #8739, separate PR |
-| 5 | Check in the app with the `MARKING` flag on | to do |
+| 4 | Admin groups receive every marking; the setting in the API (turning it on needs `ASSIGN_MARKING` and every marking) | to do |
+| 5 | SSO admins join the "Admin" group | after #8739, separate PR |
+| 6 | Check in the app with the `MARKING` flag on | to do |
 
 ## Breaking changes
 
