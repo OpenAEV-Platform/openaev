@@ -11,7 +11,24 @@ interface Props {
   onInstall: () => void;
 }
 
-// A catalogue version that is not installed: only its catalogue metadata is known.
+// Above a catalogue version that is not installed.
+export const CatalogVersionInstallBar: FunctionComponent<Omit<Props, 'item'>> = ({ canInstall, installing, onInstall }) => {
+  const { t } = useFormatter();
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    }}
+    >
+      <Chip label={t('This version is not installed')} />
+      <Button size="sm" disabled={!canInstall} loading={installing} onClick={onInstall}>{t('Install')}</Button>
+    </div>
+  );
+};
+
+// A catalogue version released as an archive: only its catalogue metadata is known.
 const CatalogPayloadVersionSummary: FunctionComponent<Props> = ({ item, canInstall, installing, onInstall }) => {
   const { t, nsdt } = useFormatter();
   const missing = item.catalog_item_missing_requirements ?? [];
@@ -30,16 +47,7 @@ const CatalogPayloadVersionSummary: FunctionComponent<Props> = ({ item, canInsta
       gap: 16,
     }}
     >
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 8,
-      }}
-      >
-        <Chip label={t('This version is not installed')} />
-        <Button size="sm" disabled={!canInstall || installing} onClick={onInstall}>{t('Install')}</Button>
-      </div>
+      <CatalogVersionInstallBar canInstall={canInstall} installing={installing} onInstall={onInstall} />
       {field(t('Description'), item.catalog_item_description || '-')}
       {field(t('Author'), item.catalog_item_author || '-')}
       {field(t('Category'), item.catalog_item_category ? t(item.catalog_item_category) : '-')}

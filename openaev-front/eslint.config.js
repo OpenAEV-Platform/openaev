@@ -76,7 +76,6 @@ const legacyRamdaFiles = [
   'src/components/ItemBoolean.jsx',
   'src/components/ItemNumberDifference.jsx',
   'src/components/KillChainPhaseField.jsx',
-  'src/components/Message.jsx',
   'src/components/OldAttackPatternField.jsx',
   'src/components/OrganizationField.jsx',
   'src/components/TagField.jsx',

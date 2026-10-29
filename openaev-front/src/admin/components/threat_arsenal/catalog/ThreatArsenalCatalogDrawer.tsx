@@ -6,13 +6,13 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type CatalogItemOutput } from '../../../../utils/api-types';
 import PayloadVersionSelect from '../PayloadVersionSelect';
-import CatalogPayloadVersionSummary from './CatalogPayloadVersionSummary';
+import CatalogPayloadVersionPreview from './CatalogPayloadVersionPreview';
 
 interface Props {
   item: CatalogItemOutput | null;
   canInstall: boolean;
   onClose: () => void;
-  onInstalled: () => void;
+  onInstalled: (version: string) => void;
 }
 
 // A payload of the Available tab: its latest version first, any other version on demand.
@@ -41,7 +41,7 @@ const ThreatArsenalCatalogDrawer: FunctionComponent<Props> = ({ item, canInstall
     setInstalling(true);
     installCatalogPayload(item.catalog_item_external_id, shownVersion)
       .then(() => {
-        onInstalled();
+        onInstalled(shownVersion);
         onClose();
       })
       .finally(() => setInstalling(false));
@@ -75,7 +75,7 @@ const ThreatArsenalCatalogDrawer: FunctionComponent<Props> = ({ item, canInstall
               loading={versionsLoading}
             />
           </div>
-          {shown && <CatalogPayloadVersionSummary item={shown} canInstall={canInstall} installing={installing} onInstall={install} />}
+          {shown && <CatalogPayloadVersionPreview item={shown} canInstall={canInstall} installing={installing} onInstall={install} />}
         </div>
       )}
     </Drawer>

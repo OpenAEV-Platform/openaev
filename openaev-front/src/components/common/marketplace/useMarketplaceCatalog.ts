@@ -73,8 +73,14 @@ const useMarketplaceCatalog = <T>({
     handleResetFilters,
     isInstalled: (id: string) => installedIds.has(id),
     markInstalled,
-    install: (id: string) => installOne(id).then(markInstalled),
-    installAll: () => installAll().then(markInstalled),
+    install: (id: string) => installOne(id).then((ids) => {
+      markInstalled(ids);
+      return ids;
+    }),
+    installAll: () => installAll().then((ids) => {
+      markInstalled(ids);
+      return ids;
+    }),
   };
 };
 

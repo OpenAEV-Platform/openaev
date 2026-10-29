@@ -2615,6 +2615,7 @@ export interface CatalogItemOutput {
   catalog_item_missing_prerequisites?: CatalogMissingRequirement[];
   catalog_item_missing_requirements?: string[];
   catalog_item_name?: string;
+  catalog_item_payloads?: PayloadUsed[];
   catalog_item_platforms?: string[];
   /** @format date-time */
   catalog_item_published_at?: string;
@@ -7278,6 +7279,8 @@ export interface InjectOutput {
   /** Injector contract of the inject */
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
+  /** The inject runs a revoked payload: it is skipped and blocks the launch */
+  inject_payload_revoked?: boolean;
   /** Ready state of the inject */
   inject_ready?: boolean;
   /** Scenario ID of the inject */
@@ -8974,6 +8977,7 @@ export interface OutputParserSimple {
 
 export interface OverridesInput {
   variant_overrides?: Record<string, any>;
+  variant_tags?: string[];
 }
 
 export interface PageAggregatedFindingOutput {
@@ -10109,6 +10113,8 @@ export interface PayloadRevocationInput {
 export interface PayloadRevocationOutput {
   /** @minLength 1 */
   content_revocation_id: string;
+  /** Set when a customized payload inherits the revocation of this base version */
+  content_revocation_inherited_from?: string;
   content_revocation_reason?: string;
   /** @format date-time */
   content_revocation_revoked_at?: string;
@@ -10289,6 +10295,13 @@ export interface PayloadUsageOutput {
   usage_type: string;
 }
 
+export interface PayloadUsed {
+  /** @minLength 1 */
+  external_id: string;
+  name?: string;
+  version?: string;
+}
+
 export interface PayloadVersionChangeInput {
   inject_ids?: string[];
   step_ids?: string[];
@@ -10314,6 +10327,7 @@ export interface PayloadVersionOutput {
   /** @format date-time */
   payload_published_at?: string;
   payload_revoked?: boolean;
+  payload_revoked_in_tenant?: boolean;
   payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   /** @format int32 */
   payload_usage_count: number;
@@ -14094,6 +14108,7 @@ export interface VariableInput {
 }
 
 export interface VariantOutput {
+  base_action_id?: string;
   base_external_id?: string;
   base_payload_id?: string;
   base_values?: Record<string, JsonNode>;

@@ -7,6 +7,7 @@ import { type FieldValues, FormProvider, type Resolver, type SubmitHandler, useF
 import { z, type ZodTypeAny } from 'zod';
 
 import { isThreatArsenalNameAvailable } from '../../../actions/threat_arsenals/threatArsenal-actions';
+import LockedFields from '../../../components/common/LockedFields';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
@@ -16,26 +17,28 @@ import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import EEChip from '../common/entreprise_edition/EEChip';
 import { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../findings/ContractOutputElementType';
 import { hasSpecificDirtyFieldAI, trackedFields } from '../payloads/utils/payloadFormToPayloadInput';
+import { type ThreatArsenalActionFormValues } from './actionFormValues';
 import CommandsFormTab from './form/CommandsFormTab';
 import GeneralFormTab from './form/GeneralFormTab';
 import OutputFormTab from './form/OutputFormTab';
 import RemediationFormTabs from './form/RemediationFormTabs';
 import { useSnapshotRemediation } from './utils/useSnapshotRemediation';
+import VariantBaseContext from './variants/VariantBaseContext';
 
 interface Props {
   onSubmit: SubmitHandler<ThreatArsenalActionCreateCustomInput>;
   handleClose: () => void;
   editing: boolean;
-  initialValues?: Partial<ThreatArsenalActionCreateCustomInput> & {
-    action_id?: string;
-    payload_id?: string;
-  };
+  initialValues?: ThreatArsenalActionFormValues;
+  // Customizing a catalogue payload: only the fields a variant may change stay editable.
+  baseValues?: ThreatArsenalActionFormValues;
 }
 
 const ThreatArsenalActionForm = ({
   onSubmit,
   handleClose,
   editing,
+  baseValues,
   initialValues = {
     action_id: '',
     // @ts-expect-error set payload type to null to get a controlled component from the start
@@ -241,7 +244,10 @@ const ThreatArsenalActionForm = ({
       </Box>
     ),
   }];
-  const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
+  const customizing = baseValues !== undefined;
+  let submitLabel = editing ? t('Update') : t('Create');
+  if (customizing) submitLabel = t('Save');
+  const { currentTab, handleChangeTab } = useTabs(customizing ? 'Commands' : tabEntries[0].key);
 
   const focusFirstErrorTab = () => {
     const fields = Object.keys(
@@ -266,7 +272,7 @@ const ThreatArsenalActionForm = ({
       focusFirstErrorTab();
       return;
     }
-    const nameAvailable = await isThreatArsenalNameAvailable(methods.getValues('action_name'), initialValues.action_id)
+    const nameAvailable = customizing || await isThreatArsenalNameAvailable(methods.getValues('action_name'), initialValues.action_id)
       .then(response => response.data as boolean)
       .catch(() => true);
     if (!nameAvailable) {
@@ -310,58 +316,60 @@ const ThreatArsenalActionForm = ({
 
   return (
     <>
-      <FormProvider {...methods}>
-        <form
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: theme.spacing(2),
-          }}
-          id="actionForm"
-          noValidate // disabled tooltip
-          onSubmit={handleSubmitWithoutDefault}
-        >
-          <Tabs
-            entries={tabEntries}
-            currentTab={currentTab}
-            onChange={newValue => handleChangeTab(newValue)}
-          />
-
-          {currentTab === 'General' && (
-            <GeneralFormTab />
-          )}
-
-          {currentTab === 'Commands' && (
-            <CommandsFormTab disabledActionType={editing} />
-          )}
-
-          {currentTab === 'Output' && (
-            <OutputFormTab />
-          )}
-
-          {currentTab === 'Remediation' && (
-            <RemediationFormTabs actionId={initialValues?.action_id} />
-          )}
-
-          {/* In-flow action buttons right after the form content, like every
-              other drawer form in the app (no bottom-pinned footer). */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: theme.spacing(1),
-            marginTop: theme.spacing(1),
-            marginBottom: theme.spacing(2),
-          }}
+      <VariantBaseContext.Provider value={baseValues ?? null}>
+        <FormProvider {...methods}>
+          <form
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: theme.spacing(2),
+            }}
+            id="actionForm"
+            noValidate // disabled tooltip
+            onSubmit={handleSubmitWithoutDefault}
           >
-            <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
-              {t('Cancel')}
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !isDirty}>
-              {editing ? t('Update') : t('Create')}
-            </Button>
-          </div>
-        </form>
-      </FormProvider>
+            <Tabs
+              entries={tabEntries}
+              currentTab={currentTab}
+              onChange={newValue => handleChangeTab(newValue)}
+            />
+
+            {currentTab === 'General' && (
+              <GeneralFormTab />
+            )}
+
+            {currentTab === 'Commands' && (
+              <CommandsFormTab disabledActionType={editing} />
+            )}
+
+            {currentTab === 'Output' && (
+              <LockedFields locked={customizing}><OutputFormTab /></LockedFields>
+            )}
+
+            {currentTab === 'Remediation' && (
+              <LockedFields locked={customizing}><RemediationFormTabs actionId={initialValues?.action_id} /></LockedFields>
+            )}
+
+            {/* In-flow action buttons right after the form content, like every
+              other drawer form in the app (no bottom-pinned footer). */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: theme.spacing(1),
+              marginTop: theme.spacing(1),
+              marginBottom: theme.spacing(2),
+            }}
+            >
+              <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+                {t('Cancel')}
+              </Button>
+              <Button type="submit" disabled={isSubmitting || !isDirty}>
+                {submitLabel}
+              </Button>
+            </div>
+          </form>
+        </FormProvider>
+      </VariantBaseContext.Provider>
     </>
   );
 };

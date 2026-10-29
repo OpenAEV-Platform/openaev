@@ -7,22 +7,25 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
-  Radio,
-  RadioGroup,
   Text,
   Textarea,
 } from '@filigran/design-system';
-import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import {
   applyScenarioUpdate,
+  fetchCatalogScenarioVersions,
   previewScenarioUpdate,
   type ScenarioMergeChange,
   type ScenarioMergeChoice,
   type ScenarioUpdatePreview,
 } from '../../../../../actions/catalog/scenario-catalog-actions';
+import { ChangesTable } from '../../../../../components/common/content_versions/ContentVersionsTable';
+import ConflictChoice from '../../../../../components/common/update/ConflictChoice';
+import TextDiff from '../../../../../components/common/update/TextDiff';
 import { useFormatter } from '../../../../../components/i18n';
 import { MESSAGING$ } from '../../../../../utils/Environment';
+import { compareVersions } from '../../../../../utils/versions';
 
 interface Props {
   scenarioId: string;
@@ -42,12 +45,13 @@ const BLOCK_LABELS: Record<string, string> = {
   'text': 'Title and description',
 };
 
+// What happens to an inject when the update or rollback is applied.
 const ELEMENT_LABELS: Record<string, string> = {
-  ADDED: 'Added',
-  REMOVED: 'Removed',
+  ADDED: 'Will be added',
+  REMOVED: 'Will be deleted',
   REMOVED_CONFLICT: 'Removed, changed locally',
   STAYS_DELETED: 'Stays deleted',
-  KEPT_USER: 'Kept',
+  KEPT_USER: 'Your inject, kept',
 };
 
 const summary = (value: unknown): string => {
@@ -65,6 +69,19 @@ const summary = (value: unknown): string => {
   return text.length > 140 ? `${text.slice(0, 140)}…` : text;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const fieldText = (value: unknown) => {
+  if (value === null || value === undefined) return '';
+  return typeof value === 'string' ? value : JSON.stringify(value);
+};
+
+// A field name as people read it: main_focus becomes "Main focus".
+const fieldLabel = (key: string) => {
+  const words = key.replace(/^(scenario|inject)_/, '').replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 // A typed value starts from the client's own: plain text for a string, JSON otherwise.
 const draftOf = (value: unknown) => (typeof value === 'string' ? value : JSON.stringify(value ?? null, null, 2));
 
@@ -75,6 +92,11 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
   const [choices, setChoices] = useState<Record<string, ScenarioMergeChoice>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState(false);
+  // Release notes of the versions this update brings, newest first.
+  const [notes, setNotes] = useState<{
+    version: string;
+    changelog: string;
+  }[]>([]);
   const target = version
     ? { version }
     : { revision_id: revisionId };
@@ -84,6 +106,19 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
     previewScenarioUpdate(scenarioId, target).then(({ data }) => setPreview(data));
   }, [scenarioId, version, revisionId]);
 
+  useEffect(() => {
+    if (!version || !preview) return;
+    fetchCatalogScenarioVersions(scenarioId).then(({ data }) => setNotes(data.versions
+      .filter(release => release.changelog
+        && compareVersions(release.version, preview.current_version) > 0
+        && compareVersions(release.version, version) <= 0)
+      .sort((a, b) => compareVersions(b.version, a.version))
+      .map(release => ({
+        version: release.version,
+        changelog: release.changelog ?? '',
+      }))));
+  }, [scenarioId, version, preview]);
+
   const titleOf = (element: string, title?: string) => {
     if (element === 'scenario') {
       return t('Scenario');
@@ -91,13 +126,31 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
     if (element === 'variables') {
       return t('Variables');
     }
-    return title ?? element.split(':').slice(1).join(':');
+    const name = title ?? element.split(':').slice(1).join(':');
+    return element.startsWith('inject') ? t('Inject “{title}”', { title: name }) : name;
   };
   const blockOf = (change: ScenarioMergeChange) => {
     if (change.key) {
       return change.block === 'variables' ? t('Variable {key}', { key: change.key }) : t('Argument {key}', { key: change.key });
     }
     return t(BLOCK_LABELS[`${change.element}:${change.block}`] ?? BLOCK_LABELS[change.block] ?? change.block);
+  };
+  // Field, before, after; a block of fields reads one changed field per row.
+  const rowsOf = (change: ScenarioMergeChange, before: unknown, after: unknown) => {
+    if (isRecord(before) && isRecord(after)) {
+      return [...new Set([...Object.keys(before), ...Object.keys(after)])]
+        .filter(key => fieldText(before[key]) !== fieldText(after[key]))
+        .map(key => ({
+          field: `${titleOf(change.element, change.title)} · ${t(fieldLabel(key))}`,
+          before: fieldText(before[key]),
+          after: fieldText(after[key]),
+        }));
+    }
+    return [{
+      field: `${titleOf(change.element, change.title)} · ${blockOf(change)}`,
+      before: summary(before),
+      after: summary(after),
+    }];
   };
 
   const conflicts = useMemo(() => {
@@ -180,7 +233,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
       <DialogContent size="lg">
         <DialogTitle>
           {version
-            ? t('Update to v{version}', { version })
+            ? t('Update to Filigran v{version}', { version })
             : t('Roll back to revision #{number}', { number: revisionNumber ?? '' })}
         </DialogTitle>
         <DialogBody>
@@ -191,9 +244,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
               gap: 20,
             }}
             >
-              <Text variant="content-caption">
-                {t('Your targets, teams, schedule and tags stay as they are.')}
-              </Text>
+              <Alert severity="info" title={t('Your targets, teams, schedule and tags stay as they are.')} />
               {preview.revoked_payloads.length > 0 && (
                 <Alert
                   severity={version ? 'error' : 'warning'}
@@ -202,6 +253,13 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
               )}
               {preview.payloads_to_install.length > 0 && (
                 <Alert severity="info" title={`${t('Payload versions installed with it')}: ${preview.payloads_to_install.join(', ')}`} />
+              )}
+              {conflicts.length > 0 && (
+                <Text variant="content-base">
+                  {version
+                    ? t('Filigran changed what you customized. Keep one version for each conflict; the rest is combined.')
+                    : t('You changed what the revision restores. Keep one version for each conflict; the rest is restored.')}
+                </Text>
               )}
               {conflicts.length > 0 && (
                 <div style={section}>
@@ -216,80 +274,96 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                       <Button size="sm" priority="secondary" onClick={() => chooseAll('TAKE_APPLIED')}>{t('Take all')}</Button>
                     </div>
                   </div>
-                  {conflicts.map(conflict => (
+                  {conflicts.map((conflict) => {
+                    const choice = choices[conflict.id];
+                    const choose = (value: ScenarioMergeChoice) => setChoices(previous => ({
+                      ...previous,
+                      [conflict.id]: value,
+                    }));
+                    let selected: 'theirs' | 'mine' | undefined;
+                    if (choice === 'TAKE_APPLIED') selected = 'theirs';
+                    if (choice === 'KEEP_MINE') selected = 'mine';
+                    return (
+                      <ConflictChoice
+                        key={conflict.id}
+                        title={`${conflict.title} · ${conflict.block}`}
+                        theirsLabel={theirs}
+                        mineLabel={t('Yours')}
+                        theirs={<TextDiff text={conflict.applied} other={conflict.mine} />}
+                        mine={<TextDiff text={conflict.mine} other={conflict.applied} />}
+                        selected={selected}
+                        onSelect={side => choose(side === 'theirs' ? 'TAKE_APPLIED' : 'KEEP_MINE')}
+                        footer={conflict.editable && (
+                          <div style={section}>
+                            <div>
+                              <Button size="sm" priority={choice === 'EDIT' ? 'primary' : 'tertiary'} onClick={() => choose('EDIT')}>
+                                {t('Edit')}
+                              </Button>
+                            </div>
+                            {choice === 'EDIT' && (
+                              <Textarea
+                                label={t('Value')}
+                                value={drafts[conflict.id] ?? draftOf(conflict.local)}
+                                onChange={event => setDrafts(previous => ({
+                                  ...previous,
+                                  [conflict.id]: event.target.value,
+                                }))}
+                                rows={4}
+                              />
+                            )}
+                          </div>
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+              {(notes.length > 0 || taken.length > 0 || preview.elements.length > 0) && (
+                <div style={section}>
+                  <Text variant="title-xs">
+                    {version ? t('What\'s new in Filigran v{version}', { version }) : t('Restored from the revision')}
+                  </Text>
+                  {notes.map(note => (
                     <div
-                      key={conflict.id}
+                      key={note.version}
                       style={{
-                        ...section,
-                        paddingBottom: 8,
-                      }}
-                    >
-                      <div style={row}>
-                        <Text variant="content-base">{conflict.title}</Text>
-                        <Chip label={conflict.block} />
-                      </div>
-                      <div style={{
                         display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
+                        gridTemplateColumns: '64px minmax(0, 1fr)',
                         gap: 12,
                       }}
-                      >
-                        <Text variant="content-caption">{`${t('Mine')}: ${conflict.mine}`}</Text>
-                        <Text variant="content-caption">{`${theirs}: ${conflict.applied}`}</Text>
+                    >
+                      <Text variant="content-caption">{`v${note.version}`}</Text>
+                      <Text variant="content-base">{note.changelog}</Text>
+                    </div>
+                  ))}
+                  {preview.elements.filter(element => element.change !== 'REMOVED_CONFLICT').map((element) => {
+                    let reason: ReactNode = null;
+                    if (element.change === 'ADDED') {
+                      reason = version ? t('New in v{version}', { version }) : t('In revision #{number}', { number: revisionNumber ?? '' });
+                    } else if (element.change === 'REMOVED') {
+                      reason = version ? t('Removed in v{version}', { version }) : t('Not in revision #{number}', { number: revisionNumber ?? '' });
+                    }
+                    let severity: 'low' | 'medium' | undefined;
+                    if (element.change === 'ADDED') severity = 'low';
+                    if (element.change === 'REMOVED') severity = 'medium';
+                    return (
+                      <div key={element.id} style={row}>
+                        <Chip label={t(ELEMENT_LABELS[element.change])} severity={severity} />
+                        <Text variant="content-base">{t('Inject “{title}”', { title: element.title ?? element.id })}</Text>
+                        {reason && <Text variant="content-caption">{reason}</Text>}
+                        {element.change === 'ADDED' && <Text variant="content-caption">{`· ${t('Needs targets')}`}</Text>}
                       </div>
-                      <RadioGroup
-                        orientation="horizontal"
-                        value={choices[conflict.id] ?? ''}
-                        onValueChange={value => setChoices(previous => ({
-                          ...previous,
-                          [conflict.id]: value as ScenarioMergeChoice,
-                        }))}
-                      >
-                        <Radio value="KEEP_MINE" label={t('Keep mine')} />
-                        <Radio value="TAKE_APPLIED" label={version ? t('Take Filigran\'s') : t('Take the revision')} />
-                        {conflict.editable && <Radio value="EDIT" label={t('Edit')} />}
-                      </RadioGroup>
-                      {choices[conflict.id] === 'EDIT' && (
-                        <Textarea
-                          label={t('Value')}
-                          value={drafts[conflict.id] ?? draftOf(conflict.local)}
-                          onChange={event => setDrafts(previous => ({
-                            ...previous,
-                            [conflict.id]: event.target.value,
-                          }))}
-                          rows={4}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {preview.elements.length > 0 && (
-                <div style={section}>
-                  <Text variant="title-xs">{t('Injects')}</Text>
-                  {preview.elements.filter(element => element.change !== 'REMOVED_CONFLICT').map(element => (
-                    <div key={element.id} style={row}>
-                      <Chip label={t(ELEMENT_LABELS[element.change])} severity={element.change === 'ADDED' ? 'low' : undefined} />
-                      <Text variant="content-base">{element.title ?? element.id}</Text>
-                      {element.change === 'ADDED' && <Text variant="content-caption">{t('Needs targets')}</Text>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {taken.length > 0 && (
-                <div style={section}>
-                  <Text variant="title-xs">{version ? t('Changed by Filigran') : t('Restored from the revision')}</Text>
-                  {taken.map(change => (
-                    <Text key={change.id} variant="content-base">{`${titleOf(change.element, change.title)} · ${blockOf(change)}`}</Text>
-                  ))}
+                    );
+                  })}
+                  {taken.length > 0 && (
+                    <ChangesTable changes={taken.flatMap(change => rowsOf(change, change.local ?? change.base, change.applied))} />
+                  )}
                 </div>
               )}
               {kept.length > 0 && (
                 <div style={section}>
                   <Text variant="title-xs">{t('Your changes, kept')}</Text>
-                  {kept.map(change => (
-                    <Text key={change.id} variant="content-base">{`${titleOf(change.element, change.title)} · ${blockOf(change)}`}</Text>
-                  ))}
+                  <ChangesTable changes={kept.flatMap(change => rowsOf(change, change.base, change.local))} />
                 </div>
               )}
               {preview.warnings.length > 0 && (

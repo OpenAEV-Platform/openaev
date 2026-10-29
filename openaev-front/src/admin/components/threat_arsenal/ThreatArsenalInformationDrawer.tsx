@@ -15,7 +15,7 @@ import {
 } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import CatalogPayloadVersionSummary from './catalog/CatalogPayloadVersionSummary';
+import CatalogPayloadVersionPreview from './catalog/CatalogPayloadVersionPreview';
 import PayloadHistoryTab from './PayloadHistoryTab';
 import PayloadVersionSelect from './PayloadVersionSelect';
 import PayloadVersionsTab from './PayloadVersionsTab';
@@ -187,7 +187,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   const renderOverview = () => {
     if (shownNotInstalled) {
       return shownCatalogItem
-        ? <CatalogPayloadVersionSummary item={shownCatalogItem} canInstall={canInstall} installing={installing} onInstall={installShown} />
+        ? <CatalogPayloadVersionPreview item={shownCatalogItem} canInstall={canInstall} installing={installing} onInstall={installShown} />
         : null;
     }
     return shownAction && (

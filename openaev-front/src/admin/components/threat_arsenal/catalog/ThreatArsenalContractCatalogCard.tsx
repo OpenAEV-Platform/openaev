@@ -60,7 +60,7 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ contract }
       )}
       platforms={contract.contract_platforms ?? []}
       onClick={openIntegration}
-      footerRight={(
+      action={(
         <span onClick={event => event.stopPropagation()}>
           <Button size="sm" onClick={openIntegration}>
             {t('Enable integration')}

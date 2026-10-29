@@ -156,6 +156,9 @@ export interface MissingPrerequisite {
   requirement_status?: 'NOT_DEPLOYED' | 'NOT_RUNNING';
 }
 
+// What the install itself cannot do without; the rest only stops the run (as the server rules).
+const blocksInstall = (kind: MissingPrerequisite['requirement_kind']) => kind === 'OPENAEV' || kind === 'INJECTOR' || kind === 'CHAINING';
+
 interface Props {
   title: string;
   mode: 'install' | 'launch';
@@ -240,7 +243,11 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
   const all = injects ?? [];
   const takes = (kind: string) => all.some(inject => inject.target_fields.includes(kind));
   const missing = all.filter(inject => inject.target_fields.length > 0 && !inject.is_targeted && addedTo(inject).length === 0);
-  const blocked = missing.length > 0 || missingPrerequisites.length > 0;
+  const blockingPrerequisites = mode === 'install'
+    ? missingPrerequisites.filter(prerequisite => blocksInstall(prerequisite.requirement_kind))
+    : missingPrerequisites;
+  // Installing goes on without targets or a run-only requirement: the scenario health check reports them.
+  const blocked = blockingPrerequisites.length > 0 || (mode === 'launch' && missing.length > 0);
 
   const submit = () => {
     setSubmitting(true);
@@ -275,9 +282,11 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
                 }}
                 >
                   <Alert
-                    severity="error"
+                    severity={blockingPrerequisites.length > 0 ? 'error' : 'warning'}
                     title={t('This platform lacks what the scenario needs')}
-                    description={t('Enable the missing integrations, then check again.')}
+                    description={blockingPrerequisites.length > 0
+                      ? t('Enable the missing integrations, then check again.')
+                      : t('You can install it now; it cannot run until these are available.')}
                   />
                   {missingPrerequisites.map(prerequisite => (
                     <div
@@ -405,7 +414,7 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
                   title={missing.length === 1 ? t('1 inject has no target') : t('{count} injects have no target', { count: String(missing.length) })}
                   description={mode === 'launch'
                     ? t('Launch stays disabled until each targetable inject has a target.')
-                    : t('Install stays disabled until each targetable inject has a target.')}
+                    : t('You can install it now and set the targets later from the scenario.')}
                 />
               )}
               <div style={{

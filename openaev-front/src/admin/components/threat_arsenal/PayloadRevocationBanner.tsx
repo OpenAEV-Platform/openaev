@@ -8,7 +8,7 @@ import { type PayloadRevocationOutput } from '../../../utils/api-types';
 interface Props { payloadId: string }
 
 const PayloadRevocationBanner: FunctionComponent<Props> = ({ payloadId }) => {
-  const { t, nsdt } = useFormatter();
+  const { t, nsd } = useFormatter();
   const [revocation, setRevocation] = useState<PayloadRevocationOutput | null>(null);
 
   useEffect(() => {
@@ -29,17 +29,35 @@ const PayloadRevocationBanner: FunctionComponent<Props> = ({ payloadId }) => {
     return null;
   }
   // A revocation from the revocation list has no user: it comes from Filigran.
-  const revokedBy = revocation.content_revocation_source === 'tenant'
-    ? revocation.content_revocation_revoked_by
-    : 'Filigran';
-  const meta = [revocation.content_revocation_revoked_at && nsdt(revocation.content_revocation_revoked_at), revokedBy]
-    .filter(Boolean)
-    .join(' · ');
+  const inTenant = revocation.content_revocation_source === 'tenant';
+  const base = revocation.content_revocation_inherited_from;
+  let title = t(inTenant ? 'Revoked in this tenant' : 'Revoked by Filigran');
+  if (base) {
+    title = inTenant
+      ? t('Its Filigran base v{version} is revoked in this tenant', { version: base })
+      : t('Its Filigran base v{version} is revoked by Filigran', { version: base });
+  }
+  const by = inTenant ? revocation.content_revocation_revoked_by : undefined;
+  const at = revocation.content_revocation_revoked_at ? nsd(revocation.content_revocation_revoked_at) : undefined;
+  let when = '';
+  if (by && at) {
+    when = String(t('by {name} on {date}', {
+      name: by,
+      date: at,
+    }));
+  } else if (by) {
+    when = String(t('by {name}', { name: by }));
+  } else if (at) {
+    when = String(t('on {date}', { date: at }));
+  }
 
   return (
     <Alert severity="error">
-      <AlertTitle>{meta ? `${t('Revoked')} · ${meta}` : t('Revoked')}</AlertTitle>
-      {revocation.content_revocation_reason && `${t('Reason')}: ${revocation.content_revocation_reason}`}
+      <AlertTitle>
+        <strong>{title}</strong>
+        {when && ` ${when}`}
+      </AlertTitle>
+      {revocation.content_revocation_reason && <div>{`${t('Reason')}: ${revocation.content_revocation_reason}`}</div>}
     </Alert>
   );
 };

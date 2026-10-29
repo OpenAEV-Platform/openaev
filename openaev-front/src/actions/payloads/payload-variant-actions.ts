@@ -12,6 +12,7 @@ export interface PayloadVariant {
   variant_overrides?: Record<string, unknown>;
   variant_customizable_fields: string[];
   base_payload_id: string;
+  base_action_id?: string;
   base_external_id?: string;
   base_version: string;
   newer_base_payload_id?: string;
@@ -59,20 +60,29 @@ export const customizePayload = (payloadId: string) => simplePostCall(`/api/payl
 
 export const fetchPayloadVariant = (identityId: string) => simpleCall(`${IDENTITY_URI}/${identityId}`);
 
-export const updatePayloadOverrides = (identityId: string, overrides: Record<string, unknown>) => simplePutCall(
+export const updatePayloadOverrides = (identityId: string, overrides: Record<string, unknown>, tagIds?: string[]) => simplePutCall(
   `${IDENTITY_URI}/${identityId}/overrides`,
-  { variant_overrides: overrides },
+  {
+    variant_overrides: overrides,
+    variant_tags: tagIds,
+  },
 );
 
 export const fetchVariantRebasePreview = (identityId: string, targetPayloadId?: string) => simpleCall(
   `${IDENTITY_URI}/${identityId}/rebase-preview${targetPayloadId ? `?target_payload_id=${targetPayloadId}` : ''}`,
 );
 
-export const rebaseVariant = (identityId: string, targetPayloadId: string, choices: Partial<Record<VariantBlock, VariantBlockChoice>>) => simplePostCall(
+export const rebaseVariant = (
+  identityId: string,
+  targetPayloadId: string,
+  choices: Partial<Record<VariantBlock, VariantBlockChoice>>,
+  overrides?: Record<string, unknown>,
+) => simplePostCall(
   `${IDENTITY_URI}/${identityId}/resolve-conflict`,
   {
     target_payload_id: targetPayloadId,
     choices,
+    variant_overrides: overrides,
   },
 );
 

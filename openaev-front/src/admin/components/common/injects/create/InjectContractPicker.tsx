@@ -1,5 +1,5 @@
 import { ButtonGroup, ButtonGroupItem, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
+import { ArrowBackOutlined, CategoryOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
 import { Box, Skeleton, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -10,6 +10,7 @@ import { type DomainHelper } from '../../../../../actions/domains/domain-helper'
 import { searchInjectorContracts } from '../../../../../actions/InjectorContracts';
 import { type KillChainPhaseHelper } from '../../../../../actions/kill_chain_phases/killchainphase-helper';
 import { fetchKillChainPhases } from '../../../../../actions/KillChainPhase';
+import MarketplaceSections from '../../../../../components/common/marketplace/MarketplaceSections';
 import { generateFilterId } from '../../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -25,10 +26,12 @@ import {
   type InjectorContractSearchPaginationInput,
   type KillChainPhase,
 } from '../../../../../utils/api-types';
+import { TO_CLASSIFY } from '../../../../../utils/domains/domainUtils';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
 import computeAttackPatterns from '../../../../../utils/injector_contract/InjectorContractUtils';
+import { DOMAIN_ICON_MAP } from '../../domains/DomainsIcons';
 import useDomainIconFilter from '../../domains/useDomainIconFilter';
 import { MITRE_FILTER_KEY } from '../../filters/MitreFilter';
 import InjectContractCard from './InjectContractCard';
@@ -136,6 +139,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
       ...input,
       latest_versions_only: true,
       exclude_revoked_payloads: true,
+      group_by_primary_domain: true,
     }).finally(() => {
       if (seq === fetchSeqRef.current) {
         setLoading(false);
@@ -192,6 +196,11 @@ const InjectContractPicker: FunctionComponent<Props> = ({
     numberOfSelectedElements,
   } = useEntityToggle<InjectorContractFullOutput>('injector_contract', contracts, totalElements);
 
+  // Same rule as the server sort: the first domain by name, "To classify" left out.
+  const primaryDomainName = (contract: InjectorContractFullOutput) => domainOptions
+    .filter(domain => contract.injector_contract_domains?.includes(domain.domain_id) && domain.domain_name !== TO_CLASSIFY)
+    .map(domain => domain.domain_name)
+    .sort()[0];
   const contractMeta = useMemo(() => contracts.map((contract) => {
     const contractAttackPatterns = computeAttackPatterns(
       contract.injector_contract_attack_patterns,
@@ -348,13 +357,17 @@ const InjectContractPicker: FunctionComponent<Props> = ({
           )}
 
           {viewMode === 'grid' && !loading && contracts.length > 0 && (
-            <Box sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: 2,
-            }}
-            >
-              {contractMeta.map(({ contract, contractAttackPatterns, killChainPhaseName }) => (
+            <MarketplaceSections
+              items={contractMeta}
+              sectionKey={({ contract }) => primaryDomainName(contract)}
+              sectionLabel={domain => (domain ? t(domain) : t('Other'))}
+              sectionIcon={(domain) => {
+                const icon = domain ? DOMAIN_ICON_MAP[domain] : undefined;
+                return icon ? icon() : <CategoryOutlined />;
+              }}
+              loading={false}
+              emptyState={null}
+              renderItem={({ contract, contractAttackPatterns, killChainPhaseName }) => (
                 <InjectContractCard
                   key={contract.injector_contract_id}
                   contract={contract}
@@ -366,8 +379,8 @@ const InjectContractPicker: FunctionComponent<Props> = ({
                   onSelect={() => onSelectContract(contract)}
                   onToggle={event => onToggleEntity(contract, event)}
                 />
-              ))}
-            </Box>
+              )}
+            />
           )}
 
           {viewMode === 'list' && (loading || contracts.length > 0) && (

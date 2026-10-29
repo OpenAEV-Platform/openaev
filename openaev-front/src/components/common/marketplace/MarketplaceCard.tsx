@@ -33,6 +33,8 @@ interface Props {
   target?: ReactNode;
   caption?: ReactNode;
   footerRight?: ReactNode;
+  /** The card's main action (Install), at the right of the caption bar. */
+  action?: ReactNode;
   badge?: ReactNode;
   topLeft?: ReactNode;
   topLeftVisible?: boolean;
@@ -56,6 +58,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
   target,
   caption,
   footerRight,
+  action,
   badge,
   topLeft,
   topLeftVisible = false,
@@ -89,7 +92,17 @@ const MarketplaceCard: FunctionComponent<Props> = ({
         platforms={platforms}
         target={target}
         caption={caption}
-        footerRight={footerRight}
+        footerRight={(footerRight || action) && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+          >
+            {footerRight}
+            {action}
+          </div>
+        )}
         badge={badge}
         topLeft={topLeft}
         selected={selected}
@@ -290,9 +303,25 @@ const MarketplaceCard: FunctionComponent<Props> = ({
             </Box>
           )}
         </Box>
-        {caption && (
-          <CardMetaBar>
+        {(caption || action) && (
+          <CardMetaBar style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+          >
             <Text variant="content-caption" className="text-default-secondary">{caption}</Text>
+            {action && (
+              <div style={{
+                flexShrink: 0,
+                position: 'relative',
+                zIndex: 1,
+              }}
+              >
+                {action}
+              </div>
+            )}
           </CardMetaBar>
         )}
       </Card>

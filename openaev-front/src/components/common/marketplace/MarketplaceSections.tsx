@@ -9,7 +9,7 @@ interface Props<T> {
   // Items come sorted by this key: consecutive items with the same key make a section.
   sectionKey: (item: T) => string | undefined;
   sectionLabel: (key: string | undefined) => string;
-  sectionIcon: ReactNode;
+  sectionIcon: ReactNode | ((key: string | undefined) => ReactNode);
   renderItem: (item: T) => ReactNode;
   loading: boolean;
   emptyState: ReactNode;
@@ -64,7 +64,7 @@ const MarketplaceSections = <T, >({
             gap: 12,
           }}
         >
-          <MarketplaceSectionHeader icon={sectionIcon} label={sectionLabel(section.key)} count={section.items.length} />
+          <MarketplaceSectionHeader icon={typeof sectionIcon === 'function' ? sectionIcon(section.key) : sectionIcon} label={sectionLabel(section.key)} count={section.items.length} />
           <MarketplaceGrid view={view} overlineLabel={overlineLabel} loading={false} isEmpty={false} emptyState={null}>
             {section.items.map(renderItem)}
           </MarketplaceGrid>

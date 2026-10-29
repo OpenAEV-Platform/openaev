@@ -1,6 +1,5 @@
 import { Alert, Snackbar } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import { head } from 'ramda';
 import { Component } from 'react';
 
 import { MESSAGING$ } from '../utils/Environment';
@@ -19,7 +18,7 @@ class MessageComponent extends Component {
   componentDidMount() {
     this.subscription = MESSAGING$.messages.subscribe({
       next: (messages) => {
-        const firstMessage = head(messages);
+        const firstMessage = messages[0];
         if (firstMessage) {
           const text = typeof firstMessage.text === 'string'
             ? this.props.t(firstMessage.text)
@@ -60,14 +59,14 @@ class MessageComponent extends Component {
       >
         {error ? (
           <Alert severity="error" onClose={this.handleCloseMessage.bind(this)}>
-            {text.length > 0 && text}
+            {text}
           </Alert>
         ) : (
           <Alert
             severity="success"
             onClose={this.handleCloseMessage.bind(this)}
           >
-            {text.length > 0 && text}
+            {text}
           </Alert>
         )}
       </Snackbar>

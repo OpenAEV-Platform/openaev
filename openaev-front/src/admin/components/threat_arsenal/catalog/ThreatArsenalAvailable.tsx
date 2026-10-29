@@ -1,4 +1,5 @@
 import { Button, Switch } from '@filigran/design-system';
+import { CategoryOutlined } from '@mui/icons-material';
 import { type ReactNode, useEffect, useState } from 'react';
 
 import {
@@ -19,9 +20,9 @@ import {
 } from '../../../../actions/catalog/payload-catalog-actions';
 import MarketplaceBrowser from '../../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/MarketplaceFacetSidebar';
-import MarketplaceGrid from '../../../../components/common/marketplace/MarketplaceGrid';
 import MarketplaceHero from '../../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceLoadMore from '../../../../components/common/marketplace/MarketplaceLoadMore';
+import MarketplaceSections from '../../../../components/common/marketplace/MarketplaceSections';
 import MarketplaceSortSelect from '../../../../components/common/marketplace/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../../components/common/marketplace/MarketplaceViewToggle';
 import useMarketplaceCatalog from '../../../../components/common/marketplace/useMarketplaceCatalog';
@@ -30,9 +31,13 @@ import PaginationComponentV2 from '../../../../components/common/queryable/pagin
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { type CatalogItemOutput } from '../../../../utils/api-types';
+import { TO_CLASSIFY } from '../../../../utils/domains/domainUtils';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { DOMAIN_ICON_MAP } from '../../common/domains/DomainsIcons';
 import ThreatArsenalEmptyState from '../ThreatArsenalEmptyState';
+import notifyPayloadInstalled from './notifyPayloadInstalled';
 import ThreatArsenalCatalogCard from './ThreatArsenalCatalogCard';
 import ThreatArsenalCatalogDrawer from './ThreatArsenalCatalogDrawer';
 import ThreatArsenalContractCatalogCard from './ThreatArsenalContractCatalogCard';
@@ -67,6 +72,19 @@ const CATALOG_FACETS: MarketplaceFacet[] = [
 
 interface Props { tabs?: ReactNode }
 
+// Same section as the Active tab: the first domain by name.
+const domainOf = ({ payload, contract }: AvailableAction) => (payload
+  ? payload.catalog_item_category ?? undefined
+  : (contract?.contract_domains ?? []).filter(name => name !== TO_CLASSIFY).sort()[0]);
+
+const byDomain = (a: AvailableAction, b: AvailableAction) => {
+  const [first, second] = [domainOf(a), domainOf(b)];
+  if (first === second) return 0;
+  if (!first) return 1;
+  if (!second) return -1;
+  return first.localeCompare(second);
+};
+
 const ThreatArsenalAvailable = ({ tabs }: Props) => {
   const { t } = useFormatter();
   const ability = useAbility();
@@ -75,6 +93,8 @@ const ThreatArsenalAvailable = ({ tabs }: Props) => {
   const [available, setAvailable] = useState<AvailableAction[]>([]);
   const [autoInstall, setAutoInstall] = useState(false);
   const [openedItem, setOpenedItem] = useState<CatalogItemOutput | null>(null);
+  const [installingIds, setInstallingIds] = useState<Set<string>>(new Set());
+  const [installingAll, setInstallingAll] = useState(false);
   const refreshAvailable = () => fetchAvailableActions().then(setAvailable);
   useEffect(() => {
     refreshAvailable();
@@ -108,6 +128,26 @@ const ThreatArsenalAvailable = ({ tabs }: Props) => {
     installAll: () => installAllCatalogPayloads().finally(refreshAvailable),
   });
 
+  const notifyInstalled = (item: CatalogItemOutput, version: string) => {
+    const name = item.catalog_item_name ?? item.catalog_item_external_id;
+    notifyPayloadInstalled(String(t('{name} v{version} installed', {
+      name,
+      version,
+    })), name, String(t('Open')));
+  };
+  const installOne = (id: string, item: CatalogItemOutput) => {
+    setInstallingIds(previous => new Set([...previous, id]));
+    install(id)
+      .then(() => notifyInstalled(item, item.catalog_item_version))
+      .finally(() => setInstallingIds(previous => new Set([...previous].filter(other => other !== id))));
+  };
+  const installEverything = () => {
+    setInstallingAll(true);
+    installAll()
+      .then(ids => MESSAGING$.notifySuccess(String(t('{count} payloads installed', { count: ids.length }))))
+      .finally(() => setInstallingAll(false));
+  };
+
   return (
     <MarketplaceBrowser
       tabs={tabs}
@@ -130,7 +170,7 @@ const ThreatArsenalAvailable = ({ tabs }: Props) => {
                     .then(({ data }) => setAutoInstall(!!data.payload_auto_install))}
                 />
               )}
-              {canInstall && <Button onClick={installAll}>{t('Install all')}</Button>}
+              {canInstall && <Button onClick={installEverything} loading={installingAll}>{t('Install all')}</Button>}
             </div>
           )}
         />
@@ -163,14 +203,19 @@ const ThreatArsenalAvailable = ({ tabs }: Props) => {
         />
       )}
     >
-      <MarketplaceGrid
+      <MarketplaceSections
+        items={[...items].sort(byDomain)}
+        sectionKey={domainOf}
+        sectionLabel={domain => (domain ? t(domain) : t('Other'))}
+        sectionIcon={(domain) => {
+          const icon = domain ? DOMAIN_ICON_MAP[domain] : undefined;
+          return icon ? icon() : <CategoryOutlined />;
+        }}
         view={viewMode}
         overlineLabel="Domain"
         loading={loading && searchPaginationInput.page === 0}
-        isEmpty={items.length === 0}
         emptyState={<ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} catalog />}
-      >
-        {items.map(({ id, payload, contract }) => {
+        renderItem={({ id, payload, contract }) => {
           if (contract) {
             return <ThreatArsenalContractCatalogCard key={`contract-${id}`} contract={contract} />;
           }
@@ -179,13 +224,14 @@ const ThreatArsenalAvailable = ({ tabs }: Props) => {
               key={id}
               item={payload}
               installed={isInstalled(id)}
+              installing={installingIds.has(id)}
               canInstall={canInstall}
-              onInstall={() => install(id)}
+              onInstall={() => installOne(id, payload)}
               onOpen={() => setOpenedItem(payload)}
             />
           );
-        })}
-      </MarketplaceGrid>
+        }}
+      />
       <MarketplaceLoadMore
         hasMore={items.length < queryableHelpers.paginationHelpers.getTotalElements()}
         loading={loading && searchPaginationInput.page > 0}
@@ -196,8 +242,11 @@ const ThreatArsenalAvailable = ({ tabs }: Props) => {
         item={openedItem}
         canInstall={canInstall}
         onClose={() => setOpenedItem(null)}
-        onInstalled={() => {
-          if (openedItem) markInstalled([openedItem.catalog_item_external_id]);
+        onInstalled={(version) => {
+          if (openedItem) {
+            markInstalled([openedItem.catalog_item_external_id]);
+            notifyInstalled(openedItem, version);
+          }
           refreshAvailable();
         }}
       />

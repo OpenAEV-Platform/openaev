@@ -42,6 +42,13 @@ export const fetchCatalogPayloadFacets = (input: SearchPaginationInput) => fetch
 export const fetchCatalogPayloadVersions = (externalId: string): Promise<CatalogItemOutput[]> => simpleCall(`${CATALOG_URI}/payloads/${encodeURIComponent(externalId)}/versions`)
   .then(({ data }: { data: CatalogItemOutput[] }) => data);
 
+// The released file of a version, before install; a version released as an archive has none.
+export const fetchCatalogPayloadVersionContent = (externalId: string, version: string): Promise<Record<string, unknown> | null> => simpleCall(
+  `${CATALOG_URI}/payloads/${encodeURIComponent(externalId)}/versions/${encodeURIComponent(version)}/content`,
+  undefined,
+  false,
+).then(({ data }: { data: Record<string, unknown> }) => data).catch(() => null);
+
 export const installCatalogPayload = (externalId: string, version: string): Promise<string[]> => {
   return simplePostCall(`${CATALOG_URI}/payloads/${encodeURIComponent(externalId)}/versions/${encodeURIComponent(version)}/install`)
     .then(({ data }: { data: CatalogPayloadInstallOutput }) => data.installed);

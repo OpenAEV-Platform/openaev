@@ -197,8 +197,13 @@ const Injects: FunctionComponent<Props> = ({
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
         let injectStatus;
         let injectTooltip = '';
+        // A revoked payload is skipped at execution and blocks the launch (F18).
+        const revoked = inject.inject_enabled && inject.inject_payload_revoked;
         if (!inject.inject_enabled) {
           injectStatus = t('Disabled');
+        } else if (revoked) {
+          injectStatus = t('Payload revoked');
+          injectTooltip = t('This inject is skipped and the scenario cannot launch until the revocation is lifted.');
         } else if (!inject.inject_ready) {
           injectStatus = t('Missing content');
           injectTooltip = inject.inject_healthchecks
@@ -211,7 +216,7 @@ const Injects: FunctionComponent<Props> = ({
         }
         return (
           <ItemBoolean
-            status={inject.inject_ready ? inject.inject_enabled : false}
+            status={inject.inject_ready && !revoked ? inject.inject_enabled : false}
             label={injectStatus}
             variant="inList"
             tooltip={injectTooltip}

@@ -15,6 +15,7 @@ interface Props<T extends FieldValues> {
   control: Control<T>;
   defaultValue?: string;
   style?: CSSProperties;
+  readOnly?: boolean;
 }
 
 /**
@@ -23,7 +24,7 @@ interface Props<T extends FieldValues> {
  * (MITRE ATT&CK first). The user's own selection on the overview, remembered in local storage,
  * still overrides this default.
  */
-const DefaultKillChainSelectField = <T extends FieldValues>({ name, control, defaultValue, style }: Props<T>) => {
+const DefaultKillChainSelectField = <T extends FieldValues>({ name, control, defaultValue, style, readOnly }: Props<T>) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   useDataLoader(() => {
@@ -44,6 +45,7 @@ const DefaultKillChainSelectField = <T extends FieldValues>({ name, control, def
       style={style}
       control={control}
       defaultValue={defaultValue ?? ''}
+      readOnly={readOnly}
       displayEmpty
     >
       <MenuItem value="">{t('Automatic')}</MenuItem>

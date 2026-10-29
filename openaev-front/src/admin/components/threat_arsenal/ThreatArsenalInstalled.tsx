@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router';
 
 import DialogDelete from '../../../components/common/DialogDelete';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
@@ -28,13 +29,27 @@ import useInstalledActions, { INSTALLED_FILTER_NAMES } from './useInstalledActio
 interface Props { tabs?: ReactNode }
 
 const ThreatArsenalInstalled = ({ tabs }: Props) => {
-  const { t } = useFormatter();
+  const { t, tPick } = useFormatter();
   const canDelete = useAbility().can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
   const [openedAction, setOpenedAction] = useState<ThreatArsenalAction | null>(null);
   const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);
   const [isBulkDeleteDialogOpened, setBulkDeleteDialogOpened] = useState<boolean>(false);
   const { viewMode, handleViewModeChange } = useMarketplaceView('threat-arsenal:view-mode-v2');
   const installed = useInstalledActions();
+  const location = useLocation();
+  // A payload just installed from the Available tab: shown alone, its drawer open. Read once, as
+  // the list rewrites the URL (and drops this state) when it loads.
+  const toOpen = useRef((location.state as { openName?: string } | null)?.openName);
+  useEffect(() => {
+    if (toOpen.current) installed.queryableHelpers.textSearchHelpers.handleTextSearch(toOpen.current);
+  }, []);
+  useEffect(() => {
+    const found = toOpen.current && installed.threatArsenalActions.find(action => tPick(action.action_labels) === toOpen.current);
+    if (found) {
+      toOpen.current = undefined;
+      setOpenedAction(found);
+    }
+  }, [installed.threatArsenalActions]);
   const { selection } = installed;
   const selectionCount = selection.numberOfSelectedElements;
 
@@ -47,10 +62,10 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     onSelect: setOpenedAction,
     onToggle: selection.onToggleEntity,
     onUpdate: installed.replaceAction,
-    onDuplicate: (result) => {
+    onDuplicate: (result, open = true) => {
       installed.prependActions([result]);
-      // F22: "Duplicate to edit" opens the copy right away.
-      setOpenedAction(result);
+      // F22: "Duplicate to edit" opens the copy right away; a customized copy opens its editor instead.
+      if (open) setOpenedAction(result);
     },
     onDelete: installed.removeAction,
   };

@@ -35,6 +35,7 @@ import { SCENARIO_TYPE_LABELS, scenarioCategories } from '../constants';
 import { SCENARIO_SEVERITIES, severityLabelKey } from '../scenarioSeverity';
 import CatalogScenarioInstallDrawer from './CatalogScenarioInstallDrawer';
 import ScenarioCatalogCard from './ScenarioCatalogCard';
+import ScenarioCatalogDrawer from './ScenarioCatalogDrawer';
 
 const SORT_OPTIONS = [
   {
@@ -53,6 +54,7 @@ const ScenariosAvailable = ({ tabs }: Props) => {
   const { t } = useFormatter();
   const navigate = useNavigate();
   const [installing, setInstalling] = useState<CatalogItemOutput | null>(null);
+  const [opened, setOpened] = useState<CatalogItemOutput | null>(null);
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios-catalog-view');
   const {
@@ -158,6 +160,7 @@ const ScenariosAvailable = ({ tabs }: Props) => {
             key={item.catalog_item_external_id}
             item={item}
             canInstall={canInstall}
+            onOpen={() => setOpened(item)}
             onInstall={() => setInstalling(item)}
           />
         )}
@@ -167,6 +170,15 @@ const ScenariosAvailable = ({ tabs }: Props) => {
         loading={loading && searchPaginationInput.page > 0}
         paused={loading && searchPaginationInput.page === 0}
         onLoadMore={() => queryableHelpers.paginationHelpers.handleChangePage(searchPaginationInput.page + 1)}
+      />
+      <ScenarioCatalogDrawer
+        item={opened}
+        canInstall={canInstall}
+        onClose={() => setOpened(null)}
+        onInstall={(item) => {
+          setOpened(null);
+          setInstalling(item);
+        }}
       />
       {installing && (
         <CatalogScenarioInstallDrawer
