@@ -38,10 +38,16 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -127,6 +133,92 @@ class CredentialApiTest extends IntegrationTest {
       List<String> keyFieldTypes =
           JsonPath.read(response, String.format(fieldPath, "gcp_private_key_json") + ".field_type");
       assertThat(keyFieldTypes).containsExactly("file");
+    }
+
+    static Stream<Arguments> sovereignCloudFields() {
+      Map<String, String> aws = new LinkedHashMap<>();
+      aws.put("aws_account_id", "text");
+      aws.put("aws_endpoint_url", "text");
+      Map<String, String> azure = new LinkedHashMap<>();
+      azure.put("azure_authority_host_uri", "text");
+      azure.put("azure_requests_certificate", "file");
+      Map<String, String> gcpServiceAccount = new LinkedHashMap<>();
+      gcpServiceAccount.put("gcp_custom_resource_manager_uri", "text");
+      gcpServiceAccount.put("gcp_custom_projects_uri", "text");
+      Map<String, String> gcpOAuth2 = new LinkedHashMap<>();
+      gcpOAuth2.put("gcp_custom_token_uri", "text");
+      gcpOAuth2.put("gcp_custom_projects_uri", "text");
+      gcpOAuth2.put("gcp_custom_iam_uri", "text");
+      gcpOAuth2.put("gcp_custom_oauth_access_token", "password");
+      return Stream.of(
+          Arguments.of(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY, aws),
+          Arguments.of(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE, aws),
+          Arguments.of(
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL, azure),
+          Arguments.of(
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY, azure),
+          Arguments.of(
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_SERVICE_ACCOUNT,
+              gcpServiceAccount),
+          Arguments.of(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_OAUTH2, gcpOAuth2));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("sovereignCloudFields")
+    @DisplayName("given_cloudContract_should_exposeSovereignCloudFieldsLastAndOptional")
+    void given_cloudContract_should_exposeSovereignCloudFieldsLastAndOptional(
+        CredentialSecretReference.CREDENTIAL_AUTH_METHOD authMethod,
+        Map<String, String> expectedTypesByField)
+        throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-sovereign");
+      String uri = tenantCredentialsUri(tenant.getId()) + "/contracts";
+
+      // Act
+      String response =
+          mvc.perform(get(uri).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      String contractPath = "$[?(@.credential_auth_method == '" + authMethod.name() + "')]";
+      List<String> fieldNames = JsonPath.read(response, contractPath + ".fields[*].field_name");
+      List<String> expectedFields = new ArrayList<>(expectedTypesByField.keySet());
+      assertThat(fieldNames.subList(fieldNames.size() - expectedFields.size(), fieldNames.size()))
+          .containsExactlyElementsOf(expectedFields);
+      expectedTypesByField.forEach(
+          (fieldName, fieldType) -> {
+            String fieldPath = contractPath + ".fields[?(@.field_name == '" + fieldName + "')]";
+            List<String> types = JsonPath.read(response, fieldPath + ".field_type");
+            List<Boolean> required = JsonPath.read(response, fieldPath + ".required");
+            assertThat(types).as(fieldName).containsExactly(fieldType);
+            assertThat(required).as(fieldName).containsExactly(false);
+          });
+    }
+
+    @Test
+    @DisplayName("given_awsContracts_should_describeAccountIdField")
+    void given_awsContracts_should_describeAccountIdField() throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-aws-desc");
+      String uri = tenantCredentialsUri(tenant.getId()) + "/contracts";
+
+      // Act
+      String response =
+          mvc.perform(get(uri).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> descriptions =
+          JsonPath.read(
+              response, "$[*].fields[?(@.field_name == 'aws_account_id')].field_description");
+      assertThat(descriptions)
+          .containsExactly(AwsAccountId.FORM_DESCRIPTION, AwsAccountId.FORM_DESCRIPTION);
     }
   }
 

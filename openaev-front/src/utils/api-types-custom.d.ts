@@ -120,6 +120,7 @@ export type EnhancedContractElement = ContractElement & {
   isInMandatoryGroup: boolean;
   mandatoryGroupContractElementLabels: string;
   writeOnly?: boolean;
+  helperText?: string;
   settings?: {
     rows?: number;
     required?: boolean;
