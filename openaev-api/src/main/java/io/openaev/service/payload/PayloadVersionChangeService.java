@@ -96,6 +96,9 @@ public class PayloadVersionChangeService {
         payload != null ? payload.getStatus() : catalogStatus(item),
         payload != null && payload.isLatest(),
         payload != null ? revoked.contains(payload.getId()) : "REVOKED".equals(item.getStatus()),
+        payload != null
+            && revoked.contains(payload.getId())
+            && payloadRevocationService.isRevokedInTenant(payload),
         payload != null && payload.getId().equals(current.getId()),
         payload != null && !payload.isUninstalled(),
         item == null ? null : item.getChangelog(),

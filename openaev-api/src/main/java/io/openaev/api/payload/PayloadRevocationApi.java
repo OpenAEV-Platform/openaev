@@ -39,7 +39,7 @@ public class PayloadRevocationApi {
   public PayloadRevocationOutput revocation(TxCtx ctx, @PathVariable String payloadId) {
     return payloadRevocationService
         .findActive(payloadId)
-        .map(PayloadRevocationMapper::toOutput)
+        .map(revocation -> PayloadRevocationMapper.toOutput(revocation, payloadId))
         .orElseThrow(() -> new ElementNotFoundException("Payload not revoked: " + payloadId));
   }
 

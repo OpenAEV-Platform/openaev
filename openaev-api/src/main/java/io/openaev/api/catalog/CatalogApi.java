@@ -2,6 +2,7 @@ package io.openaev.api.catalog;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
@@ -69,6 +70,19 @@ public class CatalogApi {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public List<CatalogItemOutput> payloadVersions(TxCtx ctx, @PathVariable String externalId) {
     return catalogService.listPayloadVersions(externalId);
+  }
+
+  @LogExecutionTime
+  @Operation(summary = "The released content of a catalogue payload version, before install")
+  @GetMapping({
+    CATALOG_URI + "/payloads/{externalId}/versions/{version}/content",
+    TENANT_CATALOG_URI + "/payloads/{externalId}/versions/{version}/content"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public JsonNode payloadVersionContent(
+      TxCtx ctx, @PathVariable String externalId, @PathVariable String version) {
+    return catalogService.readPayloadVersionContent(externalId, version);
   }
 
   @LogExecutionTime

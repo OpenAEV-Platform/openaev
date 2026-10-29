@@ -19,6 +19,16 @@ public final class CatalogArchiveChecks {
 
   private CatalogArchiveChecks() {}
 
+  // A release sends a payload version as a plain JSON file, not a zip.
+  public static boolean isVersionFile(byte[] archive) {
+    for (byte b : archive) {
+      if (!Character.isWhitespace(b)) {
+        return b == '{';
+      }
+    }
+    return false;
+  }
+
   public static String sha256(byte[] data) {
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(data));

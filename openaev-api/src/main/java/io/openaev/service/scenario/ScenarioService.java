@@ -640,6 +640,7 @@ public class ScenarioService {
   }
 
   public void throwIfScenarioNotLaunchable(Scenario scenario) {
+    injectService.throwIfAnyPayloadRevoked(scenario.getInjects());
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }

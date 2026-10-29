@@ -13,7 +13,12 @@ public record PayloadRevocationOutput(
     @Schema(description = "tenant: revoked in this tenant; repository: from the revocation list")
         @JsonProperty("content_revocation_source")
         @NotBlank
-        String source) {
+        String source,
+    @Schema(
+            description =
+                "Set when a customized payload inherits the revocation of this base version")
+        @JsonProperty("content_revocation_inherited_from")
+        String inheritedFrom) {
 
   public static final String SOURCE_TENANT = "tenant";
   public static final String SOURCE_REPOSITORY = "repository";

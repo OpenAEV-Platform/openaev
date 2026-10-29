@@ -14,6 +14,7 @@ public record PayloadVersionOutput(
     @JsonProperty("payload_status") Payload.PAYLOAD_STATUS status,
     @JsonProperty("payload_is_latest") boolean latest,
     @JsonProperty("payload_revoked") boolean revoked,
+    @JsonProperty("payload_revoked_in_tenant") boolean revokedInTenant,
     @JsonProperty("payload_current") boolean current,
     @JsonProperty("payload_installed") boolean installed,
     @JsonProperty("payload_changelog") String changelog,

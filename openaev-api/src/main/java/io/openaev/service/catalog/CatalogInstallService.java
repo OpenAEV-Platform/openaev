@@ -216,7 +216,7 @@ public class CatalogInstallService {
       TxCtx ctx, String tenantId, String externalId, String version, CatalogInstallInput input)
       throws Exception {
     CatalogItem item = findInstallable(externalId, version);
-    List<String> missing = catalogRequirementsService.checker().missing(item);
+    List<String> missing = catalogRequirementsService.checker().blockingInstall(item);
     if (!missing.isEmpty()) {
       throw new BadRequestException("Missing to run this scenario: " + String.join(", ", missing));
     }
@@ -422,7 +422,8 @@ public class CatalogInstallService {
 
   /**
    * Injects keep the targets of the installed version they replace; then the chosen targets are
-   * added to every inject that takes their kind (section 6.3). None may stay without a target.
+   * added to every inject that takes their kind (section 6.3). One left without a target is
+   * reported by the scenario health check, not refused here.
    */
   private void setTargets(
       Set<Inject> injects, Map<String, Inject> previousInjects, CatalogInstallInput input) {
@@ -439,7 +440,6 @@ public class CatalogInstallService {
                     .map(String::trim)
                     .filter(t -> !t.isEmpty())
                     .toList());
-    List<String> missing = new ArrayList<>();
     for (Inject inject : injects) {
       List<String> fields = targetFields(inject);
       if (fields.isEmpty()) {
@@ -449,14 +449,11 @@ public class CatalogInstallService {
           inject.getCatalogId() == null ? null : previousInjects.get(inject.getCatalogId());
       if (before != null && isTargeted(before, fields)) {
         carryOver(before, inject, fields);
+      } else {
+        // The package's "all teams" belongs to the platform it was exported from.
+        inject.setAllTeams(false);
       }
       addTargets(inject, fields, chosen);
-      if (!isTargeted(inject, fields)) {
-        missing.add(inject.getTitle());
-      }
-    }
-    if (!missing.isEmpty()) {
-      throw new BadRequestException("Missing target on: " + String.join(", ", missing));
     }
   }
 

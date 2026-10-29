@@ -13,6 +13,7 @@ import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.service.ZipJsonService;
+import io.openaev.service.catalog.CatalogArchiveChecks;
 import io.openaev.service.payload.PayloadContentHashService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
@@ -61,7 +62,7 @@ public class ThreatArsenalImportService {
       @NotNull PayloadIdentity identity,
       @NotNull String version)
       throws Exception {
-    if (isVersionFile(archive)) {
+    if (CatalogArchiveChecks.isVersionFile(archive)) {
       return payloadImportService.importCatalogVersionFile(ctx, archive, identity, version);
     }
     if (!isInjectorContractExport(archive)) {
@@ -156,16 +157,6 @@ public class ThreatArsenalImportService {
    */
   private boolean isInjectorContractExport(MultipartFile file) throws Exception {
     return isInjectorContractExport(file.getBytes());
-  }
-
-  // A release sends a payload version as a plain JSON file, not a zip.
-  private static boolean isVersionFile(byte[] archive) {
-    for (byte b : archive) {
-      if (!Character.isWhitespace(b)) {
-        return b == '{';
-      }
-    }
-    return false;
   }
 
   private boolean isInjectorContractExport(byte[] archive) throws Exception {
