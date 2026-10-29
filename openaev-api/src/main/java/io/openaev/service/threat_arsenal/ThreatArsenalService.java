@@ -7,6 +7,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
@@ -459,17 +460,24 @@ public class ThreatArsenalService {
    * BulkDeleteExecutor}, which also tracks the deletion as a massive operation (header progress
    * indicator) and suppresses the per-entity stream events.
    *
-   * @param ctx the tenant scope for the read transaction and each chunk transaction (the eligible
-   *     resolution and every chunk read/write InjectorContract#getInjectorType()/getPayload()
-   *     through the v2 tenant-scoped injectors table)
+   * <p>The eligibility of an explicitly selected item and its deletion are evaluated against the
+   * same tenant: the one the items are deleted from. Their read transaction, like every chunk
+   * transaction, carries that tenant's scope, since InjectorContract#getInjectorType()/getPayload()
+   * resolve through the v2 tenant-scoped injectors and payloads tables.
+   *
+   * @param ctx the request scope, used to resolve a select-all request
    * @param input the search + selection input
    * @return the ids that were actually deleted
    */
   public List<String> bulkDelete(TxCtx ctx, InjectorContractSearchPaginationInput input) {
+    TxCtx deletionScope = TxCtx.forTenant(TenantContext.getCurrentTenant());
+    List<String> idsToProcess = input.getInjectorContractIdsToProcess();
+    boolean explicitSelection = idsToProcess != null && !idsToProcess.isEmpty();
     List<String> eligibleIds =
-        bulkDeleteExecutor.resolveInTransaction(ctx, () -> resolveEligibleIds(input));
+        bulkDeleteExecutor.resolveInTransaction(
+            explicitSelection ? deletionScope : ctx, () -> resolveEligibleIds(input));
     return bulkDeleteExecutor.deleteInChunks(
-        ctx,
+        deletionScope,
         "threat arsenal items",
         eligibleIds,
         chunk -> chunk.forEach(injectorContractService::deleteInjectorContractById));
