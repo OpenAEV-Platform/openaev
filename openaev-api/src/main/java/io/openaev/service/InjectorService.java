@@ -183,8 +183,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Tear the deployment down with the injector, and only delete the row ourselves when the
     // injector was not deployed through the Integration Manager.
     if (!deleteOwningConnectorInstance(injectorId)) {
-      injectorRepository.deleteByInjectorId(injectorId);
-      rabbitmqService.deleteInjectorQueueIfUnused(injectorId);
+      deleteInjectorAndQueue(injectorId);
     }
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
     // Chaining steps reference contracts only through a JSON snapshot in step_data (no FK to
@@ -192,6 +191,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // inject de-index above.
     chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
         orphanedContractIds, tenantId);
+  }
+
+  /** Deletes the injector row and its queue, so injects left in it never run later. */
+  public void deleteInjectorAndQueue(@NotBlank final String injectorId) {
+    injectorRepository.deleteByInjectorId(injectorId);
+    rabbitmqService.deleteInjectorQueueIfUnused(injectorId);
   }
 
   public Injector injector(String id) {
