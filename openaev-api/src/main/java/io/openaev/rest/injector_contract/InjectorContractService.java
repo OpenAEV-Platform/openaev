@@ -50,6 +50,7 @@ import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
@@ -113,6 +114,7 @@ public class InjectorContractService implements DependenciesManager {
   private final InjectIndexCleanupService injectIndexCleanupService;
   private final StepRepository stepRepository;
   private final ChainingStepCleanupService chainingStepCleanupService;
+  private final WorkflowOwnerScope workflowOwnerScope;
 
   /**
    * Built-in contracts whose injectors start with the platform through an autostart instance, so
@@ -589,9 +591,13 @@ public class InjectorContractService implements DependenciesManager {
     // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
     // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
     // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
-    // sweep would wipe other tenants' authored logic-map nodes.
-    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
-        List.of(injectorContract.getId()), tenantId);
+    // sweep would wipe other tenants' authored logic-map nodes. It runs in the contract's own
+    // tenant, which the caller's scope may not hold: the deletion was granted on the contract.
+    workflowOwnerScope.run(
+        injectorContract,
+        () ->
+            chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+                List.of(injectorContract.getId()), tenantId));
   }
 
   /**
