@@ -21,10 +21,7 @@ import io.openaev.database.repository.NewsFeedItemRepository;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.ReferenceResolver;
-import io.openaev.utils.fixtures.PaginationFixture;
-import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.xtmhub.ProvisionedNewsFeedItem;
-import io.openaev.xtmhub.XtmHubService;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +50,6 @@ class NewsFeedItemServiceTest {
   @Mock private ReferenceResolver referenceResolver;
   @Mock private TenantScopedTransaction tenantTx;
   @Mock private PreviewFeatureService previewFeatureService;
-  @Mock private XtmHubService xtmHubService;
 
   private NewsFeedItemService service;
 
@@ -65,8 +61,7 @@ class NewsFeedItemServiceTest {
             userService,
             referenceResolver,
             tenantTx,
-            previewFeatureService,
-            xtmHubService);
+            previewFeatureService);
     // runs the work inline: the transaction itself is covered by the integration tests
     lenient()
         .doAnswer(invocation -> invocation.<Supplier<Object>>getArgument(1).get())
@@ -303,22 +298,5 @@ class NewsFeedItemServiceTest {
     // Act & Assert
     assertThat(service.isFeatureEnabled()).isTrue();
     assertThat(service.isFeatureEnabled()).isFalse();
-  }
-
-  @Test
-  @DisplayName("Given an unregistered tenant, should return an empty page without any query")
-  void given_unregisteredTenant_should_returnEmptyPage() {
-    // Arrange
-    TxCtx ctx = TxCtx.forTenant("tenant-a");
-    when(xtmHubService.isAnyTenantRegistered(ctx)).thenReturn(false);
-    SearchPaginationInput input = PaginationFixture.getDefault().build();
-
-    // Act
-    var page = service.searchMyItems(ctx, input);
-
-    // Assert
-    assertThat(page.getContent()).isEmpty();
-    assertThat(page.getTotalElements()).isZero();
-    verifyNoInteractions(newsFeedItemRepository, userService);
   }
 }

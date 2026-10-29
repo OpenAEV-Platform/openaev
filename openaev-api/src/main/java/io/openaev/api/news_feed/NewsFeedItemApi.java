@@ -11,6 +11,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.NewsFeedItemService;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.xtmhub.XtmHubService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -35,6 +36,7 @@ public class NewsFeedItemApi {
   public static final String TENANT_NEWS_FEED_URI = TENANT_PREFIX + "/news-feed";
 
   private final NewsFeedItemService newsFeedItemService;
+  private final XtmHubService xtmHubService;
 
   @LogExecutionTime
   @PostMapping({NEWS_FEED_URI + "/me/search", TENANT_NEWS_FEED_URI + "/me/search"})
@@ -56,8 +58,8 @@ public class NewsFeedItemApi {
     if (!newsFeedItemService.isFeatureEnabled()) {
       throw new ElementNotFoundException("The news feed feature is disabled");
     }
-    return newsFeedItemService
-        .searchMyItems(ctx, searchPaginationInput)
+    return xtmHubService
+        .searchMyNewsFeedItems(ctx, searchPaginationInput)
         .map(NewsFeedItemMapper::toOutput);
   }
 }

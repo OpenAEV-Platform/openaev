@@ -1,5 +1,5 @@
 import { Button, Chip } from '@filigran/design-system';
-import { CampaignOutlined, MovieFilterOutlined, OpenInNewOutlined } from '@mui/icons-material';
+import { CampaignOutlined, OpenInNewOutlined, RouteOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
 
@@ -14,12 +14,24 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import SimpleError from '../../../../components/SimpleError';
 import { type NewsFeedItemOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { XTM_HUB_DEFAULT_URL } from '../../../../utils/Environment';
 import useAuth from '../../../../utils/hooks/useAuth';
-import { getUrl } from '../../../../utils/utils';
 
 const MAX_DISPLAYED_TAGS = 3;
+
+// The path comes from XTM Hub data: only a link that stays on the XTM Hub origin is rendered.
+const buildHubUrl = (urlPath: string, hubUrl: string): string | null => {
+  try {
+    const base = new URL(hubUrl);
+    const url = new URL(urlPath, base);
+    const isWeb = url.protocol === 'https:' || url.protocol === 'http:';
+    return isWeb && url.origin === base.origin ? url.toString() : null;
+  } catch {
+    return null;
+  }
+};
 
 const inlineStyles: Record<string, CSSProperties> = {
   news_feed_item_type: { width: '18%' },
@@ -35,6 +47,7 @@ const NewsFeedList = () => {
   const { settings } = useAuth();
   const [items, setItems] = useState<NewsFeedItemOutput[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [failed, setFailed] = useState<boolean>(false);
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
     'my-news-feed',
@@ -43,12 +56,19 @@ const NewsFeedList = () => {
 
   const searchItemsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchMyNewsFeedItems(input).finally(() => setLoading(false));
+    setFailed(false);
+    return searchMyNewsFeedItems(input)
+      .catch((error) => {
+        setItems([]);
+        setFailed(true);
+        throw error;
+      })
+      .finally(() => setLoading(false));
   };
 
   const hubUrl = (item: NewsFeedItemOutput) => (
     item.news_feed_item_url_path
-      ? getUrl(item.news_feed_item_url_path, settings.xtm_hub_url ?? XTM_HUB_DEFAULT_URL)
+      ? buildHubUrl(item.news_feed_item_url_path, settings.xtm_hub_url ?? XTM_HUB_DEFAULT_URL)
       : null
   );
 
@@ -157,11 +177,12 @@ const NewsFeedList = () => {
           />
         </ListItem>
         {loading && <PaginatedListLoader Icon={CampaignOutlined} headers={headers} headerStyles={inlineStyles} />}
-        {!loading && items.length === 0 && <Empty message={t('No news feed items')} icon={CampaignOutlined} />}
-        {!loading && items.map(item => (
+        {!loading && failed && <SimpleError />}
+        {!loading && !failed && items.length === 0 && <Empty message={t('No news feed items')} icon={CampaignOutlined} />}
+        {!loading && !failed && items.map(item => (
           <ListItem key={item.news_feed_item_id} divider sx={{ height: 50 }}>
             <ListItemIcon style={{ minWidth: 40 }}>
-              <MovieFilterOutlined fontSize="small" />
+              <RouteOutlined fontSize="small" />
             </ListItemIcon>
             <ListItemText
               primary={(

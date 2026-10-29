@@ -46,13 +46,13 @@ public class NewsFeedItem implements Base, UserScoped {
   @Column(name = "news_feed_item_title")
   @JsonProperty("news_feed_item_title")
   @NotBlank
-  @Queryable(searchable = true, filterable = true, sortable = true)
+  @Queryable(searchable = true, sortable = true)
   private String title;
 
   @Column(name = "news_feed_item_type")
   @JsonProperty("news_feed_item_type")
   @NotBlank
-  @Queryable(filterable = true, sortable = true)
+  @Queryable(sortable = true)
   private String type;
 
   @Type(StringArrayType.class)
@@ -72,7 +72,7 @@ public class NewsFeedItem implements Base, UserScoped {
 
   @Column(name = "news_feed_item_is_read")
   @JsonProperty("news_feed_item_is_read")
-  @Queryable(filterable = true, sortable = true)
+  @Queryable(sortable = true)
   private boolean read = false;
 
   // EAGER: the owner id must stay readable after the session closes (SSE user scoping)

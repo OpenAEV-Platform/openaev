@@ -8298,23 +8298,29 @@ export interface NewsFeedItemOutput {
    * Creation date of the item
    * @format date-time
    */
-  news_feed_item_creation_date?: string;
-  /** ID of the item in XTM Hub */
-  news_feed_item_hub_id?: string;
+  news_feed_item_creation_date: string;
+  /**
+   * ID of the item in XTM Hub
+   * @minLength 1
+   */
+  news_feed_item_hub_id: string;
   /**
    * ID of the news feed item
    * @minLength 1
    */
   news_feed_item_id: string;
   /** Whether the item was read */
-  news_feed_item_is_read?: boolean;
+  news_feed_item_is_read: boolean;
   /** Tags of the item */
-  news_feed_item_tags?: string[];
-  /** Title of the item */
-  news_feed_item_title?: string;
+  news_feed_item_tags: string[];
+  /**
+   * Title of the item
+   * @minLength 1
+   */
+  news_feed_item_title: string;
   /** Type of the item, absent when OpenAEV no longer knows its type */
   news_feed_item_type?: "RESOURCE_SCENARIO";
-  /** Path of the item in XTM Hub, to append to the XTM Hub URL */
+  /** Path of the item in XTM Hub, to append to the XTM Hub URL, absent when XTM Hub sent none */
   news_feed_item_url_path?: string;
 }
 

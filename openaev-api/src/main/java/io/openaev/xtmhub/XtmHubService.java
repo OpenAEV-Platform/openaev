@@ -3,6 +3,7 @@ package io.openaev.xtmhub;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.NewsFeedItem;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
@@ -18,11 +19,14 @@ import io.openaev.service.UserService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.LicenseUtils;
 import io.openaev.utils.TxCtxScopeUtils;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +36,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -63,14 +70,28 @@ public class XtmHubService {
   }
 
   /**
-   * Whether at least one tenant in the scope of the request is, or was, registered on XTM Hub. A
-   * tenant that lost its connectivity keeps the items it already retrieved.
+   * Searches the news feed items of the current user. The items carry no tenant, so the page is
+   * empty when no tenant in the scope of the request is registered on XTM Hub (a tenant that lost
+   * its connectivity still shows the items it retrieved).
    */
-  public boolean isAnyTenantRegistered(TxCtx ctx) {
-    return TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx).stream()
-        .map(tenantXtmHubRegistrationRepository::findByTenantId)
-        .flatMap(Optional::stream)
-        .anyMatch(r -> r.getRegistrationStatus() != XtmHubRegistrationStatus.UNREGISTERED);
+  public Page<NewsFeedItem> searchMyNewsFeedItems(
+      TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
+    if (!isAnyTenantRegistered(ctx)) {
+      return new PageImpl<>(
+          List.of(),
+          PageRequest.of(searchPaginationInput.getPage(), searchPaginationInput.getSize()),
+          0);
+    }
+    return newsFeedItemService.searchMyItems(searchPaginationInput);
+  }
+
+  private boolean isAnyTenantRegistered(TxCtx ctx) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    return !tenantIds.isEmpty()
+        && tenantXtmHubRegistrationRepository.existsByTenantIdInAndRegistrationStatusIn(
+            tenantIds,
+            EnumSet.of(
+                XtmHubRegistrationStatus.REGISTERED, XtmHubRegistrationStatus.LOST_CONNECTIVITY));
   }
 
   public TenantXtmHubRegistration register(TxCtx ctx, @NotBlank final String token) {
