@@ -135,8 +135,10 @@ discloses no membership beyond what the caller sent.
 !!! warning "API clients that belong to several tenants"
     A client that belongs to several tenants and calls the regular path with no selector is
     refused as soon as one of its tenants lacks the right, even for rows of a tenant where it
-    holds the right. Use the tenant path, or send `X-Tenant-Ids` naming only tenants where the
-    right is held. The web interface calls tenant data on the tenant path.
+    holds the right. Use the tenant path, which checks that tenant only. Sending `X-Tenant-Ids`
+    naming only tenants where the right is held works only when the right is also held in the
+    default tenant, which the regular path always checks. The web interface calls tenant data on
+    the tenant path.
 
 Where the rule does not apply:
 
