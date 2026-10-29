@@ -237,7 +237,6 @@ const InjectComponent: FunctionComponent = () => {
 
       <div className={classes.mailsSection}>
         <SectionLabel>{t('Mails')}</SectionLabel>
-        <div className="clearfix" />
         {topics.map((topic) => {
           const topicUsers = (topic.communication_users ?? []).map(
             (userId: string) => usersMap[userId] ?? {},
