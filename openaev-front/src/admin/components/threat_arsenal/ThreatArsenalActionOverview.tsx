@@ -58,13 +58,14 @@ import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 const EXPECTATION_TYPE_LABELS: Record<string, string> = {
   PREVENTION: 'Prevention',
   DETECTION: 'Detection',
+  LOGGING: 'Logging',
   VULNERABILITY: 'Vulnerability',
   MANUAL: 'Manual',
   ARTICLE: 'Article',
   CHALLENGE: 'Challenge',
 };
 
-type ExpectationType = 'ARTICLE' | 'CHALLENGE' | 'MANUAL' | 'PREVENTION' | 'DETECTION' | 'VULNERABILITY';
+type ExpectationType = 'ARTICLE' | 'CHALLENGE' | 'MANUAL' | 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VULNERABILITY';
 
 interface Props {
   action: ThreatArsenalAction;
@@ -403,7 +404,12 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                         }}
                       >
                         <PlatformIcon platform={platform} width={14} />
-                        <Typography variant="caption" sx={{ fontWeight: 500 }}>{t(platform)}</Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{ fontWeight: 500 }}
+                        >
+                          {t(platform)}
+                        </Typography>
                       </Box>
                     ))}
                   </Box>
@@ -675,7 +681,8 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                                 }}
                               />
                             </TooltipTrigger>
-                            {row.expectation_description && <TooltipContent>{row.expectation_description}</TooltipContent>}
+                            {row.expectation_description
+                              && <TooltipContent>{row.expectation_description}</TooltipContent>}
                           </Tooltip>
                         )}
                       </Box>

@@ -17,7 +17,8 @@ import org.springframework.stereotype.Component;
  * category defaults:
  *
  * <ul>
- *   <li><b>Technical expectations</b> (detection, prevention, vulnerability): Default 6 hours
+ *   <li><b>Technical expectations</b> (detection, prevention, logging, vulnerability): Default 6
+ *       hours
  *   <li><b>Human expectations</b> (challenge, article, manual, document, text): Default 24 hours
  * </ul>
  *
@@ -55,6 +56,10 @@ public class ExpectationPropertiesConfig {
   @Value(
       "${openbas.expectation.prevention.expiration-time:${openaev.expectation.prevention.expiration-time:#{null}}}")
   private Long preventionExpirationTime;
+
+  @Value(
+      "${openbas.expectation.logging.expiration-time:${openaev.expectation.logging.expiration-time:#{null}}}")
+  private Long loggingExpirationTime;
 
   @Value(
       "${openbas.expectation.vulnerability.expiration-time:${openaev.expectation.vulnerability.expiration-time:#{null}}}")
@@ -103,6 +108,20 @@ public class ExpectationPropertiesConfig {
    */
   public long getPreventionExpirationTime() {
     return ofNullable(this.preventionExpirationTime)
+        .orElse(
+            ofNullable(this.technicalExpirationTime)
+                .orElse(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME));
+  }
+
+  /**
+   * Gets the expiration time for logging expectations.
+   *
+   * <p>Falls back to technical expiration time, then to the default technical expiration.
+   *
+   * @return expiration time in seconds
+   */
+  public long getLoggingExpirationTime() {
+    return ofNullable(this.loggingExpirationTime)
         .orElse(
             ofNullable(this.technicalExpirationTime)
                 .orElse(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME));
@@ -195,6 +214,7 @@ public class ExpectationPropertiesConfig {
     return switch (type) {
       case DETECTION -> getDetectionExpirationTime();
       case PREVENTION -> getPreventionExpirationTime();
+      case LOGGING -> getLoggingExpirationTime();
       case VULNERABILITY -> getVulnerabilityExpirationTime();
       case CHALLENGE -> getChallengeExpirationTime();
       case ARTICLE -> getArticleExpirationTime();

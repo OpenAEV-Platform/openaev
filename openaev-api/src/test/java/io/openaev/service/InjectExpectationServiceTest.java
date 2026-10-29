@@ -29,6 +29,9 @@ import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.expectation.ExpectationBehavior;
+import io.openaev.service.expectation.ExpectationBehaviorResolver;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.lang.reflect.Method;
@@ -58,6 +61,8 @@ class InjectExpectationServiceTest {
   @Mock private CollectorService collectorService;
   @Mock private InjectorContractContentUtils injectorContractContentUtils;
   @Mock private AuditLogger auditLogger;
+  @Mock private ExpectationBehaviorResolver expectationBehaviorResolver;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   // Unstubbed: findByExternalReference defaults to Optional.empty(), so vulnerability verdicts
   // keep the legacy Expectations Vulnerability Manager attribution in these tests.
@@ -217,6 +222,78 @@ class InjectExpectationServiceTest {
 
     // Assert
     verify(injectExpectationRepository, never()).saveAll(any());
+  }
+
+  @Nested
+  @DisplayName("Logging expectation creation behind its preview feature")
+  class LoggingCreationFlag {
+
+    private ExecutableInject executableInjectOf(Inject target) {
+      ExecutableInject executableInject = mock(ExecutableInject.class);
+      Injection injection = mock(Injection.class);
+      when(executableInject.getInjection()).thenReturn(injection);
+      when(injection.getInject()).thenReturn(target);
+      return executableInject;
+    }
+
+    @Test
+    @DisplayName("given_flag_off_should_skip_logging_expectations")
+    void given_flag_off_should_skip_logging_expectations() {
+      // Arrange
+      ExecutableInject executableInject = executableInjectOf(inject);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION))
+          .thenReturn(false);
+
+      // Act
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject,
+          List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING)),
+          "implantType");
+
+      // Assert
+      verify(expectationBehaviorResolver, never()).resolveForForm(any(), any());
+    }
+
+    @Test
+    @DisplayName("given_flag_on_should_create_logging_expectations")
+    @SuppressWarnings("unchecked")
+    void given_flag_on_should_create_logging_expectations() {
+      // Arrange
+      ExecutableInject executableInject = executableInjectOf(inject);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION))
+          .thenReturn(true);
+      ExpectationBehavior<BaseInjectExpectation> behavior = mock(ExpectationBehavior.class);
+      when(expectationBehaviorResolver.resolveForForm(any(), any())).thenReturn(behavior);
+
+      // Act
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject,
+          List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING)),
+          "implantType");
+
+      // Assert
+      verify(behavior).initializeAndSaveInjectExpectationsFromExecutableInject(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("given_flag_off_should_still_create_other_expectations")
+    @SuppressWarnings("unchecked")
+    void given_flag_off_should_still_create_other_expectations() {
+      // Arrange
+      ExecutableInject executableInject = executableInjectOf(inject);
+      ExpectationBehavior<BaseInjectExpectation> behavior = mock(ExpectationBehavior.class);
+      when(expectationBehaviorResolver.resolveForForm(any(), any())).thenReturn(behavior);
+
+      // Act
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject,
+          List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION)),
+          "implantType");
+
+      // Assert
+      verify(behavior).initializeAndSaveInjectExpectationsFromExecutableInject(any(), any(), any());
+      verify(previewFeatureService, never()).isFeatureEnabled(any());
+    }
   }
 
   @Test

@@ -84,6 +84,7 @@ public class BaseInjectExpectation implements Base, Cloneable {
     MANUAL,
     PREVENTION,
     DETECTION,
+    LOGGING,
     VULNERABILITY;
 
     // Compile-time constants for @DiscriminatorValue (annotations require String constants)
@@ -92,6 +93,7 @@ public class BaseInjectExpectation implements Base, Cloneable {
     public static final String MANUAL_VALUE = "MANUAL";
     public static final String PREVENTION_VALUE = "PREVENTION";
     public static final String DETECTION_VALUE = "DETECTION";
+    public static final String LOGGING_VALUE = "LOGGING";
     public static final String VULNERABILITY_VALUE = "VULNERABILITY";
   }
 
