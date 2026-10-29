@@ -18,7 +18,16 @@ public record CatalogMissingRequirement(
     EDITION,
     INJECTOR,
     EXECUTOR,
-    CHAINING,
+    CHAINING;
+
+    /**
+     * Whether the install cannot go on without it. A missing injector would import its injects
+     * without their contract; a missing executor or edition only stops the run, which the scenario
+     * health check reports.
+     */
+    public boolean blocksInstall() {
+      return this == OPENAEV || this == INJECTOR || this == CHAINING;
+    }
   }
 
   public enum Status {

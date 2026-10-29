@@ -70,6 +70,14 @@ public class PayloadRevocationService {
     return payloadVersionService.revokedIds(payloadVersionService.findAllById(payloadIds));
   }
 
+  /** Revoked by its tenant, so the tenant can lift it; a list's revocation is lifted by a list. */
+  @Transactional(readOnly = true)
+  public boolean isRevokedInTenant(Payload payload) {
+    return contentRevocationRepository
+        .findActiveByPayload(payload.getId(), payload.getTenant().getId())
+        .isPresent();
+  }
+
   /** The active revocation of a payload: its tenant's first, else the revocation list's. */
   @Transactional(readOnly = true)
   public Optional<ContentRevocation> findActive(String payloadId) {

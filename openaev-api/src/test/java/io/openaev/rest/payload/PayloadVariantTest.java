@@ -8,6 +8,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tag;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.exception.BadRequestException;
@@ -26,11 +27,14 @@ import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.PayloadInputFixture;
+import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.helpers.PayloadVersionTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +54,7 @@ class PayloadVariantTest extends IntegrationTest {
   @Autowired private InjectUtils injectUtils;
   @Autowired private PayloadVersionTestHelper payloadVersionTestHelper;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private TagComposer tagComposer;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
   @Autowired private ManagerFactory managerFactory;
 
@@ -121,6 +126,30 @@ class PayloadVariantTest extends IntegrationTest {
     assertThat(changed.previousUsages()).isEqualTo(1);
     assertThat(latest(changed).getContent()).isEqualTo("echo mine");
     assertThat(changed.payload().getVersion()).isEqualTo("1.1.0");
+  }
+
+  @Test
+  @DisplayName("Changing only the tags keeps the version")
+  @WithMockUser(isAdmin = true)
+  void given_tagsOnly_should_keepVersion() {
+    // Arrange
+    Payload base = catalogVersions("echo base").getFirst();
+    VariantResult variant = payloadVariantService.customize(base.getId());
+    String identityId = variant.payload().getIdentity().getId();
+    Tag tag =
+        tagComposer
+            .forTag(TagFixture.getTagWithText("variant-" + UUID.randomUUID()))
+            .persist()
+            .get();
+
+    // Act
+    VariantResult changed =
+        payloadVariantService.updateOverrides(identityId, Map.of(), Set.of(tag));
+
+    // Assert
+    assertThat(changed.previous()).isNull();
+    assertThat(changed.payload().getVersion()).isEqualTo(Payload.FIRST_VERSION);
+    assertThat(changed.injectorContract().getTags()).containsExactly(tag);
   }
 
   @Test

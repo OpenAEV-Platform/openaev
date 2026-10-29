@@ -174,6 +174,10 @@ public class InjectOutput {
   @ArraySchema(schema = @Schema(description = "Healthcheck of the inject"))
   private List<HealthCheck> healthchecks = new ArrayList<>();
 
+  @JsonProperty("inject_payload_revoked")
+  @Schema(description = "The inject runs a revoked payload: it is skipped and blocks the launch")
+  private boolean payloadRevoked;
+
   @JsonProperty("inject_contract_domains")
   @Schema(description = "Domain of the inject")
   public Set<Domain> getDomains() {

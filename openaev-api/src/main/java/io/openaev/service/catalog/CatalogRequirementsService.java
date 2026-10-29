@@ -76,6 +76,14 @@ public class CatalogRequirementsService {
       return missingPrerequisites(item).stream().map(CatalogMissingRequirement::label).toList();
     }
 
+    /** What the install itself cannot do without; the rest only stops the run. */
+    public List<String> blockingInstall(CatalogItem item) {
+      return missingPrerequisites(item).stream()
+          .filter(requirement -> requirement.kind().blocksInstall())
+          .map(CatalogMissingRequirement::label)
+          .toList();
+    }
+
     public List<CatalogMissingRequirement> missingPrerequisites(CatalogItem item) {
       List<CatalogMissingRequirement> missing = new ArrayList<>();
       if (isChained(item)) {

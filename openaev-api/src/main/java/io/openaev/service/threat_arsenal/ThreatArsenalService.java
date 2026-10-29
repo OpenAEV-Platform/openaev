@@ -269,7 +269,7 @@ public class ThreatArsenalService {
         convertActionCreateInputToPayloadCreateInput(actionInput);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(ctx, payloadCreateInput);
-    return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
+    return describeAction(threatArsenalMapper.toThreatArsenalAction(result.injectorContract()));
   }
 
   /** Whether the name is free for this action's payload, or for a new one (#3399). */
@@ -391,7 +391,7 @@ public class ThreatArsenalService {
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadService.duplicate(payload.getId());
-    return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
+    return describeAction(threatArsenalMapper.toThreatArsenalAction(result.injectorContract()));
   }
 
   /**

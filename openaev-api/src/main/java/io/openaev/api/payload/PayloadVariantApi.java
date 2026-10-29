@@ -20,6 +20,7 @@ import io.openaev.rest.payload.service.PayloadVariantService.BlockPreview;
 import io.openaev.rest.payload.service.PayloadVariantService.RebasePreview;
 import io.openaev.rest.payload.service.PayloadVariantService.VariantInfo;
 import io.openaev.rest.payload.service.PayloadVariantService.VariantResult;
+import io.openaev.rest.tag.TagService;
 import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
@@ -45,6 +46,7 @@ public class PayloadVariantApi {
   private final PayloadRevocationService payloadRevocationService;
   private final ThreatArsenalMapper threatArsenalMapper;
   private final ThreatArsenalService threatArsenalService;
+  private final TagService tagService;
 
   public record VariantOutput(
       @JsonProperty("identity_id") String identityId,
@@ -54,6 +56,7 @@ public class PayloadVariantApi {
       @JsonProperty("variant_overrides") Map<String, Object> overrides,
       @JsonProperty("variant_customizable_fields") List<String> customizableFields,
       @JsonProperty("base_payload_id") String basePayloadId,
+      @JsonProperty("base_action_id") String baseActionId,
       @JsonProperty("base_external_id") String baseExternalId,
       @JsonProperty("base_version") String baseVersion,
       @JsonProperty("newer_base_payload_id") String newerBasePayloadId,
@@ -68,7 +71,9 @@ public class PayloadVariantApi {
       @JsonProperty("previous_action_id") String previousActionId,
       @JsonProperty("previous_version_usages") int previousUsages) {}
 
-  public record OverridesInput(@JsonProperty("variant_overrides") Map<String, Object> overrides) {}
+  public record OverridesInput(
+      @JsonProperty("variant_overrides") Map<String, Object> overrides,
+      @JsonProperty("variant_tags") List<String> tagIds) {}
 
   public record BlockPreviewOutput(
       @JsonProperty("block") Block block,
@@ -123,6 +128,7 @@ public class PayloadVariantApi {
         info.identity().getOverrides(),
         info.customizableFields(),
         info.base().getId(),
+        actionIdOf(info.base()),
         info.base().getExternalId(),
         info.base().getVersion(),
         info.newestBase() == null ? null : info.newestBase().getId(),
@@ -142,7 +148,11 @@ public class PayloadVariantApi {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
   public VariantSaveOutput overrides(
       TxCtx ctx, @PathVariable String identityId, @RequestBody OverridesInput input) {
-    return toOutput(payloadVariantService.updateOverrides(identityId, input.overrides()));
+    return toOutput(
+        payloadVariantService.updateOverrides(
+            identityId,
+            input.overrides(),
+            input.tagIds() == null ? null : tagService.tagSet(input.tagIds())));
   }
 
   @LogExecutionTime

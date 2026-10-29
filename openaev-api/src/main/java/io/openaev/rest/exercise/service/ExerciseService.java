@@ -890,6 +890,7 @@ public class ExerciseService {
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
+    injectService.throwIfAnyPayloadRevoked(exercise.getInjects());
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }

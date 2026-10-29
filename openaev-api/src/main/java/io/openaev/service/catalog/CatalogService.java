@@ -14,6 +14,7 @@ import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.CatalogSyncStateRepository;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
@@ -66,6 +67,16 @@ public class CatalogService {
     Map<String, Map<String, String>> installedScenarios =
         type == ContentType.SCENARIO ? scenarioService.findInstalledCatalogVersions() : Map.of();
     CatalogRequirementsService.Checker requirements = catalogRequirementsService.checker();
+    // Payload names by external id and version, for the payloads a scenario runs.
+    Map<String, String> payloadNames =
+        type == ContentType.SCENARIO
+            ? catalogItemRepository.findAllByType(ContentType.PAYLOAD).stream()
+                .collect(
+                    Collectors.toMap(
+                        p -> p.getExternalId() + ":" + p.getVersion(),
+                        p -> Optional.ofNullable(p.getName()).orElse(p.getExternalId()),
+                        (x, y) -> x))
+            : Map.of();
     Map<String, Set<String>> installed =
         type == ContentType.SCENARIO
             ? installedScenarios.entrySet().stream()
@@ -100,7 +111,17 @@ public class CatalogService {
                       .filter(scenarioIds::containsKey)
                       .map(v -> new CatalogItemOutput.InstalledScenario(v, scenarioIds.get(v)))
                       .toList(),
-                  requirements.missingPrerequisites(latest));
+                  requirements.missingPrerequisites(latest),
+                  type == ContentType.SCENARIO
+                      ? payloadRefs(latest).stream()
+                          .map(
+                              ref ->
+                                  new CatalogItemOutput.PayloadUsed(
+                                      ref.externalId(),
+                                      ref.version(),
+                                      payloadNames.get(ref.externalId() + ":" + ref.version())))
+                          .toList()
+                      : List.of());
             })
         .sorted(
             Comparator.comparing(CatalogItemOutput::name, Comparator.nullsLast(String::compareTo)))
@@ -185,6 +206,19 @@ public class CatalogService {
       throw new BadRequestException("The stored package does not match its release");
     }
     return archive;
+  }
+
+  /** The content of a catalogue payload version, readable before it is installed. */
+  @Transactional(readOnly = true)
+  public JsonNode readPayloadVersionContent(String externalId, String version) {
+    CatalogItem item =
+        find(ContentType.PAYLOAD, externalId, version)
+            .orElseThrow(() -> new ElementNotFoundException("Catalogue payload version not found"));
+    byte[] content = readVerifiedPackage(item);
+    if (!CatalogArchiveChecks.isVersionFile(content)) {
+      throw new ElementNotFoundException("This version is released as an archive");
+    }
+    return readVersionFile(content);
   }
 
   /** The payload versions an item names, with their content hash. */
@@ -382,6 +416,7 @@ public class CatalogService {
     List<String> platforms = new ArrayList<>();
     file.path("payload_platforms").forEach(platform -> platforms.add(platform.asText()));
     target.setPlatforms(platforms.toArray(new String[0]));
+    target.setCategory(primaryDomain(file));
     target.setPublishedAt(manifest.issuedAt());
     target.setArchiveName(version.file().name());
     target.setRepository(manifest.repository());
@@ -395,6 +430,17 @@ public class CatalogService {
     } catch (Exception e) {
       throw new IllegalArgumentException("Unreadable payload references", e);
     }
+  }
+
+  // Same rule as the Threat Arsenal sections: the first domain by name.
+  private static String primaryDomain(JsonNode file) {
+    List<String> names = new ArrayList<>();
+    file.path("payload_domains").forEach(domain -> names.add(domain.path("domain_name").asText()));
+    return names.stream()
+        .filter(name -> !name.isBlank() && !DomainService.TO_CLASSIFY.equals(name))
+        .sorted()
+        .findFirst()
+        .orElse(null);
   }
 
   private void fill(CatalogItem target, CatalogManifest.Item item, CatalogManifest manifest) {

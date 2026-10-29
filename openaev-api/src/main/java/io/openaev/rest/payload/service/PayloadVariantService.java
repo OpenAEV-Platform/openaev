@@ -15,6 +15,7 @@ import io.openaev.service.payload.PayloadVersionNumbering;
 import io.openaev.service.payload.PayloadVersionNumbering.Change;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.SemanticVersion;
+import jakarta.annotation.Nullable;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -161,6 +162,20 @@ public class PayloadVariantService {
 
   /** Changes the overrides: a new version when the computed content changes. */
   public VariantResult updateOverrides(String identityId, Map<String, Object> overrides) {
+    return updateOverrides(identityId, overrides, null);
+  }
+
+  /** Same, and sets the tags: local labels, not content, so they never make a version. */
+  public VariantResult updateOverrides(
+      String identityId, Map<String, Object> overrides, @Nullable Set<Tag> tags) {
+    VariantResult result = applyOverrides(identityId, overrides);
+    if (tags != null && result.injectorContract() != null) {
+      result.injectorContract().setTags(new HashSet<>(tags));
+    }
+    return result;
+  }
+
+  private VariantResult applyOverrides(String identityId, Map<String, Object> overrides) {
     PayloadIdentity identity = variantIdentity(identityId);
     Payload current = highest(identity);
     Payload base = baseOf(current);

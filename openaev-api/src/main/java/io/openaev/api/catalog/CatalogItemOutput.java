@@ -29,7 +29,14 @@ public record CatalogItemOutput(
     @JsonProperty("catalog_item_installed_scenarios") List<InstalledScenario> installedScenarios,
     @JsonProperty("catalog_item_missing_requirements") List<String> missingRequirements,
     @JsonProperty("catalog_item_missing_prerequisites")
-        List<CatalogMissingRequirement> missingPrerequisites) {
+        List<CatalogMissingRequirement> missingPrerequisites,
+    @JsonProperty("catalog_item_payloads") List<PayloadUsed> payloads) {
+
+  /** A payload version a scenario runs, named as the catalogue releases it. */
+  public record PayloadUsed(
+      @JsonProperty("external_id") @NotBlank String externalId,
+      @JsonProperty("version") String version,
+      @JsonProperty("name") String name) {}
 
   public record InstalledScenario(
       @JsonProperty("version") @NotBlank String version,
@@ -41,6 +48,17 @@ public record CatalogItemOutput(
       List<String> installedVersions,
       List<InstalledScenario> installedScenarios,
       List<CatalogMissingRequirement> missingPrerequisites) {
+    return of(
+        latest, versions, installedVersions, installedScenarios, missingPrerequisites, List.of());
+  }
+
+  public static CatalogItemOutput of(
+      CatalogItem latest,
+      List<String> versions,
+      List<String> installedVersions,
+      List<InstalledScenario> installedScenarios,
+      List<CatalogMissingRequirement> missingPrerequisites,
+      List<PayloadUsed> payloads) {
     return new CatalogItemOutput(
         latest.getType(),
         latest.getExternalId(),
@@ -61,6 +79,7 @@ public record CatalogItemOutput(
         installedVersions,
         installedScenarios,
         missingPrerequisites.stream().map(CatalogMissingRequirement::label).toList(),
-        missingPrerequisites);
+        missingPrerequisites,
+        payloads);
   }
 }

@@ -674,6 +674,20 @@ public class InjectService {
     }
   }
 
+  /** A scenario or simulation whose enabled injects run a revoked payload does not launch (F18). */
+  public void throwIfAnyPayloadRevoked(Collection<Inject> injects) {
+    List<String> revoked =
+        injects.stream()
+            .filter(Inject::isEnabled)
+            .filter(inject -> payloadRevocationService.revocationMessage(inject).isPresent())
+            .map(Inject::getTitle)
+            .toList();
+    if (!revoked.isEmpty()) {
+      throw new BadRequestException(
+          "These injects run a revoked payload: " + String.join(", ", revoked));
+    }
+  }
+
   /** A revoked payload is never launched, whatever the license (F9, F18). */
   public void throwIfPayloadRevoked(Inject inject) {
     payloadRevocationService
