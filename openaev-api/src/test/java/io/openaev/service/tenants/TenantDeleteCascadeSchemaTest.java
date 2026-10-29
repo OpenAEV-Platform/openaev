@@ -23,14 +23,17 @@ import org.springframework.jdbc.datasource.SingleConnectionDataSource;
  *
  * <ul>
  *   <li>a foreign key to {@code tenants} that does not cascade;
+ *   <li>a {@code tenant_id} column with no {@code ON DELETE CASCADE} foreign key to {@code
+ *       tenants}, unless it is in {@link #REVIEWED_TENANT_IDS_WITHOUT_THEIR_OWN_CASCADE};
  *   <li>a {@code NO ACTION} or {@code RESTRICT} foreign key from a table outside the cascade to a
  *       table inside it;
  *   <li>a {@code SET NULL} foreign key to a table inside the cascade that nulls a {@code NOT NULL}
  *       column, and a {@code SET DEFAULT} one that sets a {@code NOT NULL} column or a column with
  *       a default, whose parent row may be gone;
  *   <li>a foreign key between two tables inside the cascade that is {@code RESTRICT}, or that is
- *       {@code NO ACTION} with a referencing table whose {@code tenant_id} is nullable or a key
- *       that does not pair {@code tenant_id} with {@code tenant_id}, unless it is in {@link
+ *       {@code NO ACTION} with a referencing table whose {@code tenant_id} is nullable or has no
+ *       {@code ON DELETE CASCADE} foreign key to {@code tenants}, or with a key that does not pair
+ *       {@code tenant_id} with {@code tenant_id}, unless it is in {@link
  *       #REVIEWED_BLOCKING_KEYS_INSIDE_THE_CASCADE}.
  * </ul>
  *
@@ -50,6 +53,34 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
         WHERE c.contype = 'f' AND c.confdeltype = 'c'
       )
       """;
+
+  /** Whether the table {@code %s} has an ON DELETE CASCADE foreign key on tenant_id to tenants. */
+  private static final String TENANT_ID_CASCADES_TO_TENANTS =
+      "EXISTS (SELECT 1 FROM pg_constraint t"
+          + " JOIN pg_attribute ta ON ta.attrelid = t.conrelid AND ta.attnum = ANY (t.conkey)"
+          + " WHERE t.contype = 'f' AND t.conrelid = %s AND t.confrelid = 'tenants'::regclass"
+          + " AND t.confdeltype = 'c' AND ta.attname = 'tenant_id')";
+
+  /**
+   * SET NULL is refused too: on a dual-scope table it would turn a tenant row into a platform row.
+   */
+  private static final String NOT_CASCADING_TO_TENANTS =
+      "SELECT conrelid::regclass || '.' || conname FROM pg_constraint"
+          + " WHERE contype = 'f' AND confrelid = 'tenants'::regclass"
+          + " AND confdeltype <> 'c' ORDER BY 1";
+
+  /**
+   * A tenant_id column the tenant delete does not reach directly: its rows stay unless another
+   * cascading key removes them.
+   */
+  private static final String TENANT_ID_WITHOUT_ITS_OWN_CASCADE =
+      "SELECT a.attrelid::regclass::text FROM pg_attribute a"
+          + " JOIN pg_class cl ON cl.oid = a.attrelid"
+          + " WHERE cl.relnamespace = current_schema()::text::regnamespace AND cl.relkind IN ('r', 'p')"
+          + " AND a.attname = 'tenant_id' AND NOT a.attisdropped"
+          + " AND a.attrelid <> 'tenants'::regclass AND NOT "
+          + TENANT_ID_CASCADES_TO_TENANTS.formatted("a.attrelid")
+          + " ORDER BY 1";
 
   private static final String FOREIGN_KEY_LABEL =
       "SELECT c.conrelid::regclass || '.' || c.conname || ' -> ' || c.confrelid::regclass"
@@ -77,8 +108,9 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
   /**
    * NO ACTION is checked once the whole cascade has run, so it holds when the referencing row is
    * removed by the same tenant delete. That is not known from the schema when the referencing table
-   * also holds platform rows, or when the key lets a row reference another tenant's row. RESTRICT
-   * is checked before the cascade reaches the referencing row, so it is always listed.
+   * also holds platform rows, when its tenant_id does not cascade from tenants, or when the key
+   * lets a row reference another tenant's row. RESTRICT is checked before the cascade reaches the
+   * referencing row, so it is always listed.
    */
   private static final String BLOCKING_INSIDE_THE_CASCADE =
       CASCADED_TABLES
@@ -89,6 +121,8 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
           + " AND (c.confdeltype = 'r'"
           + " OR EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.conrelid"
           + " AND a.attname = 'tenant_id' AND NOT a.attisdropped AND NOT a.attnotnull)"
+          + " OR NOT "
+          + TENANT_ID_CASCADES_TO_TENANTS.formatted("c.conrelid")
           + " OR NOT EXISTS (SELECT 1 FROM unnest(c.conkey, c.confkey) AS k(child, parent)"
           + " JOIN pg_attribute ca ON ca.attrelid = c.conrelid AND ca.attnum = k.child"
           + " JOIN pg_attribute pa ON pa.attrelid = c.confrelid AND pa.attnum = k.parent"
@@ -121,6 +155,27 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
           "removed with its asset group (asset_group_id_fk cascades); a tag rule and its asset"
               + " groups belong to one tenant");
 
+  private static final String REMOVED_WITH_ITS_INJECTOR_CONTRACT =
+      "tenant_id is NOT NULL and part of (injector_contract_id, tenant_id), which cascades from"
+          + " injectors_contracts, whose tenant_id cascades from tenants";
+
+  /**
+   * Tables whose tenant_id has no cascading key of its own, each with the reason its rows still go
+   * with the tenant delete.
+   */
+  private static final Map<String, String> REVIEWED_TENANT_IDS_WITHOUT_THEIR_OWN_CASCADE =
+      Map.of(
+          "injectors_contracts_attack_patterns",
+          REMOVED_WITH_ITS_INJECTOR_CONTRACT,
+          "injectors_contracts_domains",
+          REMOVED_WITH_ITS_INJECTOR_CONTRACT,
+          "injectors_contracts_vulnerabilities",
+          REMOVED_WITH_ITS_INJECTOR_CONTRACT,
+          "injectors_injector_contracts",
+          REMOVED_WITH_ITS_INJECTOR_CONTRACT,
+          "injector_contract_tags",
+          REMOVED_WITH_ITS_INJECTOR_CONTRACT);
+
   @Autowired private DataSource dataSource;
 
   private JdbcTemplate jdbc;
@@ -137,20 +192,30 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
     @Test
     @DisplayName("given the live schema, should cascade every foreign key to tenants")
     void given_theLiveSchema_should_cascadeEveryForeignKeyToTenants() {
-      // SET NULL is refused too: on a dual-scope table it would turn a tenant row into a platform
-      // row.
       // Act
-      List<String> refusing =
-          jdbc.queryForList(
-              "SELECT conrelid::regclass || '.' || conname FROM pg_constraint"
-                  + " WHERE contype = 'f' AND confrelid = 'tenants'::regclass"
-                  + " AND confdeltype <> 'c' ORDER BY 1",
-              String.class);
+      List<String> refusing = jdbc.queryForList(NOT_CASCADING_TO_TENANTS, String.class);
 
       // Assert
       assertThat(refusing)
           .as("a foreign key to tenants without ON DELETE CASCADE refuses the tenant delete")
           .isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given the live schema, should list only reviewed tenant_id columns without a cascading"
+            + " foreign key to tenants")
+    void given_theLiveSchema_should_listOnlyReviewedTenantIdsWithoutTheirOwnCascade() {
+      // Act
+      List<String> unbound = jdbc.queryForList(TENANT_ID_WITHOUT_ITS_OWN_CASCADE, String.class);
+
+      // Assert - an entry that no longer matches must leave the list with its table.
+      assertThat(unbound)
+          .as(
+              "a tenant_id column the tenant delete does not cascade to needs a reason why its rows"
+                  + " go with the same tenant delete")
+          .containsExactlyInAnyOrderElementsOf(
+              REVIEWED_TENANT_IDS_WITHOUT_THEIR_OWN_CASCADE.keySet());
     }
 
     @Test
@@ -235,8 +300,71 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given SET NULL on a NOT NULL column and SET DEFAULT on a column with a default, should"
-            + " list both and not a SET NULL on a nullable column")
+        "given NO ACTION and SET NULL foreign keys to tenants, should list both and not a"
+            + " cascading one")
+    void given_foreignKeysToTenantsOfEachDeleteAction_should_listOnlyTheNonCascadingOnes()
+        throws Exception {
+      List<String> refusing =
+          inRolledBackTransaction(
+              tx -> {
+                // Arrange
+                tx.execute(
+                    "CREATE TABLE schema_check_tenant_no_action (tenant_id varchar(255)"
+                        + " CONSTRAINT fk_tenant_no_action REFERENCES tenants(tenant_id))");
+                tx.execute(
+                    "CREATE TABLE schema_check_tenant_set_null (tenant_id varchar(255)"
+                        + " CONSTRAINT fk_tenant_set_null REFERENCES tenants(tenant_id)"
+                        + " ON DELETE SET NULL)");
+                tx.execute(
+                    "CREATE TABLE schema_check_tenant_cascade (tenant_id varchar(255)"
+                        + " CONSTRAINT fk_tenant_cascade REFERENCES tenants(tenant_id)"
+                        + " ON DELETE CASCADE)");
+
+                // Act
+                return tx.queryForList(NOT_CASCADING_TO_TENANTS, String.class);
+              });
+
+      // Assert
+      assertThat(refusing)
+          .contains(
+              "schema_check_tenant_no_action.fk_tenant_no_action",
+              "schema_check_tenant_set_null.fk_tenant_set_null")
+          .doesNotContain("schema_check_tenant_cascade.fk_tenant_cascade");
+    }
+
+    @Test
+    @DisplayName(
+        "given tenant_id columns with no key and a NO ACTION key to tenants, should list both and"
+            + " not one with a cascading key")
+    void given_tenantIdColumnsOfEachKeyShape_should_listOnlyTheOnesWithoutACascade()
+        throws Exception {
+      List<String> unbound =
+          inRolledBackTransaction(
+              tx -> {
+                // Arrange
+                tx.execute("CREATE TABLE schema_check_tenant_id_no_key (tenant_id varchar(255))");
+                tx.execute(
+                    "CREATE TABLE schema_check_tenant_id_no_action (tenant_id varchar(255)"
+                        + " REFERENCES tenants(tenant_id))");
+                tx.execute(
+                    "CREATE TABLE schema_check_tenant_id_cascade (tenant_id varchar(255)"
+                        + " REFERENCES tenants(tenant_id) ON DELETE CASCADE)");
+
+                // Act
+                return tx.queryForList(TENANT_ID_WITHOUT_ITS_OWN_CASCADE, String.class);
+              });
+
+      // Assert
+      assertThat(unbound)
+          .contains("schema_check_tenant_id_no_key", "schema_check_tenant_id_no_action")
+          .doesNotContain("schema_check_tenant_id_cascade");
+    }
+
+    @Test
+    @DisplayName(
+        "given SET NULL or SET DEFAULT on a NOT NULL column and SET DEFAULT on a column with a"
+            + " default, should list them and not SET NULL or SET DEFAULT on a nullable column"
+            + " without a default")
     void given_setActionsOfEachShape_should_listOnlyTheRefusedOnes() throws Exception {
       List<String> failing =
           inRolledBackTransaction(
@@ -252,9 +380,17 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
                         + " CONSTRAINT fk_set_default REFERENCES schema_check_parent"
                         + " ON DELETE SET DEFAULT)");
                 tx.execute(
+                    "CREATE TABLE schema_check_set_default_not_null (parent_id varchar(255) NOT"
+                        + " NULL CONSTRAINT fk_set_default_not_null REFERENCES schema_check_parent"
+                        + " ON DELETE SET DEFAULT)");
+                tx.execute(
                     "CREATE TABLE schema_check_set_null_nullable (parent_id varchar(255)"
                         + " CONSTRAINT fk_set_null_nullable REFERENCES schema_check_parent"
                         + " ON DELETE SET NULL)");
+                tx.execute(
+                    "CREATE TABLE schema_check_set_default_nullable (parent_id varchar(255)"
+                        + " CONSTRAINT fk_set_default_nullable REFERENCES schema_check_parent"
+                        + " ON DELETE SET DEFAULT)");
 
                 // Act
                 return tx.queryForList(FAILING_SET_ACTIONS, String.class);
@@ -264,15 +400,18 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
       assertThat(failing)
           .contains(
               "schema_check_set_null_not_null.fk_set_null_not_null -> schema_check_parent",
-              "schema_check_set_default.fk_set_default -> schema_check_parent")
+              "schema_check_set_default.fk_set_default -> schema_check_parent",
+              "schema_check_set_default_not_null.fk_set_default_not_null -> schema_check_parent")
           .doesNotContain(
-              "schema_check_set_null_nullable.fk_set_null_nullable -> schema_check_parent");
+              "schema_check_set_null_nullable.fk_set_null_nullable -> schema_check_parent",
+              "schema_check_set_default_nullable.fk_set_default_nullable -> schema_check_parent");
     }
 
     @Test
     @DisplayName(
         "given blocking foreign keys inside the cascade, should list a dual-scope referencing"
-            + " table, a key without tenant_id and RESTRICT, and not a NO ACTION key on tenant_id")
+            + " table, a tenant_id that does not cascade from tenants, a key without tenant_id and"
+            + " RESTRICT, and not a NO ACTION key on a cascading tenant_id")
     void given_blockingKeysInsideTheCascade_should_listEachUnprovenShape() throws Exception {
       List<String> blocking =
           inRolledBackTransaction(
@@ -283,6 +422,12 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
                     "CREATE TABLE schema_check_dual_scope (parent_id varchar(255),"
                         + " tenant_id varchar(255) REFERENCES tenants(tenant_id) ON DELETE CASCADE,"
                         + " CONSTRAINT fk_dual_scope FOREIGN KEY (parent_id, tenant_id)"
+                        + " REFERENCES schema_check_parent (parent_id, tenant_id))");
+                tx.execute(
+                    "CREATE TABLE schema_check_tenant_unbound (holder_id varchar(255)"
+                        + " REFERENCES schema_check_parent ON DELETE CASCADE,"
+                        + " parent_id varchar(255), tenant_id varchar(255) NOT NULL,"
+                        + " CONSTRAINT fk_tenant_unbound FOREIGN KEY (parent_id, tenant_id)"
                         + " REFERENCES schema_check_parent (parent_id, tenant_id))");
                 tx.execute(
                     "CREATE TABLE schema_check_no_tenant_key (parent_id varchar(255)"
@@ -309,6 +454,7 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
       assertThat(blocking)
           .contains(
               "schema_check_dual_scope.fk_dual_scope -> schema_check_parent",
+              "schema_check_tenant_unbound.fk_tenant_unbound -> schema_check_parent",
               "schema_check_no_tenant_key.fk_no_tenant_key -> schema_check_parent",
               "schema_check_restrict.fk_restrict -> schema_check_parent")
           .doesNotContain("schema_check_tenant_key.fk_tenant_key -> schema_check_parent");
@@ -316,9 +462,10 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given a NO ACTION foreign key from outside the cascade, should list it and not one from"
-            + " inside")
-    void given_aNoActionKeyFromOutsideTheCascade_should_listIt() throws Exception {
+        "given NO ACTION and RESTRICT foreign keys from outside the cascade and a NO ACTION one"
+            + " from inside, should list only the ones from outside")
+    void given_blockingKeysFromOutsideAndInsideTheCascade_should_listOnlyTheOnesFromOutside()
+        throws Exception {
       List<String> blocking =
           inRolledBackTransaction(
               tx -> {
@@ -327,13 +474,26 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
                 tx.execute(
                     "CREATE TABLE schema_check_outside (parent_id varchar(255)"
                         + " CONSTRAINT fk_outside REFERENCES schema_check_parent)");
+                tx.execute(
+                    "CREATE TABLE schema_check_outside_restrict (parent_id varchar(255)"
+                        + " CONSTRAINT fk_outside_restrict REFERENCES schema_check_parent"
+                        + " ON DELETE RESTRICT)");
+                tx.execute(
+                    "CREATE TABLE schema_check_inside (parent_id varchar(255)"
+                        + " CONSTRAINT fk_inside REFERENCES schema_check_parent,"
+                        + " tenant_id varchar(255) NOT NULL REFERENCES tenants(tenant_id)"
+                        + " ON DELETE CASCADE)");
 
                 // Act
                 return tx.queryForList(BLOCKING_FROM_OUTSIDE_THE_CASCADE, String.class);
               });
 
       // Assert
-      assertThat(blocking).contains("schema_check_outside.fk_outside -> schema_check_parent");
+      assertThat(blocking)
+          .contains(
+              "schema_check_outside.fk_outside -> schema_check_parent",
+              "schema_check_outside_restrict.fk_outside_restrict -> schema_check_parent")
+          .doesNotContain("schema_check_inside.fk_inside -> schema_check_parent");
     }
 
     private <T> T inRolledBackTransaction(TransactionWork<T> work) throws Exception {
