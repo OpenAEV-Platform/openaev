@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.audit.AuditLoggedService;
 import io.openaev.database.model.*;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -257,6 +258,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * @param iconStream optional PNG icon data — uploaded to the file store when present
    * @param author optional source-declared author override for the collector's payloads and
    *     contracts; when null or blank the collector name is used as author
+   * @param supportedExpectationTypes expectation types declared by the collector; replaced at every
+   *     registration, unknown values are ignored, null or no known value keeps the legacy behaviour
+   *     (see {@link Collector#supportsExpectationType})
    * @return the persisted collector
    */
   @Transactional
@@ -269,7 +273,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       int period,
       String securityPlatformId,
       InputStream iconStream,
-      String author)
+      String author,
+      List<String> supportedExpectationTypes)
       throws Exception {
 
     if (iconStream != null) {
@@ -311,6 +316,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     collector.setCollectorType(collectorType);
     collector.setExternal(external);
     collector.setAuthor(author != null && !author.isBlank() ? author : null);
+    collector.setSupportedExpectationTypes(
+        parseSupportedExpectationTypes(id, supportedExpectationTypes));
     if (external) {
       collector.setUpdatedAt(Instant.now());
     }
@@ -324,6 +331,36 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     }
 
     return collectorRepository.save(collector);
+  }
+
+  /**
+   * Reads the expectation types declared by a collector. Values unknown to this platform version (a
+   * newer type, a typo) are ignored with a warning rather than failing the registration, which
+   * would stop the collector from working at all.
+   *
+   * @return the known declared types, or null when none is known (legacy behaviour)
+   */
+  static EXPECTATION_TYPE[] parseSupportedExpectationTypes(
+      String collectorId, List<String> declaredTypes) {
+    if (declaredTypes == null) {
+      return null;
+    }
+    List<EXPECTATION_TYPE> known = new ArrayList<>();
+    for (String declaredType : declaredTypes) {
+      try {
+        EXPECTATION_TYPE expectationType =
+            EXPECTATION_TYPE.valueOf(declaredType.trim().toUpperCase());
+        if (!known.contains(expectationType)) {
+          known.add(expectationType);
+        }
+      } catch (IllegalArgumentException | NullPointerException e) {
+        log.warn(
+            "Collector {} declared an unknown expectation type {}, ignoring it",
+            collectorId,
+            declaredType);
+      }
+    }
+    return known.isEmpty() ? null : known.toArray(EXPECTATION_TYPE[]::new);
   }
 
   /**

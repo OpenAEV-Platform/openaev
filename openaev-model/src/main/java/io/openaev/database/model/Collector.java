@@ -5,15 +5,19 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.AuditStateCapturable;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,6 +37,10 @@ import org.hibernate.annotations.Type;
 @EntityListeners({ModelBaseListener.class})
 @IdClass(ConnectorCompositeId.class)
 public class Collector extends BaseConnectorEntity implements TenantIdBase, AuditStateCapturable {
+
+  /** Expectation types answered by a collector that declares none (collectors released before). */
+  public static final List<EXPECTATION_TYPE> LEGACY_SUPPORTED_EXPECTATION_TYPES =
+      List.of(EXPECTATION_TYPE.DETECTION, EXPECTATION_TYPE.PREVENTION);
 
   @Id
   @Column(name = "collector_id")
@@ -101,6 +109,15 @@ public class Collector extends BaseConnectorEntity implements TenantIdBase, Audi
   @AuditStateIgnore
   private SecurityPlatform securityPlatform;
 
+  /**
+   * Expectation types the collector declared it answers, replaced at every registration. Null when
+   * it declared none: it then answers {@link #LEGACY_SUPPORTED_EXPECTATION_TYPES}.
+   */
+  @Type(StringArrayType.class)
+  @Column(name = "collector_supported_expectation_types", columnDefinition = "text[]")
+  @JsonProperty("collector_supported_expectation_types")
+  private EXPECTATION_TYPE[] supportedExpectationTypes;
+
   @JsonProperty("collector_state")
   @Column(name = "collector_state")
   @Type(JsonType.class)
@@ -109,6 +126,17 @@ public class Collector extends BaseConnectorEntity implements TenantIdBase, Audi
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.COLLECTOR;
+
+  /**
+   * Whether this collector is expected to answer expectations of the given type, so that a pending
+   * result is only seeded for collectors able to fill it.
+   */
+  public boolean supportsExpectationType(EXPECTATION_TYPE expectationType) {
+    if (supportedExpectationTypes == null || supportedExpectationTypes.length == 0) {
+      return LEGACY_SUPPORTED_EXPECTATION_TYPES.contains(expectationType);
+    }
+    return Arrays.asList(supportedExpectationTypes).contains(expectationType);
+  }
 
   @JsonIgnore
   @Override

@@ -31,4 +31,13 @@ public class InjectExpectationTraceInput {
   @NotNull
   @JsonProperty("inject_expectation_trace_date")
   private Instant alertDate;
+
+  /**
+   * How a Logging trace matched the attack ({@code marker}, {@code source_ip} or {@code target_ip},
+   * case-insensitive). Read as a string so that an unknown value is dropped instead of rejecting
+   * the whole bulk.
+   */
+  @JsonProperty("inject_expectation_trace_match_type")
+  @Schema(allowableValues = {"marker", "source_ip", "target_ip"})
+  private String matchType;
 }

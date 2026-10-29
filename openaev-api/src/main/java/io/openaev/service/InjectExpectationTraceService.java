@@ -169,6 +169,7 @@ public class InjectExpectationTraceService {
           // Convert input to InjectExpectationTrace
           InjectExpectationTrace trace = new InjectExpectationTrace();
           trace.setUpdateAttributes(input);
+          trace.setMatchType(parseMatchType(input.getMatchType()));
           trace.setSecurityPlatform(collector.getSecurityPlatform());
           // We don't need to fetch the actual expectation here, we can just set the id as there is
           // no cascade
@@ -189,8 +190,25 @@ public class InjectExpectationTraceService {
           trace.getAlertLink(),
           trace.getAlertName(),
           trace.getAlertDate(),
+          trace.getMatchType() != null ? trace.getMatchType().name() : null,
           trace.getCreatedAt(),
           trace.getUpdatedAt());
+    }
+  }
+
+  /**
+   * Reads the match type sent by a collector. An unknown value is dropped with a warning: a newer
+   * collector must not get its whole bulk of traces rejected.
+   */
+  static InjectExpectationTrace.LOGGING_MATCH_TYPE parseMatchType(String matchType) {
+    if (matchType == null || matchType.isBlank()) {
+      return null;
+    }
+    try {
+      return InjectExpectationTrace.LOGGING_MATCH_TYPE.valueOf(matchType.trim().toUpperCase());
+    } catch (IllegalArgumentException e) {
+      log.warn("Ignoring unknown inject expectation trace match type: {}", matchType);
+      return null;
     }
   }
 }
