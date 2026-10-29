@@ -46,9 +46,10 @@ class OrganizationFieldComponent extends Component {
 
   onSubmit(data) {
     const { name, setFieldValue } = this.props;
-    const inputValues = R.pipe(
-      R.assoc('organization_tags', R.pluck('id', data.organization_tags)),
-    )(data);
+    const inputValues = {
+      ...data,
+      organization_tags: R.pluck('id', data.organization_tags),
+    };
     this.props.addOrganization(inputValues).then((result) => {
       if (result.result) {
         const newOrganization = result.entities.organizations[result.result];

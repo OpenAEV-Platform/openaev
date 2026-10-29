@@ -9,6 +9,7 @@ import { deleteAttackPattern, updateAttackPattern } from '../../../../actions/At
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
+import { pick } from '../../../../utils/object';
 import { killChainPhaseOptions } from '../../../../utils/Option';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -31,9 +32,10 @@ const AttackPatternPopover = ({ attackPattern, killChainPhasesMap, onUpdate, onD
   };
   const handleCloseEdit = () => setOpenEdit(false);
   const onSubmitEdit = (data) => {
-    const inputValues = R.pipe(
-      R.assoc('attack_pattern_kill_chain_phases', R.pluck('id', data.attack_pattern_kill_chain_phases)),
-    )(data);
+    const inputValues = {
+      ...data,
+      attack_pattern_kill_chain_phases: R.pluck('id', data.attack_pattern_kill_chain_phases),
+    };
     return dispatch(updateAttackPattern(attackPattern.attack_pattern_id, inputValues)).then((result) => {
       if (onUpdate) {
         const attackPatternUpdated = result.entities.attackpatterns[result.result];
@@ -59,14 +61,15 @@ const AttackPatternPopover = ({ attackPattern, killChainPhasesMap, onUpdate, onD
     handleCloseDelete();
   };
   const attackPatternKillChainPhases = killChainPhaseOptions(attackPattern.attack_pattern_kill_chain_phases, killChainPhasesMap);
-  const initialValues = R.pipe(
-    R.pick([
+  const initialValues = {
+    ...pick(attackPattern, [
       'attack_pattern_external_id',
       'attack_pattern_name',
       'attack_pattern_description',
     ]),
-    R.assoc('attack_pattern_kill_chain_phases', attackPatternKillChainPhases),
-  )(attackPattern);
+
+    attack_pattern_kill_chain_phases: attackPatternKillChainPhases,
+  };
   return (
     <>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>

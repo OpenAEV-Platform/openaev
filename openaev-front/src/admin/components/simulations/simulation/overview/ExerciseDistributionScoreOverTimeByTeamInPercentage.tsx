@@ -40,17 +40,17 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
           R.sortWith([R.ascend(R.prop('inject_expectation_updated_at'))]),
           R.map((i: InjectExpectationOutput) => {
             cumulation += i.inject_expectation_score ?? 0;
-            return R.assoc(
-              'inject_expectation_percent_score',
-              Math.round(
+            return {
+              ...i,
+
+              inject_expectation_percent_score: Math.round(
                 (cumulation * 100)
                 / (teamsMap[n[0]] && teamsMap[n[0]].team_injects_expectations_total_expected_score_by_exercise
                   ? teamsMap[n[0]]
                     .team_injects_expectations_total_expected_score_by_exercise[exerciseId]
                   : 1),
               ),
-              i,
-            );
+            };
           }),
         )(n[1]),
       ];
