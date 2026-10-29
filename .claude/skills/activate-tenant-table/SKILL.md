@@ -380,22 +380,26 @@ Classify every hit:
 The test profile declares no `openaev.tenant.active-tables`, so the inspector never fires in a test
 context unless that context sets it. Every isolation test therefore arms its table on top of the
 production list: a `@DynamicPropertySource` that registers `ProductionActiveTables.names()` plus
-`{table}`, as the RED phase above shows. A narrower list is a pin, and `PinnedActiveTablesArchTest`
-fails until it is declared, with its reason, in `pinned-active-tables-baseline.txt`.
+`{table}`, as Phase 2 below shows. `names()` returns the tables production arms, so under the
+terminal `*` it returns the tables `*` arms rather than the `*` itself, and the registration stays a
+valid explicit list. A narrower list is a pin, and `PinnedActiveTablesArchTest` fails until it is
+declared, with its reason, in `pinned-active-tables-baseline.txt`.
 
 The same fact decides what a control run is worth when you size an activation by arming the table and
 counting what goes red. The rule is **the control must differ from the treatment by your table and
 nothing else**:
 
-- **you armed your table only**, the convention this skill prescribes: "the same class with no
-  property" is a valid control. The inspector is installed either way and simply rewrites nothing
-  when no table is active, so the one difference is your table.
-- **you armed your table on top of other tables**, for instance the production list plus yours: the
-  no-property run is NOT a control. It differs from the treatment by every table in the list, so what
-  you measure is the cost of switching the inspector on at all. The only valid control is the same
-  armed set minus the table under test.
+- **you armed your table on top of the production list**, the convention this skill prescribes: the
+  control is the same class armed with the production list alone, which is what `main` ships, so run
+  it on `main`, or on your branch with your table taken out of the registration. The no-property run
+  is NOT a control: it differs from the treatment by every production table, so what it measures is
+  the cost of switching the inspector on at all.
+- **you armed your table only**, for a one-off measurement outside the convention: "the same class
+  with no property" is then a valid control. The inspector is installed either way and rewrites
+  nothing when no table is active, so the one difference is your table. A class that keeps that
+  narrower list is a pin, so this shape is for a measurement, not for a test you commit.
 
-A real case for the second shape: an inventory arming the production list plus `teams` reported
+A real case for the first shape: an inventory arming the production list plus `teams` reported
 seventeen red against a no-property control, and eleven of them were a `domains` unique-key collision
 that reproduces with `domains` armed alone and has nothing to do with `teams`. Armed with `teams`
 only, the class was twelve red and none was a collision.
