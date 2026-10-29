@@ -46,17 +46,15 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * leaves the second tenant's cleanup reading the first tenant's rows, which the assertions below
  * refuse.
  *
- * <p>The scope the final batch statement runs under is observed from a transaction synchronization,
- * because it is set after the last iteration and the GUC is transaction-local, so nothing outside
- * the purge transaction can read it. That assertion pins a stated commitment of the method, not a
- * row difference: {@code tenants} is not an active table, so the batch {@code DELETE} is not
- * rewritten by the scope today and both tenant rows are removed whatever the scope says. What it
- * refuses is the shape, a statement spanning several tenants running under whichever single tenant
- * the loop happened to end on.
+ * <p>The scope the tenant row delete runs under is observed from a transaction synchronization,
+ * because it runs after the cleanup and the GUC is transaction-local, so nothing outside the purge
+ * transaction can read it. That assertion pins a stated commitment of the method, not a row
+ * difference: {@code tenants} is not an active table, so the {@code DELETE} is not rewritten by the
+ * scope today and the tenant row is removed whatever the scope says. What it refuses is the delete
+ * running under another tenant's scope, or under none.
  *
- * <p>NOT {@code @Transactional}: the purge is one unit of work owned by {@link TenantService}, and
- * a surrounding test transaction would also keep the tenant rows it deletes alive for the
- * assertions.
+ * <p>NOT {@code @Transactional}: the purge opens one transaction per tenant, and a surrounding test
+ * transaction would also keep the tenant rows it deletes alive for the assertions.
  */
 @TestPropertySource(properties = "openaev.tenant.active-tables=marking_definitions")
 @Import(TenantPurgeScopeTest.ScopeProbeConfiguration.class)
@@ -74,8 +72,7 @@ class TenantPurgeScopeTest extends IntegrationTest {
     private final EntityManager entityManager;
     final Map<String, String> scopeSeenPerTenant = new LinkedHashMap<>();
     final Map<String, List<String>> markingsSeenPerTenant = new LinkedHashMap<>();
-    String scopeSeenAtCommit;
-    private boolean commitProbeRegistered;
+    final Map<String, String> scopeSeenAtCommitPerTenant = new LinkedHashMap<>();
 
     ScopeProbe(EntityManager entityManager) {
       this.entityManager = entityManager;
@@ -88,7 +85,7 @@ class TenantPurgeScopeTest extends IntegrationTest {
 
     @Override
     public void deleteDependencyForTenant(String tenantId) {
-      registerCommitProbe();
+      registerCommitProbe(tenantId);
       scopeSeenPerTenant.put(tenantId, currentScope());
       markingsSeenPerTenant.put(
           tenantId,
@@ -99,20 +96,15 @@ class TenantPurgeScopeTest extends IntegrationTest {
     }
 
     /**
-     * Reads the scope the batch statement runs under. {@code beforeCommit} fires after the method
-     * body has returned, so after the widening to the whole purged set, and while the transaction
-     * and its connection are still the purge's own.
+     * Reads the scope the tenant row delete runs under. {@code beforeCommit} fires after that
+     * delete, while the transaction and its connection are still this tenant's own.
      */
-    private void registerCommitProbe() {
-      if (commitProbeRegistered) {
-        return;
-      }
-      commitProbeRegistered = true;
+    private void registerCommitProbe(String tenantId) {
       TransactionSynchronizationManager.registerSynchronization(
           new TransactionSynchronization() {
             @Override
             public void beforeCommit(boolean readOnly) {
-              scopeSeenAtCommit = currentScope();
+              scopeSeenAtCommitPerTenant.put(tenantId, currentScope());
             }
           });
     }
@@ -127,8 +119,7 @@ class TenantPurgeScopeTest extends IntegrationTest {
     void reset() {
       scopeSeenPerTenant.clear();
       markingsSeenPerTenant.clear();
-      scopeSeenAtCommit = null;
-      commitProbeRegistered = false;
+      scopeSeenAtCommitPerTenant.clear();
     }
   }
 
@@ -252,26 +243,21 @@ class TenantPurgeScopeTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("the batch delete spans every purged tenant")
-  class BatchScope {
+  @DisplayName("each tenant row is deleted under that tenant's scope")
+  class DeleteScope {
 
     @Test
     @DisplayName(
-        "given two expired tenants, should run the batch statement under the whole purged set's"
-            + " scope")
-    void given_twoExpiredTenants_should_runTheBatchStatementUnderTheWholePurgedSetScope() {
+        "given two expired tenants, should delete each tenant row under that tenant's scope only")
+    void given_twoExpiredTenants_should_deleteEachTenantRowUnderThatTenantsScopeOnly() {
       // Act
       tenantService.purgeExpiredTenants();
 
-      // Assert - the scope is stated for the whole set, not left on whichever tenant ended the
-      // loop.
-      assertThat(scopeProbe.scopeSeenAtCommit)
-          .as("the purge transaction must still carry a scope when the batch statement runs")
-          .isNotBlank();
-      assertThat(scopeProbe.scopeSeenAtCommit.split(","))
-          .as("both purged tenants must be in the batch statement's scope, and no bystander")
-          .contains(firstExpiredTenantId, secondExpiredTenantId)
-          .doesNotContain(bystanderTenantId);
+      // Assert - each delete carries its own tenant, not the other purged one nor the bystander.
+      assertThat(scopeProbe.scopeSeenAtCommitPerTenant)
+          .as("each tenant's purge transaction must still carry that tenant's scope at commit")
+          .containsEntry(firstExpiredTenantId, firstExpiredTenantId)
+          .containsEntry(secondExpiredTenantId, secondExpiredTenantId);
     }
 
     @Test

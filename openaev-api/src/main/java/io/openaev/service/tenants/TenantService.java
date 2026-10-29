@@ -27,9 +27,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ClassUtils;
 
 @Slf4j
@@ -200,9 +199,14 @@ public class TenantService {
   }
 
   /**
-   * Permanently deletes all tenants whose a grace period has expired. Dependencies are cleaned
-   * individually per tenant, then all expired tenants are deleted in a single batch query.
+   * Permanently deletes every tenant whose grace period has expired, each in its own transaction
+   * scoped to that tenant, so that one tenant that cannot be purged neither rolls back nor stops
+   * the others. A failed tenant stays soft deleted and is retried on the next run; the failures are
+   * logged one by one and rethrown together at the end, so the job is recorded as failed.
+   *
+   * <p>Opens no transaction of its own: the per-tenant transactions are top-level.
    */
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public int purgeExpiredTenants() {
     Instant cutoffDate = Instant.now().minus(SOFT_DELETE_RETENTION_DAYS, ChronoUnit.DAYS);
     List<Tenant> expired = tenantRepository.findAllExpiredSoftDeleted(cutoffDate);
@@ -210,49 +214,55 @@ public class TenantService {
       return 0;
     }
 
-    List<String> purgedIds = new java.util.ArrayList<>();
+    List<String> purgedIds = new ArrayList<>();
+    Map<String, RuntimeException> failures = new LinkedHashMap<>();
     for (Tenant tenant : expired) {
       try {
         // The cascade reads this tenant's own rows on scoped tables, so it is fail-closed without
-        // a scope. Narrowed per iteration, and reset below for the statement spanning the whole
-        // purged set.
-        tenantScopedTransaction.setScopeOnCurrentTransaction(TxCtx.forTenant(tenant.getId()));
-        for (DependenciesManager dependency : dependencies) {
-          dependency.deleteDependencyForTenant(tenant.getId());
-        }
+        // a scope.
+        tenantScopedTransaction.execute(
+            TxCtx.forTenant(tenant.getId()), () -> purgeTenant(tenant.getId()));
         purgedIds.add(tenant.getId());
-      } catch (DependenciesManagerException e) {
+      } catch (RuntimeException e) {
+        failures.put(tenant.getId(), e);
         log.error(
-            "Failed to clean dependencies for tenant {} ({}): {}",
+            "Failed to purge tenant {} ({}), it stays soft deleted and is retried on the next run",
             tenant.getId(),
             tenant.getName(),
-            e.getMessage());
+            e);
       }
     }
 
     if (!purgedIds.isEmpty()) {
-      // One batch statement over every tenant purged above: the scope is that whole set, stated
-      // explicitly rather than left on whichever tenant the loop ended on.
-      tenantScopedTransaction.setScopeOnCurrentTransaction(TxCtx.forTenants(purgedIds));
-      tenantRepository.deleteAllByIdsNative(purgedIds);
       // Tenant data is removed via native SQL (no JPA lifecycle events): clean the search engine
       // explicitly so the purged tenants' documents don't survive as permanent index garbage.
-      // Deferred to after commit: if the surrounding transaction rolls back, the SQL data is
-      // restored and the index must not have been wiped. Single batched delete-by-query.
-      List<String> idsToClean = List.copyOf(purgedIds);
-      if (TransactionSynchronizationManager.isSynchronizationActive()) {
-        TransactionSynchronizationManager.registerSynchronization(
-            new TransactionSynchronization() {
-              @Override
-              public void afterCommit() {
-                engineService.deleteByTenants(idsToClean);
-              }
-            });
-      } else {
-        engineService.deleteByTenants(idsToClean);
-      }
+      // Every purged tenant is committed at this point. Single batched delete-by-query.
+      engineService.deleteByTenants(purgedIds);
+    }
+    if (!failures.isEmpty()) {
+      IllegalStateException aggregate =
+          new IllegalStateException(
+              "Purged "
+                  + purgedIds.size()
+                  + " of "
+                  + expired.size()
+                  + " expired tenant(s), failed: "
+                  + failures.keySet());
+      failures.values().forEach(aggregate::addSuppressed);
+      throw aggregate;
     }
     return purgedIds.size();
+  }
+
+  private void purgeTenant(String tenantId) {
+    try {
+      for (DependenciesManager dependency : dependencies) {
+        dependency.deleteDependencyForTenant(tenantId);
+      }
+    } catch (DependenciesManagerException e) {
+      throw new IllegalStateException(e.getMessage(), e);
+    }
+    tenantRepository.deleteAllByIdsNative(List.of(tenantId));
   }
 
   // -- INTERNAL --
