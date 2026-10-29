@@ -234,7 +234,7 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public ScenarioOutput scenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
-    return scenarioService.getScenarioById(scenarioId);
+    return scenarioService.getScenarioById(ctx, scenarioId);
   }
 
   @GetMapping({
@@ -443,7 +443,7 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public List<TeamOutput> scenarioTeams(
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
-    return this.scenarioService.getScenarioTeams(scenarioId);
+    return this.scenarioService.getScenarioTeams(ctx, scenarioId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -459,7 +459,7 @@ public class ScenarioApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioUpdateTeamsInput input) {
-    return this.scenarioService.removeTeams(scenarioId, input.getTeamIds());
+    return this.scenarioService.removeTeams(ctx, scenarioId, input.getTeamIds());
   }
 
   @Transactional(rollbackFor = Exception.class)

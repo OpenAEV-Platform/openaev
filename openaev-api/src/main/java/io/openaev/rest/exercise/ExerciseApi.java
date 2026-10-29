@@ -347,7 +347,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<TeamOutput> getExerciseTeams(TxCtx ctx, @PathVariable String exerciseId) {
-    return this.exerciseService.getExerciseTeams(exerciseId);
+    return this.exerciseService.getExerciseTeams(ctx, exerciseId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -363,7 +363,7 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String exerciseId,
       @Valid @RequestBody ExerciseUpdateTeamsInput input) {
-    return this.exerciseService.removeTeams(exerciseId, input.getTeamIds());
+    return this.exerciseService.removeTeams(ctx, exerciseId, input.getTeamIds());
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -551,7 +551,7 @@ public class ExerciseApi extends RestBehavior {
       description =
           "Duplicates a simulation's authored content. A chained simulation also gets a copy of its logic map (workflow, steps and conditions); execution artefacts - including its runtime-generated injects - are never copied. Requires an Enterprise Edition license when the simulation is chained.")
   public Exercise duplicateExercise(TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
-    return hydrateForResponse(exerciseService.duplicateExercise(exerciseId));
+    return hydrateForResponse(exerciseService.duplicateExercise(ctx, exerciseId));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -747,7 +747,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(readOnly = true)
   public SimulationDetails exercise(TxCtx ctx, @PathVariable String exerciseId) {
     // We get the raw exercise
-    RawSimulationIndexing rawSimulation = exerciseService.rawSimulation(exerciseId);
+    RawSimulationIndexing rawSimulation = exerciseService.rawSimulation(ctx, exerciseId);
     // We get aggregated inject metadata: platforms, comms count, kill chain phases
     long communicationsNumber = communicationRepository.countByExerciseId(exerciseId);
     List<KillChainPhase> killChainPhases =
@@ -859,7 +859,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationResultsByAttackPattern> injectResults(
       TxCtx ctx, @NotBlank final @PathVariable String exerciseId) {
-    return exerciseService.extractExpectationResultsByAttackPattern(exerciseId);
+    return exerciseService.extractExpectationResultsByAttackPattern(ctx, exerciseId);
   }
 
   @DeleteMapping({
@@ -1212,7 +1212,7 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the simulation")
           final String simulationId) {
-    Scenario scenario = scenarioService.scenarioFromSimulationId(simulationId);
+    Scenario scenario = scenarioService.scenarioFromSimulationId(ctx, simulationId);
     KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
     // Same open-in-view reason as hydrateForResponse: scenario_teams would serialize empty.
     Hibernate.initialize(scenario.getTeams());
