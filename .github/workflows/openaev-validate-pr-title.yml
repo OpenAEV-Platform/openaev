@@ -34,3 +34,8 @@ jobs:
             echo "Invalid PR title. Required format: type(scope?)!?: description"
             exit 1
           fi
+          issue_ref='#[0-9]+'
+          if [[ "$TITLE" =~ $issue_ref ]]; then
+            echo "Invalid PR title. A PR related to a private issue must not reference an issue (#N) in its title"
+            exit 1
+          fi
