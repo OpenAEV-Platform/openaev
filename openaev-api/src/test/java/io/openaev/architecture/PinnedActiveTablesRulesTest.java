@@ -12,6 +12,7 @@ import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.DelegatesAnoth
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.DelegatesToAHelper;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.FollowsProduction;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.FollowsProductionWithItsOwnTables;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.ImplementsARegisteringInterface;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.InheritsAFollower;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.InheritsARegisteredPin;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.InheritsThePin;
@@ -26,17 +27,27 @@ import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsThroughAnI
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsThroughSpringBootTestWithColon;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsThroughTestPropertySource;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.PinsWithAnInnerClass;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersADashedNameThatIsNotTheKey;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersARelaxedName;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersAnUppercaseElement;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersAnotherProperty;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersIndexedElements;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersStateSetLater;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersTheKeyTwice;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersTheWildcard;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersTheWildcardBesideATable;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersThroughAConstant;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersThroughAnInterface;
+import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.RegistersWithIgnoredCharacters;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.SetsAnotherProperty;
 import io.openaev.architecture.fixture.PinnedActiveTablesFixtures.SubtractsOneTable;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.TenantTables;
+import java.io.ByteArrayOutputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +55,13 @@ import java.util.TreeSet;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.platform.commons.annotation.Testable;
+import org.springframework.core.annotation.MergedAnnotations;
+import org.springframework.test.context.ContextCustomizer;
+import org.springframework.test.context.ContextCustomizerFactory;
+import org.springframework.test.context.DynamicPropertyRegistry;
 
 /**
  * Proves the pinned-list guard finds every shape of pin, judges a dynamic registration by the value
@@ -53,8 +71,81 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Pinned activation list guard: it finds pins, it reads the baseline strictly")
 class PinnedActiveTablesRulesTest {
 
+  /** A constant 65 bytes long, so the low byte of its length reads as the letter {@code A}. */
+  private static final String NEXT = "x".repeat('A');
+
   private static final String GOOD_REASON =
       "probe: arms only the table under test and asserts nothing about any other table";
+
+  @Nested
+  @DisplayName("The inventory")
+  class TheInventory {
+
+    @Test
+    @DisplayName("given the fixture package, should find its pins through the same class scan")
+    void given_fixturePackage_should_findItsPinsThroughTheSameClassScan() {
+      // Arrange
+      List<Class<?>> fixtures = PinnedActiveTablesCatalog.fixtureClasses();
+
+      // Act
+      Scan scan = Scan.of(fixtures, List.of(), ProductionActiveTables.names());
+
+      // Assert
+      assertThat(scan.annotationPins())
+          .containsEntry(
+              PinsThroughTestPropertySource.class.getName(), Set.of("documents", "tags"));
+      assertThat(scan.conflicts())
+          .containsKeys(
+              DeclaresTheKeyTwice.class.getName(), OverridesAnInheritedPin.class.getName());
+      assertThat(scan.inherited())
+          .containsKeys(
+              InheritsThePin.class.getName(),
+              InheritsARegisteredPin.class.getName(),
+              ImplementsARegisteringInterface.class.getName());
+      assertThat(scan.dynamicPins())
+          .containsKeys(
+              SubtractsOneTable.class.getName(),
+              DelegatesToAHelper.class.getName(),
+              RegistersThroughAnInterface.class.getName(),
+              RegistersAnUppercaseElement.class.getName(),
+              RegistersWithIgnoredCharacters.class.getName(),
+              RegistersIndexedElements.class.getName())
+          .doesNotContainKeys(
+              FollowsProduction.class.getName(), RegistersTheWildcard.class.getName());
+      assertThat(scan.dynamicRegistrations())
+          .doesNotContainKeys(
+              DelegatesAnotherPropertyToAHelper.class.getName(),
+              RegistersADashedNameThatIsNotTheKey.class.getName());
+    }
+
+    @Test
+    @DisplayName(
+        "given a static registration on an implemented interface, should find Spring running it"
+            + " for the class")
+    @SuppressWarnings("unchecked")
+    void given_staticRegistrationOnAnImplementedInterface_should_findSpringRunningItForTheClass()
+        throws Exception {
+      // Arrange: the factory spring-test registers for DynamicPropertySource methods
+      Constructor<?> constructor =
+          Class.forName(
+                  "org.springframework.test.context.support.DynamicPropertiesContextCustomizerFactory")
+              .getDeclaredConstructor();
+      constructor.setAccessible(true);
+      ContextCustomizerFactory factory = (ContextCustomizerFactory) constructor.newInstance();
+
+      // Act
+      ContextCustomizer customizer =
+          factory.createContextCustomizer(ImplementsARegisteringInterface.class, List.of());
+      Method methods = customizer.getClass().getDeclaredMethod("getMethods");
+      methods.setAccessible(true);
+
+      // Assert
+      assertThat((Set<Object>) methods.invoke(customizer))
+          .containsExactly(
+              RegistersThroughAnInterface.class.getDeclaredMethod(
+                  "tables", DynamicPropertyRegistry.class));
+    }
+  }
 
   @Nested
   @DisplayName("Annotation pins")
@@ -185,7 +276,9 @@ class PinnedActiveTablesRulesTest {
               PinsWithAnInnerClass.class,
               PinsWithAnInnerClass.Inner.class,
               FollowsProduction.class,
-              InheritsAFollower.class);
+              InheritsAFollower.class,
+              RegistersThroughAnInterface.class,
+              ImplementsARegisteringInterface.class);
       Map<String, Registration> dynamicPins =
           PinnedActiveTablesCatalog.dynamicPins(
               PinnedActiveTablesCatalog.dynamicRegistrations(classes),
@@ -200,7 +293,9 @@ class PinnedActiveTablesRulesTest {
               Map.of(
                   InheritsThePin.class.getName(), PinsThroughTestPropertySource.class.getName(),
                   InheritsThroughADiamond.class.getName(), PinsThroughAnInterface.class.getName(),
-                  InheritsARegisteredPin.class.getName(), SubtractsOneTable.class.getName()));
+                  InheritsARegisteredPin.class.getName(), SubtractsOneTable.class.getName(),
+                  ImplementsARegisteringInterface.class.getName(),
+                      RegistersThroughAnInterface.class.getName()));
     }
 
     @Test
@@ -278,6 +373,102 @@ class PinnedActiveTablesRulesTest {
                   AssumesOnTheReaderThenHardCodes.class.getName(), Registration.of(Set.of("tags")),
                   RegistersThroughAConstant.class.getName(), Registration.of(Set.of("tags")),
                   RegistersARelaxedName.class.getName(), Registration.of(Set.of("tags"))));
+    }
+
+    @Test
+    @DisplayName(
+        "given the key under relaxed spellings of its prefix, should report what it registers")
+    void given_keyUnderRelaxedSpellingsOfItsPrefix_should_reportWhatItRegisters() {
+      // Act
+      Map<String, Registration> pins =
+          PinnedActiveTablesCatalog.dynamicPins(
+              PinnedActiveTablesCatalog.dynamicRegistrations(
+                  List.of(
+                      RegistersAnUppercaseElement.class,
+                      RegistersWithIgnoredCharacters.class,
+                      RegistersIndexedElements.class)),
+              production);
+
+      // Assert
+      assertThat(pins)
+          .containsExactlyInAnyOrderEntriesOf(
+              Map.of(
+                  RegistersAnUppercaseElement.class.getName(), Registration.of(Set.of("tags")),
+                  RegistersWithIgnoredCharacters.class.getName(), Registration.of(Set.of("tags")),
+                  RegistersIndexedElements.class.getName(), Registration.of(Set.of("tags"))));
+    }
+
+    @ParameterizedTest(name = "[{0}]")
+    @ValueSource(
+        strings = {
+          "openaev.tenant.active-tables",
+          "OPENAEV.TENANT.ACTIVE-TABLES",
+          "openAEV.Tenant.activeTables",
+          "openaev.tenant.active_tables",
+          "open-aev.te_nant.activetables",
+          "o-p-e-n-a-e-v.t-e-n-a-n-t.active-tables",
+          "-openaev-.tenant.active-tables",
+          ".openaev..tenant.active-tables.",
+          " openaev . tenant . active tables ",
+          "openaev.\"tenant\".active$tables",
+          "openaev.\ttenant.active\u00a0tables",
+          "[openaev].tenant.active-tables",
+          "openaev[tenant].active-tables",
+          "openaev[tenant]active-tables",
+          "openaev[tenant][activetables]",
+          "[openaev][tenant][activetables]"
+        })
+    @DisplayName(
+        "given a spelling Spring Boot binds to the key, should find its prefix in the bytes")
+    void given_spellingSpringBootBindsToTheKey_should_findItsPrefixInTheBytes(String name) {
+      // Arrange
+      assertThat(PinnedActiveTablesCatalog.isKey(name)).as("Spring Boot binds it").isTrue();
+
+      // Act & Assert: the prefilter must admit what the binder admits, wherever the string ends
+      assertThat(PinnedActiveTablesCatalog.mentionsTheKeyPrefix(classFileBytes(name))).isTrue();
+      assertThat(PinnedActiveTablesCatalog.mentionsTheKeyPrefix(classFileBytes(name, NEXT)))
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName(
+        "given the prefix held alone before another constant, should find it for the key it builds")
+    void given_prefixHeldAloneBeforeAnotherConstant_should_findItForTheKeyItBuilds() {
+      // Act & Assert: a key built at run time on a constant prefix still reaches the scan
+      assertThat(
+              PinnedActiveTablesCatalog.mentionsTheKeyPrefix(
+                  classFileBytes("openaev.TENANT", NEXT)))
+          .isTrue();
+    }
+
+    @ParameterizedTest(name = "[{0}]")
+    @ValueSource(
+        strings = {
+          "openaev-tenant.url",
+          "Lio/openaev/tenant/Holder;",
+          "openaevtenant.active-tables",
+          "openaev.xtm.opencti.tenant",
+          "openaevx.tenant"
+        })
+    @DisplayName(
+        "given a name that is not the key's prefix, should not find the prefix in the bytes")
+    void given_nameThatIsNotTheKeysPrefix_should_notFindThePrefixInTheBytes(String name) {
+      // Act & Assert: a registration whose class holds only this is never run
+      assertThat(PinnedActiveTablesCatalog.mentionsTheKeyPrefix(classFileBytes(name, NEXT)))
+          .isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "given a name Spring Boot reads as another property, should not run its registration")
+    void given_nameSpringBootReadsAsAnotherProperty_should_notRunItsRegistration() {
+      // Act
+      Map<String, Registration> registrations =
+          PinnedActiveTablesCatalog.dynamicRegistrations(
+              List.of(RegistersADashedNameThatIsNotTheKey.class));
+
+      // Assert: run, it would throw and be reported as unevaluated
+      assertThat(registrations).isEmpty();
     }
 
     @Test
@@ -506,17 +697,24 @@ class PinnedActiveTablesRulesTest {
       // Act
       Scan scan = Scan.of(tree, List.of(), production);
 
-      // Assert
-      assertThat(scan.unreached()).isEmpty();
-      assertThat(scan.undeclared()).isEmpty();
-      assertThat(scan.pinnedBothWays()).isEmpty();
-      assertThat(scan.conflicts()).isEmpty();
-      assertThat(scan.inherited()).isEmpty();
-      assertThat(scan.mismatched()).isEmpty();
-      assertThat(PinnedActiveTablesBaseline.malformed(scan.baseline())).isEmpty();
-      assertThat(PinnedActiveTablesBaseline.expired(scan.baseline(), production)).isEmpty();
-      assertThat(scan.outliving(ProductionActiveTables.armedBy(TenantTables.ALL_STRICT))).isEmpty();
-      assertThat(scan.miscounted(0, 0)).isEmpty();
+      // Assert: the checks the guard runs, all of them, through the same method
+      assertThat(scan.checks(0, 0))
+          .isNotEmpty()
+          .allSatisfy(check -> assertThat(check.found().get()).as(check.name()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("given the guard, should find one test, the one running the checks of the scan")
+    void given_theGuard_should_findOneTestTheOneRunningTheChecksOfTheScan() {
+      // Act
+      List<String> tests = new ArrayList<>();
+      collectTests(PinnedActiveTablesArchTest.class, tests);
+
+      // Assert: a second test could assert on the tree what the end state never runs
+      assertThat(tests)
+          .containsExactly(
+              PinnedActiveTablesArchTest.class.getName()
+                  + ".given_testTree_should_passEveryCheckOfTheGuard");
     }
 
     @Test
@@ -547,6 +745,34 @@ class PinnedActiveTablesRulesTest {
       assertThat(scan.outliving(ProductionActiveTables.armedBy(TenantTables.ALL_STRICT)))
           .singleElement()
           .satisfies(line -> assertThat(line).contains("io.openaev.Control"));
+    }
+  }
+
+  /**
+   * Strings as the compiler stores them in a class file, one after the other: a tag, a two-byte
+   * length, then the modified UTF-8 of each.
+   */
+  private static byte[] classFileBytes(String... constants) {
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    for (String constant : constants) {
+      byte[] text = constant.getBytes(StandardCharsets.UTF_8);
+      bytes.write(1);
+      bytes.write(text.length >> 8);
+      bytes.write(text.length);
+      bytes.writeBytes(text);
+    }
+    return bytes.toByteArray();
+  }
+
+  /** Every method JUnit would run as a test, in the class and its nested classes. */
+  private static void collectTests(Class<?> type, List<String> tests) {
+    for (Method method : type.getDeclaredMethods()) {
+      if (MergedAnnotations.from(method).isPresent(Testable.class)) {
+        tests.add(type.getName() + "." + method.getName());
+      }
+    }
+    for (Class<?> nested : type.getDeclaredClasses()) {
+      collectTests(nested, tests);
     }
   }
 }

@@ -154,10 +154,53 @@ public final class PinnedActiveTablesFixtures {
 
   public static class InheritsAFollower extends FollowsProduction {}
 
+  /** Spring runs a static registration declared on an interface for every class implementing it. */
+  public interface RegistersThroughAnInterface {
+    @DynamicPropertySource
+    static void tables(DynamicPropertyRegistry registry) {
+      registry.add("openaev.tenant.active-tables", () -> "tags");
+    }
+  }
+
+  public static class ImplementsARegisteringInterface implements RegistersThroughAnInterface {}
+
   public static class RegistersARelaxedName {
     @DynamicPropertySource
     static void tables(DynamicPropertyRegistry registry) {
       registry.add("openaev.tenant.activeTables", () -> "tags");
+    }
+  }
+
+  /** Spring Boot ignores the case of each element, so this is the key. */
+  public static class RegistersAnUppercaseElement {
+    @DynamicPropertySource
+    static void tables(DynamicPropertyRegistry registry) {
+      registry.add("openaev.TENANT.active-tables", () -> "tags");
+    }
+  }
+
+  /** Spring Boot ignores every character but letters and digits inside an element. */
+  public static class RegistersWithIgnoredCharacters {
+    @DynamicPropertySource
+    static void tables(DynamicPropertyRegistry registry) {
+      registry.add("open_aev..ten-ant.active tables", () -> "tags");
+    }
+  }
+
+  /** Spring Boot reads a bracketed element as the element it encloses. */
+  public static class RegistersIndexedElements {
+    @DynamicPropertySource
+    static void tables(DynamicPropertyRegistry registry) {
+      registry.add("[openaev][tenant][activetables]", () -> "tags");
+    }
+  }
+
+  /** One element, not two, so another property: the scan has no reason to run it. */
+  public static class RegistersADashedNameThatIsNotTheKey {
+    @DynamicPropertySource
+    static void url(DynamicPropertyRegistry registry) {
+      registry.add("openaev-tenant.url", () -> "http://localhost");
+      throw new IllegalStateException("a registration that never reaches the key is not run");
     }
   }
 

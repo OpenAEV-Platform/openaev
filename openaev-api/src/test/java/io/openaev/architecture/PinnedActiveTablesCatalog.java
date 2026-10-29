@@ -15,7 +15,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,18 +63,18 @@ import org.springframework.test.context.support.TestPropertySourceUtils;
  * holds the whole production list; anything else, including a registration that cannot be
  * evaluated, is a site. A class that runs with a pin declared on a type it extends is refused
  * ({@link #inheritedPins}). The key is matched as Spring Boot binds it, so a relaxed spelling such
- * as {@code activeTables} counts.
+ * as {@code activeTables} or {@code openaev.TENANT.active_tables} counts.
  *
  * <p>The registration methods of a class are invoked only when the key can be among what they
- * register: its class file holds the text {@code openaev.tenant}, or a test-tree class those
- * methods call, at any depth, holds it, so a registration handed to a shared helper is judged by
- * what the helper registers. The calls are read from the class files, not run, so a registration
- * that reaches no such class, one that starts a server for instance, is never invoked. Once a class
- * is invoked, all of its registration methods run, whatever they do besides, so a class whose
- * registration reaches the key must keep those methods free of side effects. A supplier is
- * evaluated when the scan runs, so one that reads state set later (a field a {@code BeforeAll}
- * fills, a started container) either fails, and its class is reported as unevaluated, or is read
- * before that state exists.
+ * register: its class file holds the key's first two elements in a spelling Spring Boot binds to
+ * them ({@link #mentionsTheKeyPrefix}), or a test-tree class those methods call, at any depth,
+ * holds them, so a registration handed to a shared helper is judged by what the helper registers.
+ * The calls are read from the class files, not run, so a registration that reaches no such class,
+ * one that starts a server for instance, is never invoked. Once a class is invoked, all of its
+ * registration methods run, whatever they do besides, so a class whose registration reaches the key
+ * must keep those methods free of side effects. A supplier is evaluated when the scan runs, so one
+ * that reads state set later (a field a {@code BeforeAll} fills, a started container) either fails,
+ * and its class is reported as unevaluated, or is read before that state exists.
  *
  * <p>Not seen: a property file named in {@code locations}, a profile file, a {@code
  * DynamicPropertyRegistrar} bean, a {@code ContextCustomizerFactory}, a system property set by
@@ -91,7 +90,9 @@ final class PinnedActiveTablesCatalog {
   static final String FIXTURE_PACKAGE = "io.openaev.architecture.fixture";
 
   private static final ConfigurationPropertyName KEY_NAME = ConfigurationPropertyName.of(KEY);
-  private static final byte[] KEY_PREFIX = "openaev.tenant".getBytes(StandardCharsets.US_ASCII);
+
+  /** The key's first two elements, in the canonical form Spring Boot compares them in. */
+  private static final List<String> KEY_PREFIX = List.of("openaev", "tenant");
 
   /**
    * What a class's dynamic registrations give the key: the tables, or, when they cannot be read,
@@ -219,9 +220,13 @@ final class PinnedActiveTablesCatalog {
   }
 
   /**
-   * The classes that run with a pin declared on a class or interface they extend, each with the
-   * type that declares it. Spring hands such a class the pin, but the pin's baseline reason was
-   * written for the declaring type's assertions, not this class's, so the shape is refused rather
+   * The classes that run with a pin declared or registered on a class or interface they extend,
+   * each with the type that pins. Spring hands such a class the pin: it searches the annotations of
+   * superclasses and interfaces, and it runs the static {@code DynamicPropertySource} methods of
+   * the class, its superclasses and every interface they implement ({@code
+   * DynamicPropertiesContextCustomizerFactory} through {@code MethodIntrospector.selectMethods} in
+   * spring-test 7.0, pinned against the library by the rules test). The pin's baseline reason was
+   * written for the pinning type's assertions, not this class's, so the shape is refused rather
    * than read as covered by that line. A pin reached through an enclosing class is not inherited in
    * this sense: an inner class is part of the class that declares it, and that line covers it.
    */
@@ -231,18 +236,12 @@ final class PinnedActiveTablesCatalog {
     for (Class<?> testClass : classes) {
       Set<String> supertypes = new HashSet<>();
       collectSupertypes(testClass, supertypes);
-      declarations(testClass).stream()
-          .map(Declaration::site)
+      Stream.concat(
+              declarations(testClass).stream().map(Declaration::site),
+              supertypes.stream().filter(dynamicPins::containsKey).sorted())
           .filter(supertypes::contains)
           .findFirst()
           .ifPresent(site -> inherited.put(testClass.getName(), site));
-      for (Class<?> parent = testClass.getSuperclass();
-          parent != null && !inherited.containsKey(testClass.getName());
-          parent = parent.getSuperclass()) {
-        if (dynamicPins.containsKey(parent.getName())) {
-          inherited.put(testClass.getName(), parent.getName());
-        }
-      }
     }
     return inherited;
   }
@@ -385,10 +384,73 @@ final class PinnedActiveTablesCatalog {
       if (in == null) {
         throw new IllegalStateException("cannot find the class file of " + className);
       }
-      return contains(in.readAllBytes(), KEY_PREFIX);
+      return mentionsTheKeyPrefix(in.readAllBytes());
     } catch (IOException e) {
       throw new UncheckedIOException("cannot read the class file of " + className, e);
     }
+  }
+
+  /**
+   * Whether the bytes hold the key's first two elements in a spelling Spring Boot binds to them.
+   * Spring Boot splits a name into elements at {@code .}, {@code [} and {@code ]}, drops empty
+   * elements, and compares an element ignoring case and every character that is not a letter or a
+   * digit; a bracketed element is compared as written, which this reading accepts too. No character
+   * outside ASCII compares equal to a letter of these two elements. So each element is matched as
+   * its ASCII letters in order, case ignored, with any byte but an ASCII letter, a digit or a
+   * separator between them, and the two elements are parted by at least one separator. Every
+   * spelling the binder accepts is found, and a few it refuses are too ({@code [openaev.tenant]},
+   * {@code openaev.tenantless}, a letter outside ASCII inside an element), which only runs a
+   * registration that then registers nothing. Where the elements start and end is not checked: in a
+   * class file the bytes around a string are its length and the next constant's, which may read as
+   * letters.
+   */
+  static boolean mentionsTheKeyPrefix(byte[] classFile) {
+    for (int start = 0; start < classFile.length; start++) {
+      if (keyPrefixAt(classFile, start)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean keyPrefixAt(byte[] bytes, int start) {
+    int at = start;
+    for (int element = 0; element < KEY_PREFIX.size(); element++) {
+      if (element > 0) {
+        boolean separated = false;
+        while (at < bytes.length && !isLetterOrDigit(bytes[at])) {
+          separated |= isSeparator(bytes[at]);
+          at++;
+        }
+        if (!separated) {
+          return false;
+        }
+      }
+      String name = KEY_PREFIX.get(element);
+      for (int letter = 0; letter < name.length(); letter++) {
+        while (letter > 0
+            && at < bytes.length
+            && !isLetterOrDigit(bytes[at])
+            && !isSeparator(bytes[at])) {
+          at++;
+        }
+        if (at == bytes.length || Character.toLowerCase((char) bytes[at]) != name.charAt(letter)) {
+          return false;
+        }
+        at++;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isLetterOrDigit(byte value) {
+    return (value >= 'a' && value <= 'z')
+        || (value >= 'A' && value <= 'Z')
+        || (value >= '0' && value <= '9');
+  }
+
+  private static boolean isSeparator(byte value) {
+    return value == '.' || value == '[' || value == ']';
   }
 
   /**
@@ -448,19 +510,6 @@ final class PinnedActiveTablesCatalog {
           }
           return Optional.of(new ClassFileImporter().importUrl(url).get(name));
         });
-  }
-
-  private static boolean contains(byte[] haystack, byte[] needle) {
-    outer:
-    for (int i = 0; i <= haystack.length - needle.length; i++) {
-      for (int j = 0; j < needle.length; j++) {
-        if (haystack[i + j] != needle[j]) {
-          continue outer;
-        }
-      }
-      return true;
-    }
-    return false;
   }
 
   private static Class<?> load(String name, ClassLoader loader) {
