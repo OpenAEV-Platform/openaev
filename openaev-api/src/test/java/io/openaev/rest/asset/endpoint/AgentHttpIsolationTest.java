@@ -14,7 +14,7 @@ import io.openaev.api.autonomous.AutonomousRunApi;
 import io.openaev.context.TenantContext;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -72,7 +72,7 @@ class AgentHttpIsolationTest extends IntegrationTest {
   @Autowired private ObjectMapper mapper;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
-  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
 
   // The capability report is EE-gated; the mock's license checks default to "active".
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -87,9 +87,9 @@ class AgentHttpIsolationTest extends IntegrationTest {
     // Arrange: two tenants the mock user belongs to, each with the built-in OpenAEV executor (the
     // registration path resolves it by id) and exactly one active agent on one of its endpoints.
     tenantA = tenantHelper.createTenantWithCurrentUser("agent-iso-a").getId();
-    serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantA);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantA);
     tenantB = tenantHelper.createTenantWithCurrentUser("agent-iso-b").getId();
-    serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantB);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantB);
 
     seedExecutor(tenantA);
     seedExecutor(tenantB);

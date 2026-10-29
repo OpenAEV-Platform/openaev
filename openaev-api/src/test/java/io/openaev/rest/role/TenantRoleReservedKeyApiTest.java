@@ -1,7 +1,7 @@
 package io.openaev.rest.role;
 
-import static io.openaev.opencti.connectors.Constants.PROCESS_STIX_ROLE_ID;
-import static io.openaev.service.account.Constants.SERVICE_ROLE_ID;
+import static io.openaev.service.account.ReservedServiceAccount.AGENT;
+import static io.openaev.service.account.ReservedServiceAccount.OPENCTI_CONNECTOR;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -21,8 +21,8 @@ import io.openaev.database.model.Role;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.role.form.RoleInput;
-import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.TenantRoleService;
+import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -52,13 +52,13 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
   /** Computes the tenant-scoped reserved id used by the service-account role in this tenant. */
   private String reservedServiceRoleId() {
     return AbstractPrivilegeService.getUUIDFromName(
-        SERVICE_ROLE_ID, TenantContext.getCurrentTenant());
+        AGENT.access().roleId(), TenantContext.getCurrentTenant());
   }
 
   /** Computes the tenant-scoped reserved id used by the STIX-processor role in this tenant. */
   private String reservedStixRoleId() {
     return AbstractPrivilegeService.getUUIDFromName(
-        PROCESS_STIX_ROLE_ID, TenantContext.getCurrentTenant());
+        OPENCTI_CONNECTOR.access().roleId(), TenantContext.getCurrentTenant());
   }
 
   /** Persists a role having an explicitly assigned (reserved) id. */
