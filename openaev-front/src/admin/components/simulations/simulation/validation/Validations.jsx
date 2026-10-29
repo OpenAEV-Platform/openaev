@@ -69,11 +69,10 @@ const Validations = () => {
   const sort = R.sortWith([R.descend(R.prop('inject_expectation_created_at'))]);
   const sortedInjectExpectations = R.pipe(
     R.uniqBy(R.prop('inject_expectation_id')),
-    R.map(n => R.assoc(
-      'inject_expectation_inject',
-      injectsMap[n.inject_expectation_inject] || {},
-      n,
-    )),
+    R.map(n => ({
+      ...n,
+      inject_expectation_inject: injectsMap[n.inject_expectation_inject] || {},
+    })),
     R.filter(n => HUMAN_EXPECTATION.includes((n.inject_expectation_type).toUpperCase())),
     R.filter(
       n => tags.length === 0

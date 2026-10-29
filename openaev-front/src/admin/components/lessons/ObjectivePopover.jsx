@@ -2,12 +2,12 @@ import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import inject18n from '../../../components/i18n';
+import { pick } from '../../../utils/object';
 import { LessonContext } from '../common/Context';
 import ObjectiveForm from './ObjectiveForm';
 
@@ -70,9 +70,9 @@ class ObjectivePopoverComponent extends Component {
 
   render() {
     const { t, objective } = this.props;
-    const initialValues = R.pick(
-      ['objective_title', 'objective_description', 'objective_priority'],
+    const initialValues = pick(
       objective,
+      ['objective_title', 'objective_description', 'objective_priority'],
     );
     return (
       <div>

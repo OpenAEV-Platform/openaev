@@ -30,6 +30,7 @@ import OldTextField from '../../../../../components/fields/OldTextField';
 import inject18n from '../../../../../components/i18n';
 import ItemBoolean from '../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../components/ItemTags';
+import { omit } from '../../../../../utils/object';
 import { secondsFromToNow } from '../../../../../utils/Time';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
@@ -280,7 +281,12 @@ class QuickInjectComponent extends Component {
   }
 
   selectTupleFieldType(name, type) {
-    this.setState({ tupleFieldTypes: R.assoc(name, type, this.state.tupleFieldTypes) });
+    this.setState({
+      tupleFieldTypes: {
+        ...this.state.tupleFieldTypes,
+        [name]: type,
+      },
+    });
   }
 
   teamsReverseBy(field) {
@@ -387,7 +393,7 @@ class QuickInjectComponent extends Component {
                 value: `${field.tupleFilePrefix}${data[field.key].value}`,
               };
             } else {
-              finalData[field.key] = R.dissoc('type', data[field.key]);
+              finalData[field.key] = omit(data[field.key], ['type']);
             }
           } else {
             finalData[field.key] = data[field.key].map((pair) => {
@@ -397,7 +403,7 @@ class QuickInjectComponent extends Component {
                   value: `${field.tupleFilePrefix}${pair.value}`,
                 };
               }
-              return R.dissoc('type', pair);
+              return omit(pair, ['type']);
             });
           }
         } else {
@@ -871,11 +877,10 @@ class QuickInjectComponent extends Component {
                 ),
               };
             } else {
-              initialValues[field.key] = R.assoc(
-                'type',
-                'text',
-                initialValues[field.key],
-              );
+              initialValues[field.key] = {
+                ...initialValues[field.key],
+                type: 'text',
+              };
             }
           } else {
             initialValues[field.key] = initialValues[field.key].map((pair) => {
@@ -889,7 +894,10 @@ class QuickInjectComponent extends Component {
                   value: pair.value.replace(`${field.tupleFilePrefix}`, ''),
                 };
               }
-              return R.assoc('type', 'text', pair);
+              return {
+                ...pair,
+                type: 'text',
+              };
             });
           }
         }

@@ -1,12 +1,12 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
-import * as R from 'ramda';
 import { useContext, useState } from 'react';
 
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
+import { pick } from '../../../../utils/object';
 import { LessonContext } from '../../common/Context';
 import LessonsCategoryForm from './LessonsCategoryForm';
 
@@ -51,13 +51,11 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
     onDeleteLessonsCategory(lessonsCategory.lessonscategory_id).then(() => handleCloseDelete());
   };
   // Rendering
-  const initialValues = R.pipe(
-    R.pick([
-      'lessons_category_name',
-      'lessons_category_description',
-      'lessons_category_order',
-    ]),
-  )(lessonsCategory);
+  const initialValues = pick(lessonsCategory, [
+    'lessons_category_name',
+    'lessons_category_description',
+    'lessons_category_order',
+  ]);
   return (
     <>
       <IconButton

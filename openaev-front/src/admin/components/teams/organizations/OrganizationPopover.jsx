@@ -10,6 +10,7 @@ import { deleteOrganization, updateOrganization } from '../../../../actions/Orga
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
+import { pick } from '../../../../utils/object';
 import { tagOptions } from '../../../../utils/Option';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -44,9 +45,10 @@ class OrganizationPopoverComponent extends Component {
   }
 
   onSubmitEdit(data) {
-    const inputValues = R.pipe(
-      R.assoc('organization_tags', R.pluck('id', data.organization_tags)),
-    )(data);
+    const inputValues = {
+      ...data,
+      organization_tags: R.pluck('id', data.organization_tags),
+    };
     return this.props
       .updateOrganization(this.props.organization.organization_id, inputValues)
       .then((result) => {
@@ -81,14 +83,14 @@ class OrganizationPopoverComponent extends Component {
       organization.organization_tags,
       tagsMap,
     );
-    const initialValues = R.pipe(
-      R.assoc('organization_tags', organizationTags),
-      R.pick([
-        'organization_name',
-        'organization_description',
-        'organization_tags',
-      ]),
-    )(organization);
+    const initialValues = pick({
+      ...organization,
+      organization_tags: organizationTags,
+    }, [
+      'organization_name',
+      'organization_description',
+      'organization_tags',
+    ]);
     return (
       <div>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>

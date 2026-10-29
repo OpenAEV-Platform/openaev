@@ -1,10 +1,10 @@
-import * as R from 'ramda';
 import { type FunctionComponent, useContext } from 'react';
 
 import { updateAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { type Inject, type InjectResultOutput, type InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { EndpointContext } from '../../../../utils/context/endpoint/EndpointContext';
 import endpointContextForAtomicTesting from '../../../../utils/context/endpoint/EndpointContextForAtomicTesting';
+import { pick } from '../../../../utils/object';
 import UpdateInject from '../../common/injects/UpdateInject';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 
@@ -21,24 +21,22 @@ const AtomicTestingUpdate: FunctionComponent<Props> = ({
 }) => {
   const { updateInjectResultOverviewOutput } = useContext<InjectResultOverviewOutputContextType>(InjectResultOverviewOutputContext);
   const onUpdateAtomicTesting = async (data: Inject) => {
-    const toUpdate = R.pipe(
-      R.pick([
-        'inject_tags',
-        'inject_title',
-        'inject_type',
-        'inject_injector_contract',
-        'inject_injector',
-        'inject_description',
-        'inject_content',
-        'inject_all_teams',
-        'inject_documents',
-        'inject_assets',
-        'inject_asset_groups',
-        'inject_secret_references',
-        'inject_teams',
-        'inject_tags',
-      ]),
-    )(data);
+    const toUpdate = pick(data, [
+      'inject_tags',
+      'inject_title',
+      'inject_type',
+      'inject_injector_contract',
+      'inject_injector',
+      'inject_description',
+      'inject_content',
+      'inject_all_teams',
+      'inject_documents',
+      'inject_assets',
+      'inject_asset_groups',
+      'inject_secret_references',
+      'inject_teams',
+      'inject_tags',
+    ]);
     updateAtomicTesting(atomic.inject_id, toUpdate).then((result: { data: InjectResultOverviewOutput }) => {
       updateInjectResultOverviewOutput(result.data);
     });

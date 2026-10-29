@@ -44,14 +44,14 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
     ),
   );
   const sortedUsersByCommunicationNumber = R.pipe(
-    R.map((n: User) => R.assoc(
-      'user_communications_number',
-      R.filter(
+    R.map((n: User) => ({
+      ...n,
+
+      user_communications_number: R.filter(
         (c: Communication) => n && R.includes(n.user_id, c.communication_users),
         communications,
       ).length,
-      n,
-    )),
+    })),
     R.sortWith([R.descend(R.prop('user_communications_number'))]),
     R.take(10),
   )(communicationsUsers);

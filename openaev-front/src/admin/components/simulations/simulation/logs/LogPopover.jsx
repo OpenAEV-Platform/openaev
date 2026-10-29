@@ -11,6 +11,7 @@ import { storeHelper } from '../../../../../actions/Schema';
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import inject18n from '../../../../../components/i18n';
+import { pick } from '../../../../../utils/object';
 import { tagOptions } from '../../../../../utils/Option';
 import LogForm from './LogForm';
 
@@ -43,9 +44,10 @@ class LogPopoverComponent extends Component {
   }
 
   onSubmitEdit(data) {
-    const inputValues = R.pipe(
-      R.assoc('log_tags', R.pluck('id', data.log_tags)),
-    )(data);
+    const inputValues = {
+      ...data,
+      log_tags: R.pluck('id', data.log_tags),
+    };
     return this.props
       .updateLog(this.props.exerciseId, this.props.log.log_id, inputValues)
       .then(() => this.handleCloseEdit());
@@ -68,10 +70,10 @@ class LogPopoverComponent extends Component {
   render() {
     const { t, log, tagsMap } = this.props;
     const logTags = tagOptions(log.log_tags, tagsMap);
-    const initialValues = R.pipe(
-      R.assoc('log_tags', logTags),
-      R.pick(['log_title', 'log_content', 'log_tags']),
-    )(log);
+    const initialValues = pick({
+      ...log,
+      log_tags: logTags,
+    }, ['log_title', 'log_content', 'log_tags']);
 
     return (
       <div>

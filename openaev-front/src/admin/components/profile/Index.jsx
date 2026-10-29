@@ -37,20 +37,17 @@ const Index = () => {
   }));
   const onRenew = tokenId => dispatch(renewToken(tokenId));
   const onUpdate = (data) => {
-    const inputValues = R.pipe(
-      R.assoc(
-        'user_organization',
-        data.user_organization && data.user_organization.id
-          ? data.user_organization.id
-          : data.user_organization,
-      ),
-      R.assoc(
-        'user_country',
-        data.user_country && data.user_country.id
-          ? data.user_country.id
-          : data.user_country,
-      ),
-    )(data);
+    const inputValues = {
+      ...data,
+
+      user_organization: data.user_organization && data.user_organization.id
+        ? data.user_organization.id
+        : data.user_organization,
+
+      user_country: data.user_country && data.user_country.id
+        ? data.user_country.id
+        : data.user_country,
+    };
     return dispatch(updateMeProfile(inputValues));
   };
   const onUpdateInformation = data => dispatch(updateMeInformation(data));

@@ -10,6 +10,7 @@ import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import inject18n from '../../../../../components/i18n';
+import { pick } from '../../../../../utils/object';
 import { withAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import RoleScopeProvider from '../../roles/RoleScopeProvider';
@@ -194,14 +195,11 @@ class GroupPopoverComponent extends Component {
       userRight: true,
       disabledMessage: PERMISSION_REQUIRED,
     }));
-    const initialValues = R.pick(
-      [
-        'group_name',
-        'group_description',
-        'group_default_user_assign',
-      ],
-      group,
-    );
+    const initialValues = pick(group, [
+      'group_name',
+      'group_description',
+      'group_default_user_assign',
+    ]);
     return (
       <>
 

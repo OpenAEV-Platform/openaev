@@ -42,7 +42,10 @@ const ExerciseDistributionScoreOverTimeByTeam: FunctionComponent<Props> = ({ exe
           R.sortWith([R.ascend(R.prop('inject_expectation_updated_at'))]),
           R.map((i: InjectExpectationOutput) => {
             cumulation += i.inject_expectation_score ?? 0;
-            return R.assoc('inject_expectation_cumulated_score', cumulation, i);
+            return {
+              ...i,
+              inject_expectation_cumulated_score: cumulation,
+            };
           }),
         )(n[1]),
       ];
