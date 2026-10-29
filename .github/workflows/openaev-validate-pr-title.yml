@@ -18,13 +18,28 @@ jobs:
         with:
           app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
+      - name: "Detect a private related issue"
+        id: related
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        shell: bash
+        run: |
+          # Keep only the "### Related issues" section, without HTML comments or empty bullets
+          section=$(printf '%s\n' "$BODY" | tr -d '\r' | perl -0pe 's/<!--.*?-->//gs' \
+            | awk '/^### /{in_section = ($0 ~ /^### Related issues[[:space:]]*$/); next} in_section' \
+            | sed -E '/^[[:space:]]*\*?[[:space:]]*$/d')
+          if [[ "$section" =~ ^[[:space:]]*\*[[:space:]]*N/A[[:space:]]*$ ]]; then
+            echo "private=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "private=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: "Validate PR title and create check"
-        if: ${{ !contains(github.event.pull_request.body, '### Related issues') || !contains(github.event.pull_request.body, '* N/A') }}
+        if: steps.related.outputs.private != 'true'
         uses: FiligranHQ/filigran-ci-tools/actions/pr-title-check@main
         with:
           token: ${{ steps.generate-token.outputs.token }}
       - name: "Validate PR title for a private issue"
-        if: ${{ contains(github.event.pull_request.body, '### Related issues') && contains(github.event.pull_request.body, '* N/A') }}
+        if: steps.related.outputs.private == 'true'
         env:
           TITLE: ${{ github.event.pull_request.title }}
         shell: bash
