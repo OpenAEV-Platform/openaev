@@ -38,7 +38,7 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
       return [
         n[0],
         R.pipe(
-          items => items.toSorted(ascendBy('inject_expectation_updated_at')),
+          (items: InjectExpectationOutput[]) => items.toSorted(ascendBy('inject_expectation_updated_at')),
           R.map((i: InjectExpectationOutput) => {
             cumulation += i.inject_expectation_score ?? 0;
             return R.assoc(

@@ -32,7 +32,7 @@ const InjectDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
 
   const teamsColors = getTeamsColors(teams);
   const sortedTeamsByExpectedScore = R.pipe(
-    items => items.toSorted(descendBy('team_injects_expectations_total_expected_score')),
+    (items: Team[]) => items.toSorted(descendBy('team_injects_expectations_total_expected_score')),
     R.take(10),
   )(teams || []);
   const expectedScoreByTeamData = [

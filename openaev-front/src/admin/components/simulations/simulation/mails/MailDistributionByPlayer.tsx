@@ -53,7 +53,7 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
       ).length,
       n,
     )),
-    items => items.toSorted(descendBy('user_communications_number')),
+    (items: Array<User & { user_communications_number: number }>) => items.toSorted(descendBy('user_communications_number')),
     R.take(10),
   )(communicationsUsers);
   const totalMailsByUserData = [

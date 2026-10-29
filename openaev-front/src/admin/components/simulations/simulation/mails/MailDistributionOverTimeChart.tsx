@@ -31,7 +31,7 @@ const MailDistributionOverTimeChart: FunctionComponent<Props> = ({ exerciseId })
 
   let cumulation = 0;
   const communicationsOverTime = R.pipe(
-    items => items.toSorted(ascendBy('communication_received_at')),
+    (items: Communication[]) => items.toSorted(ascendBy('communication_received_at')),
     R.map((i: Communication) => {
       cumulation += 1;
       return R.assoc('communication_cumulated_number', cumulation, i);

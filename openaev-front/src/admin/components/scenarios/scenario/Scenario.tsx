@@ -103,7 +103,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
     agents: helper.getAgents(),
   }));
   const areAnyExercisesInScenario = scenario.scenario_exercises?.length > 0;
-  const sortByOrder = items => items.toSorted(ascendBy('phase_order'));
+  const sortByOrder = (items: KillChainPhase[]) => items.toSorted(ascendBy('phase_order'));
 
   // Spy on modifications to reload healthchecks
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);

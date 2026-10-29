@@ -37,7 +37,7 @@ const MailDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
       a.team_communications?.length,
       a,
     )),
-    items => items.toSorted(descendBy('team_communications_number')),
+    (items: Array<Team & { team_communications_number: number }>) => items.toSorted(descendBy('team_communications_number')),
     R.take(10),
   )(teams || []);
   const totalMailsByTeamData = [

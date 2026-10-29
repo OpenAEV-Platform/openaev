@@ -39,7 +39,10 @@ const InjectDistributionByType: FunctionComponent<Props> = ({ exerciseId }) => {
       inject_type: n[0],
       number: n[1].length,
     })),
-    items => items.toSorted(descendBy('number')),
+    (items: Array<{
+      inject_type: string;
+      number: number;
+    }>) => items.toSorted(descendBy('number')),
   )(injects);
   const injectsByInjectorContractData = [
     {
