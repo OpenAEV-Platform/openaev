@@ -25,6 +25,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -63,6 +64,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,6 +84,7 @@ public class InjectorApiTest extends IntegrationTest {
   @Autowired private InjectorService injectorService;
   @Autowired private RabbitmqService rabbitmqService;
   @Autowired private ConnectionFactory connectionFactory;
+  @Autowired private CatalogConnectorRepository catalogConnectorRepository;
 
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -806,11 +809,41 @@ public class InjectorApiTest extends IntegrationTest {
   class DeleteManagedInjector {
 
     private final List<String> declaredQueues = new ArrayList<>();
+    private final List<String> pendingCatalogConnectorIds = new ArrayList<>();
+    private final List<String> committedCatalogConnectorIds = new ArrayList<>();
 
     @AfterEach
-    void deleteDeclaredQueues() {
+    void cleanUp() {
       declaredQueues.forEach(rabbitmqService::safeDeleteQueue);
       declaredQueues.clear();
+      // Rows of a test that failed before committing are rolled back with its transaction.
+      pendingCatalogConnectorIds.clear();
+      if (!committedCatalogConnectorIds.isEmpty()) {
+        catalogConnectorRepository.deleteAllById(committedCatalogConnectorIds);
+        committedCatalogConnectorIds.clear();
+        commitTestTransaction();
+      }
+    }
+
+    /** The queue is only deleted once the injector deletion commits. */
+    private void commitTestTransaction() {
+      TestTransaction.flagForCommit();
+      TestTransaction.end();
+      TestTransaction.start();
+      committedCatalogConnectorIds.addAll(pendingCatalogConnectorIds);
+      pendingCatalogConnectorIds.clear();
+    }
+
+    private void rollbackTestTransaction() {
+      TestTransaction.end();
+      TestTransaction.start();
+      pendingCatalogConnectorIds.clear();
+    }
+
+    private void persistInstance(Injector injector) throws Exception {
+      ConnectorInstancePersisted instance =
+          getInjectorInstance(injector.getId(), injector.getName());
+      pendingCatalogConnectorIds.add(instance.getCatalogConnector().getId());
     }
 
     private Injector persistExternalInjector(String name, Instant lastHeartbeat) {
@@ -861,12 +894,13 @@ public class InjectorApiTest extends IntegrationTest {
       // Arrange
       Injector injector =
           persistExternalInjector("nmap-silent", Instant.now().minus(Duration.ofHours(1)));
-      getInjectorInstance(injector.getId(), injector.getName());
+      persistInstance(injector);
       String queueName = registerQueue(injector);
       rabbitmqService.publish(injector.getId(), "{\"inject\":\"stale\"}");
 
       // Act
       injectorService.deleteInjector(injector.getId());
+      commitTestTransaction();
 
       // Assert
       assertThat(
@@ -877,12 +911,29 @@ public class InjectorApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Keeps the queue when the deletion is rolled back")
+    void givenDeletionRolledBack_should_keepQueue() throws Exception {
+      // Arrange
+      Injector injector =
+          persistExternalInjector("nmap-rollback", Instant.now().minus(Duration.ofHours(1)));
+      persistInstance(injector);
+      String queueName = registerQueue(injector);
+
+      // Act
+      injectorService.deleteInjector(injector.getId());
+      rollbackTestTransaction();
+
+      // Assert
+      assertThat(queueExists(queueName)).isTrue();
+    }
+
+    @Test
     @DisplayName("Keeps the queue while another deployment with the same id still reads it")
     void givenQueueStillConsumed_should_deleteInjectorAndKeepQueue() throws Exception {
       // Arrange
       Injector injector =
           persistExternalInjector("nmap-shared", Instant.now().minus(Duration.ofHours(1)));
-      getInjectorInstance(injector.getId(), injector.getName());
+      persistInstance(injector);
       String queueName = registerQueue(injector);
       try (Connection connection = connectionFactory.newConnection();
           Channel consumer = connection.createChannel()) {
@@ -890,6 +941,7 @@ public class InjectorApiTest extends IntegrationTest {
 
         // Act
         injectorService.deleteInjector(injector.getId());
+        commitTestTransaction();
 
         // Assert
         assertThat(
@@ -910,6 +962,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // Act
       injectorService.deleteInjector(injector.getId());
+      commitTestTransaction();
 
       // Assert
       assertThat(queueExists(queueName)).isFalse();

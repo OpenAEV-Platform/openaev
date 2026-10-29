@@ -47,6 +47,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
@@ -193,10 +195,23 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         orphanedContractIds, tenantId);
   }
 
-  /** Deletes the injector row and its queue, so injects left in it never run later. */
+  /**
+   * Deletes the injector row, then its queue once the deletion commits, so injects left in it never
+   * run later.
+   */
   public void deleteInjectorAndQueue(@NotBlank final String injectorId) {
     injectorRepository.deleteByInjectorId(injectorId);
-    rabbitmqService.deleteInjectorQueueIfUnused(injectorId);
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              rabbitmqService.deleteInjectorQueueIfUnused(injectorId);
+            }
+          });
+    } else {
+      rabbitmqService.deleteInjectorQueueIfUnused(injectorId);
+    }
   }
 
   public Injector injector(String id) {
