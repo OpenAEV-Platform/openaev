@@ -234,112 +234,121 @@ public class ScenarioToExerciseService {
     // exercise inject would lose its injector. Stamp the scenario's own tenant before the copy so
     // the lazy load resolves. The scope is derived from the scenario aggregate, not the ambient
     // TenantContext: toExercise runs from a cron, HTTP and autonomous callers, and the scenario is
-    // the authoritative owner of the injects being copied.
-    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(scenario.getTenant().getId()));
-    List<Inject> scenarioInjects = scenario.getInjects();
-    Map<String, Inject> mapExerciseInjectsByScenarioInject = new HashMap<>();
-    scenarioInjects.forEach(
-        scenarioInject -> {
-          Inject exerciseInject = new Inject();
-          exerciseInject.setTitle(scenarioInject.getTitle());
-          exerciseInject.setDescription(scenarioInject.getDescription());
-          exerciseInject.setInjectorContract(scenarioInject.getInjectorContract().orElse(null));
-          exerciseInject.setInjector(scenarioInject.getInjector());
-          exerciseInject.setCountry(scenarioInject.getCountry());
-          exerciseInject.setCity(scenarioInject.getCity());
-          exerciseInject.setEnabled(scenarioInject.isEnabled());
-          exerciseInject.setAllTeams(scenarioInject.isAllTeams());
-          exerciseInject.setExercise(exerciseSaved);
-          exerciseInject.setDependsDuration(scenarioInject.getDependsDuration());
-          exerciseInject.setUser(scenarioInject.getUser());
-          exerciseInject.setStatus(scenarioInject.getStatus().orElse(null));
-          exerciseInject.setTags(CopyObjectListUtils.copy(scenarioInject.getTags(), Tag.class));
-          exerciseInject.setContent(scenarioInject.getContent());
+    // the authoritative owner of the injects being copied. Both scopes of the transaction are put
+    // back once the copy is done: the rest of the caller's transaction keeps the caller's tenant
+    // scope and marking clearance.
+    try (TenantScopedTransaction.CapturedScope callerScope =
+        tenantTx.captureScopeOfCurrentTransaction()) {
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(scenario.getTenant().getId()));
+      List<Inject> scenarioInjects = scenario.getInjects();
+      Map<String, Inject> mapExerciseInjectsByScenarioInject = new HashMap<>();
+      scenarioInjects.forEach(
+          scenarioInject -> {
+            Inject exerciseInject = new Inject();
+            exerciseInject.setTitle(scenarioInject.getTitle());
+            exerciseInject.setDescription(scenarioInject.getDescription());
+            exerciseInject.setInjectorContract(scenarioInject.getInjectorContract().orElse(null));
+            exerciseInject.setInjector(scenarioInject.getInjector());
+            exerciseInject.setCountry(scenarioInject.getCountry());
+            exerciseInject.setCity(scenarioInject.getCity());
+            exerciseInject.setEnabled(scenarioInject.isEnabled());
+            exerciseInject.setAllTeams(scenarioInject.isAllTeams());
+            exerciseInject.setExercise(exerciseSaved);
+            exerciseInject.setDependsDuration(scenarioInject.getDependsDuration());
+            exerciseInject.setUser(scenarioInject.getUser());
+            exerciseInject.setStatus(scenarioInject.getStatus().orElse(null));
+            exerciseInject.setTags(CopyObjectListUtils.copy(scenarioInject.getTags(), Tag.class));
+            exerciseInject.setContent(scenarioInject.getContent());
 
-          // Content
-          scenarioInject
-              .getInjectorContract()
-              .ifPresentOrElse(
-                  injectorContract -> {
-                    if (ChannelContract.TYPE.equals(injectorContract.getInjectorType())) {
-                      try {
-                        ChannelContent content =
-                            mapper.treeToValue(scenarioInject.getContent(), ChannelContent.class);
-                        content.setArticles(
-                            content.getArticles().stream()
-                                .map(articleId -> articles.get(articleId).getId())
-                                .toList());
-                        exerciseInject.setContent(mapper.valueToTree(content));
-                      } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e);
+            // Content
+            scenarioInject
+                .getInjectorContract()
+                .ifPresentOrElse(
+                    injectorContract -> {
+                      if (ChannelContract.TYPE.equals(injectorContract.getInjectorType())) {
+                        try {
+                          ChannelContent content =
+                              mapper.treeToValue(scenarioInject.getContent(), ChannelContent.class);
+                          content.setArticles(
+                              content.getArticles().stream()
+                                  .map(articleId -> articles.get(articleId).getId())
+                                  .toList());
+                          exerciseInject.setContent(mapper.valueToTree(content));
+                        } catch (JsonProcessingException e) {
+                          throw new RuntimeException(e);
+                        }
                       }
-                    }
-                  },
-                  () -> exerciseInject.setContent(scenarioInject.getContent()));
+                    },
+                    () -> exerciseInject.setContent(scenarioInject.getContent()));
 
-          // Teams
-          List<Team> teams = new ArrayList<>();
-          scenarioInject.getTeams().forEach(team -> teams.add(computeTeam(team, contextualTeams)));
-          exerciseInject.setTeams(teams);
+            // Teams
+            List<Team> teams = new ArrayList<>();
+            scenarioInject
+                .getTeams()
+                .forEach(team -> teams.add(computeTeam(team, contextualTeams)));
+            exerciseInject.setTeams(teams);
 
-          // Assets & Asset Groups
-          exerciseInject.setAssets(
-              CopyObjectListUtils.copy(scenarioInject.getAssets(), Asset.class));
-          exerciseInject.setAssetGroups(
-              CopyObjectListUtils.copy(scenarioInject.getAssetGroups(), AssetGroup.class));
+            // Assets & Asset Groups
+            exerciseInject.setAssets(
+                CopyObjectListUtils.copy(scenarioInject.getAssets(), Asset.class));
+            exerciseInject.setAssetGroups(
+                CopyObjectListUtils.copy(scenarioInject.getAssetGroups(), AssetGroup.class));
 
-          // Credentials
-          exerciseInject.setSecretReferences(new ArrayList<>(scenarioInject.getSecretReferences()));
-          Inject injectSaved = this.injectRepository.save(exerciseInject);
+            // Credentials
+            exerciseInject.setSecretReferences(
+                new ArrayList<>(scenarioInject.getSecretReferences()));
+            Inject injectSaved = this.injectRepository.save(exerciseInject);
 
-          mapExerciseInjectsByScenarioInject.put(scenarioInject.getId(), injectSaved);
+            mapExerciseInjectsByScenarioInject.put(scenarioInject.getId(), injectSaved);
 
-          // Documents
-          List<InjectDocument> exerciseInjectDocuments = new ArrayList<>();
-          scenarioInject
-              .getDocuments()
-              .forEach(
-                  injectDocument -> {
-                    InjectDocument exerciseInjectDocument = new InjectDocument();
-                    exerciseInjectDocument.setInject(injectSaved);
-                    exerciseInjectDocument.setDocument(injectDocument.getDocument());
-                    exerciseInjectDocument.setAttached(injectDocument.isAttached());
-                    exerciseInjectDocuments.add(exerciseInjectDocument);
-                  });
-          this.injectDocumentRepository.saveAll(exerciseInjectDocuments);
-        });
+            // Documents
+            List<InjectDocument> exerciseInjectDocuments = new ArrayList<>();
+            scenarioInject
+                .getDocuments()
+                .forEach(
+                    injectDocument -> {
+                      InjectDocument exerciseInjectDocument = new InjectDocument();
+                      exerciseInjectDocument.setInject(injectSaved);
+                      exerciseInjectDocument.setDocument(injectDocument.getDocument());
+                      exerciseInjectDocument.setAttached(injectDocument.isAttached());
+                      exerciseInjectDocuments.add(exerciseInjectDocument);
+                    });
+            this.injectDocumentRepository.saveAll(exerciseInjectDocuments);
+          });
 
-    // Second pass to add the correct links
-    scenarioInjects.forEach(
-        scenarioInject -> {
-          if (scenarioInject.getDependsOn() != null) {
-            Inject injectToUpdate = mapExerciseInjectsByScenarioInject.get(scenarioInject.getId());
-            injectToUpdate.getDependsOn().clear();
-            injectToUpdate
-                .getDependsOn()
-                .addAll(
-                    scenarioInject.getDependsOn().stream()
-                        .map(
-                            (injectDependency -> {
-                              InjectDependency dep = new InjectDependency();
-                              dep.setCompositeId(injectDependency.getCompositeId());
-                              dep.setInjectDependencyCondition(
-                                  injectDependency.getInjectDependencyCondition());
-                              dep.getCompositeId()
-                                  .setInjectParent(
-                                      mapExerciseInjectsByScenarioInject.get(
-                                          dep.getCompositeId().getInjectParent().getId()));
-                              dep.getCompositeId().setInjectChildren(injectToUpdate);
-                              return dep;
-                            }))
-                        .toList());
-            this.injectRepository.save(injectToUpdate);
-          }
-        });
+      // Second pass to add the correct links
+      scenarioInjects.forEach(
+          scenarioInject -> {
+            if (scenarioInject.getDependsOn() != null) {
+              Inject injectToUpdate =
+                  mapExerciseInjectsByScenarioInject.get(scenarioInject.getId());
+              injectToUpdate.getDependsOn().clear();
+              injectToUpdate
+                  .getDependsOn()
+                  .addAll(
+                      scenarioInject.getDependsOn().stream()
+                          .map(
+                              (injectDependency -> {
+                                InjectDependency dep = new InjectDependency();
+                                dep.setCompositeId(injectDependency.getCompositeId());
+                                dep.setInjectDependencyCondition(
+                                    injectDependency.getInjectDependencyCondition());
+                                dep.getCompositeId()
+                                    .setInjectParent(
+                                        mapExerciseInjectsByScenarioInject.get(
+                                            dep.getCompositeId().getInjectParent().getId()));
+                                dep.getCompositeId().setInjectChildren(injectToUpdate);
+                                return dep;
+                              }))
+                          .toList());
+              this.injectRepository.save(injectToUpdate);
+            }
+          });
 
-    // Variables
-    this.variableService.copyVariableFromScenarioForSimulation(
-        scenario.getId(), exerciseSaved.getId());
+      // Variables
+      this.variableService.copyVariableFromScenarioForSimulation(
+          scenario.getId(), exerciseSaved.getId());
+    }
 
     return exerciseSaved;
   }
