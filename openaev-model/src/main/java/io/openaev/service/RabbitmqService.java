@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -424,13 +425,28 @@ public class RabbitmqService {
    */
   public void deleteInjectorQueueIfUnused(String identifier) {
     String queueName = rabbitmqConfig.getPrefix() + INJECTOR_PREFIX + identifier;
-    try (Connection connection = connectionFactory.newConnection();
-        Channel channel = connection.createChannel()) {
-      channel.queueDelete(queueName, true, false);
-      log.info("Deleted injector queue '{}'.", queueName);
+    try (Connection connection = connectionFactory.newConnection()) {
+      // Separate channels: a refused passive declare or delete closes its channel
+      try (Channel checkChannel = connection.createChannel()) {
+        checkChannel.queueDeclarePassive(queueName);
+      } catch (IOException e) {
+        if (isQueueNotFound(e)) {
+          log.debug("No injector queue '{}' to delete.", queueName);
+          return;
+        }
+        throw e;
+      }
+      try (Channel channel = connection.createChannel()) {
+        int dropped = channel.queueDelete(queueName, true, false).getMessageCount();
+        log.info("Deleted injector queue '{}' and its {} pending messages.", queueName, dropped);
+      } catch (IOException e) {
+        if (channelCloseCode(e) != AMQP.PRECONDITION_FAILED) {
+          throw e;
+        }
+        log.info("Injector queue '{}' kept: another deployment still reads it.", queueName);
+      }
     } catch (Exception e) {
-      log.warn(
-          "Injector queue '{}' kept (still consumed or missing): {}", queueName, e.getMessage());
+      log.warn("Could not delete injector queue '{}'.", queueName, e);
     }
   }
 
@@ -546,14 +562,19 @@ public class RabbitmqService {
    * exist) rather than a connection/channel error.
    */
   private static boolean isQueueNotFound(IOException e) {
+    return channelCloseCode(e) == AMQP.NOT_FOUND;
+  }
+
+  /** The AMQP reply code of the channel close behind an IOException, or -1 if there is none. */
+  private static int channelCloseCode(IOException e) {
     Throwable cause = e.getCause();
     if (cause instanceof com.rabbitmq.client.ShutdownSignalException shutdown) {
       Object reason = shutdown.getReason();
       if (reason instanceof com.rabbitmq.client.AMQP.Channel.Close close) {
-        return close.getReplyCode() == 404;
+        return close.getReplyCode();
       }
     }
-    return false;
+    return -1;
   }
 
   /**
