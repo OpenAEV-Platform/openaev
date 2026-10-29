@@ -55,8 +55,15 @@ public final class ProductionActiveTables {
    * The terminal {@value TenantTables#ALL_STRICT} arms every strict table but the self-isolated
    * ones, so it is returned expanded, the way {@link TenantTables#restrictTo} resolves it, and
    * never as the token itself: a caller comparing table names, or adding its own tables on top,
-   * then reads and registers what production actually arms. A {@code *} beside other tables is
-   * refused, as production refuses it at startup.
+   * then reads and registers the tables the statement inspector gates in production. A {@code *}
+   * beside other tables is refused, as production refuses it at startup.
+   *
+   * <p>That is the inspector's table set, not the write-attribution check's. Under {@code *},
+   * {@code TenantBaseListener} refuses an unattributed write on every entity it listens to, the
+   * self-isolated ones included, while an expanded list leaves those out and cannot name them:
+   * naming a self-isolated table in an explicit list is a configuration error. So a test that
+   * registers this expansion under a production {@code *} has the inspector production has and a
+   * narrower unattributed-write check on the self-isolated entities.
    */
   public static Set<String> armedBy(String value) {
     Set<String> tokens =
