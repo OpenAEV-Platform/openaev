@@ -1585,6 +1585,7 @@ class TenantActiveTableAccessArchTest {
                   + " silently sees zero rows. New callers must run inside a scoped transaction"
                   + " and be allowlisted here");
 
+  @ArchTest
   static final ArchRule autonomous_runs_repository_access_is_reviewed =
       noClasses()
           .that()
@@ -2292,6 +2293,7 @@ class TenantActiveTableAccessArchTest {
               "teams is tenant-active: an accessor without a tenant scope silently reads zero rows."
                   + " New accessors must carry a scope and be allowlisted here");
 
+  @ArchTest
   static final ArchRule autonomous_objective_templates_repository_access_is_reviewed =
       noClasses()
           .that()
