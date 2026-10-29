@@ -7,6 +7,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.service.tenants.TenantQueueService;
 import io.openaev.service.tenants.TenantService;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
@@ -55,6 +56,7 @@ public class TenantIsolationTestHelper {
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private EntityManager entityManager;
   @Autowired private TenantComposer tenantComposer;
+  @Autowired private TenantQueueService tenantQueueService;
 
   /**
    * Creates a tenant and attaches the current mock user to it.
@@ -283,14 +285,21 @@ public class TenantIsolationTestHelper {
    * collectors} row is gone first. Every other tenant-scoped row cascades with the tenant. Null ids
    * are skipped so a partially failed setup still cleans what it managed to create. Table-specific
    * rows the caller created (and any join table without a cascading FK) must be removed by the
-   * caller BEFORE this call. External residue (per-tenant broker queues) cannot be removed here;
-   * that is the suite-wide pre-existing pattern for service-created tenants.
+   * caller BEFORE this call. The tenant's broker queues and exchanges are deleted through the
+   * production teardown, {@link TenantQueueService#deleteDependencyForTenant}, which is idempotent.
+   * A tenant that never committed needs none of this: its onboarding removes them on rollback.
    */
   @Transactional
   public void deleteCommittedTenants(String... tenantIds) {
     for (String tenantId : tenantIds) {
       if (tenantId == null) {
         continue;
+      }
+      try {
+        tenantQueueService.deleteDependencyForTenant(tenantId);
+      } catch (DependenciesManagerException e) {
+        throw new IllegalStateException(
+            "Could not delete the broker objects of test tenant " + tenantId, e);
       }
       entityManager
           .createNativeQuery("DELETE FROM collectors WHERE tenant_id = :id")

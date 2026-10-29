@@ -1,4 +1,4 @@
-package io.openaev.xtmhub.collector;
+package io.openaev.xtmhub;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,9 +13,6 @@ import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.DefaultTenantExtension;
-import io.openaev.xtmhub.TenantRegistrationDetails;
-import io.openaev.xtmhub.XtmHubClient;
-import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -30,14 +27,14 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-/** Integration test for {@link XtmHubConnectivityCollectorService}. */
+/** Integration test for {@link XtmHubService#refreshConnectivityAllTenants}. */
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 @WithMockUser(isAdmin = true)
 @ExtendWith(DefaultTenantExtension.class)
-@DisplayName("XtmHubConnectivityCollectorService integration tests")
-class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
+@DisplayName("XtmHubService connectivity refresh integration tests")
+class XtmHubConnectivityRefreshIntegrationTest extends IntegrationTest {
 
-  @Autowired private XtmHubConnectivityCollectorService collectorService;
+  @Autowired private XtmHubService xtmHubService;
   @Autowired private TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
   @Autowired private TenantComposer tenantComposer;
 
@@ -78,7 +75,7 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
         .thenReturn(Map.of());
 
     // When
-    collectorService.run();
+    xtmHubService.refreshConnectivityAllTenants();
 
     // Then — the hub was called exactly once, carrying only the 2 active tenant IDs
     ArgumentCaptor<Map<String, TenantRegistrationDetails>> tenantsCaptor = ArgumentCaptor.captor();

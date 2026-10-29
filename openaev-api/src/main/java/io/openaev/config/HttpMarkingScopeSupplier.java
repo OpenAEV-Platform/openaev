@@ -59,10 +59,10 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
       return MarkingCtx.none();
     }
     // AGENT_RUNTIME_ACCESS is the well-known capability of the per-tenant agent/implant service
-    // account (ServiceAccountPrivilegeService). That account has no group-marking grants of its
-    // own — it exists only to run the agent/implant API surface — so without this it would lose
-    // sight of its own host asset the moment that asset is marked. An agent must always see the
-    // asset it is installed on, independent of what markings are later applied to it.
+    // account (AgentServiceAccountPrivilegeService). That account has no group-marking grants of
+    // its own — it exists only to run the agent/implant API surface — so without this it would
+    // lose sight of its own host asset the moment that asset is marked. An agent must always see
+    // the asset it is installed on, independent of what markings are later applied to it.
     //
     // MANAGE_STIX_BUNDLE is the same kind of capability (hidden, held by the per-tenant OpenCTI
     // connector user, which has no group-marking grants either): the security coverage it

@@ -380,7 +380,7 @@ const ComponentStepperDrawer = ({
   const title = useMemo(() => {
     if (isReadOnlyInspection && drawerView === 'event') return t('Event details');
     if (isReadOnlyInspection && drawerView === 'actionDetail') return t('Action details');
-    if (drawerView === 'event') return editingEvent ? t('Update trigger') : t('Add trigger');
+    if (drawerView === 'event') return editingEvent ? t('Update event') : t('Add event');
     if (drawerView === 'actionDetail') return editingStep ? t('Configure action') : t('Configure action');
     if (drawerView === 'action') return t('Select an action');
     return t('Add component');
@@ -462,7 +462,7 @@ const ComponentStepperDrawer = ({
             onCancel={handleClose}
             initialData={editingEvent?.meta.formData}
             readOnly={isReadOnlyInspection}
-            submitLabel={editingEvent ? t('Update trigger') : t('Add trigger')}
+            submitLabel={editingEvent ? t('Update event') : t('Add event')}
             defaultName={!editingEvent ? `Event ${eventCount + 1}` : undefined}
           />
         )}

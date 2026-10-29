@@ -83,22 +83,16 @@ public class ImapService extends ExternalServiceBase {
   private void init() {
     this.saveServiceState(IMAP_SETTINGS_KEY, false);
     try {
-      initStore(env);
+      initStore();
     } catch (Exception e) {
       log.error(e.getMessage(), e);
     }
   }
 
-  private void initStore(Environment env) throws Exception {
-    Session session = Session.getDefaultInstance(buildProperties(env), null);
+  private void initStore() throws Exception {
+    Session session = Session.getDefaultInstance(buildProperties(), null);
     imapStore = session.getStore(PROVIDER);
-    String host = env.getProperty("openaev.mail.imap.host");
-    int port = env.getProperty("openaev.mail.imap.port", Integer.class, 995);
-    String username = env.getProperty("openaev.mail.imap.username");
-    String password = env.getProperty("openaev.mail.imap.password");
-    String sentFolder = env.getProperty("openaev.mail.imap.sent");
-    boolean isEnabled = env.getProperty("openaev.mail.imap.enabled", Boolean.class, false);
-    if (isEnabled) {
+    if (enabled) {
       log.info("IMAP sync started");
       imapStore.connect(host, port, username, password);
       try {
@@ -173,7 +167,7 @@ public class ImapService extends ExternalServiceBase {
     return result;
   }
 
-  private Properties buildProperties(Environment env) {
+  private Properties buildProperties() {
     String sslEnable = env.getProperty("openaev.mail.imap.ssl.enable");
     String sslTrust = env.getProperty("openaev.mail.imap.ssl.trust");
     String sslAuth = env.getProperty("openaev.mail.imap.auth");
@@ -354,7 +348,7 @@ public class ImapService extends ExternalServiceBase {
         tryToSynchronizeFolderFromBox(listeningFolder, false);
       }
     } catch (MessagingException e) {
-      log.warn(String.format("Connection failure: %s", e.getMessage()), e);
+      log.warn("Connection failure: {}", e.getMessage(), e);
       // Retry logic or rethrow the exception
       retrySyncFolders();
     }
@@ -366,7 +360,7 @@ public class ImapService extends ExternalServiceBase {
         syncFolders();
         break;
       } catch (MessagingException e) {
-        log.warn(String.format("Retrying connection... %s", e.getMessage()), e);
+        log.warn("Retrying connection... {}", e.getMessage(), e);
         Thread.sleep(2000);
         if (i == 2 && imapStore != null && imapStore.isConnected()) {
           imapStore.close();

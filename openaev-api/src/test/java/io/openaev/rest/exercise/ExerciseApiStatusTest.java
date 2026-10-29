@@ -59,6 +59,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+// Once the chaining tables are tenant-active, a status change reads the simulation's workflow in
+// the caller's tenant membership scope, so each test that reaches it acts as a member of the
+// default tenant, where its simulation lives. The membership is granted on each method, never on
+// the class.
 @SpringBootTest
 // Disable Quartz's live cron triggers for this class only: three tests below now commit real rows
 // (see the @Transactional(propagation = NOT_SUPPORTED) tests) so that
@@ -142,7 +146,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   class SimulationResetAndStopCleanupTest {
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("given closed exercise reset should clear status and authorisation")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void given_closedExerciseReset_should_clearStatusAndInjectAuthorisation() throws Exception {
@@ -289,7 +293,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "given running exercise stop should delegate active inject finalization to workflowEndService")
     void given_runningExerciseStop_should_delegateActiveInjectFinalizationToWorkflowEndService()
@@ -464,7 +468,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Start an exercise manually")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void manualStartExerciseTest() throws Exception {
     try {
@@ -523,7 +527,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from canceled to scheduled")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void rescheduledExerciseTest() throws Exception {
     // --PREPARE--
     ExerciseComposer.Composer exerciseWrapper =
@@ -569,7 +573,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from finished to scheduled")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void rescheduledExerciseFromFinishedStateTest() throws Exception {
     // --PREPARE--
     ExerciseComposer.Composer exerciseWrapper =
@@ -616,7 +620,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from pause to running")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   // InjectHelper.getInjectsToRun() opens its own TenantScopedTransaction, which refuses to run
   // inside an already-active transaction. Suspend the framework's test transaction so the
   // fixtures created in @BeforeEach are genuinely committed and visible to it, and clean them up
@@ -681,7 +685,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from running to paused")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   // InjectHelper.getInjectsToRun() opens its own TenantScopedTransaction, which refuses to run
   // inside an already-active transaction. Suspend the framework's test transaction so the
   // fixtures created in @BeforeEach are genuinely committed and visible to it, and clean them up
@@ -742,7 +746,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from running to canceled")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void cancelAnExerciseTest() throws Exception {
     // --PREPARE--
     Exercise exercise = exerciseRepository.save(ExerciseFixture.createRunningAttackExercise());
@@ -821,7 +825,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise with an inject from finished to scheduled")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void rescheduledExerciseWithInjectTest() throws Exception {
     // --PREPARE--
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();

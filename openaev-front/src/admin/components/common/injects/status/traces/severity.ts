@@ -27,6 +27,7 @@ const SEVERITY_BY_STATUS: Record<string, Severity> = {
   QUEUING: 'muted',
   ASSET_AGENTLESS: 'muted',
   AGENT_INACTIVE: 'muted',
+  ASSET_CLEARANCE_RESTRICTED: 'muted',
 };
 
 // Shared severity resolvers so callers (e.g. the agent timeline) can color

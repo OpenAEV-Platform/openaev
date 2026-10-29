@@ -9,8 +9,8 @@ import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
-import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.TenantRoleService;
+import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.HashSet;
@@ -115,7 +115,8 @@ class V20261001_Default_tenant_roles_and_groupsTest extends IntegrationTest {
           assertThat(rolesNamed(name)).hasSize(roleCountsBefore.get(name));
         });
     String bootstrapAdminRoleId =
-        AbstractPrivilegeService.getUUIDFromName(AdminPrivilegeService.ADMIN_ROLE_ID, TENANT_ID);
+        AbstractPrivilegeService.getUUIDFromName(
+            AdminPrivilegeService.ADMIN_ACCESS.roleId(), TENANT_ID);
     assertThat(groups.get(PresetTenantData.ADMIN).getRoles())
         .extracting(Role::getId)
         .doesNotContain(bootstrapAdminRoleId);

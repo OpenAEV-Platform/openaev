@@ -467,6 +467,26 @@ public class InjectService {
 
   // -- ASSETS --
   public List<AssetToExecute> resolveAllAssetsToExecute(@NotNull final Inject inject) {
+    return resolveAssetsToExecuteByClearance(inject).cleared();
+  }
+
+  /**
+   * Resolves the targets once and splits them by {@link #resolveLaunchedByClearance}'s
+   * <b>current</b> result for this inject - partial/scoped execution. A null/zero clearance means
+   * every marked target is dropped, nothing throws, nothing runs. The dropped targets are returned
+   * too, so the dispatch can trace them as not targeted without resolving the targets again.
+   */
+  public ResolvedAssetsToExecute resolveAssetsToExecuteByClearance(@NotNull final Inject inject) {
+    java.util.function.Predicate<Asset> launchable = launchableUnderClearance(inject);
+    Map<Boolean, List<AssetToExecute>> byClearance =
+        resolveAllTargetedAssets(inject).stream()
+            .collect(Collectors.partitioningBy(target -> launchable.test(target.asset())));
+    return new ResolvedAssetsToExecute(
+        byClearance.get(true),
+        byClearance.get(false).stream().map(AssetToExecute::asset).collect(Collectors.toSet()));
+  }
+
+  private List<AssetToExecute> resolveAllTargetedAssets(Inject inject) {
     List<AssetToExecute> assetToExecutes = new ArrayList<>();
 
     inject.getAssets().forEach(asset -> assetToExecutes.add(new AssetToExecute(asset)));
@@ -514,20 +534,7 @@ public class InjectService {
               }
             });
 
-    return filterByMarkingClearance(inject, assetToExecutes);
-  }
-
-  /**
-   * Drop every resolved asset whose marking is not covered by {@link #resolveLaunchedByClearance}'s
-   * <b>current</b> result for this inject - partial/scoped execution. A null/zero clearance means
-   * every marked target is skipped, nothing throws, nothing runs.
-   */
-  private List<AssetToExecute> filterByMarkingClearance(
-      Inject inject, List<AssetToExecute> assetToExecutes) {
-    java.util.function.Predicate<Asset> launchable = launchableUnderClearance(inject);
-    return assetToExecutes.stream()
-        .filter(assetToExecute -> launchable.test(assetToExecute.asset()))
-        .toList();
+    return assetToExecutes;
   }
 
   /** Resolve feature flag MARKING */
@@ -1218,36 +1225,47 @@ public class InjectService {
   }
 
   /**
-   * Builds the real agent/agentless-asset sets a launch actually acts on - this is what {@link
-   * io.openaev.execution.ExecutionExecutorService#launchExecutorContext} commands to execute, so
-   * partial/scoped execution is enforced here directly rather than relying on {@link
-   * #resolveAllAssetsToExecute}'s result (which only feeds expectation/finding computation and is a
-   * separate, independent resolution of the same inject's targets).
+   * Builds the real agent/agentless-asset sets a launch acts on, from a fresh target resolution.
+   * For callers that hold no {@link io.openaev.execution.ExecutableInject} (e.g. the attack path
+   * ingestion); the dispatch reuses its cached resolution through {@link
+   * #toAgentsAndAgentlessAssets}.
    */
   public AgentsAndAssetsAgentless getAgentsAndAgentlessAssetsByInject(Inject inject) {
-    return agentsAndAgentlessAssets(inject, launchableUnderClearance(inject));
+    return toAgentsAndAgentlessAssets(resolveAssetsToExecuteByClearance(inject));
   }
 
-  private AgentsAndAssetsAgentless agentsAndAgentlessAssets(
-      Inject inject, java.util.function.Predicate<Asset> launchable) {
+  /**
+   * Splits an already-resolved dispatch into the agent/agentless-asset sets a launch acts on - this
+   * is what {@link io.openaev.execution.ExecutionExecutorService#launchExecutorContext} commands to
+   * execute, so partial/scoped execution follows the same split as the rest of the dispatch,
+   * without resolving the targets again. The returned sets are new and mutable.
+   */
+  public AgentsAndAssetsAgentless toAgentsAndAgentlessAssets(ResolvedAssetsToExecute resolved) {
     Set<Agent> agents = new HashSet<>();
+    Set<Agent> agentsWithoutClearance = new HashSet<>();
     Set<Asset> assetsAgentless = new HashSet<>();
+    Set<Asset> assetsWithoutClearance = new HashSet<>();
 
-    for (Asset asset : inject.getAssets()) {
-      if (launchable.test(asset)) {
-        extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
-      }
-    }
+    resolved
+        .cleared()
+        .forEach(
+            target -> extractAgentsAndAssetsAgentless(agents, assetsAgentless, target.asset()));
+    resolved
+        .withoutClearance()
+        .forEach(
+            asset -> {
+              // A restricted target is traced as not targeted whatever its type: only endpoints
+              // carry agents, any other asset is traced as an asset
+              if (Hibernate.unproxy(asset) instanceof Endpoint) {
+                extractAgentsAndAssetsAgentless(
+                    agentsWithoutClearance, assetsWithoutClearance, asset);
+              } else {
+                assetsWithoutClearance.add(asset);
+              }
+            });
 
-    for (AssetGroup assetGroup : inject.getAssetGroups()) {
-      for (Asset asset : assetGroupService.assetsFromAssetGroup(assetGroup.getId())) {
-        if (launchable.test(asset)) {
-          extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
-        }
-      }
-    }
-
-    return new AgentsAndAssetsAgentless(agents, assetsAgentless);
+    return new AgentsAndAssetsAgentless(
+        agents, assetsAgentless, agentsWithoutClearance, assetsWithoutClearance);
   }
 
   private void extractAgentsAndAssetsAgentless(
@@ -1660,7 +1678,9 @@ public class InjectService {
     // configuration, before any launch, so there is no launcher whose clearance would apply.
     healthChecks.addAll(
         healthCheckUtils.runExecutorChecks(
-            inject, agentsAndAgentlessAssets(inject, asset -> true)));
+            inject,
+            toAgentsAndAgentlessAssets(
+                new ResolvedAssetsToExecute(resolveAllTargetedAssets(inject), Set.of()))));
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));

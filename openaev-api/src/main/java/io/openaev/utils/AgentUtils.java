@@ -190,6 +190,8 @@ public class AgentUtils {
                                         || ExecutionTraceStatus.AGENT_INACTIVE.equals(
                                             trace.getStatus())
                                         || ExecutionTraceStatus.AGENT_OVERLOADED.equals(
+                                            trace.getStatus())
+                                        || ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED.equals(
                                             trace.getStatus())))))
         .orElse(Boolean.TRUE)
         .booleanValue(); // If there are no traces, return true by default

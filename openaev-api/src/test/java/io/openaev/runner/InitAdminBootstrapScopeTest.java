@@ -8,8 +8,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
-import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.TenantGroupService;
+import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
 import java.util.List;
 import java.util.Optional;
@@ -58,7 +58,7 @@ class InitAdminBootstrapScopeTest extends IntegrationTest {
 
   private static final String DEFAULT_ADMIN_GROUP_ID =
       AbstractPrivilegeService.getUUIDFromName(
-          AdminPrivilegeService.ADMIN_GROUP_ID, DEFAULT_TENANT_UUID);
+          AdminPrivilegeService.ADMIN_ACCESS.groupId(), DEFAULT_TENANT_UUID);
 
   @Autowired private InitAdminCommandLineRunner initAdminCommandLineRunner;
   @Autowired private DataSource dataSource;

@@ -2597,9 +2597,13 @@ public class WorkflowService {
    * in lock-step. Runs in its OWN transaction ({@link Propagation#REQUIRES_NEW}) so a twin-delete
    * failure rolls back only itself and can NEVER mark the caller's delete transaction
    * rollback-only.
+   *
+   * <p>The {@code ctx} argument carries the scope into the new transaction, for the same reason as
+   * on {@link #appendChainedStepToScenarioIsolated}: the body reads the twin and its conditions
+   * from tenant-active tables, and without a scope it finds nothing and leaves the twin in place.
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-  public void deleteChainedStepIsolated(String stepTemplateId) throws ChainingException {
+  public void deleteChainedStepIsolated(TxCtx ctx, String stepTemplateId) throws ChainingException {
     stepService.deleteInjectStepTemplate(stepTemplateId);
   }
 

@@ -14,7 +14,7 @@ import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.opencti.connectors.service.PrivilegeService;
+import io.openaev.opencti.connectors.service.OpenCTIConnectorPrivilegeService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.document.form.DocumentCreateInput;
@@ -41,7 +41,7 @@ public class OpenCTIService {
   private final XtmConfig xtmConfig;
   private final OpenCTIClient openCTIClient;
   private final ObjectMapper mapper;
-  private final PrivilegeService privilegeService;
+  private final OpenCTIConnectorPrivilegeService openCTIConnectorPrivilegeService;
   private final TagService tagService;
   private final DocumentService documentService;
 
@@ -67,7 +67,7 @@ public class OpenCTIService {
 
   public RegisterConnector.ResponsePayload registerConnector(ConnectorBase connector)
       throws IOException, ConnectorError {
-    privilegeService.ensurePrivilegedUserExistsForConnector(connector);
+    openCTIConnectorPrivilegeService.ensurePrivilegedUserExistsForConnector(connector);
 
     QueryTypeFields.ResponsePayload typeFields = this.queryTypeFields(connector, "Connector");
 
@@ -108,7 +108,7 @@ public class OpenCTIService {
           "Cannot ping connector %s with OpenCTI at %s: connector hasn't registered yet. Try again later."
               .formatted(connector.getName(), connector.getApiUrl()));
     }
-    privilegeService.ensurePrivilegedUserExistsForConnector(connector);
+    openCTIConnectorPrivilegeService.ensurePrivilegedUserExistsForConnector(connector);
 
     QueryTypeFields.ResponsePayload typeFields = this.queryTypeFields(connector, "Connector");
 

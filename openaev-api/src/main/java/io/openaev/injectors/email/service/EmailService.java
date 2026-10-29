@@ -198,7 +198,7 @@ public class EmailService {
     if (!imapEnabled) {
       execution.addTrace(
           getNewSuccessTrace(
-              "Mail successfully send (imap disabled)", ExecutionTraceAction.COMPLETE, userIds));
+              "Mail successfully sent (imap disabled)", ExecutionTraceAction.COMPLETE, userIds));
       return;
     }
     if (execution.isRuntime()) {
@@ -212,7 +212,7 @@ public class EmailService {
         } catch (Exception e) {
           execution.addTrace(
               getNewInfoTrace(
-                  "Fail to store mail in IMAP " + e.getMessage(),
+                  "Failed to store mail in IMAP: " + e.getMessage(),
                   ExecutionTraceAction.EXECUTION,
                   userIds));
           Thread.sleep(2000);
