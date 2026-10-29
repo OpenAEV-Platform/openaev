@@ -20,7 +20,7 @@ export interface ThreatArsenalItemsProps {
   onSelect: (action: ThreatArsenalAction) => void;
   onToggle: (action: ThreatArsenalAction, event: MouseEvent<HTMLElement>) => void;
   onUpdate: (result: ThreatArsenalAction) => void;
-  onDuplicate: (result: ThreatArsenalAction) => void;
+  onDuplicate: (result: ThreatArsenalAction, open?: boolean) => void;
   onDelete: (actionId: string) => void;
 }
 

@@ -1,9 +1,10 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { Add, DeleteOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
+import LockedFields from '../../../../components/common/LockedFields';
 import FileLoader from '../../../../components/fields/FileLoader';
 import PlatformFieldController from '../../../../components/fields/PlatformFieldController';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
@@ -11,6 +12,8 @@ import TextFieldController from '../../../../components/fields/TextFieldControll
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadArgument } from '../../../../utils/api-types';
 import InjectFormSection from '../../common/injects/form/InjectFormSection';
+import RevertToFiligran from '../variants/RevertToFiligran';
+import VariantBaseContext from '../variants/VariantBaseContext';
 import PayloadArgumentsField from './PayloadArgumentsField';
 import useArgumentRowStyles from './useArgumentRowStyles';
 
@@ -22,6 +25,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
   const { classes } = useArgumentRowStyles();
   const { control, setValue, getValues, watch } = useFormContext();
   const actionType = watch('action_type');
+  const customizing = useContext(VariantBaseContext) !== null;
 
   const { fields: argumentsFields, append: argumentsAppend, remove: argumentsRemove } = useFieldArray({
     control,
@@ -113,8 +117,18 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           gap: theme.spacing(2),
         }}
         >
-          <SelectFieldController disabled={!(actionType == 'Command' || actionType == 'Executable')} name="action_execution_arch" label={t('Architecture')} items={architecturesItems} required />
+          <SelectFieldController disabled={customizing || !(actionType == 'Command' || actionType == 'Executable')} name="action_execution_arch" label={t('Architecture')} items={architecturesItems} required />
           <PlatformFieldController name="action_platforms" label={t('Platforms')} required />
+          {customizing && (
+            <div style={{
+              gridColumn: 2,
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}
+            >
+              <RevertToFiligran fields={['action_platforms']} />
+            </div>
+          )}
         </div>
       )}
 
@@ -122,6 +136,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
         <InjectFormSection
           title={t('Attack command')}
           helper={t('The command executed on the targeted assets.')}
+          action={<RevertToFiligran fields={['command_executor', 'command_content']} />}
           required
         >
           <SelectFieldController name="command_executor" label={t('Executor')} items={executorsItems} required />
@@ -129,47 +144,49 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
         </InjectFormSection>
       )}
 
-      {actionType === 'Executable' && (
-        <Controller
-          control={control}
-          name="executable_file"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <FileLoader
-              name="executable_file"
-              label={t('Executable file')}
-              setFieldValue={(_name, document) => {
-                onChange(document?.id);
-              }}
-              initialValue={{ id: value }}
-              InputLabelProps={{ required: true }}
-              error={!!error}
-            />
-          )}
-        />
-      )}
+      <LockedFields locked={customizing}>
+        {actionType === 'Executable' && (
+          <Controller
+            control={control}
+            name="executable_file"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <FileLoader
+                name="executable_file"
+                label={t('Executable file')}
+                setFieldValue={(_name, document) => {
+                  onChange(document?.id);
+                }}
+                initialValue={{ id: value }}
+                InputLabelProps={{ required: true }}
+                error={!!error}
+              />
+            )}
+          />
+        )}
 
-      {actionType === 'FileDrop' && (
-        <Controller
-          control={control}
-          name="file_drop_file"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <FileLoader
-              name="file_drop_file"
-              label={t('File to drop')}
-              setFieldValue={(_name, document) => {
-                onChange(document?.id);
-              }}
-              initialValue={{ id: value }}
-              InputLabelProps={{ required: true }}
-              error={!!error}
-            />
-          )}
-        />
-      )}
+        {actionType === 'FileDrop' && (
+          <Controller
+            control={control}
+            name="file_drop_file"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <FileLoader
+                name="file_drop_file"
+                label={t('File to drop')}
+                setFieldValue={(_name, document) => {
+                  onChange(document?.id);
+                }}
+                initialValue={{ id: value }}
+                InputLabelProps={{ required: true }}
+                error={!!error}
+              />
+            )}
+          />
+        )}
 
-      {actionType === 'DnsResolution' && (
-        <TextFieldController name="dns_resolution_hostname" label={t('Hostname')} required />
-      )}
+        {actionType === 'DnsResolution' && (
+          <TextFieldController name="dns_resolution_hostname" label={t('Hostname')} required />
+        )}
+      </LockedFields>
 
       {actionType && actionType != '' && (
         <>
@@ -177,6 +194,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           <InjectFormSection
             title={t('Arguments')}
             helper={t('Variables the command can reference at execution time.')}
+            action={<RevertToFiligran fields={['action_arguments']} />}
           >
             {argumentsFields.map((argsField, argIndex) => (
               <PayloadArgumentsField
@@ -210,6 +228,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           <InjectFormSection
             title={t('Prerequisites')}
             helper={t('Commands run beforehand to make sure the action can execute.')}
+            action={<RevertToFiligran fields={['action_prerequisites']} />}
           >
             {prerequisitesFields.map((prerequisitesField, prerequisitesIndex) => (
               <div
@@ -259,6 +278,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           <InjectFormSection
             title={t('Cleanup command')}
             helper={t('Executed after the action to restore the asset to its initial state.')}
+            action={<RevertToFiligran fields={['action_cleanup_executor', 'action_cleanup_command']} />}
           >
             <SelectFieldController name="action_cleanup_executor" label={t('Executor')} items={executorsItems} />
             <TextFieldController multiline rows={3} name="action_cleanup_command" />

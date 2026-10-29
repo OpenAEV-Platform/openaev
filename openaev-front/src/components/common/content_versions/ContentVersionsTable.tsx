@@ -6,9 +6,10 @@ import { Link } from 'react-router';
 
 import { type ContentHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
+import TextDiff from '../update/TextDiff';
 
 // Shape of content_history_details, a free JSON object on the API side.
-interface HistoryChange {
+export interface HistoryChange {
   field: string;
   before?: unknown;
   after?: unknown;
@@ -161,7 +162,8 @@ const valueText = (value: unknown) => {
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 };
 
-const ChangesTable: FunctionComponent<{ changes: HistoryChange[] }> = ({ changes }) => {
+// Field, before, after: words that changed between two texts are highlighted.
+export const ChangesTable: FunctionComponent<{ changes: HistoryChange[] }> = ({ changes }) => {
   const { t } = useFormatter();
   const cell = {
     whiteSpace: 'pre-wrap' as const,
@@ -183,8 +185,16 @@ const ChangesTable: FunctionComponent<{ changes: HistoryChange[] }> = ({ changes
         {changes.map(change => (
           <TableRow key={change.field}>
             <TableCell sx={{ verticalAlign: 'top' }}>{t(FIELD_LABELS[change.field] ?? change.field)}</TableCell>
-            <TableCell sx={cell}>{valueText(change.before)}</TableCell>
-            <TableCell sx={cell}>{valueText(change.after)}</TableCell>
+            <TableCell sx={cell}>
+              {typeof change.before === 'string' && typeof change.after === 'string'
+                ? <TextDiff text={change.before} other={change.after} />
+                : valueText(change.before)}
+            </TableCell>
+            <TableCell sx={cell}>
+              {typeof change.before === 'string' && typeof change.after === 'string'
+                ? <TextDiff text={change.after} other={change.before} />
+                : valueText(change.after)}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

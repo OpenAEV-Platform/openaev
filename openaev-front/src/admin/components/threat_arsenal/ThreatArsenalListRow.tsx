@@ -22,7 +22,7 @@ interface Props {
   onSelect: () => void;
   onToggleEntity: (event: MouseEvent<HTMLElement>) => void;
   onUpdate: (result: ThreatArsenalAction) => void;
-  onDuplicate: (result: ThreatArsenalAction) => void;
+  onDuplicate: (result: ThreatArsenalAction, open?: boolean) => void;
   onDelete: () => void;
   disableUpdate: boolean;
   disableDuplicate: boolean;

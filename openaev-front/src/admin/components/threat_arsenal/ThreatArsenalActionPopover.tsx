@@ -1,15 +1,6 @@
-import {
-  Button,
-  Dialog as DsDialog,
-  DialogBody,
-  DialogContent as DsDialogContent,
-  DialogFooter,
-  DialogTitle as DsDialogTitle,
-  IconButton,
-  Textarea,
-} from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
 import { type MouseEvent, useState } from 'react';
 
 import { uninstallCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
@@ -22,6 +13,7 @@ import {
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
+import DialogConfirmation from '../../../components/common/DialogConfirmation';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
@@ -38,6 +30,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import { buildInitialValues, handleCleanupCommandValue, handleCleanupExecutorValue } from './actionFormValues';
 import PayloadNewVersionDialog from './PayloadNewVersionDialog';
 import PayloadRevocationDialog from './PayloadRevocationDialog';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
@@ -50,7 +43,7 @@ interface PayloadPopoverNewProps {
   name: string;
   onUpdate?: (action: ThreatArsenalAction) => void;
   onDelete?: () => void;
-  onDuplicate?: (action: ThreatArsenalAction) => void;
+  onDuplicate?: (action: ThreatArsenalAction, open?: boolean) => void;
   disableUpdate?: boolean;
   disableDuplicate?: boolean;
   disableJsonExport?: boolean;
@@ -62,61 +55,6 @@ interface PayloadPopoverNewProps {
   variantIdentityId?: string;
   onRevocationChange?: (revoked: boolean, status?: ThreatArsenalActionFullOutput['action_status']) => void;
 }
-
-const buildInitialValues
-  = (action: ThreatArsenalActionFullOutput, actionName: string): Partial<ThreatArsenalActionCreateCustomInput> & {
-    action_id?: string;
-    payload_id?: string;
-  } => {
-    const remediations: Record<string, DetectionRemediationForm> = {};
-    action.action_detection_remediations?.forEach((remediation) => {
-      remediations[remediation.detection_remediation_security_platform ?? ''] = {
-        content: remediation.detection_remediation_values ?? '',
-        remediationId: remediation.detection_remediation_id ?? '',
-        author_rule: remediation.author_rule,
-      };
-    });
-
-    return {
-      action_id: action.action_id,
-      action_name: actionName,
-      action_description: action.action_description,
-      action_type: action.action_type as ThreatArsenalActionCreateCustomInput['action_type'],
-      command_executor: action.command_executor as string | undefined,
-      command_content: action.command_content as string | undefined,
-      dns_resolution_hostname: action.dns_resolution_hostname as string | undefined,
-      action_arguments: action.action_arguments?.map(arg => ({
-        ...arg,
-        type: String(arg.type) === 'targeted_asset' ? 'targeted-asset' : arg.type,
-        description: arg.description ?? undefined,
-        separator: arg.separator ?? undefined,
-      })),
-      action_prerequisites: action.action_prerequisites,
-      file_drop_file: action.file_drop_file as string | undefined,
-      action_attack_patterns: action.action_attack_patterns,
-      action_tags: action.action_tags as string[] | undefined,
-      action_expectations: action.action_expectations ?? ['PREVENTION', 'DETECTION'],
-      action_expected_security_platforms: action.action_expected_security_platforms ?? {},
-      action_execution_arch: action.action_execution_arch,
-      action_output_parsers: action.action_output_parsers as ThreatArsenalActionCreateCustomInput['action_output_parsers'],
-      action_platforms: action.action_platforms,
-      executable_file: action.executable_file as string | undefined,
-      action_cleanup_executor: action.action_cleanup_executor ?? '',
-      action_cleanup_command: action.action_cleanup_command ?? '',
-      remediations: remediations as ThreatArsenalActionCreateCustomInput['remediations'],
-      action_domains: action.action_domains,
-    } as Partial<ThreatArsenalActionCreateCustomInput> & {
-      action_id?: string;
-      payload_id?: string;
-    };
-  };
-
-const handleCleanupCommandValue = (value: string): string | null => (value === '' ? null : value);
-
-const handleCleanupExecutorValue = (executor: string, command: string): string | null => {
-  if (executor !== '' && handleCleanupCommandValue(command) !== null) return executor;
-  return null;
-};
 
 const ThreatArsenalActionPopover = ({
   actionId,
@@ -139,10 +77,9 @@ const ThreatArsenalActionPopover = ({
   const [openDuplicate, setOpenDuplicate] = useState(false);
   const [deletion, setDeletion] = useState(false);
   const [uninstall, setUninstall] = useState(false);
-  const [editingVariant, setEditingVariant] = useState(false);
-  const [liftingInherited, setLiftingInherited] = useState(false);
-  const [liftReason, setLiftReason] = useState('');
+  const [editingVariant, setEditingVariant] = useState<string | null>(null);
   const [revocation, setRevocation] = useState(false);
+  const [lifting, setLifting] = useState(false);
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const { t, tPick } = useFormatter();
@@ -268,29 +205,31 @@ const ThreatArsenalActionPopover = ({
   const submitCustomize = () => {
     handlePopoverClose();
     customizePayload(payloadId ?? '').then((response: { data: VariantSaveOutput }) => {
-      if (response.data.action && onDuplicate) {
-        onDuplicate(response.data.action);
+      const variant = response.data.action;
+      if (variant && onDuplicate) {
+        onDuplicate(variant, false);
       }
       MESSAGING$.notifySuccess(t('Customized copy created: it keeps receiving Filigran updates'));
+      // The copy is made to be changed: its editor opens right away.
+      if (variant?.action_payload?.payload_identity_id) {
+        setEditingVariant(variant.action_payload.payload_identity_id);
+      }
     });
   };
 
-  const submitLiftInherited = () => {
-    liftInheritedRevocation(payloadId ?? '', liftReason).then(() => {
-      setLiftingInherited(false);
-      setLiftReason('');
-      onRevocationChange?.(false);
-    });
-  };
-
-  const submitLiftRevocation = async () => {
-    handlePopoverClose();
-    if (payloadId) {
-      await liftPayloadRevocation(payloadId);
+  // A customized version revoked through its base is freed with a reason; its own revocation is lifted.
+  const submitLiftRevocation = async (liftedId: string, reason: string, inherited: boolean) => {
+    if (inherited) {
+      await liftInheritedRevocation(liftedId, reason);
+    } else {
+      await liftPayloadRevocation(liftedId);
+    }
+    if (liftedId === payloadId) {
       // Lifting restores the status the payload had before; read it back.
       const response = await fetchThreatArsenalAction(actionId);
       onRevocationChange?.(false, (response.data as ThreatArsenalActionFullOutput | undefined)?.action_status);
     }
+    setLifting(false);
   };
 
   const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -340,26 +279,16 @@ const ThreatArsenalActionPopover = ({
         {hasUpdateCapability && variantIdentityId && (
           <MenuItem onClick={() => {
             handlePopoverClose();
-            setEditingVariant(true);
+            setEditingVariant(variantIdentityId);
           }}
           >
             {t('Edit customization')}
           </MenuItem>
         )}
-        {hasDeleteCapability && !!payloadId && !(variantIdentityId && revoked) && (
-          <MenuItem onClick={revoked ? submitLiftRevocation : handleOpenRevocation}>
-            {t(revoked ? 'Lift revocation' : 'Revoke')}
-          </MenuItem>
+        {hasDeleteCapability && !managed && (
+          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
-        {hasDeleteCapability && variantIdentityId && revoked && (
-          <MenuItem onClick={() => {
-            handlePopoverClose();
-            setLiftingInherited(true);
-          }}
-          >
-            {t('Lift inherited revocation')}
-          </MenuItem>
-        )}
+        {hasDeleteCapability && (managed || !!payloadId) && <Divider />}
         {hasDeleteCapability && managed && (
           <MenuItem onClick={() => {
             handlePopoverClose();
@@ -369,15 +298,24 @@ const ThreatArsenalActionPopover = ({
             {t('Uninstall')}
           </MenuItem>
         )}
-        {hasDeleteCapability && !managed && (
-          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
+        {hasDeleteCapability && !!payloadId && (
+          <MenuItem onClick={handleOpenRevocation}>{t('Revoke')}</MenuItem>
+        )}
+        {hasDeleteCapability && !!payloadId && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            setLifting(true);
+          }}
+          >
+            {t('Lift revocation')}
+          </MenuItem>
         )}
       </Menu>
 
-      {editingVariant && variantIdentityId && (
+      {editingVariant && (
         <PayloadVariantEditor
-          identityId={variantIdentityId}
-          onClose={() => setEditingVariant(false)}
+          identityId={editingVariant}
+          onClose={() => setEditingVariant(null)}
           onSaved={(output) => {
             if (output.action && onUpdate) {
               onUpdate({
@@ -396,24 +334,6 @@ const ThreatArsenalActionPopover = ({
         />
       )}
 
-      <DsDialog open={liftingInherited} onOpenChange={setLiftingInherited}>
-        <DsDialogContent size="sm">
-          <DsDialogTitle>{t('Lift inherited revocation')}</DsDialogTitle>
-          <DialogBody>
-            <Textarea
-              label={t('Why this customized version is safe to run')}
-              value={liftReason}
-              onChange={event => setLiftReason(event.target.value)}
-              rows={3}
-            />
-          </DialogBody>
-          <DialogFooter>
-            <Button priority="secondary" onClick={() => setLiftingInherited(false)}>{t('Cancel')}</Button>
-            <Button onClick={submitLiftInherited} disabled={liftReason.trim() === ''}>{t('Lift')}</Button>
-          </DialogFooter>
-        </DsDialogContent>
-      </DsDialog>
-
       <PayloadRevocationDialog
         open={revocation}
         name={name}
@@ -423,10 +343,23 @@ const ThreatArsenalActionPopover = ({
         onSubmit={submitRevocation}
       />
 
-      <DialogDelete
+      <PayloadRevocationDialog
+        open={lifting}
+        name={name}
+        lift
+        customized={!!variantIdentityId}
+        actionId={actionId}
+        payloadId={payloadId}
+        onClose={() => setLifting(false)}
+        onSubmit={submitLiftRevocation}
+      />
+
+      <DialogConfirmation
         open={uninstall}
         handleClose={() => setUninstall(false)}
         handleSubmit={submitUninstall}
+        submitLabel={t('Uninstall')}
+        submitColor="error"
         text={t('Do you want to uninstall this action? All its versions go back to the catalog; scenarios that use it block the uninstall.')}
       />
 

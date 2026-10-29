@@ -22,7 +22,7 @@ interface Props {
   selected: boolean;
   onSelect: () => void;
   onUpdate: (result: ThreatArsenalAction) => void;
-  onDuplicate: (result: ThreatArsenalAction) => void;
+  onDuplicate: (result: ThreatArsenalAction, open?: boolean) => void;
   onDelete: () => void;
   disableUpdate: boolean;
   disableDuplicate: boolean;

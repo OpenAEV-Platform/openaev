@@ -22,6 +22,7 @@ const SelectField = (props) => {
     InputLabelProps,
     error,
     disabled,
+    readOnly,
     required,
     renderValue,
     placeholder,
@@ -55,6 +56,8 @@ const SelectField = (props) => {
             onValueChange={value => field.onChange(emptyOption ? toFieldValue(value) : value)}
             name={field.name}
             disabled={disabled}
+            // Read only: shown as is, never opened.
+            open={readOnly ? false : undefined}
             required={required ?? InputLabelProps?.required}
             error={!!error}
           >
