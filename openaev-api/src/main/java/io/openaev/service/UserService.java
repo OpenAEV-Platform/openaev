@@ -139,6 +139,18 @@ public class UserService {
     return userRepository.rawNewsFeedRecipients(tenantIds);
   }
 
+  /**
+   * Returns the XTM Hub news feed types the user unsubscribed from. Read from the database rather
+   * than from {@link #currentUser()}, whose admin cache is not refreshed by an update.
+   */
+  @Transactional(readOnly = true)
+  public String[] findNewsFeedUnsubscribedTypes(@NotBlank final String userId) {
+    return userRepository
+        .findById(userId)
+        .orElseThrow(() -> new ElementNotFoundException("User not found"))
+        .getUnsubscribedNewsFeedTypes();
+  }
+
   // -- CREATE --
 
   /**
@@ -317,6 +329,18 @@ public class UserService {
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
     return savedUser;
+  }
+
+  /** Replaces the XTM Hub news feed types the user unsubscribed from. */
+  @Transactional(rollbackFor = Exception.class)
+  public void updateNewsFeedUnsubscribedTypes(
+      @NotBlank final String userId, @NotNull final String[] unsubscribedTypes) {
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new ElementNotFoundException("User not found"));
+    user.setUnsubscribedNewsFeedTypes(unsubscribedTypes);
+    userRepository.save(user);
   }
 
   /** Resolves an organization reference from its ID (or null if blank). */
