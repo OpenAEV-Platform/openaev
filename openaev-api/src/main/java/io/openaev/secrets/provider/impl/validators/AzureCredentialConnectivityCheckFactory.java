@@ -1,6 +1,7 @@
 package io.openaev.secrets.provider.impl.validators;
 
 import com.azure.core.credential.TokenCredential;
+import com.azure.core.http.HttpClient;
 import com.azure.core.management.AzureEnvironment;
 
 /**
@@ -21,10 +22,16 @@ public interface AzureCredentialConnectivityCheckFactory {
    * @param tenantId the Entra ID tenant hosting the application
    * @param clientId the application id
    * @param clientSecret the decrypted client secret
+   * @param authorityHostUri optional login endpoint of a sovereign or mocked cloud, replacing the
+   *     one of {@code environment} when set
    * @return a credential able to request tokens for that application
    */
   TokenCredential forServicePrincipal(
-      AzureEnvironment environment, String tenantId, String clientId, String clientSecret);
+      AzureEnvironment environment,
+      String tenantId,
+      String clientId,
+      String clientSecret,
+      String authorityHostUri);
 
   /**
    * Builds a credential for a managed identity.
@@ -33,8 +40,22 @@ public interface AzureCredentialConnectivityCheckFactory {
    * from anywhere else. A validator must therefore treat a failure here as inconclusive, never as a
    * rejection.
    *
+   * <p>Takes no authority host: the SDK hands the IMDS call to MSAL, which only reads its endpoint
+   * from the {@code AZURE_POD_IDENTITY_AUTHORITY_HOST} variable of the process.
+   *
    * @param clientId the user-assigned identity's client id, or null for the system-assigned one
    * @return a credential able to request tokens for that identity
    */
   TokenCredential forManagedIdentity(String clientId);
+
+  /**
+   * The HTTP transport the credentials built here use for their token calls.
+   *
+   * <p>The scoped ARM read goes through it too, so that both calls resolve hosts, honor the proxy
+   * settings and trust certificates the same way: a second client with its own behavior can reach
+   * the token endpoint and fail on the very same host.
+   *
+   * @return the shared transport, never null
+   */
+  HttpClient httpClient();
 }

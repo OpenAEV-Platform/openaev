@@ -163,6 +163,7 @@ public class AwsAssumeRoleHandler implements SecretHandler {
         externalId,
         awsAssumeRoleSecret.getAwsSourceIdentityType(),
         awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId(),
-        sourceProfileSecretAccessKey);
+        sourceProfileSecretAccessKey,
+        awsAssumeRoleSecret.getAwsEndpointUrl());
   }
 }

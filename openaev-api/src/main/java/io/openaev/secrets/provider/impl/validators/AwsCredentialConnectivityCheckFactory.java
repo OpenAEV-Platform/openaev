@@ -47,7 +47,10 @@ public interface AwsCredentialConnectivityCheckFactory {
    *
    * @param region AWS region
    * @param credentialsProvider credentials provider
+   * @param endpointUrl optional STS endpoint of a sovereign or mocked cloud; the official endpoint
+   *     of the region is used when blank
    * @return STS client
    */
-  StsClient stsClient(AwsRegion region, AwsCredentialsProvider credentialsProvider);
+  StsClient stsClient(
+      AwsRegion region, AwsCredentialsProvider credentialsProvider, String endpointUrl);
 }

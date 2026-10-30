@@ -65,15 +65,21 @@ public class AwsCredentialConnectivityCheck {
    * @param accessKeyId access key id
    * @param secretAccessKey decrypted secret access key
    * @param sessionToken optional decrypted session token
+   * @param endpointUrl optional STS endpoint of a sovereign or mocked cloud
    * @return a definitive active/inactive outcome
    */
   public SecretConnectionResult validateAccessKey(
-      AwsRegion region, String accessKeyId, String secretAccessKey, String sessionToken) {
+      AwsRegion region,
+      String accessKeyId,
+      String secretAccessKey,
+      String sessionToken,
+      String endpointUrl) {
     AwsCredentials credentials =
         awsCredentialsFactory.forAccessKey(accessKeyId, secretAccessKey, sessionToken);
 
     try (StsClient verifyClient =
-        awsCredentialsFactory.stsClient(region, StaticCredentialsProvider.create(credentials))) {
+        awsCredentialsFactory.stsClient(
+            region, StaticCredentialsProvider.create(credentials), endpointUrl)) {
       verifyClient.getCallerIdentity(GetCallerIdentityRequest.builder().build());
       return SecretConnectionResult.active();
     } catch (RuntimeException e) {
@@ -90,6 +96,7 @@ public class AwsCredentialConnectivityCheck {
    * @param sourceIdentityType source identity type
    * @param sourceProfileAccessKeyId static source access key id
    * @param sourceProfileSecretAccessKey static source secret access key
+   * @param endpointUrl optional STS endpoint of a sovereign or mocked cloud, used for both calls
    * @return a definitive active/inactive outcome
    */
   public SecretConnectionResult validateAssumeRole(
@@ -98,12 +105,14 @@ public class AwsCredentialConnectivityCheck {
       String externalId,
       AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE sourceIdentityType,
       String sourceProfileAccessKeyId,
-      String sourceProfileSecretAccessKey) {
+      String sourceProfileSecretAccessKey,
+      String endpointUrl) {
     AwsCredentialsProvider sourceProvider =
         awsCredentialsFactory.getSourceCredentialsProvider(
             sourceIdentityType, sourceProfileAccessKeyId, sourceProfileSecretAccessKey);
 
-    try (StsClient assumeRoleClient = awsCredentialsFactory.stsClient(region, sourceProvider)) {
+    try (StsClient assumeRoleClient =
+        awsCredentialsFactory.stsClient(region, sourceProvider, endpointUrl)) {
       AssumeRoleResponse assumeRoleResponse =
           assumeRoleClient.assumeRole(awsCredentialsFactory.assumeRoleRequest(roleArn, externalId));
       AwsSessionCredentials sessionCredentials =
@@ -115,7 +124,7 @@ public class AwsCredentialConnectivityCheck {
 
       try (StsClient verifyClient =
           awsCredentialsFactory.stsClient(
-              region, StaticCredentialsProvider.create(sessionCredentials))) {
+              region, StaticCredentialsProvider.create(sessionCredentials), endpointUrl)) {
         verifyClient.getCallerIdentity(GetCallerIdentityRequest.builder().build());
         return SecretConnectionResult.active();
       }

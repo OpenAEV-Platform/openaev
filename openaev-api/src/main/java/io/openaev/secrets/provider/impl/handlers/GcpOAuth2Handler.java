@@ -175,6 +175,8 @@ public class GcpOAuth2Handler implements SecretHandler {
         nativeEncryptionService.decrypt(gcpSecret.getOauthClientSecret()),
         nativeEncryptionService.decrypt(gcpSecret.getOauthRefreshToken()),
         gcpSecret.getScope(),
-        gcpSecret.getProjectId());
+        gcpSecret.getProjectId(),
+        gcpSecret.getCustomTokenUri(),
+        gcpSecret.getCustomProjectsUri());
   }
 }

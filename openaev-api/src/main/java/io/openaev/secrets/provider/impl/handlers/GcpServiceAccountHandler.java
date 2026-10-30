@@ -138,6 +138,8 @@ public class GcpServiceAccountHandler implements SecretHandler {
     return gcpCredentialConnectivityCheck.validateServiceAccount(
         nativeEncryptionService.decrypt(gcpSecret.getPrivateKeyJson()),
         gcpSecret.getScope(),
-        gcpSecret.getProjectId());
+        gcpSecret.getProjectId(),
+        gcpSecret.getCustomResourceManagerUri(),
+        gcpSecret.getCustomProjectsUri());
   }
 }

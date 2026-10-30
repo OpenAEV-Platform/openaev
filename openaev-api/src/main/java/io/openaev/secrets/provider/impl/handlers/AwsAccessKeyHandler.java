@@ -138,6 +138,7 @@ public class AwsAccessKeyHandler implements SecretHandler {
         awsAccessKeySecret.getAwsDefaultRegion(),
         awsAccessKeySecret.getAwsAccessKeyId(),
         nativeEncryptionService.decrypt(awsAccessKeySecret.getAwsSecretAccessKey()),
-        sessionToken);
+        sessionToken,
+        awsAccessKeySecret.getAwsEndpointUrl());
   }
 }

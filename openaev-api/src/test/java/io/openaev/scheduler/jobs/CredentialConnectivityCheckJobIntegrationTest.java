@@ -1,12 +1,22 @@
 package io.openaev.scheduler.jobs;
 
+import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY;
 import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.NETWORK_ERROR;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.TIMEOUT;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNKNOWN;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNSET;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
+import static io.openaev.utils.fixtures.AwsStsResponseFixture.GET_CALLER_IDENTITY_RESPONSE;
+import static io.openaev.utils.fixtures.AwsStsResponseFixture.STS_CONTENT_TYPE;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_ACCESS_KEY_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_DEFAULT_REGION;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_SECRET_ACCESS_KEY;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.azure.core.credential.TokenCredential;
+import com.azure.core.http.HttpClient;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
 import io.openaev.IntegrationTest;
@@ -21,11 +31,15 @@ import io.openaev.database.model.SecretReference.SECRET_REFERENCE_TYPE;
 import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheckFactory;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.secrets.service.SecretValidationService;
+import io.openaev.service.connector_instances.NativeEncryptionService;
+import io.openaev.utils.helpers.MockCloudServer;
+import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.*;
@@ -100,13 +114,23 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
       return new AzureCredentialConnectivityCheckFactory() {
         @Override
         public TokenCredential forServicePrincipal(
-            AzureEnvironment environment, String tenantId, String clientId, String clientSecret) {
+            AzureEnvironment environment,
+            String tenantId,
+            String clientId,
+            String clientSecret,
+            String authorityHostUri) {
           return unreachable;
         }
 
         @Override
         public TokenCredential forManagedIdentity(String clientId) {
           return unreachable;
+        }
+
+        @Override
+        public HttpClient httpClient() {
+          // Never reached: the token exchange fails before any subscription read.
+          return request -> Mono.error(new IllegalStateException("No network in this test"));
         }
       };
     }
@@ -124,6 +148,7 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private SecretValidationService secretValidationService;
   @Autowired private SecretService secretService;
+  @Autowired private NativeEncryptionService nativeEncryptionService;
 
   private JdbcTemplate jdbc;
   private String tenantA;
@@ -365,6 +390,59 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
     }
   }
 
+  /**
+   * The endpoint overrides end to end: the job resolves the stored secret, and the probe must reach
+   * the sovereign or mocked cloud the credential points to rather than the official endpoint. A
+   * local server is that mocked cloud.
+   */
+  @Nested
+  @DisplayName("Sovereign endpoints")
+  class SovereignEndpoints {
+
+    private MockCloudServer sts;
+
+    @BeforeEach
+    void startMockedCloud() throws IOException {
+      sts = MockCloudServer.start();
+    }
+
+    @AfterEach
+    void stopMockedCloud() {
+      sts.close();
+    }
+
+    @Test
+    @DisplayName("An AWS credential is verified against the STS endpoint it stores")
+    void given_awsEndpointOverride_should_verifyTheCredentialAgainstIt() throws Exception {
+      // Arrange
+      sts.respond("/", 200, STS_CONTENT_TYPE, GET_CALLER_IDENTITY_RESPONSE);
+      String reference = seedAwsAccessKeyCredential(tenantA, sts.url("/"));
+
+      // Act
+      job.execute(null);
+
+      // Assert
+      assertEquals(1, sts.requests().size(), "the probe reached the stored endpoint");
+      assertEquals(ACTIVE.name(), status(reference), "the mocked cloud accepted the credential");
+    }
+
+    @Test
+    @DisplayName("An AWS credential whose stored endpoint does not answer is never flagged")
+    void given_unreachableAwsEndpointOverride_should_neverFlagTheCredential() throws Exception {
+      // Arrange
+      String reference = seedAwsAccessKeyCredential(tenantA, MockCloudServer.unreachableUrl("/"));
+
+      // Act
+      job.execute(null);
+
+      // Assert — the attempt is stamped, but a silent endpoint says nothing about the credential.
+      assertNotNull(lastVerifiedAt(reference), "the credential was verified");
+      assertTrue(
+          Set.of(TIMEOUT.name(), NETWORK_ERROR.name()).contains(status(reference)),
+          "an endpoint that does not answer is inconclusive, never a rejection");
+    }
+  }
+
   // -- ground truth helpers: raw JDBC, never the entity manager --
 
   private Instant lastVerifiedAt(String referenceId) {
@@ -410,6 +488,36 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
   private String seedCredential(String tenantId, CREDENTIAL_AUTH_METHOD authMethod) {
     String secretId = seedAzureManagedIdentitySecret(tenantId);
     lastSeededSecretId = secretId;
+    return seedReference(tenantId, secretId, CREDENTIAL_TYPE.CLOUD_AZURE, authMethod);
+  }
+
+  /**
+   * An AWS access key whose STS endpoint is overridden: the shape of a credential for a sovereign
+   * or mocked cloud. The secret access key is stored encrypted, as the handler would store it,
+   * because the local provider decrypts it before the probe runs.
+   */
+  private String seedAwsAccessKeyCredential(String tenantId, String endpointUrl) {
+    String secretId = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO secrets (secret_id, secret_type, secret_aws_default_region,"
+            + " secret_aws_access_key_id, secret_aws_secret_access_key, secret_aws_endpoint_url,"
+            + " secret_created_at, secret_updated_at, tenant_id)"
+            + " VALUES (?, ?, ?, ?, ?, ?, now(), now(), ?)",
+        secretId,
+        SECRET_TYPE.AWS_ACCESS_KEY.name(),
+        AWS_DEFAULT_REGION.name(),
+        AWS_ACCESS_KEY_ID,
+        nativeEncryptionService.encrypt(AWS_SECRET_ACCESS_KEY),
+        endpointUrl,
+        tenantId);
+    return seedReference(tenantId, secretId, CREDENTIAL_TYPE.CLOUD_AWS, AWS_ACCESS_KEY);
+  }
+
+  private String seedReference(
+      String tenantId,
+      String secretId,
+      CREDENTIAL_TYPE credentialType,
+      CREDENTIAL_AUTH_METHOD authMethod) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
         "INSERT INTO secret_references (secret_reference_id, secret_reference_type,"
@@ -424,7 +532,7 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
         LOCAL_SECRETS_PROVIDER_ID,
         secretId,
         UNSET.name(),
-        CREDENTIAL_TYPE.CLOUD_AZURE.name(),
+        credentialType.name(),
         authMethod.name(),
         tenantId);
     return id;
