@@ -42,7 +42,6 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -90,32 +89,36 @@ public class ElasticDriver {
                 .setSocketTimeout(config.getSocketTimeoutMs())
                 // No default: without it a request waits forever for a free pooled connection.
                 .setConnectionRequestTimeout(config.getSocketTimeoutMs()));
-    HttpAsyncClientBuilder clientBuilder = HttpAsyncClientBuilder.create();
-    clientBuilder
-        .setMaxConnTotal(config.getMaxConnections())
-        .setMaxConnPerRoute(config.getMaxConnections());
-    if (config.getUsername() != null) {
-      BasicCredentialsProvider credsProv = new BasicCredentialsProvider();
-      credsProv.setCredentials(
-          AuthScope.ANY,
-          new UsernamePasswordCredentials(config.getUsername(), config.getPassword()));
-      clientBuilder.setDefaultCredentialsProvider(credsProv);
-    }
-    if (!config.isRejectUnauthorized()) {
-      // Create an SSLContext that trusts all certificates
-      try {
-        SSLContext sslContext =
-            SSLContextBuilder.create()
-                .loadTrustMaterial(null, (X509Certificate[] chain, String authType) -> true)
-                .build();
-        clientBuilder
-            .setSSLContext(sslContext)
-            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-    restClientBuilder.setHttpClientConfigCallback(hc -> clientBuilder);
+    // Customize the builder the RestClientBuilder hands over: it carries the request config above,
+    // a new builder would drop it.
+    restClientBuilder.setHttpClientConfigCallback(
+        clientBuilder -> {
+          clientBuilder
+              .setMaxConnTotal(config.getMaxConnections())
+              .setMaxConnPerRoute(config.getMaxConnections());
+          if (config.getUsername() != null) {
+            BasicCredentialsProvider credsProv = new BasicCredentialsProvider();
+            credsProv.setCredentials(
+                AuthScope.ANY,
+                new UsernamePasswordCredentials(config.getUsername(), config.getPassword()));
+            clientBuilder.setDefaultCredentialsProvider(credsProv);
+          }
+          if (!config.isRejectUnauthorized()) {
+            // Create an SSLContext that trusts all certificates
+            try {
+              SSLContext sslContext =
+                  SSLContextBuilder.create()
+                      .loadTrustMaterial(null, (X509Certificate[] chain, String authType) -> true)
+                      .build();
+              clientBuilder
+                  .setSSLContext(sslContext)
+                  .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          }
+          return clientBuilder;
+        });
     RestClient restClient = restClientBuilder.build();
     JacksonJsonpMapper jsonpMapper = new JacksonJsonpMapper(engineObjectMapper);
     ElasticsearchTransport transport = new RestClientTransport(restClient, jsonpMapper);
