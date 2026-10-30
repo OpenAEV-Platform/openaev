@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.MarkingDefinition;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,8 @@ public interface MarkingDefinitionRepository
 
   Optional<MarkingDefinition> findByTypeAndDefinitionAndTenantId(
       String type, String definition, String tenantId);
+
+  List<MarkingDefinition> findAllByTenantId(String tenantId);
 
   @Query(
       """

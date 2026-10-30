@@ -35,6 +35,11 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
     return ReservedServiceAccount.AGENT.access();
   }
 
+  @Override
+  protected boolean receivesEveryMarking() {
+    return true;
+  }
+
   @Transactional
   public void ensurePrivilegedUserExists(String tenantId) {
     Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(tenantId), tenantId);

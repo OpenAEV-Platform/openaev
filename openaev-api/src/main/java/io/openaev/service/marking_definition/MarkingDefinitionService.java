@@ -14,6 +14,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.TenantGroupService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
@@ -52,6 +53,7 @@ public class MarkingDefinitionService {
   private final AllTablesWithMarkingIds allTablesWithMarkingIds;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final JdbcTemplate jdbcTemplate;
+  private final TenantGroupService tenantGroupService;
 
   // -- SEARCH --
 
@@ -203,6 +205,7 @@ public class MarkingDefinitionService {
     entity.setProtectedDefinition(false);
     entity.setTenant(new Tenant(tenantId));
     MarkingDefinition saved = repository.save(entity);
+    tenantGroupService.grantToAutoNewMarkingGroups(saved);
     markingClearanceCacheManager.evictAll();
     runAfterCommit(actionMetricCollector::addMarkingDefinitionCreatedCount);
     return saved;
