@@ -32,20 +32,19 @@ import org.springframework.web.bind.annotation.RestController;
     description = "Endpoints to access the current user's XTM Hub news feed items.")
 public class NewsFeedItemApi {
 
-  public static final String NEWS_FEED_URI = "/api/news-feed";
   public static final String TENANT_NEWS_FEED_URI = TENANT_PREFIX + "/news-feed";
 
   private final NewsFeedItemService newsFeedItemService;
   private final XtmHubService xtmHubService;
 
   @LogExecutionTime
-  @PostMapping({NEWS_FEED_URI + "/me/search", TENANT_NEWS_FEED_URI + "/me/search"})
+  @PostMapping(TENANT_NEWS_FEED_URI + "/me/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.NEWS_FEED)
   @Operation(
       summary = "Search my news feed items",
       description =
           "Search the current user's XTM Hub news feed items with pagination. The page is empty"
-              + " when no tenant in scope is registered on XTM Hub, and the endpoint is not found"
+              + " when the tenant is not registered on XTM Hub, and the endpoint is not found"
               + " when the XTM_HUB_NEWS_FEED feature is disabled.")
   @Transactional(readOnly = true)
   @ApiResponses(

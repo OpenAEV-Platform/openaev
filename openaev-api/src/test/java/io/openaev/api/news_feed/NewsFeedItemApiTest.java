@@ -1,6 +1,6 @@
 package io.openaev.api.news_feed;
 
-import static io.openaev.api.news_feed.NewsFeedItemApi.NEWS_FEED_URI;
+import static io.openaev.api.news_feed.NewsFeedItemApi.TENANT_NEWS_FEED_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.mockito.Mockito.when;
@@ -44,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("News feed API tests")
 class NewsFeedItemApiTest extends IntegrationTest {
 
-  private static final String SEARCH_URI = NEWS_FEED_URI + "/me/search";
+  private static final String SEARCH_URI = TENANT_NEWS_FEED_URI + "/me/search";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -85,8 +85,7 @@ class NewsFeedItemApiTest extends IntegrationTest {
       input.sorts(List.of(SortField.builder().property(sortField).direction("desc").build()));
     }
     return mvc.perform(
-            post(SEARCH_URI)
-                .header("X-Tenant-Ids", tenantId)
+            post(SEARCH_URI, tenantId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input.build()))
                 .with(csrf()))
@@ -208,8 +207,7 @@ class NewsFeedItemApiTest extends IntegrationTest {
 
       // Act & Assert
       mvc.perform(
-              post(SEARCH_URI)
-                  .header("X-Tenant-Ids", tenantId)
+              post(SEARCH_URI, tenantId)
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(PaginationFixture.getDefault().build()))
                   .with(csrf()))

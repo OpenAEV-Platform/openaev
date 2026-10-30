@@ -1,7 +1,7 @@
 import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CampaignOutlined, OpenInNewOutlined, RouteOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useRef, useState } from 'react';
 
 import { searchMyNewsFeedItems } from '../../../../actions/news_feed/news-feed-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
@@ -55,16 +55,19 @@ const NewsFeedList = () => {
     buildSearchPagination({ sorts: initSorting('news_feed_item_creation_date', 'DESC') }),
   );
 
+  // Only the latest request may flag a failure: PaginationComponentV2 already ignores the
+  // loading state and the content of a superseded one.
+  const latestRequest = useRef(0);
   const searchItemsToLoad = (input: SearchPaginationInput) => {
-    setLoading(true);
+    const requestId = ++latestRequest.current;
     setFailed(false);
-    return searchMyNewsFeedItems(input)
-      .catch((error) => {
+    return searchMyNewsFeedItems(input).catch((error) => {
+      if (requestId === latestRequest.current) {
         setItems([]);
         setFailed(true);
-        throw error;
-      })
-      .finally(() => setLoading(false));
+      }
+      throw error;
+    });
   };
 
   const hubUrl = (item: NewsFeedItemOutput) => (
@@ -163,6 +166,7 @@ const NewsFeedList = () => {
         fetch={searchItemsToLoad}
         searchPaginationInput={searchPaginationInput}
         setContent={setItems}
+        setLoading={setLoading}
         queryableHelpers={queryableHelpers}
         entityPrefix="news_feed_item"
         disableFilters
