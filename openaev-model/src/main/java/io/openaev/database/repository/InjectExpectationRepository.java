@@ -44,6 +44,21 @@ public interface InjectExpectationRepository
         AND ier.inject_expectation_result_inject_expectation_id = e.inject_expectation_id)
       """;
 
+  // A pending row of the source: seeded at creation for each collector expected to answer an agent
+  // leaf, and filled by the collector's verdict or by the expiration.
+  String RESULTS_HAS_PENDING_RESULT_FOR_SOURCE =
+      """
+      EXISTS (SELECT 1 FROM inject_expectation_results ier
+      WHERE (ier.inject_expectation_result_result IS NULL
+          OR ier.inject_expectation_result_result = '')
+        AND ier.inject_expectation_result_source_id = :sourceId
+        AND ier.inject_expectation_result_inject_expectation_id = e.inject_expectation_id)
+      """;
+  String EXPECTATION_NOT_EXPIRED =
+      """
+      e.inject_expectation_created_at + (e.inject_expiration_time * interval '1 second') >= now()
+      """;
+
   @NotNull
   Optional<BaseInjectExpectation> findById(@NotNull String id);
 
@@ -178,6 +193,70 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findAgentlessExpectationsNotFilledForSource(
       @Param("tenantId") String tenantId,
       @Param("type") String type,
+      @Param("sourceId") String sourceId,
+      @Param("limit") int limit);
+
+  // Logging agent leaves still awaited from the source. Unlike the Detection feed, the source must
+  // hold a pending row: the leaf was seeded for it at creation (it declared LOGGING and matches the
+  // expected security platforms), and that row is filled once it answers or the leaf expires.
+  // Native: correlated EXISTS and interval arithmetic; read-only, so no session side effect is
+  // lost.
+  @Query(
+      value =
+          "SELECT e.* FROM injects_expectations e "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_type = 'LOGGING' "
+              + "AND e.agent_id IS NOT NULL "
+              + "AND "
+              + EXPECTATION_NOT_EXPIRED
+              + "AND "
+              + RESULTS_HAS_PENDING_RESULT_FOR_SOURCE
+              + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
+      nativeQuery = true)
+  List<BaseInjectExpectation> findLoggingAgentExpectationsPendingForSource(
+      @Param("tenantId") String tenantId,
+      @Param("sourceId") String sourceId,
+      @Param("limit") int limit);
+
+  // Logging agentless leaves not answered by the source. Agentless leaves carry no pending row, so
+  // the eligibility is checked here: the source declared LOGGING and matches the expected security
+  // platforms, and the leaf has not expired (the expiration answers it under another source).
+  // Native: correlated EXISTS, array and jsonb operators, interval arithmetic; read-only, so no
+  // session side effect is lost.
+  @Query(
+      value =
+          "SELECT e.* FROM injects_expectations e "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_type = 'LOGGING' "
+              + "AND e.agent_id IS NULL "
+              + "AND e.asset_id IS NOT NULL "
+              + "AND NOT EXISTS (SELECT 1 FROM injects_expectations child "
+              + "  WHERE child.inject_id = e.inject_id "
+              + "  AND child.asset_id = e.asset_id "
+              + "  AND child.inject_expectation_type = e.inject_expectation_type "
+              + "  AND child.agent_id IS NOT NULL) "
+              + "AND EXISTS (SELECT 1 FROM collectors c "
+              + "  WHERE c.collector_id = :sourceId "
+              + "  AND c.tenant_id = :tenantId "
+              + "  AND 'LOGGING' = ANY(c.collector_supported_expectation_types)) "
+              + "AND (e.inject_expectation_expected_security_platforms IS NULL "
+              + "  OR jsonb_typeof(e.inject_expectation_expected_security_platforms::jsonb) <> 'array' "
+              + "  OR jsonb_array_length(e.inject_expectation_expected_security_platforms::jsonb) = 0 "
+              + "  OR EXISTS (SELECT 1 FROM collectors c "
+              + "    JOIN assets sp ON sp.asset_id = c.collector_security_platform "
+              + "    WHERE c.collector_id = :sourceId "
+              + "    AND sp.security_platform_type IS NOT NULL "
+              + "    AND jsonb_exists(e.inject_expectation_expected_security_platforms::jsonb, sp.security_platform_type))) "
+              + "AND "
+              + EXPECTATION_NOT_EXPIRED
+              + "AND "
+              + RESULTS_HAS_NO_RESULT_FOR_SOURCE
+              + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
+      nativeQuery = true)
+  List<BaseInjectExpectation> findLoggingAgentlessExpectationsNotFilledForSource(
+      @Param("tenantId") String tenantId,
       @Param("sourceId") String sourceId,
       @Param("limit") int limit);
 

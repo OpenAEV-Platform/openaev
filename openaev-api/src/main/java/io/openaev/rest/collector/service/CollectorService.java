@@ -349,7 +349,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     for (String declaredType : declaredTypes) {
       try {
         EXPECTATION_TYPE expectationType =
-            EXPECTATION_TYPE.valueOf(declaredType.trim().toUpperCase());
+            EXPECTATION_TYPE.valueOf(declaredType.trim().toUpperCase(Locale.ROOT));
         if (!known.contains(expectationType)) {
           known.add(expectationType);
         }
