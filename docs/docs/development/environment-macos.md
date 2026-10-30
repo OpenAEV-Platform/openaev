@@ -40,7 +40,7 @@ Both commands must report Java 21. If `java -version` still prints *Unable to lo
 
 ### Docker
 
-Development services (PostgreSQL, Elasticsearch, RabbitMQ, Silo) run in containers. Use either Docker Desktop or Colima.
+Development services (PostgreSQL, Elasticsearch, RabbitMQ, RustFS) run in containers. Use either Docker Desktop or Colima.
 
 #### Option A — Docker Desktop
 
