@@ -47,9 +47,10 @@ const useEntityToggle = <T extends Record<string, any>>(
       const addedIds = givenIds.filter(n => !currentIds.includes(n));
       let newSelectedElements = {
         ...selectedElements,
-        ...R.indexBy(
-          R.prop(`${prefix}_id`),
-          entity.filter(n => addedIds.includes(n[`${prefix}_id`])),
+        ...Object.fromEntries(
+          entity
+            .filter(n => addedIds.includes(n[`${prefix}_id`]))
+            .map(n => [n[`${prefix}_id`], n]),
         ),
       };
       if (forceRemove.length > 0) {

@@ -32,7 +32,7 @@ const ExerciseDistributionScoreOverTimeByTeam: FunctionComponent<Props> = ({ exe
   let cumulation = 0;
   const teamsScores = R.pipe(
     R.filter((n: InjectExpectationOutput) => n.inject_expectation_score != null && n?.inject_expectation_team && n?.inject_expectation_user === null),
-    list => Object.groupBy(list, R.prop('inject_expectation_team')),
+    (list: InjectExpectationOutput[]) => Object.groupBy(list, R.prop('inject_expectation_team')),
     Object.entries,
     R.map((n: [string, InjectExpectationOutput[]]) => {
       cumulation = 0;
