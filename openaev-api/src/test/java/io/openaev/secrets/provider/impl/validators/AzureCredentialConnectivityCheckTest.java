@@ -12,6 +12,7 @@ import com.azure.core.credential.TokenRequestContext;
 import com.azure.core.exception.ClientAuthenticationException;
 import com.azure.core.exception.HttpResponseException;
 import com.azure.core.http.HttpResponse;
+import com.azure.core.http.netty.NettyAsyncHttpClientBuilder;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
 import io.openaev.secrets.provider.SecretConnectionResult;
@@ -20,7 +21,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.concurrent.TimeoutException;
-import javax.net.ssl.X509TrustManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -52,13 +52,16 @@ class AzureCredentialConnectivityCheckTest {
 
   @Mock private AzureCredentialConnectivityCheckFactory tokenCredentialFactory;
   @Mock private TokenCredential tokenCredential;
-  @Mock private X509TrustManager trustManager;
 
   private AzureCredentialConnectivityCheck validator;
 
   @BeforeEach
   void setUp() {
-    validator = new AzureCredentialConnectivityCheck(tokenCredentialFactory, trustManager);
+    // A real transport: the subscription read must go over an actual socket to the mock cloud.
+    lenient()
+        .when(tokenCredentialFactory.httpClient())
+        .thenReturn(new NettyAsyncHttpClientBuilder().build());
+    validator = new AzureCredentialConnectivityCheck(tokenCredentialFactory);
     // The timeout is a @Value field: without a Spring context it stays 0, which the validator
     // would clamp to 1s anyway — set it explicitly so the intent is visible.
     ReflectionTestUtils.setField(validator, "timeoutSeconds", TIMEOUT_SECONDS);

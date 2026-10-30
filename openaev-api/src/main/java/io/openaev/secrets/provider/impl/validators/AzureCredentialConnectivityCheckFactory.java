@@ -1,6 +1,7 @@
 package io.openaev.secrets.provider.impl.validators;
 
 import com.azure.core.credential.TokenCredential;
+import com.azure.core.http.HttpClient;
 import com.azure.core.management.AzureEnvironment;
 
 /**
@@ -46,4 +47,15 @@ public interface AzureCredentialConnectivityCheckFactory {
    * @return a credential able to request tokens for that identity
    */
   TokenCredential forManagedIdentity(String clientId);
+
+  /**
+   * The HTTP transport the credentials built here use for their token calls.
+   *
+   * <p>The scoped ARM read goes through it too, so that both calls resolve hosts, honor the proxy
+   * settings and trust certificates the same way: a second client with its own behavior can reach
+   * the token endpoint and fail on the very same host.
+   *
+   * @return the shared transport, never null
+   */
+  HttpClient httpClient();
 }
