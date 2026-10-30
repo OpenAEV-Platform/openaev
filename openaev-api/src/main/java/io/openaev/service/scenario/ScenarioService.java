@@ -506,8 +506,10 @@ public class ScenarioService {
    * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
    * the default one on the non-prefixed route: a member reaches its own scenario in any tenant of
    * its scope on both routes. For the callers that already loaded by primary key, so that scoping
-   * them refuses only what lies outside the scope.
+   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
+   * lookup carries the request scope even from a caller that opens no transaction of its own.
    */
+  @Transactional(readOnly = true)
   public Optional<Scenario> findByIdInScope(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
     Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);

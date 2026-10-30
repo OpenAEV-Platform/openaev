@@ -433,6 +433,30 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)));
   }
 
+  int dismissSimulationDrift(Route route, String id) throws Exception {
+    return status(
+        route.with(
+            put(route.simulation(id) + "/expectations-drift/dismiss")
+                .content(asJsonString(Map.of("dismissed", true)))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  int realignSimulationDrift(Route route, String id) throws Exception {
+    return status(route.with(post(route.simulation(id) + "/expectations-drift/realign")));
+  }
+
+  int dismissScenarioDrift(Route route, String id) throws Exception {
+    return status(
+        route.with(
+            put(route.scenario(id) + "/expectations-drift/dismiss")
+                .content(asJsonString(Map.of("dismissed", true)))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  int realignScenarioDrift(Route route, String id) throws Exception {
+    return status(route.with(post(route.scenario(id) + "/expectations-drift/realign")));
+  }
+
   /**
    * Performs the request from an empty ambient tenant, as production's request thread starts: the
    * fixtures leave a tenant on the test thread, which the non-prefixed route would otherwise read.
