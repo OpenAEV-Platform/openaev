@@ -6,8 +6,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.ProductionActiveTables;
@@ -16,7 +14,6 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.inject.form.DirectInjectInput;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -63,36 +60,12 @@ class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeTestBase {
     return perform(route, get(route.simulation(id) + "/expectations-drift"));
   }
 
-  private int dismissSimulationDrift(Route route, String id) throws Exception {
-    return perform(
-        route,
-        put(route.simulation(id) + "/expectations-drift/dismiss")
-            .content(asJsonString(Map.of("dismissed", true)))
-            .contentType(MediaType.APPLICATION_JSON));
-  }
-
-  private int realignSimulationDrift(Route route, String id) throws Exception {
-    return perform(route, post(route.simulation(id) + "/expectations-drift/realign"));
-  }
-
   private int simulationPlayerChallenges(Route route, String id) throws Exception {
     return perform(route, get(route.simulationPlayerChallenges(id)));
   }
 
   private int scenarioDrift(Route route, String id) throws Exception {
     return perform(route, get(route.scenario(id) + "/expectations-drift"));
-  }
-
-  private int dismissScenarioDrift(Route route, String id) throws Exception {
-    return perform(
-        route,
-        put(route.scenario(id) + "/expectations-drift/dismiss")
-            .content(asJsonString(Map.of("dismissed", true)))
-            .contentType(MediaType.APPLICATION_JSON));
-  }
-
-  private int realignScenarioDrift(Route route, String id) throws Exception {
-    return perform(route, post(route.scenario(id) + "/expectations-drift/realign"));
   }
 
   private int executeDirectInject(Route route, String simulationId, String contractId)
@@ -185,6 +158,7 @@ class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeTestBase {
       // Assert
       assertThat(new int[] {expectations, drift, dismiss, realign, challenges, execute})
           .containsExactly(200, 200, 200, 200, 200, 200);
+      assertThat(simulationDriftDismissed(simulationId)).isFalse();
       assertThat(injectCount(simulationId)).isEqualTo(1);
     }
   }
@@ -280,6 +254,7 @@ class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeTestBase {
       // Assert
       assertThat(new int[] {expectations, drift, dismiss, realign, challenges, execute})
           .containsExactly(200, 200, 200, 200, 200, 200);
+      assertThat(simulationDriftDismissed(simulationId)).isFalse();
       assertThat(injectCount(simulationId)).isEqualTo(1);
     }
 
@@ -299,6 +274,7 @@ class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeTestBase {
 
       // Assert
       assertThat(new int[] {drift, dismiss, realign}).containsExactly(200, 200, 200);
+      assertThat(scenarioDriftDismissed(scenarioId)).isFalse();
     }
   }
 }
