@@ -4,6 +4,7 @@ import static io.openaev.jsonapi.GenericJsonApiIUtils.resolveType;
 import static io.openaev.utils.reflection.ClazzUtils.instantiate;
 import static io.openaev.utils.reflection.CollectionUtils.*;
 import static io.openaev.utils.reflection.FieldUtils.getAllFieldsAsMap;
+import static io.openaev.utils.reflection.FieldUtils.getField;
 import static io.openaev.utils.reflection.FieldUtils.setField;
 import static io.openaev.utils.reflection.RelationUtils.getAllRelationsAsMap;
 import static io.openaev.utils.reflection.RelationUtils.setInverseRelation;
@@ -20,9 +21,13 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import io.openaev.service.FileService;
 import jakarta.annotation.Resource;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.metamodel.EntityType;
 import java.io.ByteArrayInputStream;
@@ -79,7 +84,7 @@ public class GenericJsonApiImporter<T extends Base> {
     Map<String, ResourceObject> includedMap = toMap(doc.included());
     // Cache keyed by id, with a boolean indicating whether the entity should be persisted or not at
     // the end
-    Map<String, Pair<T, Boolean>> entityCache = new HashMap<>();
+    Map<String, Pair<T, Boolean>> entityCache = new LinkedHashMap<>();
     List<CanRemapWeakRelationships> entitiesNeedingRemapping = new ArrayList<>();
 
     T entity =
@@ -100,16 +105,12 @@ public class GenericJsonApiImporter<T extends Base> {
     stampTenant(toPersist, writeTenantId);
     entityCache.values().forEach(value -> stampTenant(value.getLeft(), writeTenantId));
 
-    // Persist included entities that not inner relationship
+    // Persist included entities that not inner relationship, each after the entities it references
+    // (a payload after its document, a remediation after its payload)
+    Map<Object, Boolean> pending = new IdentityHashMap<>();
+    entityCache.values().forEach(value -> pending.put(value.getLeft(), value.getRight()));
     for (Pair<T, Boolean> value : entityCache.values()) {
-      if (!entityManager.contains(value.getLeft()) && !value.getRight()) {
-        T e = value.getLeft();
-        if (e.getId() != null && entityManager.find(e.getClass(), e.getId()) != null) {
-          entityManager.merge(e);
-        } else {
-          entityManager.persist(e);
-        }
-      }
+      persistAfterReferences(value.getLeft(), pending);
     }
 
     // Validate constraint
@@ -177,6 +178,56 @@ public class GenericJsonApiImporter<T extends Base> {
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  /**
+   * Persists {@code entity} once the cached entities it references are persisted: the persistence
+   * context refuses a reference to a transient entity. That covers the references of the children
+   * its persist cascades to (a payload cascades to its remediations, which reference a security
+   * platform). Inner relationships are persisted by their owner.
+   */
+  @SuppressWarnings("unchecked")
+  private void persistAfterReferences(Object entity, Map<Object, Boolean> pending) {
+    Boolean inner = pending.remove(entity);
+    if (inner == null) {
+      return; // already handled, or not a cached entity
+    }
+    persistReferences(entity, pending);
+    for (Field field : getAllRelationsAsMap(entity.getClass()).values()) {
+      if (isCollection(field) && cascadesPersist(field) && getField(entity, field) != null) {
+        toCollection(getField(entity, field)).forEach(child -> persistReferences(child, pending));
+      }
+    }
+    T e = (T) entity;
+    if (!inner && !entityManager.contains(e)) {
+      if (e.getId() != null && entityManager.find(e.getClass(), e.getId()) != null) {
+        entityManager.merge(e);
+      } else {
+        entityManager.persist(e);
+      }
+    }
+  }
+
+  /** Persists the cached entities {@code entity} references through a single-valued owning side. */
+  private void persistReferences(Object entity, Map<Object, Boolean> pending) {
+    for (Field field : getAllRelationsAsMap(entity.getClass()).values()) {
+      OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+      if (isCollection(field) || (oneToOne != null && !oneToOne.mappedBy().isEmpty())) {
+        continue;
+      }
+      persistAfterReferences(getField(entity, field), pending);
+    }
+  }
+
+  private static boolean cascadesPersist(Field field) {
+    CascadeType[] cascade =
+        field.isAnnotationPresent(OneToMany.class)
+            ? field.getAnnotation(OneToMany.class).cascade()
+            : field.isAnnotationPresent(ManyToMany.class)
+                ? field.getAnnotation(ManyToMany.class).cascade()
+                : new CascadeType[0];
+    return Arrays.stream(cascade)
+        .anyMatch(type -> type == CascadeType.ALL || type == CascadeType.PERSIST);
   }
 
   /**
