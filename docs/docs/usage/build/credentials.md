@@ -1,5 +1,6 @@
 # Credentials
 
+{% if feature_visible("CREDENTIAL_ASSET") %}
 A Credential stores the secret an Inject needs to authenticate against its target, for example the access to a cloud
 account. This page explains how to create Credentials and how to use them in your Injects.
 
@@ -108,3 +109,8 @@ See [Users and RBAC](../../administration/users-and-rbac.md) for how to create r
 - [Injects](../run-and-evaluate/injects/inject-overview.md) -- Create and configure Injects
 - [Assets](assets.md) -- Manage the Endpoints and Asset groups targeted by your Injects
 - [Injector development](../../development/injectors.md#credentials) -- Use Credentials in your own Injector
+{% else %}
+!!! tip "Under construction"
+
+    This feature is under development.
+{% endif %}

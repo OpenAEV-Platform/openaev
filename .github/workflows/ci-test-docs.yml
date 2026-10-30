@@ -4,10 +4,14 @@ on:
   push:
     paths:
       - 'docs/**'
+      # The docs hide preview features listed in this enum (see docs/main.py)
+      - 'openaev-api/src/main/java/io/openaev/rest/settings/PreviewFeature.java'
       - '.github/workflows/ci-test-docs.yml'
   pull_request:
     paths:
       - 'docs/**'
+      # The docs hide preview features listed in this enum (see docs/main.py)
+      - 'openaev-api/src/main/java/io/openaev/rest/settings/PreviewFeature.java'
       - '.github/workflows/ci-test-docs.yml'
 
 # The GITHUB_TOKEN is only used by the git-committers plugin to read commit history.
