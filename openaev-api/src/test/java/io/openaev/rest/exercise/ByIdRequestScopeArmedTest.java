@@ -15,7 +15,8 @@ import org.springframework.test.context.DynamicPropertySource;
 /**
  * Simulation and scenario by-id reads with {@code exercises} and {@code scenarios} isolated on top
  * of the production list. The tenant route keeps working, a selector naming a tenant the caller is
- * not a member of is refused, and a row outside the selector is not found.
+ * not a member of is refused, and a row outside the selector is not found. The expectation drift
+ * realignment, which opens no transaction of its own, resolves its row in the request scope too.
  *
  * <p>The simulation and scenario entities still carry the v1 tenant filter, keyed on the ambient
  * tenant, which the non-prefixed route leaves on the default one. So a member tenant's row named by
@@ -162,6 +163,75 @@ class ByIdRequestScopeArmedTest extends ByIdRequestScopeTestBase {
       assertThat(new int[] {simulationDelete, scenarioDelete}).containsExactly(403, 403);
       assertThat(simulationExists(simulationId)).isTrue();
       assertThat(scenarioExists(scenarioId)).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("Expectation drift realignment")
+  class ExpectationDriftRealignment {
+
+    @Test
+    @DisplayName(
+        "given a simulation and a scenario of the path tenant, a dismissed drift is realigned and"
+            + " the dismissal cleared")
+    void given_rowsOfThePathTenant_should_realignAndClearTheDismissal() throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(memberTenant);
+      String scenarioId = seedScenario(memberTenant);
+      Route route = tenantRoute(memberTenant);
+      int simulationDismiss = dismissSimulationDrift(route, simulationId);
+      int scenarioDismiss = dismissScenarioDrift(route, scenarioId);
+
+      // Act
+      int simulationRealign = realignSimulationDrift(route, simulationId);
+      int scenarioRealign = realignScenarioDrift(route, scenarioId);
+
+      // Assert
+      assertThat(new int[] {simulationDismiss, scenarioDismiss, simulationRealign, scenarioRealign})
+          .containsExactly(200, 200, 200, 200);
+      assertThat(simulationDriftDismissed(simulationId)).isFalse();
+      assertThat(scenarioDriftDismissed(scenarioId)).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "given a simulation and a scenario of the tenant named by the selector, a dismissed drift"
+            + " is realigned and the dismissal cleared")
+    void given_rowsOfTheSelectedTenant_should_realignAndClearTheDismissal() throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(memberTenant);
+      String scenarioId = seedScenario(memberTenant);
+      Route route = headerRoute(memberTenant);
+      int simulationDismiss = dismissSimulationDrift(route, simulationId);
+      int scenarioDismiss = dismissScenarioDrift(route, scenarioId);
+
+      // Act
+      int simulationRealign = realignSimulationDrift(route, simulationId);
+      int scenarioRealign = realignScenarioDrift(route, scenarioId);
+
+      // Assert
+      assertThat(new int[] {simulationDismiss, scenarioDismiss, simulationRealign, scenarioRealign})
+          .containsExactly(200, 200, 200, 200);
+      assertThat(simulationDriftDismissed(simulationId)).isFalse();
+      assertThat(scenarioDriftDismissed(scenarioId)).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "given a simulation and a scenario outside the path tenant, the realignment answers not"
+            + " found")
+    void given_rowsOutsideThePathTenant_should_answerNotFound() throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(otherTenant);
+      String scenarioId = seedScenario(otherTenant);
+      Route route = tenantRoute(memberTenant);
+
+      // Act
+      int simulationRealign = realignSimulationDrift(route, simulationId);
+      int scenarioRealign = realignScenarioDrift(route, scenarioId);
+
+      // Assert
+      assertThat(new int[] {simulationRealign, scenarioRealign}).containsExactly(404, 404);
     }
   }
 }
