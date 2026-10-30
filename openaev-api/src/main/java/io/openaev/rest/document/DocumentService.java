@@ -144,6 +144,7 @@ public class DocumentService {
             new ByteArrayInputStream(content),
             fileSize,
             fileContentType);
+        document.setTarget(fileTarget);
         document.setDescription(input.getDescription());
 
         // Compute exercises

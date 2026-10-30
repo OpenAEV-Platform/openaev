@@ -522,6 +522,45 @@ class DocumentApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Given an existing name and new content should point the document at the new content")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_existing_name_and_new_content_should_point_the_document_at_the_new_content()
+        throws Exception {
+      // Arrange
+      Document document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+              .persist()
+              .get();
+      byte[] newContent = "new content".getBytes(StandardCharsets.UTF_8);
+      String newTarget =
+          DigestUtils.md5Hex(newContent) + "." + FilenameUtils.getExtension(document.getName());
+      MockPart inputPart =
+          new MockPart("input", mapper.writeValueAsBytes(new DocumentCreateInput()));
+      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+      MockMultipartFile filePart =
+          new MockMultipartFile(
+              "file", document.getName(), MediaType.TEXT_PLAIN_VALUE, newContent);
+
+      // Act
+      String response =
+          mvc.perform(
+                  multipart(DOCUMENT_API + "/upsert")
+                      .part(inputPart)
+                      .file(filePart)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertEquals(document.getId(), JsonPath.read(response, "$.document_id"));
+      assertEquals(newTarget, documentRepository.findById(document.getId()).orElseThrow().getTarget());
+    }
+
+    @Test
     @DisplayName("Should update a document by target id when uploading a valid file and input")
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void uploadDocumentShouldUpdateDocumentByTargetId() throws Exception {
