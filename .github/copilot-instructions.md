@@ -47,15 +47,15 @@ ignore unless your changes touch these.
 
 ### Testing
 
-**Backend**: `mvn test` (requires services running), minimum 50% line/30% branch coverage
+**Backend**: `mvn test` (requires services running), at least 80% of the backend lines a PR changes covered
 **Frontend**: `yarn test` (Vitest), `yarn test:e2e` (Playwright, requires app running)
-**Coverage check**: `mvn jacoco:check` or `mvn verify`
+**Coverage check**: after `mvn test`, `pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml --compare-branch=origin/main --src-roots openaev-api/src/main/java --fail-under 80`
 
 ## Continuous Integration
 
 CI runs on GitHub Actions (see `.github/workflows/`):
 
-1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, `mvn jacoco:check`
+1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, then diff-cover on the changed backend lines (advisory for now)
 2. **Frontend Tests**: `yarn install/build/check-ts/lint/test:eslint-rules/depcruise/knip/i18n-checker/test`
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
@@ -171,7 +171,7 @@ Examples:
 6. **Java 21 is mandatory**: The project will not compile with earlier versions.
 7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
-9. **Coverage enforcement**: Backend tests must maintain 50% line coverage, 30% branch coverage.
+9. **Coverage enforcement**: a PR must cover at least 80% of the backend lines it changes (diff-cover in CI, advisory for now).
 10. **Scope confirmation**: For multi-file or cross-layer changes (entity + migration + service + controller + frontend), state which files you plan to modify and why, then wait for confirmation before writing code.
 
 
