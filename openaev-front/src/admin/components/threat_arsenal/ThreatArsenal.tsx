@@ -16,6 +16,7 @@ import {
   searchThreatArsenalActions,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
+import CardGrid from '../../../components/common/card/CardGrid';
 import DialogDelete from '../../../components/common/DialogDelete';
 import ExportButton from '../../../components/common/ExportButton';
 import { useAuthorFacetOptions } from '../../../components/common/facets/ContractFacets';
@@ -232,57 +233,12 @@ const ThreatArsenal = () => {
   const authorOptions = useAuthorFacetOptions(fetchThreatArsenalAuthorCounts, searchPaginationInput);
 
   const renderGridView = () => {
-    if (loading) {
-      return (
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 2,
-        }}
-        >
-          {Array.from({ length: 12 }).map((_, idx) => (
-            <Box
-              key={idx}
-              sx={{
-                height: 200,
-                borderRadius: 1,
-                overflow: 'hidden',
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Skeleton variant="rectangular" height={64} animation="wave" />
-              <Box sx={{ padding: 2 }}>
-                <Skeleton variant="text" width="80%" height={28} animation="wave" />
-                <Skeleton variant="text" width="60%" height={20} animation="wave" />
-                <Box sx={{
-                  display: 'flex',
-                  gap: 1,
-                  marginTop: 2,
-                }}
-                >
-                  <Skeleton variant="circular" width={20} height={20} animation="wave" />
-                  <Skeleton variant="circular" width={20} height={20} animation="wave" />
-                  <Skeleton variant="rectangular" width={60} height={20} animation="wave" sx={{ borderRadius: 1 }} />
-                </Box>
-              </Box>
-            </Box>
-          ))}
-        </Box>
-      );
-    }
-
-    if (threatArsenalActions.length === 0) {
+    if (!loading && threatArsenalActions.length === 0) {
       return <ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} />;
     }
 
     return (
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 2,
-        }}
-      >
+      <CardGrid loading={loading}>
         {threatArsenalActions.map((action) => {
           const flags = computeRowFlags(action);
           return (
@@ -305,7 +261,7 @@ const ThreatArsenal = () => {
             />
           );
         })}
-      </Box>
+      </CardGrid>
     );
   };
 
