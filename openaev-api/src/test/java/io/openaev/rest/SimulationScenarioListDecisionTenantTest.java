@@ -54,6 +54,13 @@ import org.springframework.transaction.annotation.Transactional;
  * in the {@code X-Tenant-Ids} header while the ambient tenant stays the default one: a row of the
  * default tenant is listed, a row of B that the caller holds no grant on is not. The member
  * contrast grants the right in B and reads B's rows on B's tenant route.
+ *
+ * <p>These requests pin what a member reads, not where the decision is taken. Until {@code
+ * exercises} and {@code scenarios} are activated, their v1 tenant filter and the native predicates
+ * on the ambient tenant keep B's rows out of a read made in the default tenant, so a decision taken
+ * in the ambient tenant only passes them too. The per-tenant decision is pinned by {@code
+ * PermissionServiceTenantDecisionTest}, on rows of both tenants, and the list sites by the
+ * simulation and scenario service tests, on stubbed rows of both tenants.
  */
 @TestInstance(PER_CLASS)
 @Transactional
