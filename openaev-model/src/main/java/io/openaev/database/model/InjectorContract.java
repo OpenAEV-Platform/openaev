@@ -469,6 +469,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
 
   // Exposes the contract capability used to decide if atomic testing creation is allowed.
   @JsonProperty("injector_contract_atomic_testing")
+  @Schema(
+      description =
+          "True when this contract can be used to create an atomic test. It does not tell whether"
+              + " a given inject is an atomic test: an inject is one when it belongs to no"
+              + " scenario and no simulation")
   public boolean getAtomicTestingEffective() {
     return Boolean.TRUE.equals(isAtomicTesting);
   }

@@ -7319,6 +7319,7 @@ export interface Injector {
 export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** True when this contract can be used to create an atomic test. It does not tell whether a given inject is an atomic test: an inject is one when it belongs to no scenario and no simulation */
   injector_contract_atomic_testing?: boolean;
   injector_contract_attack_patterns?: string[];
   /** @minLength 1 */
