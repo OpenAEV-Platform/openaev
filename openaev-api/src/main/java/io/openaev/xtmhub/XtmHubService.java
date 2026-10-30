@@ -4,11 +4,13 @@ import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.NewsFeedItem;
+import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.response.PlatformSettings;
@@ -25,6 +27,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -76,7 +79,7 @@ public class XtmHubService {
    */
   public Page<NewsFeedItem> searchMyNewsFeedItems(
       TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
-    if (!isAnyTenantRegistered(ctx)) {
+    if (!isNewsFeedAvailable(ctx)) {
       return new PageImpl<>(
           List.of(),
           PageRequest.of(searchPaginationInput.getPage(), searchPaginationInput.getSize()),
@@ -85,7 +88,25 @@ public class XtmHubService {
     return newsFeedItemService.searchMyItems(searchPaginationInput);
   }
 
-  private boolean isAnyTenantRegistered(TxCtx ctx) {
+  /**
+   * Subscribes the current user to the given news feed types and only those. The preferences only
+   * make sense for a tenant registered on XTM Hub, as it is the one that delivers the items.
+   *
+   * @throws ForbiddenException when no tenant in the scope of the request is registered
+   */
+  public List<NewsFeedType> updateMyNewsFeedSubscribedTypes(
+      TxCtx ctx, @NotNull final Collection<NewsFeedType> subscribedTypes) {
+    if (!isNewsFeedAvailable(ctx)) {
+      throw new ForbiddenException("The tenant is not registered on XTM Hub");
+    }
+    return newsFeedItemService.updateMySubscribedTypes(subscribedTypes);
+  }
+
+  /**
+   * Whether the news feed of the user is served by XTM Hub, that is when a tenant in the scope of
+   * the request is registered (a tenant that lost its connectivity still is).
+   */
+  public boolean isNewsFeedAvailable(TxCtx ctx) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     return !tenantIds.isEmpty()
         && tenantXtmHubRegistrationRepository.existsByTenantIdInAndRegistrationStatusIn(
