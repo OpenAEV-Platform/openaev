@@ -2,6 +2,7 @@ package io.openaev.importer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.jsonapi.GenericJsonApiImporter;
@@ -44,6 +45,7 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
   @Autowired private GenericJsonApiImporter importer;
   @Autowired private MinioService minioService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private ObjectMapper objectMapper;
 
   private String tenantA;
   private String tenantB;
@@ -109,16 +111,20 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
   @SuppressWarnings("unchecked")
   void given_ambientTenantDiffersFromWriteScope_should_storeImportedObjectUnderWriteScope()
       throws Exception {
-    // Arrange: an included document resource carrying its file bytes, imported to tenant B while
-    // the
-    // ambient context is A.
+    // Arrange: an included document resource shaped like the export (type "documents", extras
+    // keyed by document_target, read back from the archive as a map), imported to tenant B while
+    // the ambient context is A.
     byte[] bytes = ("jsonapi-import-body-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
     String target = DigestUtils.md5Hex(new ByteArrayInputStream(bytes)) + ".txt";
     ResourceObject includedDocument =
         new ResourceObject(
-            UUID.randomUUID().toString(), "document", Map.of("document_name", target), null);
+            UUID.randomUUID().toString(),
+            "documents",
+            Map.of("document_name", "original-name.txt", "document_target", target),
+            null);
     JsonApiDocument<ResourceObject> doc =
-        new JsonApiDocument<>(null, List.of((Object) includedDocument));
+        new JsonApiDocument<>(
+            null, List.of(objectMapper.convertValue(includedDocument, Map.class)));
     Map<String, byte[]> extras = Map.of(target, bytes);
     TenantContext.setCurrentTenant(tenantA);
 

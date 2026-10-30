@@ -37,12 +37,18 @@ import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.Relationship;
 import io.openaev.jsonapi.ResourceIdentifier;
 import io.openaev.jsonapi.ResourceObject;
+import io.openaev.service.MinioService;
 import io.openaev.service.ZipJsonService;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
+import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.FileFixture;
+import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.ThreatArsenalInputFixture;
+import io.openaev.utils.fixtures.composers.DocumentComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import java.util.*;
@@ -70,6 +76,9 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
   @Autowired private ZipJsonService<Payload> zipJsonService;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private DocumentComposer documentComposer;
+  @Autowired private PayloadComposer payloadComposer;
+  @Autowired private MinioService minioService;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -267,6 +276,44 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
               .findInjectorContractByPayload(importedPayload)
               .map(InjectorContract::getId)
               .orElse(null));
+    }
+
+    @Test
+    @DisplayName("Importing a file drop payload export should restore its file")
+    void given_fileDropPayloadExport_should_restoreItsFileOnImport() throws Exception {
+      // Arrange: export a file drop payload, then remove its object so only the archive holds it
+      DocumentComposer.Composer document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+              .withInMemoryFile(FileFixture.getPlainTextFileContent());
+      Payload payload =
+          payloadComposer
+              .forPayload(PayloadFixture.createDefaultFileDrop())
+              .withFileDrop(document)
+              .persist()
+              .get();
+      String tenantId = document.get().getTenant().getId();
+      String target = document.get().getTarget();
+      byte[] exportedZip =
+          mockMvc
+              .perform(get(PAYLOAD_URI + "/" + payload.getId() + "/export"))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+      minioService.deleteFileForTenant(tenantId, target);
+
+      // Act
+      mockMvc
+          .perform(
+              multipart(THREAT_ARSENAL_URL + "/import")
+                  .file(
+                      new MockMultipartFile("file", "payload.zip", "application/zip", exportedZip))
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      assertEquals(1, minioService.countObjects(tenantId + "/" + target));
     }
 
     @Test

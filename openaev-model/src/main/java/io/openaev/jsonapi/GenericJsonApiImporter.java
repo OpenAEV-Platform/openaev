@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
@@ -133,10 +134,13 @@ public class GenericJsonApiImporter<T extends Base> {
       JsonApiDocument<ResourceObject> doc, Map<String, byte[]> extras, String writeTenantId) {
     if (doc.included() != null) {
       for (Object o : doc.included()) {
-        if (o instanceof ResourceObject ro && "document".equals(ro.type())) {
+        // Parsed from the archive, included resources are maps until converted.
+        ResourceObject ro = (ResourceObject) safeConvert(o, ResourceObject.class);
+        if (ro != null && resolveType(Document.class).equals(ro.type())) {
           Map<String, Object> attrs = ro.attributes();
-          if (attrs != null && attrs.containsKey("document_name")) {
-            String target = String.valueOf(attrs.get("document_name"));
+          // The export keys the extras by document_target.
+          if (attrs != null && attrs.containsKey("document_target")) {
+            String target = String.valueOf(attrs.get("document_target"));
             byte[] fileBytes = extras.get(target);
             if (fileBytes != null) {
               try (InputStream in = new ByteArrayInputStream(fileBytes)) {
