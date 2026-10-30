@@ -252,8 +252,8 @@ public class ThreatArsenalApi {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalBulkDeleteOutput bulkDeleteActions(
       // TxCtx is still declared so the resolver injects the request scope; there is no real
-      // transaction here to write the GUC into (SUPPORTS), so it is passed down manually into
-      // each short read/chunk transaction in ThreatArsenalService#bulkDelete.
+      // transaction here to write the GUC into (SUPPORTS), so ThreatArsenalService#bulkDelete
+      // deletes only within the tenants of this scope, each in its own read/chunk transactions.
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     return ThreatArsenalBulkDeleteOutput.of(threatArsenalService.bulkDelete(ctx, input));
   }

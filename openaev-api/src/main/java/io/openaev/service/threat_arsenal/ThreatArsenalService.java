@@ -7,7 +7,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
-import io.openaev.context.TenantContext;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
@@ -32,9 +32,11 @@ import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -54,6 +56,7 @@ public class ThreatArsenalService {
   private final ThreatArsenalMapper threatArsenalMapper;
   private final DetectionRemediationService detectionRemediationService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final AmbientTenantBridge ambientTenantBridge;
   private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
@@ -460,24 +463,31 @@ public class ThreatArsenalService {
    * BulkDeleteExecutor}, which also tracks the deletion as a massive operation (header progress
    * indicator) and suppresses the per-entity stream events.
    *
-   * <p>The eligibility of an explicitly selected item and its deletion are evaluated against the
-   * same tenant: the one the items are deleted from. Their read transaction, like every chunk
-   * transaction, carries that tenant's scope, since InjectorContract#getInjectorType()/getPayload()
-   * resolve through the v2 tenant-scoped injectors and payloads tables.
+   * <p>Only the items of the tenants in the request scope are considered, one tenant at a time: an
+   * item is resolved, judged and deleted in its own tenant. The ambient tenant follows that tenant
+   * for the injector contracts, and every read and chunk transaction carries its scope for the
+   * injectors and payloads that InjectorContract#getInjectorType()/getPayload() resolve through.
    *
-   * @param ctx the request scope, used to resolve a select-all request
+   * @param ctx the request scope, which bounds the tenants the items are deleted from
    * @param input the search + selection input
    * @return the ids that were actually deleted
    */
   public List<String> bulkDelete(TxCtx ctx, InjectorContractSearchPaginationInput input) {
-    TxCtx deletionScope = TxCtx.forTenant(TenantContext.getCurrentTenant());
-    List<String> idsToProcess = input.getInjectorContractIdsToProcess();
-    boolean explicitSelection = idsToProcess != null && !idsToProcess.isEmpty();
+    List<String> deletedIds = new ArrayList<>();
+    for (String tenantId : TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx).stream().sorted().toList()) {
+      deletedIds.addAll(
+          ambientTenantBridge.callInTenant(tenantId, () -> bulkDeleteInTenant(tenantId, input)));
+    }
+    return deletedIds.stream().distinct().sorted().toList();
+  }
+
+  private List<String> bulkDeleteInTenant(
+      String tenantId, InjectorContractSearchPaginationInput input) {
+    TxCtx tenantScope = TxCtx.forTenant(tenantId);
     List<String> eligibleIds =
-        bulkDeleteExecutor.resolveInTransaction(
-            explicitSelection ? deletionScope : ctx, () -> resolveEligibleIds(input));
+        bulkDeleteExecutor.resolveInTransaction(tenantScope, () -> resolveEligibleIds(input));
     return bulkDeleteExecutor.deleteInChunks(
-        deletionScope,
+        tenantScope,
         "threat arsenal items",
         eligibleIds,
         chunk -> chunk.forEach(injectorContractService::deleteInjectorContractById));
