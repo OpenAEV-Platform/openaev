@@ -77,6 +77,34 @@ public class ThreatArsenalInputFixture {
         domainIds);
   }
 
+  public static ThreatArsenalActionCreateInput createExecutableActionWithDetectionRemediation(
+      List<String> domainIds, String executableFileId, List<String> securityPlatformIds) {
+    return new ThreatArsenalActionCreateInput(
+        Executable.EXECUTABLE_TYPE,
+        "My Executable Payload",
+        PAYLOAD_SOURCE.MANUAL,
+        PAYLOAD_STATUS.VERIFIED,
+        new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+        PAYLOAD_EXECUTION_ARCH.x86_64,
+        new EXPECTATION_TYPE[] {},
+        Collections.emptyMap(),
+        "Executable description",
+        null,
+        null,
+        executableFileId,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        Collections.emptyList(),
+        Collections.emptyList(),
+        PayloadInputFixture.buildDetectionRemediations(securityPlatformIds),
+        null,
+        domainIds);
+  }
+
   public static ThreatArsenalActionCreateInput createCommandLineActionWithOutputParser(
       List<String> domainIds) {
     RegexGroupInput regexGroupInput = createDefaultRegexGroupInputIPV6();

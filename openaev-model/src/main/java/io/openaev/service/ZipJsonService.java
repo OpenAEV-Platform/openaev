@@ -243,7 +243,11 @@ public class ZipJsonService<T extends Base> {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
         byte[] content = readAll(zis);
-        if (entry.getName().endsWith(".json") && !META_ENTRY.equals(entry.getName())) {
+        // The JSON:API document is the first JSON entry (writeZip writes it first): a later JSON
+        // entry is a document file, such as a JSON payload attachment.
+        if (doc == null
+            && entry.getName().endsWith(".json")
+            && !META_ENTRY.equals(entry.getName())) {
           try {
             doc =
                 mapper.readValue(

@@ -10,6 +10,8 @@ import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -23,6 +25,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.ContractOutputElement;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.Executable;
 import io.openaev.database.model.InjectorContract;
@@ -30,9 +33,12 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.database.model.PrimitiveType;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.Relationship;
@@ -45,15 +51,21 @@ import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.FileFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.ThreatArsenalInputFixture;
 import io.openaev.utils.fixtures.composers.DocumentComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
+import io.openaev.utils.fixtures.files.BaseFile;
+import io.openaev.utils.fixtures.files.BinaryFile;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -62,6 +74,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,6 +94,9 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
   @Autowired private DocumentComposer documentComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private MinioService minioService;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
+  @Autowired private SecurityPlatformRepository securityPlatformRepository;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -326,28 +342,110 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
     @Test
     @DisplayName("Importing an action export should restore the file of its payload")
     void given_actionExportWithPayloadFile_should_restoreTheFileOnImport() throws Exception {
-      // Arrange: export an action whose payload carries a file, then remove the object so only the
-      // archive holds it
+      // Arrange
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      Document document = contentAddressedDocument(FileFixture.getPlainTextFileContent());
+
+      // Act
+      String importResponse =
+          exportDeleteFileAndImport(
+              ThreatArsenalInputFixture.createDefaultExecutableAction(
+                  List.of(domain.getId()), document.getId()),
+              document);
+
+      // Assert
+      Executable imported = importedPayload(importResponse);
+      assertEquals(document.getTarget(), imported.getExecutableFile().getTarget());
+      assertFileRestored(document);
+    }
+
+    @Test
+    @DisplayName("Importing an action export with a file and a remediation should import both")
+    void given_actionExportWithPayloadFileAndRemediation_should_importBoth() throws Exception {
+      // Arrange: remediations are kept on creation with an active Enterprise Edition license only
+      when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      Document document = contentAddressedDocument(FileFixture.getPlainTextFileContent());
+      String securityPlatformId =
+          securityPlatformComposer
+              .forSecurityPlatform(
+                  SecurityPlatformFixture.createDefault("CrowdStrike Falcon", "EDR"))
+              .persist()
+              .get()
+              .getId();
+
+      // Act: the import creates the security platform of the archive, as on another instance, so
+      // the existing one is renamed first to keep its unique name free
+      String importResponse =
+          exportDeleteFileAndImport(
+              ThreatArsenalInputFixture.createExecutableActionWithDetectionRemediation(
+                  List.of(domain.getId()), document.getId(), List.of(securityPlatformId)),
+              document,
+              () -> {
+                SecurityPlatform platform =
+                    securityPlatformRepository.findById(securityPlatformId).orElseThrow();
+                platform.setName("CrowdStrike Falcon (source)");
+                securityPlatformRepository.save(platform);
+              });
+
+      // Assert
+      assertEquals(1, importedPayload(importResponse).getDetectionRemediations().size());
+      assertFileRestored(document);
+    }
+
+    @Test
+    @DisplayName("Importing an action export with a JSON file should keep the action document")
+    void given_actionExportWithJsonPayloadFile_should_restoreTheFileOnImport() throws Exception {
+      // Arrange: a JSON attachment must not be read as the JSON:API document of the archive
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      Document document =
+          contentAddressedDocument(
+              new BinaryFile(
+                  "{\"key\":\"value\"}".getBytes(StandardCharsets.UTF_8),
+                  "config.json",
+                  "application/json"));
+
+      // Act
+      String importResponse =
+          exportDeleteFileAndImport(
+              ThreatArsenalInputFixture.createDefaultExecutableAction(
+                  List.of(domain.getId()), document.getId()),
+              document);
+
+      // Assert
+      assertEquals(
+          document.getTarget(), importedPayload(importResponse).getExecutableFile().getTarget());
+      assertFileRestored(document);
+    }
+
+    /** Persists a document stored under its content-addressed target, as the platform does. */
+    private Document contentAddressedDocument(BaseFile<?> file) {
       DocumentComposer.Composer document =
-          documentComposer
-              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
-              .withInMemoryFile(FileFixture.getPlainTextFileContent());
-      // Content-addressed, as every document created by the platform: md5.ext
+          documentComposer.forDocument(DocumentFixture.getDocument(file)).withInMemoryFile(file);
       document
           .get()
           .setTarget(
-              DigestUtils.md5Hex(FileFixture.getPlainTextFileContent().getContentBytes()) + ".txt");
-      document.persist();
+              DigestUtils.md5Hex(file.getContentBytes())
+                  + "."
+                  + FilenameUtils.getExtension(file.getFileName()));
+      return document.persist().get();
+    }
+
+    /** Creates the action, exports it, removes the file object, then imports the archive. */
+    private String exportDeleteFileAndImport(
+        ThreatArsenalActionCreateInput input, Document document) throws Exception {
+      return exportDeleteFileAndImport(input, document, () -> {});
+    }
+
+    private String exportDeleteFileAndImport(
+        ThreatArsenalActionCreateInput input, Document document, Runnable beforeImport)
+        throws Exception {
       String createResponse =
           mockMvc
               .perform(
                   post(tenantUri(THREAT_ARSENAL_URL))
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(
-                          asJsonString(
-                              ThreatArsenalInputFixture.createDefaultExecutableAction(
-                                  List.of(domain.getId()), document.get().getId())))
+                      .content(asJsonString(input))
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -363,30 +461,27 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsByteArray();
-      String tenantId = document.get().getTenant().getId();
-      String target = document.get().getTarget();
-      minioService.deleteFileForTenant(tenantId, target);
+      minioService.deleteFileForTenant(document.getTenant().getId(), document.getTarget());
+      beforeImport.run();
+      return mockMvc
+          .perform(
+              multipart(tenantUri(TENANT_THREAT_ARSENAL_URL + "/import"))
+                  .file(new MockMultipartFile("file", "action.zip", "application/zip", exportedZip))
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
 
-      // Act
-      String importResponse =
-          mockMvc
-              .perform(
-                  multipart(tenantUri(TENANT_THREAT_ARSENAL_URL + "/import"))
-                      .file(
-                          new MockMultipartFile(
-                              "file", "action.zip", "application/zip", exportedZip))
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+    private Executable importedPayload(String importResponse) {
+      String payloadId = JsonPath.read(importResponse, "$.action_payload.payload_id");
+      return (Executable) payloadRepository.findById(payloadId).orElseThrow();
+    }
 
-      // Assert
-      String importedPayloadId = JsonPath.read(importResponse, "$.action_payload.payload_id");
-      Executable importedPayload =
-          (Executable) payloadRepository.findById(importedPayloadId).orElseThrow();
-      assertEquals(target, importedPayload.getExecutableFile().getTarget());
-      assertEquals(1, minioService.countObjects(tenantId + "/" + target));
+    private void assertFileRestored(Document document) {
+      assertEquals(
+          1, minioService.countObjects(document.getTenant().getId() + "/" + document.getTarget()));
     }
 
     @Test
