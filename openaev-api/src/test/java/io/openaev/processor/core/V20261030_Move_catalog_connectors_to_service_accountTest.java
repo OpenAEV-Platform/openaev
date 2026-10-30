@@ -21,6 +21,7 @@ import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationCompose
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,7 +62,8 @@ class V20261030_Move_catalog_connectors_to_service_accountTest extends Integrati
         .forConnectorInstance(createDefaultConnectorInstance())
         .withCatalogConnector(
             catalogConnectorComposer.forCatalogConnector(
-                createDefaultCatalogConnectorManagedByXtmComposer("Deployed collector")))
+                createDefaultCatalogConnectorManagedByXtmComposer(
+                    "Deployed collector " + UUID.randomUUID())))
         .withConnectorInstanceConfiguration(
             configurationComposer.forConnectorInstanceConfiguration(tokenConfiguration))
         .persist();
