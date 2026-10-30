@@ -119,6 +119,7 @@ public class AzureManagedIdentityHandler implements SecretHandler {
     return azureCredentialConnectivityCheck.validateManagedIdentity(
         azureSecret.getAzureEnvironment(),
         azureSecret.getAzureClientId(),
-        azureSecret.getAzureSubscriptionId());
+        azureSecret.getAzureSubscriptionId(),
+        azureSecret.getAzureAuthorityHostUri());
   }
 }

@@ -32,15 +32,25 @@ public class DefaultAzureCredentialConnectivityCheckFactory
 
   @Override
   public TokenCredential forServicePrincipal(
-      AzureEnvironment environment, String tenantId, String clientId, String clientSecret) {
-    return new ClientSecretCredentialBuilder()
-        .httpClient(httpClient)
-        // Sovereign clouds have their own login endpoint; without this the probe would always
-        // authenticate against the public cloud and reject perfectly valid credentials.
-        .tenantId(tenantId)
-        .clientId(clientId)
-        .clientSecret(clientSecret)
-        .build();
+      AzureEnvironment environment,
+      String tenantId,
+      String clientId,
+      String clientSecret,
+      String authorityHostUri) {
+    ClientSecretCredentialBuilder builder =
+        new ClientSecretCredentialBuilder()
+            .httpClient(httpClient)
+            .tenantId(tenantId)
+            .clientId(clientId)
+            .clientSecret(clientSecret);
+    if (authorityHostUri == null || authorityHostUri.isBlank()) {
+      // Sovereign clouds have their own login endpoint; without this the probe would always
+      // authenticate against the public cloud and reject perfectly valid credentials.
+      return builder.authorityHost(environment.getActiveDirectoryEndpoint()).build();
+    }
+    // Microsoft does not know a custom authority: instance discovery would ask the public cloud to
+    // validate it, and the token request would fail before reaching that authority.
+    return builder.authorityHost(authorityHostUri).disableInstanceDiscovery().build();
   }
 
   @Override
