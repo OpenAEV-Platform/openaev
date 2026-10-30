@@ -16,6 +16,12 @@ public interface ConnectorInstanceConfigurationRepository
 
   List<ConnectorInstanceConfiguration> findByConnectorInstanceId(String connectorInstanceId);
 
+  @Query(
+      "SELECT c FROM ConnectorInstanceConfiguration c"
+          + " WHERE c.key = :key AND c.connectorInstance.tenant.id = :tenantId")
+  List<ConnectorInstanceConfiguration> findAllByKeyAndTenantId(
+      @Param("key") String key, @Param("tenantId") String tenantId);
+
   interface ConnectorIdsFromDatabase {
 
     String getConnectorInstanceId();

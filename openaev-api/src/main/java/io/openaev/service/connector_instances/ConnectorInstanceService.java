@@ -1,10 +1,9 @@
 package io.openaev.service.connector_instances;
 
-import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TENANT_ID;
 import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TOKEN;
+import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.PLATFORM_MANAGED_KEYS;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +20,7 @@ import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.EndpointService;
+import io.openaev.service.account.CatalogConnectorPrivilegeService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.connectors.HeartbeatWindow;
 import io.openaev.service.exception.ConnectorStatusException;
@@ -32,7 +32,6 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Hibernate;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,7 +45,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
 
   private final ConnectorInstanceRepository connectorInstanceRepository;
   private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
-  private final TokenRepository tokenRepository;
+  private final CatalogConnectorPrivilegeService catalogConnectorPrivilegeService;
 
   private final CollectorRepository collectorRepository;
   private final ExecutorRepository executorRepository;
@@ -62,7 +61,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
       ConnectorInstanceMapper connectorInstanceMapper,
       ConnectorInstanceRepository connectorInstanceRepository,
       ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
-      TokenRepository tokenRepository,
+      CatalogConnectorPrivilegeService catalogConnectorPrivilegeService,
       EncryptionFactory encryptionFactory,
       CollectorRepository collectorRepository,
       ExecutorRepository executorRepository,
@@ -75,7 +74,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
     this.connectorInstanceMapper = connectorInstanceMapper;
     this.connectorInstanceRepository = connectorInstanceRepository;
     this.connectorInstanceConfigurationRepository = connectorInstanceConfigurationRepository;
-    this.tokenRepository = tokenRepository;
+    this.catalogConnectorPrivilegeService = catalogConnectorPrivilegeService;
     this.encryptionFactory = encryptionFactory;
     this.collectorRepository = collectorRepository;
     this.executorRepository = executorRepository;
@@ -310,7 +309,8 @@ public class ConnectorInstanceService implements AuditLoggedService {
   }
 
   /**
-   * Retrieve all connector instance configurations for a specific instance, except encrypted fields
+   * Retrieve the configurations of a specific instance that may be sent back to a user: neither the
+   * encrypted ones nor the OpenAEV token.
    *
    * @param instanceId the connector instance ID to search for the configurations
    * @return a set of connector instance configurations
@@ -318,7 +318,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
   public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfigurationsNoSecrets(
       String instanceId) {
     return getConnectorInstanceConfigurations(instanceId).stream()
-        .filter(conf -> !conf.isEncrypted())
+        .filter(ConnectorInstanceMapper::isReadableConfiguration)
         .collect(Collectors.toSet());
   }
 
@@ -362,15 +362,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
   public ConnectorInstancePersisted updateRequestedStatus(
       ConnectorInstance instance, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus) {
     instance.setRequestedStatus(newRequestedStatus);
-    ConnectorInstancePersisted saved = (ConnectorInstancePersisted) this.save(instance);
-    // ConnectorInstanceApi#updateRequestedStatus returns this entity directly, and its "logs"
-    // collection is not @JsonIgnore. It is not part of findWithGraphById's entity graph, so it
-    // stays a lazy proxy here. Jackson serializes the response after this @Transactional method
-    // returns, i.e. outside the scope set_config('app.current_tenants', ...) applies to (that GUC
-    // is transaction-local). Once connector_instances is v2-active, a lazy load at that point
-    // would fail closed and silently serialize an empty array. Force it now, inside the scope.
-    Hibernate.initialize(saved.getLogs());
-    return saved;
+    return (ConnectorInstancePersisted) this.save(instance);
   }
 
   /**
@@ -594,7 +586,8 @@ public class ConnectorInstanceService implements AuditLoggedService {
    * @param catalogConnectorWithConfigMap the catalog connector with its configurations map
    * @param input the connector instance input containing configurations to sanitize
    * @return the input with sensitive values encrypted
-   * @throws IllegalArgumentException if a configuration key is not found in the catalog connector
+   * @throws IllegalArgumentException if a configuration key is not found in the catalog connector,
+   *     or is one the platform sets itself ({@code PLATFORM_MANAGED_KEYS})
    */
   public CreateConnectorInstanceInput sanitizeConnectorInstanceInput(
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
@@ -609,6 +602,13 @@ public class ConnectorInstanceService implements AuditLoggedService {
         input.getConfigurations().stream()
             .map(
                 conf -> {
+                  if (PLATFORM_MANAGED_KEYS.stream()
+                      .anyMatch(key -> key.equalsIgnoreCase(conf.getKey()))) {
+                    throw new IllegalArgumentException(
+                        String.format(
+                            "Configuration key '%s' is managed by the platform and cannot be set",
+                            conf.getKey()));
+                  }
                   CatalogConnectorConfiguration definition =
                       catalogConnectorWithConfigMap.configurationsMap().get(conf.getKey());
                   if (definition == null) {
@@ -648,16 +648,10 @@ public class ConnectorInstanceService implements AuditLoggedService {
   }
 
   private ConnectorInstanceConfiguration createTokenConfiguration(
-      ConnectorInstancePersisted instance) {
-    Token token =
-        tokenRepository.findAll(fromUser(currentUser().getId())).stream()
-            .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("No token found for current user"));
+      ConnectorInstancePersisted instance, String tenantId) {
+    String token = catalogConnectorPrivilegeService.getOrCreateToken(tenantId);
     return createConfiguration(
-        OPENAEV_KEY_TOKEN,
-        objectMapper.getNodeFactory().textNode(token.getValue()),
-        false,
-        instance);
+        OPENAEV_KEY_TOKEN, objectMapper.getNodeFactory().textNode(token), false, instance);
   }
 
   private ConnectorInstanceConfiguration createContainerIdConfiguration(
@@ -699,7 +693,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
             catalogConnectorWithConfigMap.configurationsMap(), newInstance, input);
 
     // Add OpenAEV token
-    configurations.add(createTokenConfiguration(newInstance));
+    configurations.add(createTokenConfiguration(newInstance, tenantId));
     configurations.add(createTenantIdConfiguration(newInstance, tenantId));
     // Add container ID if not already present (in case of a migration)
     if (input.getConfigurations().stream()
@@ -766,6 +760,33 @@ public class ConnectorInstanceService implements AuditLoggedService {
 
     return fromIterable(
         this.connectorInstanceConfigurationRepository.saveAll(configurationsToSave));
+  }
+
+  /** Replaces the OpenAEV token of every connector instance of the tenant. */
+  public void rotateOpenAevToken(String tenantId, String token) {
+    rotateOpenAevToken(findOpenAevTokenConfigurations(tenantId), token);
+  }
+
+  /** Replaces the OpenAEV token of the given configurations. */
+  public void rotateOpenAevToken(
+      List<ConnectorInstanceConfiguration> tokenConfigurations, String token) {
+    // Skips the instances already holding the token, so XTM Composer does not redeploy them
+    List<ConnectorInstanceConfiguration> outdated =
+        tokenConfigurations.stream()
+            .filter(
+                configuration ->
+                    configuration.getValue() == null
+                        || !token.equals(configuration.getValue().asText()))
+            .toList();
+    outdated.forEach(
+        configuration -> configuration.setValue(objectMapper.getNodeFactory().textNode(token)));
+    connectorInstanceConfigurationRepository.saveAll(outdated);
+  }
+
+  /** Returns the OpenAEV token configuration of every connector instance of the tenant. */
+  public List<ConnectorInstanceConfiguration> findOpenAevTokenConfigurations(String tenantId) {
+    return connectorInstanceConfigurationRepository.findAllByKeyAndTenantId(
+        OPENAEV_KEY_TOKEN, tenantId);
   }
 
   /**

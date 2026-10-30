@@ -3,6 +3,8 @@ package io.openaev.rest.catalog_connector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CatalogConnectorConfiguration;
@@ -11,6 +13,9 @@ import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -35,6 +40,7 @@ public class CatalogConnectorApi extends RestBehavior {
 
   private final CatalogConnectorService catalogConnectorService;
   private final FileService fileService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping({CATALOG_CONNECTOR_URI, TENANT_CATALOG_CONNECTOR_URI})
   @Transactional
@@ -89,5 +95,27 @@ public class CatalogConnectorApi extends RestBehavior {
   public Set<CatalogConnectorConfiguration> getCatalogConnectorConfigurations(
       TxCtx ctx, @PathVariable String catalogConnectorId) {
     return catalogConnectorService.getCatalogConnectorConfigurations(catalogConnectorId);
+  }
+
+  @Operation(
+      summary = "Rotate the catalog connector token",
+      description =
+          "Revokes the tenant's catalog connector service-account bearer token, issues a new one "
+              + "and pushes it to every connector deployed from the catalog in the tenant.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "204", description = "Token rotated."),
+        @ApiResponse(responseCode = "404", description = "Service account not found."),
+      })
+  @PostMapping({
+    CATALOG_CONNECTOR_URI + "/token/rotate",
+    TENANT_CATALOG_CONNECTOR_URI + "/token/rotate"
+  })
+  @Transactional(rollbackFor = Exception.class)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  public ResponseEntity<Void> rotateCatalogConnectorToken(@RequireTenantSelector TxCtx ctx) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    catalogConnectorService.rotateCatalogConnectorToken(tenantId);
+    return ResponseEntity.noContent().build();
   }
 }
