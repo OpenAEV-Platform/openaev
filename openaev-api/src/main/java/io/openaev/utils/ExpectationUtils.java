@@ -206,26 +206,6 @@ public class ExpectationUtils {
   // -- ASSET --
 
   /**
-   * Retrieves asset-level expectations matching the given expectation's asset and type.
-   *
-   * <p>Filters to find asset expectations (those with an asset but no agent) that match the
-   * reference expectation's asset and type.
-   *
-   * @param technicalInjectExpectation the reference expectation to match against
-   * @return list of matching asset-level expectations
-   */
-  public static List<TechnicalInjectExpectation> getAssetsExpectations(
-      @NotNull final TechnicalInjectExpectation technicalInjectExpectation) {
-    return technicalInjectExpectation.getInject().getExpectations().stream()
-        .filter(TechnicalInjectExpectation.class::isInstance)
-        .map(TechnicalInjectExpectation.class::cast)
-        .filter(ExpectationUtils::isAssetExpectation)
-        .filter(e -> e.getAsset().getId().equals(technicalInjectExpectation.getAsset().getId()))
-        .filter(e -> e.getType().equals(technicalInjectExpectation.getType()))
-        .toList();
-  }
-
-  /**
    * Retrieve all asset expectations belongings to the same asset group and the same type of
    * expectation
    *
@@ -280,33 +260,6 @@ public class ExpectationUtils {
   }
 
   /**
-   * Retrieves asset expectations belonging to the same asset group as the given expectation.
-   *
-   * <p>Filters to find asset expectations that are part of the same asset group and have the same
-   * expectation type as the reference expectation.
-   *
-   * @param technicalInjectExpectation the reference expectation to match against
-   * @return list of matching asset expectations within the asset group
-   */
-  public static List<TechnicalInjectExpectation> getExpectationsAssetsForAssetGroup(
-      @NotNull final TechnicalInjectExpectation technicalInjectExpectation) {
-    return technicalInjectExpectation.getInject().getExpectations().stream()
-        .filter(TechnicalInjectExpectation.class::isInstance)
-        .map(TechnicalInjectExpectation.class::cast)
-        .filter(ExpectationUtils::isAssetExpectation)
-        .filter(
-            e -> {
-              AssetGroup assetGroup = e.getAssetGroup();
-              AssetGroup injectGroup = technicalInjectExpectation.getAssetGroup();
-              return assetGroup != null
-                  && injectGroup != null
-                  && assetGroup.getId().equals(injectGroup.getId());
-            })
-        .filter(e -> e.getType().equals(technicalInjectExpectation.getType()))
-        .toList();
-  }
-
-  /**
    * Determines if an expectation is an asset-level expectation.
    *
    * <p>An asset expectation has an asset but no agent association (agent expectations are more
@@ -320,30 +273,6 @@ public class ExpectationUtils {
   }
 
   // -- ASSET GROUP --
-
-  /**
-   * Retrieves asset group-level expectations matching the given expectation's group and type.
-   *
-   * <p>Filters to find asset group expectations (those with only an asset group, no individual
-   * asset or agent) that match the reference expectation's group and type.
-   *
-   * @param technicalInjectExpectation the reference expectation to match against
-   * @return list of matching asset group-level expectations
-   */
-  public static List<TechnicalInjectExpectation> getExpectationAssetGroups(
-      @NotNull final TechnicalInjectExpectation technicalInjectExpectation) {
-    return technicalInjectExpectation.getInject().getExpectations().stream()
-        .filter(TechnicalInjectExpectation.class::isInstance)
-        .map(TechnicalInjectExpectation.class::cast)
-        .filter(ExpectationUtils::isAssetGroupExpectation)
-        .filter(
-            e ->
-                e.getAssetGroup()
-                    .getId()
-                    .equals(technicalInjectExpectation.getAssetGroup().getId()))
-        .filter(e -> e.getType().equals(technicalInjectExpectation.getType()))
-        .toList();
-  }
 
   /**
    * Determines if an expectation is an asset group-level expectation.

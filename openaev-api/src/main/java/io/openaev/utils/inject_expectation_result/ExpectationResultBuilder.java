@@ -2,16 +2,12 @@ package io.openaev.utils.inject_expectation_result;
 
 import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.*;
 import static io.openaev.service.InjectExpectationService.COLLECTOR;
-import static io.openaev.service.InjectExpectationService.SECURITY_PLATFORM;
 import static java.time.Instant.now;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectationResult;
-import io.openaev.database.model.SecurityPlatform;
-import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
-import io.openaev.service.InjectExpectationUtils;
 import io.openaev.service.expectation.ExpectationVerdict;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
@@ -60,38 +56,6 @@ public final class ExpectationResultBuilder {
 
   // -- SCORE --
 
-  /**
-   * Evaluate overall status from per-source results.
-   *
-   * <p>* SUCCESS if any expected source reports expectedScore. For DETECTION and PREVENTION this
-   * settles the expectation at once: one security platform proving it is enough, so the other
-   * expected sources are not waited for. VULNERABILITY keeps waiting, since another source may
-   * still report the asset vulnerable.
-   *
-   * <p>* NO_DATA if no success and at least one expected source is missing
-   *
-   * <p>* ERROR if no success and all expected sources reported but none matched
-   */
-  public static Double computeScore(
-      @NotNull final List<InjectExpectationResult> results,
-      @NotNull final BaseInjectExpectation expectation) {
-    final Double expectedScore = expectation.getExpectedScore();
-    if (expectedScore == null) {
-      return null;
-    }
-    if (hasNoResults(results)) {
-      return null;
-    }
-    if (isSettledByAnySource(expectation) && hasAnyScoreReaching(results, expectedScore)) {
-      return maxScore(results);
-    }
-    if (hasAnyEmptyResult(results)) {
-      return null;
-    }
-
-    return maxScore(results);
-  }
-
   private static boolean isSettledByAnySource(@NotNull final BaseInjectExpectation expectation) {
     return BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.equals(expectation.getType())
         || BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(expectation.getType());
@@ -113,7 +77,6 @@ public final class ExpectationResultBuilder {
    *
    * <p>* ERROR if no success and all expected sources reported but none matched
    */
-  // TODO: duplicate of computeScore
   public static Double computeResultsScore(
       @NotNull final List<InjectExpectationResult> results,
       @NotNull final BaseInjectExpectation expectation) {
@@ -207,45 +170,6 @@ public final class ExpectationResultBuilder {
               .date(now())
               .score(verdict.score())
               .metadata(verdict.metadata())
-              .build();
-      baseInjectExpectation.addResult(existing);
-    }
-  }
-
-  /**
-   * Adds (or updates) the result written by a security platform source (e.g. assessment injectors),
-   * upserted on the platform ID. Collector verdicts go through the behaviors instead: see {@link
-   * #addResult(BaseInjectExpectation, ExpectationVerdict, String)}.
-   */
-  public static void addResult(
-      @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final InjectExpectationUpdateFromCollectorInput input,
-      @NotNull final SecurityPlatform securityPlatform) {
-    final double score =
-        InjectExpectationUtils.computeScore(baseInjectExpectation, input.getIsSuccess());
-
-    InjectExpectationResult existing =
-        findResultBySourceId(baseInjectExpectation.getResults(), securityPlatform.getId());
-
-    if (existing != null) {
-      existing.setResult(input.getResult());
-      existing.setScore(score);
-      existing.setMetadata(input.getMetadata());
-    } else {
-      existing =
-          InjectExpectationResult.builder()
-              .sourceId(securityPlatform.getId())
-              .sourceType(SECURITY_PLATFORM)
-              .sourceName(securityPlatform.getName())
-              .sourcePlatform(
-                  securityPlatform.getSecurityPlatformType() != null
-                      ? securityPlatform.getSecurityPlatformType().name()
-                      : null)
-              .sourceAssetId(securityPlatform.getId())
-              .result(input.getResult())
-              .date(Instant.now())
-              .score(score)
-              .metadata(input.getMetadata())
               .build();
       baseInjectExpectation.addResult(existing);
     }

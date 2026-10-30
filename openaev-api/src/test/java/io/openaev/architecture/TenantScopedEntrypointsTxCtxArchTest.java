@@ -454,7 +454,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.challenge.SimulationChallengeApi#validateChallenge",
           // inject execution callback (legacy, non-queued path): the vulnerability-verdict
           // propagation chain (matchesVulnerabilityExpectations -> ... ->
-          // propagateTechnicalExpectation)
+          // updateLeavesThenRecomputeParents)
           // reads security_coverages via
           // SecurityCoverageSendJobService#shouldCreateCoverageSendJob.
           // Both overloads (with/without agentId) are covered by the single name entry.
