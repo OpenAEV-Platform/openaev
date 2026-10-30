@@ -1,6 +1,6 @@
 # Task 4 — Who ignores markings, and SSO admins
 
-**Issue**: https://github.com/OpenAEV-Platform/openaev/issues/8562 (chunk 2) · **Depends on**: #8739 (#6370)
+**Issue**: https://github.com/OpenAEV-Platform/openaev/issues/8562 (chunk 2) · **Depends on**: #8739 (#6370) · **SSO part**: #8823, stacked on #8739
 
 ## Problem
 
@@ -153,7 +153,7 @@ assertCanAssignCapabilities(currentUser, group.roles());           // today
 assertCanAssignMarkings(findClearance(currentUser, tenantId), group.markings());  // new
 ```
 
-**5. SSO admin (after #8739).**
+**5. SSO admin (#8823, stacked on #8739).**
 
 ```java
 // at SSO login, provider has roles_admin or all_admin
@@ -175,7 +175,7 @@ else {
 | 2 | Agent and OpenCTI groups receive every marking (group flag) | done, in the code PR |
 | 3 | One rule: only the first admin ignores markings; joining a group or making it a default group needs its markings | done, in the code PR |
 | 4 | Admin groups receive every marking; the setting in the API (turning it on needs `ASSIGN_MARKING` and every marking) | to do |
-| 5 | SSO admins join the "Admin" group | after #8739, separate PR |
+| 5 | SSO admins join the "Admin" group | #8823 (draft, stacked on #8739), ships with step 3 |
 | 6 | Check in the app with the `MARKING` flag on | to do |
 
 ## Breaking changes
@@ -202,4 +202,7 @@ else {
   in about 30 places. Other checks (`hasPlatformBypass`, `hasTenantBypass`, `PermissionService.isBypassGranted`) work.
   We should keep one way.
 - **Two admin groups in the default tenant.** "Administrators" (created at startup for the first admin, `BYPASS`, no
-  marking) and "Admin" (the default group every tenant gets since #8193, `TLP:RED`). They should be one group.
+  marking) and "Admin" (the default group every tenant gets since #8193, every marking). They should be one group.
+- **Provider `tenant_id`.** When it is unset, every SSO user is also attached to the default tenant, even one that a
+  #8739 rule sends to tenant B. A rule with a tenant should also give that tenant's default groups; then the provider
+  setting can be deprecated. Separate PR, after #8739.
