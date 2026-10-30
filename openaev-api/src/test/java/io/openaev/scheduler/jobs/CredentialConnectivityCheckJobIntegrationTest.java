@@ -16,6 +16,7 @@ import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_SECRET_ACC
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.azure.core.credential.TokenCredential;
+import com.azure.core.http.HttpClient;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
 import io.openaev.IntegrationTest;
@@ -124,6 +125,12 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
         @Override
         public TokenCredential forManagedIdentity(String clientId) {
           return unreachable;
+        }
+
+        @Override
+        public HttpClient httpClient() {
+          // Never reached: the token exchange fails before any subscription read.
+          return request -> Mono.error(new IllegalStateException("No network in this test"));
         }
       };
     }

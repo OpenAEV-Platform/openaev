@@ -63,4 +63,9 @@ public class DefaultAzureCredentialConnectivityCheckFactory
     }
     return builder.build();
   }
+
+  @Override
+  public HttpClient httpClient() {
+    return httpClient;
+  }
 }

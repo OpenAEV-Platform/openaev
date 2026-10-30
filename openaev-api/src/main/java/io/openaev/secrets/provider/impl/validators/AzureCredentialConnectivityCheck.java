@@ -5,21 +5,16 @@ import com.azure.core.credential.TokenCredential;
 import com.azure.core.credential.TokenRequestContext;
 import com.azure.core.exception.ClientAuthenticationException;
 import com.azure.core.exception.HttpResponseException;
+import com.azure.core.http.HttpHeaderName;
+import com.azure.core.http.HttpMethod;
+import com.azure.core.http.HttpRequest;
+import com.azure.core.http.HttpResponse;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
 import io.openaev.database.model.AzureEnvironments;
 import io.openaev.secrets.provider.SecretConnectionResult;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -60,8 +55,6 @@ public class AzureCredentialConnectivityCheck {
 
   @Value("${openaev.credentials.status-validation.timeout-seconds:10}")
   private int timeoutSeconds;
-
-  private final X509TrustManager trustManager;
 
   /**
    * Checks a service principal (application + client secret).
@@ -166,16 +159,21 @@ public class AzureCredentialConnectivityCheck {
   }
 
   /**
-   * Reads the subscription with the freshly obtained token. A plain HTTPS GET rather than the
+   * Reads the subscription with the freshly obtained token. A plain GET rather than the
    * resource-manager SDK: the status code alone answers the question, and pulling {@code
    * azure-resourcemanager} in for one call would add a large dependency tree for no gain.
+   *
+   * <p>Sent through the transport of the credential itself: a second client (the JDK one) resolves
+   * {@code localhost} to a single address and ignores {@code HTTPS_PROXY}, so it could fail on a
+   * host the token call had just reached.
    */
   private SecretConnectionResult probeSubscription(
       String resourceManagerEndpoint, String subscriptionId, String token, Duration timeout) {
-    URI uri;
+    HttpRequest request;
     try {
-      uri =
-          URI.create(
+      request =
+          new HttpRequest(
+              HttpMethod.GET,
               resourceManagerEndpoint
                   + "subscriptions/"
                   + subscriptionId
@@ -185,35 +183,27 @@ public class AzureCredentialConnectivityCheck {
       // A malformed authority host override: the stored configuration is wrong.
       return SecretConnectionResult.formatError();
     }
+    request.setHeader(HttpHeaderName.AUTHORIZATION, "Bearer " + token);
 
-    try (HttpClient httpClient =
-        HttpClient.newBuilder().sslContext(buildSslContext()).connectTimeout(timeout).build()) {
-      HttpRequest request =
-          HttpRequest.newBuilder(uri)
-              .GET()
-              .timeout(timeout)
-              .header("Authorization", "Bearer " + token)
-              .build();
-      HttpResponse<Void> response =
-          httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-      return mapStatusCode(response.statusCode());
-    } catch (java.net.http.HttpTimeoutException e) {
-      return SecretConnectionResult.timeout();
-    } catch (IOException e) {
-      return SecretConnectionResult.networkError();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return SecretConnectionResult.networkError();
-    }
-  }
-
-  private SSLContext buildSslContext() {
+    HttpResponse response = null;
     try {
-      SSLContext sslContext = SSLContext.getInstance("TLS");
-      sslContext.init(null, new TrustManager[] {trustManager}, null);
-      return sslContext;
-    } catch (GeneralSecurityException e) {
-      throw new IllegalStateException("Unable to build the TLS context of the Azure probe", e);
+      response = tokenCredentialFactory.httpClient().send(request).block(timeout);
+      if (response == null) {
+        return SecretConnectionResult.timeout();
+      }
+      return mapStatusCode(response.getStatusCode());
+    } catch (RuntimeException e) {
+      if (isTimeout(e)) {
+        return SecretConnectionResult.timeout();
+      }
+      // No response at all: inconclusive. Never logged with its message, a URL may carry the
+      // subscription id.
+      log.debug("Azure subscription probe failed without a response");
+      return SecretConnectionResult.networkError();
+    } finally {
+      if (response != null) {
+        response.close();
+      }
     }
   }
 
