@@ -54,15 +54,6 @@ public class InjectOutput {
   @Schema(description = "Scenario ID of the inject", implementation = String.class)
   private Scenario scenario;
 
-  // Declared right after the simulation and scenario it is computed from, so it is written next
-  // to them in the JSON instead of after the large nested contract.
-  @JsonProperty("inject_is_atomic_testing")
-  @Schema(
-      description =
-          "True when this inject is an atomic test, meaning it belongs to no scenario and no"
-              + " simulation")
-  private boolean atomicTesting;
-
   @JsonProperty("inject_depends_duration")
   @NotNull
   @Min(value = 0L, message = "The value must be positive")

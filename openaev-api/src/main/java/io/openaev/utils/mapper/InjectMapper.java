@@ -71,7 +71,6 @@ public class InjectMapper {
         .description(inject.getDescription())
         .content(inject.getContent())
         .type(inject.getType())
-        .atomicTesting(inject.isAtomicTesting())
         .tagIds(inject.getTags().stream().map(Tag::getId).toList())
         .documentIds(documentIds)
         .injectorContract(toInjectorContractOutput(injectorContract))
@@ -306,7 +305,6 @@ public class InjectMapper {
             type,
             inject.getDependsOn(),
             healthchecks);
-    output.setAtomicTesting(inject.isAtomicTesting());
     output.setSecretReferences(
         inject.getSecretReferences().stream().map(SecretReference::getId).toList());
     output.setExpectations(toOutputs(inject.getExpectations()));

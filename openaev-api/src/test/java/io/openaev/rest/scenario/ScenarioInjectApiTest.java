@@ -859,41 +859,5 @@ class ScenarioInjectApiTest extends IntegrationTest {
           duplicatedTitle.contains("duplicate"),
           "The title of the duplicated inject must contain the word “duplicate”.");
     }
-
-    @DisplayName(
-        "createInjectForScenario: should not flag the inject as atomic testing, even when its"
-            + " contract can be used for one")
-    @Test
-    @Order(5)
-    @WithMockUser(isAdmin = true)
-    void given_injectCreatedForScenario_should_notBeAtomicTesting() throws Exception {
-      // -- PREPARE --
-      InjectInput input = new InjectInput();
-      input.setTitle("Scenario inject atomic testing status");
-      input.setInjectorContract(EMAIL_DEFAULT);
-      input.setDependsDuration(0L);
-
-      // -- EXECUTE --
-      String response =
-          mvc.perform(
-                  post(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
-                      .with(csrf())
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -- ASSERT --
-      Boolean injectIsAtomicTesting = JsonPath.read(response, "$.inject_is_atomic_testing");
-      Boolean contractCanBeAtomicTesting =
-          JsonPath.read(response, "$.inject_injector_contract.injector_contract_atomic_testing");
-      assertFalse(injectIsAtomicTesting, "A scenario inject must not be an atomic test.");
-      assertTrue(
-          contractCanBeAtomicTesting,
-          "The contract flag is unchanged: the email contract can still be used for atomic tests.");
-    }
   }
 }

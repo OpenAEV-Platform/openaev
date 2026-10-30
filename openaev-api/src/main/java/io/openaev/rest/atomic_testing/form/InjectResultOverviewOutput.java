@@ -41,14 +41,6 @@ public class InjectResultOverviewOutput {
   @JsonProperty("inject_type")
   private String type;
 
-  // The simulation inject page reads this endpoint too, so the response says which kind it is.
-  @Schema(
-      description =
-          "True when this inject is an atomic test, meaning it belongs to no scenario and no"
-              + " simulation")
-  @JsonProperty("inject_is_atomic_testing")
-  private boolean atomicTesting;
-
   @Schema(description = "Tags")
   @JsonProperty("injects_tags")
   private List<String> tagIds;
