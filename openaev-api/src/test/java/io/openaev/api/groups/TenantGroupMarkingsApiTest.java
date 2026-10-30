@@ -2,15 +2,18 @@ package io.openaev.api.groups;
 
 import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createInput;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
@@ -219,6 +222,56 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
       // mechanism worth stating in a test rather than discovering in production, and it is exactly
       // why the escalation guard is not redundant with tenant isolation.
       assertTrue(reloadedGroup().getMarkings().isEmpty());
+    }
+  }
+
+  @Nested
+  @DisplayName("new markings")
+  class NewMarkings {
+
+    @Test
+    @DisplayName("given a group that receives new markings, should let its members hold a new one")
+    void given_autoNewMarkingGroup_should_letMembersHoldNewMarking() throws Exception {
+      // -- ARRANGE --
+      group.setAutoNewMarking(true);
+      groupRepository.save(group);
+      // Warm the cache: without eviction the next read would serve this value.
+      clearanceOfMember();
+
+      // -- ACT --
+      String created = createMarking();
+
+      // -- ASSERT --
+      assertTrue(clearanceOfMember().contains(created), "new marking not held");
+    }
+
+    @Test
+    @DisplayName("given a group that does not receive new markings, should leave it untouched")
+    void given_ordinaryGroup_should_beLeftUntouched() throws Exception {
+      // -- ACT --
+      String created = createMarking();
+
+      // -- ASSERT --
+      assertFalse(clearanceOfMember().contains(created), "new marking held");
+      assertTrue(reloadedGroup().getMarkings().isEmpty());
+    }
+
+    private String createMarking() throws Exception {
+      // Order above GREEN and RED so no other grant implies it.
+      String response =
+          mvc.perform(
+                  post("/api/tenants/{tenantId}/marking_definitions", tenantId)
+                      .content(
+                          asJsonString(
+                              createInput(
+                                  MarkingDefinition.TYPE_TLP, uniqueDefinition(), 80, "#c62828")))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isCreated())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.marking_definition_id");
     }
   }
 

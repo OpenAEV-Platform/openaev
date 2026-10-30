@@ -65,6 +65,11 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
   }
 
   @Override
+  protected boolean receivesEveryMarking() {
+    return true;
+  }
+
+  @Override
   protected String getGroupDescription() {
     return SERVICE_GROUP_DESCRIPTION;
   }

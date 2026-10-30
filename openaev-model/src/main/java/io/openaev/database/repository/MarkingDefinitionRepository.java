@@ -14,8 +14,12 @@ import org.springframework.stereotype.Repository;
 public interface MarkingDefinitionRepository
     extends CrudRepository<MarkingDefinition, String>, JpaSpecificationExecutor<MarkingDefinition> {
 
+  // -- Tenant-scoped --
+
   Optional<MarkingDefinition> findByTypeAndDefinitionAndTenantId(
       String type, String definition, String tenantId);
+
+  List<MarkingDefinition> findAllByTenantId(String tenantId);
 
   @Query(
       """
@@ -31,6 +35,8 @@ public interface MarkingDefinitionRepository
       @Param("definition") String definition,
       @Param("tenantId") String tenantId,
       @Param("ignoredId") String ignoredId);
+
+  // -- Several tenants --
 
   /**
    * Every marking id defined in the given tenants — the system clearance a background transaction

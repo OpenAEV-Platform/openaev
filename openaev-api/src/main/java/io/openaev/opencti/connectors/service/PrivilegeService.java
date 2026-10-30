@@ -74,6 +74,11 @@ public class PrivilegeService extends AbstractPrivilegeService {
   }
 
   @Override
+  protected boolean receivesEveryMarking() {
+    return true;
+  }
+
+  @Override
   protected String getGroupDescription() {
     return PROCESS_STIX_GROUP_DESCRIPTION;
   }

@@ -87,6 +87,7 @@ public class ServiceAccountPrivilegeServiceTest {
         .createInternalUser(eq(SERVICE_EMAIL), eq("service"), isNull(), eq(false), anyString());
     verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
     verify(userService).saveUser(mockUser);
+    verify(tenantGroupService).receiveEveryMarking(mockGroup, TENANT_ID);
   }
 
   @Test
