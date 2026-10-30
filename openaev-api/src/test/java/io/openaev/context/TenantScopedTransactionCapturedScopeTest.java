@@ -53,6 +53,7 @@ class TenantScopedTransactionCapturedScopeTest extends IntegrationTest {
   private String tenantB;
   private String markingOfA;
   private String tagOfA;
+  private String tagOfB;
 
   @BeforeEach
   void seedTwoTenants() {
@@ -66,11 +67,17 @@ class TenantScopedTransactionCapturedScopeTest extends IntegrationTest {
         tagOfA,
         "captured-scope-tag",
         tenantA);
+    tagOfB = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO tags (tag_id, tag_name, tenant_id) VALUES (?, ?, ?)",
+        tagOfB,
+        "captured-scope-tag",
+        tenantB);
   }
 
   @AfterEach
   void cleanup() {
-    jdbc.update("DELETE FROM tags WHERE tag_id = ?", tagOfA);
+    jdbc.update("DELETE FROM tags WHERE tag_id IN (?, ?)", tagOfA, tagOfB);
     jdbc.update("DELETE FROM marking_definitions WHERE tenant_id IN (?, ?)", tenantA, tenantB);
     jdbc.update("DELETE FROM tenants WHERE tenant_id IN (?, ?)", tenantA, tenantB);
   }
@@ -132,6 +139,36 @@ class TenantScopedTransactionCapturedScopeTest extends IntegrationTest {
       assertThat(
               jdbc.queryForObject(
                   "SELECT tag_name FROM tags WHERE tag_id = ?", String.class, tagOfA))
+          .isEqualTo(RENAMED);
+    }
+  }
+
+  @Nested
+  @DisplayName("capturing the scope")
+  class CapturingTheScope {
+
+    @Test
+    @DisplayName(
+        "given a change made under the caller's scope, should write it under the caller's scope")
+    void given_changeMadeUnderTheCallersScope_should_writeItUnderTheCallersScope() {
+      // -- ACT --
+      // The change is pending when the scope moves to A, which does not hold the tag's tenant.
+      new TransactionTemplate(transactionManager)
+          .executeWithoutResult(
+              status -> {
+                setCallerScope(tenantA + "," + tenantB);
+                Tag tag = tagRepository.findById(tagOfB).orElseThrow();
+                tag.setName(RENAMED);
+                try (TenantScopedTransaction.CapturedScope callerScope =
+                    tenantTx.captureScopeOfCurrentTransaction()) {
+                  tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+                }
+              });
+
+      // -- ASSERT --
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT tag_name FROM tags WHERE tag_id = ?", String.class, tagOfB))
           .isEqualTo(RENAMED);
     }
   }

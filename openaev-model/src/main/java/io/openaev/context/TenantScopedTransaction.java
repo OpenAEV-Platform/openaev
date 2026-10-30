@@ -145,9 +145,10 @@ public class TenantScopedTransaction {
    * scopes back, so the rest of the transaction reads and writes with the scope and clearance it
    * had before.
    *
-   * <p>Closing flushes the pending changes first, so every statement made inside the narrowed part
-   * runs under the scope it was made in. When the flush fails, both scopes are still put back and
-   * the flush failure is the one thrown.
+   * <p>Capturing flushes the caller's pending changes first, while its scope and clearance still
+   * apply, and closing flushes again before putting them back, so every statement runs under the
+   * scope its change was made in. When the flush on closing fails, both scopes are still put back
+   * and the flush failure is the one thrown.
    *
    * <p>Refuses to run outside an active transaction: there is no scope to capture.
    */
@@ -157,6 +158,7 @@ public class TenantScopedTransaction {
           "TenantScopedTransaction.captureScopeOfCurrentTransaction() has nothing to capture: no"
               + " transaction is active.");
     }
+    entityManager.flush();
     return new CapturedScope(
         currentSetting("app.current_tenants"), currentSetting("app.current_markings"));
   }
