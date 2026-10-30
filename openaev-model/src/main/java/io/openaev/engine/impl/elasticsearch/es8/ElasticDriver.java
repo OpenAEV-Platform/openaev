@@ -87,7 +87,9 @@ public class ElasticDriver {
         requestConfig ->
             requestConfig
                 .setConnectTimeout(config.getConnectTimeoutMs())
-                .setSocketTimeout(config.getSocketTimeoutMs()));
+                .setSocketTimeout(config.getSocketTimeoutMs())
+                // No default: without it a request waits forever for a free pooled connection.
+                .setConnectionRequestTimeout(config.getSocketTimeoutMs()));
     HttpAsyncClientBuilder clientBuilder = HttpAsyncClientBuilder.create();
     clientBuilder
         .setMaxConnTotal(config.getMaxConnections())
