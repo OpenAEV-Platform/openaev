@@ -138,6 +138,21 @@ public interface Base {
   }
 
   /**
+   * Returns the schema this entity is streamed under, when it differs from the one derived from the
+   * class declaring its identifier.
+   *
+   * <p>The frontend stores each streamed entity under its event's schema. Override it when the
+   * frontend keeps the subtypes of one hierarchy in separate buckets: endpoints, security platforms
+   * and AI targets are all {@link Asset}s, but each has its own bucket.
+   *
+   * @return the schema to stream under, or {@code null} to keep the derived one
+   */
+  @JsonIgnore
+  default String getStreamSchema() {
+    return null;
+  }
+
+  /**
    * Compares two entity collections by their ids, ignoring ordering and duplicates.
    *
    * <p>Used by entities that manually bump their {@code updatedAt} timestamp when an association

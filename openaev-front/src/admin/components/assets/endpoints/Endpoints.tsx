@@ -5,6 +5,7 @@ import { type CSSProperties, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import { type EndpointHelper } from '../../../../actions/assets/asset-helper';
 import { bulkDeleteAssets, searchAssets } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
@@ -23,6 +24,7 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
+import { useHelper } from '../../../../store';
 import { type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -36,6 +38,7 @@ import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/En
 import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
+import { patchRowsFromStore } from '../asset-stream-values';
 import PostureScoreCell from '../PostureScoreCell';
 import usePostureScores from '../usePostureScores';
 import AssetPopover from './AssetPopover';
@@ -58,6 +61,8 @@ const inlineStyles: Record<string, CSSProperties> = {
   asset_tags: { width: '10%' },
   asset_markings: { width: '9%' },
 };
+
+const selectEndpointsMap = (helper: EndpointHelper) => helper.getEndpointsMap();
 
 const Endpoints = () => {
   // Standard hooks
@@ -108,6 +113,15 @@ const Endpoints = () => {
     sorts: initSorting('asset_name'),
     textSearch: search,
   }));
+
+  // Sync the value retrieved from Redux store (that have been updated thro Streaming) into the state
+  // "endpoints" (direct axios call).
+  const endpointsMap = useHelper(selectEndpointsMap);
+  const [previousEndpointsMap, setPreviousEndpointsMap] = useState(endpointsMap);
+  if (endpointsMap !== previousEndpointsMap) {
+    setPreviousEndpointsMap(endpointsMap);
+    setEndpoints(rows => patchRowsFromStore(rows, previousEndpointsMap, endpointsMap));
+  }
 
   // Export
   const exportProps = {
