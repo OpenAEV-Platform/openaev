@@ -113,7 +113,11 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
       return new AzureCredentialConnectivityCheckFactory() {
         @Override
         public TokenCredential forServicePrincipal(
-            AzureEnvironment environment, String tenantId, String clientId, String clientSecret) {
+            AzureEnvironment environment,
+            String tenantId,
+            String clientId,
+            String clientSecret,
+            String authorityHostUri) {
           return unreachable;
         }
 
