@@ -8324,6 +8324,18 @@ export interface NewsFeedItemOutput {
   news_feed_item_url_path?: string;
 }
 
+export interface NewsFeedSettingsInput {
+  /** The news feed types the current user wants to receive, and only those. An empty list unsubscribes the user from everything */
+  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
+}
+
+export interface NewsFeedSettingsOutput {
+  /** Whether the news feed is served by XTM Hub, that is a tenant in scope is registered. The preferences can only be changed when it is */
+  news_feed_settings_hub_registered: boolean;
+  /** The news feed types the current user is subscribed to */
+  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
+}
+
 export interface NotificationBulkProcessingInput {
   /** Ids excluded from the select-all scope */
   notification_ids_to_ignore?: string[];
