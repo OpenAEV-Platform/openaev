@@ -53,7 +53,8 @@ class V20261030_Move_catalog_connectors_to_service_accountTest extends Integrati
   }
 
   /** Persists a connector instance in the current tenant, holding {@code token}. */
-  private ConnectorInstanceConfiguration givenInstanceHoldingToken(String token) throws JsonProcessingException {
+  private ConnectorInstanceConfiguration givenInstanceHoldingToken(String token)
+      throws JsonProcessingException {
     ConnectorInstanceConfiguration tokenConfiguration =
         createConnectorInstanceConfiguration(OPENAEV_KEY_TOKEN, token);
     connectorInstanceComposer
@@ -81,7 +82,8 @@ class V20261030_Move_catalog_connectors_to_service_accountTest extends Integrati
 
   @Test
   @DisplayName("Moves the tenant's connector instances to the service account token")
-  void given_instanceHoldingDeployerToken_should_moveItToServiceAccountToken() throws JsonProcessingException {
+  void given_instanceHoldingDeployerToken_should_moveItToServiceAccountToken()
+      throws JsonProcessingException {
     // Arrange
     ConnectorInstanceConfiguration tokenConfiguration = givenInstanceHoldingToken(DEPLOYER_TOKEN);
     entityManager.flush();
