@@ -265,10 +265,11 @@ class SecretHandlerValidateConnectionTest {
       secret.setAzureClientId(AZURE_CLIENT_ID);
       secret.setAzureClientSecret(ENCRYPTED_CLIENT_SECRET);
       secret.setAzureSubscriptionId(AZURE_SUBSCRIPTION_ID);
+      secret.setAzureAuthorityHostUri(AZURE_AUTHORITY_HOST_URI);
       when(nativeEncryptionService.decrypt(ENCRYPTED_CLIENT_SECRET))
           .thenReturn(AZURE_CLIENT_SECRET);
       when(azureCredentialConnectivityCheck.validateServicePrincipal(
-              any(), any(), any(), any(), any()))
+              any(), any(), any(), any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -284,7 +285,8 @@ class SecretHandlerValidateConnectionTest {
               eq(AZURE_CLIENT_ID),
               // The plaintext, never the stored ciphertext.
               eq(AZURE_CLIENT_SECRET),
-              eq(AZURE_SUBSCRIPTION_ID));
+              eq(AZURE_SUBSCRIPTION_ID),
+              eq(AZURE_AUTHORITY_HOST_URI));
     }
 
     @Test
@@ -325,7 +327,8 @@ class SecretHandlerValidateConnectionTest {
       secret.setAzureEnvironment(AZURE_ENVIRONMENT);
       secret.setAzureClientId(AZURE_CLIENT_ID);
       secret.setAzureSubscriptionId(AZURE_SUBSCRIPTION_ID);
-      when(azureCredentialConnectivityCheck.validateManagedIdentity(any(), any(), any()))
+      secret.setAzureAuthorityHostUri(AZURE_AUTHORITY_HOST_URI);
+      when(azureCredentialConnectivityCheck.validateManagedIdentity(any(), any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -335,7 +338,10 @@ class SecretHandlerValidateConnectionTest {
       assertThat(result.status()).isEqualTo(ACTIVE);
       verify(azureCredentialConnectivityCheck)
           .validateManagedIdentity(
-              eq(AZURE_ENVIRONMENT), eq(AZURE_CLIENT_ID), eq(AZURE_SUBSCRIPTION_ID));
+              eq(AZURE_ENVIRONMENT),
+              eq(AZURE_CLIENT_ID),
+              eq(AZURE_SUBSCRIPTION_ID),
+              eq(AZURE_AUTHORITY_HOST_URI));
     }
 
     @Test
@@ -344,7 +350,7 @@ class SecretHandlerValidateConnectionTest {
       // Arrange — no client id and no subscription is the system-assigned shape.
       AzureManagedIdentitySecret secret = new AzureManagedIdentitySecret();
       secret.setAzureEnvironment(AZURE_ENVIRONMENT);
-      when(azureCredentialConnectivityCheck.validateManagedIdentity(any(), any(), any()))
+      when(azureCredentialConnectivityCheck.validateManagedIdentity(any(), any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -352,7 +358,7 @@ class SecretHandlerValidateConnectionTest {
 
       // Assert
       verify(azureCredentialConnectivityCheck)
-          .validateManagedIdentity(eq(AZURE_ENVIRONMENT), isNull(), isNull());
+          .validateManagedIdentity(eq(AZURE_ENVIRONMENT), isNull(), isNull(), isNull());
     }
 
     @Test
