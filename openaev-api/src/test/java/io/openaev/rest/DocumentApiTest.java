@@ -522,7 +522,8 @@ class DocumentApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Given an existing name and new content should point the document at the new content")
+    @DisplayName(
+        "Given an existing name and new content should point the document at the new content")
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_existing_name_and_new_content_should_point_the_document_at_the_new_content()
         throws Exception {
@@ -539,8 +540,7 @@ class DocumentApiTest extends IntegrationTest {
           new MockPart("input", mapper.writeValueAsBytes(new DocumentCreateInput()));
       inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
       MockMultipartFile filePart =
-          new MockMultipartFile(
-              "file", document.getName(), MediaType.TEXT_PLAIN_VALUE, newContent);
+          new MockMultipartFile("file", document.getName(), MediaType.TEXT_PLAIN_VALUE, newContent);
 
       // Act
       String response =
@@ -557,7 +557,8 @@ class DocumentApiTest extends IntegrationTest {
 
       // Assert
       assertEquals(document.getId(), JsonPath.read(response, "$.document_id"));
-      assertEquals(newTarget, documentRepository.findById(document.getId()).orElseThrow().getTarget());
+      assertEquals(
+          newTarget, documentRepository.findById(document.getId()).orElseThrow().getTarget());
     }
 
     @Test
