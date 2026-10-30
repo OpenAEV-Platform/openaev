@@ -34,6 +34,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -288,10 +289,37 @@ public class TenantGroupService {
     markingMetricCollector.recordGroupMarkingsAssigned(addedIds.size());
     markingMetricCollector.recordGroupMarkingsUnassigned(removedIds.size());
 
-    group.setMarkings(markings);
+    group.getMarkings().clear();
+    group.getMarkings().addAll(markings);
     Group saved = groupRepository.save(group);
     markingClearanceCacheManager.evictForUsers(affected);
     return saved;
+  }
+
+  /** Gives a new marking to every group of its tenant that receives new markings. */
+  public void grantToAutoNewMarkingGroups(@NotNull final MarkingDefinition marking) {
+    String tenantId = marking.getTenant().getId();
+    groupRepository
+        .findAllByTenantIdAndAutoNewMarkingTrue(tenantId)
+        .forEach(group -> grantMissingMarkings(group, List.of(marking)));
+  }
+
+  /** Makes the group receive every marking of its tenant, existing and future. */
+  public void receiveEveryMarking(@NotNull final Group group, @NotBlank final String tenantId) {
+    if (group.isAutoNewMarking()) {
+      return;
+    }
+    group.setAutoNewMarking(true);
+    groupRepository.save(group);
+    grantMissingMarkings(group, markingDefinitionRepository.findAllByTenantId(tenantId));
+  }
+
+  private void grantMissingMarkings(Group group, List<MarkingDefinition> markings) {
+    if (!group.getMarkings().addAll(markings)) {
+      return;
+    }
+    groupRepository.save(group);
+    markingClearanceCacheManager.evictForUsers(group.getUsers().stream().map(User::getId).toList());
   }
 
   // -- DELETE --

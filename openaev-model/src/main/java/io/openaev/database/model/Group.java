@@ -8,6 +8,7 @@ import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.annotation.Nullable;
@@ -45,9 +46,17 @@ public class Group implements DualScopeBase {
   @JsonProperty("group_description")
   private String description;
 
+  // -- AUTOMATIC ASSIGNMENT --
+
+  /** New users of the tenant join this group. */
   @Column(name = "group_default_user_assign")
   @JsonProperty("group_default_user_assign")
   private boolean defaultUserAssignation;
+
+  /** Receives every marking created in its tenant. */
+  @Column(name = "group_auto_new_marking")
+  @JsonProperty("group_auto_new_marking")
+  private boolean autoNewMarking;
 
   @OneToMany(
       mappedBy = "group",
@@ -103,10 +112,10 @@ public class Group implements DualScopeBase {
       name = "groups_markings",
       joinColumns = @JoinColumn(name = "group_id"),
       inverseJoinColumns = @JoinColumn(name = "marking_id"))
-  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("group_markings")
   @Fetch(value = FetchMode.SUBSELECT)
-  private List<MarkingDefinition> markings = new ArrayList<>();
+  private Set<MarkingDefinition> markings = new HashSet<>();
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false)

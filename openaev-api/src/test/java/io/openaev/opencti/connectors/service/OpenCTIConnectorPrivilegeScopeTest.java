@@ -214,6 +214,37 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("the connector group holds every marking of its tenant")
+  class EveryMarking {
+
+    @Test
+    @DisplayName(
+        "given a marking in the connector tenant, should give it to the connector group and flag the"
+            + " group to receive new markings")
+    void given_markingInConnectorTenant_should_giveItToConnectorGroup() {
+      // Arrange
+      seedMarking(connectorTenantMarkingId, CONNECTOR_TENANT_ID, "connector-every");
+
+      // Act
+      openCTIConnectorService.registerOrPingAllConnectors();
+
+      // Assert
+      assertThat(
+              jdbc.queryForList(
+                  "SELECT marking_id FROM groups_markings WHERE group_id = ?",
+                  String.class,
+                  CONNECTOR_GROUP_ID))
+          .contains(connectorTenantMarkingId);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT group_auto_new_marking FROM groups WHERE group_id = ?",
+                  Boolean.class,
+                  CONNECTOR_GROUP_ID))
+          .isTrue();
+    }
+  }
+
+  @Nested
   @DisplayName("the connector transaction carries its own tenant's scope")
   class ConnectorScope {
 
