@@ -59,7 +59,7 @@ docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsear
 | Service | Port | Why it's required |
 |---------|------|-------------------|
 | **PostgreSQL (dev)** | 5432 | Primary data store — all entities, users, scenarios |
-| **Silo** | 10000 (API), 10001 (Console) | File/document storage (S3-compatible, MinIO fork) |
+| **RustFS** | 10000 (API), 10001 (Console) | File/document storage (S3-compatible) |
 | **Elasticsearch (dev)** | 9200, 9300 | Full-text search & indexing engine |
 | **RabbitMQ** | 5672 (AMQP), 15672 (Management) | Async messaging between backend components |
 
@@ -82,7 +82,7 @@ Elasticsearch 8): OpenAEV uses one engine at a time, so they sit behind a profil
 |---------|------|-------------|
 | PostgreSQL (dev) | 5432 | Main development database (persistent) |
 | PostgreSQL (test) | 5433 | Test database (ephemeral, no volume) |
-| Silo | 10000 (API), 10001 (Console) | Object storage (S3-compatible) |
+| RustFS | 10000 (API), 10001 (Console) | Object storage (S3-compatible) |
 | RabbitMQ | 5672 (AMQP), 15672 (Management) | Message queue |
 | Elasticsearch (dev) | 9200, 9300 | Search engine |
 | Elasticsearch (test) | 9201, 9301 | Test search engine |
@@ -94,10 +94,18 @@ Elasticsearch 8): OpenAEV uses one engine at a time, so they sit behind a profil
 
 ### 4. Access services
 
-- **Silo Console**: http://localhost:10001 (minioadmin/minioadmin)
+- **RustFS Console**: http://localhost:10001/rustfs/console/ (minioadmin/minioadmin)
 - **RabbitMQ Management**: http://localhost:15672 (guest/guest)
 - **pgAdmin**: http://localhost:5050 (admin@openaev.io/admin by default, see `.env`)
 - **Kibana**: http://localhost:5601
+
+> **Coming from Silo:** `openaev-dev-minio` now stores its data in the named volume `rustfsdata`
+> (`openaev-dev_rustfsdata`), which starts empty: the bucket is created again at startup, and files uploaded before are
+> not carried over (documents still listed in the dev database cannot be downloaded). The former anonymous volume stays
+> on disk: find it with `docker inspect -f '{{range .Mounts}}{{.Name}}{{end}}' openaev-dev-minio` before recreating the
+> container (afterwards, `docker volume ls -f dangling=true` lists it), and remove it with `docker volume rm <name>`.
+> The test storage (`openaev-test-minio`) also keeps its data in a named volume. To empty it, remove only that volume:
+> `docker compose rm -sf openaev-test-minio && docker volume rm openaev-dev_rustfstestdata`.
 
 ## IntelliJ Run Configurations
 

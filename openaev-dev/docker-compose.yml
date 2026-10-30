@@ -24,21 +24,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  # Silo object storage (S3-compatible, community-maintained MinIO fork)
-  # API: http://localhost:10000, Console: http://localhost:10001
+  # RustFS object storage (S3-compatible)
+  # API: http://localhost:10000, Console: http://localhost:10001/rustfs/console/
   # Credentials: minioadmin/minioadmin
   openaev-dev-minio:
     container_name: openaev-dev-minio
-    image: pgsty/silo:latest
+    image: rustfs/rustfs:1.0.4@sha256:ed9210d6411d77ffceb70d94b964a3cb7d225983368bc25bebe01e995293dcc2
     ports:
       - "10000:9000"
       - "10001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_OBS_LOG_DIRECTORY: "" # logs to stdout instead of /logs
+    volumes:
+      # Named volume: the anonymous /data volume of a previous MinIO or Silo container is owned by root,
+      # and RustFS (uid 10001) cannot start on it
+      - rustfsdata:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/ready"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -112,19 +118,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  # Test Silo object storage (S3-compatible)
+  # Test RustFS object storage (S3-compatible)
   openaev-test-minio:
     container_name: openaev-test-minio
-    image: pgsty/silo:latest
+    image: rustfs/rustfs:1.0.4@sha256:ed9210d6411d77ffceb70d94b964a3cb7d225983368bc25bebe01e995293dcc2
     ports:
       - "11000:9000"
       - "11001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_OBS_LOG_DIRECTORY: "" # logs to stdout instead of /logs
+    volumes:
+      - rustfstestdata:/data # named volume, see openaev-dev-minio
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/ready"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -345,4 +355,8 @@ volumes:
   pgdata:
     driver: local
   rsakeys:
+    driver: local
+  rustfsdata:
+    driver: local
+  rustfstestdata:
     driver: local
