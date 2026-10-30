@@ -417,7 +417,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      # Depth 2: on a pull request the checkout is the merge into the base, and the patch
+      # coverage check below compares it with its first parent.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
 
       - name: Set up Java 21
         uses: actions/setup-java@v6
@@ -473,9 +477,9 @@ jobs:
           echo "merged=true" >> "$GITHUB_OUTPUT"
           echo "✅ Merged $SHARD_COUNT shard(s)"
 
-      - name: Coverage report & threshold check
+      - name: Coverage report
         if: steps.jacoco-merge.outputs.merged == 'true'
-        run: mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage threshold check ⚠️"
+        run: mvn -B -ntp -pl openaev-api jacoco:report
 
       - name: Upload API coverage
         if: ${{ !cancelled() && steps.jacoco-merge.outputs.merged == 'true' }}
@@ -495,6 +499,22 @@ jobs:
           disable_search: true
           fail_ci_if_error: false
         continue-on-error: true
+
+      # Last step, so that a red check never skips the uploads above. diff-cover counts a line
+      # as covered once it ran, even when one of its branches did not: Codecov calls that line
+      # partial, so its patch figure can read lower.
+      - name: Check backend patch coverage
+        if: ${{ github.event_name == 'pull_request' && steps.jacoco-merge.outputs.merged == 'true' }}
+        run: |
+          set +e
+          pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml \
+            --compare-branch=HEAD^1 \
+            --src-roots openaev-api/src/main/java \
+            --fail-under 80 \
+            --markdown-report "$RUNNER_TEMP/patch-coverage.md"
+          status=$?
+          cat "$RUNNER_TEMP/patch-coverage.md" >> "$GITHUB_STEP_SUMMARY"
+          exit $status
 
   coverage-frontend:
     name: "📊 Coverage Upload (frontend)"
@@ -714,6 +734,7 @@ jobs:
       - fds-conformity
       - fds-mui-regression
       - api-tests
+      - coverage-backend
       # tenant-shadow-report is deliberately absent: it is the shadow runs' verdict, and those
       # report rather than gate. Adding it here would fail the Nightly run and page the on-call.
       - e2e-tests
@@ -754,7 +775,7 @@ jobs:
                 ;;
               # A new check lands here first so a false positive cannot block a merge. Take the job
               # out of this list to make it blocking.
-              bom-override-guard)
+              bom-override-guard|coverage-backend)
                 advisory=1
                 ;;
             esac
