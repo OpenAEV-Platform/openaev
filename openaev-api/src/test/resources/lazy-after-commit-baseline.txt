@@ -1261,8 +1261,8 @@ TeamApi.createTeam -> Team.scenarios | ATTENUATED | measured: initialised inside
 TeamApi.createTeam -> Team.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 TeamApi.createTeam -> Team.users | ATTENUATED | measured: initialised inside the transaction whenever written
 TeamApi.getTeam -> Team.exercises | ATTENUATED | fixed for #8800: loaded inside the scoped transaction
-TeamApi.getTeam -> Team.getExercisesInjects() | NOT ESTABLISHED | written while lazy, no gated read recorded
-TeamApi.getTeam -> Team.getScenariosInjects() | NOT ESTABLISHED | written while lazy, no gated read recorded
+TeamApi.getTeam -> Team.getExercisesInjects() | ATTENUATED | fixed for #8816: loaded inside the scoped transaction
+TeamApi.getTeam -> Team.getScenariosInjects() | ATTENUATED | fixed for #8816: loaded inside the scoped transaction
 TeamApi.getTeam -> Team.getUsersNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 TeamApi.getTeam -> Team.scenarios | ATTENUATED | fixed for #8800: loaded inside the scoped transaction
 TeamApi.getTeam -> Team.tags | ATTENUATED | fixed in #8401: loaded inside the scoped transaction
