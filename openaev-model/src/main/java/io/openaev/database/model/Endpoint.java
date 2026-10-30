@@ -194,6 +194,12 @@ public class Endpoint extends Asset implements AuditStateCapturable {
     }
   }
 
+  @Override
+  @JsonIgnore
+  public String getStreamSchema() {
+    return "endpoints";
+  }
+
   public Endpoint() {}
 
   public Endpoint(String id, String type, String name, PLATFORM_TYPE platform) {
