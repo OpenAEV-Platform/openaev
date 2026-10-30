@@ -1,7 +1,7 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
-import { type MouseEvent, useState } from 'react';
+import { type MouseEvent, useEffect, useState } from 'react';
 
 import { uninstallCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
 import { liftPayloadRevocation, revokePayload } from '../../../actions/payloads/payload-revocation-actions';
@@ -13,12 +13,14 @@ import {
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
+import { fetchThreatArsenalVersions } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
 import DialogConfirmation from '../../../components/common/DialogConfirmation';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import {
+  type PayloadVersionOutput,
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
   type ThreatArsenalActionUpdateInput,
@@ -32,6 +34,7 @@ import InjectorContractForm, { type InjectorContractFormValues } from '../integr
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import { buildInitialValues, handleCleanupCommandValue, handleCleanupExecutorValue } from './actionFormValues';
 import PayloadNewVersionDialog from './PayloadNewVersionDialog';
+import payloadRevocationChoices from './payloadRevocationChoices';
 import PayloadRevocationDialog from './PayloadRevocationDialog';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
@@ -235,11 +238,22 @@ const ThreatArsenalActionPopover = ({
   const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
   const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
+  const hasRevokeCapability = ability.can(ACTIONS.REVOKE, SUBJECTS.THREAT_ARSENALS);
+
+  // Revoke and Lift revocation only show when some version can take them.
+  const [versions, setVersions] = useState<PayloadVersionOutput[]>([]);
+  useEffect(() => {
+    if (anchorEl && hasRevokeCapability && payloadId) {
+      fetchThreatArsenalVersions(actionId).then((response: { data: PayloadVersionOutput[] }) => setVersions(response.data));
+    }
+  }, [anchorEl]);
+  const canRevoke = payloadRevocationChoices(versions, false, false).length > 0;
+  const canLift = payloadRevocationChoices(versions, true, !!variantIdentityId).length > 0;
 
   const duplicateOff = !hasDuplicateCapability || !!disableDuplicate;
   const updateOff = !hasUpdateCapability || !!disableUpdate;
   const deleteOff = !hasDeleteCapability || !!disableDelete;
-  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff;
+  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff && !hasRevokeCapability;
 
   // -- Export --
   const handleExportJsonSingle = async () => {
@@ -288,7 +302,7 @@ const ThreatArsenalActionPopover = ({
         {hasDeleteCapability && !managed && (
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
-        {hasDeleteCapability && (managed || !!payloadId) && <Divider />}
+        {((hasDeleteCapability && managed) || (hasRevokeCapability && (canRevoke || canLift))) && <Divider />}
         {hasDeleteCapability && managed && (
           <MenuItem onClick={() => {
             handlePopoverClose();
@@ -298,10 +312,10 @@ const ThreatArsenalActionPopover = ({
             {t('Uninstall')}
           </MenuItem>
         )}
-        {hasDeleteCapability && !!payloadId && (
+        {hasRevokeCapability && !!payloadId && canRevoke && (
           <MenuItem onClick={handleOpenRevocation}>{t('Revoke')}</MenuItem>
         )}
-        {hasDeleteCapability && !!payloadId && (
+        {hasRevokeCapability && !!payloadId && canLift && (
           <MenuItem onClick={() => {
             handlePopoverClose();
             setLifting(true);

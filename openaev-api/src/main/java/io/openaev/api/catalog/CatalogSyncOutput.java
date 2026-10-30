@@ -6,7 +6,9 @@ import java.util.List;
 
 public record CatalogSyncOutput(
     @JsonProperty("release") String release,
+    @JsonProperty("release_approver") String releaseApprover,
     @JsonProperty("applied") boolean applied,
+    @JsonProperty("first_sync") boolean firstSync,
     @JsonProperty("added") int added,
     @JsonProperty("unchanged") int unchanged,
     @JsonProperty("refused") List<Refusal> refused) {

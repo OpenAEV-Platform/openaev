@@ -11,10 +11,12 @@ import java.util.Locale;
 /** The manifest of a content repository release (RFC 0004 §4.2), as the collector sends it. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CatalogManifest(
+    @JsonProperty("schema_version") Integer schemaVersion,
     @JsonProperty("repository") String repository,
     @JsonProperty("channel") String channel,
     @JsonProperty("release") String release,
     @JsonProperty("issued_at") Instant issuedAt,
+    @JsonProperty("release_approver") String releaseApprover,
     @JsonProperty("items") List<Item> items,
     @JsonProperty("payloads") List<PayloadVersion> payloads) {
 
@@ -67,8 +69,12 @@ public record CatalogManifest(
       @JsonProperty("executors") List<String> executors) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record Archive(@JsonProperty("name") String name, @JsonProperty("sha256") String sha256) {}
+  public record Archive(
+      @JsonProperty("name") String name,
+      @JsonProperty("sha256") String sha256,
+      @JsonProperty("size") Long size) {}
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record PayloadRef(
       @JsonProperty("external_id") @JsonAlias("id") String externalId,
       @JsonProperty("version") String version,

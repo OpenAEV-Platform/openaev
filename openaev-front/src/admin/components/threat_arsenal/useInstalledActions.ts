@@ -15,6 +15,7 @@ import { type SearchPaginationInput, type ThreatArsenalAction } from '../../../u
 import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
+import { MITRE_FILTER_KEY } from '../common/filters/MitreFilter';
 import { hasOrphanedScopeFilters, toggleOrphanedScope } from './threatArsenalOrphanedScopeUtils';
 import useThreatArsenalFacetCounts from './useThreatArsenalFacetCounts';
 
@@ -26,6 +27,7 @@ export const INSTALLED_FILTER_NAMES = [
   'action_payload_status',
   'action_updated_at',
   'action_author',
+  MITRE_FILTER_KEY,
 ];
 
 const useInstalledActions = () => {

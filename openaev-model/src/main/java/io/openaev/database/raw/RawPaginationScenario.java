@@ -19,6 +19,7 @@ public class RawPaginationScenario {
   private Instant scenario_updated_at;
   private Set<String> scenario_tags;
   private Set<String> scenario_platforms;
+  private Set<String> scenario_domains;
   private String scenario_workflow_id;
   private String scenario_author;
   private String scenario_author_name;

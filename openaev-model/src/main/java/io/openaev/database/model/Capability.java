@@ -154,6 +154,8 @@ public enum Capability {
       pair(ResourceType.THREAT_ARSENAL, Action.CREATE),
       pair(ResourceType.THREAT_ARSENAL, Action.DUPLICATE)),
   DELETE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.DELETE)),
+  REVOKE_THREAT_ARSENALS(
+      MANAGE_THREAT_ARSENALS, pair(ResourceType.PAYLOAD_REVOCATION, Action.WRITE)),
 
   // Credentials -
   ACCESS_CREDENTIALS(

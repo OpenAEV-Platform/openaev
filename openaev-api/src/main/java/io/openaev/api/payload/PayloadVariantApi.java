@@ -200,10 +200,7 @@ public class PayloadVariantApi {
   })
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional(rollbackFor = Exception.class)
-  @AccessControl(
-      resourceId = "#payloadId",
-      actionPerformed = Action.DELETE,
-      resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD_REVOCATION)
   public void liftInherited(
       TxCtx ctx,
       @PathVariable String payloadId,

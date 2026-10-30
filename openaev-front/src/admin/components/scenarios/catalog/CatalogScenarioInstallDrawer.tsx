@@ -8,17 +8,21 @@ interface Props {
   externalId: string;
   name: string;
   version: string;
+  thenLaunch?: boolean;
+  chained?: boolean;
   onClose: () => void;
   onInstalled: (scenarioId: string) => void;
 }
 
 // Injects of the installed version keep their targets; the others get the chosen ones.
-const CatalogScenarioInstallDrawer: FunctionComponent<Props> = ({ externalId, name, version, onClose, onInstalled }) => {
+const CatalogScenarioInstallDrawer: FunctionComponent<Props> = ({ externalId, name, version, thenLaunch = false, chained = false, onClose, onInstalled }) => {
   const { t } = useFormatter();
   return (
     <ScenarioTargetsDrawer
-      title={`${t('Install')} ${name} v${version}`}
+      title={`${t(thenLaunch ? 'Install and launch' : 'Install')} ${name} v${version}`}
       mode="install"
+      thenLaunch={thenLaunch}
+      chained={chained}
       load={() => fetchCatalogScenarioInstallPreview(externalId, version).then(({ data }) => ({
         injects: data.injects,
         previousVersion: data.previous_version,

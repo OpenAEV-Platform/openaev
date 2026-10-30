@@ -363,6 +363,9 @@ public class ThreatArsenalService {
   }
 
   private ThreatArsenalAction describeAction(ThreatArsenalAction action) {
+    if (action == null) {
+      return null;
+    }
     markRevoked(new PageImpl<>(List.of(action)));
     return action;
   }

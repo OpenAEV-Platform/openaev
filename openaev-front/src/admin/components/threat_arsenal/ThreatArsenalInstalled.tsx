@@ -2,6 +2,8 @@ import { Box } from '@mui/material';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 
+import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
+import { fetchAttackPatterns } from '../../../actions/AttackPattern';
 import DialogDelete from '../../../components/common/DialogDelete';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
@@ -11,7 +13,10 @@ import MarketplaceViewToggle from '../../../components/common/marketplace/Market
 import useMarketplaceView from '../../../components/common/marketplace/useMarketplaceView';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../components/i18n';
-import { type ThreatArsenalAction } from '../../../utils/api-types';
+import { useHelper } from '../../../store';
+import { type AttackPattern, type ThreatArsenalAction } from '../../../utils/api-types';
+import { useAppDispatch } from '../../../utils/hooks';
+import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
@@ -33,9 +38,15 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
   const canDelete = useAbility().can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
   const [openedAction, setOpenedAction] = useState<ThreatArsenalAction | null>(null);
   const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);
+  const [runTestAction, setRunTestAction] = useState<ThreatArsenalAction | null>(null);
   const [isBulkDeleteDialogOpened, setBulkDeleteDialogOpened] = useState<boolean>(false);
   const { viewMode, handleViewModeChange } = useMarketplaceView('threat-arsenal:view-mode-v2');
   const installed = useInstalledActions();
+  const dispatch = useAppDispatch();
+  useDataLoader(() => {
+    dispatch(fetchAttackPatterns());
+  });
+  const attackPatterns: AttackPattern[] = useHelper((helper: AttackPatternHelper) => helper.getAttackPatterns());
   const location = useLocation();
   // A payload just installed from the Available tab: shown alone, its drawer open. Read once, as
   // the list rewrites the URL (and drops this state) when it loads.
@@ -68,6 +79,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
       if (open) setOpenedAction(result);
     },
     onDelete: installed.removeAction,
+    onRunTest: setRunTestAction,
   };
   const partiallySelected = (!selection.selectAll && selectionCount > 0)
     || (selection.selectAll && Object.keys(selection.deSelectedElements ?? {}).length > 0);
@@ -114,6 +126,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
             setContent={installed.setThreatArsenalActions}
             entityPrefix="threat_arsenal"
             availableFilterNames={INSTALLED_FILTER_NAMES}
+            attackPatterns={attackPatterns}
             queryableHelpers={installed.queryableHelpers}
             reloadContentCount={installed.finishedBulkOperations}
             // List view sorts via its column headers; the select is grid-only.
@@ -150,6 +163,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           open
           onClose={() => setOpenedAction(null)}
           threatArsenalAction={openedAction}
+          onRunTest={setRunTestAction}
         />
       )}
 
@@ -167,6 +181,19 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           searchPaginationInput={installed.searchPaginationInput}
           open={isRunTestDrawerOpened}
           onClose={() => setRunTestDrawerOpened(false)}
+        />
+      )}
+
+      {runTestAction && (
+        <ThreatArsenalRunTestDrawer
+          isExclusionMode={false}
+          isOnlyOneItemSelected
+          selectionCount={1}
+          selectedElements={{ [runTestAction.injector_contract_id]: runTestAction }}
+          deSelectedElements={{}}
+          searchPaginationInput={installed.searchPaginationInput}
+          open
+          onClose={() => setRunTestAction(null)}
         />
       )}
 

@@ -215,7 +215,11 @@ public class InjectSearchService {
                 .map(InjectSearchService::payloadIdOf)
                 .filter(Objects::nonNull)
                 .toList());
-    injects.forEach(inject -> inject.setPayloadRevoked(revoked.contains(payloadIdOf(inject))));
+    injects.forEach(
+        inject -> {
+          String payloadId = payloadIdOf(inject);
+          inject.setPayloadRevoked(payloadId != null && revoked.contains(payloadId));
+        });
     return injects;
   }
 

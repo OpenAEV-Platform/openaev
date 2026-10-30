@@ -976,7 +976,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  void given_revokedPayload_should_failInjectWithPayloadRevokedTrace() throws Exception {
+  void given_revokedPayload_should_failInjectWithErrorTrace() throws Exception {
     // Arrange
     doThrow(new PayloadRevokedException("Payload revoked: crashes DCs"))
         .when(executor)
@@ -996,7 +996,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
         injectStatus.getTraces().stream()
             .anyMatch(
                 trace ->
-                    ExecutionTraceStatus.PAYLOAD_REVOKED.equals(trace.getStatus())
+                    ExecutionTraceStatus.ERROR.equals(trace.getStatus())
                         && "Payload revoked: crashes DCs".equals(trace.getMessage())));
   }
 

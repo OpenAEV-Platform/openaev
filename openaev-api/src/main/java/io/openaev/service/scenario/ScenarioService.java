@@ -541,6 +541,7 @@ public class ScenarioService {
                 })
             .toList();
     setLastRuns(scenarios);
+    setDomains(scenarios);
 
     // -- Count Query --
     Long total = countQuery(cb, this.entityManager, Scenario.class, specificationCount);
@@ -567,6 +568,18 @@ public class ScenarioService {
     Map<String, Instant> lastRuns = new HashMap<>();
     rows.forEach(row -> lastRuns.put((String) row[0], toInstant(row[1])));
     scenarios.forEach(s -> s.setScenario_last_run_at(lastRuns.get(s.getScenario_id())));
+  }
+
+  /** Security domains of each scenario: those of the actions its injects use. */
+  private void setDomains(List<RawPaginationScenario> scenarios) {
+    if (scenarios.isEmpty()) {
+      return;
+    }
+    Map<String, Set<String>> domains =
+        injectService.domainIdsByScenario(
+            scenarios.stream().map(RawPaginationScenario::getScenario_id).toList());
+    scenarios.forEach(
+        s -> s.setScenario_domains(domains.getOrDefault(s.getScenario_id(), Set.of())));
   }
 
   private static Instant toInstant(Object value) {
@@ -640,7 +653,6 @@ public class ScenarioService {
   }
 
   public void throwIfScenarioNotLaunchable(Scenario scenario) {
-    injectService.throwIfAnyPayloadRevoked(scenario.getInjects());
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
@@ -667,6 +679,11 @@ public class ScenarioService {
   @Transactional(readOnly = true)
   public List<Scenario> findAllByCatalogId(@NotBlank final String catalogId) {
     return scenarioRepository.findAllByCatalogId(catalogId);
+  }
+
+  /** Scenarios with this name that no catalogue version claims, oldest first. */
+  public List<Scenario> findLocalCopies(String name) {
+    return scenarioRepository.findAllByNameAndCatalogIdIsNullOrderByCreatedAtAsc(name);
   }
 
   /** The one instance of a catalogue scenario in this tenant, installed or not. */
@@ -1629,6 +1646,8 @@ public class ScenarioService {
     List<HealthCheck> healthChecks = new ArrayList<>();
 
     Scenario scenario = this.scenario(scenarioId);
+    // First, in one query: it also warms the cache the per-inject checks read.
+    List<HealthCheck> revocationChecks = injectService.runRevocationChecks(scenario.getInjects());
 
     // get the healthcheck for each injects, remove duplicate from injects HealthCheck results and
     // add them to the result
@@ -1679,6 +1698,7 @@ public class ScenarioService {
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
             injectsHealthChecks));
+    healthChecks.addAll(revocationChecks);
     healthChecks.addAll(healthCheckUtils.runMissingContentChecks(scenario));
     healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
 

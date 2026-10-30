@@ -50,10 +50,7 @@ public class PayloadRevocationApi {
   @PostMapping({PAYLOAD_URI + REVOCATION_PATH, TENANT_PAYLOAD_URI + REVOCATION_PATH})
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional(rollbackFor = Exception.class)
-  @AccessControl(
-      resourceId = "#payloadId",
-      actionPerformed = Action.DELETE,
-      resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD_REVOCATION)
   public PayloadRevocationOutput revoke(
       TxCtx ctx, @PathVariable String payloadId, @Valid @RequestBody PayloadRevocationInput input) {
     return toOutput(payloadRevocationService.revoke(payloadId, input.reason()));
@@ -66,10 +63,7 @@ public class PayloadRevocationApi {
   @DeleteMapping({PAYLOAD_URI + REVOCATION_PATH, TENANT_PAYLOAD_URI + REVOCATION_PATH})
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional(rollbackFor = Exception.class)
-  @AccessControl(
-      resourceId = "#payloadId",
-      actionPerformed = Action.DELETE,
-      resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD_REVOCATION)
   public void lift(TxCtx ctx, @PathVariable String payloadId) {
     payloadRevocationService.lift(payloadId);
   }

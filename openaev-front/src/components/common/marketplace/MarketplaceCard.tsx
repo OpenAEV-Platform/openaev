@@ -6,10 +6,13 @@ import {
   CardSubtitle,
   CardTitle,
   Text,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from '@filigran/design-system';
 import { Box } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type MouseEvent, type ReactNode } from 'react';
+import { type FunctionComponent, type MouseEvent, type ReactNode, useRef, useState } from 'react';
 import { useHref, useNavigate } from 'react-router';
 
 import PlatformIcon from '../../PlatformIcon';
@@ -46,6 +49,12 @@ interface Props {
   testId?: string;
 }
 
+const isOverClampedText = (element: HTMLElement | null | undefined, { clientX, clientY }: MouseEvent) => {
+  if (!element || element.scrollHeight <= element.clientHeight + 1) return false;
+  const { left, right, top, bottom } = element.getBoundingClientRect();
+  return clientX >= left && clientX <= right && clientY >= top && clientY <= bottom;
+};
+
 // Marketplace card laid out as the OpenCTI integrations cards, on the design system Card.
 const MarketplaceCard: FunctionComponent<Props> = ({
   icon,
@@ -72,6 +81,16 @@ const MarketplaceCard: FunctionComponent<Props> = ({
   const navigate = useNavigate();
   const href = useHref(linkTo ?? '.');
   const viewMode = useMarketplaceViewMode();
+  const titleRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLDivElement>(null);
+  const [fullText, setFullText] = useState<'title' | 'description' | null>(null);
+
+  // The card link covers the text, so the hover is read on the card.
+  const showFullText = (event: MouseEvent<HTMLElement>) => {
+    if (isOverClampedText(titleRef.current?.querySelector<HTMLElement>('.truncate'), event)) setFullText('title');
+    else if (isOverClampedText(descriptionRef.current, event)) setFullText('description');
+    else setFullText(null);
+  };
 
   // The card link is a plain anchor: a simple click stays in the app, a modified click opens a tab.
   const followLink = (event: MouseEvent<HTMLElement>) => {
@@ -121,6 +140,8 @@ const MarketplaceCard: FunctionComponent<Props> = ({
     <Box
       data-testid={testId}
       onClickCapture={followLink}
+      onMouseMove={showFullText}
+      onMouseLeave={() => setFullText(null)}
       sx={{
         'height': '100%',
         // The doubled class beats the design system hover rules, which load after and use :has().
@@ -240,7 +261,14 @@ const MarketplaceCard: FunctionComponent<Props> = ({
               {overline}
             </Text>
           )}
-          <CardTitle className="marketplace-card-title">{title}</CardTitle>
+          <Tooltip open={fullText === 'title'}>
+            <TooltipTrigger asChild>
+              <div ref={titleRef} style={{ minWidth: 0 }}>
+                <CardTitle className="marketplace-card-title">{title}</CardTitle>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>{title}</TooltipContent>
+          </Tooltip>
           {subtitle && <CardSubtitle>{subtitle}</CardSubtitle>}
         </CardHeader>
         <Box sx={{
@@ -249,7 +277,14 @@ const MarketplaceCard: FunctionComponent<Props> = ({
           minHeight: 0,
         }}
         >
-          {description && <CardContent clamp={subtitle || caption ? 3 : 4}>{description}</CardContent>}
+          {description && (
+            <Tooltip open={fullText === 'description'}>
+              <TooltipTrigger asChild>
+                <CardContent ref={descriptionRef} clamp={subtitle || caption ? 3 : 4}>{description}</CardContent>
+              </TooltipTrigger>
+              <TooltipContent>{description}</TooltipContent>
+            </Tooltip>
+          )}
         </Box>
         <Box sx={{
           display: 'flex',

@@ -25,7 +25,12 @@ const eventTypeSeverity = (eventType: string): ChipSeverity => {
     case 'DELETE':
       return 'critical';
     case 'SCORE_DEGRADATION':
+    case 'NEW_PAYLOAD_VERSION':
+    case 'BASE_UPDATE_AVAILABLE':
       return 'medium';
+    case 'PAYLOAD_REVOKED':
+    case 'REVOKED':
+      return 'high';
     default:
       return 'neutral';
   }

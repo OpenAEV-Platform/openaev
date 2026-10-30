@@ -22,6 +22,7 @@ export interface ThreatArsenalItemsProps {
   onUpdate: (result: ThreatArsenalAction) => void;
   onDuplicate: (result: ThreatArsenalAction, open?: boolean) => void;
   onDelete: (actionId: string) => void;
+  onRunTest: (action: ThreatArsenalAction) => void;
 }
 
 interface Props extends ThreatArsenalItemsProps { selectedActionId?: string }
@@ -35,6 +36,7 @@ const ThreatArsenalCardGrid: FunctionComponent<Props> = ({
   onUpdate,
   onDuplicate,
   onDelete,
+  onRunTest,
 }) => {
   const dispatch = useAppDispatch();
   useDataLoader(() => {
@@ -50,6 +52,7 @@ const ThreatArsenalCardGrid: FunctionComponent<Props> = ({
       onUpdate={onUpdate}
       onDuplicate={onDuplicate}
       onDelete={() => onDelete(action.injector_contract_id)}
+      onRunTest={() => onRunTest(action)}
       {...computeActionFlags(action)}
     />
   );

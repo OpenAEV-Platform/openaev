@@ -1,6 +1,6 @@
 import { Chip, IconButton } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Skeleton, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import { Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
 import { Fragment, type FunctionComponent, type ReactNode, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -25,6 +25,8 @@ interface HistoryDetails {
   source?: string;
   list_serial?: number;
 }
+
+const HISTORY_PER_PAGE = 10;
 
 const historyDetails = (entry: ContentHistoryOutput) => entry.content_history_details as HistoryDetails | undefined;
 
@@ -95,7 +97,7 @@ export const ContentVersionsTable: FunctionComponent<VersionsProps> = ({ rows, u
                 }}
                 >
                   {row.current && <Chip label={t('Current version')} />}
-                  {row.latest && <Chip label={t('Latest version')} severity="info" />}
+                  {row.latest && <Chip label={t('Latest version')} severity="low" />}
                   {row.installed && !row.current && <Chip label={t('Installed')} severity="low" />}
                   {!row.installed && <Chip label={t('Not installed')} />}
                   {row.revoked && <Chip label={t('Revoked')} severity="critical" />}
@@ -210,6 +212,7 @@ interface HistoryProps {
 export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, loading = false }) => {
   const { t, nsdt } = useFormatter();
   const [opened, setOpened] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
   const label = (entry: ContentHistoryOutput) => {
     const action = t(HISTORY_ACTION_LABELS[entry.content_history_action ?? ''] ?? entry.content_history_action ?? '-');
     if (entry.content_history_action === 'VERSION_CHANGE' && entry.content_history_count != null) {
@@ -269,62 +272,74 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
     return parts.length > 0 ? parts.join(' · ') : '-';
   };
   return (
-    // Fixed layout: opening a long before/after value must not resize the columns.
-    <Table
-      size="small"
-      aria-label={t('History')}
-      sx={{
-        'tableLayout': 'fixed',
-        '& tr:last-child > td': { borderBottom: 0 },
-      }}
-    >
-      <TableHead>
-        <TableRow>
-          <TableCell sx={{ width: '24%' }}>{t('History')}</TableCell>
-          <TableCell>{t('Changes')}</TableCell>
-          <TableCell sx={{ width: '14%' }}>{t('User')}</TableCell>
-          <TableCell sx={{ width: '16%' }}>{t('Date')}</TableCell>
-          <TableCell sx={{ width: 48 }} />
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {loading && history.length === 0 && <SkeletonRows rows={3} columns={5} />}
-        {!loading && history.length === 0 && (
+    <>
+      {/* Fixed layout: opening a long before/after value must not resize the columns. */}
+      <Table
+        size="small"
+        aria-label={t('History')}
+        sx={{
+          'tableLayout': 'fixed',
+          '& tr:last-child > td': { borderBottom: 0 },
+        }}
+      >
+        <TableHead>
           <TableRow>
-            <TableCell colSpan={5}>{t('No history yet')}</TableCell>
+            <TableCell sx={{ width: '24%' }}>{t('History')}</TableCell>
+            <TableCell>{t('Changes')}</TableCell>
+            <TableCell sx={{ width: '14%' }}>{t('User')}</TableCell>
+            <TableCell sx={{ width: '16%' }}>{t('Date')}</TableCell>
+            <TableCell sx={{ width: 48 }} />
           </TableRow>
-        )}
-        {history.map((entry) => {
-          const changes = historyDetails(entry)?.changes ?? [];
-          const open = opened === entry.content_history_id;
-          return (
-            <Fragment key={entry.content_history_id}>
-              <TableRow>
-                <TableCell>{label(entry)}</TableCell>
-                <TableCell sx={{ overflowWrap: 'anywhere' }}>{summary(entry)}</TableCell>
-                <TableCell>{entry.content_history_user ?? (entry.content_history_automatic ? t('Platform') : '-')}</TableCell>
-                <TableCell>{entry.content_history_created_at ? nsdt(entry.content_history_created_at) : '-'}</TableCell>
-                <TableCell align="right">
-                  {changes.length > 0 && (
-                    <IconButton
-                      icon={open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                      aria-label={open ? t('Hide the changes') : t('Show the changes')}
-                      onClick={() => setOpened(open ? null : entry.content_history_id)}
-                    />
-                  )}
-                </TableCell>
-              </TableRow>
-              {open && (
+        </TableHead>
+        <TableBody>
+          {loading && history.length === 0 && <SkeletonRows rows={3} columns={5} />}
+          {!loading && history.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={5}>{t('No history yet')}</TableCell>
+            </TableRow>
+          )}
+          {history.slice(page * HISTORY_PER_PAGE, (page + 1) * HISTORY_PER_PAGE).map((entry) => {
+            const changes = historyDetails(entry)?.changes ?? [];
+            const open = opened === entry.content_history_id;
+            return (
+              <Fragment key={entry.content_history_id}>
                 <TableRow>
-                  <TableCell colSpan={5}>
-                    <ChangesTable changes={changes} />
+                  <TableCell>{label(entry)}</TableCell>
+                  <TableCell sx={{ overflowWrap: 'anywhere' }}>{summary(entry)}</TableCell>
+                  <TableCell>{entry.content_history_user ?? (entry.content_history_automatic ? t('Platform') : '-')}</TableCell>
+                  <TableCell>{entry.content_history_created_at ? nsdt(entry.content_history_created_at) : '-'}</TableCell>
+                  <TableCell align="right">
+                    {changes.length > 0 && (
+                      <IconButton
+                        icon={open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                        aria-label={open ? t('Hide the changes') : t('Show the changes')}
+                        onClick={() => setOpened(open ? null : entry.content_history_id)}
+                      />
+                    )}
                   </TableCell>
                 </TableRow>
-              )}
-            </Fragment>
-          );
-        })}
-      </TableBody>
-    </Table>
+                {open && (
+                  <TableRow>
+                    <TableCell colSpan={5}>
+                      <ChangesTable changes={changes} />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
+            );
+          })}
+        </TableBody>
+      </Table>
+      {history.length > HISTORY_PER_PAGE && (
+        <TablePagination
+          component="div"
+          count={history.length}
+          page={page}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          rowsPerPage={HISTORY_PER_PAGE}
+          rowsPerPageOptions={[HISTORY_PER_PAGE]}
+        />
+      )}
+    </>
   );
 };

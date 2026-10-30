@@ -31,7 +31,8 @@ public class CatalogRequirementsService {
 
   // The steps of a chained scenario are not bound to the release yet: their payloads would escape
   // its checks and revocations, and an update would not write them.
-  public static final String CHAINED_NOT_SUPPORTED = "Chained scenarios are not supported yet";
+  public static final String CHAINED_NOT_SUPPORTED =
+      "Updating a chained scenario is not supported yet";
   private static final String CHAINED = "chained";
 
   private static final Pattern CONSTRAINT = Pattern.compile("^(>=|>|==|~=)([0-9]+(\\.[0-9]+)*)$");
@@ -86,9 +87,6 @@ public class CatalogRequirementsService {
 
     public List<CatalogMissingRequirement> missingPrerequisites(CatalogItem item) {
       List<CatalogMissingRequirement> missing = new ArrayList<>();
-      if (isChained(item)) {
-        missing.add(other(Kind.CHAINING, CHAINED, CHAINED_NOT_SUPPORTED));
-      }
       Requires requires = read(item);
       if (requires == null) {
         return missing;

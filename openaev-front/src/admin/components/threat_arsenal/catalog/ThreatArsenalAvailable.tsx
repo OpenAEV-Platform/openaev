@@ -1,5 +1,5 @@
-import { Button, Switch } from '@filigran/design-system';
-import { CategoryOutlined } from '@mui/icons-material';
+import { Button, IconButton, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { CategoryOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { type ReactNode, useEffect, useState } from 'react';
 
 import {
@@ -42,6 +42,8 @@ import ThreatArsenalCatalogCard from './ThreatArsenalCatalogCard';
 import ThreatArsenalCatalogDrawer from './ThreatArsenalCatalogDrawer';
 import ThreatArsenalContractCatalogCard from './ThreatArsenalContractCatalogCard';
 
+const AUTO_INSTALL_DOC_URL = 'https://docs.openaev.io/latest/usage/build/threat-arsenals/filigran-catalog/#install-new-actions-automatically';
+
 const CATALOG_SORT_OPTIONS = [
   {
     field: 'catalog_item_name',
@@ -66,7 +68,7 @@ const CATALOG_FACETS: MarketplaceFacet[] = [
   },
   {
     filterKey: CATALOG_AUTHOR_FILTER,
-    label: 'Author',
+    label: 'Provider',
   },
 ];
 
@@ -163,12 +165,35 @@ const ThreatArsenalAvailable = ({ tabs }: Props) => {
             }}
             >
               {canChangeSettings && (
-                <Switch
-                  label={t('Install new actions automatically')}
-                  checked={autoInstall}
-                  onCheckedChange={(checked: boolean) => updateCatalogSettings({ payload_auto_install: checked })
-                    .then(({ data }) => setAutoInstall(!!data.payload_auto_install))}
-                />
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+                >
+                  <Switch
+                    label={t('Install new actions automatically')}
+                    checked={autoInstall}
+                    onCheckedChange={(checked: boolean) => updateCatalogSettings({ payload_auto_install: checked })
+                      .then(({ data }) => setAutoInstall(!!data.payload_auto_install))}
+                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <IconButton
+                        asChild
+                        icon={<HelpOutlineOutlined fontSize="small" />}
+                        aria-label={t('Learn more')}
+                        priority="tertiary"
+                        size="sm"
+                      >
+                        <a href={AUTO_INSTALL_DOC_URL} target="_blank" rel="noopener noreferrer" />
+                      </IconButton>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t('Each time Filigran publishes a new action, it is installed right away. New versions of installed actions always install; your injects keep their version until you move them. Click to learn more.')}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               )}
               {canInstall && <Button onClick={installEverything} loading={installingAll}>{t('Install all')}</Button>}
             </div>

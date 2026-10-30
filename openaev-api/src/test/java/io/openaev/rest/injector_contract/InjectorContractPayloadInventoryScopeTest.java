@@ -50,6 +50,7 @@ class InjectorContractPayloadInventoryScopeTest extends IntegrationTest {
   private String payloadTenantId;
   private String otherTenantId;
   private String payloadId;
+  private String identityId;
   private String payloadContractId;
   private String otherContractId;
 
@@ -59,11 +60,19 @@ class InjectorContractPayloadInventoryScopeTest extends IntegrationTest {
     payloadTenantId = insertTenant("payload-inventory-owner");
     otherTenantId = insertTenant("payload-inventory-other");
     payloadId = UUID.randomUUID().toString();
+    identityId = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id)"
-            + " VALUES (?, 'Command', 'payload-inventory', ?)",
-        payloadId,
+        "INSERT INTO payload_identities (identity_id, tenant_id, payload_source)"
+            + " VALUES (?, ?, 'MANUAL')",
+        identityId,
         payloadTenantId);
+    jdbc.update(
+        "INSERT INTO payloads"
+            + " (payload_id, payload_type, payload_name, tenant_id, payload_version, identity_id)"
+            + " VALUES (?, 'Command', 'payload-inventory', ?, '1.0.0', ?)",
+        payloadId,
+        payloadTenantId,
+        identityId);
     payloadContractId = insertContract(payloadTenantId);
     otherContractId = insertContract(otherTenantId);
   }
@@ -72,6 +81,7 @@ class InjectorContractPayloadInventoryScopeTest extends IntegrationTest {
   void sweep() {
     jdbc.update("DELETE FROM injectors_contracts WHERE injector_contract_payload = ?", payloadId);
     jdbc.update("DELETE FROM payloads WHERE payload_id = ?", payloadId);
+    jdbc.update("DELETE FROM payload_identities WHERE identity_id = ?", identityId);
     jdbc.update("DELETE FROM tenants WHERE tenant_id IN (?, ?)", payloadTenantId, otherTenantId);
   }
 

@@ -15,6 +15,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.catalog.CatalogInstallService;
 import io.openaev.service.catalog.CatalogPayloadService;
 import io.openaev.service.catalog.CatalogService;
+import io.openaev.service.catalog.CatalogSyncService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.HashMap;
@@ -37,6 +38,7 @@ public class CatalogApi {
   private final CatalogService catalogService;
   private final CatalogInstallService catalogInstallService;
   private final CatalogPayloadService catalogPayloadService;
+  private final CatalogSyncService catalogSyncService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final ObjectMapper mapper;
 
@@ -290,18 +292,10 @@ public class CatalogApi {
     } catch (Exception e) {
       throw new BadRequestException("Unreadable manifest");
     }
-    if (manifest.repository() == null || manifest.release() == null) {
-      throw new BadRequestException("The manifest needs a repository and a release");
-    }
     Map<String, byte[]> archives = new HashMap<>();
     for (MultipartFile file : archiveFiles == null ? List.<MultipartFile>of() : archiveFiles) {
       archives.put(file.getOriginalFilename(), file.getBytes());
     }
-    Map<String, String> refusals = catalogService.verifyAndStore(manifest, archives);
-    CatalogSyncOutput output = catalogService.apply(ctx, tenantId, manifest, archives, refusals);
-    if (output.applied()) {
-      catalogPayloadService.afterSync(ctx, tenantId, manifest);
-    }
-    return output;
+    return catalogSyncService.sync(ctx, tenantId, manifest, archives);
   }
 }

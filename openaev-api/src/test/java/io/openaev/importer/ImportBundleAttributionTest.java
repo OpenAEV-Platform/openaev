@@ -946,10 +946,24 @@ class ImportBundleAttributionTest extends IntegrationTest {
       String id = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id)"
-                  + " VALUES (:id, 'Command', :name, :tenant)")
+              "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id,"
+                  + " payload_version, identity_id)"
+                  + " VALUES (:id, 'Command', :name, :tenant, '1.0.0', :identity)")
           .setParameter("id", id)
           .setParameter("name", "import-bundle-ref-command-" + id)
+          .setParameter("tenant", tenantId)
+          .setParameter("identity", seedIdentityRow(tenantId))
+          .executeUpdate();
+      return id;
+    }
+
+    private String seedIdentityRow(String tenantId) {
+      String id = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payload_identities (identity_id, tenant_id, payload_source)"
+                  + " VALUES (:id, :tenant, 'MANUAL')")
+          .setParameter("id", id)
           .setParameter("tenant", tenantId)
           .executeUpdate();
       return id;
@@ -974,11 +988,13 @@ class ImportBundleAttributionTest extends IntegrationTest {
       entityManager
           .createNativeQuery(
               "INSERT INTO payloads (payload_id, payload_type, payload_name, file_drop_file,"
-                  + " tenant_id) VALUES (:id, 'FileDrop', :name, :document, :tenant)")
+                  + " tenant_id, payload_version, identity_id)"
+                  + " VALUES (:id, 'FileDrop', :name, :document, :tenant, '1.0.0', :identity)")
           .setParameter("id", id)
           .setParameter("name", "import-bundle-ref-payload-" + id)
           .setParameter("document", documentId)
           .setParameter("tenant", tenantId)
+          .setParameter("identity", seedIdentityRow(tenantId))
           .executeUpdate();
       return id;
     }

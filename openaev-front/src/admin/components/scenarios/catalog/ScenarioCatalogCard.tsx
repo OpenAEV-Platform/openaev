@@ -5,27 +5,24 @@ import { Link } from 'react-router';
 
 import MarketplaceCard from '../../../../components/common/marketplace/MarketplaceCard';
 import { useFormatter } from '../../../../components/i18n';
-import ItemSeverity from '../../../../components/ItemSeverity';
 import { type CatalogItemOutput } from '../../../../utils/api-types';
-import { scenarioCategories } from '../constants';
 import { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED, ScenarioTypeIcon } from '../scenario/ScenarioType';
-import { severityAccent, severityLabelKey } from '../scenarioSeverity';
 
 interface Props {
   item: CatalogItemOutput;
   canInstall: boolean;
+  canLaunch: boolean;
   onOpen: () => void;
   onInstall: () => void;
+  onLaunch: () => void;
 }
 
 // Links and buttons on the card do their own thing, not open the drawer.
 const stop = (event: MouseEvent) => event.stopPropagation();
 
-const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, onOpen, onInstall }) => {
+const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLaunch, onOpen, onInstall, onLaunch }) => {
   const { t, nsd } = useFormatter();
   const theme = useTheme();
-  const severity = item.catalog_item_severity;
-  const category = item.catalog_item_category;
   // The newest installed version: one instance per scenario.
   const installed = (item.catalog_item_installed_scenarios ?? [])[0];
   const missing = item.catalog_item_missing_requirements ?? [];
@@ -53,35 +50,56 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, onOpe
 
   return (
     <MarketplaceCard
-      accent={severityAccent(theme, severity)}
+      accent={theme.palette.primary.main}
       testId="scenario-catalog-card"
       icon={<ScenarioTypeIcon type={item.catalog_item_scenario_type === 'chained' ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED} />}
       title={item.catalog_item_name ?? item.catalog_item_external_id}
-      overline={category ? t(scenarioCategories.get(category) ?? category) : undefined}
       subtitle={item.catalog_item_author ? `${t('by')} ${item.catalog_item_author}` : undefined}
       description={item.catalog_item_description ?? undefined}
-      chips={severity && <ItemSeverity label={t(severityLabelKey(severity))} severity={severity} />}
+      chips={null}
       platforms={item.catalog_item_platforms ?? []}
       onClick={onOpen}
       footerRight={footer}
-      action={installed
-        ? (
-            <Button asChild size="sm">
-              <Link to={`/admin/scenarios/${installed.scenario_id}`} onClick={stop}>{t('Open')}</Link>
-            </Button>
-          )
-        : (
+      action={(
+        <div style={{
+          display: 'flex',
+          gap: 8,
+        }}
+        >
+          {installed
+            ? (
+                <Button asChild size="sm" priority="secondary">
+                  <Link to={`/admin/scenarios/${installed.scenario_id}`} onClick={stop}>{t('Open')}</Link>
+                </Button>
+              )
+            : (
+                <Button
+                  size="sm"
+                  priority="secondary"
+                  onClick={(event) => {
+                    stop(event);
+                    onInstall();
+                  }}
+                  disabled={!canInstall}
+                >
+                  {t('Install')}
+                </Button>
+              )}
+          {canLaunch && (
+            // A scenario not installed yet is installed first.
             <Button
               size="sm"
               onClick={(event) => {
                 stop(event);
-                onInstall();
+                onLaunch();
               }}
-              disabled={!canInstall}
+              disabled={!installed && !canInstall}
             >
-              {t('Install')}
+              {t('Launch')}
             </Button>
           )}
+        </div>
+      )}
       caption={[
         `v${item.catalog_item_version}`,
         item.catalog_item_injects_count != null ? `${item.catalog_item_injects_count} ${t('injects')}` : null,

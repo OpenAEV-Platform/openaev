@@ -1507,6 +1507,41 @@ class PayloadApiTest extends IntegrationTest {
       }
 
       @Test
+      @DisplayName("Deleting actions does not allow revoking them")
+      @WithMockUser(
+          autoJoinDefaultTenant = true,
+          withCapabilities = {Capability.MANAGE_PAYLOADS, Capability.DELETE_THREAT_ARSENALS})
+      void given_deleteCapabilityOnly_should_refuseRevocation() throws Exception {
+        // Arrange
+        String payloadId = createCommandPayload();
+
+        // Act & Assert
+        mvc.perform(
+                post(revocationUri(payloadId))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(Map.of("content_revocation_reason", REASON)))
+                    .with(csrf()))
+            .andExpect(status().isForbidden());
+      }
+
+      @Test
+      @DisplayName("The revoke capability allows revoking and lifting")
+      @WithMockUser(
+          autoJoinDefaultTenant = true,
+          withCapabilities = {Capability.MANAGE_PAYLOADS, Capability.REVOKE_THREAT_ARSENALS})
+      void given_revokeCapability_should_revokeThenLift() throws Exception {
+        // Arrange
+        String payloadId = createCommandPayload();
+
+        // Act
+        revoke(payloadId);
+
+        // Assert
+        mvc.perform(delete(revocationUri(payloadId)).with(csrf()))
+            .andExpect(status().isNoContent());
+      }
+
+      @Test
       @DisplayName("Revoking a revoked payload is refused")
       @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_revokedPayload_should_refuseSecondRevocation() throws Exception {

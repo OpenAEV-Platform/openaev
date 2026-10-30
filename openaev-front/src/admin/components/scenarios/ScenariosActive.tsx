@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 
 import { fetchCatalogScenarios } from '../../../actions/catalog/scenario-catalog-actions';
+import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../components/common/marketplace/MarketplaceFacetSidebar';
 import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
@@ -12,14 +13,14 @@ import useMarketplaceView from '../../../components/common/marketplace/useMarket
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
-import { type CatalogItemOutput } from '../../../utils/api-types';
+import { useHelper } from '../../../store';
+import { type CatalogItemOutput, type Domain } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { scenarioCategories } from './constants';
 import { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED } from './scenario/ScenarioType';
 import ScenarioCardGrid from './ScenarioCardGrid';
+import { domainIcon, facetDomains } from './scenarioDomains';
 import ScenariosActiveList from './ScenariosActiveList';
-import { SCENARIO_SEVERITIES, severityLabelKey } from './scenarioSeverity';
 import ScenariosHeaderActions from './ScenariosHeaderActions';
 import useActiveScenarios, { ACTIVE_SCENARIO_FILTER_NAMES } from './useActiveScenarios';
 
@@ -48,18 +49,16 @@ const ScenariosActive = ({ tabs }: Props) => {
   }, [active.scenarios]);
   const authorSection = useAuthorFacetSection('scenario_author', active.authorOptions, active.searchPaginationInput, active.queryableHelpers.filterHelpers);
 
+  const domains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
+  const domainName = (id: string) => domains.find(domain => domain.domain_id === id)?.domain_name ?? id;
+
   const facets: MarketplaceFacet[] = [
     {
-      filterKey: 'scenario_category',
-      label: 'Category',
-      values: [...scenarioCategories.keys()],
-      valueLabel: value => t(scenarioCategories.get(value) ?? value),
-    },
-    {
-      filterKey: 'scenario_severity',
-      label: 'Severity',
-      values: SCENARIO_SEVERITIES,
-      valueLabel: value => t(severityLabelKey(value)),
+      filterKey: 'scenario_domains',
+      label: 'Domains',
+      values: facetDomains(domains).map(domain => domain.domain_id),
+      valueLabel: id => t(domainName(id)),
+      icon: id => domainIcon(domainName(id)),
     },
     {
       filterKey: 'scenario_type',

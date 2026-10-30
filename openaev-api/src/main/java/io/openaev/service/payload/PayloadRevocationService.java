@@ -7,6 +7,7 @@ import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.ContentRevocationRepository;
+import io.openaev.notification.content.ContentNotificationEvents.PayloadRevocationChanged;
 import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +30,10 @@ public class PayloadRevocationService {
 
   private final ContentRevocationRepository contentRevocationRepository;
   private final PayloadVersionService payloadVersionService;
+  private final RevokedPayloadCache revokedPayloadCache;
   private final ContentHistoryService contentHistoryService;
   private final UserService userService;
+  private final ApplicationEventPublisher eventPublisher;
 
   // -- LIST --
 
@@ -41,6 +45,24 @@ public class PayloadRevocationService {
 
   private boolean revoked(Payload payload) {
     return !payloadVersionService.revokedIds(List.of(payload)).isEmpty();
+  }
+
+  /** For health checks: may lag a revocation made on another server by up to 30 seconds. */
+  @Transactional(readOnly = true)
+  public boolean isRevokedCached(Payload payload) {
+    return revokedPayloadCache.isRevoked(
+        payload.getTenant().getId(), payload.getId(), () -> revoked(payload));
+  }
+
+  /** For health checks, in one query; the answers fill the cache for the per-inject checks. */
+  @Transactional(readOnly = true)
+  public boolean anyRevoked(Collection<Payload> payloads) {
+    Set<String> revoked = payloadVersionService.revokedIds(payloads);
+    payloads.forEach(
+        payload ->
+            revokedPayloadCache.put(
+                payload.getTenant().getId(), payload.getId(), revoked.contains(payload.getId())));
+    return !revoked.isEmpty();
   }
 
   /** Why the inject cannot run when its payload is revoked; empty when it may run. */
@@ -121,6 +143,8 @@ public class PayloadRevocationService {
     payloadVersionService.setStatus(payload, Payload.PAYLOAD_STATUS.REVOKED);
     refreshLatestWithVariants(payload);
     contentHistoryService.payloadRevoked(payload, reason);
+    eventPublisher.publishEvent(
+        new PayloadRevocationChanged(payload.getTenant().getId(), payload.getId(), true, reason));
     return revocation;
   }
 
@@ -147,6 +171,8 @@ public class PayloadRevocationService {
     lift = contentRevocationRepository.save(lift);
     payloadVersionService.refreshLatest(variant);
     contentHistoryService.payloadRevocationLifted(variant, reason);
+    eventPublisher.publishEvent(
+        new PayloadRevocationChanged(variant.getTenant().getId(), variant.getId(), false, reason));
     return lift;
   }
 
@@ -177,6 +203,8 @@ public class PayloadRevocationService {
             .orElse(Payload.PAYLOAD_STATUS.UNVERIFIED));
     refreshLatestWithVariants(payload);
     contentHistoryService.payloadRevocationLifted(payload);
+    eventPublisher.publishEvent(
+        new PayloadRevocationChanged(payload.getTenant().getId(), payload.getId(), false, null));
   }
 
   private Payload payload(String payloadId) {

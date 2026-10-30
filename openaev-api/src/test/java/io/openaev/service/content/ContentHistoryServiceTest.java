@@ -4,15 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ContentHistoryRepository;
 import io.openaev.service.UserService;
+import io.openaev.telemetry.metric_collectors.ContentMetricCollector;
+import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -21,7 +24,19 @@ class ContentHistoryServiceTest {
 
   @Mock private ContentHistoryRepository contentHistoryRepository;
   @Mock private UserService userService;
-  @InjectMocks private ContentHistoryService contentHistoryService;
+  @Mock private ContentMetricCollector contentMetricCollector;
+  private ContentHistoryService contentHistoryService;
+
+  @BeforeEach
+  void setUp() {
+    contentHistoryService =
+        new ContentHistoryService(
+            contentHistoryRepository,
+            userService,
+            new ObjectMapper(),
+            contentMetricCollector,
+            Optional.empty());
+  }
 
   private static Payload payload(String externalId, String version) {
     Payload payload = new Command();

@@ -10,11 +10,13 @@ import io.openaev.database.model.ContentType;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadIdentity;
+import io.openaev.notification.content.ContentNotificationEvents.PayloadInstalledAutomatically;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.payload.service.PayloadVariantService;
 import io.openaev.service.content.ContentHistoryService;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadVersionChangeService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.payload.PayloadVersionService.Promotion;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +50,8 @@ public class CatalogPayloadService {
   private final ContentHistoryService contentHistoryService;
   private final TenantSettingsService tenantSettingsService;
   private final PayloadVariantService payloadVariantService;
+  private final OrganizationService organizationService;
+  private final ApplicationEventPublisher eventPublisher;
 
   // -- LIST --
 
@@ -132,6 +137,10 @@ public class CatalogPayloadService {
           .copiesToRepoint()
           .forEach(copy -> payloadVersionChangeService.repointAllUsages(copy, release));
     }
+    payload.setAuthorUser(null);
+    payload.setAuthorTeam(null);
+    payload.setAuthorOrganization(
+        organizationService.findOrCreateByName(item.getAuthor(), tenantId));
     if (identity.isUninstalled()) {
       payloadVersionService.setUninstalled(identity, false);
     }
@@ -163,7 +172,8 @@ public class CatalogPayloadService {
    * are linked, and with the tenant setting on, new payloads install too (F3). Uninstalled ones
    * stay out (F26).
    */
-  public void afterSync(TxCtx ctx, String tenantId, CatalogManifest manifest) throws Exception {
+  public void afterSync(TxCtx ctx, String tenantId, CatalogManifest manifest, boolean notify)
+      throws Exception {
     boolean autoInstall = autoInstall(tenantId);
     Set<String> uninstalled = payloadVersionService.findUninstalledExternalIds();
     Map<String, Set<String>> installed = payloadVersionService.findInstalledManagedVersions();
@@ -191,7 +201,14 @@ public class CatalogPayloadService {
       boolean newPayload =
           autoInstall && !installed.containsKey(externalId) && isLatest(released, manifest);
       if (hasCopy || newVersionOfInstalled || newPayload) {
-        installVersion(ctx, tenantId, manifest.repository(), externalId, released.version(), true);
+        Payload payload =
+            installVersion(
+                ctx, tenantId, manifest.repository(), externalId, released.version(), true);
+        // Linking an identical local copy brings nothing new.
+        if (notify && !hasCopy) {
+          eventPublisher.publishEvent(
+              new PayloadInstalledAutomatically(tenantId, payload.getId(), manifest.release()));
+        }
         installed.computeIfAbsent(externalId, k -> new HashSet<>()).add(released.version());
       }
     }

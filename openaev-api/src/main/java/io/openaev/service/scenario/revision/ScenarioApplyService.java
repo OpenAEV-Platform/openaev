@@ -190,6 +190,57 @@ public class ScenarioApplyService {
     return preview;
   }
 
+  /**
+   * Links the first local copy of this catalogue version, recognised by its injects and their
+   * actions; its targets and edits stay, as local changes against the release.
+   */
+  public Optional<Scenario> linkFirstCopy(List<Scenario> copies, CatalogItem item) {
+    ObjectNode released = reader.fromPackage(packageRoot(item), payloadVersions(item));
+    return copies.stream().filter(copy -> linkCopy(copy, item, released)).findFirst();
+  }
+
+  private boolean linkCopy(Scenario scenario, CatalogItem item, ObjectNode released) {
+    Map<String, Deque<String>> keysBySignature = new HashMap<>();
+    released
+        .path(INJECTS)
+        .properties()
+        .forEach(
+            e ->
+                keysBySignature
+                    .computeIfAbsent(signature(e.getValue()), k -> new ArrayDeque<>())
+                    .add(e.getKey()));
+    List<Inject> injects =
+        injectService.findByScenarioId(scenario.getId()).stream()
+            .sorted(
+                Comparator.comparing(
+                    (Inject i) -> Optional.ofNullable(i.getDependsDuration()).orElse(0L)))
+            .toList();
+    if (injects.size() != released.path(INJECTS).size()) {
+      return false;
+    }
+    Map<Inject, String> keys = new HashMap<>();
+    for (Inject inject : injects) {
+      Deque<String> candidates = keysBySignature.get(signature(reader.injectOf(inject)));
+      if (candidates == null || candidates.isEmpty()) {
+        return false;
+      }
+      keys.put(inject, candidates.poll());
+    }
+    keys.forEach(
+        (inject, key) -> {
+          inject.setCatalogId(key);
+          injectRepository.save(inject);
+        });
+    scenario.setCatalogId(item.getExternalId());
+    scenario.setVersion(item.getVersion());
+    recordInstall(scenario, item);
+    return true;
+  }
+
+  private static String signature(JsonNode inject) {
+    return inject.path(CONTRACT).asText() + "|" + inject.path(TEXT).path("title").asText();
+  }
+
   /** After a first install: the base is the package as the catalogue wrote it. */
   public void recordInstall(Scenario scenario, CatalogItem item) {
     ObjectNode base = reader.fromPackage(packageRoot(item), payloadVersions(item));
@@ -240,11 +291,6 @@ public class ScenarioApplyService {
     }
     ObjectNode content = reader.fromPackage(root, payloadVersions(item));
     return new Applied(content, content, item.getVersion(), reader.keysWithReferences(root));
-  }
-
-  /** Refused while the steps of a chained scenario are not part of its content. */
-  public boolean isChained(CatalogItem item) {
-    return CatalogRequirementsService.isChained(item) || hasWorkflow(packageRoot(item));
   }
 
   private void refuseChained(Scenario scenario) {

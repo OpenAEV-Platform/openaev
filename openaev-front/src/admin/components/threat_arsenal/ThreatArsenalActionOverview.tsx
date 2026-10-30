@@ -478,7 +478,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               : <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>}
           </Field>
 
-          <Field label="Author">
+          <Field label="Provider">
             {authorName
               ? (
                   <Box sx={{

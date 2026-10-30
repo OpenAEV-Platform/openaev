@@ -24,17 +24,11 @@ interface InjectorContractLight {
 
 export const MITRE_FILTER_KEY = 'injector_contract_attack_patterns';
 
-// External ids belonging to a top-level technique: the technique itself plus its
-// sub-techniques (T1595 -> [T1595, T1595.001, ...]). Both the count and the
-// applied filter use this set, so a click always returns exactly what the tile
-// count advertises (previously the filter sent only the parent id and returned
-// nothing when contracts were tagged with sub-techniques).
-const relevantExternalIds = (technique: AttackPattern, all: AttackPattern[]): string[] => {
+// A top-level technique and its sub-techniques (T1595 -> [T1595, T1595.001, ...]): the count and
+// the filter both use them, so a click returns what the tile advertises.
+const relevantPatterns = (technique: AttackPattern, all: AttackPattern[]): AttackPattern[] => {
   const parent = technique.attack_pattern_external_id;
-  const subs = all
-    .filter(ap => ap.attack_pattern_external_id.startsWith(`${parent}.`))
-    .map(ap => ap.attack_pattern_external_id);
-  return [parent, ...subs];
+  return [technique, ...all.filter(ap => ap.attack_pattern_external_id.startsWith(`${parent}.`))];
 };
 
 interface PhaseColumnProps {
@@ -208,7 +202,7 @@ const MitreFilter: FunctionComponent<MitreFilterProps> = ({
       .sort((a: AttackPattern, b: AttackPattern) => a.attack_pattern_name.localeCompare(b.attack_pattern_name));
 
   const countFor = (technique: AttackPattern): number => {
-    const externalIds = relevantExternalIds(technique, attackPatterns);
+    const externalIds = relevantPatterns(technique, attackPatterns).map(ap => ap.attack_pattern_external_id);
     return injectorsContracts.filter((c: InjectorContractLight) =>
       externalIds.some(id => c.injector_contract_attack_patterns_external_id?.includes(id)),
     ).length;
@@ -222,7 +216,8 @@ const MitreFilter: FunctionComponent<MitreFilterProps> = ({
     helpers.handleAddFilter({
       key: MITRE_FILTER_KEY,
       operator: 'contains',
-      values: relevantExternalIds(technique, attackPatterns),
+      // The search matches the attack pattern ids, not their external ids.
+      values: relevantPatterns(technique, attackPatterns).map(ap => ap.attack_pattern_id),
       mode: 'or',
     });
     onClick(technique.attack_pattern_id);
