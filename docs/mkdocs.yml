@@ -33,8 +33,6 @@ extra_css:
 
 # Extra
 extra:
-  feature_flags:
-    enabled: !ENV [DOCS_FEATURE_FLAGS] # enabled: !ENV [DOCS_FEATURE_FLAGS, "audit-log,multi-tenancy"]
   version:
     provider: mike
   analytics:

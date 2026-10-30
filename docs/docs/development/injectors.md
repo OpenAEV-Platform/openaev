@@ -16,6 +16,7 @@ An Injector talks to OpenAEV through the REST API and a RabbitMQ queue, so you c
 
 A contract lists the fields of an Inject. OpenAEV uses it to build the Inject form in the UI, and the Injector uses it to read the values the user entered. An Injector can declare several contracts.
 
+{% if feature_visible("CREDENTIAL_ASSET") %}
 ## Credentials
 
 An Injector that must authenticate against its target (a cloud account, a remote host) reads the secret from a
@@ -110,10 +111,13 @@ request fails with:
 
     Keep the secret in memory only for the time of the execution. Never write it to the execution callback, logs or
     files.
+{% endif %}
 
 ## What's next?
 
 - [Deploy Injectors](../integrations/injectors/deploy-injectors.md) -- Deploy and configure an Injector
+{%- if feature_visible("CREDENTIAL_ASSET") %}
 - [Credentials](../usage/build/credentials.md) -- Create the Credentials your Injector authenticates with
+{%- endif %}
 - [Collector development](collectors.md) -- Build a custom Collector
 - [REST API](../reference/apis/rest-api.md) -- Authentication and API reference
