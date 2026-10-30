@@ -2,7 +2,6 @@ package io.openaev.rest.exercise;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.specification.ExerciseSpecification.findGrantedFor;
 import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -921,7 +920,7 @@ public class ExerciseApi extends RestBehavior {
   @GetMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<ExerciseSimple> exercises(TxCtx ctx) {
-    return exerciseService.exercises();
+    return exerciseService.exercises(ctx);
   }
 
   @LogExecutionTime
@@ -933,7 +932,7 @@ public class ExerciseApi extends RestBehavior {
       description = "Get the simulations with the specified ids if you have the right to see them")
   public List<ExerciseSimple> simulationsById(
       TxCtx ctx, @RequestBody final GetExercisesInput getExercisesInput) {
-    return exerciseService.exercises(getExercisesInput.getExerciseIds());
+    return exerciseService.exercises(ctx, getExercisesInput.getExerciseIds());
   }
 
   @LogExecutionTime
@@ -943,32 +942,17 @@ public class ExerciseApi extends RestBehavior {
   public Page<ExerciseSimple> exercises(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
-    User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
-      return buildPaginationCriteriaBuilder(
-          (Specification<Exercise> specification,
-              Specification<Exercise> specificationCount,
-              Pageable pageable) ->
-              this.exerciseService.exercises(specification, specificationCount, pageable, joinMap),
-          searchPaginationInput,
-          Exercise.class,
-          joinMap);
-
-    } else {
-      return buildPaginationCriteriaBuilder(
-          (Specification<Exercise> specification,
-              Specification<Exercise> specificationCount,
-              Pageable pageable) ->
-              this.exerciseService.exercises(
-                  findGrantedFor(currentUser().getId()).and(specification),
-                  findGrantedFor(currentUser().getId()).and(specificationCount),
-                  pageable,
-                  joinMap),
-          searchPaginationInput,
-          Exercise.class,
-          joinMap);
-    }
+    Specification<Exercise> readable =
+        exerciseService.readableInEachTenant(ctx, userService.currentUser());
+    return buildPaginationCriteriaBuilder(
+        (Specification<Exercise> specification,
+            Specification<Exercise> specificationCount,
+            Pageable pageable) ->
+            this.exerciseService.exercises(
+                readable.and(specification), readable.and(specificationCount), pageable, joinMap),
+        searchPaginationInput,
+        Exercise.class,
+        joinMap);
   }
 
   // endregion

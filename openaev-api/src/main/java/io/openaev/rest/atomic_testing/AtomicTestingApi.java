@@ -61,7 +61,7 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> findAllAtomicTestings(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return atomicTestingService.searchAtomicTestingsForCurrentUser(searchPaginationInput);
+    return atomicTestingService.searchAtomicTestingsForCurrentUser(ctx, searchPaginationInput);
   }
 
   // some api use inject as resource type because they are actually used to retrieve inject data for
