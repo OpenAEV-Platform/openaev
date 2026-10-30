@@ -70,9 +70,10 @@ const Gauge: FunctionComponent<{
   const Icon = expectationTypeIcon(type);
 
   const resolved = buckets.success + buckets.partial + buckets.failed;
-  const resilience = resolved > 0 ? Math.round((buckets.success / resolved) * 100) : 0;
+  const total = resolved + buckets.pending;
+  const resilience = total > 0 ? Math.round((buckets.success / total) * 100) : 0;
   const animated = useCountUp(resilience, 1200);
-  const hasData = resolved + buckets.pending > 0;
+  const hasData = total > 0;
 
   const accent = (() => {
     if (!hasData) return theme.palette.text.disabled;
@@ -82,7 +83,6 @@ const Gauge: FunctionComponent<{
     return theme.palette.error.main;
   })();
 
-  const total = buckets.success + buckets.partial + buckets.failed + buckets.pending;
   const gapDeg = total > 0 ? 3 : 0;
   const dark = theme.palette.mode === 'dark';
   const cx = SIZE / 2;

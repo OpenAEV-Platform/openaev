@@ -15,6 +15,7 @@ import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -144,14 +145,34 @@ public class Executor {
     InjectStatus updatedStatus =
         this.injectStatusService.initializeInjectStatus(inject.getId(), EXECUTING);
     inject.setStatus(updatedStatus);
+    ResolvedAssetsToExecute resolvedAssets = resolvedAssetsToExecute(executableInject, inject);
     if (Boolean.TRUE.equals(injectorContract.getNeedsExecutor())) {
-      this.executionExecutorService.launchExecutorContext(inject);
+      this.executionExecutorService.launchExecutorContext(inject, resolvedAssets);
+    } else {
+      // Without agent routing, the restricted targets are only dropped by the target resolution:
+      // trace them here, once per dispatch
+      this.executionExecutorService.saveAssetsWithoutClearanceTraces(
+          resolvedAssets.withoutClearance(), updatedStatus);
     }
     if (injector.isExternal()) {
       return executeExternal(executableInject, injector);
     } else {
       return executeInternal(executableInject, injector);
     }
+  }
+
+  /**
+   * The targets of this dispatch split by marking clearance, resolved once: reused when the caller
+   * already cached them (scheduled execution), resolved and cached otherwise (direct execution), so
+   * the executor context, the DTO mapper and the expectation behaviors share the same resolution.
+   */
+  private ResolvedAssetsToExecute resolvedAssetsToExecute(
+      ExecutableInject executableInject, Inject inject) {
+    if (executableInject.getResolvedAssetsToExecute() == null) {
+      executableInject.cacheAssetsToExecute(
+          this.injectService.resolveAssetsToExecuteByClearance(inject));
+    }
+    return executableInject.getResolvedAssetsToExecute();
   }
 
   public InjectStatus directExecute(ExecutableInject executableInject) throws Exception {

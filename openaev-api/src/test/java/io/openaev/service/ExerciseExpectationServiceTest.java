@@ -83,6 +83,7 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   protected Exercise getExercise() {
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
+    exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     exercise.setStatus(SCHEDULED);
     exercise.setReplyTos(List.of("test@test.com"));
     exercise.setStart(Instant.now());

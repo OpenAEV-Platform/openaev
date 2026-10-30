@@ -3,7 +3,6 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
@@ -13,9 +12,11 @@ import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,10 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -39,7 +38,7 @@ class InjectsFinalizationJobTest extends IntegrationTest {
   @Autowired private SecurityCoverageSendJobRepository securityCoverageSendJobRepository;
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
   @Autowired private EntityManager entityManager;
-  @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
@@ -56,8 +55,13 @@ class InjectsFinalizationJobTest extends IntegrationTest {
    * their own short-lived transaction here. Rows are committed for real, hence the manual cleanup
    * in each test's {@code finally} block.
    */
+  /**
+   * Runs fixture writes, clean-ups and reads in the default tenant's scope, where every fixture of
+   * this class lives: in a transaction of their own when the test runs outside one, in the test's
+   * transaction otherwise.
+   */
   private void inTransaction(Runnable work) {
-    new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, work);
   }
 
   @Test
@@ -267,6 +271,52 @@ class InjectsFinalizationJobTest extends IntegrationTest {
                                   && trace.getAgent() == null
                                   && trace.getMessage().contains("did not complete within the")));
             });
+      } finally {
+        sweep(injectId);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "given agentless pending inject with only a not targeted trace should still add the"
+            + " agentless timeout trace")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void given_agentlessPendingInjectWithNotTargetedTrace_should_addAgentlessTimeoutTrace() {
+      // The not targeted trace is a COMPLETE trace written at dispatch: it must not be taken for
+      // a terminal outcome reported by the injector.
+      String injectId =
+          seedPendingInject(
+              () -> {
+                InjectStatus statusToSave = InjectStatusFixture.createPendingInjectStatus();
+                statusToSave.setTrackingSentDate(Instant.now().minus(20, ChronoUnit.MINUTES));
+                return injectComposer
+                    .forInject(InjectFixture.getDefaultInject())
+                    .withInjectStatus(
+                        injectStatusComposer
+                            .forInjectStatus(statusToSave)
+                            .withExecutionTrace(
+                                executionTraceComposer.forExecutionTrace(
+                                    new ExecutionTrace(
+                                        null,
+                                        ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED,
+                                        List.of("asset-red"),
+                                        "Asset red not targeted",
+                                        ExecutionTraceAction.COMPLETE,
+                                        null,
+                                        null))))
+                    .persist()
+                    .get();
+              });
+      try {
+        job.handlePendingInject();
+        inTransaction(
+            () ->
+                assertTrue(
+                    reload(injectId).getTraces().stream()
+                        .anyMatch(
+                            trace ->
+                                ExecutionTraceStatus.TIMEOUT.equals(trace.getStatus())
+                                    && trace.getAgent() == null)));
       } finally {
         sweep(injectId);
       }

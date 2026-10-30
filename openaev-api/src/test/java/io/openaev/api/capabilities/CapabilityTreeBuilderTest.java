@@ -4,13 +4,13 @@ import static io.openaev.database.model.Capability.*;
 import static io.openaev.database.model.CapabilityGroup.*;
 import static io.openaev.database.model.CapabilityScope.PLATFORM;
 import static io.openaev.database.model.CapabilityScope.TENANT;
+import static io.openaev.service.account.ReservedServiceAccount.AGENT;
 import static org.assertj.core.api.Assertions.*;
 
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CapabilityGroup;
 import io.openaev.database.model.CapabilityScope;
 import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.account.Constants;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -311,7 +311,7 @@ class CapabilityTreeBuilderTest {
       "Service role capabilities should contain AGENT_RUNTIME_ACCESS, INSTALL_AGENT and AGENT_DOCUMENT_ACCESS")
   void given_serviceRoleCapabilities_should_containExpectedCapabilities() {
     // -- ASSERT --
-    assertThat(Constants.SERVICE_ROLE_CAPABILITIES)
+    assertThat(AGENT.access().capabilities())
         .containsExactlyInAnyOrder(
             Capability.AGENT_RUNTIME_ACCESS,
             Capability.AGENT_DOCUMENT_ACCESS,
@@ -322,16 +322,16 @@ class CapabilityTreeBuilderTest {
   @DisplayName("Service role name and description should be defined")
   void given_serviceRoleConstants_should_haveNameAndDescription() {
     // -- ASSERT --
-    assertThat(Constants.SERVICE_ROLE_NAME).isEqualTo("Service integration");
-    assertThat(Constants.SERVICE_ROLE_DESCRIPTION).isNotBlank();
+    assertThat(AGENT.access().roleName()).isEqualTo("Service integration");
+    assertThat(AGENT.access().roleDescription()).isNotBlank();
   }
 
   @Test
   @DisplayName("Service group name and description should be defined")
   void given_serviceGroupConstants_should_haveNameAndDescription() {
     // -- ASSERT --
-    assertThat(Constants.SERVICE_GROUP_NAME).isEqualTo("Service integration");
-    assertThat(Constants.SERVICE_GROUP_DESCRIPTION).isNotBlank();
+    assertThat(AGENT.access().groupName()).isEqualTo("Service integration");
+    assertThat(AGENT.access().groupDescription()).isNotBlank();
   }
 
   @Test

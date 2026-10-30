@@ -40,6 +40,8 @@ class SignatureOutputProcessorTest {
   private final InjectExpectationLockService injectExpectationLockService =
       new InjectExpectationLockService(injectExpectationRepository);
 
+  private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
+
   private final InjectExpectationService injectExpectationService =
       new InjectExpectationService(
           injectExpectationRepository,
@@ -50,8 +52,8 @@ class SignatureOutputProcessorTest {
           injectService,
           injectorContractContentUtils,
           Optional.empty(),
-          expectationBehaviorResolver);
-  private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
+          expectationBehaviorResolver,
+          previewFeatureService);
   private final SignatureOutputProcessor processor =
       new SignatureOutputProcessor(injectExpectationService);
   private final ObjectMapper objectMapper = new ObjectMapper();

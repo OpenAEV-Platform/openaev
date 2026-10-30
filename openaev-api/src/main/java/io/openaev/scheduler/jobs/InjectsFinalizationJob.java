@@ -234,8 +234,10 @@ public class InjectsFinalizationJob implements Job {
       // the execution details show only the initial "waiting to be consumed" info trace - a red
       // inject with no reason. Add a clear agentless timeout trace instead, unless a terminal
       // COMPLETE trace was already recorded (e.g. the injector reported the timeout itself).
+      // A not-targeted trace is written at dispatch, it says nothing about the execution outcome
       boolean hasCompleteTrace =
-          ExecutionTraceUtils.completeTraces(status.getTraces()).findAny().isPresent();
+          ExecutionTraceUtils.completeTraces(status.getTraces())
+              .anyMatch(t -> !t.getStatus().isNotCounted());
       if (!hasCompleteTrace) {
         ExecutionTraceUtils.addAgentlessTimeoutTrace(status, this.injectExecutionThreshold);
       }

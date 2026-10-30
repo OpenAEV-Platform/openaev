@@ -21,6 +21,7 @@ const statusLabelMap: Record<string, string> = {
   INTERRUPTED: 'Interrupted',
   AGENT_INACTIVE: 'Agent inactive',
   ASSET_AGENTLESS: 'Asset agentless',
+  ASSET_CLEARANCE_RESTRICTED: 'Asset not targeted',
 };
 
 // Sentence-case catalogue keys: an unmapped status falls back to the raw enum, which t()
@@ -79,6 +80,7 @@ const agentStatusTooltipMap: Record<string, string> = {
   TIMEOUT: 'The agent did not complete execution within the allowed time threshold. Consider investigating target performance.',
   INTERRUPTED: 'The inject was interrupted before completion. This may be caused by a system signal, user intervention, or resource constraint.',
   AGENT_INACTIVE: 'This agent was not active during the inject execution. Check your asset connectivity.',
+  ASSET_CLEARANCE_RESTRICTED: 'This asset was not targeted because its marking clearance does not cover the markings of the inject.',
 };
 
 /**

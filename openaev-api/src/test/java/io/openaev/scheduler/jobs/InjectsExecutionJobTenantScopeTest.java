@@ -24,11 +24,13 @@ import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -109,7 +111,8 @@ class InjectsExecutionJobTenantScopeTest {
         .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(0).get());
     when(exerciseRepository.findAllShouldBeInRunningState(any())).thenReturn(List.of());
     doReturn(List.of()).when(exerciseRepository).saveAll(any());
-    when(injectService.resolveAllAssetsToExecute(any(Inject.class))).thenReturn(List.of());
+    when(injectService.resolveAssetsToExecuteByClearance(any(Inject.class)))
+        .thenReturn(new ResolvedAssetsToExecute(List.of(), Set.of()));
     when(healthCheckUtils.runContentChecks(any(Inject.class))).thenReturn(List.of());
     // Exercise injects run checkErrorMessagesPreExecution, which queries parent dependencies:
     // no parents here so the pre-execution gate is a no-op and the inject reaches the executor.

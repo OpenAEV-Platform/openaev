@@ -17,8 +17,13 @@ Thus already a BIG THANK YOU upfront to you for choosing to help with your PR.
 
 ### Related issues
 
+<!--
+Keep one line per issue:
+"Closes #n" when this PR finishes the issue: it is closed at merge.
+"Related #n" when this PR is only one step of it (sub-task, epic, feature-flag issue before the flag is removed): it stays open.
+-->
+* Closes #ISSUE-NUMBER
 * Related #ISSUE-NUMBER
-*
 
 <!-- If the related issue is in a private repository, do not link or reference it here. Use "* N/A" and link this public PR from the private issue instead. -->
 

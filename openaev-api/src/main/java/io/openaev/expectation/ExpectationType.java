@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 public enum ExpectationType {
   DETECTION("Detected", "Pending", "Partially Detected", "Not Detected"),
   HUMAN_RESPONSE("Successful", "Pending", "Partial", "Failed"),
+  LOGGING("Logged", "Pending", "Partially Logged", "Not Logged"),
   PREVENTION("Prevented", "Pending", "Partially Prevented", "Not Prevented"),
   VULNERABILITY("Not vulnerable", "Pending", "Partially vulnerable", "Vulnerable");
 
@@ -45,6 +46,7 @@ public enum ExpectationType {
     ExpectationType expectationType =
         switch (type) {
           case DETECTION -> ExpectationType.DETECTION;
+          case LOGGING -> ExpectationType.LOGGING;
           case PREVENTION -> ExpectationType.PREVENTION;
           case VULNERABILITY -> ExpectationType.VULNERABILITY;
           default -> ExpectationType.HUMAN_RESPONSE;

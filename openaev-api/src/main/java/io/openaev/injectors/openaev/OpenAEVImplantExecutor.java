@@ -34,10 +34,13 @@ public class OpenAEVImplantExecutor extends Injector {
   @Override
   public ExecutionProcess process(Execution execution, ExecutableInject injection)
       throws Exception {
-    Inject inject = this.injectService.inject(injection.getInjection().getInject().getId());
-
-    List<AssetToExecute> assetToExecutes = this.injectService.resolveAllAssetsToExecute(inject);
-    injection.cacheAssetsToExecute(assetToExecutes);
+    // Resolved and cached by the dispatch (Executor); resolve only for a caller that did not
+    List<AssetToExecute> assetToExecutes = injection.getAssetsToExecute();
+    if (assetToExecutes == null) {
+      Inject inject = this.injectService.inject(injection.getInjection().getInject().getId());
+      assetToExecutes = this.injectService.resolveAllAssetsToExecute(inject);
+      injection.cacheAssetsToExecute(assetToExecutes);
+    }
 
     if (assetToExecutes.isEmpty()) {
       execution.addTrace(

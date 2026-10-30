@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Exercise;
@@ -48,7 +49,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,13 +64,19 @@ import org.springframework.transaction.annotation.Transactional;
  * by the ambient tenant. A lookup left on the ambient tenant would drop the associations of the
  * write tenant and attach parents of the default tenant to a document that belongs to another one.
  * The links are read from the join tables through raw JDBC, which the statement inspector never
- * rewrites.
+ * rewrites. The class arms the production list, so once simulations and scenarios are activated the
+ * same assertions hold with the inspector scoping the lookup instead of the ambient tenant.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents,tags")
 @WithMockUser(isAdmin = true)
 @DisplayName("Document write paths resolve their associations in the document tenant")
 class DocumentWriteAssociationScopeTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String UPSERT = "/upsert";

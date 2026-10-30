@@ -44,19 +44,41 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
           """
         WITH results AS (
                 SELECT inject_expectation_id,
+                       inject_expectation_updated_at,
+                       inject_expectation_created_at,
                        json_array_elements(inject_expectation_results) AS res
                 FROM injects_expectations
+                WHERE json_typeof(inject_expectation_results) = 'array'
         )
-        INSERT INTO inject_expectation_results
+        INSERT INTO inject_expectation_results (
+          inject_expectation_result_id,
+          inject_expectation_result_source_id,
+          inject_expectation_result_source_type,
+          inject_expectation_result_source_name,
+          inject_expectation_result_source_asset_id,
+          inject_expectation_result_source_platform,
+          inject_expectation_result_date,
+          inject_expectation_result_result,
+          inject_expectation_result_score,
+          inject_expectation_result_metadata,
+          inject_expectation_result_created_at,
+          inject_expectation_result_updated_at,
+          inject_expectation_result_inject_expectation_id
+        )
         SELECT gen_random_uuid(),
           res->>'sourceId',
           res->>'sourceType',
           res->>'sourceName',
           res->>'sourceAssetId',
           res->>'sourcePlatform',
-          (res->>'date')::timestamptz,
+          COALESCE(
+            NULLIF(res->>'date', '')::timestamptz,
+            inject_expectation_updated_at,
+            inject_expectation_created_at,
+            NOW()
+          ),
           res->>'result',
-          (res->>'score')::numeric,
+          NULLIF(res->>'score', '')::numeric,
           res->'metadata',
           NOW(),
           NOW(),

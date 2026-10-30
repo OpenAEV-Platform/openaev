@@ -167,9 +167,11 @@ hand:
 > Read the template before writing the body — never invent your own headings.
 
 Sections, verbatim and in this order: `### Proposed changes`, `### Testing Instructions`,
-`### Related issues`, `### Checklist`, `### Further comments`.
 
-- `Related issues` is mandatory (`* Related #1234`) for public issues. Use `* N/A` when the related issue is in a private repository.
+`### Related issues`, `### Checklist`, `### Further comments`.
+- `Related issues` is mandatory for public issues. Use `* N/A` when the related issue is in a private repository. — every PR is linked to an issue: `* Closes #1234` when the PR finishes it
+  (closed at merge), `* Related #1234` when the PR is one step of it (sub-task, epic, `feature-flag` issue before
+  the flag is removed).
 - Keep all checklist lines **unchecked** — never tick a box, the human author does that.
 - Drop the template's HTML comments from the final body.
 - Title follows Conventional Commits and ends with the issue reference, unless the related issue is in a private repository.
