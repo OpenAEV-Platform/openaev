@@ -31,6 +31,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -252,6 +254,7 @@ class StepEventServiceTest {
       when(event.getStepId()).thenReturn(stepId);
 
       Step step = new Step();
+      step.setStatus(StepStatus.READY);
       step.setStepAction(StepActionClass.INJECT_EXECUTION);
       Step stepRun = new Step();
 
@@ -291,6 +294,7 @@ class StepEventServiceTest {
       // Arrange: the action step reports a final failure (e.g. no agent could run the inject)
       StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
       Step step = new Step();
+      step.setStatus(StepStatus.READY);
       step.setStepAction(StepActionClass.INJECT_EXECUTION);
       when(stepRepository.findForUpdateById(event.getStepId())).thenReturn(Optional.of(step));
       when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), any()))
@@ -305,6 +309,28 @@ class StepEventServiceTest {
       verify(stepService).saveStep(step);
       verify(queueChainingService, never()).republishReadyEvent(any());
       assertEquals(0, event.getRetryCount());
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+        value = StepStatus.class,
+        names = {"RUN", "END"})
+    void given_stepNoLongerReady_should_dropEventWithoutRunning(StepStatus status)
+        throws Exception {
+      // Arrange: a redelivered READY event for a step that already ran
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      Step step = new Step();
+      step.setStatus(status);
+      when(stepRepository.findForUpdateById(event.getStepId())).thenReturn(Optional.of(step));
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert
+      assertEquals(status, step.getStatus());
+      verify(stepService, never()).factoryAction(any(), any());
+      verify(stepService, never()).saveStep(any());
+      verify(queueChainingService, never()).republishReadyEvent(any());
     }
   }
 

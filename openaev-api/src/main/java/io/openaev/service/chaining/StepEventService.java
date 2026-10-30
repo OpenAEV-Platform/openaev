@@ -94,7 +94,18 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
               stepRepository
                   .findForUpdateById(stepEvent.getStepId())
                   .ifPresentOrElse(
-                      step -> run(step).ifPresent(toEvaluate::set),
+                      step -> {
+                        // A redelivered READY event must not run a step that already left READY:
+                        // the row lock above makes a concurrent duplicate see the committed status.
+                        if (step.getStatus() != StepStatus.READY) {
+                          log.info(
+                              "[Chaining] Ready consume: step {} is {}, not READY, event dropped.",
+                              step.getId(),
+                              step.getStatus());
+                          return;
+                        }
+                        run(step).ifPresent(toEvaluate::set);
+                      },
                       () ->
                           log.error(
                               "[Chaining] Ready consume: Step not found for StepEvent ID: {}",
