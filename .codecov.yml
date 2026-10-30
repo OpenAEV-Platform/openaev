@@ -4,14 +4,18 @@ codecov:
 
 coverage:
   status:
+    # No fixed target on the whole project: a status only reports a drop of more than half
+    # a point against the base commit. The patch rule lives in the coverage-backend job.
     project:
       backend:
-        target: 80%
+        target: auto
+        threshold: 0.5%
         informational: true
         flags:
           - backend
       frontend:
-        target: 80%
+        target: auto
+        threshold: 0.5%
         informational: true
         flags:
           - frontend
