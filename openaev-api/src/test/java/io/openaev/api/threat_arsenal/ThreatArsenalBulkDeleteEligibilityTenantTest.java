@@ -12,6 +12,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
@@ -24,6 +25,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterAll;
@@ -50,7 +52,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p>An item linked to an injector is a built-in action that the bulk delete keeps; an item linked
  * to no injector is removed. The caller is a member of the default tenant and of a second tenant,
- * and the request header narrows its scope on the non-prefixed route.
+ * and the request header narrows its scope on the non-prefixed route. A caller that is not an
+ * administrator only deletes in the tenants of that scope where it holds the delete right.
  *
  * <p>The production active tables are armed, so the class follows what production enforces. The
  * rows are committed, as a real request sees them, and removed after each test.
@@ -450,6 +453,130 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
         assertThat(stored(unlinked)).as("the unlinked item is removed").isZero();
       } finally {
         remove(linked, unlinked);
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("A caller holding the delete right in one tenant of its scope only")
+  class DeleteRightInOneTenantOfTheScope {
+
+    private String bothTenants() {
+      return Tenant.DEFAULT_TENANT_UUID + "," + otherTenantId;
+    }
+
+    /** The caller sees the items of the other tenant but may not delete them there. */
+    private void readOnlyInOtherTenant() {
+      joinOtherTenant();
+      tenantHelper.grantCapabilitiesInTenant(
+          otherTenantId, Set.of(Capability.ACCESS_THREAT_ARSENALS));
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = Capability.DELETE_THREAT_ARSENALS,
+        autoJoinDefaultTenant = true)
+    @DisplayName("given an explicit selection should delete only in the tenant where it holds it")
+    void given_explicitSelection_should_deleteOnlyInTheTenantWhereItHoldsIt() throws Exception {
+      // Arrange
+      readOnlyInOtherTenant();
+      String label = newLabel();
+      CommittedItem inDefaultTenant = null;
+      CommittedItem inOtherTenant = null;
+      try {
+        inDefaultTenant = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
+        inOtherTenant = commitItem(otherTenantId, false, label);
+
+        // Act
+        List<String> deleted =
+            deletedIds(
+                bulkDelete(THREAT_ARSENAL_URL, inDefaultTenant, inOtherTenant)
+                    .header(TENANT_IDS_HEADER, bothTenants()));
+
+        // Assert
+        assertThat(deleted)
+            .as("only the item of the tenant holding the right is reported")
+            .containsExactly(inDefaultTenant.contractId());
+        assertThat(stored(inDefaultTenant))
+            .as("the item of the tenant holding the right is removed")
+            .isZero();
+        assertThat(stored(inOtherTenant))
+            .as("the item of the tenant without the right is kept")
+            .isEqualTo(1);
+      } finally {
+        remove(inDefaultTenant, inOtherTenant);
+      }
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = Capability.DELETE_THREAT_ARSENALS,
+        autoJoinDefaultTenant = true)
+    @DisplayName("given a select-all request should delete only in the tenant where it holds it")
+    void given_selectAll_should_deleteOnlyInTheTenantWhereItHoldsIt() throws Exception {
+      // Arrange
+      readOnlyInOtherTenant();
+      String label = newLabel();
+      CommittedItem inDefaultTenant = null;
+      CommittedItem inOtherTenant = null;
+      try {
+        inDefaultTenant = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
+        inOtherTenant = commitItem(otherTenantId, false, label);
+        assertLabelMatches(Tenant.DEFAULT_TENANT_UUID, label, 1);
+        assertLabelMatches(otherTenantId, label, 1);
+
+        // Act
+        List<String> deleted =
+            deletedIds(
+                bulkDeleteAllLabelled(THREAT_ARSENAL_URL, label)
+                    .header(TENANT_IDS_HEADER, bothTenants()));
+
+        // Assert
+        assertThat(deleted)
+            .as("only the item of the tenant holding the right is reported")
+            .containsExactly(inDefaultTenant.contractId());
+        assertThat(stored(inDefaultTenant))
+            .as("the item of the tenant holding the right is removed")
+            .isZero();
+        assertThat(stored(inOtherTenant))
+            .as("the item of the tenant without the right is kept")
+            .isEqualTo(1);
+      } finally {
+        remove(inDefaultTenant, inOtherTenant);
+      }
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = Capability.DELETE_THREAT_ARSENALS,
+        autoJoinDefaultTenant = true)
+    @DisplayName("given the right in the other tenant too should delete in both tenants")
+    void given_rightInTheOtherTenantToo_should_deleteInBothTenants() throws Exception {
+      // Arrange
+      joinOtherTenant();
+      tenantHelper.grantCapabilitiesInTenant(
+          otherTenantId, Set.of(Capability.DELETE_THREAT_ARSENALS));
+      String label = newLabel();
+      CommittedItem inDefaultTenant = null;
+      CommittedItem inOtherTenant = null;
+      try {
+        inDefaultTenant = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
+        inOtherTenant = commitItem(otherTenantId, false, label);
+
+        // Act
+        List<String> deleted =
+            deletedIds(
+                bulkDelete(THREAT_ARSENAL_URL, inDefaultTenant, inOtherTenant)
+                    .header(TENANT_IDS_HEADER, bothTenants()));
+
+        // Assert
+        assertThat(deleted)
+            .as("the items of both tenants are reported")
+            .containsExactlyInAnyOrder(inDefaultTenant.contractId(), inOtherTenant.contractId());
+        assertThat(stored(inDefaultTenant)).as("the default tenant item is removed").isZero();
+        assertThat(stored(inOtherTenant)).as("the other tenant item is removed").isZero();
+      } finally {
+        remove(inDefaultTenant, inOtherTenant);
       }
     }
   }
