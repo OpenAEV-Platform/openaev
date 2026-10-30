@@ -36,11 +36,37 @@ public enum ReservedServiceAccount {
           "0b4db570-fdf4-44e9-8daa-39130189fec8",
           "STIX bundle processors",
           "Group for granting access rights to the STIX bundle API"),
-      "connector-opencti-%s@openaev.invalid");
+      "connector-opencti-%s@openaev.invalid"),
+
+  CATALOG_CONNECTOR(
+      new WellKnownAccess(
+          "b7537d0e-828e-4133-baad-2b1ed6a353be",
+          "Catalog connectors",
+          "Allows connectors deployed from the catalog to register and report to the platform.",
+          // Every capability used by pyoaev, the injectors and the collectors
+          Set.of(
+              Capability.MANAGE_TENANT_SETTINGS,
+              Capability.MANAGE_ASSESSMENT,
+              Capability.MANAGE_DOCUMENTS,
+              Capability.MANAGE_SECURITY_PLATFORMS,
+              Capability.MANAGE_TAGS,
+              Capability.MANAGE_ASSETS,
+              Capability.MANAGE_TEAMS_AND_PLAYERS,
+              Capability.MANAGE_PAYLOADS,
+              Capability.MANAGE_THREAT_ARSENALS,
+              Capability.DELETE_THREAT_ARSENALS,
+              Capability.RESOLVE_INJECT_SECRET),
+          "0d7c4060-0c48-4910-a504-c06ca885d680",
+          "Catalog connectors",
+          "Group for granting access rights to connectors deployed from the catalog"),
+      "connector-catalog-%s@openaev.invalid");
 
   private final WellKnownAccess access;
 
-  /** Email of the account, with {@code %s} standing for its tenant (agent) or connector id. */
+  /**
+   * Email of the account, with {@code %s} standing for its tenant (agent, catalog connector) or
+   * connector id (OpenCTI).
+   */
   private final String emailPattern;
 
   ReservedServiceAccount(WellKnownAccess access, String emailPattern) {

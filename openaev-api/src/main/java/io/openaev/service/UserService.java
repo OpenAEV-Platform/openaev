@@ -84,6 +84,9 @@ public class UserService {
 
   private record EmailChangeRequest(String confirmationCode, String newEmail) {}
 
+  /** First key of the account creation advisory lock ("US" = user). */
+  private static final int ACCOUNT_CREATION_LOCK_NAMESPACE = 0x5553_0001;
+
   private static final long tenMinutes = 1000L * 60L * 10L;
   private final Map<String, String> resetTokenMap = new PassiveExpiringMap<>(tenMinutes);
   private final Map<String, EmailChangeRequest> emailChangeConfirmationTokenMap =
@@ -777,6 +780,14 @@ public class UserService {
 
   public Optional<User> findByEmailIgnoreCase(String email) {
     return userRepository.findByEmailIgnoreCase(email);
+  }
+
+  /**
+   * Locks the creation of the account with this email until the end of the current transaction, so
+   * a concurrent caller waits and finds the created account.
+   */
+  public void lockAccountCreation(String email) {
+    userRepository.lockAccountCreation(ACCOUNT_CREATION_LOCK_NAMESPACE, email);
   }
 
   /**

@@ -37,7 +37,7 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
 
   @Transactional
   public void ensurePrivilegedUserExists(String tenantId) {
-    Group group = createWellKnownGroupWithRole(createWellKnownRole(tenantId), tenantId);
+    Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(tenantId), tenantId);
     // UNIQUE by tenant
     String email = ReservedServiceAccount.AGENT.emailPattern().formatted(tenantId);
 

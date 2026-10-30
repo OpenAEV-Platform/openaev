@@ -244,6 +244,14 @@ public interface UserRepository
   @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
   Optional<User> findByToken(@Param("token") String token);
 
+  // Native because JPQL cannot call pg_advisory_xact_lock; it reads and writes no row.
+  @Query(
+      value =
+          "SELECT 1 FROM (SELECT pg_advisory_xact_lock(:namespace, hashtext(lower(:email))))"
+              + " AS locked",
+      nativeQuery = true)
+  Integer lockAccountCreation(@Param("namespace") int namespace, @Param("email") String email);
+
   // -- DELETE --
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
