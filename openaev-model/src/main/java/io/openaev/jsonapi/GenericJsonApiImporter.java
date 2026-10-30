@@ -78,8 +78,8 @@ public class GenericJsonApiImporter<T extends Base> {
       String writeTenantId) {
     Map<String, ResourceObject> includedMap = toMap(doc.included());
     // Cache keyed by id, with a boolean indicating whether the entity should be persisted or not at
-    // the end
-    Map<String, Pair<T, Boolean>> entityCache = new HashMap<>();
+    // the end. Insertion ordered: an entity is cached before the entities it references.
+    SequencedMap<String, Pair<T, Boolean>> entityCache = new LinkedHashMap<>();
     List<CanRemapWeakRelationships> entitiesNeedingRemapping = new ArrayList<>();
 
     T entity =
@@ -100,8 +100,9 @@ public class GenericJsonApiImporter<T extends Base> {
     stampTenant(toPersist, writeTenantId);
     entityCache.values().forEach(value -> stampTenant(value.getLeft(), writeTenantId));
 
-    // Persist included entities that not inner relationship
-    for (Pair<T, Boolean> value : entityCache.values()) {
+    // Persist included entities that not inner relationship, referenced entities first (a payload
+    // after its document)
+    for (Pair<T, Boolean> value : entityCache.sequencedValues().reversed()) {
       if (!entityManager.contains(value.getLeft()) && !value.getRight()) {
         T e = value.getLeft();
         if (e.getId() != null && entityManager.find(e.getClass(), e.getId()) != null) {

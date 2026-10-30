@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.jsonapi.GenericJsonApiIUtils.resolveType;
 import static io.openaev.utils.reflection.CollectionUtils.isCollection;
 import static io.openaev.utils.reflection.CollectionUtils.toCollection;
 import static io.openaev.utils.reflection.FieldUtils.getAllFields;
@@ -92,11 +93,20 @@ public class ZipJsonService<T extends Base> {
         Collection<?> col = toCollection(value);
         for (Object item : col) {
           if (item instanceof Document doc) {
-            addDocumentToExtras(doc, extras, owningTenantId(entity));
+            addDocumentToExtras(doc.getId(), extras, owningTenantId(entity));
           }
         }
       } else if (value instanceof Document doc) {
-        addDocumentToExtras(doc, extras, owningTenantId(entity));
+        addDocumentToExtras(doc.getId(), extras, owningTenantId(entity));
+      }
+    }
+    // A document of a nested entity (the payload of a threat arsenal action) is only reached
+    // through the included resources.
+    if (resource.included() != null) {
+      for (Object item : resource.included()) {
+        if (item instanceof ResourceObject ro && resolveType(Document.class).equals(ro.type())) {
+          addDocumentToExtras(ro.id(), extras, owningTenantId(entity));
+        }
       }
     }
 
@@ -168,9 +178,10 @@ public class ZipJsonService<T extends Base> {
     return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted, doc);
   }
 
-  private void addDocumentToExtras(Document doc, Map<String, byte[]> out, String owningTenantId) {
+  private void addDocumentToExtras(
+      String documentId, Map<String, byte[]> out, String owningTenantId) {
     Document resolved =
-        documentRepository.findById(doc.getId()).orElseThrow(IllegalArgumentException::new);
+        documentRepository.findById(documentId).orElseThrow(IllegalArgumentException::new);
 
     Optional<InputStream> docStream = fileService.getFile(resolved, owningTenantId);
     if (docStream.isPresent()) {

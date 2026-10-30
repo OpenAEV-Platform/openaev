@@ -24,6 +24,7 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.ContractOutputElement;
 import io.openaev.database.model.Domain;
+import io.openaev.database.model.Executable;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
@@ -319,6 +320,72 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // Assert
+      assertEquals(1, minioService.countObjects(tenantId + "/" + target));
+    }
+
+    @Test
+    @DisplayName("Importing an action export should restore the file of its payload")
+    void given_actionExportWithPayloadFile_should_restoreTheFileOnImport() throws Exception {
+      // Arrange: export an action whose payload carries a file, then remove the object so only the
+      // archive holds it
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      DocumentComposer.Composer document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+              .withInMemoryFile(FileFixture.getPlainTextFileContent());
+      // Content-addressed, as every document created by the platform: md5.ext
+      document
+          .get()
+          .setTarget(
+              DigestUtils.md5Hex(FileFixture.getPlainTextFileContent().getContentBytes()) + ".txt");
+      document.persist();
+      String createResponse =
+          mockMvc
+              .perform(
+                  post(tenantUri(THREAT_ARSENAL_URL))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          asJsonString(
+                              ThreatArsenalInputFixture.createDefaultExecutableAction(
+                                  List.of(domain.getId()), document.get().getId())))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String actionId = JsonPath.read(createResponse, "$.injector_contract_id");
+      byte[] exportedZip =
+          mockMvc
+              .perform(
+                  get(tenantUri(TENANT_THREAT_ARSENAL_URL + "/" + actionId + "/export"))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+      String tenantId = document.get().getTenant().getId();
+      String target = document.get().getTarget();
+      minioService.deleteFileForTenant(tenantId, target);
+
+      // Act
+      String importResponse =
+          mockMvc
+              .perform(
+                  multipart(tenantUri(TENANT_THREAT_ARSENAL_URL + "/import"))
+                      .file(
+                          new MockMultipartFile(
+                              "file", "action.zip", "application/zip", exportedZip))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      String importedPayloadId = JsonPath.read(importResponse, "$.action_payload.payload_id");
+      Executable importedPayload =
+          (Executable) payloadRepository.findById(importedPayloadId).orElseThrow();
+      assertEquals(target, importedPayload.getExecutableFile().getTarget());
       assertEquals(1, minioService.countObjects(tenantId + "/" + target));
     }
 
