@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -30,10 +31,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <b>users</b> and a scheduler is not a user. Concretely: activating a table on marking must be a
  * no-op for background work — an inject targeting a TLP:RED asset still executes.
  *
- * <p>This also pins the allowlist entry in {@code
- * TenantActiveTableAccessArchTest#marking_definitions_repository_access_is_reviewed}: the
- * primitive's read of {@code marking_definitions} is properly tenant-scoped, and this test is what
- * makes that claim checkable rather than a comment.
+ * <p>The system clearance comes from {@code MarkingScopeSupplier#systemClearanceFor}, the same
+ * resolution a bypassing HTTP caller gets, but read fresh: the cases below run against the real
+ * clearance cache and pin that a warm cache never shortens what a job sees.
  *
  * <p>Deliberately NOT {@code @Transactional}: the primitive opens its own transactions.
  */
@@ -43,6 +43,7 @@ class TenantScopedTransactionMarkingScopeTest extends IntegrationTest {
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private PlatformTransactionManager transactionManager;
   @Autowired private DataSource dataSource;
+  @Autowired private MarkingClearanceCacheManager clearanceCache;
 
   private JdbcTemplate jdbc;
   private String tenantA;
@@ -109,6 +110,25 @@ class TenantScopedTransactionMarkingScopeTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given a definition created after a bypass clearance was cached, should carry it")
+    void given_definitionCreatedAfterCachedBypass_should_carryIt() {
+      // -- ARRANGE --
+      // Warm the cached bypass entry of tenant A, then create a definition without evicting it,
+      // the way a write seen before its eviction would leave the cache.
+      clearanceCache.findClearance(UUID.randomUUID().toString(), tenantA, true);
+      tenantTx.execute(TxCtx.forTenant(tenantA), () -> currentMarkingScope());
+      String amber = seedMarking(tenantA, "TLP", "TLP:AMBER", 30);
+
+      // -- ACT --
+      Set<String> inside = tenantTx.execute(TxCtx.forTenant(tenantA), () -> currentMarkingScope());
+
+      // -- ASSERT --
+      // A cached system clearance would hide every row marked AMBER from the tenant's jobs.
+      assertTrue(inside.contains(amber), "the new definition is missing: " + inside);
+      assertEquals(markingIdsOf(tenantA), inside);
+    }
+
+    @Test
     @DisplayName("given a tenant with no markings, should carry an empty scope, not fail")
     void given_tenantWithoutMarkings_should_carryEmptyScope() {
       // -- ARRANGE --
@@ -158,7 +178,64 @@ class TenantScopedTransactionMarkingScopeTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("joining the current transaction")
+  class JoiningTheCurrentTransaction {
+
+    @Test
+    @DisplayName("given a transaction already scoped to the tenant, should keep its clearance")
+    void given_sameTenantScope_should_keepTheTransactionsClearance() {
+      // -- ARRANGE --
+      // An HTTP request in tenant A, with a user cleared for one marking only.
+      String userClearance = markingIdsOf(tenantA).iterator().next();
+
+      // -- ACT --
+      Set<String> after =
+          rawTransaction()
+              .execute(
+                  status -> {
+                    setSetting("app.current_tenants", tenantA);
+                    setSetting("app.current_markings", userClearance);
+                    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+                    return currentMarkingScope();
+                  });
+
+      // -- ASSERT --
+      // A shared service asking for the tenant it already runs in must not widen the request to
+      // every marking of the tenant for the rest of its transaction.
+      assertEquals(Set.of(userClearance), after);
+    }
+
+    @Test
+    @DisplayName(
+        "given a transaction scoped to another tenant, should switch to the system clearance")
+    void given_otherTenantScope_should_setTheSystemClearance() {
+      // -- ARRANGE --
+      String otherClearance = markingIdsOf(tenantB).iterator().next();
+
+      // -- ACT --
+      Set<String> after =
+          rawTransaction()
+              .execute(
+                  status -> {
+                    setSetting("app.current_tenants", tenantB);
+                    setSetting("app.current_markings", otherClearance);
+                    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+                    return currentMarkingScope();
+                  });
+
+      // -- ASSERT --
+      // Crossing to another tenant is a scope boundary: background work joining there runs at the
+      // system clearance of its new tenant, never with what the previous scope carried.
+      assertEquals(markingIdsOf(tenantA), after);
+    }
+  }
+
   // -- HELPERS --
+
+  private void setSetting(String key, String value) {
+    jdbc.queryForObject("SELECT set_config(?, ?, true)", String.class, key, value);
+  }
 
   private Set<String> currentMarkingScope() {
     String raw = currentSetting("app.current_markings");
@@ -194,17 +271,19 @@ class TenantScopedTransactionMarkingScopeTest extends IntegrationTest {
     return id;
   }
 
-  private void seedMarking(String tenantId, String type, String name, int order) {
+  private String seedMarking(String tenantId, String type, String name, int order) {
+    String id = UUID.randomUUID().toString();
     jdbc.update(
         "INSERT INTO marking_definitions (marking_definition_id, marking_definition_type,"
             + " marking_definition_definition, marking_definition_order, marking_definition_color,"
             + " marking_definition_created_at, marking_definition_updated_at, tenant_id)"
             + " VALUES (?, ?, ?, ?, ?, now(), now(), ?)",
-        UUID.randomUUID().toString(),
+        id,
         type,
         name,
         order,
         "#000000",
         tenantId);
+    return id;
   }
 }
