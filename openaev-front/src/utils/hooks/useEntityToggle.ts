@@ -42,7 +42,7 @@ const useEntityToggle = <T extends Record<string, any>>(
     }
     if (Array.isArray(entity)) {
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      const currentIds = R.values(selectedElements).map((n: Record<string, any>) => n[`${prefix}_id`]);
+      const currentIds = Object.values(selectedElements).map((n: Record<string, any>) => n[`${prefix}_id`]);
       const givenIds = entity.map(n => n[`${prefix}_id`]);
       const addedIds = givenIds.filter(n => !currentIds.includes(n));
       let newSelectedElements = {

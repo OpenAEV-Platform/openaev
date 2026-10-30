@@ -13,6 +13,6 @@ export const getTeamsColors: (teams: Team[]) => Record<string, string> = (teams:
       a.team_id,
       colors(theme.palette.mode === 'dark' ? 400 : 600)[index],
     ]),
-    R.fromPairs,
+    Object.fromEntries,
   )(teams);
 };

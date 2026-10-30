@@ -45,8 +45,8 @@ const LessonsCategories = ({
     return onUpdateLessonsCategoryTeams(lessonsCategoryId, data);
   };
   const consolidatedAnswers = R.pipe(
-    R.groupBy(R.prop('lessons_answer_question')),
-    R.toPairs,
+    list => Object.groupBy(list, R.prop('lessons_answer_question')),
+    Object.entries,
     R.map(([key, values]) => {
       const totalScore = R.sum(R.map(o => o.lessons_answer_score, values));
       return [
@@ -61,7 +61,7 @@ const LessonsCategories = ({
         },
       ];
     }),
-    R.fromPairs,
+    Object.fromEntries,
   )(lessonsAnswers);
   return (
     <Box

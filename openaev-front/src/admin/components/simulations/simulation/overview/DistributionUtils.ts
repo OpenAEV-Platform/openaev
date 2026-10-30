@@ -10,7 +10,7 @@ export const computeTeamsColors = (teams: Team[], theme: Theme) => R.pipe(
     a.team_id,
     colors(theme.palette.mode === 'dark' ? 400 : 600)[index],
   ]),
-  R.fromPairs,
+  Object.fromEntries,
 )(teams);
 
 export const computeOrganizationsColors = (organizations: Organization[], theme: Theme) => R.pipe(
@@ -18,5 +18,5 @@ export const computeOrganizationsColors = (organizations: Organization[], theme:
     o.organization_id,
     colors(theme.palette.mode === 'dark' ? 400 : 600)[index],
   ]),
-  R.fromPairs,
+  Object.fromEntries,
 )(organizations);

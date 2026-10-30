@@ -36,8 +36,8 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
       injectsMap[n.inject_expectation_inject] || {},
       n,
     )),
-    R.groupBy(R.path(['inject_expectation_inject', 'inject_contract'])),
-    R.toPairs,
+    list => Object.groupBy(list, R.path(['inject_expectation_inject', 'inject_contract'])),
+    Object.entries,
     R.map((n: [string, InjectExpectationOutput[]]) => {
       cumulation = 0;
       return [

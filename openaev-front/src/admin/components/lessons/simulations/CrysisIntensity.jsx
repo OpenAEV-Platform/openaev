@@ -17,8 +17,8 @@ const CrysisIntensity = ({ injects }) => {
       date.setHours(0, 0, 0, 0);
       return R.assoc('inject_sent_at_date', date.toISOString(), n);
     }),
-    R.groupBy(R.prop('inject_sent_at_date')),
-    R.toPairs,
+    list => Object.groupBy(list, R.prop('inject_sent_at_date')),
+    Object.entries,
     R.map(n => ({
       x: n[0],
       y: n[1].length,

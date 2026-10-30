@@ -19,7 +19,7 @@ const browserLanguagePropertyKeys = [
 
 const detectedLocale = R.pipe(
   R.pick(browserLanguagePropertyKeys), // Get only language properties
-  R.values(), // Get values of the properties
+  Object.values, // Get values of the properties
   R.flatten(), // flatten all arrays
   R.reject(R.isNil), // Remove undefined values
   R.map((x: string) => x.substring(0, 2)),

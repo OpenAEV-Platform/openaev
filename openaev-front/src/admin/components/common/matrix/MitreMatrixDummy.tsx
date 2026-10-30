@@ -42,7 +42,7 @@ const MitreMatrixDummy: FunctionComponent = () => {
   };
   return (
     <div className={classes.container}>
-      {R.values(killChainPhaseMap).sort(sortKillChainPhase)
+      {Object.values(killChainPhaseMap).sort(sortKillChainPhase)
         .map((killChainPhase: KillChainPhase) => (
           <KillChainPhaseColumn
             key={killChainPhase.phase_id}

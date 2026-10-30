@@ -117,7 +117,7 @@ const Lessons: FunctionComponent<Props> = ({
     }
     return setOpenSendLessons(false);
   };
-  const answers = R.groupBy(R.prop('lessons_answer_question'), lessonsAnswers);
+  const answers = Object.groupBy(lessonsAnswers, R.prop('lessons_answer_question'));
   const selectedQuestionAnswers = selectedQuestion && selectedQuestion.lessonsquestion_id
     ? answers[selectedQuestion.lessonsquestion_id] || []
     : [];

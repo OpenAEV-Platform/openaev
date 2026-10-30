@@ -29,8 +29,8 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
 
   const teamsByPercentScore = R.pipe(
     R.filter((n: InjectExpectationOutput) => !!n.inject_expectation_team && n.inject_expectation_user === null),
-    R.groupBy((n: InjectExpectationOutput) => n.inject_expectation_team ?? ''),
-    R.toPairs,
+    list => Object.groupBy(list, (n: InjectExpectationOutput) => n.inject_expectation_team ?? ''),
+    Object.entries,
     // A team shows up once at least one of its expectations has been evaluated
     R.filter(([, expectations]: [string, InjectExpectationOutput[]]) => expectations.some(e => e.inject_expectation_score != null)),
     R.map(([teamId, expectations]: [string, InjectExpectationOutput[]]) => {
