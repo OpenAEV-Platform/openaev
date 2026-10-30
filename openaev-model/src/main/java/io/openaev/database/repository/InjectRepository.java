@@ -44,6 +44,11 @@ import org.springframework.transaction.annotation.Transactional;
 public interface InjectRepository
     extends JpaRepository<Inject, String>, JpaSpecificationExecutor<Inject>, StatisticRepository {
 
+  @Query(
+      "SELECT DISTINCT i.scenario.id, d.id FROM Inject i"
+          + " JOIN i.injectorContract c JOIN c.domains d WHERE i.scenario.id IN :scenarioIds")
+  List<Object[]> findDomainIdsByScenarioIds(@Param("scenarioIds") Collection<String> scenarioIds);
+
   @NotNull
   Optional<Inject> findById(@NotNull String id);
 

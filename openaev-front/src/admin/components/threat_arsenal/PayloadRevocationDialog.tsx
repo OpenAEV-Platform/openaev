@@ -6,6 +6,7 @@ import { fetchThreatArsenalVersions } from '../../../actions/threat_arsenals/thr
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import { type PayloadVersionOutput } from '../../../utils/api-types';
+import payloadRevocationChoices from './payloadRevocationChoices';
 import PayloadVersionSelect from './PayloadVersionSelect';
 
 interface Props {
@@ -34,8 +35,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
     setVersions(null);
     fetchThreatArsenalVersions(actionId)
       .then((response: { data: PayloadVersionOutput[] }) => {
-        const shown = response.data.filter(v => v.payload_id && v.payload_installed
-          && (lift ? v.payload_revoked_in_tenant || (customized && v.payload_revoked) : !v.payload_revoked));
+        const shown = payloadRevocationChoices(response.data, lift, customized);
         setVersions(shown);
         setSelected(shown.some(v => v.payload_id === payloadId) ? payloadId ?? '' : shown[0]?.payload_id ?? '');
       })

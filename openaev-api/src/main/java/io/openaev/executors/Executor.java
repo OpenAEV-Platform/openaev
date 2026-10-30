@@ -21,6 +21,7 @@ import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.telemetry.metric_collectors.ContentMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.time.Instant;
@@ -50,6 +51,7 @@ public class Executor {
   private final InjectStatusService injectStatusService;
   private final InjectService injectService;
   private final PayloadRevocationService payloadRevocationService;
+  private final ContentMetricCollector contentMetricCollector;
   private final ExecutableInjectDTOMapper executableInjectDTOMapper;
   private final ConnectorInstanceService connectorInstanceService;
   private final InjectExpectationService injectExpectationService;
@@ -121,6 +123,7 @@ public class Executor {
     // Thrown here, outside any transactional proxy, so the caller's transaction stays sound.
     Optional<String> revocation = payloadRevocationService.revocationMessage(inject);
     if (revocation.isPresent()) {
+      contentMetricCollector.addRevokedInject();
       throw new PayloadRevokedException(revocation.get());
     }
 

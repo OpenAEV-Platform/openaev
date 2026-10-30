@@ -33,8 +33,11 @@ import {
   type SearchPaginationInput,
   type TargetLabel,
   type TeamOutput,
+  type WorkflowConfigurationInput,
 } from '../../../../utils/api-types';
 import { type Option } from '../../../../utils/Option';
+import { EMPTY_SCOPE, type ScopeSelection, scopeSelectionCount, selectionToRules } from '../../autonomous/useAutonomousRunConfig';
+import ChainedScopeFields from './ChainedScopeFields';
 
 const ASSETS = 'assets';
 const ASSET_GROUPS = 'asset_groups';
@@ -148,7 +151,7 @@ const injectIcon = (fields: string[]) => {
 
 // A catalogue prerequisite the platform lacks; an injector comes with the integration to enable.
 export interface MissingPrerequisite {
-  requirement_kind: 'OPENAEV' | 'EDITION' | 'INJECTOR' | 'EXECUTOR' | 'CHAINING';
+  requirement_kind: 'OPENAEV' | 'EDITION' | 'INJECTOR' | 'EXECUTOR';
   requirement_key: string;
   requirement_label: string;
   requirement_catalog_connector_id?: string;
@@ -157,11 +160,15 @@ export interface MissingPrerequisite {
 }
 
 // What the install itself cannot do without; the rest only stops the run (as the server rules).
-const blocksInstall = (kind: MissingPrerequisite['requirement_kind']) => kind === 'OPENAEV' || kind === 'INJECTOR' || kind === 'CHAINING';
+const blocksInstall = (kind: MissingPrerequisite['requirement_kind']) => kind === 'OPENAEV' || kind === 'INJECTOR';
 
 interface Props {
   title: string;
   mode: 'install' | 'launch';
+  // Install, then launch the installed scenario.
+  thenLaunch?: boolean;
+  // A chained scenario takes its scope instead of targets.
+  chained?: boolean;
   // The scenario whose injects can be opened from the list; none before install.
   scenarioId?: string;
   load: () => Promise<{
@@ -174,7 +181,7 @@ interface Props {
 }
 
 // Section 6.3: the chosen targets are added to every inject that takes their kind, existing ones kept.
-const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenarioId, load, onSubmit, onClose }) => {
+const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, thenLaunch = false, chained = false, scenarioId, load, onSubmit, onClose }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const [injects, setInjects] = useState<InjectPreview[] | null>(null);
@@ -185,6 +192,15 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
   const [teams, setTeams] = useState<Option[]>([]);
   const [manual, setManual] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [allowScope, setAllowScope] = useState<ScopeSelection>(EMPTY_SCOPE);
+  const [denyScope, setDenyScope] = useState<ScopeSelection>(EMPTY_SCOPE);
+  const [limits, setLimits] = useState<WorkflowConfigurationInput>({
+    workflow_configuration_timeout_enabled: false,
+    workflow_configuration_timeout_seconds: 3600,
+    workflow_configuration_rate_limit_enabled: false,
+    workflow_configuration_safe_mode_enabled: true,
+  });
+  const chainedInstall = chained && mode === 'install';
 
   const loadPreview = () => load().then((loaded) => {
     setInjects(loaded.injects);
@@ -247,7 +263,9 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
     ? missingPrerequisites.filter(prerequisite => blocksInstall(prerequisite.requirement_kind))
     : missingPrerequisites;
   // Installing goes on without targets or a run-only requirement: the scenario health check reports them.
-  const blocked = blockingPrerequisites.length > 0 || (mode === 'launch' && missing.length > 0);
+  const blocked = blockingPrerequisites.length > 0
+    || (mode === 'launch' && missing.length > 0)
+    || (chainedInstall && scopeSelectionCount(allowScope) === 0);
 
   const submit = () => {
     setSubmitting(true);
@@ -256,6 +274,12 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
       asset_group_ids: endpointsAndGroups.filter(o => kindOf(o) === ASSET_GROUPS).map(idOf),
       team_ids: teams.map(idOf),
       manual_targets: manualTargets,
+      workflow_configuration: chainedInstall
+        ? {
+            ...limits,
+            workflow_scope_rules: [...selectionToRules(allowScope, 'ALLOWLIST'), ...selectionToRules(denyScope, 'DENYLIST')],
+          }
+        : undefined,
     }).finally(() => setSubmitting(false));
   };
 
@@ -322,101 +346,121 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
                   </div>
                 </div>
               )}
-              <Text variant="content-base">{intro}</Text>
-              {previousVersion && (
-                <Text variant="content-caption">{t('Injects already in version {version} keep their targets.', { version: previousVersion })}</Text>
-              )}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16,
-              }}
-              >
-                {(takes(ASSETS) || takes(ASSET_GROUPS)) && (
-                  <TargetRow icon={<DnsOutlined fontSize="small" />} title={t('Assets and asset groups')} subtitle={t('Endpoint injects')}>
-                    <TargetField label={t('Assets and asset groups')} value={endpointsAndGroups} onChange={setEndpointsAndGroups} search={searchEndpointAndGroupOptions} />
-                  </TargetRow>
-                )}
-                {takes(MANUAL) && (
-                  <TargetRow icon={<AccountTreeOutlined fontSize="small" />} title={t('Manual targets')} subtitle={t('Injects in manual targeting')}>
-                    <Input
-                      aria-label={t('Manual targets')}
-                      placeholder="e.g. 10.0.0.12, 10.20.0.0/24, app.example.com"
-                      value={manual}
-                      onChange={event => setManual(event.target.value)}
-                    />
-                  </TargetRow>
-                )}
-                {takes(TEAMS) && (
-                  <TargetRow icon={<GroupsOutlined fontSize="small" />} title={t('Teams and players')} subtitle={t('Human injects: mail, SMS, challenges')}>
-                    <TargetField label={t('Teams and players')} value={teams} onChange={setTeams} search={searchTeamOptions} />
-                  </TargetRow>
-                )}
-              </div>
-              <div>
-                <Text variant="content-base-bold">{`${t('Injects')} (${all.length})`}</Text>
-                <Text variant="content-caption">{t('Targets marked "added" come from this choice; the others were already on the scenario.')}</Text>
-              </div>
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-              >
-                {all.map((inject, index) => {
-                  const added = addedTo(inject);
-                  const targeted = inject.is_targeted || added.length > 0;
-                  return (
-                    <div
-                      key={inject.inject_catalog_id ?? index}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '24px minmax(0, 2fr) minmax(0, 2fr) auto auto',
-                        gap: 12,
-                        alignItems: 'center',
-                        padding: '8px 0',
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                      }}
-                    >
-                      {injectIcon(inject.target_fields)}
+              {chainedInstall
+                ? (
+                    <>
+                      <ChainedScopeFields
+                        allow={allowScope}
+                        deny={denyScope}
+                        limits={limits}
+                        onAllowChange={setAllowScope}
+                        onDenyChange={setDenyScope}
+                        onLimitsChange={setLimits}
+                      />
+                      {scopeSelectionCount(allowScope) === 0 && (
+                        <Alert severity="warning" title={t('Add at least one entry to the allow list.')} />
+                      )}
+                    </>
+                  )
+                : (
+                    <>
+                      <Text variant="content-base">{intro}</Text>
+                      {previousVersion && (
+                        <Text variant="content-caption">{t('Injects already in version {version} keep their targets.', { version: previousVersion })}</Text>
+                      )}
                       <div style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
+                        flexDirection: 'column',
+                        gap: 16,
                       }}
                       >
-                        <Text variant="content-base">{inject.inject_title}</Text>
-                        {inject.is_new && previousVersion && <Chip label={t('New')} />}
+                        {(takes(ASSETS) || takes(ASSET_GROUPS)) && (
+                          <TargetRow icon={<DnsOutlined fontSize="small" />} title={t('Assets and asset groups')} subtitle={t('Endpoint injects')}>
+                            <TargetField label={t('Assets and asset groups')} value={endpointsAndGroups} onChange={setEndpointsAndGroups} search={searchEndpointAndGroupOptions} />
+                          </TargetRow>
+                        )}
+                        {takes(MANUAL) && (
+                          <TargetRow icon={<AccountTreeOutlined fontSize="small" />} title={t('Manual targets')} subtitle={t('Injects in manual targeting')}>
+                            <Input
+                              aria-label={t('Manual targets')}
+                              placeholder="e.g. 10.0.0.12, 10.20.0.0/24, app.example.com"
+                              value={manual}
+                              onChange={event => setManual(event.target.value)}
+                            />
+                          </TargetRow>
+                        )}
+                        {takes(TEAMS) && (
+                          <TargetRow icon={<GroupsOutlined fontSize="small" />} title={t('Teams and players')} subtitle={t('Human injects: mail, SMS, challenges')}>
+                            <TargetField label={t('Teams and players')} value={teams} onChange={setTeams} search={searchTeamOptions} />
+                          </TargetRow>
+                        )}
+                      </div>
+                      <div>
+                        <Text variant="content-base-bold">{`${t('Injects')} (${all.length})`}</Text>
+                        <Text variant="content-caption">{t('Targets marked "added" come from this choice; the others were already on the scenario.')}</Text>
                       </div>
                       <div style={{
                         display: 'flex',
-                        gap: 4,
-                        flexWrap: 'wrap',
+                        flexDirection: 'column',
                       }}
                       >
-                        {(inject.current_targets ?? []).map(target => <Chip key={`${target.kind}:${target.label}`} label={target.label} />)}
-                        {added.map(target => <Chip key={`added:${target.kind}:${target.label}`} label={`${target.label} · ${t('added')}`} severity="info" />)}
+                        {all.map((inject, index) => {
+                          const added = addedTo(inject);
+                          const targeted = inject.is_targeted || added.length > 0;
+                          return (
+                            <div
+                              key={inject.inject_catalog_id ?? index}
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '24px minmax(0, 2fr) minmax(0, 2fr) auto auto',
+                                gap: 12,
+                                alignItems: 'center',
+                                padding: '8px 0',
+                                borderBottom: `1px solid ${theme.palette.divider}`,
+                              }}
+                            >
+                              {injectIcon(inject.target_fields)}
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                              }}
+                              >
+                                <Text variant="content-base">{inject.inject_title}</Text>
+                                {inject.is_new && previousVersion && <Chip label={t('New')} />}
+                              </div>
+                              <div style={{
+                                display: 'flex',
+                                gap: 4,
+                                flexWrap: 'wrap',
+                              }}
+                              >
+                                {(inject.current_targets ?? []).map(target => <Chip key={`${target.kind}:${target.label}`} label={target.label} />)}
+                                {added.map(target => <Chip key={`added:${target.kind}:${target.label}`} label={`${target.label} · ${t('added')}`} severity="info" />)}
+                              </div>
+                              {statusChip(inject.target_fields.length > 0, targeted)}
+                              {mode === 'launch' && scenarioId
+                                ? (
+                                    <IconButton asChild size="sm" priority="tertiary" aria-label={t('Edit the injects')} icon={<EditOutlined fontSize="small" />}>
+                                      <Link to={`/admin/scenarios/${scenarioId}/injects`} />
+                                    </IconButton>
+                                  )
+                                : <span />}
+                            </div>
+                          );
+                        })}
                       </div>
-                      {statusChip(inject.target_fields.length > 0, targeted)}
-                      {mode === 'launch' && scenarioId
-                        ? (
-                            <IconButton asChild size="sm" priority="tertiary" aria-label={t('Edit the injects')} icon={<EditOutlined fontSize="small" />}>
-                              <Link to={`/admin/scenarios/${scenarioId}/injects`} />
-                            </IconButton>
-                          )
-                        : <span />}
-                    </div>
-                  );
-                })}
-              </div>
-              {missing.length > 0 && (
-                <Alert
-                  severity="warning"
-                  title={missing.length === 1 ? t('1 inject has no target') : t('{count} injects have no target', { count: String(missing.length) })}
-                  description={mode === 'launch'
-                    ? t('Launch stays disabled until each targetable inject has a target.')
-                    : t('You can install it now and set the targets later from the scenario.')}
-                />
-              )}
+                      {missing.length > 0 && (
+                        <Alert
+                          severity="warning"
+                          title={missing.length === 1 ? t('1 inject has no target') : t('{count} injects have no target', { count: String(missing.length) })}
+                          description={mode === 'launch'
+                            ? t('Launch stays disabled until each targetable inject has a target.')
+                            : t('You can install it now and set the targets later from the scenario.')}
+                        />
+                      )}
+                    </>
+                  )}
               <div style={{
                 display: 'flex',
                 justifyContent: 'flex-end',
@@ -427,9 +471,9 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, scenario
                 <Button
                   onClick={submit}
                   disabled={submitting || blocked}
-                  startIcon={mode === 'launch' ? <PlayArrowOutlined fontSize="small" /> : undefined}
+                  startIcon={mode === 'launch' || thenLaunch ? <PlayArrowOutlined fontSize="small" /> : undefined}
                 >
-                  {mode === 'launch' ? t('Save targets and launch') : t('Install')}
+                  {mode === 'launch' ? t('Save targets and launch') : t(thenLaunch ? 'Install and launch' : 'Install')}
                 </Button>
               </div>
             </div>

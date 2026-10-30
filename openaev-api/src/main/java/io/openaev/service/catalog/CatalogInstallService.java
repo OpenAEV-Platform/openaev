@@ -13,10 +13,13 @@ import io.openaev.api.catalog.CatalogInstallOutput;
 import io.openaev.api.catalog.CatalogInstallPreviewOutput;
 import io.openaev.api.catalog.CatalogInstallPreviewOutput.InjectPreview;
 import io.openaev.api.catalog.CatalogInstallPreviewOutput.TargetLabel;
+import io.openaev.api.catalog.CatalogManifest;
 import io.openaev.api.catalog.CatalogManifest.PayloadRef;
 import io.openaev.api.catalog.CatalogMissingRequirement;
 import io.openaev.api.catalog.CatalogScenarioVersionsOutput;
 import io.openaev.api.catalog.ScenarioTargetsOutput;
+import io.openaev.api.chaining.dto.ScopeVariableInput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.threat_arsenal.ContentHistoryOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -29,6 +32,7 @@ import io.openaev.service.AssetService;
 import io.openaev.service.ImportService;
 import io.openaev.service.TeamService;
 import io.openaev.service.autonomous.AutonomousRunService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadVersionService;
@@ -95,6 +99,7 @@ public class CatalogInstallService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final TeamService teamService;
+  private final WorkflowService workflowService;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final ObjectMapper mapper;
 
@@ -220,9 +225,6 @@ public class CatalogInstallService {
     if (!missing.isEmpty()) {
       throw new BadRequestException("Missing to run this scenario: " + String.join(", ", missing));
     }
-    if (scenarioApplyService.isChained(item)) {
-      throw new BadRequestException(CatalogRequirementsService.CHAINED_NOT_SUPPORTED);
-    }
     Optional<Scenario> instance = instance(item);
     if (instance.isPresent()) {
       return reinstall(ctx, instance.get(), version);
@@ -252,6 +254,15 @@ public class CatalogInstallService {
     }
     setTargets(
         injects, previousInjects(previous), input == null ? CatalogInstallInput.empty() : input);
+    if (input != null && input.workflowConfiguration() != null) {
+      workflowService
+          .findWorkflowTemplateByScenarioId(scenario.getId())
+          .ifPresent(
+              workflow ->
+                  workflowService.updateWorkflowConfiguration(
+                      workflow.getId(),
+                      installConfiguration(workflow, input.workflowConfiguration())));
+    }
     scenarioApplyService.recordInstall(scenario, item);
     contentHistoryService.scenarioInstalled(
         scenario, previous.map(Scenario::getVersion).orElse(null));
@@ -280,6 +291,47 @@ public class CatalogInstallService {
       }
     }
     return new CatalogInstallOutput(scenario.getId(), scenario.getVersion());
+  }
+
+  /**
+   * After a release: scenarios imported before the catalogue join the version they match, newest
+   * first, without a notification (F13, F16).
+   */
+  public void linkCopies(String repository, List<CatalogManifest.Item> released) {
+    Map<String, List<CatalogManifest.Item>> byExternalId =
+        released.stream()
+            .filter(i -> i.contentType() == ContentType.SCENARIO)
+            .collect(Collectors.groupingBy(CatalogManifest.Item::externalId));
+    byExternalId.forEach(
+        (externalId, versions) -> {
+          if (scenarioService.findCatalogInstance(repository, externalId).isPresent()) {
+            return;
+          }
+          List<Scenario> copies = scenarioService.findLocalCopies(versions.getFirst().name());
+          if (copies.isEmpty()) {
+            return;
+          }
+          List<CatalogItem> items =
+              versions.stream()
+                  .sorted(
+                      Comparator.comparing(CatalogManifest.Item::version, SemanticVersion.ORDER)
+                          .reversed())
+                  .map(
+                      v ->
+                          catalogService.find(
+                              ContentType.SCENARIO, repository, externalId, v.version()))
+                  .flatMap(Optional::stream)
+                  .filter(item -> !"REVOKED".equals(item.getStatus()))
+                  .filter(item -> !CatalogRequirementsService.isChained(item))
+                  .toList();
+          for (CatalogItem item : items) {
+            Optional<Scenario> linked = scenarioApplyService.linkFirstCopy(copies, item);
+            if (linked.isPresent()) {
+              contentHistoryService.scenarioInstalled(linked.get(), null);
+              return;
+            }
+          }
+        });
   }
 
   private Optional<Scenario> instance(CatalogItem item) {
@@ -418,6 +470,35 @@ public class CatalogInstallService {
         default -> false;
       };
     }
+  }
+
+  // Scope and limits come from the drawer; safe mode and variables stay as the package sets them.
+  private static WorkflowConfigurationInput installConfiguration(
+      Workflow workflow, WorkflowConfigurationInput chosen) {
+    return WorkflowConfigurationInput.builder()
+        .rateLimitEnabled(chosen.isRateLimitEnabled())
+        .maxAttempts(Optional.ofNullable(chosen.getMaxAttempts()).orElse(workflow.getMaxAttempts()))
+        .maxTemporalRateSeconds(
+            Optional.ofNullable(chosen.getMaxTemporalRateSeconds())
+                .orElse(workflow.getMaxTemporalRateSeconds()))
+        .timeoutEnabled(chosen.isTimeoutEnabled())
+        .timeoutSeconds(
+            Optional.ofNullable(chosen.getTimeoutSeconds()).orElse(workflow.getTimeoutSeconds()))
+        .safeModeEnabled(workflow.isSafeModeEnabled())
+        .workflowScopeRules(chosen.getWorkflowScopeRules())
+        .workflowScopeVariables(
+            workflow.getWorkflowScopeVariables().stream()
+                .map(
+                    variable ->
+                        ScopeVariableInput.builder()
+                            .id(variable.getId())
+                            .key(variable.getKey())
+                            .type(variable.getType())
+                            .value(variable.getValue())
+                            .description(variable.getDescription())
+                            .build())
+                .toList())
+        .build();
   }
 
   /**

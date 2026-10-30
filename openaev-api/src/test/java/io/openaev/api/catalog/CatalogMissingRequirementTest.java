@@ -10,12 +10,11 @@ import org.junit.jupiter.api.Test;
 class CatalogMissingRequirementTest {
 
   @Test
-  @DisplayName("A missing injector, platform version or chaining blocks the install")
+  @DisplayName("A missing injector or platform version blocks the install")
   void given_importBreakingRequirement_should_blockInstall() {
     // Act & Assert
     assertThat(Kind.INJECTOR.blocksInstall()).isTrue();
     assertThat(Kind.OPENAEV.blocksInstall()).isTrue();
-    assertThat(Kind.CHAINING.blocksInstall()).isTrue();
   }
 
   @Test

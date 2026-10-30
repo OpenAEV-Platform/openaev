@@ -39,6 +39,7 @@ import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -131,6 +132,7 @@ class InjectServiceTest {
 
   ObjectMapper mapper;
 
+  @Mock private PayloadRevocationService payloadRevocationService;
   @InjectMocks private InjectService injectService;
 
   private InjectStatusService injectStatusService;

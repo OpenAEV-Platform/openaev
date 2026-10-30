@@ -1,26 +1,25 @@
-import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { fetchScenarioTargets } from '../../../actions/catalog/scenario-catalog-actions';
-import { createRunningExerciseFromScenario } from '../../../actions/scenarios/scenario-actions';
+import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../components/common/marketplace/MarketplaceCard';
 import { useFormatter } from '../../../components/i18n';
-import ItemSeverity from '../../../components/ItemSeverity';
-import { type CatalogItemOutput, type Exercise, type Scenario } from '../../../utils/api-types';
+import { useHelper } from '../../../store';
+import { type CatalogItemOutput, type Domain } from '../../../utils/api-types';
 import handle from '../../../utils/period/Period';
 import useScenarioPermissions from '../../../utils/permissions/useScenarioPermissions';
-import ScenarioLaunchTargetsDrawer from './catalog/ScenarioLaunchTargetsDrawer';
-import { scenarioCategories } from './constants';
 import ScenarioPopover from './scenario/ScenarioPopover';
 import ScenarioStatus from './scenario/ScenarioStatus';
 import { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED, ScenarioTypeIcon } from './scenario/ScenarioType';
 import ScenarioUpdateDialog from './scenario/versions/ScenarioUpdateDialog';
-import { severityAccent, severityLabelKey } from './scenarioSeverity';
+import { sortedDomains } from './scenarioDomains';
+import { type ActiveScenario } from './useActiveScenarios';
+import useScenarioLaunch from './useScenarioLaunch';
 
 interface Props {
-  scenario: Scenario;
+  scenario: ActiveScenario;
   catalogItem?: CatalogItemOutput;
   onDelete: (scenarioId: string) => void;
 }
@@ -29,32 +28,24 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
   const { t, nsd, locale } = useFormatter();
   const theme = useTheme();
   const navigate = useNavigate();
-  const [askTargets, setAskTargets] = useState(false);
   const [updating, setUpdating] = useState(false);
   const { canLaunch, canManage } = useScenarioPermissions(scenario.scenario_id);
-  const launch = () => fetchScenarioTargets(scenario.scenario_id).then(({ data }) => {
-    if (data.injects.some(inject => !inject.is_targeted)) {
-      setAskTargets(true);
-      return;
-    }
-    createRunningExerciseFromScenario(scenario.scenario_id)
-      .then(({ data: exercise }: { data: Exercise }) => navigate(`/admin/simulations/${exercise.exercise_id}`));
-  });
-  const severity = scenario.scenario_severity;
-  const accent = severityAccent(theme, severity);
-  // Search rows carry these computed fields, absent from the Scenario type.
+  const { launch: launchScenario, targetsDrawer } = useScenarioLaunch();
+  const launch = () => launchScenario(scenario.scenario_id, scenario.scenario_name);
   const {
     scenario_workflow_id: workflowId,
     scenario_author_name: authorName,
     scenario_last_run_at: lastRunAt,
-  } = scenario as unknown as Record<string, string | undefined>;
+  } = scenario;
+  const domainIds = scenario.scenario_domains ?? [];
+  const allDomains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
+  const primaryDomain = sortedDomains(allDomains.filter(domain => domainIds.includes(domain.domain_id)))[0];
   const version = scenario.scenario_version;
   const recurrence = useMemo(() => {
     const cron = scenario.scenario_recurrence ? handle(scenario.scenario_recurrence) : undefined;
     return cron?.isValid() ? cron.toTranslatableStringArray(locale).map(element => t(element)).join(' ') : undefined;
   }, [scenario.scenario_recurrence, locale]);
   const updateAvailable = !!catalogItem && !(catalogItem.catalog_item_installed_versions ?? []).includes(catalogItem.catalog_item_version);
-  const category = scenario.scenario_category;
 
   return (
     <>
@@ -66,19 +57,13 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
           onApplied={() => navigate(`/admin/scenarios/${scenario.scenario_id}`)}
         />
       )}
-      {askTargets && (
-        <ScenarioLaunchTargetsDrawer
-          scenarioId={scenario.scenario_id}
-          scenarioName={scenario.scenario_name}
-          onClose={() => setAskTargets(false)}
-        />
-      )}
+      {targetsDrawer}
       <MarketplaceCard
-        accent={accent}
+        accent={primaryDomain?.domain_color ?? theme.palette.primary.main}
         testId="scenario-card"
         icon={<ScenarioTypeIcon type={workflowId ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED} />}
         title={scenario.scenario_name}
-        overline={category ? t(scenarioCategories.get(category) ?? category) : undefined}
+        overline={primaryDomain ? t(primaryDomain.domain_name) : undefined}
         subtitle={authorName ? `${t('by')} ${authorName}` : undefined}
         description={scenario.scenario_description ?? undefined}
         linkTo={`/admin/scenarios/${scenario.scenario_id}`}
@@ -105,11 +90,7 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
               : []}
           />
         )}
-        chips={(
-          <>
-            {severity && <ItemSeverity label={t(severityLabelKey(severity))} severity={severity} />}
-          </>
-        )}
+        chips={null}
         platforms={scenario.scenario_platforms ?? []}
         footerRight={(
           <div style={{
@@ -128,6 +109,9 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
               <TooltipContent>{recurrence ?? t('Not scheduled')}</TooltipContent>
             </Tooltip>
           </div>
+        )}
+        action={canLaunch && (
+          <Button size="sm" onClick={launch}>{t('Launch')}</Button>
         )}
         caption={[
           version ? `v${version}` : null,

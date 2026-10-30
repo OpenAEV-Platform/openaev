@@ -49,7 +49,7 @@ const CatalogPayloadVersionSummary: FunctionComponent<Props> = ({ item, canInsta
     >
       <CatalogVersionInstallBar canInstall={canInstall} installing={installing} onInstall={onInstall} />
       {field(t('Description'), item.catalog_item_description || '-')}
-      {field(t('Author'), item.catalog_item_author || '-')}
+      {field(t('Provider'), item.catalog_item_author || '-')}
       {field(t('Category'), item.catalog_item_category ? t(item.catalog_item_category) : '-')}
       {field(t('Platforms'), (item.catalog_item_platforms ?? []).join(', ') || '-')}
       {field(t('Published'), item.catalog_item_published_at ? nsdt(item.catalog_item_published_at) : '-')}

@@ -148,8 +148,8 @@ const PaginationComponent = <T extends object>({
     return searchPaginationInput.filterGroup?.filters?.filter(
       (f: Filter) => f.key === MITRE_FILTER_KEY,
     )?.[0]?.values?.map(
-      (externalId: string) => attackPatterns?.find(
-        (a: AttackPattern) => a.attack_pattern_external_id === externalId,
+      (value: string) => attackPatterns?.find(
+        (a: AttackPattern) => a.attack_pattern_id === value || a.attack_pattern_external_id === value,
       )?.attack_pattern_name,
     );
   };

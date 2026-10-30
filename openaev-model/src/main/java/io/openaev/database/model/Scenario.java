@@ -37,6 +37,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -641,6 +642,24 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
         .filter(Objects::nonNull)
         .distinct()
         .toList();
+  }
+
+  // -- DOMAINS --
+  // Filter only: search rows carry the domains, so a response never loads the injects for them.
+  @JsonIgnore
+  @JsonProperty("scenario_domains")
+  @JsonSerialize(using = MultiIdSetSerializer.class)
+  @Schema(implementation = String[].class)
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      path = "injects.injectorContract.domains.id",
+      clazz = String[].class)
+  public Set<Domain> getDomains() {
+    return getInjects().stream()
+        .flatMap(inject -> inject.getInjectorContract().map(InjectorContract::getDomains).stream())
+        .flatMap(Set::stream)
+        .collect(Collectors.toSet());
   }
 
   // -- KILL CHAIN PHASES --

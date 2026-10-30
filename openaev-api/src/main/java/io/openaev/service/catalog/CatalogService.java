@@ -14,6 +14,8 @@ import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.CatalogSyncStateRepository;
+import io.openaev.notification.content.ContentNotificationEvents.CatalogReleaseApplied;
+import io.openaev.notification.content.ContentNotificationEvents.Refused;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +46,7 @@ public class CatalogService {
 
   // The size bound of a payload version file in the scenarios repository.
   private static final long MAX_VERSION_FILE_SIZE = 262_144;
+  private static final String DEFAULT_AUTHOR = "Filigran";
 
   private enum Saved {
     ADDED,
@@ -57,6 +61,7 @@ public class CatalogService {
   private final PayloadVersionService payloadVersionService;
   private final CatalogRequirementsService catalogRequirementsService;
   private final EntityManager entityManager;
+  private final ApplicationEventPublisher eventPublisher;
   private final ObjectMapper mapper;
 
   // -- LIST --
@@ -126,6 +131,11 @@ public class CatalogService {
         .sorted(
             Comparator.comparing(CatalogItemOutput::name, Comparator.nullsLast(String::compareTo)))
         .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<CatalogItem> findAllById(Collection<String> ids) {
+    return catalogItemRepository.findAllById(ids);
   }
 
   /** Every catalogue version of one payload, newest first. */
@@ -256,6 +266,21 @@ public class CatalogService {
    */
   public Map<String, String> verifyAndStore(
       CatalogManifest manifest, Map<String, byte[]> archives) {
+    Set<String> listed = new HashSet<>();
+    items(manifest).stream()
+        .filter(item -> item.archive() != null)
+        .forEach(item -> listed.add(item.archive().name()));
+    payloadVersions(manifest).stream()
+        .filter(version -> version.file() != null)
+        .forEach(version -> listed.add(version.file().name()));
+    archives.keySet().stream()
+        .filter(name -> !listed.contains(name))
+        .findFirst()
+        .ifPresent(
+            name -> {
+              throw new BadRequestException(
+                  "A file of the release is not in its manifest: " + name);
+            });
     Map<String, String> refusals = new HashMap<>();
     for (CatalogManifest.Item item : items(manifest)) {
       String key = key(item.externalId(), item.version());
@@ -305,11 +330,22 @@ public class CatalogService {
             .findByRepositoryAndChannel(manifest.repository(), channel(manifest))
             .orElse(null);
     if (state != null && Objects.equals(state.getRelease(), manifest.release())) {
-      return new CatalogSyncOutput(manifest.release(), false, 0, 0, List.of());
+      return new CatalogSyncOutput(
+          manifest.release(), manifest.releaseApprover(), false, false, 0, 0, List.of());
+    }
+    if (state != null
+        && CatalogReleaseOrder.isValid(state.getRelease())
+        && CatalogReleaseOrder.ORDER.compare(manifest.release(), state.getRelease()) < 0) {
+      throw new BadRequestException(
+          "Release "
+              + manifest.release()
+              + " is older than "
+              + state.getRelease()
+              + ", the last one applied");
     }
     Tenant tenant = entityManager.getReference(Tenant.class, tenantId);
     List<Refusal> refused = new ArrayList<>();
-    int added = 0;
+    List<String> addedIds = new ArrayList<>();
     int unchanged = 0;
     for (CatalogManifest.Item item : items(manifest)) {
       String reason = refusals.get(key(item.externalId(), item.version()));
@@ -325,11 +361,12 @@ public class CatalogService {
               item.externalId(),
               item.version(),
               item.archive().sha256(),
-              target -> fill(target, item, manifest));
-      switch (saved) {
-        case ADDED -> added++;
-        case UNCHANGED -> unchanged++;
-        case CHANGED -> refused.add(changed(item.externalId(), item.version()));
+              target -> fill(target, item, manifest),
+              addedIds);
+      if (saved == Saved.UNCHANGED) {
+        unchanged++;
+      } else if (saved == Saved.CHANGED) {
+        refused.add(changed(item.externalId(), item.version()));
       }
     }
     for (CatalogManifest.PayloadVersion version : payloadVersions(manifest)) {
@@ -347,11 +384,12 @@ public class CatalogService {
               version.openaevId(),
               version.version(),
               version.file().sha256(),
-              target -> fill(target, version, file, manifest));
-      switch (saved) {
-        case ADDED -> added++;
-        case UNCHANGED -> unchanged++;
-        case CHANGED -> refused.add(changed(version.openaevId(), version.version()));
+              target -> fill(target, version, file, manifest),
+              addedIds);
+      if (saved == Saved.UNCHANGED) {
+        unchanged++;
+      } else if (saved == Saved.CHANGED) {
+        refused.add(changed(version.openaevId(), version.version()));
       }
     }
     Set<String> released =
@@ -363,7 +401,8 @@ public class CatalogService {
     catalogItemRepository.findAllByRepository(manifest.repository()).stream()
         .filter(item -> !released.contains(key(item.getExternalId(), item.getVersion())))
         .forEach(catalogItemRepository::delete);
-    if (state == null) {
+    boolean firstSync = state == null;
+    if (firstSync) {
       state = new CatalogSyncState();
       state.setRepository(manifest.repository());
       state.setChannel(channel(manifest));
@@ -371,7 +410,23 @@ public class CatalogService {
     }
     state.setRelease(manifest.release());
     catalogSyncStateRepository.save(state);
-    return new CatalogSyncOutput(manifest.release(), true, added, unchanged, refused);
+    eventPublisher.publishEvent(
+        new CatalogReleaseApplied(
+            tenantId,
+            manifest.release(),
+            firstSync,
+            addedIds,
+            refused.stream()
+                .map(r -> new Refused(r.externalId(), r.version(), r.reason()))
+                .toList()));
+    return new CatalogSyncOutput(
+        manifest.release(),
+        manifest.releaseApprover(),
+        true,
+        firstSync,
+        addedIds.size(),
+        unchanged,
+        refused);
   }
 
   private Saved save(
@@ -381,7 +436,8 @@ public class CatalogService {
       String externalId,
       String version,
       String archiveHash,
-      Consumer<CatalogItem> fill) {
+      Consumer<CatalogItem> fill,
+      List<String> addedIds) {
     Optional<CatalogItem> existing =
         catalogItemRepository.findByTypeAndRepositoryAndExternalIdAndVersion(
             type, repository, externalId, version);
@@ -397,8 +453,12 @@ public class CatalogService {
       catalogItem.setTenant(tenant);
     }
     fill.accept(catalogItem);
-    catalogItemRepository.save(catalogItem);
-    return existing.isEmpty() ? Saved.ADDED : Saved.UNCHANGED;
+    catalogItem = catalogItemRepository.save(catalogItem);
+    if (existing.isEmpty()) {
+      addedIds.add(catalogItem.getId());
+      return Saved.ADDED;
+    }
+    return Saved.UNCHANGED;
   }
 
   private static Refusal changed(String externalId, String version) {
@@ -447,7 +507,8 @@ public class CatalogService {
     target.setStatus(item.status() == null ? "VERIFIED" : item.status());
     target.setName(item.name());
     target.setDescription(item.description());
-    target.setAuthor(item.author());
+    target.setAuthor(
+        item.author() == null || item.author().isBlank() ? DEFAULT_AUTHOR : item.author());
     target.setSeverity(item.severity());
     target.setCategory(item.category());
     target.setMainFocus(item.mainFocus());
@@ -491,6 +552,9 @@ public class CatalogService {
     byte[] archive = archives.get(item.archive().name());
     if (archive == null) {
       return Optional.of("Archive missing from the release");
+    }
+    if (item.archive().size() != null && archive.length != item.archive().size()) {
+      return Optional.of("Archive size does not match the manifest");
     }
     if (!CatalogArchiveChecks.sha256(archive).equalsIgnoreCase(item.archive().sha256())) {
       return Optional.of("Archive hash does not match the manifest");

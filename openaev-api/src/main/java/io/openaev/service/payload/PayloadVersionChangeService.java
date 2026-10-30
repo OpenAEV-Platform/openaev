@@ -122,6 +122,15 @@ public class PayloadVersionChangeService {
     return usagesOf(injectorContractService.injectorContract(actionId));
   }
 
+  /** Scenario injects and chained steps running this payload version. */
+  @Transactional(readOnly = true)
+  public List<PayloadUsageOutput> scenarioUsages(Payload payload) {
+    return injectorContractService
+        .findOptionalByPayload(payload)
+        .map(contract -> usagesOf(contract).stream().filter(u -> u.scenarioId() != null).toList())
+        .orElse(List.of());
+  }
+
   private List<PayloadUsageOutput> usagesOf(InjectorContract contract) {
     Payload payload = payloadOf(contract);
     List<PayloadUsageOutput> usages = new ArrayList<>();

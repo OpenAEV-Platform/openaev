@@ -20,7 +20,9 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.telemetry.metric_collectors.ContentMetricCollector;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +62,8 @@ class ExecutorTest {
   @Mock private ConnectorInstanceService connectorInstanceService;
   @Mock private InjectExpectationService injectExpectationService;
 
+  @Mock private PayloadRevocationService payloadRevocationService;
+  @Mock private ContentMetricCollector contentMetricCollector;
   @InjectMocks private Executor executor;
 
   private static final String TENANT_ID = "tenant-001";

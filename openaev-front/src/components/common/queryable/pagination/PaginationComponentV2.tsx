@@ -242,13 +242,14 @@ const PaginationComponentV2 = <T extends object>({
 
   // A matrix click filters by a top-level technique AND its sub-techniques (so the
   // result matches the technique's count). Collapse those external ids back to the
-  // parent technique name(s) so the active-filter chip stays readable.
+  // parent technique name(s) so the active-filter chip stays readable. Values are attack pattern ids.
   const computeAttackPatternNameForFilter = () => {
     const values = searchPaginationInput.filterGroup?.filters?.filter(
       (f: Filter) => f.key === MITRE_FILTER_KEY,
     )?.[0]?.values ?? [];
     const names = values
-      .map((externalId: string) => {
+      .map((value: string) => {
+        const externalId = attackPatterns?.find((a: AttackPattern) => a.attack_pattern_id === value)?.attack_pattern_external_id ?? value;
         const parentExternalId = externalId.split('.')[0];
         return attackPatterns?.find(
           (a: AttackPattern) => a.attack_pattern_external_id === parentExternalId,

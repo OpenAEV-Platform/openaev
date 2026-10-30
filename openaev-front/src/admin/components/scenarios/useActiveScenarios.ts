@@ -5,24 +5,26 @@ import { useAuthorFacetOptions } from '../../../components/common/facets/Contrac
 import { initSorting } from '../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
-import { type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
+import { type RawPaginationScenario, type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 
 export const ACTIVE_SCENARIO_FILTER_NAMES = [
-  'scenario_category',
+  'scenario_domains',
   'scenario_kill_chain_phases',
   'scenario_name',
   'scenario_platforms',
   'scenario_recurrence',
-  'scenario_severity',
   'scenario_tags',
   'scenario_type',
   'scenario_updated_at',
   'scenario_author',
 ];
 
+// The search returns rows: the scenario plus the fields it computes for the cards.
+export type ActiveScenario = Scenario & Pick<RawPaginationScenario, 'scenario_author_name' | 'scenario_domains' | 'scenario_last_run_at' | 'scenario_workflow_id'>;
+
 const useActiveScenarios = () => {
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [scenarios, setScenarios] = useState<ActiveScenario[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [reloadCount, setReloadCount] = useState<number>(0);
 
@@ -47,7 +49,7 @@ const useActiveScenarios = () => {
       throw error;
     });
   };
-  const setLoadedScenarios = (loaded: Scenario[]) => {
+  const setLoadedScenarios = (loaded: ActiveScenario[]) => {
     setScenarios(loaded);
     setLoading(false);
   };
@@ -62,9 +64,9 @@ const useActiveScenarios = () => {
     handleToggleSelectAll,
     onToggleEntity,
     numberOfSelectedElements,
-  } = useEntityToggle<Scenario>('scenario', scenarios, totalElements);
+  } = useEntityToggle<ActiveScenario>('scenario', scenarios, totalElements);
 
-  const isSelected = (scenario: Scenario) =>
+  const isSelected = (scenario: ActiveScenario) =>
     (selectAll && !(scenario.scenario_id in (deSelectedElements || {})))
     || scenario.scenario_id in (selectedElements || {});
 

@@ -1,16 +1,14 @@
-import { CategoryOutlined, RouteOutlined } from '@mui/icons-material';
+import { RouteOutlined } from '@mui/icons-material';
 import { type ReactNode, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import {
   fetchCatalogScenarioFacets,
   SCENARIO_AUTHOR_FILTER,
-  SCENARIO_CATEGORY_FILTER,
   SCENARIO_INSTALLATION_FILTER,
   SCENARIO_INSTALLED,
   SCENARIO_NOT_INSTALLED,
   SCENARIO_PLATFORM_FILTER,
-  SCENARIO_SEVERITY_FILTER,
   SCENARIO_TYPE_FILTER,
   scenarioCatalogFilterSchemas,
   searchCatalogScenarios,
@@ -18,9 +16,9 @@ import {
 import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
 import MarketplaceBrowser from '../../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/MarketplaceFacetSidebar';
+import MarketplaceGrid from '../../../../components/common/marketplace/MarketplaceGrid';
 import MarketplaceHero from '../../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceLoadMore from '../../../../components/common/marketplace/MarketplaceLoadMore';
-import MarketplaceSections from '../../../../components/common/marketplace/MarketplaceSections';
 import MarketplaceSortSelect from '../../../../components/common/marketplace/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../../components/common/marketplace/MarketplaceViewToggle';
 import useMarketplaceCatalog from '../../../../components/common/marketplace/useMarketplaceCatalog';
@@ -31,8 +29,8 @@ import PlatformIcon from '../../../../components/PlatformIcon';
 import { type CatalogItemOutput } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { SCENARIO_TYPE_LABELS, scenarioCategories } from '../constants';
-import { SCENARIO_SEVERITIES, severityLabelKey } from '../scenarioSeverity';
+import { SCENARIO_TYPE_LABELS } from '../constants';
+import useScenarioLaunch from '../useScenarioLaunch';
 import CatalogScenarioInstallDrawer from './CatalogScenarioInstallDrawer';
 import ScenarioCatalogCard from './ScenarioCatalogCard';
 import ScenarioCatalogDrawer from './ScenarioCatalogDrawer';
@@ -55,7 +53,15 @@ const ScenariosAvailable = ({ tabs }: Props) => {
   const navigate = useNavigate();
   const [installing, setInstalling] = useState<CatalogItemOutput | null>(null);
   const [opened, setOpened] = useState<CatalogItemOutput | null>(null);
-  const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  const ability = useAbility();
+  const canInstall = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
+  const { launch, targetsDrawer } = useScenarioLaunch();
+  const [launchAfterInstall, setLaunchAfterInstall] = useState(false);
+  const install = (item: CatalogItemOutput, thenLaunch: boolean) => {
+    setLaunchAfterInstall(thenLaunch);
+    setInstalling(item);
+  };
   const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios-catalog-view');
   const {
     items,
@@ -77,21 +83,10 @@ const ScenariosAvailable = ({ tabs }: Props) => {
 
   const facets: MarketplaceFacet[] = [
     {
-      filterKey: SCENARIO_CATEGORY_FILTER,
-      label: 'Category',
-      valueLabel: value => t(scenarioCategories.get(value) ?? value),
-    },
-    {
       filterKey: SCENARIO_INSTALLATION_FILTER,
       label: 'Installation',
       values: [SCENARIO_INSTALLED, SCENARIO_NOT_INSTALLED],
       valueLabel: value => t(value === SCENARIO_INSTALLED ? 'Installed' : 'Not installed'),
-    },
-    {
-      filterKey: SCENARIO_SEVERITY_FILTER,
-      label: 'Severity',
-      values: SCENARIO_SEVERITIES,
-      valueLabel: value => t(severityLabelKey(value)),
     },
     {
       filterKey: SCENARIO_TYPE_FILTER,
@@ -147,24 +142,31 @@ const ScenariosAvailable = ({ tabs }: Props) => {
         />
       )}
     >
-      <MarketplaceSections
-        items={items}
-        sectionKey={item => item.catalog_item_category}
-        sectionLabel={category => (category ? t(scenarioCategories.get(category) ?? category) : t('Other'))}
-        sectionIcon={<CategoryOutlined />}
+      <MarketplaceGrid
         view={viewMode}
         loading={loading && searchPaginationInput.page === 0}
+        isEmpty={items.length === 0}
         emptyState={<EmptyPlaceholder icon={<RouteOutlined />} title={t('No scenario matches these filters.')} />}
-        renderItem={item => (
+      >
+        {items.map(item => (
           <ScenarioCatalogCard
             key={item.catalog_item_external_id}
             item={item}
             canInstall={canInstall}
+            canLaunch={canLaunch}
             onOpen={() => setOpened(item)}
-            onInstall={() => setInstalling(item)}
+            onInstall={() => install(item, false)}
+            onLaunch={() => {
+              const installed = (item.catalog_item_installed_scenarios ?? [])[0];
+              if (installed) {
+                launch(installed.scenario_id, item.catalog_item_name ?? item.catalog_item_external_id);
+              } else {
+                install(item, true);
+              }
+            }}
           />
-        )}
-      />
+        ))}
+      </MarketplaceGrid>
       <MarketplaceLoadMore
         hasMore={items.length < queryableHelpers.paginationHelpers.getTotalElements()}
         loading={loading && searchPaginationInput.page > 0}
@@ -177,7 +179,7 @@ const ScenariosAvailable = ({ tabs }: Props) => {
         onClose={() => setOpened(null)}
         onInstall={(item) => {
           setOpened(null);
-          setInstalling(item);
+          install(item, false);
         }}
       />
       {installing && (
@@ -185,10 +187,20 @@ const ScenariosAvailable = ({ tabs }: Props) => {
           externalId={installing.catalog_item_external_id}
           name={installing.catalog_item_name ?? installing.catalog_item_external_id}
           version={installing.catalog_item_version}
+          thenLaunch={launchAfterInstall}
+          chained={installing.catalog_item_scenario_type === 'chained'}
           onClose={() => setInstalling(null)}
-          onInstalled={scenarioId => navigate(`/admin/scenarios/${scenarioId}`)}
+          onInstalled={(scenarioId) => {
+            if (launchAfterInstall) {
+              setInstalling(null);
+              launch(scenarioId, installing.catalog_item_name ?? installing.catalog_item_external_id);
+            } else {
+              navigate(`/admin/scenarios/${scenarioId}`);
+            }
+          }}
         />
       )}
+      {targetsDrawer}
     </MarketplaceBrowser>
   );
 };

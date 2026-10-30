@@ -3,19 +3,32 @@ package io.openaev.service.content;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.model.ContentHistory;
 import io.openaev.database.model.ContentType;
+import io.openaev.database.model.EventStatus;
+import io.openaev.database.model.EventType;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ContentHistoryRepository;
 import io.openaev.service.UserService;
+import io.openaev.telemetry.metric_collectors.ContentMetricCollector;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.context.request.RequestContextHolder;
 
 /** Version history of payloads and scenarios (F7): one method per action. */
 @Service
@@ -26,6 +39,8 @@ public class ContentHistoryService {
   private final ContentHistoryRepository contentHistoryRepository;
   private final UserService userService;
   private final ObjectMapper mapper;
+  private final ContentMetricCollector contentMetricCollector;
+  private final Optional<AuditLogger> auditLogger;
 
   // -- LIST --
 
@@ -55,7 +70,7 @@ public class ContentHistoryService {
     history.setEntityId(copy.getId());
     history.setUser(userService.currentUserOrNull());
     history.setTenant(copy.getTenant());
-    return contentHistoryRepository.save(history);
+    return record(history);
   }
 
   /** Injects moved to this payload version (F30). */
@@ -106,7 +121,7 @@ public class ContentHistoryService {
     details.put("repository", payload.getIdentity().getRepository());
     ContentHistory history = build(payload, ContentHistory.ACTION.INSTALL, null, null, details);
     history.setAutomatic(automatic);
-    return contentHistoryRepository.save(history);
+    return record(history);
   }
 
   public ContentHistory payloadUninstalled(Payload payload) {
@@ -152,7 +167,7 @@ public class ContentHistoryService {
     history.setEntityId(scenario.getId());
     history.setUser(userService.currentUserOrNull());
     history.setTenant(scenario.getTenant());
-    return contentHistoryRepository.save(history);
+    return record(history);
   }
 
   private ContentHistory save(Payload payload, ContentHistory.ACTION action, String fromVersion) {
@@ -170,13 +185,81 @@ public class ContentHistoryService {
       String fromVersion,
       Integer count,
       JsonNode details) {
-    return contentHistoryRepository.save(build(payload, action, fromVersion, count, details));
+    return record(build(payload, action, fromVersion, count, details));
   }
 
   private ObjectNode changes(Payload previous, Payload saved) {
     ObjectNode details = mapper.createObjectNode();
     details.set("changes", PayloadFieldChanges.between(mapper, previous, saved));
     return details;
+  }
+
+  /**
+   * Every history row is a telemetry count once committed. It is audited here only when no API call
+   * a user made already audits it: an automatic change, or one the system makes alone.
+   */
+  private ContentHistory record(ContentHistory history) {
+    ContentHistory saved = contentHistoryRepository.save(history);
+    boolean userRequest = RequestContextHolder.getRequestAttributes() != null;
+    if (history.isAutomatic() || !userRequest) {
+      auditLogger.ifPresent(logger -> logger.logEvent(auditEvent(saved, userRequest)));
+    }
+    afterCommit(
+        () ->
+            contentMetricCollector.addAction(
+                history.getType().name(), history.getAction().name(), history.isAutomatic()));
+    return saved;
+  }
+
+  private static void afterCommit(Runnable work) {
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      work.run();
+      return;
+    }
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            work.run();
+          }
+        });
+  }
+
+  private static AuditEvent auditEvent(ContentHistory history, boolean userRequest) {
+    Map<String, Object> context = new HashMap<>();
+    context.put("action", history.getAction().name());
+    context.put("external_id", history.getExternalId());
+    context.put("version", history.getVersion());
+    context.put("from_version", history.getFromVersion());
+    context.put("automatic", history.isAutomatic());
+    if (history.getDetails() != null && history.getDetails().hasNonNull("reason")) {
+      context.put("reason", history.getDetails().get("reason").asText());
+    }
+    return AuditEvent.builder()
+        .eventType(EventType.MUTATION)
+        .eventScope(
+            switch (history.getAction()) {
+              case INSTALL -> AuditEventScope.CREATE;
+              case UNINSTALL -> AuditEventScope.DELETE;
+              case DUPLICATE -> AuditEventScope.DUPLICATE;
+              default -> AuditEventScope.UPDATE;
+            })
+        .eventStatus(EventStatus.SUCCESS)
+        .resourceType(
+            history.getType() == ContentType.SCENARIO
+                ? ResourceType.SCENARIO
+                : ResourceType.THREAT_ARSENAL)
+        .resourceId(history.getEntityId())
+        .message(
+            "%s %s v%s: %s"
+                .formatted(
+                    history.getType(),
+                    history.getExternalId(),
+                    history.getVersion(),
+                    history.getAction()))
+        .contextData(context)
+        .origin(userRequest ? AuditEventOrigin.REQUEST : AuditEventOrigin.SYSTEM)
+        .build();
   }
 
   private ObjectNode reasonOf(String reason) {

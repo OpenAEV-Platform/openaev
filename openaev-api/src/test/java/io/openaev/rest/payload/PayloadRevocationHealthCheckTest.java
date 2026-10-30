@@ -1,7 +1,6 @@
 package io.openaev.rest.payload;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
@@ -11,9 +10,9 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.service.PayloadCreationService;
@@ -32,8 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@DisplayName("A scenario or simulation running a revoked payload does not launch (F18)")
-class PayloadRevocationLaunchTest extends IntegrationTest {
+@DisplayName("A revoked payload shows in the scenario and simulation health checks")
+class PayloadRevocationHealthCheckTest extends IntegrationTest {
 
   @Autowired private PayloadCreationService payloadCreationService;
   @Autowired private PayloadRevocationService payloadRevocationService;
@@ -66,27 +65,34 @@ class PayloadRevocationLaunchTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("An enabled inject on a revoked payload blocks the launch and is named")
+  @DisplayName("An enabled inject on a revoked payload raises a revoked health check")
   @WithMockUser(isAdmin = true)
-  void given_enabledInjectOnRevokedPayload_should_refuseLaunch() {
+  void given_enabledInjectOnRevokedPayload_should_raiseRevokedCheck() {
     // Arrange
     Inject inject = injectOnRevokedPayload(true);
 
-    // Act & Assert
-    assertThatThrownBy(() -> injectService.throwIfAnyPayloadRevoked(List.of(inject)))
-        .isInstanceOf(BadRequestException.class)
-        .hasMessageContaining(inject.getTitle());
+    // Act
+    List<HealthCheck> checks = injectService.runRevocationChecks(List.of(inject));
+
+    // Assert
+    assertThat(checks)
+        .singleElement()
+        .satisfies(
+            check -> {
+              assertThat(check.getType()).isEqualTo(HealthCheck.Type.PAYLOAD);
+              assertThat(check.getDetail()).isEqualTo(HealthCheck.Detail.REVOKED);
+              assertThat(check.getStatus()).isEqualTo(HealthCheck.Status.ERROR);
+            });
   }
 
   @Test
-  @DisplayName("A disabled inject never runs, so it does not block the launch")
+  @DisplayName("A disabled inject never runs, so it raises no health check")
   @WithMockUser(isAdmin = true)
-  void given_disabledInjectOnRevokedPayload_should_allowLaunch() {
+  void given_disabledInjectOnRevokedPayload_should_raiseNoCheck() {
     // Arrange
     Inject inject = injectOnRevokedPayload(false);
 
     // Act & Assert
-    assertThatCode(() -> injectService.throwIfAnyPayloadRevoked(List.of(inject)))
-        .doesNotThrowAnyException();
+    assertThat(injectService.runRevocationChecks(List.of(inject))).isEmpty();
   }
 }

@@ -30,7 +30,8 @@ public enum NotificationResourceCatalog {
   VULNERABILITY(ResourceType.VULNERABILITY, Vulnerability.class),
   SECURITY_PLATFORM(ResourceType.SECURITY_PLATFORM, SecurityPlatform.class),
   DOCUMENT(ResourceType.DOCUMENT, Document.class),
-  CHALLENGE(ResourceType.CHALLENGE, Challenge.class);
+  CHALLENGE(ResourceType.CHALLENGE, Challenge.class),
+  CATALOG(ResourceType.CATALOG, CatalogItem.class);
 
   private final ResourceType resourceType;
   private final Class<? extends Base> entityClass;
@@ -39,6 +40,15 @@ public enum NotificationResourceCatalog {
       Arrays.stream(values())
           .collect(
               LinkedHashMap::new, (map, entry) -> map.put(entry.resourceType, entry), Map::putAll);
+
+  /** Capability a recipient needs to be told about this resource; null when none is checked. */
+  public Capability requiredCapability() {
+    return switch (this) {
+      case SCENARIO -> Capability.ACCESS_ASSESSMENT;
+      case PAYLOAD, CATALOG -> Capability.ACCESS_THREAT_ARSENALS;
+      default -> null;
+    };
+  }
 
   public static Optional<NotificationResourceCatalog> fromResourceType(ResourceType resourceType) {
     return Optional.ofNullable(BY_RESOURCE_TYPE.get(resourceType));

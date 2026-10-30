@@ -83,7 +83,7 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
       noAuthorActive,
       toggleAuthorValue,
       toggleNoAuthor,
-      noAuthorLabel: t('No author'),
+      noAuthorLabel: t('No provider'),
     });
 
     return [
@@ -104,7 +104,7 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
       },
       {
         id: 'author',
-        label: t('Author'),
+        label: t('Provider'),
         rows: authorRows,
       },
     ].filter(section => section.rows.length > 0);

@@ -17,8 +17,7 @@ public record CatalogMissingRequirement(
     OPENAEV,
     EDITION,
     INJECTOR,
-    EXECUTOR,
-    CHAINING;
+    EXECUTOR;
 
     /**
      * Whether the install cannot go on without it. A missing injector would import its injects
@@ -26,7 +25,7 @@ public record CatalogMissingRequirement(
      * health check reports.
      */
     public boolean blocksInstall() {
-      return this == OPENAEV || this == INJECTOR || this == CHAINING;
+      return this == OPENAEV || this == INJECTOR;
     }
   }
 

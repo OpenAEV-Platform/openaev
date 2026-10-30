@@ -48,7 +48,7 @@ const USAGE_TYPE_LABELS: Record<string, string> = {
 const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets, canMigrate, loading, installAction, onMigrate }) => {
   const { t } = useFormatter();
   const usageCount = source.payload_usage_count ?? 0;
-  const [expanded, setExpanded] = useState(usageCount > 0 || !!source.payload_revoked);
+  const [expanded, setExpanded] = useState(!!source.payload_is_latest);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(USAGES_PER_PAGE_OPTIONS[0]);

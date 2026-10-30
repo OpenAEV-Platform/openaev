@@ -6,7 +6,7 @@ import { type ContentHistoryOutput } from '../../../utils/api-types';
 
 interface Props { actionId: string }
 
-// F7: who installed, updated, migrated or revoked a version of the payload, and when.
+// F7: who installed, updated or revoked a version of the payload, and when.
 const PayloadHistoryTab: FunctionComponent<Props> = ({ actionId }) => {
   const [history, setHistory] = useState<ContentHistoryOutput[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,7 +14,8 @@ const PayloadHistoryTab: FunctionComponent<Props> = ({ actionId }) => {
   useEffect(() => {
     setLoading(true);
     fetchThreatArsenalHistory(actionId)
-      .then(response => setHistory(response.data as ContentHistoryOutput[]))
+      // Moved injects belong to the audit log, not to the life of the payload.
+      .then(response => setHistory((response.data as ContentHistoryOutput[]).filter(entry => entry.content_history_action !== 'VERSION_CHANGE')))
       .finally(() => setLoading(false));
   }, [actionId]);
 

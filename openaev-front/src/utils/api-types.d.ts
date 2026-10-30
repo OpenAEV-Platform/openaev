@@ -2585,6 +2585,8 @@ export interface CatalogInstallInput {
   asset_ids?: string[];
   manual_targets?: string[];
   team_ids?: string[];
+  /** Input for creating or updating a workflow configuration. */
+  workflow_configuration?: WorkflowConfigurationInput;
 }
 
 export interface CatalogInstallOutput {
@@ -2633,12 +2635,7 @@ export interface CatalogMissingRequirement {
   requirement_catalog_connector_title?: string;
   /** @minLength 1 */
   requirement_key: string;
-  requirement_kind:
-    | "OPENAEV"
-    | "EDITION"
-    | "INJECTOR"
-    | "EXECUTOR"
-    | "CHAINING";
+  requirement_kind: "OPENAEV" | "EDITION" | "INJECTOR" | "EXECUTOR";
   /** @minLength 1 */
   requirement_label: string;
   requirement_status?: "NOT_DEPLOYED" | "NOT_RUNNING";
@@ -2669,8 +2666,10 @@ export interface CatalogSyncOutput {
   /** @format int32 */
   added?: number;
   applied?: boolean;
+  first_sync?: boolean;
   refused?: Refusal[];
   release?: string;
+  release_approver?: string;
   /** @format int32 */
   unchanged?: number;
 }
@@ -5816,7 +5815,6 @@ export interface ExecutionTrace {
     | "INVALID_USAGE"
     | "TIMEOUT"
     | "INTERRUPTED"
-    | "PAYLOAD_REVOKED"
     | "ASSET_AGENTLESS"
     | "AGENT_INACTIVE"
     | "AGENT_OVERLOADED"
@@ -5866,7 +5864,6 @@ export interface ExecutionTraceOutput {
     | "INVALID_USAGE"
     | "TIMEOUT"
     | "INTERRUPTED"
-    | "PAYLOAD_REVOKED"
     | "ASSET_AGENTLESS"
     | "AGENT_INACTIVE"
     | "AGENT_OVERLOADED"
@@ -6607,7 +6604,8 @@ export interface HealthCheck {
     | "MISSING_TECHNICAL_TARGETS"
     | "MISSING_AUDIENCE_TARGETS"
     | "INEFFECTIVE_TECHNICAL_TARGETS"
-    | "INEFFECTIVE_AUDIENCE_TARGETS";
+    | "INEFFECTIVE_AUDIENCE_TARGETS"
+    | "REVOKED";
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -6629,6 +6627,7 @@ export interface HealthCheck {
     | "MESSAGE"
     | "SCOPE_DEFINITION"
     | "CREDENTIAL_REFERENCE"
+    | "PAYLOAD"
     | "UNKNOWN";
 }
 
@@ -8606,6 +8605,14 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "PAYLOAD_REVOKED"
+    | "NEW_PAYLOAD_VERSION"
+    | "REVOKED"
+    | "REVOCATION_LIFTED"
+    | "INSTALLED_AUTOMATICALLY"
+    | "BASE_UPDATE_AVAILABLE"
+    | "RELEASE_RECEIVED"
+    | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8677,6 +8684,7 @@ export interface NotificationTriggerInput {
     | "EVALUATION"
     | "CATALOG"
     | "CATALOG_SYNC"
+    | "PAYLOAD_REVOCATION"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -8719,6 +8727,14 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "PAYLOAD_REVOKED"
+    | "NEW_PAYLOAD_VERSION"
+    | "REVOKED"
+    | "REVOCATION_LIFTED"
+    | "INSTALLED_AUTOMATICALLY"
+    | "BASE_UPDATE_AVAILABLE"
+    | "RELEASE_RECEIVED"
+    | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8791,6 +8807,7 @@ export interface NotificationTriggerOutput {
     | "EVALUATION"
     | "CATALOG"
     | "CATALOG_SYNC"
+    | "PAYLOAD_REVOCATION"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -10978,6 +10995,8 @@ export interface RawPaginationScenario {
   scenario_catalog_id?: string;
   scenario_category?: string;
   scenario_description?: string;
+  /** @uniqueItems true */
+  scenario_domains?: string[];
   scenario_id?: string;
   /** @format date-time */
   scenario_last_run_at?: string;
@@ -11384,6 +11403,7 @@ export interface RoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -11471,6 +11491,7 @@ export interface RoleOutput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -13871,6 +13892,7 @@ export interface User {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"

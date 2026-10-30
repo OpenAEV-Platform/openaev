@@ -10,6 +10,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.PayloadIdentityRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.notification.content.ContentNotificationEvents.PayloadVersionAdded;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ManagedPayloadReadOnlyException;
@@ -20,6 +21,7 @@ import jakarta.persistence.LockModeType;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ public class PayloadVersionService {
   private final InjectRepository injectRepository;
   private final StepRepository stepRepository;
   private final EntityManager entityManager;
+  private final ApplicationEventPublisher eventPublisher;
 
   public static boolean isManaged(Payload payload) {
     return payload.isManaged();
@@ -367,6 +370,7 @@ public class PayloadVersionService {
     // No explicit flush: the next query flushes, and its errors are translated like any save.
     Payload saved = payloadRepository.save(version);
     refreshLatest(locked);
+    eventPublisher.publishEvent(new PayloadVersionAdded(locked.getTenant().getId(), saved.getId()));
     return saved;
   }
 
@@ -404,6 +408,8 @@ public class PayloadVersionService {
     }
     payloadRepository.save(payload);
     refreshLatest(lockedTarget);
+    eventPublisher.publishEvent(
+        new PayloadVersionAdded(lockedTarget.getTenant().getId(), payload.getId()));
     if (versionsOf(lockedSource).isEmpty()) {
       payloadIdentityRepository.delete(lockedSource);
     } else {

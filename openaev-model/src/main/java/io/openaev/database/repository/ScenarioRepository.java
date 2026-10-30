@@ -378,6 +378,8 @@ public interface ScenarioRepository
 
   List<Scenario> findAllByCatalogId(String catalogId);
 
+  List<Scenario> findAllByNameAndCatalogIdIsNullOrderByCreatedAtAsc(String name);
+
   Optional<Scenario> findByCatalogRepositoryAndCatalogId(String repository, String catalogId);
 
   // Update, rollback and simulation creation of a catalogue scenario take it in this order.

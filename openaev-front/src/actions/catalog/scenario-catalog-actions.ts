@@ -12,8 +12,6 @@ import { catalogFilterSchema, type FacetCounts, facetsPreview, type PreviewCatal
 
 const CATALOG_URI = '/api/catalog';
 
-export const SCENARIO_SEVERITY_FILTER = 'catalog_item_severity';
-export const SCENARIO_CATEGORY_FILTER = 'catalog_item_category';
 export const SCENARIO_TYPE_FILTER = 'catalog_item_scenario_type';
 export const SCENARIO_PLATFORM_FILTER = 'catalog_item_platforms';
 export const SCENARIO_AUTHOR_FILTER = 'catalog_item_author';
@@ -33,8 +31,6 @@ const scenarioCatalog = (items: CatalogItemOutput[]): PreviewCatalog<CatalogItem
   text: item => `${item.catalog_item_name ?? ''} ${item.catalog_item_description ?? ''}`,
   valuesOf: (item, key) => {
     switch (key) {
-      case SCENARIO_SEVERITY_FILTER: return item.catalog_item_severity ? [item.catalog_item_severity] : [];
-      case SCENARIO_CATEGORY_FILTER: return item.catalog_item_category ? [item.catalog_item_category] : [];
       case SCENARIO_TYPE_FILTER: return item.catalog_item_scenario_type ? [item.catalog_item_scenario_type] : [];
       case SCENARIO_PLATFORM_FILTER: return item.catalog_item_platforms ?? [];
       case SCENARIO_AUTHOR_FILTER: return item.catalog_item_author ? [item.catalog_item_author] : [];
@@ -45,7 +41,7 @@ const scenarioCatalog = (items: CatalogItemOutput[]): PreviewCatalog<CatalogItem
       default: return [];
     }
   },
-  facetKeys: [SCENARIO_INSTALLATION_FILTER, SCENARIO_SEVERITY_FILTER, SCENARIO_CATEGORY_FILTER, SCENARIO_TYPE_FILTER, SCENARIO_PLATFORM_FILTER, SCENARIO_AUTHOR_FILTER],
+  facetKeys: [SCENARIO_INSTALLATION_FILTER, SCENARIO_TYPE_FILTER, SCENARIO_PLATFORM_FILTER, SCENARIO_AUTHOR_FILTER],
 });
 
 export const scenarioCatalogFilterSchemas = (facetCounts: FacetCounts | null) => {
@@ -53,8 +49,6 @@ export const scenarioCatalogFilterSchemas = (facetCounts: FacetCounts | null) =>
   return [
     catalogFilterSchema(SCENARIO_NAME_FILTER, 'string'),
     catalogFilterSchema(SCENARIO_INSTALLATION_FILTER, 'string', { values: [SCENARIO_INSTALLED, SCENARIO_NOT_INSTALLED] }),
-    catalogFilterSchema(SCENARIO_SEVERITY_FILTER, 'string', { values: valuesOf(SCENARIO_SEVERITY_FILTER) }),
-    catalogFilterSchema(SCENARIO_CATEGORY_FILTER, 'string', { values: valuesOf(SCENARIO_CATEGORY_FILTER) }),
     catalogFilterSchema(SCENARIO_TYPE_FILTER, 'string', { values: valuesOf(SCENARIO_TYPE_FILTER) }),
     catalogFilterSchema(SCENARIO_PLATFORM_FILTER, 'string', {
       values: ['Windows', 'Linux', 'MacOS'],
@@ -66,15 +60,8 @@ export const scenarioCatalogFilterSchemas = (facetCounts: FacetCounts | null) =>
   ];
 };
 
-// Category first: the page shows one section per category.
 export const searchCatalogScenarios = (input: SearchPaginationInput) => fetchCatalogScenarios()
-  .then(items => searchPreview(scenarioCatalog(items), {
-    ...input,
-    sorts: [{
-      property: SCENARIO_CATEGORY_FILTER,
-      direction: 'ASC',
-    }, ...(input.sorts ?? [])],
-  }));
+  .then(items => searchPreview(scenarioCatalog(items), input));
 
 export const fetchCatalogScenarioFacets = (input: SearchPaginationInput) => fetchCatalogScenarios()
   .then(items => facetsPreview(scenarioCatalog(items), input));

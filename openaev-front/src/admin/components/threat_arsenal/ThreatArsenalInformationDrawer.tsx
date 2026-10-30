@@ -1,4 +1,4 @@
-import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Button, Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchCatalogPayloadVersions, installCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
@@ -20,7 +20,6 @@ import PayloadHistoryTab from './PayloadHistoryTab';
 import PayloadVersionSelect from './PayloadVersionSelect';
 import PayloadVersionsTab from './PayloadVersionsTab';
 import ThreatArsenalActionOverview from './ThreatArsenalActionOverview';
-import ThreatArsenalUseActions from './ThreatArsenalUseActions';
 
 const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
   return {
@@ -56,12 +55,14 @@ interface Props {
   open: boolean;
   onClose: () => void;
   threatArsenalAction: ThreatArsenalAction | null;
+  onRunTest: (action: ThreatArsenalAction) => void;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   open,
   onClose,
   threatArsenalAction,
+  onRunTest,
 }) => {
   const { t } = useFormatter();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -213,10 +214,12 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       open={open}
       handleClose={onClose}
       title={t('Action information')}
+      headerActions={shownActionId && shownAction && !shownRow?.payload_revoked && (
+        <Button size="sm" onClick={() => onRunTest(shownAction)}>{t('Run a test')}</Button>
+      )}
     >
       {threatArsenalAction == null ? <></> : (
         <>
-          {shownActionId && !shownRow?.payload_revoked && <ThreatArsenalUseActions actionId={shownActionId} />}
           {payload && (
             <Tabs value={tab} onValueChange={value => setTab(value as 'overview' | 'versions' | 'history')} panels="external">
               <TabsList actions={tab === 'overview' && shownVersion && (

@@ -9,8 +9,13 @@ import io.openaev.database.model.ContentType;
 import io.openaev.database.model.RevocationListState;
 import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.database.repository.RevocationListStateRepository;
+import io.openaev.notification.content.ContentNotificationEvents.ListRevocationsChanged;
+import io.openaev.notification.content.ContentNotificationEvents.ListedVersion;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.telemetry.metric_collectors.ContentMetricCollector;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -20,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +42,8 @@ public class RevocationListService {
   private final RevocationListStateRepository revocationListStateRepository;
   private final ContentRevocationRepository contentRevocationRepository;
   private final PayloadVersionService payloadVersionService;
+  private final ApplicationEventPublisher eventPublisher;
+  private final ContentMetricCollector contentMetricCollector;
 
   @Transactional(readOnly = true)
   public List<RevocationListOutput> findAll() {
@@ -68,6 +76,7 @@ public class RevocationListService {
     }
 
     Set<String> touched = new LinkedHashSet<>();
+    List<ListedVersion> liftedVersions = new ArrayList<>();
     int lifted = 0;
     for (ContentRevocation active :
         contentRevocationRepository.findAllByRepositoryAndTenantIsNullAndLiftedAtIsNull(
@@ -78,6 +87,9 @@ public class RevocationListService {
         contentRevocationRepository.save(active);
         lifted++;
         touch(touched, active.getType(), active.getExternalId());
+        if (active.getType() == ContentType.PAYLOAD) {
+          liftedVersions.add(new ListedVersion(active.getExternalId(), active.getVersion(), null));
+        }
       }
     }
     List<ContentRevocation> added = new ArrayList<>();
@@ -94,6 +106,10 @@ public class RevocationListService {
       touch(touched, revocation.getType(), revocation.getExternalId());
     }
     contentRevocationRepository.saveAll(added);
+    if (list.issuedAt() != null) {
+      Duration delay = Duration.between(list.issuedAt(), Instant.now());
+      added.forEach(revocation -> contentMetricCollector.addRevocationDelay(delay));
+    }
 
     RevocationListState state = last.orElseGet(RevocationListState::new);
     state.setRepository(list.repository());
@@ -104,6 +120,14 @@ public class RevocationListService {
     state = revocationListStateRepository.save(state);
 
     touched.forEach(externalId -> refreshLatest(list.repository(), externalId));
+    eventPublisher.publishEvent(
+        new ListRevocationsChanged(
+            list.repository(),
+            added.stream()
+                .filter(revocation -> revocation.getType() == ContentType.PAYLOAD)
+                .map(r -> new ListedVersion(r.getExternalId(), r.getVersion(), r.getReason()))
+                .toList(),
+            liftedVersions));
     return output(state, true, added.size(), lifted);
   }
 

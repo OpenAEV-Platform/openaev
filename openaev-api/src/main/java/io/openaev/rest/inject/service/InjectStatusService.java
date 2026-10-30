@@ -24,7 +24,6 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectAuthorisationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
-import io.openaev.execution.PayloadRevokedException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
@@ -415,22 +414,10 @@ public class InjectStatusService {
   }
 
   public InjectStatus failInjectStatus(@NotNull Inject inject, @Nullable String message) {
-    return failInjectStatus(inject, message, ExecutionTraceStatus.ERROR);
-  }
-
-  /** Error trace status of an execution failure: a revoked payload gets its own (F9, F18). */
-  public static ExecutionTraceStatus traceStatusOf(@NotNull Throwable failure) {
-    return failure instanceof PayloadRevokedException
-        ? ExecutionTraceStatus.PAYLOAD_REVOKED
-        : ExecutionTraceStatus.ERROR;
-  }
-
-  public InjectStatus failInjectStatus(
-      @NotNull Inject inject, @Nullable String message, @NotNull ExecutionTraceStatus traceStatus) {
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
     ExecutionStatus previousStatus = injectStatus.getName();
     if (message != null) {
-      injectStatus.addErrorTrace(traceStatus, message, ExecutionTraceAction.COMPLETE);
+      injectStatus.addErrorTrace(message, ExecutionTraceAction.COMPLETE);
     }
     injectStatus.setPayloadOutput(getPayloadOutput(inject));
     InjectStatus saved = finalizeAsError(injectStatus);
@@ -444,21 +431,8 @@ public class InjectStatusService {
   @Transactional(propagation = Propagation.MANDATORY)
   public InjectStatus persistErrorStatusInTransaction(
       @NotNull String injectId, @Nullable String message) {
-    return persistErrorStatus(injectId, message, ExecutionTraceStatus.ERROR);
-  }
-
-  @Transactional(propagation = Propagation.MANDATORY)
-  public InjectStatus persistErrorStatusInTransaction(
-      @NotNull String injectId,
-      @Nullable String message,
-      @NotNull ExecutionTraceStatus traceStatus) {
-    return persistErrorStatus(injectId, message, traceStatus);
-  }
-
-  private InjectStatus persistErrorStatus(
-      String injectId, String message, ExecutionTraceStatus traceStatus) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
-    return failInjectStatus(inject, message, traceStatus);
+    return failInjectStatus(inject, message);
   }
 
   @Transactional

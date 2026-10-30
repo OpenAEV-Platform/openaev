@@ -1,7 +1,9 @@
+import { operationLabel } from '../notifications/notificationUtils';
+
 /** Curated resource types watchable by notification triggers (mirrors backend catalog). */
 export interface TriggerResourceTypeOption {
   value: string;
-  entityPrefix: string;
+  entityPrefix?: string;
   label: string;
 }
 
@@ -71,6 +73,10 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     entityPrefix: 'challenge',
     label: 'Challenge',
   },
+  {
+    value: 'CATALOG',
+    label: 'Filigran catalog',
+  },
 ];
 
 export const resourceTypeLabel = (value?: string) =>
@@ -81,15 +87,24 @@ export const resourceTypeEntityPrefix = (value?: string) =>
 
 export const TRIGGER_EVENT_TYPES = ['CREATE', 'UPDATE', 'DELETE'] as const;
 
-/** Scenario-only semantic event (successor of the legacy score-degradation notification rule). */
-export const SCENARIO_ONLY_EVENT_TYPES = ['SCORE_DEGRADATION'] as const;
-
-export const eventTypeLabel = (eventType: string) => {
-  if (eventType === 'SCORE_DEGRADATION') {
-    return 'Score degradation';
-  }
-  return eventType.charAt(0) + eventType.slice(1).toLowerCase();
+/** Semantic events, each valid for a single resource type (mirrors the backend enum). */
+const RESOURCE_EVENT_TYPES: Record<string, string[]> = {
+  SCENARIO: ['SCORE_DEGRADATION', 'PAYLOAD_REVOKED', 'NEW_PAYLOAD_VERSION'],
+  PAYLOAD: ['REVOKED', 'REVOCATION_LIFTED', 'INSTALLED_AUTOMATICALLY', 'BASE_UPDATE_AVAILABLE'],
+  CATALOG: ['RELEASE_RECEIVED'],
 };
+
+/** The catalogue only syncs: no lifecycle event on it. */
+export const eventTypesOf = (resourceType?: string): string[] => [
+  ...(resourceType === 'CATALOG' ? [] : TRIGGER_EVENT_TYPES),
+  ...(RESOURCE_EVENT_TYPES[resourceType ?? ''] ?? []),
+];
+
+const LIFECYCLE_EVENT_TYPES = ['CREATE', 'UPDATE', 'DELETE'];
+
+export const eventTypeLabel = (eventType: string) => (LIFECYCLE_EVENT_TYPES.includes(eventType)
+  ? eventType.charAt(0) + eventType.slice(1).toLowerCase()
+  : operationLabel(eventType));
 
 export const DIGEST_PERIODS = ['HOUR', 'DAY', 'WEEK', 'MONTH'] as const;
 

@@ -277,6 +277,20 @@ public class InjectService {
     return inject;
   }
 
+  /** Security domains of the actions each scenario's injects use, by scenario ID. */
+  @Transactional(readOnly = true)
+  public Map<String, Set<String>> domainIdsByScenario(Collection<String> scenarioIds) {
+    Map<String, Set<String>> domains = new HashMap<>();
+    injectRepository
+        .findDomainIdsByScenarioIds(scenarioIds)
+        .forEach(
+            row ->
+                domains
+                    .computeIfAbsent((String) row[0], k -> new HashSet<>())
+                    .add((String) row[1]));
+    return domains;
+  }
+
   @Transactional(readOnly = true)
   public Set<Inject> findByScenarioId(@NotBlank final String scenarioId) {
     return injectRepository.findByScenarioId(scenarioId);
@@ -674,18 +688,22 @@ public class InjectService {
     }
   }
 
-  /** A scenario or simulation whose enabled injects run a revoked payload does not launch (F18). */
-  public void throwIfAnyPayloadRevoked(Collection<Inject> injects) {
-    List<String> revoked =
+  /** A disabled inject never runs, so only enabled ones are checked. */
+  public List<HealthCheck> runRevocationChecks(Collection<Inject> injects) {
+    List<Payload> payloads =
         injects.stream()
             .filter(Inject::isEnabled)
-            .filter(inject -> payloadRevocationService.revocationMessage(inject).isPresent())
-            .map(Inject::getTitle)
+            .flatMap(inject -> inject.getPayload().stream())
+            .distinct()
             .toList();
-    if (!revoked.isEmpty()) {
-      throw new BadRequestException(
-          "These injects run a revoked payload: " + String.join(", ", revoked));
-    }
+    return !payloads.isEmpty() && payloadRevocationService.anyRevoked(payloads)
+        ? List.of(revokedHealthCheck())
+        : List.of();
+  }
+
+  private static HealthCheck revokedHealthCheck() {
+    return new HealthCheck(
+        HealthCheck.Type.PAYLOAD, HealthCheck.Detail.REVOKED, HealthCheck.Status.ERROR, now());
   }
 
   /** A revoked payload is never launched, whatever the license (F9, F18). */
@@ -1687,6 +1705,9 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
+    if (inject.getPayload().filter(payloadRevocationService::isRevokedCached).isPresent()) {
+      healthChecks.add(revokedHealthCheck());
+    }
 
     return healthChecks;
   }

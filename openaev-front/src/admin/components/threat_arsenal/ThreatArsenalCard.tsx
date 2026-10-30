@@ -1,4 +1,4 @@
-import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
@@ -15,7 +15,6 @@ import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescr
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { actionDomains } from './threatArsenalDomainSections';
 import { getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
-import PayloadVariantBadges from './variants/PayloadVariantBadges';
 
 interface Props {
   action: ThreatArsenalAction;
@@ -24,6 +23,7 @@ interface Props {
   onUpdate: (result: ThreatArsenalAction) => void;
   onDuplicate: (result: ThreatArsenalAction, open?: boolean) => void;
   onDelete: () => void;
+  onRunTest: () => void;
   disableUpdate: boolean;
   disableDuplicate: boolean;
   disableJsonExport: boolean;
@@ -37,6 +37,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   onUpdate,
   onDuplicate,
   onDelete,
+  onRunTest,
   disableUpdate,
   disableDuplicate,
   disableJsonExport,
@@ -114,7 +115,6 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       )}
       chips={(
         <>
-          <PayloadVariantBadges payload={action.action_payload} />
           {techniques.length > 0 && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -150,6 +150,11 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         >
           {statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
         </div>
+      )}
+      action={!action.action_payload?.payload_revoked && (
+        <span onClick={event => event.stopPropagation()}>
+          <Button size="sm" priority="secondary" onClick={onRunTest}>{t('Run a test')}</Button>
+        </span>
       )}
       caption={[
         version ? `v${version}` : null,

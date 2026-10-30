@@ -326,7 +326,7 @@ public class ExecutableInjectService {
     Optional<String> revocation = payloadRevocationService.revocationMessage(inject);
     if (revocation.isPresent()) {
       injectStatusService.addCompleteAgentTraceByInject(
-          injectId, agentId, ExecutionTraceStatus.PAYLOAD_REVOKED, revocation.get());
+          injectId, agentId, ExecutionTraceStatus.ERROR, revocation.get());
       throw new PayloadRevokedException(revocation.get());
     }
     Payload payloadToExecute = payloadService.generateDuplicatedPayload(contract.getPayload());

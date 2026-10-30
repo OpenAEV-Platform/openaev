@@ -349,8 +349,7 @@ public class SimulationInjectApi extends RestBehavior {
       return executor.directExecute(injection);
     } catch (Exception e) {
       log.warn(e.getMessage(), e);
-      return injectStatusService.failInjectStatus(
-          savedInject, e.getMessage(), InjectStatusService.traceStatusOf(e));
+      return injectStatusService.failInjectStatus(savedInject, e.getMessage());
     }
   }
 
