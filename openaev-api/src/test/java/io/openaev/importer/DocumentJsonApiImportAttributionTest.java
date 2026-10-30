@@ -1,5 +1,6 @@
 package io.openaev.importer;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -141,6 +142,35 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
         0,
         minioService.countObjects(tenantA + "/" + target),
         "the imported object must not be stored under the ambient tenant's prefix (A)");
+  }
+
+  @Test
+  @DisplayName("given_targetThatIsNotTheHashOfItsBytes_should_keepTheExistingObject")
+  @SuppressWarnings("unchecked")
+  void given_targetThatIsNotTheHashOfItsBytes_should_keepTheExistingObject() throws Exception {
+    // Arrange: tenant B already stores an object, and a crafted archive reuses its target with
+    // other bytes
+    byte[] original =
+        ("jsonapi-import-original-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+    String target = DigestUtils.md5Hex(original) + ".txt";
+    minioService.uploadFileForTenant(
+        tenantB, target, new ByteArrayInputStream(original), original.length, "text/plain");
+    uploadedObjects.add(new String[] {tenantB, target});
+    ResourceObject includedDocument =
+        new ResourceObject(
+            UUID.randomUUID().toString(), "documents", Map.of("document_target", target), null);
+    JsonApiDocument<ResourceObject> doc =
+        new JsonApiDocument<>(
+            null, List.of(objectMapper.convertValue(includedDocument, Map.class)));
+    byte[] crafted = "overwritten".getBytes(StandardCharsets.UTF_8);
+
+    // Act
+    importer.handleImportDocument(doc, Map.of(target, crafted), tenantB);
+
+    // Assert
+    try (var stored = minioService.getFilePathForTenant(tenantB, target).orElseThrow()) {
+      assertArrayEquals(original, stored.readAllBytes(), "the existing object must be kept");
+    }
   }
 
   private String rowTenant(String documentName) {

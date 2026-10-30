@@ -52,6 +52,7 @@ import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import java.util.*;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -286,6 +287,11 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
           documentComposer
               .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
               .withInMemoryFile(FileFixture.getPlainTextFileContent());
+      // Content-addressed, as every document created by the platform: md5.ext
+      document
+          .get()
+          .setTarget(
+              DigestUtils.md5Hex(FileFixture.getPlainTextFileContent().getContentBytes()) + ".txt");
       Payload payload =
           payloadComposer
               .forPayload(PayloadFixture.createDefaultFileDrop())
