@@ -77,7 +77,7 @@ const NewsFeedList = () => {
   );
 
   const typeLabel = (item: NewsFeedItemOutput) => (
-    item.news_feed_item_type === 'RESOURCE_SCENARIO' ? t('Scenario') : '-'
+    item.news_feed_item_type === 'RESOURCE_SCENARIO' ? t('Scenario') : t('Unsupported type')
   );
 
   const headers = [
