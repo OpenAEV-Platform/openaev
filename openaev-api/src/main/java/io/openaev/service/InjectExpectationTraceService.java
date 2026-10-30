@@ -205,7 +205,8 @@ public class InjectExpectationTraceService {
       return null;
     }
     try {
-      return InjectExpectationTrace.LOGGING_MATCH_TYPE.valueOf(matchType.trim().toUpperCase());
+      return InjectExpectationTrace.LOGGING_MATCH_TYPE.valueOf(
+          matchType.trim().toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException e) {
       log.warn("Ignoring unknown inject expectation trace match type: {}", matchType);
       return null;

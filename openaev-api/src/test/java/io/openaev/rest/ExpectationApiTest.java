@@ -1234,8 +1234,11 @@ class ExpectationApiTest extends IntegrationTest {
 
     private static final String LOGGING_URI = INJECTS_EXPECTATIONS_URI + "/logging/";
 
+    private String originalDevFeatures;
+
     @BeforeEach
     void declareLoggingOnSiemCollector() {
+      originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
       // Only the SIEM collector declares Logging: the EDR one keeps the legacy behaviour.
       Collector siem =
           collectorRepository
@@ -1252,8 +1255,10 @@ class ExpectationApiTest extends IntegrationTest {
     }
 
     @AfterEach
-    void disableLoggingFlag() {
-      setLoggingFlag(false);
+    void restoreDevFeatures() {
+      // The config bean is shared by the Spring context: restore the flags of the test profile
+      openAEVConfig.setEnabledDevFeatures(originalDevFeatures);
+      Optional.ofNullable(cacheManager.getCache("global")).ifPresent(Cache::clear);
     }
 
     @Test
@@ -1346,6 +1351,92 @@ class ExpectationApiTest extends IntegrationTest {
           Set.of(savedEDRCollector.getId(), savedSIEMCollector.getId()),
           new HashSet<>(
               detection.getResults().stream().map(InjectExpectationResult::getSourceId).toList()));
+    }
+
+    @Test
+    @DisplayName("given_collector_not_awaited_should_not_receive_logging_leaves")
+    void given_collector_not_awaited_should_not_receive_logging_leaves() throws Exception {
+      // Arrange
+      setLoggingFlag(true);
+      computeDetectionAndLoggingExpectations();
+
+      // Act & Assert
+      mvc.perform(
+              get(LOGGING_URI + savedEDRCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("given_expired_logging_leaves_should_not_be_returned")
+    void given_expired_logging_leaves_should_not_be_returned() throws Exception {
+      // Arrange
+      setLoggingFlag(true);
+      computeDetectionAndLoggingExpectations();
+      backdateExpectationsOfInject();
+
+      // Act & Assert
+      mvc.perform(
+              get(LOGGING_URI + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("given_agentless_leaf_should_be_returned_only_while_not_expired")
+    void given_agentless_leaf_should_be_returned_only_while_not_expired() throws Exception {
+      // Arrange
+      setLoggingFlag(true);
+      Endpoint agentlessEndpoint =
+          endpointRepository.save(EndpointFixture.createEndpoint("agentless-endpoint"));
+      ExecutableInject executableInject = newExecutableInjectWithTargets(false);
+      executableInject.cacheAssetsToExecute(List.of(new AssetToExecute(agentlessEndpoint)));
+      Expectation logging =
+          createExpectation(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING, "Logging");
+      logging.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(logging), "implantType");
+      em.flush();
+      em.clear();
+
+      // Act & Assert: awaited from the collector declaring Logging only
+      mvc.perform(
+              get(LOGGING_URI + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(1)))
+          .andExpect(jsonPath("$[0].inject_expectation_asset", is(agentlessEndpoint.getId())));
+      mvc.perform(
+              get(LOGGING_URI + savedEDRCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
+
+      // Act & Assert: no longer handed out once expired
+      backdateExpectationsOfInject();
+      mvc.perform(
+              get(LOGGING_URI + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    /** Moves the creation of the inject's expectations far enough back for them to be expired. */
+    private void backdateExpectationsOfInject() {
+      em.createNativeQuery(
+              "UPDATE injects_expectations SET inject_expectation_created_at = now() - interval '30 days'"
+                  + " WHERE inject_id = :injectId")
+          .setParameter("injectId", savedInject.getId())
+          .executeUpdate();
+      em.flush();
+      em.clear();
     }
 
     private void computeDetectionAndLoggingExpectations() {
