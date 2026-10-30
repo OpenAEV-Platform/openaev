@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
@@ -30,6 +31,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -133,12 +136,19 @@ public class GenericJsonApiImporter<T extends Base> {
       JsonApiDocument<ResourceObject> doc, Map<String, byte[]> extras, String writeTenantId) {
     if (doc.included() != null) {
       for (Object o : doc.included()) {
-        if (o instanceof ResourceObject ro && "document".equals(ro.type())) {
+        // Parsed from the archive, included resources are maps until converted.
+        ResourceObject ro = (ResourceObject) safeConvert(o, ResourceObject.class);
+        if (ro != null && resolveType(Document.class).equals(ro.type())) {
           Map<String, Object> attrs = ro.attributes();
-          if (attrs != null && attrs.containsKey("document_name")) {
-            String target = String.valueOf(attrs.get("document_name"));
+          // The export keys the extras by document_target.
+          if (attrs != null && attrs.containsKey("document_target")) {
+            String target = String.valueOf(attrs.get("document_target"));
             byte[] fileBytes = extras.get(target);
-            if (fileBytes != null) {
+            if (fileBytes != null && !isContentAddressed(target, fileBytes)) {
+              // The archive is user input: a target that is not the hash of its bytes could
+              // overwrite the object of another document of the tenant.
+              log.warn("Skipping imported document file: target does not match its content");
+            } else if (fileBytes != null) {
               try (InputStream in = new ByteArrayInputStream(fileBytes)) {
                 String contentType = Files.probeContentType(Path.of(target));
                 // Store the object under the resolved write tenant, so it stays co-located with the
@@ -156,6 +166,16 @@ public class GenericJsonApiImporter<T extends Base> {
           }
         }
       }
+    }
+  }
+
+  /** Whether {@code target} is the content-addressed name of {@code bytes}: {@code md5.ext}. */
+  private static boolean isContentAddressed(String target, byte[] bytes) {
+    try {
+      String md5 = HexFormat.of().formatHex(MessageDigest.getInstance("MD5").digest(bytes));
+      return target.startsWith(md5 + ".") && target.indexOf('/') < 0 && target.indexOf('\\') < 0;
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
     }
   }
 
