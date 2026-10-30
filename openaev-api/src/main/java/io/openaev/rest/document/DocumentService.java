@@ -136,6 +136,8 @@ public class DocumentService {
           documentRepository.findFirstByNameAndTenantIdOrderByIdAsc(fileName, tenantId);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
+        // A generated report is read-only here: an upsert by name must not replace its content.
+        assertNotReportingGenerationOutput(document.getId());
         // Update doc: store the new bytes under the existing row's tenant so the object stays
         // co-located with the row that points at it, regardless of the ambient scope.
         fileService.uploadFile(

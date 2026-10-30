@@ -39,6 +39,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -536,20 +537,10 @@ class DocumentApiTest extends IntegrationTest {
       byte[] newContent = "new content".getBytes(StandardCharsets.UTF_8);
       String newTarget =
           DigestUtils.md5Hex(newContent) + "." + FilenameUtils.getExtension(document.getName());
-      MockPart inputPart =
-          new MockPart("input", mapper.writeValueAsBytes(new DocumentCreateInput()));
-      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-      MockMultipartFile filePart =
-          new MockMultipartFile("file", document.getName(), MediaType.TEXT_PLAIN_VALUE, newContent);
 
       // Act
       String response =
-          mvc.perform(
-                  multipart(DOCUMENT_API + "/upsert")
-                      .part(inputPart)
-                      .file(filePart)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
+          upsert(document.getName(), newContent)
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -559,6 +550,47 @@ class DocumentApiTest extends IntegrationTest {
       assertEquals(document.getId(), JsonPath.read(response, "$.document_id"));
       assertEquals(
           newTarget, documentRepository.findById(document.getId()).orElseThrow().getTarget());
+    }
+
+    @Test
+    @DisplayName("Given a generated report name and new content should refuse the upsert")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_generated_report_name_and_new_content_should_refuse_the_upsert() throws Exception {
+      // Arrange
+      Document document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+              .persist()
+              .get();
+      Reporting reporting = ReportingFixture.createDefaultReporting();
+      reporting.setTenant(document.getTenant());
+      entityManager.persist(reporting);
+      ReportingGeneration generation = new ReportingGeneration();
+      generation.setReporting(reporting);
+      generation.setFormat(ReportingFormat.PDF);
+      generation.setDocument(document);
+      generation.setTenant(document.getTenant());
+      entityManager.persist(generation);
+      entityManager.flush();
+      String target = document.getTarget();
+
+      // Act
+      upsert(document.getName(), "new content".getBytes(StandardCharsets.UTF_8))
+          // Assert
+          .andExpect(status().isBadRequest());
+      assertEquals(target, documentRepository.findById(document.getId()).orElseThrow().getTarget());
+    }
+
+    private ResultActions upsert(String fileName, byte[] content) throws Exception {
+      MockPart inputPart =
+          new MockPart("input", mapper.writeValueAsBytes(new DocumentCreateInput()));
+      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+      return mvc.perform(
+          multipart(DOCUMENT_API + "/upsert")
+              .part(inputPart)
+              .file(new MockMultipartFile("file", fileName, MediaType.TEXT_PLAIN_VALUE, content))
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf()));
     }
 
     @Test
