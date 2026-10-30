@@ -250,7 +250,7 @@ public interface UserRepository
           "SELECT 1 FROM (SELECT pg_advisory_xact_lock(:namespace, hashtext(lower(:email))))"
               + " AS locked",
       nativeQuery = true)
-  Integer lockAccountCreation(@Param("namespace") int namespace, @Param("email") String email);
+  Integer lockServiceAccount(@Param("namespace") int namespace, @Param("email") String email);
 
   // -- DELETE --
 

@@ -47,7 +47,7 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
   @Transactional
   public String getOrCreateToken(String tenantId) {
     String email = ReservedServiceAccount.CATALOG_CONNECTOR.emailPattern().formatted(tenantId);
-    userService.lockAccountCreation(email);
+    userService.lockServiceAccount(email);
     Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(tenantId), tenantId);
 
     Optional<User> existingUser = userService.findByEmailIgnoreCase(email);
@@ -80,6 +80,7 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
   @Transactional
   public String rotateTokenForTenant(String tenantId) {
     String email = ReservedServiceAccount.CATALOG_CONNECTOR.emailPattern().formatted(tenantId);
+    userService.lockServiceAccount(email);
     User user =
         userService
             .findByEmailIgnoreCase(email)

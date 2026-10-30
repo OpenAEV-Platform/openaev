@@ -84,8 +84,8 @@ public class UserService {
 
   private record EmailChangeRequest(String confirmationCode, String newEmail) {}
 
-  /** First key of the account creation advisory lock ("US" = user). */
-  private static final int ACCOUNT_CREATION_LOCK_NAMESPACE = 0x5553_0001;
+  /** First key of the service account advisory lock ("US" = user). */
+  private static final int SERVICE_ACCOUNT_LOCK_NAMESPACE = 0x5553_0001;
 
   private static final long tenMinutes = 1000L * 60L * 10L;
   private final Map<String, String> resetTokenMap = new PassiveExpiringMap<>(tenMinutes);
@@ -783,11 +783,11 @@ public class UserService {
   }
 
   /**
-   * Locks the creation of the account with this email until the end of the current transaction, so
-   * a concurrent caller waits and finds the created account.
+   * Locks the service account with this email until the end of the current transaction, so its
+   * creation, token reads and token rotation never interleave.
    */
-  public void lockAccountCreation(String email) {
-    userRepository.lockAccountCreation(ACCOUNT_CREATION_LOCK_NAMESPACE, email);
+  public void lockServiceAccount(String email) {
+    userRepository.lockServiceAccount(SERVICE_ACCOUNT_LOCK_NAMESPACE, email);
   }
 
   /**

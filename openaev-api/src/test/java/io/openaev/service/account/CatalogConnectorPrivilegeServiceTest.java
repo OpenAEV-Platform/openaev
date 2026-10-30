@@ -124,7 +124,7 @@ class CatalogConnectorPrivilegeServiceTest {
 
       // Assert
       InOrder inOrder = inOrder(userService, tenantRoleService);
-      inOrder.verify(userService).lockAccountCreation(ACCOUNT_EMAIL);
+      inOrder.verify(userService).lockServiceAccount(ACCOUNT_EMAIL);
       inOrder.verify(tenantRoleService).findByIdAndTenant(ROLE_ID, TENANT_ID);
       inOrder.verify(userService).findByEmailIgnoreCase(ACCOUNT_EMAIL);
     }
@@ -244,6 +244,23 @@ class CatalogConnectorPrivilegeServiceTest {
       assertThat(result).isEqualTo("new-token");
       verify(userService).deleteUserToken(oldToken);
       verify(sessionManager).invalidateUserSession("catalog-connector-account-id");
+    }
+
+    @Test
+    @DisplayName("Takes the account lock before looking the account up")
+    void given_concurrentDeployment_should_lockBeforeLookingTheAccountUp() {
+      // Arrange
+      account.setTokens(new ArrayList<>(List.of(token("old-token"))));
+      when(userService.findByEmailIgnoreCase(ACCOUNT_EMAIL)).thenReturn(Optional.of(account));
+      when(userService.createUserToken(eq(account), anyString())).thenReturn(token("new-token"));
+
+      // Act
+      privilegeService.rotateTokenForTenant(TENANT_ID);
+
+      // Assert
+      InOrder inOrder = inOrder(userService);
+      inOrder.verify(userService).lockServiceAccount(ACCOUNT_EMAIL);
+      inOrder.verify(userService).findByEmailIgnoreCase(ACCOUNT_EMAIL);
     }
 
     @Test
