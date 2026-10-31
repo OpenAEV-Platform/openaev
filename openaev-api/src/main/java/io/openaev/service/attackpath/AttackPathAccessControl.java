@@ -1,5 +1,6 @@
 package io.openaev.service.attackpath;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
@@ -31,23 +32,31 @@ public class AttackPathAccessControl {
   private final UserService userService;
   private final PermissionService permissionService;
 
-  /** Throws 403 unless the caller can READ the simulation; a seed id is always allowed. */
-  public void assertCanReadSimulation(String simulationId) {
-    if (!canRead(userService.currentUser(), simulationId)) {
+  /**
+   * Throws 403 unless the caller can READ the simulation; a seed id is always allowed. The attack
+   * path rows the endpoint then reads can come from any tenant of {@code ctx}, so the caller must
+   * be able to read it in each of them.
+   */
+  public void assertCanReadSimulation(TxCtx ctx, String simulationId) {
+    User user = userService.currentUser();
+    if (!permissionService.holdsInScope(ctx, () -> canRead(user, simulationId))) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied on simulation");
     }
   }
 
   /**
-   * Keeps only the picker rows the caller can READ (seed rows always kept). Resolves the current
-   * user ONCE, not per row: {@link UserService#currentUser()} is DB-backed for non-admins, so a
-   * per-row call would be an N+1 on tenants with many simulations. The remaining per-row check is
-   * capability-first (in memory on the user) and only falls back to a grant lookup for a user that
-   * relies on resource grants.
+   * Keeps only the picker rows the caller can READ (seed rows always kept), in every tenant of
+   * {@code ctx}: a row carries no tenant. Resolves the current user ONCE, not per row: {@link
+   * UserService#currentUser()} is DB-backed for non-admins, so a per-row call would be an N+1 on
+   * tenants with many simulations. The remaining per-row check is capability-first (in memory on
+   * the user) and only falls back to a grant lookup for a user that relies on resource grants.
    */
-  public List<AttackPathSimSummaryRow> retainReadable(List<AttackPathSimSummaryRow> rows) {
+  public List<AttackPathSimSummaryRow> retainReadable(
+      TxCtx ctx, List<AttackPathSimSummaryRow> rows) {
     User user = userService.currentUser();
-    return rows.stream().filter(row -> canRead(user, row.simulationId())).toList();
+    return rows.stream()
+        .filter(row -> permissionService.holdsInScope(ctx, () -> canRead(user, row.simulationId())))
+        .toList();
   }
 
   /**

@@ -7,7 +7,9 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.Notifier;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.User;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
@@ -20,7 +22,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -50,11 +55,24 @@ public class NotifierApi {
    * NOTIFIER is an open resource for READ/SEARCH so any user can pick notifiers when creating
    * notification triggers, but the configuration payload (webhook URLs, headers, templates...) can
    * hold sensitive values: it is only exposed to users holding the tenant-settings capability that
-   * normally grants notifier reads.
+   * normally grants notifier reads, in the tenant of the notifier. The capability is evaluated once
+   * per tenant of the returned notifiers.
    */
-  private boolean canSeeConfiguration() {
-    return permissionService.hasCapabilityPermission(
-        userService.currentUser(), ResourceType.NOTIFIER, Action.READ);
+  private Function<Notifier, NotifierOutput> toOutputForCurrentUser() {
+    User user = userService.currentUser();
+    Map<String, Boolean> configurationVisibleByTenant = new HashMap<>();
+    return notifier -> {
+      boolean includeConfiguration =
+          configurationVisibleByTenant.computeIfAbsent(
+              notifier.getTenant().getId(),
+              tenantId ->
+                  permissionService.holdsInTenant(
+                      tenantId,
+                      () ->
+                          permissionService.hasCapabilityPermission(
+                              user, ResourceType.NOTIFIER, Action.READ)));
+      return notifierMapper.toNotifierOutput(notifier, includeConfiguration);
+    };
   }
 
   @LogExecutionTime
@@ -64,10 +82,7 @@ public class NotifierApi {
   @Transactional
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of notifiers")})
   public List<NotifierOutput> notifiers(TxCtx ctx) {
-    boolean includeConfiguration = canSeeConfiguration();
-    return notifierService.findAll(ctx).stream()
-        .map(notifier -> notifierMapper.toNotifierOutput(notifier, includeConfiguration))
-        .toList();
+    return notifierService.findAll(ctx).stream().map(toOutputForCurrentUser()).toList();
   }
 
   @LogExecutionTime
@@ -83,10 +98,9 @@ public class NotifierApi {
   public NotifierOutput notifier(
       TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the notifier") final String notifierId) {
-    boolean includeConfiguration = canSeeConfiguration();
     return notifierService
         .findById(notifierId)
-        .map(notifier -> notifierMapper.toNotifierOutput(notifier, includeConfiguration))
+        .map(toOutputForCurrentUser())
         .orElseThrow(() -> new ElementNotFoundException("Notifier not found: " + notifierId));
   }
 
@@ -99,10 +113,7 @@ public class NotifierApi {
       value = {@ApiResponse(responseCode = "200", description = "The paginated notifiers")})
   public Page<NotifierOutput> searchNotifiers(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-    boolean includeConfiguration = canSeeConfiguration();
-    return notifierService
-        .search(ctx, searchPaginationInput)
-        .map(notifier -> notifierMapper.toNotifierOutput(notifier, includeConfiguration));
+    return notifierService.search(ctx, searchPaginationInput).map(toOutputForCurrentUser());
   }
 
   @LogExecutionTime

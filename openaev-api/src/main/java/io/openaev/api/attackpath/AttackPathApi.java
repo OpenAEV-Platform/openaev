@@ -99,7 +99,7 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathDTO graph(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam(required = false) String mode) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     long graphVersion =
         versionService.current(simulationId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx)).orElse(0L);
     return graphService.buildGraph(simulationId, mode, graphVersion);
@@ -124,7 +124,7 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathDeltaDTO graphDelta(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam @Min(0) long since) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     return deltaService.buildDelta(simulationId, since, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx));
   }
 
@@ -140,7 +140,7 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public List<AttackPathSimSummaryRow> simulations(
       TxCtx ctx, @RequestParam(required = false) String scenarioId) {
-    return attackPathAccessControl.retainReadable(graphService.listSimulations(scenarioId));
+    return attackPathAccessControl.retainReadable(ctx, graphService.listSimulations(scenarioId));
   }
 
   /**
@@ -152,7 +152,7 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathExpandDTO expandEndpointFindings(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     return graphService.expandEndpoint(simulationId, ref);
   }
 
@@ -171,7 +171,7 @@ public class AttackPathApi extends RestBehavior {
       @RequestParam String ref,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "50") int size) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     int safePage = Math.max(page, 0);
     int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
     return graphService.endpointRelations(simulationId, ref, PageRequest.of(safePage, safeSize));
@@ -193,7 +193,7 @@ public class AttackPathApi extends RestBehavior {
       @RequestParam String category,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "50") int size) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     int safePage = Math.max(page, 0);
     int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
     return graphService.listFindings(simulationId, category, PageRequest.of(safePage, safeSize));
@@ -215,7 +215,7 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathExecutionDetailDTO executionDetail(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam("ref") String executionId) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     AttackPathExecutionDetailDTO detail = graphService.executionDetail(simulationId, executionId);
     if (detail == null) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND);
