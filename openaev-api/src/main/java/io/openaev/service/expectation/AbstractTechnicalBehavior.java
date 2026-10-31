@@ -215,7 +215,10 @@ public abstract class AbstractTechnicalBehavior
   public void initializeResults(BaseInjectExpectation expectation) {
     initializeResults(
         expectation,
-        collectorService.securityPlatformCollectors(expectation.getInject().getTenant().getId()));
+        filterCollectorsSupportingType(
+            collectorService.securityPlatformCollectors(
+                expectation.getInject().getTenant().getId()),
+            expectation.getType()));
   }
 
   /** Batch-friendly variant reusing tenant collectors already loaded by the caller. */
@@ -228,7 +231,9 @@ public abstract class AbstractTechnicalBehavior
 
   private List<Collector> resolveCollectors(
       String tenantId, TechnicalInjectExpectation expectation) {
-    List<Collector> tenantCollectors = collectorService.securityPlatformCollectors(tenantId);
+    List<Collector> tenantCollectors =
+        filterCollectorsSupportingType(
+            collectorService.securityPlatformCollectors(tenantId), expectation.getType());
     return filterCollectorsForExpectation(
         tenantCollectors, expectation.getExpectedSecurityPlatforms());
   }

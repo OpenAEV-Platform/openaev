@@ -2714,6 +2714,15 @@ export interface Collector {
   collector_period?: number;
   collector_security_platform?: SecurityPlatform;
   collector_state?: object;
+  collector_supported_expectation_types?: (
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "LOGGING"
+    | "VULNERABILITY"
+  )[];
   /** @minLength 1 */
   collector_type: string;
   /** @format date-time */
@@ -2730,6 +2739,7 @@ export interface CollectorCreateInput {
   /** @format int32 */
   collector_period?: number;
   collector_security_platform?: string;
+  collector_supported_expectation_types?: string[];
   /** @minLength 1 */
   collector_type: string;
 }
@@ -6889,6 +6899,7 @@ export interface InjectExpectationTrace {
   inject_expectation_trace_expectation?: string;
   /** @minLength 1 */
   inject_expectation_trace_id: string;
+  inject_expectation_trace_match_type?: "MARKER" | "SOURCE_IP" | "TARGET_IP";
   inject_expectation_trace_source_id?: string;
   /** @format date-time */
   inject_expectation_trace_updated_at: string;
@@ -6908,6 +6919,7 @@ export interface InjectExpectationTraceInput {
   inject_expectation_trace_date: string;
   /** @minLength 1 */
   inject_expectation_trace_expectation: string;
+  inject_expectation_trace_match_type?: "marker" | "source_ip" | "target_ip";
   /** @minLength 1 */
   inject_expectation_trace_source_id: string;
 }
