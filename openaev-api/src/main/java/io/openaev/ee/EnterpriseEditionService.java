@@ -186,8 +186,8 @@ public class EnterpriseEditionService {
    * ({@link XtmLicenseVerifier}: the XTM CA pinned in this build, the {@code filigran xtm} product,
    * {@code global} or this platform's id in the OpenAEV sub-license, XTM One's validity rule).
    *
-   * @return the license it stands for, or empty when the certificate is not a Filigran license
-   *     that covers this platform
+   * @return the license it stands for, or empty when the certificate is not a Filigran license that
+   *     covers this platform
    */
   Optional<License> filigranLicense(
       String certificatePem, String instanceId, boolean isLicenseByConfig, Instant now) {
