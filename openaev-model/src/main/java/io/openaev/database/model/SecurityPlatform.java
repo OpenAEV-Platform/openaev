@@ -22,13 +22,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import org.hibernate.annotations.BatchSize;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
 @Entity
 @DiscriminatorValue(AssetType.Values.SECURITY_PLATFORM_TYPE)
@@ -112,7 +111,6 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
   @BatchSize(size = 1000)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("security_platform_collectors")
-  @EqualsAndHashCode.Exclude
   @ToString.Exclude
   private List<Collector> collectors = new ArrayList<>();
 
@@ -131,7 +129,6 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
   @BatchSize(size = 1000)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("security_platform_injectors")
-  @EqualsAndHashCode.Exclude
   @ToString.Exclude
   private List<Injector> injectors = new ArrayList<>();
 
@@ -179,5 +176,23 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
       String id, String type, String name, SECURITY_PLATFORM_TYPE securityPlatformType) {
     super(id, type, name);
     this.securityPlatformType = securityPlatformType;
+  }
+
+  // Identity is the id (orm.instructions.md, Entity identity): a field-based equals/hashCode would
+  // initialize the lazy logo proxies on every hash, e.g. when Document loads its platform Sets.
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof SecurityPlatform other)) {
+      return false;
+    }
+    return getId() != null && getId().equals(other.getId());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getId());
   }
 }

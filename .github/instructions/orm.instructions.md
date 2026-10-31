@@ -60,6 +60,30 @@ polymorphic association being worked around, not a fix.
 - Where a path needs the concrete subclass, fetch it explicitly (`JOIN FETCH` / `@EntityGraph`)
   instead of scattering `Hibernate.unproxy(...)`.
 
+## Entity identity (equals / hashCode)
+
+An entity's `equals`/`hashCode` is based on its id only, never on its fields.
+
+- A mapped `Set` or `Map` is, once loaded, a `PersistentSet` / `PersistentMap` whose `hashCode` and
+  `equals` initialize the whole collection. A field-based identity (Lombok `@Data` /
+  `@EqualsAndHashCode`) therefore loads every element each time the owner is put in a `HashSet`,
+  used as a `Map` key or compared: #8443, an endpoint targeted by many simulations loaded all its
+  injects on every hash, up to an `OutOfMemoryError`. A lazy to-one in the hash costs one query
+  per hash for the same reason (the proxy initializes).
+- A mapped `List` (`PersistentBag`) hashes by identity and never loads, but then two instances of
+  the same row hash differently.
+- Use hand-written methods (preferred; they also stop `@Data` from generating its own): `equals` =
+  same type and `id != null && id.equals(other.id)`, `hashCode` = `Objects.hash(id)` (see `Inject`,
+  `Endpoint`). Lombok `@EqualsAndHashCode(onlyExplicitlyIncluded = true)` with
+  `@EqualsAndHashCode.Include` on the id only is also compliant (see `Step`, `Workflow`). Avoid
+  `@EqualsAndHashCode.Exclude` on a collection: the next field added is included again.
+- Before switching a `List` to a `Set` (for example to clear `TenantFilteredBagCollectionsTest`),
+  check the owner's identity. `add()` on a lazy `Set` also initializes it, where a bag only queued
+  the element.
+
+Enforced by `EntityIdentityIgnoresCollectionsTest`: it fails if any entity's `equals`/`hashCode`
+reads a mapped `Set` or `Map`.
+
 ## Test methodology
 
 Assert what an ORM change actually controls: the number of entities or SQL statements, read from
