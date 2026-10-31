@@ -12,10 +12,10 @@ import { type AttackPattern, type Filter, type PropertySchemaDTO, type SearchPag
 import { useFormatter } from '../../../i18n';
 import ClickableModeChip from '../../chips/ClickableModeChip';
 import Drawer from '../../Drawer';
+import fetchFilterableProperties from '../filter/fetchFilterableProperties';
 import FilterAutocomplete, { type OptionPropertySchema } from '../filter/FilterAutocomplete';
 import FilterChips from '../filter/FilterChips';
 import { availableOperators, isEmptyFilter } from '../filter/FilterUtils';
-import useFilterableProperties from '../filter/useFilterableProperties';
 import { type Page } from '../Page';
 import { type QueryableHelpers } from '../QueryableHelpers';
 import TextSearchComponent from '../textSearch/TextSearchComponent';
@@ -123,7 +123,7 @@ const PaginationComponentV2 = <T extends object>({
           result.data.filter(p => availableFilterNames.length === 0 || availableFilterNames.includes(p.schema_property_name)));
       }
       if (entityPrefix) {
-        return useFilterableProperties(entityPrefix, availableFilterNames);
+        return fetchFilterableProperties(entityPrefix, availableFilterNames);
       }
       return null;
     })();

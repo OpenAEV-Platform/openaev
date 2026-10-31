@@ -12,7 +12,7 @@ import useSortState from './sort/useSortState';
 import useTextSearchState from './textSearch/useTextSearchState';
 import useUriState, { retrieveFromUri } from './uri/useUriState';
 
-const buildUseQueryable = (
+const useQueryableHelpers = (
   localStorageKey: string | null,
   initSearchPaginationInput: Partial<SearchPaginationInput>,
   searchPaginationInput: SearchPaginationInput,
@@ -97,6 +97,9 @@ const buildUseQueryable = (
   // Uri
   let uriHelpers;
   if (localStorageKey) {
+    // useQueryableWithLocalStorage always passes a non-empty key and useQueryable always passes null,
+    // so this branch never flips for a mounted caller and the hook order stays stable.
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- TODO: make useUriState callable without a key
     uriHelpers = useUriState(localStorageKey, searchPaginationInput, (input: SearchPaginationInput) => setSearchPaginationInput(input));
   }
 
@@ -120,7 +123,7 @@ export const useQueryable = (initSearchPaginationInput: Partial<SearchPagination
 
   const [searchPaginationInput, setSearchPaginationInput] = useState<SearchPaginationInput>(finalSearchPaginationInput);
 
-  return buildUseQueryable(null, initSearchPaginationInput, searchPaginationInput, setSearchPaginationInput);
+  return useQueryableHelpers(null, initSearchPaginationInput, searchPaginationInput, setSearchPaginationInput);
 };
 
 // The page index is never persisted: storage keys are shared across entities
@@ -199,7 +202,7 @@ export const useQueryableWithLocalStorage = (localStorageKey: string, initSearch
     }
   }, [searchPaginationInputFromLocalStorage]);
 
-  return buildUseQueryable(
+  return useQueryableHelpers(
     localStorageKey,
     initSearchPaginationInput,
     searchPaginationInput,

@@ -20,7 +20,7 @@ import SearchFilter from '../../../../../components/SearchFilter';
 import { useHelper } from '../../../../../store';
 import { type Exercise, type Inject, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
-import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
+import useEndpointContextForExercise from '../../../../../utils/context/endpoint/useEndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../../utils/SortingFiltering';
@@ -29,9 +29,9 @@ import TagsFilter from '../../../common/filters/TagsFilter';
 import UpdateInject from '../../../common/injects/UpdateInject';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { buildSimulationVariablesConfigurationUrl } from '../../SimulationConfigurationTab';
-import articleContextForExercise from '../articles/articleContextForExercise';
+import useArticleContextForExercise from '../articles/useArticleContextForExercise';
 import ExecutionMenu from '../ExecutionMenu';
-import teamContextForExercise from '../teams/teamContextForExercise';
+import useTeamContextForExercise from '../teams/useTeamContextForExercise';
 import AttackTimeline from './AttackTimeline';
 import ExecutionBoard from './ExecutionBoard';
 import ExecutionFlowStrip from './ExecutionFlowStrip';
@@ -154,9 +154,9 @@ const ExecutionOverview = ({ exerciseId: exerciseIdProp, showMenu = true }: Exec
     }
   };
 
-  const teamContext = teamContextForExercise(exerciseId);
-  const articleContext = articleContextForExercise(exerciseId);
-  const endpointContext = endpointContextForExercise(exerciseId);
+  const teamContext = useTeamContextForExercise(exerciseId);
+  const articleContext = useArticleContextForExercise(exerciseId);
+  const endpointContext = useEndpointContextForExercise(exerciseId);
   const challengeContext = { fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) };
 
   return (

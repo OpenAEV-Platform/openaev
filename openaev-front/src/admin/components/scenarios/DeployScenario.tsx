@@ -11,7 +11,7 @@ import useXtmHubDownloadDocument from '../../../utils/hooks/useXtmHubDownloadDoc
 import { notifyPartialImport } from '../../../utils/importResultNotifier';
 import XtmHubDialogConnectivityLost from '../xtm_hub/dialog/connectivity-lost';
 
-const DeployScenario: React.FC = async () => {
+const DeployScenario: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { t } = useFormatter();

@@ -3,7 +3,6 @@ import { SettingsOutlined } from '@mui/icons-material';
 import { type NavMenuItem } from '../../../../components/common/menu/navbar/nav-menu-model';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { ACTIONS, type Actions, SUBJECTS, type Subjects } from '../../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../../utils/utils';
 
 export const SETTINGS_LABEL = 'Settings';
 
@@ -67,13 +66,13 @@ export const canAccessTenantSettings = (ability: AppAbility): boolean => {
   return ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
 };
 
-const settingsEntries = (ability: AppAbility): NavMenuItem[] => {
+const settingsEntries = (ability: AppAbility, isMarkingEnabled: boolean): NavMenuItem[] => {
   const hasTenantSettingsAccess = canAccessTenantSettings(ability);
   const canAccessTenantUsers = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const canAccessPlatformSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
   const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
-  const canAccessMarkingDefinitions = isFeatureEnabled('MARKING')
+  const canAccessMarkingDefinitions = isMarkingEnabled
     && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   const canAccessLessonsLearned = ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED);
   const hasTagsAccess = canAccessTags(ability);

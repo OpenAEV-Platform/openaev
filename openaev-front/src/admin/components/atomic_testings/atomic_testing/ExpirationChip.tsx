@@ -3,7 +3,7 @@ import moment from 'moment-timezone';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
-import countdown from '../../../../utils/hooks/countDown';
+import useCountdown from '../../../../utils/hooks/useCountdown';
 import { splitDuration } from '../../../../utils/Time';
 
 interface Props {
@@ -25,7 +25,7 @@ const ExpirationChipCountdown: FunctionComponent<{
 }> = ({ expirationTime, remainingSeconds }) => {
   const { t } = useFormatter();
 
-  const remainingTimePeriod = countdown(expirationTime - remainingSeconds, 60000, 60);
+  const remainingTimePeriod = useCountdown(expirationTime - remainingSeconds, 60000, 60);
   const splitExpirationTime = splitDuration(remainingTimePeriod);
   return (
     <Chip

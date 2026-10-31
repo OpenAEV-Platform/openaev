@@ -17,7 +17,7 @@ import { tint } from '../../../../../utils/tint';
 import { PermissionsContext } from '../../../common/Context';
 import { expectationTypeIcon } from '../../../common/ExpectationIconByType';
 import type { InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
-import { isAgentExpectation, isAssetExpectation, isAssetGroupExpectation, isManualExpectation, isPlayerExpectation, isTechnicalExpectation, useIsManuallyUpdatable } from '../../../common/injects/expectations/ExpectationUtils';
+import { isAgentExpectation, isAssetExpectation, isAssetGroupExpectation, isManualExpectation, isManuallyUpdatable, isPlayerExpectation, isTechnicalExpectation } from '../../../common/injects/expectations/ExpectationUtils';
 import InjectExpectationContext from '../context/InjectExpectationContext';
 import ExpirationChip from '../ExpirationChip';
 import InjectExpectationAggregatedAgentsView from './InjectExpectationAggregatedAgentsView';
@@ -57,8 +57,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
 
   const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult } = useContext(InjectExpectationContext);
 
-  // Hooks must be called at top level - not in JSX or conditionally
-  const isManuallyUpdatable = useIsManuallyUpdatable(injectExpectation);
+  const manuallyUpdatable = isManuallyUpdatable(injectExpectation);
 
   const statusResult = computeInjectExpectationLabel(injectExpectation.inject_expectation_status, injectExpectation.inject_expectation_type);
   const statusColor = computeStatusStyle(injectExpectation.inject_expectation_status).color;
@@ -229,7 +228,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
         </div>
 
         {/* Create expectation result */}
-        {isManuallyUpdatable && canManage && (
+        {manuallyUpdatable && canManage && (
           <>
             {isManualExpectation(injectExpectation.inject_expectation_type)
               && (injectExpectation.inject_expectation_score != null) ? (

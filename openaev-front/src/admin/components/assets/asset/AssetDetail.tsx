@@ -37,7 +37,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../../utils/utils';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
@@ -95,7 +95,7 @@ const AssetDetail = () => {
 
   // Gates the Markings field (and its data fetch below) so the flag-off platform looks exactly as
   // it does today - mirrors the Endpoints list convention.
-  const markingEnabled = isFeatureEnabled('MARKING');
+  const markingEnabled = useIsFeatureEnabled('MARKING');
   const markingDefinitions = useMarkingDefinitions({
     skip: !markingEnabled,
     assignableOnly: true,

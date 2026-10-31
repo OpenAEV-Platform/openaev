@@ -35,7 +35,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import { CAPABILITY_SCOPES } from '../../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../../utils/utils';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import PlatformGroupPopover from '../groups/platform_groups/PlatformGroupPopover';
 import GroupPopover from '../groups/tenant_groups/GroupPopover';
@@ -73,7 +73,7 @@ const GroupDetail = () => {
   const { groupId } = useParams() as { groupId: string };
   const { scope } = useSecurityScope();
   const isPlatform = scope === CAPABILITY_SCOPES.PLATFORM;
-  const markingEnabled = isFeatureEnabled('MARKING');
+  const markingEnabled = useIsFeatureEnabled('MARKING');
   // Markings are tenant-groups-only (see task2/tech-design.md): a platform group has no
   // group_markings field at all, so this must never fetch/render in that scope.
   const markingDefinitions = useMarkingDefinitions({ skip: isPlatform || !markingEnabled });

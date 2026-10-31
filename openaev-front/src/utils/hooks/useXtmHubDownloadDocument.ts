@@ -34,13 +34,16 @@ const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onErr
       } else {
         setDialogConnectivityLostStatus(DialogConnectivityLostStatus.unauthorized);
       }
-      return;
+      return undefined;
     }
 
     if (!settings || !userPlatformToken || !serviceInstanceId || !fileId) {
-      return;
+      return undefined;
     }
 
+    // A re-run (StrictMode remount, or a dependency changing mid-download) must not
+    // hand the document over twice, otherwise the caller imports it twice.
+    let cancelled = false;
     const fetchData = async () => {
       try {
         const file = await XtmHubClient.fetchDocument({
@@ -50,13 +53,20 @@ const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onErr
           userPlatformToken,
         });
 
-        onSuccess(file);
+        if (!cancelled) {
+          onSuccess(file);
+        }
       } catch (e) {
-        onError(e);
+        if (!cancelled) {
+          onError(e);
+        }
       }
     };
 
     fetchData();
+    return () => {
+      cancelled = true;
+    };
   }, [settings, registration, serviceInstanceId, fileId, userPlatformToken]);
 
   return { dialogConnectivityLostStatus };

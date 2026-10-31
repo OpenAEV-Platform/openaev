@@ -15,7 +15,7 @@ interface Props {
 export const SCENARIO_SCHEDULED_STATUS = 'Scheduled';
 export const SCENARIO_NOT_SCHEDULED_STATUS = 'Not planned';
 
-const scenarioStatus: FunctionComponent<Props> = ({
+const ScenarioStatus: FunctionComponent<Props> = ({
   scenario,
   scheduled,
 }) => {
@@ -31,4 +31,4 @@ const scenarioStatus: FunctionComponent<Props> = ({
     <Chip label={t(SCENARIO_NOT_SCHEDULED_STATUS)} severity="neutral" />
   );
 };
-export default scenarioStatus;
+export default ScenarioStatus;

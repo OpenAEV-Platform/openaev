@@ -12,7 +12,7 @@ import ConfigurationSection from '../../../common/ConfigurationSection';
 import { PermissionsContext, TeamContext } from '../../../common/Context';
 import ContextualTeams from '../../../components/teams/ContextualTeams';
 import UpdateTeams from '../../../components/teams/UpdateTeams';
-import teamContextForExercise from './teamContextForExercise';
+import useTeamContextForExercise from './useTeamContextForExercise';
 
 const SimulationTeams: FunctionComponent = () => {
   // Standard hooks
@@ -26,9 +26,10 @@ const SimulationTeams: FunctionComponent = () => {
   useDataLoader(() => {
     dispatch(fetchExerciseTeams(exerciseId));
   });
+  const teamContext = useTeamContextForExercise(exerciseId);
 
   return (
-    <TeamContext.Provider value={teamContextForExercise(exerciseId)}>
+    <TeamContext.Provider value={teamContext}>
       <ConfigurationSection
         title={t('Teams')}
         count={teamsStore.length}

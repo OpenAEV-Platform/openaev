@@ -4,6 +4,7 @@ import { LogoXtmOneIcon } from 'filigran-icon';
 import { useEffect, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
+import { isAiEligibleSecurityPlatformName } from '../../../../constants/Entities';
 import { type AgentOption, fetchAgentsForIntent } from '../../../../utils/ai/agentApi';
 import AgentSelector from '../../../../utils/ai/AgentSelector';
 import useAI from '../../../../utils/hooks/useAI';
@@ -14,7 +15,6 @@ import EEChip from '../../common/entreprise_edition/EEChip';
 import EETooltip from '../../common/entreprise_edition/EETooltip';
 import Loader from '../../payloads/Loader';
 import useIsEligibleArianePayloadType from '../hook/useIsEligibleArianePayloadType';
-import useIsEligibleArianeSecurityPlatform from '../hook/useIsEligibleArianeSecurityPlatform';
 import { useSnapshotRemediation } from '../utils/useSnapshotRemediation';
 
 export interface Props {
@@ -48,7 +48,10 @@ const DetectionRemediationUseAriane = ({
   const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<AgentOption | null>(null);
   const [loadingAgents, setLoadingAgents] = useState(false);
-  const isEligibleSecurityPlatform = useIsEligibleArianeSecurityPlatform(securityPlatformName);
+  // Remediations are keyed by security platform (manual platforms included): AI rule
+  // generation is only wired for vendors the generator understands, inferred from the
+  // platform name (e.g. "CrowdStrike Falcon", "Splunk Enterprise Security").
+  const isEligibleSecurityPlatform = isAiEligibleSecurityPlatformName(securityPlatformName);
   const isEligibleArianePayload = useIsEligibleArianePayloadType(payloadType);
   const hasContent = isNotEmptyField(detectionRemediationContent);
 

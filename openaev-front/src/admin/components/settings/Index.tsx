@@ -6,7 +6,7 @@ import NoAccess from '../../../utils/permissions/NoAccess';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../utils/utils';
 import LessonsTemplateIndex from '../components/lessons/Index';
 import LessonsTemplates from '../components/lessons/LessonsTemplates';
 import Tenants from '../platform/tenants/Tenants';
@@ -59,7 +59,7 @@ const SecurityLanding = () => {
   } = useSecurityScope();
   const ability = useAbility();
   const canAccessMarkingDefinitions
-    = isFeatureEnabled('MARKING')
+    = useIsFeatureEnabled('MARKING')
       && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   // The landing arbitrates between both scopes, so each one is named explicitly.
   const canManageSessions = canAccessSession('TENANT');
@@ -84,7 +84,7 @@ const SecurityLanding = () => {
 };
 
 const Index = () => {
-  const isMarkingEnabled = isFeatureEnabled('MARKING');
+  const isMarkingEnabled = useIsFeatureEnabled('MARKING');
   return (
     <Routes>
       <Route path="" element={<Navigate to="parameters" replace={true} />} />
