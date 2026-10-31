@@ -259,6 +259,31 @@
             ],
             rebaseWhen: 'auto',
         },
+        // docs/requirements.txt pins every package the docs build installs, about fifty lines, and a
+        // new release of one of them can break the docs build. One weekly PR keeps them moving
+        // together, and its Docs Check shows whether the set still builds. The git plugins are only
+        // built by Nightly, so an update that breaks one shows up the night after the merge.
+        {
+            groupName: 'docs tooling (non-major)',
+            groupSlug: 'docs-tooling-non-major',
+            description: 'Batch non-major Python updates of the docs build once a week on Sunday',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchManagers: [
+                'pip_requirements',
+            ],
+            matchFileNames: [
+                'docs/requirements.txt',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+            rebaseWhen: 'auto',
+        },
         // The bulk of the volume, one PR at a time before this change. The cost of batching is that
         // one bad member holds the whole batch, and the exit is a rule below with groupName: null.
         {

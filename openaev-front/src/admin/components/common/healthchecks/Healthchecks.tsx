@@ -44,7 +44,7 @@ const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
         break;
       }
       case 'SECURITY_SYSTEM_COLLECTOR': {
-        window.open(`${documentationRootUrl}/latest/usage/collectors/?h=collector`);
+        window.open(`${documentationRootUrl}/latest/integrations/collectors/collectors/?h=collector`);
         break;
       }
       case 'INJECT': {
@@ -65,7 +65,7 @@ const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
       }
       case 'NMAP':
       case 'NUCLEI': {
-        window.open(`${documentationRootUrl}/latest/usage/injectors`);
+        window.open(`${documentationRootUrl}/latest/integrations/injectors/injectors/`);
         break;
       }
       case 'SCOPE_DEFINITION': {

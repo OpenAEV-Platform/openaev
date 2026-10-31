@@ -9,7 +9,7 @@ This is the main repository of the OpenAEV Documentation space. The online versi
 
 ## Development (local setup)
 ### Prerequisites
-* Python 3
+* Python 3.11 or later
 
 ### Build and serve locally
 
@@ -47,12 +47,12 @@ $ mkdocs serve
 Starting server at http://localhost:8000/
 ```
 
-Upgrade dependencies
-```shell
-$ cd docs/
-$ source .venv/bin/activate
-$ pip install --upgrade -r requirements.txt
-```
+Every dependency is pinned in `requirements.txt` and updated by Renovate. To try a new version
+locally, change its pin and run `pip install --no-deps -r requirements.txt && pip check` again:
+the CI installs it this way, so a package missing from the file fails there.
+
+`mkdocs serve` asks the GitHub API for the contributors of every page. To skip that, and the
+git dates, run `DOCS_GIT_PLUGINS=false mkdocs serve`.
 
 ## Deploy the documentation
 
