@@ -53,8 +53,8 @@ public class GrantService {
       @NotBlank final String resourceId,
       @NotNull final User user,
       @NotNull final GRANT_TYPE grantType) {
-    return this.grantRepository.existsByUserIdAndResourceIdAndNameIn(
-        user.getId(), resourceId, grantType.andHigher());
+    return this.grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+        user.getId(), user.scopedTenantId(), resourceId, grantType.andHigher());
   }
 
   /**

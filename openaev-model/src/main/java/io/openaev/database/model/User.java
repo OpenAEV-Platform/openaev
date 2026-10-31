@@ -431,13 +431,23 @@ public class User implements Base {
    * them with 403 (issues #6331 / #6332).
    */
   private List<Group> scopedGroups() {
-    String currentTenant = TenantContext.getCurrentTenant();
+    String currentTenant = scopedTenantId();
     return getUnscopedGroups().stream()
         .filter(
             group ->
                 group.getTenant() == null
                     || (currentTenant != null && currentTenant.equals(group.getTenant().getId())))
         .toList();
+  }
+
+  /**
+   * The tenant whose groups count for this user in the current request, next to platform groups.
+   * Capabilities, {@code user_grants} and the grant checks of the backend all resolve against it,
+   * so a grant applies in the tenant of the group that holds it, and everywhere for a platform
+   * group. Falls back to the default tenant, see {@link #scopedGroups()}.
+   */
+  public String scopedTenantId() {
+    return TenantContext.getCurrentTenant();
   }
 
   @JsonProperty("user_capabilities")

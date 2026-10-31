@@ -38,8 +38,8 @@ class GrantServiceTest {
   void test_hasReadGrant_WHEN_has_read_grant() {
     User user = UserFixture.getUser();
     user.setId(USER_ID);
-    when(grantRepository.existsByUserIdAndResourceIdAndNameIn(
-            USER_ID, RESOURCE_ID, Grant.GRANT_TYPE.OBSERVER.andHigher()))
+    when(grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+            USER_ID, user.scopedTenantId(), RESOURCE_ID, Grant.GRANT_TYPE.OBSERVER.andHigher()))
         .thenReturn(true);
 
     assertTrue(grantService.hasReadGrant(RESOURCE_ID, user));
@@ -49,8 +49,8 @@ class GrantServiceTest {
   void test_hasReadGrant_WHEN_has_no_grant() {
     User user = UserFixture.getUser();
     user.setId(USER_ID);
-    when(grantRepository.existsByUserIdAndResourceIdAndNameIn(
-            USER_ID, RESOURCE_ID, Grant.GRANT_TYPE.OBSERVER.andHigher()))
+    when(grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+            USER_ID, user.scopedTenantId(), RESOURCE_ID, Grant.GRANT_TYPE.OBSERVER.andHigher()))
         .thenReturn(false);
 
     assertFalse(grantService.hasReadGrant(RESOURCE_ID, user));
@@ -60,8 +60,8 @@ class GrantServiceTest {
   void test_hasLaunchGrant_WHEN_has_read_grant() {
     User user = UserFixture.getUser();
     user.setId(USER_ID);
-    when(grantRepository.existsByUserIdAndResourceIdAndNameIn(
-            USER_ID, RESOURCE_ID, Grant.GRANT_TYPE.LAUNCHER.andHigher()))
+    when(grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+            USER_ID, user.scopedTenantId(), RESOURCE_ID, Grant.GRANT_TYPE.LAUNCHER.andHigher()))
         .thenReturn(false);
 
     assertFalse(grantService.hasLaunchGrant(RESOURCE_ID, user));
@@ -71,8 +71,8 @@ class GrantServiceTest {
   void test_hasWriteGrant_WHEN_has_read_grant() {
     User user = UserFixture.getUser();
     user.setId(USER_ID);
-    when(grantRepository.existsByUserIdAndResourceIdAndNameIn(
-            USER_ID, RESOURCE_ID, PLANNER.andHigher()))
+    when(grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+            USER_ID, user.scopedTenantId(), RESOURCE_ID, PLANNER.andHigher()))
         .thenReturn(false);
 
     assertFalse(grantService.hasWriteGrant(RESOURCE_ID, user));
@@ -82,8 +82,8 @@ class GrantServiceTest {
   void test_hasLaunchGrant_WHEN_has_launch_grant() {
     User user = UserFixture.getUser();
     user.setId(USER_ID);
-    when(grantRepository.existsByUserIdAndResourceIdAndNameIn(
-            USER_ID, RESOURCE_ID, Grant.GRANT_TYPE.LAUNCHER.andHigher()))
+    when(grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+            USER_ID, user.scopedTenantId(), RESOURCE_ID, Grant.GRANT_TYPE.LAUNCHER.andHigher()))
         .thenReturn(true);
 
     assertTrue(grantService.hasLaunchGrant(RESOURCE_ID, user));
@@ -93,8 +93,8 @@ class GrantServiceTest {
   void test_hasWriteGrant_WHEN_has_write_grant() {
     User user = UserFixture.getUser();
     user.setId(USER_ID);
-    when(grantRepository.existsByUserIdAndResourceIdAndNameIn(
-            USER_ID, RESOURCE_ID, PLANNER.andHigher()))
+    when(grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+            USER_ID, user.scopedTenantId(), RESOURCE_ID, PLANNER.andHigher()))
         .thenReturn(true);
 
     assertTrue(grantService.hasWriteGrant(RESOURCE_ID, user));

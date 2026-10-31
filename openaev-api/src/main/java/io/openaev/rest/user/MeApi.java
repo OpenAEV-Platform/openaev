@@ -46,7 +46,7 @@ import org.springframework.web.bind.annotation.*;
 public class MeApi extends RestBehavior {
 
   public static final String ME_URI = "/api/me";
-  private static final String TENANT_ME_URI = TENANT_PREFIX + "/me";
+  public static final String TENANT_ME_URI = TENANT_PREFIX + "/me";
 
   private final SessionManager sessionManager;
   private final OpenAEVConfig openAEVConfig;

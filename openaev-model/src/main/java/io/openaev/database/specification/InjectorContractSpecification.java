@@ -57,6 +57,7 @@ public class InjectorContractSpecification {
                   query,
                   cb,
                   currentUser.getId(),
+                  currentUser.scopedTenantId(),
                   Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
                   Grant.GRANT_TYPE.OBSERVER.andHigher()));
     };
