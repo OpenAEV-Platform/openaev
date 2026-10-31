@@ -133,6 +133,13 @@ public class TenantScopedTransaction {
               + " transaction is active. It only makes sense inside an ambient transaction opened"
               + " by the caller.");
     }
+    if (ctx instanceof TxCtx.Missing) {
+      // Narrowing only: drops the scope a previous caller left on this transaction, so every
+      // following read of an activated table is denied.
+      setScope(ctx.toGuc());
+      setMarkingScope(MarkingCtx.none().toGuc());
+      return;
+    }
     TxCtx resolved = intentionResolver.resolve(ctx);
     setScope(resolved.toGuc());
     setMarkingScope(systemClearance(resolved).toGuc());
