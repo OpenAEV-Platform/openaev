@@ -670,6 +670,13 @@ export interface AssetBulkProcessingInput {
   search_pagination_input?: SearchPaginationInput;
 }
 
+export interface AssetBulkReplaceMarkingsInput {
+  asset_ids_to_ignore?: string[];
+  asset_ids_to_process?: string[];
+  marking_ids: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface AssetGroup {
   asset_group_assets?: string[];
   /** @format date-time */
@@ -11029,8 +11036,7 @@ export interface RoleInput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -11115,8 +11121,7 @@ export interface RoleOutput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -13403,8 +13408,7 @@ export interface User {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"

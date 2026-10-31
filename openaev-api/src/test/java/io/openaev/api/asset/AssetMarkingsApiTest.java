@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
@@ -57,16 +58,12 @@ import org.springframework.transaction.annotation.Transactional;
  * ground truth of what actually reached the column.
  */
 @Transactional
-@WithMockUser(
-    withCapabilities = {
-      Capability.MANAGE_ASSETS,
-      Capability.ASSIGN_MARKING,
-      Capability.DELETE_MARKING_ASSIGNMENT
-    })
+@WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS, Capability.MANAGE_MARKING_ASSIGNMENT})
 @DisplayName("Asset markings API")
 class AssetMarkingsApiTest extends IntegrationTest {
 
   private static final String ASSET_URI = "/api/assets";
+  private static final String TENANT_ASSET_URI = "/api/tenants/{tenantId}/assets";
 
   @Autowired private MockMvc mvc;
   @Autowired private DataSource dataSource;
@@ -83,6 +80,7 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
   private MarkingDefinition green;
   private MarkingDefinition red;
+  private MarkingDefinition yellow;
   private Endpoint asset;
 
   @BeforeEach
@@ -101,6 +99,7 @@ class AssetMarkingsApiTest extends IntegrationTest {
     // Orders above the seeded 10..50 band so a fixture never ties with a default.
     green = marking(60);
     red = marking(70);
+    yellow = marking(65);
 
     asset =
         endpointComposer
@@ -120,11 +119,16 @@ class AssetMarkingsApiTest extends IntegrationTest {
     // grant below can reference them.
     entityManager.flush();
 
-    // The caller holds GREEN and nothing above it — the whole point of the negative cases.
+    // The caller holds GREEN and YELLOW, and nothing above them — the whole point of the negative
+    // cases (RED is never granted here).
     jdbc.update(
         "INSERT INTO groups_markings (group_id, marking_id) VALUES (?, ?)",
         group.getId(),
         green.getId());
+    jdbc.update(
+        "INSERT INTO groups_markings (group_id, marking_id) VALUES (?, ?)",
+        group.getId(),
+        yellow.getId());
     clearanceCache.evictForUser(userId);
   }
 
@@ -218,12 +222,159 @@ class AssetMarkingsApiTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("bulk replacing markings")
+  class BulkReplacing {
+
+    @Test
+    @DisplayName("given an asset with existing markings, should replace the whole set")
+    void given_existingMarkings_should_replaceWholeSet() throws Exception {
+      // -- ARRANGE --
+      // Set out of band, bypassing the single-asset escalation guard, purely to arrange fixture
+      // state - GREEN must not survive the replace, unlike a merge.
+      entityManager.flush();
+      jdbc.update(
+          "UPDATE assets SET marking_ids = ? WHERE asset_id = ?",
+          (Object) new String[] {green.getId()},
+          asset.getId());
+      entityManager.clear();
+
+      // -- ACT --
+      bulkReplaceMarkings(List.of(asset.getId()), List.of(yellow.getId()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertArrayEquals(new String[] {yellow.getId()}, storedMarkings());
+    }
+
+    @Test
+    @DisplayName("given an empty list, should clear the markings of every selected asset")
+    void given_emptyList_should_clearMarkings() throws Exception {
+      // -- ARRANGE --
+      entityManager.flush();
+      jdbc.update(
+          "UPDATE assets SET marking_ids = ? WHERE asset_id = ?",
+          (Object) new String[] {green.getId()},
+          asset.getId());
+      entityManager.clear();
+
+      // -- ACT --
+      bulkReplaceMarkings(List.of(asset.getId()), List.of()).andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertEquals(0, storedMarkings().length);
+    }
+
+    @Test
+    @DisplayName(
+        "given a marking the caller does not hold, should refuse with 403 and touch nothing")
+    void given_unheldMarking_should_forbid() throws Exception {
+      // -- ACT / ASSERT --
+      bulkReplaceMarkings(List.of(asset.getId()), List.of(red.getId()))
+          .andExpect(status().isForbidden());
+      assertEquals(0, storedMarkings().length, "a refused replace must not touch the column");
+    }
+
+    @Test
+    @DisplayName("given an unknown marking id, should report not found")
+    void given_unknownMarking_should_notFound() throws Exception {
+      // -- ACT / ASSERT --
+      bulkReplaceMarkings(List.of(asset.getId()), List.of("does-not-exist"))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "given the caller lacks MANAGE_MARKING_ASSIGNMENT, should refuse an addition with 403")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_noMarkingCapability_withAddition_should_forbid() throws Exception {
+      // -- ACT / ASSERT --
+      // The asset starts unmarked, so replacing with GREEN is a pure addition - still gated by
+      // MANAGE_MARKING_ASSIGNMENT, mirrored from the single-asset endpoint's own diff.
+      bulkReplaceMarkings(List.of(asset.getId()), List.of(green.getId()))
+          .andExpect(status().isForbidden());
+      assertEquals(0, storedMarkings().length);
+    }
+
+    @Test
+    @DisplayName(
+        "given the caller lacks MANAGE_MARKING_ASSIGNMENT, should refuse a removal with 403")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_noMarkingCapability_withRemoval_should_forbid() throws Exception {
+      // -- ARRANGE --
+      entityManager.flush();
+      jdbc.update(
+          "UPDATE assets SET marking_ids = ? WHERE asset_id = ?",
+          (Object) new String[] {green.getId()},
+          asset.getId());
+      entityManager.clear();
+
+      // -- ACT / ASSERT --
+      // GREEN dropped, nothing added - a pure removal, still gated by MANAGE_MARKING_ASSIGNMENT.
+      bulkReplaceMarkings(List.of(asset.getId()), List.of()).andExpect(status().isForbidden());
+      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
+    }
+
+    @Test
+    @DisplayName(
+        "given an asset marked above the caller's clearance, should silently exclude it from the"
+            + " scope")
+    void given_assetAboveClearance_should_excludeFromScope() throws Exception {
+      // -- ARRANGE --
+      // Seeded out of band: an ORM write of RED would itself be blocked, which is the guard
+      // working but useless for arranging the fixture.
+      entityManager.flush();
+      jdbc.update(
+          "UPDATE assets SET marking_ids = ? WHERE asset_id = ?",
+          (Object) new String[] {red.getId()},
+          asset.getId());
+      entityManager.clear();
+
+      // -- ACT / ASSERT --
+      // The scope-resolution query is itself marking-filtered (is_marking_set_allowed), so this
+      // asset is invisible to it - a no-op, not an error: 2xx with nothing touched.
+      bulkReplaceMarkings(List.of(asset.getId()), List.of(green.getId()))
+          .andExpect(status().is2xxSuccessful());
+      assertArrayEquals(new String[] {red.getId()}, storedMarkings());
+    }
+
+    @Test
+    @DisplayName("given neither explicit ids nor a search input, should return a bad request")
+    void given_noSelection_should_returnBadRequest() throws Exception {
+      // -- PREPARE --
+      AssetBulkReplaceMarkingsInput input = new AssetBulkReplaceMarkingsInput();
+      input.setMarkingIds(List.of(green.getId()));
+
+      // -- ACT / ASSERT --
+      mvc.perform(
+              put(TENANT_ASSET_URI + "/markings/bulk", tenantId)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+  }
+
   // -- HELPERS --
 
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
     return mvc.perform(
-        put(ASSET_URI + "/" + asset.getId() + "/markings")
+        put(TENANT_ASSET_URI + "/{assetId}/markings", tenantId, asset.getId())
             .content(asJsonString(new AssetUpdateMarkingsInput(markingIds)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
+  }
+
+  private ResultActions bulkReplaceMarkings(List<String> assetIds, List<String> markingIds)
+      throws Exception {
+    AssetBulkReplaceMarkingsInput input = new AssetBulkReplaceMarkingsInput();
+    input.setAssetIdsToProcess(assetIds);
+    input.setMarkingIds(markingIds);
+    return mvc.perform(
+        put(TENANT_ASSET_URI + "/markings/bulk", tenantId)
+            .content(asJsonString(input))
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
             .with(csrf()));

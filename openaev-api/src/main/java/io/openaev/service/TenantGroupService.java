@@ -225,15 +225,8 @@ public class TenantGroupService {
    *       than a silent partial assignment.
    *   <li><b>Escalation.</b> {@link MarkingEscalationValidator} — you may not grant what you do not
    *       hold. Without it, "may manage groups" would quietly mean "may read every marked row".
-   *   <li><b>Capability, per direction actually used.</b> Computed from the diff between the
-   *       payload and the group's current markings (read before {@code setMarkings} overwrites it):
-   *       removing a currently-granted marking requires {@code DELETE_MARKING_ASSIGNMENT}, adding
-   *       one not currently granted requires {@code ASSIGN_MARKING} - either, both, or neither,
-   *       depending on what this particular payload changes. An empty payload against a group that
-   *       currently grants anything is a pure removal and so needs only {@code
-   *       DELETE_MARKING_ASSIGNMENT}; a payload that both drops one marking and adds another needs
-   *       both capabilities, independently - this is additive to the group's own {@code WRITE}
-   *       control checked at the API layer, not a replacement for it.
+   *   <li><b>Capability, only if the set actually changes.</b> Any add or remove requires {@code
+   *       MANAGE_MARKING_ASSIGNMENT}, additive to the group's own {@code WRITE} control.
    * </ol>
    *
    * <p>🔴 The eviction at the end is not an optimisation. A cached clearance is pure set
@@ -272,15 +265,10 @@ public class TenantGroupService {
     Set<String> addedIds = new HashSet<>(uniqueMarkingIds);
     addedIds.removeAll(currentMarkingIds);
 
-    if (!removedIds.isEmpty()
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.DELETE)) {
-      throw new ForbiddenException("Missing the DELETE_MARKING_ASSIGNMENT capability");
-    }
-    if (!addedIds.isEmpty()
+    if ((!removedIds.isEmpty() || !addedIds.isEmpty())
         && !permissionService.hasCapabilityPermission(
             currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
-      throw new ForbiddenException("Missing the ASSIGN_MARKING capability");
+      throw new ForbiddenException("Missing the MANAGE_MARKING_ASSIGNMENT capability");
     }
 
     Set<String> affected = new LinkedHashSet<>(group.getUsers().stream().map(User::getId).toList());

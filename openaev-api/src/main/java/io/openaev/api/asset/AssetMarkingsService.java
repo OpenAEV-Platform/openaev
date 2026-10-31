@@ -1,9 +1,13 @@
 package io.openaev.api.asset;
 
+import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
 
+import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.BulkOperationContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.MarkingDefinition;
@@ -13,10 +17,15 @@ import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.service.AssetService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
+import io.openaev.service.utils.BulkDeleteChunkRunner;
+import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.telemetry.metric_collectors.MarkingMetricCollector;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -27,6 +36,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Writes the markings carried by an asset (design step 3.3).
@@ -34,13 +44,16 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>The counterpart to {@code TenantGroupService.updateGroupMarkings}: that one grants a
  * <i>clearance</i> to a group, this one puts a <i>label</i> on a row. Both go through the same
  * {@link io.openaev.service.marking.MarkingEscalationValidator} and the same diff-based {@code
- * ASSIGN_MARKING}/{@code DELETE_MARKING_ASSIGNMENT} capability check, for the same reason — a
- * boundary you can widen for yourself is not a boundary.
+ * MANAGE_MARKING_ASSIGNMENT} capability check, for the same reason — a boundary you can widen for
+ * yourself is not a boundary.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AssetMarkingsService {
+
+  /** Small chunks keep each chunk's transaction - and the row locks it holds - short. */
+  private static final int CHUNK_SIZE = 25;
 
   private final AssetRepository assetRepository;
   private final MarkingDefinitionRepository markingDefinitionRepository;
@@ -48,6 +61,10 @@ public class AssetMarkingsService {
   private final UserService userService;
   private final PermissionService permissionService;
   private final MarkingMetricCollector markingMetricCollector;
+  private final AssetService assetService;
+  private final BulkOperationMonitor bulkOperationMonitor;
+  private final BulkDeleteChunkRunner chunkRunner;
+  private final EntityManager entityManager;
 
   /**
    * Replaces an asset's marking set.
@@ -62,12 +79,8 @@ public class AssetMarkingsService {
    *   <li><b>Escalation.</b> {@link io.openaev.service.marking.MarkingEscalationValidator} — you
    *       may not assign what you do not hold. Without it, "may write assets" would quietly mean
    *       "may read every marked row".
-   *   <li><b>Capability, per direction actually used.</b> Computed from the diff between the
-   *       payload and the asset's current markings (read before the array is overwritten): removing
-   *       a currently-carried marking requires {@code DELETE_MARKING_ASSIGNMENT}, adding one not
-   *       currently carried requires {@code ASSIGN_MARKING} - either, both, or neither, depending
-   *       on what this particular payload changes. This is additive to the asset's own {@code
-   *       WRITE} control checked at the API layer, not a replacement for it.
+   *   <li><b>Capability, only if the set actually changes.</b> Any add or remove requires {@code
+   *       MANAGE_MARKING_ASSIGNMENT}, additive to the asset's own {@code WRITE} control.
    * </ol>
    *
    * <p>🔴 <b>No cache eviction here, deliberately.</b> The rewritten predicate is {@code
@@ -121,16 +134,7 @@ public class AssetMarkingsService {
     Set<String> addedIds = new HashSet<>(uniqueMarkingIds);
     addedIds.removeAll(previous);
 
-    if (!removedIds.isEmpty()
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.DELETE)) {
-      throw new ForbiddenException("Missing the DELETE_MARKING_ASSIGNMENT capability");
-    }
-    if (!addedIds.isEmpty()
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
-      throw new ForbiddenException("Missing the ASSIGN_MARKING capability");
-    }
+    assertMarkingAssignmentCapability(currentUser, !removedIds.isEmpty() || !addedIds.isEmpty());
 
     logDeclassification(asset, currentUser, previous, uniqueMarkingIds);
 
@@ -139,6 +143,15 @@ public class AssetMarkingsService {
 
     asset.setMarkingIds(uniqueMarkingIds.toArray(String[]::new));
     return assetRepository.save(asset);
+  }
+
+  /** Checks {@code MANAGE_MARKING_ASSIGNMENT} when a precomputed diff shows an actual change. */
+  private void assertMarkingAssignmentCapability(User currentUser, boolean anyChanged) {
+    if (anyChanged
+        && !permissionService.hasCapabilityPermission(
+            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
+      throw new ForbiddenException("Missing the MANAGE_MARKING_ASSIGNMENT capability");
+    }
   }
 
   /**
@@ -162,5 +175,149 @@ public class AssetMarkingsService {
         actor.getId(),
         removed,
         requested);
+  }
+
+  /**
+   * Bulk mirror of {@link #updateAssetMarkings}, chunk by chunk, re-verifying capability and
+   * escalation per chunk under a row lock.
+   *
+   * @param tenantId the tenant whose clearance the caller is checked against
+   * @return the ids of the assets whose markings were updated
+   */
+  public List<String> bulkReplaceAssetMarkings(
+      final TxCtx ctx,
+      @NotBlank final String tenantId,
+      @NotNull final AssetBulkReplaceMarkingsInput input) {
+    Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.getMarkingIds());
+
+    List<MarkingDefinition> markings =
+        chunkRunner.call(
+            ctx,
+            () -> {
+              List<MarkingDefinition> found = new ArrayList<>();
+              markingDefinitionRepository.findAllById(uniqueMarkingIds).forEach(found::add);
+              if (found.size() != uniqueMarkingIds.size()) {
+                throw new ElementNotFoundException(
+                    "One or more marking definitions not found in the current tenant");
+              }
+              return found;
+            });
+
+    User currentUser = userService.currentUser();
+    assertCanAssignMarkings(
+        markingClearanceCacheManager.findClearance(
+            currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
+        markings);
+
+    List<String> assetIds = assetService.resolveBulkAssetIds(ctx, input);
+    if (assetIds.isEmpty()) {
+      return List.of();
+    }
+    // Deterministic order: two concurrent bulk operations with overlapping scopes acquire their row
+    // locks in the same order instead of deadlocking each other.
+    List<String> sortedIds = assetIds.stream().sorted().toList();
+
+    // See the class javadoc above: only a chunk that actually commits on its own may have its
+    // persistence context cleared afterward - a chunk nested inside an already-open transaction
+    // (e.g. a transactional test) has not flushed yet, and clearing would silently drop its write.
+    boolean clearBetweenChunks = !TransactionSynchronizationManager.isActualTransactionActive();
+
+    boolean anyChanged =
+        findBulkMarkingChange(ctx, sortedIds, uniqueMarkingIds, clearBetweenChunks);
+    assertMarkingAssignmentCapability(currentUser, anyChanged);
+
+    String operationId = bulkOperationMonitor.start("replace-markings", "assets", sortedIds.size());
+    try {
+      for (int start = 0; start < sortedIds.size(); start += CHUNK_SIZE) {
+        List<String> chunk =
+            sortedIds.subList(start, Math.min(start + CHUNK_SIZE, sortedIds.size()));
+        // The suppression scope wraps the transaction proxy call (not just the work): lifecycle
+        // events also fire during the commit-time flush, inside chunkRunner.call.
+        // findAllByIdForUpdate row-locks this chunk so the capability re-check below sees fresh
+        // state, not the upfront scan's now-possibly-stale snapshot.
+        BulkOperationContext.runSuppressed(
+            () ->
+                chunkRunner.call(
+                    ctx,
+                    () -> {
+                      List<Asset> assets =
+                          fromIterable(assetRepository.findAllByIdForUpdate(chunk));
+                      List<Set<String>> previousByAsset = new ArrayList<>(assets.size());
+                      boolean chunkAnyChanged = false;
+                      for (Asset asset : assets) {
+                        Set<String> previous =
+                            asset.getMarkingIds() == null
+                                ? Set.of()
+                                : Set.copyOf(Arrays.asList(asset.getMarkingIds()));
+                        previousByAsset.add(previous);
+                        chunkAnyChanged = chunkAnyChanged || !previous.equals(uniqueMarkingIds);
+                      }
+                      assertMarkingAssignmentCapability(currentUser, chunkAnyChanged);
+
+                      int added = 0;
+                      int removed = 0;
+                      for (int i = 0; i < assets.size(); i++) {
+                        Asset asset = assets.get(i);
+                        Set<String> previous = previousByAsset.get(i);
+                        Set<String> removedIds = new HashSet<>(previous);
+                        removedIds.removeAll(uniqueMarkingIds);
+                        Set<String> addedIds = new HashSet<>(uniqueMarkingIds);
+                        addedIds.removeAll(previous);
+
+                        logDeclassification(asset, currentUser, previous, uniqueMarkingIds);
+                        asset.setMarkingIds(uniqueMarkingIds.toArray(String[]::new));
+                        added += addedIds.size();
+                        removed += removedIds.size();
+                      }
+                      markingMetricCollector.recordAssetMarkingsAssigned(added);
+                      markingMetricCollector.recordAssetMarkingsUnassigned(removed);
+                      return fromIterable(assetRepository.saveAll(assets));
+                    }));
+        // With open-session-in-view the request session outlives each chunk transaction: clear it
+        // so updated assets (and their eagerly-fetched agents, see Endpoint.agents) do not
+        // accumulate in the persistence context across a large bulk - same as
+        // BulkDeleteExecutor.deleteInChunks. Skipped when nested in an already-open transaction
+        // (see clearBetweenChunks above): that chunk never actually committed, so its write is
+        // still unflushed and clearing now would discard it instead of merely detaching it.
+        if (clearBetweenChunks) {
+          entityManager.clear();
+        }
+        bulkOperationMonitor.progress(operationId, chunk.size());
+      }
+      bulkOperationMonitor.complete(operationId);
+    } catch (RuntimeException e) {
+      bulkOperationMonitor.fail(operationId);
+      throw e;
+    }
+    return sortedIds;
+  }
+
+  /** Whether any asset in the scope would have its marking set change, scanned batch by batch. */
+  private boolean findBulkMarkingChange(
+      TxCtx ctx, List<String> assetIds, Set<String> requested, boolean clearBetweenChunks) {
+    for (int start = 0; start < assetIds.size(); start += CHUNK_SIZE) {
+      List<String> batch = assetIds.subList(start, Math.min(start + CHUNK_SIZE, assetIds.size()));
+      boolean batchChanged = chunkRunner.call(ctx, () -> findBatchMarkingChange(batch, requested));
+      if (clearBetweenChunks) {
+        entityManager.clear();
+      }
+      if (batchChanged) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean findBatchMarkingChange(List<String> assetIds, Set<String> requested) {
+    for (Asset asset : fromIterable(assetRepository.findAllById(assetIds))) {
+      Set<String> previous =
+          asset.getMarkingIds() == null
+              ? Set.of()
+              : Set.copyOf(Arrays.asList(asset.getMarkingIds()));
+      if (!previous.equals(requested)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
