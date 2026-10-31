@@ -82,6 +82,7 @@ public class ExecutionExecutorServiceTest {
             null,
             endpointService,
             null,
+            null,
             null);
     executorService =
         new ExecutionExecutorService(
