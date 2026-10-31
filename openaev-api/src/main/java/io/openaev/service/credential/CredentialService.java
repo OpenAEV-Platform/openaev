@@ -66,6 +66,31 @@ public class CredentialService {
   }
 
   /**
+   * Counts the credentials of every tenant, grouped by type, auth method and connectivity status.
+   * Platform-wide on purpose, for telemetry.
+   *
+   * @return rows of {@code [credentialType, credentialAuthMethod, status, count]}
+   */
+  @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
+  public List<Object[]> globalCountByTypeAuthMethodAndStatus() {
+    return tenantTx.execute(
+        TxCtx.allTenants(),
+        credentialSecretReferenceRepository::globalCountByTypeAuthMethodAndStatus);
+  }
+
+  /**
+   * Counts the injects of every tenant that reference at least one credential. Platform-wide on
+   * purpose, for telemetry.
+   *
+   * @return the number of distinct injects with a credential
+   */
+  @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
+  public long globalCountInjectsWithCredentials() {
+    return tenantTx.execute(
+        TxCtx.allTenants(), credentialSecretReferenceRepository::globalCountInjectsWithCredentials);
+  }
+
+  /**
    * Returns supported credential form contracts.
    *
    * @return supported credential contracts
