@@ -45,6 +45,8 @@ const EnterpriseEditionSettings: React.FC = () => {
   // Enterprise Edition granted by the verified XTM license of the connected XTM One: there is no
   // OpenAEV license to disable, only one to install (which then takes precedence).
   const isXtmOneLicense = settings.platform_license?.license_source === 'xtm_one';
+  // A Filigran license installed as this platform's own license.
+  const isFiligranLicense = settings.platform_license?.license_source === 'filigran';
   const canManageSettings = ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
   const updateEnterpriseEdition = (data: SettingsEnterpriseEditionUpdateInput) => dispatch(updatePlatformEnterpriseEditionParameters(data));
 
@@ -111,12 +113,16 @@ const EnterpriseEditionSettings: React.FC = () => {
             <div>
               {isXtmOneLicense && (
                 <Alert severity="info" variant="outlined" sx={{ marginY: 1 }}>
-                  {t('Enterprise Edition is granted by the XTM license of the connected XTM One, verified against the Filigran certificate authority.')}
+                  {t('Enterprise Edition is granted by the Filigran license of the connected XTM One, verified against the Filigran certificate authority.')}
                 </Alert>
               )}
               <ExperienceDetailRow label={t('License source')}>
                 <InfoChip
-                  label={isXtmOneLicense ? t('XTM One license') : t('OpenAEV license')}
+                  label={(() => {
+                    if (isXtmOneLicense) return t('Filigran license (through XTM One)');
+                    if (isFiligranLicense) return t('Filigran license');
+                    return t('OpenAEV license');
+                  })()}
                   tone="accent"
                 />
               </ExperienceDetailRow>

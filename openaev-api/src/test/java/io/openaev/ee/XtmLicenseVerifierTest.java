@@ -484,6 +484,14 @@ class XtmLicenseVerifierTest {
       assertRefused(pem, "does not sub-license this platform");
     }
 
+    @Test
+    @DisplayName("Given an empty OpenAEV sub-license (module unchecked) should refuse")
+    void given_emptySubLicense_should_refuse() throws Exception {
+      String pem = new LicenseCertificate().subLicense("[]").pem();
+
+      assertRefused(pem, "does not sub-license this platform");
+    }
+
     @ParameterizedTest(name = "sub-license {0}")
     @ValueSource(
         strings = {"global", "[\"global\"] trailing", "{\"ids\": [\"global\"]}", "[1, true, null]"})
@@ -817,6 +825,20 @@ class XtmLicenseVerifierTest {
               "43:6E:0B:82:14:0F:43:CA:0E:15:3F:1B:27:AC:E3:B3:88:F1:9F:24:BC:6C:36:6E:C1:24:91:87:45:BC:40:64");
       assertThat(HexFormat.of().formatHex(keyDigest))
           .isEqualTo("9ef09cc6ab116344afd1a47ae5b777842b8c44fae78d223440d19bb7bc7d84ec");
+    }
+
+    @Test
+    @DisplayName("Given a Filigran license installed in OpenAEV should read as a filigran license")
+    void given_installedFiligranLicense_should_readAsFiligranSource() throws Exception {
+      XtmLicense license = verify(new LicenseCertificate().pem());
+
+      License installed = license.toLicense(NOW, LicenseSource.filigran);
+      License fromXtmOne = license.toLicense(NOW);
+
+      assertThat(installed.getSource()).isEqualTo(LicenseSource.filigran);
+      assertThat(installed.isLicenseValidated()).isTrue();
+      assertThat(installed.isGlobalLicense()).isTrue();
+      assertThat(fromXtmOne.getSource()).isEqualTo(LicenseSource.xtm_one);
     }
 
     @Test

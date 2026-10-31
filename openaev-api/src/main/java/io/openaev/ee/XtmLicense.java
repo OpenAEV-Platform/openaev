@@ -59,10 +59,19 @@ public record XtmLicense(
    * grants is in its grace period.
    */
   public License toLicense(Instant now) {
+    return toLicense(now, LicenseSource.xtm_one);
+  }
+
+  /**
+   * The platform license this Filigran license stands for, with where it comes from: {@code
+   * xtm_one} for the certificate of the XTM One registration answer, {@code filigran} for one
+   * installed as this platform's own license.
+   */
+  public License toLicense(Instant now, LicenseSource source) {
     boolean active = isActiveAt(now);
     boolean expired = now.isAfter(expirationDate);
     License license = new License();
-    license.setSource(LicenseSource.xtm_one);
+    license.setSource(source);
     license.setLicenseEnterprise(true);
     license.setValidCert(true);
     license.setValidProduct(true);
