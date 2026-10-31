@@ -7,11 +7,15 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Action;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.User;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -28,15 +32,21 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
 import io.openaev.schema.SchemaUtils;
 import io.openaev.schema.model.PropertySchemaDTO;
+import io.openaev.service.PermissionService;
+import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -53,7 +63,19 @@ public class ThreatArsenalService {
   private final ThreatArsenalMapper threatArsenalMapper;
   private final DetectionRemediationService detectionRemediationService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final AmbientTenantBridge ambientTenantBridge;
   private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
+  private final UserService userService;
+
+  // PermissionService pulls in InjectService, which depends on this service, so a plain
+  // constructor-injected field here is a circular bean dependency. @Lazy setter injection (same
+  // pattern as TenantGroupService.setPermissionService) defers resolving it until first use.
+  private PermissionService permissionService;
+
+  @Autowired
+  public void setPermissionService(@Lazy PermissionService permissionService) {
+    this.permissionService = permissionService;
+  }
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -454,22 +476,50 @@ public class ThreatArsenalService {
    * deleted (payload-based, and - for collector-sourced payloads - only when deprecated), mirroring
    * the per-row delete eligibility. Non-eligible actions are silently skipped.
    *
-   * <p>Deliberately NOT transactional as a whole: the scope and eligibility are resolved in a short
-   * read transaction, then the actions are deleted in small independent chunks through {@link
+   * <p>Deliberately NOT transactional as a whole: in each tenant, the eligibility is resolved in a
+   * short read transaction, then the actions are deleted in small independent chunks through {@link
    * BulkDeleteExecutor}, which also tracks the deletion as a massive operation (header progress
    * indicator) and suppresses the per-entity stream events.
    *
-   * @param ctx the tenant scope for the read transaction and each chunk transaction (the eligible
-   *     resolution and every chunk read/write InjectorContract#getInjectorType()/getPayload()
-   *     through the v2 tenant-scoped injectors table)
+   * <p>Only the items of the tenants in the request scope are considered, one tenant at a time: an
+   * item is resolved, judged and deleted in its own tenant. The ambient tenant follows that tenant
+   * for the injector contracts, and every read and chunk transaction carries its scope for the
+   * injectors and payloads that InjectorContract#getInjectorType()/getPayload() resolve through. A
+   * tenant where the caller does not hold the delete right is skipped: the endpoint's access check
+   * only sees the request's own tenant, while the scope can name others.
+   *
+   * @param ctx the request scope, which bounds the tenants the items are deleted from
    * @param input the search + selection input
    * @return the ids that were actually deleted
    */
   public List<String> bulkDelete(TxCtx ctx, InjectorContractSearchPaginationInput input) {
+    User caller = userService.currentUser();
+    List<String> deletedIds = new ArrayList<>();
+    for (String tenantId : TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx).stream().sorted().toList()) {
+      deletedIds.addAll(
+          ambientTenantBridge.callInTenant(
+              tenantId,
+              () ->
+                  mayDeleteInTenant(caller, tenantId)
+                      ? bulkDeleteInTenant(tenantId, input)
+                      : List.of()));
+    }
+    return deletedIds.stream().distinct().sorted().toList();
+  }
+
+  /** The decision the endpoint's access check takes, read in the given tenant. */
+  private boolean mayDeleteInTenant(User caller, String tenantId) {
+    return permissionService.hasPermissionInTenant(
+        TxCtx.forTenant(tenantId), caller, "", ResourceType.THREAT_ARSENAL, Action.DELETE);
+  }
+
+  private List<String> bulkDeleteInTenant(
+      String tenantId, InjectorContractSearchPaginationInput input) {
+    TxCtx tenantScope = TxCtx.forTenant(tenantId);
     List<String> eligibleIds =
-        bulkDeleteExecutor.resolveInTransaction(ctx, () -> resolveEligibleIds(input));
+        bulkDeleteExecutor.resolveInTransaction(tenantScope, () -> resolveEligibleIds(input));
     return bulkDeleteExecutor.deleteInChunks(
-        ctx,
+        tenantScope,
         "threat arsenal items",
         eligibleIds,
         chunk -> chunk.forEach(injectorContractService::deleteInjectorContractById));
