@@ -44,6 +44,15 @@ public final class CredentialMapper {
         .gcpOauthClientId(secretMetadata.gcpOauthClientId())
         .gcpOauthClientSecretDefined(secretMetadata.gcpOauthClientSecretDefined())
         .gcpOauthRefreshTokenDefined(secretMetadata.gcpOauthRefreshTokenDefined())
+        .awsAccountId(secretMetadata.awsAccountId())
+        .awsEndpointUrl(secretMetadata.awsEndpointUrl())
+        .gcpCustomTokenUri(secretMetadata.gcpCustomTokenUri())
+        .gcpCustomProjectsUri(secretMetadata.gcpCustomProjectsUri())
+        .gcpCustomResourceManagerUri(secretMetadata.gcpCustomResourceManagerUri())
+        .gcpCustomIamUri(secretMetadata.gcpCustomIamUri())
+        .gcpCustomOauthAccessTokenDefined(secretMetadata.gcpCustomOauthAccessTokenDefined())
+        .azureAuthorityHostUri(secretMetadata.azureAuthorityHostUri())
+        .azureRequestsCertificateDefined(secretMetadata.azureRequestsCertificateDefined())
         .build();
   }
 

@@ -75,6 +75,14 @@ public class AwsAssumeRoleHandler implements SecretHandler {
                   "request.awsSourceProfileSecretAccessKey must not be null")));
     }
 
+    if (request.awsAccountId() != null) {
+      awsSecret.setAwsAccountId(SecretHandler.blankToNull(request.awsAccountId()));
+    }
+
+    if (request.awsEndpointUrl() != null) {
+      awsSecret.setAwsEndpointUrl(SecretHandler.blankToNull(request.awsEndpointUrl()));
+    }
+
     if (awsSecret.getAwsDefaultRegion() == null
         || awsSecret.getAwsRoleArn() == null
         || awsSecret.getAwsSourceIdentityType() == null) {
@@ -99,7 +107,9 @@ public class AwsAssumeRoleHandler implements SecretHandler {
           awsAssumeRoleSecret.getAwsDefaultRegion(),
           awsAssumeRoleSecret.getAwsRoleArn(),
           awsAssumeRoleSecret.getAwsSourceIdentityType(),
-          awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId());
+          awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId(),
+          awsAssumeRoleSecret.getAwsAccountId(),
+          awsAssumeRoleSecret.getAwsEndpointUrl());
     }
     throw new IllegalArgumentException("Secret type mismatch: expected AWS_ASSUME_ROLE secret");
   }
@@ -126,7 +136,9 @@ public class AwsAssumeRoleHandler implements SecretHandler {
         awsAssumeRoleSecret.getAwsSourceIdentityType(),
         externalId,
         awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId(),
-        sourceProfileSecretAccessKey);
+        sourceProfileSecretAccessKey,
+        awsAssumeRoleSecret.getAwsAccountId(),
+        awsAssumeRoleSecret.getAwsEndpointUrl());
   }
 
   @Override

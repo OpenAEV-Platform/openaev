@@ -41,9 +41,13 @@ public class CredentialApi extends RestBehavior {
   /** Name of the multipart part carrying the GCP service account key file. */
   public static final String GCP_PRIVATE_KEY_PART = "gcp_private_key_json";
 
+  /** Name of the multipart part carrying the Azure requests certificate file. */
+  public static final String AZURE_REQUESTS_CERTIFICATE_PART = "azure_requests_certificate";
+
   /**
-   * Upper bound on the key file. A Google service account key weighs about 2.3 KB; 16 KB leaves
-   * room for formatting variations while keeping the endpoint useless as an upload DoS vector.
+   * Upper bound on an uploaded credential file. A Google service account key weighs about 2.3 KB
+   * and a PEM certificate chain a few KB; 16 KB leaves room for formatting variations while keeping
+   * the endpoint useless as an upload DoS vector.
    */
   public static final long MAX_CREDENTIAL_FILE_SIZE_BYTES = 16L * 1024;
 
@@ -100,9 +104,12 @@ public class CredentialApi extends RestBehavior {
   public CredentialOutput createCredential(
       TxCtx ctx,
       @Valid @RequestPart("input") CredentialInput input,
-      @RequestPart(value = GCP_PRIVATE_KEY_PART) Optional<MultipartFile> gcpPrivateKeyJson) {
+      @RequestPart(value = GCP_PRIVATE_KEY_PART) Optional<MultipartFile> gcpPrivateKeyJson,
+      @RequestPart(value = AZURE_REQUESTS_CERTIFICATE_PART)
+          Optional<MultipartFile> azureRequestsCertificate) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return credentialService.createCredential(input, tenantId, readKeyFile(gcpPrivateKeyJson));
+    return credentialService.createCredential(
+        input, tenantId, readFilePart(gcpPrivateKeyJson), readFilePart(azureRequestsCertificate));
   }
 
   @PutMapping(path = "/{credentialId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -116,15 +123,21 @@ public class CredentialApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String credentialId,
       @Valid @RequestPart("input") CredentialInput input,
-      @RequestPart(value = GCP_PRIVATE_KEY_PART) Optional<MultipartFile> gcpPrivateKeyJson) {
+      @RequestPart(value = GCP_PRIVATE_KEY_PART) Optional<MultipartFile> gcpPrivateKeyJson,
+      @RequestPart(value = AZURE_REQUESTS_CERTIFICATE_PART)
+          Optional<MultipartFile> azureRequestsCertificate) {
 
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return credentialService.updateCredential(
-        credentialId, input, tenantId, readKeyFile(gcpPrivateKeyJson));
+        credentialId,
+        input,
+        tenantId,
+        readFilePart(gcpPrivateKeyJson),
+        readFilePart(azureRequestsCertificate));
   }
 
   /**
-   * Reads and validates the optional key file part.
+   * Reads and validates an optional uploaded file part (GCP key file, Azure certificate).
    *
    * <p>Validation lives here rather than in the handler, which only ever sees {@code byte[]} and
    * cannot tell an absent upload from a rejected one. The two outcomes are deliberately different:
@@ -133,15 +146,15 @@ public class CredentialApi extends RestBehavior {
    *   <li>an ABSENT part yields {@code null}, which the handlers read as "left untouched by the
    *       client" — exactly like a null text field, and what makes key rotation optional on PUT;
    *   <li>a PRESENT but empty part is a client error, never a silent no-op: it would otherwise look
-   *       like a successful rotation while the old key is still in place.
+   *       like a successful rotation while the old file is still in place.
    * </ul>
    *
    * <p>The size is bounded before the payload is read into memory: a service account key file
-   * weighs about 2 KB, so anything past {@link #MAX_CREDENTIAL_FILE_SIZE_BYTES} is an abuse
-   * attempt, not a credential.
+   * weighs about 2 KB and a certificate chain a few KB, so anything past {@link
+   * #MAX_CREDENTIAL_FILE_SIZE_BYTES} is an abuse attempt, not a credential.
    */
-  private byte[] readKeyFile(Optional<MultipartFile> keyFile) {
-    MultipartFile file = keyFile.orElse(null);
+  private byte[] readFilePart(Optional<MultipartFile> filePart) {
+    MultipartFile file = filePart.orElse(null);
     if (file == null) {
       return null;
     }

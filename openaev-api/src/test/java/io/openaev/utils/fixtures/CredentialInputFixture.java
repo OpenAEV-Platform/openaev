@@ -63,6 +63,20 @@ public class CredentialInputFixture {
         AZURE_SUBSCRIPTION_ID);
   }
 
+  /** A complete AZURE_SERVICE_PRINCIPAL input targeting a sovereign or mocked Azure. */
+  public static CredentialInput azureServicePrincipalInputWithAuthorityHost(
+      String name, String azureAuthorityHostUri) {
+    return azureInput(
+        name,
+        CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
+        AZURE_ENVIRONMENT,
+        AZURE_CLIENT_ID,
+        AZURE_CLIENT_SECRET,
+        AZURE_TENANT_ID,
+        AZURE_SUBSCRIPTION_ID,
+        azureAuthorityHostUri);
+  }
+
   public static CredentialInput azureInput(
       String name,
       CREDENTIAL_AUTH_METHOD authMethod,
@@ -71,6 +85,26 @@ public class CredentialInputFixture {
       String azureClientSecret,
       String azureTenantId,
       String azureSubscriptionId) {
+    return azureInput(
+        name,
+        authMethod,
+        azureEnvironment,
+        azureClientId,
+        azureClientSecret,
+        azureTenantId,
+        azureSubscriptionId,
+        null);
+  }
+
+  public static CredentialInput azureInput(
+      String name,
+      CREDENTIAL_AUTH_METHOD authMethod,
+      String azureEnvironment,
+      String azureClientId,
+      String azureClientSecret,
+      String azureTenantId,
+      String azureSubscriptionId,
+      String azureAuthorityHostUri) {
     return new CredentialInput(
         name,
         CREDENTIAL_TYPE.CLOUD_AZURE,
@@ -91,13 +125,21 @@ public class CredentialInputFixture {
         null,
         null,
         null,
+        null,
+        null,
         // AZURE
         azureEnvironment,
         azureClientId,
         azureClientSecret,
         azureTenantId,
         azureSubscriptionId,
+        azureAuthorityHostUri,
         // GCP
+        null,
+        null,
+        null,
+        null,
+        null,
         null,
         null,
         null,
@@ -158,7 +200,10 @@ public class CredentialInputFixture {
         null,
         null,
         null,
+        null,
+        null,
         // AZURE
+        null,
         null,
         null,
         null,
@@ -170,6 +215,11 @@ public class CredentialInputFixture {
         gcpOauthClientId,
         gcpOauthClientSecret,
         gcpOauthRefreshToken,
+        null,
+        null,
+        null,
+        null,
+        null,
         List.of());
   }
 }

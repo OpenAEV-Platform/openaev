@@ -39,4 +39,12 @@ public class AwsAccessKeySecret extends Secret {
   @Column(name = "secret_aws_session_token")
   @JsonIgnore
   private String awsSessionToken;
+
+  @Column(name = "secret_aws_account_id")
+  @JsonProperty("secret_aws_account_id")
+  private String awsAccountId;
+
+  @Column(name = "secret_aws_endpoint_url")
+  @JsonProperty("secret_aws_endpoint_url")
+  private String awsEndpointUrl;
 }
