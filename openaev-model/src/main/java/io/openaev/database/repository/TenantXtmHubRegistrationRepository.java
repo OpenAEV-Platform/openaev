@@ -1,6 +1,8 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.TenantXtmHubRegistration;
+import io.openaev.xtmhub.XtmHubRegistrationStatus;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +18,9 @@ public interface TenantXtmHubRegistrationRepository
         JpaSpecificationExecutor<TenantXtmHubRegistration> {
 
   Optional<TenantXtmHubRegistration> findByTenantId(String tenantId);
+
+  boolean existsByTenantIdInAndRegistrationStatusIn(
+      Collection<String> tenantIds, Collection<XtmHubRegistrationStatus> statuses);
 
   @Query("SELECT r FROM TenantXtmHubRegistration r JOIN FETCH r.tenant t WHERE t.deletedAt IS NULL")
   List<TenantXtmHubRegistration> findAllByTenantNotDeleted();
