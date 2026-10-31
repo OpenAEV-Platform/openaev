@@ -25,6 +25,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
@@ -32,6 +34,7 @@ import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.nio.ssl.TlsStrategy;
 import org.apache.hc.core5.reactor.ssl.TlsDetails;
+import org.apache.hc.core5.util.Timeout;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.springframework.stereotype.Component;
@@ -101,8 +104,17 @@ public class OpenSearchDriver {
     }
     builder.setHttpClientConfigCallback(
         httpClientBuilder -> {
+          // Same engine limits as the Elasticsearch drivers, instead of the library defaults.
+          Timeout socketTimeout = Timeout.ofMilliseconds(config.getSocketTimeoutMs());
           PoolingAsyncClientConnectionManagerBuilder managerBuilder =
-              PoolingAsyncClientConnectionManagerBuilder.create();
+              PoolingAsyncClientConnectionManagerBuilder.create()
+                  .setMaxConnTotal(config.getMaxConnections())
+                  .setMaxConnPerRoute(config.getMaxConnections())
+                  .setDefaultConnectionConfig(
+                      ConnectionConfig.custom()
+                          .setConnectTimeout(Timeout.ofMilliseconds(config.getConnectTimeoutMs()))
+                          .setSocketTimeout(socketTimeout)
+                          .build());
           if (!config.isRejectUnauthorized()) {
             // Create an SSLContext that trusts all certificates
             try {
@@ -131,7 +143,12 @@ public class OpenSearchDriver {
           final PoolingAsyncClientConnectionManager connectionManager = managerBuilder.build();
           return httpClientBuilder
               .setDefaultCredentialsProvider(credentialsProvider)
-              .setConnectionManager(connectionManager);
+              .setConnectionManager(connectionManager)
+              .setDefaultRequestConfig(
+                  RequestConfig.custom()
+                      .setResponseTimeout(socketTimeout)
+                      .setConnectionRequestTimeout(socketTimeout)
+                      .build());
         });
     JacksonJsonpMapper jsonpMapper = new JacksonJsonpMapper(engineObjectMapper);
     builder.setMapper(jsonpMapper);
