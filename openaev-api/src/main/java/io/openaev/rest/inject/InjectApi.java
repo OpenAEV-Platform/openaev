@@ -9,7 +9,6 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.comparator.InjectExecutionComparator;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -24,6 +23,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.ValidationErrorBag;
 import io.openaev.rest.inject.form.*;
@@ -82,6 +82,7 @@ public class InjectApi extends RestBehavior {
 
   private final ExecutableInjectService executableInjectService;
   private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
   private final InjectExecutionCallbackService injectExecutionCallbackService;
@@ -464,16 +465,12 @@ public class InjectApi extends RestBehavior {
               mediaType = "application/json",
               schema = @Schema(implementation = ValidationErrorBag.class)))
   public InjectOutput updateInject(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     Inject inject = injectService.updateInject(injectId, input);
 
     // It should not be possible to add a EE executor on inject when the exercise is already

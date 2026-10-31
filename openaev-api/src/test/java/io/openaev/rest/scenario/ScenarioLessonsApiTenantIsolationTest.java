@@ -1,6 +1,7 @@
 package io.openaev.rest.scenario;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -55,7 +56,7 @@ class ScenarioLessonsApiTenantIsolationTest extends IntegrationTest {
     templateA = seedTemplate(tenantA, "scenario-template-a");
     templateB = seedTemplate(tenantB, "scenario-template-b");
 
-    when(scenarioRepository.findByIdAndTenantId(anyString(), anyString()))
+    when(scenarioRepository.findByIdAndTenantIdIn(anyString(), anyCollection()))
         .thenReturn(Optional.of(new Scenario()));
     when(lessonsCategoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     when(lessonsCategoryRepository.findAll(any(Specification.class)))

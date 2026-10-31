@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.service.expectation.ExpectationVerdict;
@@ -33,6 +34,8 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private InjectorContractRepository injectorContractRepository;
 
+  private static final TxCtx DEFAULT_SCOPE = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+
   static String EXERCISE_ID;
 
   @BeforeEach
@@ -48,7 +51,7 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   @Test
   void retrieveInjectExpectations() {
     List<BaseInjectExpectation> expectations =
-        this.exerciseExpectationService.injectExpectations(EXERCISE_ID);
+        this.exerciseExpectationService.injectExpectations(DEFAULT_SCOPE, EXERCISE_ID);
     assertNotNull(expectations);
 
     assertEquals(EXPECTATION_NAME, expectations.getFirst().getName());
@@ -59,7 +62,7 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   void updateInjectExpectation() {
     // -- PREPARE --
     List<BaseInjectExpectation> expectations =
-        this.exerciseExpectationService.injectExpectations(EXERCISE_ID);
+        this.exerciseExpectationService.injectExpectations(DEFAULT_SCOPE, EXERCISE_ID);
     assertNotNull(expectations);
     String id = expectations.getFirst().getId();
 

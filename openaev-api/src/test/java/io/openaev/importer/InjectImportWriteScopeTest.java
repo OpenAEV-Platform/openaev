@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
@@ -73,10 +74,11 @@ import org.springframework.transaction.annotation.Transactional;
  * with access to the default tenant falls back to it, and a multi-tenant caller without it is
  * refused with 400.
  *
- * <p>On the non-prefixed route with {@code X-Tenant-Ids} the simulation parent is a primary-key
- * load and is found whatever the ambient tenant; the scenario parent is looked up in the ambient
- * tenant, the default one on that route, until {@code scenarios} is tenant-active, so that import
- * fails closed and writes nothing.
+ * <p>A simulation or scenario parent is looked up in the request scope: one outside it is not found
+ * (404) and nothing is written. A simulation parent is loaded by primary key and kept when its
+ * tenant lies in the scope, so a member reaches it on both routes. A scenario parent is looked up
+ * in the scope and, on the non-prefixed route, also follows the ambient tenant, the default one on
+ * that route, until {@code scenarios} is tenant-active.
  *
  * <p>The row tenant is read with raw JDBC on the test connection so the statement inspector never
  * rewrites the ground-truth read. {@code domains} is armed next to {@code documents} because the
@@ -87,6 +89,8 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @DisplayName("Inject and scenario imports write in the tenant of the caller or of the parent")
 class InjectImportWriteScopeTest extends IntegrationTest {
+
+  private static final TxCtx DEFAULT_TENANT_SCOPE = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
@@ -352,17 +356,77 @@ class InjectImportWriteScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given_parentOutsideCallerScope_should_return400AndWriteNothing")
-    void given_parentOutsideCallerScope_should_return400AndWriteNothing() throws Exception {
+    @DisplayName("given_parentOutsideCallerScope_should_return404AndWriteNothing")
+    void given_parentOutsideCallerScope_should_return404AndWriteNothing() throws Exception {
       // Arrange: the caller is a member of one tenant only and the parent lives in another one.
       tenantHelper.createTenantWithCurrentUser("sim-inj-outside");
       byte[] zip = injectZip();
       String exerciseId = saveExercise(DEFAULT_TENANT);
 
-      // Act & Assert
+      // Act & Assert: the simulation is looked up in the caller's scope, which excludes its tenant
       importZip(multipart(EXERCISE_URI + "/{simulationId}/injects/import", exerciseId), zip)
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isNotFound());
       assertThat(importedInjectTenants()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given_parentOutsidePathTenant_should_return404AndWriteNothing")
+    void given_parentOutsidePathTenant_should_return404AndWriteNothing() throws Exception {
+      // Arrange: the caller is a member of both tenants, the path names B, the parent lives in the
+      // default tenant.
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB = tenantHelper.createTenantWithCurrentUser("sim-inj-path-outside").getId();
+      byte[] zip = injectZip();
+      String exerciseId = saveExercise(DEFAULT_TENANT);
+
+      // Act & Assert
+      importZip(
+              multipart(
+                  TENANT_EXERCISE_URI + "/{simulationId}/injects/import", tenantB, exerciseId),
+              zip)
+          .andExpect(status().isNotFound());
+      assertThat(importedInjectTenants()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given_parentOutsideSelectedTenant_should_return404AndWriteNothing")
+    void given_parentOutsideSelectedTenant_should_return404AndWriteNothing() throws Exception {
+      // Arrange: the caller is a member of both tenants, the header selects B, the parent lives in
+      // the default tenant, which is also the ambient tenant on this route.
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB = tenantHelper.createTenantWithCurrentUser("sim-inj-header-outside").getId();
+      byte[] zip = injectZip();
+      String exerciseId = saveExercise(DEFAULT_TENANT);
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(DEFAULT_TENANT);
+
+      // Act & Assert
+      importZip(
+              multipart(EXERCISE_URI + "/{simulationId}/injects/import", exerciseId), zip, tenantB)
+          .andExpect(status().isNotFound());
+      assertThat(importedInjectTenants()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given_parentInSelectedTenant_should_writeInjectsThere")
+    void given_parentInSelectedTenant_should_writeInjectsThere() throws Exception {
+      // Arrange: the caller is a member of both tenants and the header selects the parent's.
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      tenantHelper.createTenantWithCurrentUser("sim-inj-header-default");
+      byte[] zip = injectZip();
+      String exerciseId = saveExercise(DEFAULT_TENANT);
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(DEFAULT_TENANT);
+
+      // Act
+      importZip(
+              multipart(EXERCISE_URI + "/{simulationId}/injects/import", exerciseId),
+              zip,
+              DEFAULT_TENANT)
+          .andExpect(status().isOk());
+
+      // Assert
+      assertThat(importedInjectTenants()).containsExactly(DEFAULT_TENANT);
     }
 
     @Test
@@ -414,7 +478,8 @@ class InjectImportWriteScopeTest extends IntegrationTest {
     @Test
     @DisplayName("given_multiTenantCallerAndParentInDefault_should_writeInjectsInDefault")
     void given_multiTenantCallerAndParentInDefault_should_writeInjectsInDefault() throws Exception {
-      // Arrange: the scenario is looked up in the ambient tenant, the default one on this route.
+      // Arrange: the scenario is looked up in the caller's scope, which includes the default
+      // tenant.
       tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
       tenantHelper.createTenantWithCurrentUser("scn-inj-multi");
       byte[] zip = injectZip();
@@ -429,16 +494,16 @@ class InjectImportWriteScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given_parentOutsideCallerScope_should_return400AndWriteNothing")
-    void given_parentOutsideCallerScope_should_return400AndWriteNothing() throws Exception {
+    @DisplayName("given_parentOutsideCallerScope_should_return404AndWriteNothing")
+    void given_parentOutsideCallerScope_should_return404AndWriteNothing() throws Exception {
       // Arrange
       tenantHelper.createTenantWithCurrentUser("scn-inj-outside");
       byte[] zip = injectZip();
       String scenarioId = saveScenario(DEFAULT_TENANT);
 
-      // Act & Assert
+      // Act & Assert: the scenario is looked up in the caller's scope, which excludes its tenant
       importZip(multipart(SCENARIO_URI + "/{scenarioId}/injects/import", scenarioId), zip)
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isNotFound());
       assertThat(importedInjectTenants()).isEmpty();
     }
 
@@ -533,7 +598,8 @@ class InjectImportWriteScopeTest extends IntegrationTest {
     scenario.setName(name);
     Scenario saved = scenarioComposer.forScenario(scenario).persist().get();
     MockHttpServletResponse response = new MockHttpServletResponse();
-    scenarioService.exportScenario(saved.getId(), false, false, false, false, response);
+    scenarioService.exportScenario(
+        DEFAULT_TENANT_SCOPE, saved.getId(), false, false, false, false, response);
     entityManager.flush();
     entityManager.clear();
     return response.getContentAsByteArray();

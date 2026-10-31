@@ -7,14 +7,15 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.ChannelRepository;
-import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.channel.model.VirtualArticle;
 import io.openaev.rest.channel.response.ChannelReader;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.scenario.ScenarioService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -30,7 +31,7 @@ import org.springframework.stereotype.Service;
 public class ChannelService {
 
   private final InjectExpectationService injectExpectationService;
-  private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final ScenarioService scenarioService;
   private final ArticleRepository articleRepository;
   private final ChannelRepository channelRepository;
@@ -58,22 +59,22 @@ public class ChannelService {
   }
 
   /**
-   * @param tenantId resolved by the caller (API layer), not read from TenantContext here.
+   * @param ctx the request's tenant scope, in which the simulation or scenario is looked up
    */
   public ChannelReader validateArticles(
-      String exerciseId, String channelId, User user, @NotBlank final String tenantId) {
+      @NotNull final TxCtx ctx, String exerciseId, String channelId, User user) {
     ChannelReader channelReader;
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     List<Inject> injects;
 
-    Optional<Exercise> exerciseOpt = exerciseRepository.findByIdAndTenantId(exerciseId, tenantId);
+    Optional<Exercise> exerciseOpt = exerciseService.findInScope(ctx, exerciseId);
     if (exerciseOpt.isPresent()) {
       Exercise exercise = exerciseOpt.get();
       channelReader = new ChannelReader(channel, exercise);
       injects = exercise.getInjects();
     } else {
-      Scenario scenario = this.scenarioService.scenario(exerciseId);
+      Scenario scenario = this.scenarioService.scenario(ctx, exerciseId);
       channelReader = new ChannelReader(channel, scenario);
       injects = scenario.getInjects();
     }

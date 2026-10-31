@@ -1,0 +1,477 @@
+package io.openaev.rest.exercise;
+
+import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.ExerciseFixture.createDefaultExercise;
+import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
+import static io.openaev.utils.fixtures.TeamFixture.getDefaultTeam;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+
+import com.jayway.jsonpath.JsonPath;
+import io.openaev.IntegrationTest;
+import io.openaev.api.autonomous.AutonomousRunApi;
+import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.autonomous.AutonomousRun;
+import io.openaev.database.model.autonomous.AutonomousRunStatus;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.TenantRepository;
+import io.openaev.database.repository.autonomous.AutonomousRunRepository;
+import io.openaev.rest.exercise.form.UpdateExerciseInput;
+import io.openaev.rest.scenario.form.UpdateScenarioInput;
+import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utils.mockUser.TestUserHolder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Supplier;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/**
+ * Seeding and requests shared by the tests of the simulation and scenario by-id reads. A by-id read
+ * resolves the row inside the request's tenant scope: the path tenant on the tenant route, the
+ * {@code X-Tenant-Ids} selector (or the caller's memberships) on the non-prefixed route.
+ *
+ * <p>Not {@code @Transactional}: rows are committed in their own tenant, so each request reads them
+ * the way production does, and they are removed on teardown.
+ */
+abstract class ByIdRequestScopeTestBase extends IntegrationTest {
+
+  static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
+  static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
+
+  @Autowired MockMvc mvc;
+  @Autowired TenantIsolationTestHelper tenantHelper;
+  @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private TeamRepository teamRepository;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private DataSource dataSource;
+  @Autowired private TestUserHolder testUserHolder;
+  @Autowired private TenantMembershipCacheManager membershipCache;
+  @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private AutonomousRunRepository autonomousRunRepository;
+
+  /** A tenant the caller is a member of. */
+  String memberTenant;
+
+  /** A tenant the caller is not a member of: saved bare, since onboarding enrolls the caller. */
+  String otherTenant;
+
+  private final List<String> seededExercises = new ArrayList<>();
+  private final List<String> seededScenarios = new ArrayList<>();
+  private final List<String> seededTeams = new ArrayList<>();
+
+  @BeforeEach
+  void createTenants() throws Exception {
+    seededExercises.clear();
+    seededScenarios.clear();
+    seededTeams.clear();
+    memberTenant = tenantHelper.createTenantWithCurrentUser("by-id-member").getId();
+    otherTenant =
+        tenantRepository.save(TenantFixture.getTenant("by-id-other-" + UUID.randomUUID())).getId();
+  }
+
+  @AfterEach
+  void cleanup() {
+    JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+    seededExercises.forEach(id -> jdbc.update("DELETE FROM injects WHERE inject_exercise = ?", id));
+    seededExercises.forEach(id -> jdbc.update("DELETE FROM exercises WHERE exercise_id = ?", id));
+    seededScenarios.forEach(
+        id -> jdbc.update("DELETE FROM autonomous_runs WHERE autonomous_run_scenario_id = ?", id));
+    seededScenarios.forEach(id -> jdbc.update("DELETE FROM scenarios WHERE scenario_id = ?", id));
+    seededTeams.forEach(id -> jdbc.update("DELETE FROM teams WHERE team_id = ?", id));
+    injectorContractComposer.reset();
+    tenantHelper.deleteCommittedTenants(memberTenant, otherTenant);
+  }
+
+  // -- SEEDING --
+
+  String seedSimulation(String tenantId) {
+    String id =
+        inTenantScope(
+            tenantId,
+            () -> {
+              Exercise exercise = createDefaultExercise();
+              exercise.setTenant(new Tenant(tenantId));
+              return exerciseRepository.save(exercise).getId();
+            });
+    seededExercises.add(id);
+    return id;
+  }
+
+  String seedScenario(String tenantId) {
+    String id =
+        inTenantScope(
+            tenantId,
+            () -> {
+              Scenario scenario = createDefaultCrisisScenario();
+              scenario.setTenant(new Tenant(tenantId));
+              return scenarioRepository.save(scenario).getId();
+            });
+    seededScenarios.add(id);
+    return id;
+  }
+
+  /** Seeds a team in the simulation's tenant and links it to the simulation. */
+  String seedTeamOfSimulation(String tenantId, String simulationId) {
+    String teamId = seedTeam(tenantId);
+    new JdbcTemplate(dataSource)
+        .update(
+            "INSERT INTO exercises_teams (exercise_id, team_id) VALUES (?, ?)",
+            simulationId,
+            teamId);
+    return teamId;
+  }
+
+  /** Seeds a team in the scenario's tenant and links it to the scenario. */
+  String seedTeamOfScenario(String tenantId, String scenarioId) {
+    String teamId = seedTeam(tenantId);
+    new JdbcTemplate(dataSource)
+        .update(
+            "INSERT INTO scenarios_teams (scenario_id, team_id) VALUES (?, ?)", scenarioId, teamId);
+    return teamId;
+  }
+
+  /** Seeds a contract linked to an injector, in the given tenant. */
+  String seedInjectorContract(String tenantId) {
+    return inTenantScope(
+        tenantId,
+        () ->
+            injectorContractComposer
+                .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                .persist()
+                .get()
+                .getId());
+  }
+
+  /** Seeds a still-active autonomous run of the scenario, in the scenario's tenant. */
+  void seedActiveRunOfScenario(String tenantId, String scenarioId) {
+    inTenantScope(
+        tenantId,
+        () -> {
+          AutonomousRun run = new AutonomousRun();
+          run.setTenant(new Tenant(tenantId));
+          run.setObjective("by-id");
+          run.setStatus(AutonomousRunStatus.RUNNING);
+          run.setScenarioId(scenarioId);
+          return autonomousRunRepository.save(run).getId();
+        });
+  }
+
+  int injectCount(String simulationId) {
+    return count("SELECT count(*) FROM injects WHERE inject_exercise = ?", simulationId);
+  }
+
+  boolean simulationDriftDismissed(String id) {
+    return Boolean.TRUE.equals(
+        new JdbcTemplate(dataSource)
+            .queryForObject(
+                "SELECT exercise_expectations_drift_dismissed FROM exercises WHERE exercise_id = ?",
+                Boolean.class,
+                id));
+  }
+
+  boolean scenarioDriftDismissed(String id) {
+    return Boolean.TRUE.equals(
+        new JdbcTemplate(dataSource)
+            .queryForObject(
+                "SELECT scenario_expectations_drift_dismissed FROM scenarios WHERE scenario_id = ?",
+                Boolean.class,
+                id));
+  }
+
+  void linkSimulationToScenario(String simulationId, String scenarioId) {
+    new JdbcTemplate(dataSource)
+        .update(
+            "INSERT INTO scenarios_exercises (scenario_id, exercise_id) VALUES (?, ?)",
+            scenarioId,
+            simulationId);
+  }
+
+  private String seedTeam(String tenantId) {
+    String id = inTenantScope(tenantId, () -> teamRepository.save(getDefaultTeam()).getId());
+    seededTeams.add(id);
+    return id;
+  }
+
+  /** Removes the caller's only membership, so a request naming no tenant resolves no scope. */
+  void leaveMemberTenant() {
+    String userId = testUserHolder.get().getId();
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            status -> tenantRepository.removeUserFromTenant(userId, memberTenant));
+    membershipCache.evict(userId, memberTenant);
+  }
+
+  boolean simulationExists(String id) {
+    return new JdbcTemplate(dataSource)
+        .queryForObject("SELECT count(*) FROM exercises WHERE exercise_id = ?", Integer.class, id)
+        .equals(1);
+  }
+
+  boolean simulationHasTeam(String simulationId, String teamId) {
+    return count(
+            "SELECT count(*) FROM exercises_teams WHERE exercise_id = ? AND team_id = ?",
+            simulationId,
+            teamId)
+        == 1;
+  }
+
+  boolean scenarioHasTeam(String scenarioId, String teamId) {
+    return count(
+            "SELECT count(*) FROM scenarios_teams WHERE scenario_id = ? AND team_id = ?",
+            scenarioId,
+            teamId)
+        == 1;
+  }
+
+  int simulationCount() {
+    return count("SELECT count(*) FROM exercises");
+  }
+
+  int autonomousRunCount(String scenarioId) {
+    return count(
+        "SELECT count(*) FROM autonomous_runs WHERE autonomous_run_scenario_id = ?", scenarioId);
+  }
+
+  private int count(String sql, Object... args) {
+    return new JdbcTemplate(dataSource).queryForObject(sql, Integer.class, args);
+  }
+
+  boolean scenarioExists(String id) {
+    return new JdbcTemplate(dataSource)
+        .queryForObject("SELECT count(*) FROM scenarios WHERE scenario_id = ?", Integer.class, id)
+        .equals(1);
+  }
+
+  // -- REQUESTS --
+
+  /** The tenant route: {@code /api/tenants/{tenantId}/...}. */
+  static Route tenantRoute(String tenantId) {
+    return new Route(tenantId, null);
+  }
+
+  /** The non-prefixed route with an {@code X-Tenant-Ids} selector. */
+  static Route headerRoute(String selector) {
+    return new Route(null, selector);
+  }
+
+  /** The non-prefixed route with no selector: the scope is the caller's memberships. */
+  static Route noSelectorRoute() {
+    return new Route(null, null);
+  }
+
+  record Route(String pathTenant, String headerTenant) {
+
+    String simulation(String id) {
+      return pathTenant == null
+          ? EXERCISE_URI + "/" + id
+          : TENANT_EXERCISE_URI.replace("{tenantId}", pathTenant) + "/" + id;
+    }
+
+    String scenario(String id) {
+      return pathTenant == null
+          ? SCENARIO_URI + "/" + id
+          : TENANT_SCENARIO_URI.replace("{tenantId}", pathTenant) + "/" + id;
+    }
+
+    String autonomousLaunch(String scenarioId) {
+      return (pathTenant == null
+              ? AutonomousRunApi.AUTONOMOUS_URI
+              : "/api/tenants/" + pathTenant + "/autonomous-runs")
+          + "/from-scenario/"
+          + scenarioId;
+    }
+
+    String scenarioChallenges(String id) {
+      return (pathTenant == null ? "/api" : "/api/tenants/" + pathTenant)
+          + "/observer/scenarios/"
+          + id
+          + "/challenges";
+    }
+
+    String simulationPlayerChallenges(String id) {
+      return (pathTenant == null ? "/api" : "/api/tenants/" + pathTenant)
+          + "/player/simulations/"
+          + id
+          + "/challenges";
+    }
+
+    MockHttpServletRequestBuilder with(MockHttpServletRequestBuilder request) {
+      if (headerTenant != null) {
+        request.header(TENANT_IDS_HEADER, headerTenant);
+      }
+      return request.accept(MediaType.APPLICATION_JSON).with(csrf());
+    }
+  }
+
+  int readSimulation(Route route, String id) throws Exception {
+    return status(route.with(get(route.simulation(id) + "/communications")));
+  }
+
+  int updateSimulation(Route route, String id) throws Exception {
+    UpdateExerciseInput input = new UpdateExerciseInput();
+    input.setName("by-id-updated");
+    return status(
+        route.with(
+            put(route.simulation(id))
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  int deleteSimulation(Route route, String id) throws Exception {
+    return status(route.with(delete(route.simulation(id))));
+  }
+
+  int readScenario(Route route, String id) throws Exception {
+    return status(route.with(get(route.scenarioChallenges(id))));
+  }
+
+  int updateScenario(Route route, String id) throws Exception {
+    UpdateScenarioInput input = new UpdateScenarioInput();
+    input.setName("by-id-updated");
+    return status(
+        route.with(
+            put(route.scenario(id))
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  int deleteScenario(Route route, String id) throws Exception {
+    return status(route.with(delete(route.scenario(id))));
+  }
+
+  // The canonical by-id reads and the endpoints that act on a simulation or scenario by id.
+
+  int getSimulation(Route route, String id) throws Exception {
+    return status(route.with(get(route.simulation(id))));
+  }
+
+  int getSimulationTeams(Route route, String id) throws Exception {
+    return status(route.with(get(route.simulation(id) + "/teams")));
+  }
+
+  int removeSimulationTeam(Route route, String id, String teamId) throws Exception {
+    return status(
+        route.with(
+            put(route.simulation(id) + "/teams/remove")
+                .content(asJsonString(Map.of("exercise_teams", List.of(teamId))))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  /** Duplicates the simulation; a copy that was created is removed on teardown. */
+  int duplicateSimulation(Route route, String id) throws Exception {
+    TenantContext.clearCurrentTenant();
+    MockHttpServletResponse response =
+        mvc.perform(route.with(post(route.simulation(id)))).andReturn().getResponse();
+    if (response.getStatus() == 200) {
+      seededExercises.add(JsonPath.read(response.getContentAsString(), "$.exercise_id"));
+    }
+    return response.getStatus();
+  }
+
+  int getSimulationResultsByAttackPattern(Route route, String id) throws Exception {
+    return status(route.with(get(route.simulation(id) + "/injects/results-by-attack-patterns")));
+  }
+
+  int getScenarioOfSimulation(Route route, String id) throws Exception {
+    return status(route.with(get(route.simulation(id) + "/scenario")));
+  }
+
+  int getScenario(Route route, String id) throws Exception {
+    return status(route.with(get(route.scenario(id))));
+  }
+
+  int getScenarioTeams(Route route, String id) throws Exception {
+    return status(route.with(get(route.scenario(id) + "/teams")));
+  }
+
+  int removeScenarioTeam(Route route, String id, String teamId) throws Exception {
+    return status(
+        route.with(
+            put(route.scenario(id) + "/teams/remove")
+                .content(asJsonString(Map.of("scenario_teams", List.of(teamId))))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  int launchAutonomousRun(Route route, String scenarioId) throws Exception {
+    return status(
+        route.with(
+            post(route.autonomousLaunch(scenarioId))
+                .content("{}")
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  int dismissSimulationDrift(Route route, String id) throws Exception {
+    return status(
+        route.with(
+            put(route.simulation(id) + "/expectations-drift/dismiss")
+                .content(asJsonString(Map.of("dismissed", true)))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  int realignSimulationDrift(Route route, String id) throws Exception {
+    return status(route.with(post(route.simulation(id) + "/expectations-drift/realign")));
+  }
+
+  int dismissScenarioDrift(Route route, String id) throws Exception {
+    return status(
+        route.with(
+            put(route.scenario(id) + "/expectations-drift/dismiss")
+                .content(asJsonString(Map.of("dismissed", true)))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  int realignScenarioDrift(Route route, String id) throws Exception {
+    return status(route.with(post(route.scenario(id) + "/expectations-drift/realign")));
+  }
+
+  /**
+   * Performs the request from an empty ambient tenant, as production's request thread starts: the
+   * fixtures leave a tenant on the test thread, which the non-prefixed route would otherwise read.
+   */
+  private int status(MockHttpServletRequestBuilder request) throws Exception {
+    TenantContext.clearCurrentTenant();
+    return mvc.perform(request).andReturn().getResponse().getStatus();
+  }
+
+  <T> T inTenantScope(String tenantId, Supplier<T> work) {
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      return tenantTx.execute(TxCtx.forTenant(tenantId), work);
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+}

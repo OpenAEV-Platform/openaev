@@ -37,6 +37,6 @@ public class ExerciseExpectationApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationOutput> exerciseInjectExpectations(
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
-    return toOutputs(this.exerciseExpectationService.injectExpectations(exerciseId));
+    return toOutputs(this.exerciseExpectationService.injectExpectations(ctx, exerciseId));
   }
 }

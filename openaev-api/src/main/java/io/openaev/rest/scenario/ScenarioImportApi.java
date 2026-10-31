@@ -54,7 +54,7 @@ public class ScenarioImportApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
 
     // Getting the mapper to use
     ImportMapper importMapper =
@@ -86,7 +86,7 @@ public class ScenarioImportApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
 
     if (input.getLaunchDate() != null) {
       scenario.setRecurrenceStart(input.getLaunchDate().toInstant());

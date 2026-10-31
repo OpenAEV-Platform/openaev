@@ -22,6 +22,7 @@ import io.openaev.rest.dashboard.DashboardService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.es.EntitiesPaginationInput;
 import io.openaev.utils.es.WidgetToEntitiesInput;
 import io.openaev.utils.es.WidgetToEntitiesOutput;
@@ -36,6 +37,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -248,33 +250,39 @@ public class CustomDashboardService {
    * dashboard configured in the settings, so the Statistics tab always shows the default dashboard
    * out of the box.
    *
+   * @param ctx the request scope the simulation or scenario is resolved in
    * @param resourceId simulation id or scenario id
    * @return the effective dashboard for this resource
    */
   // Explicitly transactional so the Hibernate tenant filter applies to the scenario / simulation
   // existence checks of the fallback, whatever the caller's context.
   @Transactional(readOnly = true)
-  public CustomDashboard findCustomDashboardByResourceId(@NotBlank final String resourceId) {
-    return withWidgetsInitialized(resolveCustomDashboardByResourceId(resourceId));
+  public CustomDashboard findCustomDashboardByResourceId(
+      final TxCtx ctx, @NotBlank final String resourceId) {
+    return withWidgetsInitialized(resolveCustomDashboardByResourceId(ctx, resourceId));
   }
 
   // Shared by the transactional public entry point above and the internal callers of this class
   // (which run inside their caller's transaction): intra-class calls must not target the
   // @Transactional method directly, the proxy would be bypassed.
-  private CustomDashboard resolveCustomDashboardByResourceId(final String resourceId) {
+  private CustomDashboard resolveCustomDashboardByResourceId(
+      final TxCtx ctx, final String resourceId) {
     return customDashboardRepository
         .findByResourceId(resourceId)
-        .or(() -> findTenantDefaultDashboardForResource(resourceId))
+        .or(() -> findTenantDefaultDashboardForResource(ctx, resourceId))
         .orElseThrow(
             () ->
                 new EntityNotFoundException(
                     "Custom dashboard associated to resource: " + resourceId + " not found"));
   }
 
-  private Optional<CustomDashboard> findTenantDefaultDashboardForResource(final String resourceId) {
+  private Optional<CustomDashboard> findTenantDefaultDashboardForResource(
+      final TxCtx ctx, final String resourceId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
     Optional<Map.Entry<String, TenantSettingKeys>> scopedDashboardSetting =
         this.scenarioRepository
             .findById(resourceId)
+            .filter(scenario -> scope.contains(scenario.getTenant().getId()))
             .map(
                 scenario ->
                     Map.entry(
@@ -283,6 +291,7 @@ public class CustomDashboardService {
                 () ->
                     this.exerciseRepository
                         .findById(resourceId)
+                        .filter(exercise -> scope.contains(exercise.getTenant().getId()))
                         .map(
                             exercise ->
                                 Map.entry(
@@ -301,13 +310,14 @@ public class CustomDashboardService {
   /**
    * Verify if a widget is part of a dashboard associated to a resource
    *
+   * @param ctx the request scope the simulation or scenario is resolved in
    * @param resourceId simulation id or scenario id that is associated to a dashboard
    * @param widgetId
    * @return
    */
   public boolean isWidgetInResourceDashboard(
-      @NotBlank final String resourceId, @NotBlank final String widgetId) {
-    if (resolveCustomDashboardByResourceId(resourceId).getWidgets().stream()
+      final TxCtx ctx, @NotBlank final String resourceId, @NotBlank final String widgetId) {
+    if (resolveCustomDashboardByResourceId(ctx, resourceId).getWidgets().stream()
         .map(Widget::getId)
         .collect(Collectors.toSet())
         .contains(widgetId)) {
@@ -322,7 +332,7 @@ public class CustomDashboardService {
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
     // verify that the widget is in the resource dashboard
-    if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
+    if (!isWidgetInResourceDashboard(ctx, resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
     return this.dashboardService.count(ctx, widgetId, parameters);
@@ -334,7 +344,7 @@ public class CustomDashboardService {
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
     // verify that the widget is in the resource dashboard
-    if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
+    if (!isWidgetInResourceDashboard(ctx, resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
     return this.dashboardService.average(ctx, widgetId, parameters);
@@ -346,7 +356,7 @@ public class CustomDashboardService {
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
     // verify that the widget is in the resource dashboard
-    if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
+    if (!isWidgetInResourceDashboard(ctx, resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
     return this.dashboardService.series(ctx, widgetId, parameters);
@@ -358,7 +368,7 @@ public class CustomDashboardService {
       @NotBlank final String widgetId,
       @Nullable final EntitiesPaginationInput input) {
     // verify that the widget is in the resource dashboard
-    if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
+    if (!isWidgetInResourceDashboard(ctx, resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
     return this.dashboardService.entities(
@@ -374,7 +384,7 @@ public class CustomDashboardService {
       @NotBlank final String widgetId,
       @NotBlank WidgetToEntitiesInput input) {
     // verify that the widget is in the resource dashboard
-    if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
+    if (!isWidgetInResourceDashboard(ctx, resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
     return this.dashboardService.widgetToEntitiesRuntime(ctx, widgetId, input);
@@ -387,7 +397,7 @@ public class CustomDashboardService {
       final Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
     // verify that the widget is in the resource dashboard
-    if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
+    if (!isWidgetInResourceDashboard(ctx, resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
     return this.dashboardService.attackPaths(ctx, widgetId, parameters);

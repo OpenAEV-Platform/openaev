@@ -7,7 +7,6 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -15,6 +14,7 @@ import io.openaev.database.specification.LessonsAnswerSpecification;
 import io.openaev.database.specification.LessonsCategorySpecification;
 import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.lessons.form.*;
 import io.openaev.security.error.AuthenticationError;
@@ -33,7 +33,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public static final String EXERCISE_URL = "/api/exercises/";
   private static final String TENANT_EXERCISE_URL = TENANT_PREFIX + "/exercises/";
 
-  private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final TeamRepository teamRepository;
   private final LessonsTemplateRepository lessonsTemplateRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -70,9 +70,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public Iterable<LessonsCategory> applyExerciseLessonsTemplate(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String lessonsTemplateId) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     LessonsTemplate lessonsTemplate =
         lessonsTemplateRepository
             .findById(lessonsTemplateId)
@@ -118,9 +116,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       @PathVariable String exerciseId,
       @Valid @RequestBody LessonsCategoryCreateInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = new LessonsCategory();
     lessonsCategory.setUpdateAttributes(input);
     lessonsCategory.setExercise(exercise);
@@ -363,9 +359,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       // association is empty and the send throws IllegalStateException).
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     List<LessonsCategory> lessonsCategories =
         lessonsCategoryRepository
             .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
