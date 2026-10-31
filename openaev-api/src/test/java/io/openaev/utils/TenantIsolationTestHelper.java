@@ -96,7 +96,18 @@ public class TenantIsolationTestHelper {
    */
   @Transactional
   public void attachCurrentUserToTenant(String tenantId) {
-    String userId = testUserHolder.get().getId();
+    attachUserToTenant(testUserHolder.get().getId(), tenantId);
+  }
+
+  /**
+   * Same as {@link #attachCurrentUserToTenant} for a user the test composed itself rather than the
+   * current mock user.
+   *
+   * @param userId the persisted user to attach
+   * @param tenantId the existing tenant to attach it to
+   */
+  @Transactional
+  public void attachUserToTenant(String userId, String tenantId) {
     tenantRepository.addUserToTenant(userId, tenantId);
     tenantMembershipCacheManager.evict(userId, tenantId);
     entityManager.flush();
