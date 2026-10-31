@@ -22,6 +22,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -84,6 +85,11 @@ public class PlatformGroupService {
     return groupRepository
         .findById(id)
         .orElseThrow(() -> new EntityNotFoundException("Platform group not found: " + id));
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<Group> findByName(@NotBlank final String name) {
+    return groupRepository.findByNameAndTenantIsNull(name);
   }
 
   @Transactional(readOnly = true)

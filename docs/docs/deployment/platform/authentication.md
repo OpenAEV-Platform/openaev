@@ -108,6 +108,11 @@ The value must be a **JSON array** of mapping rules. Each rule maps an IdP group
 | `idpGroup` | string | ✅ | The group name as it appears in the IdP token or assertion |
 | `userGroup` | string | ✅ | The OpenAEV group to assign the user to |
 | `autoCreate` | boolean | ✅ | If `true`, the OpenAEV group is created automatically if it does not exist. If `false`, the mapping is silently skipped when the group does not exist. |
+| `tenantId` | string | ❌ | The tenant the group belongs to. The user is also added to this tenant. Without it, the group is a platform group. |
+
+!!! warning "Tenant groups need a `tenantId`"
+
+    A rule without `tenantId` only matches platform groups. To map users to a group of a tenant, set that tenant's ID in the rule.
 
 #### Example — Azure AD with SAML2
 

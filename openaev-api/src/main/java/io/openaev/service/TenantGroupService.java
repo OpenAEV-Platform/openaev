@@ -76,6 +76,13 @@ public class TenantGroupService {
     return groupRepository.save(createGroupInner(UUID.randomUUID().toString(), input));
   }
 
+  public Group createGroup(@NotBlank final String name, @NotBlank final String tenantId) {
+    Group group = new Group();
+    group.setName(name);
+    group.setTenant(entityManager.getReference(Tenant.class, tenantId));
+    return groupRepository.save(group);
+  }
+
   public Group createInternalGroupWithRole(
       @NotBlank final String id, TenantGroupCreateInput input, List<Role> roles, String tenantId) {
     Group group = createGroupInner(id, input);
@@ -100,6 +107,11 @@ public class TenantGroupService {
   public Optional<Group> findByIdAndTenant(
       @NotBlank final String groupId, @NotBlank final String tenantId) {
     return groupRepository.findByIdAndTenantId(groupId, tenantId);
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<Group> findByName(@NotBlank final String name, @NotBlank final String tenantId) {
+    return groupRepository.findByNameAndTenantId(name, tenantId);
   }
 
   /** Find a tenant group by ID, scoped to the current tenant. */
