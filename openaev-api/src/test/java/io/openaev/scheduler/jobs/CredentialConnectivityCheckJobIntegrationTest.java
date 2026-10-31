@@ -28,6 +28,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -107,6 +108,12 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
         @Override
         public TokenCredential forManagedIdentity(String clientId) {
           return unreachable;
+        }
+
+        @Override
+        public CloseableHttpClient httpClient() {
+          // Never reached: no token is granted, so no subscription is probed.
+          throw new UnsupportedOperationException();
         }
       };
     }
