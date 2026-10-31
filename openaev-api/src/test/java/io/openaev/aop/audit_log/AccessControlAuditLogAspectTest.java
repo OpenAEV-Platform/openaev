@@ -1,7 +1,11 @@
 package io.openaev.aop.audit_log;
 
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
+import static io.openaev.rest.channel.ChannelApi.CHANNEL_URI;
+import static io.openaev.rest.tag.TagApi.TAG_URI;
 import static io.openaev.rest.team.TeamApi.TEAM_URI;
+import static io.openaev.utils.fixtures.ChannelFixture.getChannel;
+import static io.openaev.utils.fixtures.TagFixture.getTagWithText;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,29 +25,39 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ShutdownService;
+import io.openaev.context.TenantContext;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Channel;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.exception.TenantScopeForbiddenException;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.service.LogService;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.TeamFixture;
+import io.openaev.utils.fixtures.composers.ChannelComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
+import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -51,11 +65,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,6 +91,9 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private ChannelComposer channelComposer;
+  @Autowired private TagComposer tagComposer;
 
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoSpyBean private AuditLogProperties auditLogProperties;
@@ -169,6 +189,108 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       assertThat(eventStatusCaptor.getValue()).isEqualTo(EventStatus.ERROR);
       assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
       assertThat(resourceIdCaptor.getValue()).isEqualTo(PROTECTED_TEAM_ID);
+    }
+  }
+
+  @Nested
+  @DisplayName("Scope refusals: audit event emitted for unauthorized access")
+  class TenantScopeRefusalAudit {
+
+    @BeforeEach
+    void resetComposers() {
+      channelComposer.reset();
+      tagComposer.reset();
+    }
+
+    @AfterEach
+    void clearAmbientTenant() {
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("A read refused in another tenant of the scope is audited as unauthorized")
+    void given_readRightMissingInAnotherScopeTenant_should_logUnauthorizedEvent() throws Exception {
+      // Arrange
+      tenantHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.ACCESS_CHANNELS));
+      Tenant tenantB =
+          tenantHelper.createTenantWithCapabilities(
+              "audit-scope-read-b", Set.of(Capability.ACCESS_ASSESSMENT));
+      Channel channel = getChannel();
+      channel.setTenant(tenantB);
+      String channelId = channelComposer.forChannel(channel).persist().get().getId();
+      entityManager.flush();
+
+      // Act
+      MockHttpServletResponse response =
+          performWithoutAmbientTenant(get(CHANNEL_URI + "/{channelId}", channelId));
+
+      // Assert
+      assertRefusedInScope(response);
+      assertUnauthorizedEvent(ResourceType.CHANNEL, channelId);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("A delete refused in another tenant of the scope is audited as unauthorized")
+    void given_deleteRightMissingInAnotherScopeTenant_should_logUnauthorizedEvent()
+        throws Exception {
+      // Arrange
+      tenantHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.MANAGE_TAGS, Capability.DELETE_TAGS));
+      Tenant tenantB =
+          tenantHelper.createTenantWithCapabilities(
+              "audit-scope-delete-b", Set.of(Capability.ACCESS_TAGS));
+      Tag tag = getTagWithText("audit-scope-delete-tag");
+      tag.setTenant(tenantB);
+      String tagId = tagComposer.forTag(tag).persist().get().getId();
+      entityManager.flush();
+
+      // Act
+      MockHttpServletResponse response =
+          performWithoutAmbientTenant(delete(TAG_URI + "/{tagId}", tagId).with(csrf()));
+
+      // Assert
+      assertRefusedInScope(response);
+      assertUnauthorizedEvent(ResourceType.TAG, tagId);
+    }
+
+    private MockHttpServletResponse performWithoutAmbientTenant(
+        MockHttpServletRequestBuilder request) throws Exception {
+      // The non-prefixed route never sets the ambient tenant: reproduce production's empty
+      // thread-local instead of inheriting what the fixtures left on the test thread.
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.hasCurrentTenant()).as("precondition: no ambient tenant").isFalse();
+      return mvc.perform(request).andReturn().getResponse();
+    }
+
+    private void assertRefusedInScope(MockHttpServletResponse response) throws Exception {
+      assertThat(response.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+      assertThat((String) JsonPath.read(response.getContentAsString(), "$.message"))
+          .as("the body names the scope rule and its remedy")
+          .isEqualTo(TenantScopeForbiddenException.MESSAGE);
+    }
+
+    private void assertUnauthorizedEvent(ResourceType resourceType, String resourceId) {
+      ArgumentCaptor<AuditEventScope> eventScopeCaptor =
+          ArgumentCaptor.forClass(AuditEventScope.class);
+      ArgumentCaptor<EventStatus> eventStatusCaptor = ArgumentCaptor.forClass(EventStatus.class);
+      ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
+      ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
+      verify(auditLogger, timeout(2000))
+          .logAccessControlEvent(
+              eventScopeCaptor.capture(),
+              eventStatusCaptor.capture(),
+              resourceTypeCaptor.capture(),
+              resourceIdCaptor.capture(),
+              any(),
+              any(),
+              any());
+      assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.UNAUTHORIZED);
+      assertThat(eventStatusCaptor.getValue()).isEqualTo(EventStatus.ERROR);
+      assertThat(resourceTypeCaptor.getValue()).isEqualTo(resourceType);
+      assertThat(resourceIdCaptor.getValue()).isEqualTo(resourceId);
     }
   }
 

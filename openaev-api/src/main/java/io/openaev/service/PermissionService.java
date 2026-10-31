@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.autonomous.AutonomousRun;
@@ -17,6 +18,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,6 +78,7 @@ public class PermissionService {
   private final WorkflowService workflowService;
   private final StepService stepService;
   private final ConditionService conditionService;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   @Transactional
   public boolean hasPermission(
@@ -84,7 +87,49 @@ public class PermissionService {
       String resourceId,
       ResourceType resourceType,
       Action action) {
-    return checkPermission(user, httpMappingInfo, resourceId, resourceType, action);
+    return checkPermission(
+        user,
+        httpMappingInfo,
+        resourceId,
+        resourceType,
+        action,
+        () -> resolveTarget(resourceId, resourceType, action));
+  }
+
+  /**
+   * Prepares a check of one resource that {@link #hasPermission(User, Optional, CheckedResource)}
+   * then evaluates in each tenant of a request scope. Only the caller's capabilities and tenant
+   * bypass follow the tenant of an evaluation. The parent of a sub-resource does not: loading it
+   * goes through services that read through the ambient tenant and, for an autonomous run, settle
+   * its status from its simulation. So the parent is resolved at most once, by the first evaluation
+   * that needs it, and always in {@code resolutionTenant}.
+   *
+   * @param resolutionTenant the tenant ambient for the request, in which the parent is resolved
+   */
+  public CheckedResource checkedResource(
+      String resolutionTenant, String resourceId, ResourceType resourceType, Action action) {
+    return new CheckedResource(
+        resourceId,
+        resourceType,
+        action,
+        () ->
+            ambientTenantBridge.callInTenant(
+                resolutionTenant, () -> resolveTarget(resourceId, resourceType, action)));
+  }
+
+  /** The check of {@link #hasPermission(User, Optional, String, ResourceType, Action)}. */
+  @Transactional
+  public boolean hasPermission(
+      @NotNull final User user,
+      Optional<AccessControlAspect.HttpMappingInfo> httpMappingInfo,
+      CheckedResource resource) {
+    return checkPermission(
+        user,
+        httpMappingInfo,
+        resource.resourceId,
+        resource.resourceType,
+        resource.action,
+        resource::parent);
   }
 
   /**
@@ -99,7 +144,13 @@ public class PermissionService {
       String resourceId,
       ResourceType resourceType,
       Action action) {
-    return checkPermission(user, Optional.empty(), resourceId, resourceType, action);
+    return checkPermission(
+        user,
+        Optional.empty(),
+        resourceId,
+        resourceType,
+        action,
+        () -> resolveTarget(resourceId, resourceType, action));
   }
 
   private boolean checkPermission(
@@ -107,7 +158,8 @@ public class PermissionService {
       Optional<AccessControlAspect.HttpMappingInfo> httpMappingInfo,
       String resourceId,
       ResourceType resourceType,
-      Action action) {
+      Action action,
+      Supplier<Target> parent) {
 
     // admin user bypasses all checks
     if (user.isAdmin()) {
@@ -135,7 +187,7 @@ public class PermissionService {
     // for inject/article the permission will be based on the parent's (scenario/simulation/test)
     // permission
     if (RESOURCES_USING_PARENT_PERMISSION.contains(resourceType)) {
-      Target parentTarget = resolveTarget(resourceId, resourceType, action);
+      Target parentTarget = parent.get();
       resourceId = parentTarget.resourceId;
       resourceType = parentTarget.resourceType;
       action = parentTarget.action;
@@ -350,6 +402,34 @@ public class PermissionService {
 
   /** Used to return Parent resource information */
   private record Target(String resourceId, ResourceType resourceType, Action action) {}
+
+  /** A resource prepared by {@link #checkedResource}, whose parent is resolved at most once. */
+  public static final class CheckedResource {
+
+    private final String resourceId;
+    private final ResourceType resourceType;
+    private final Action action;
+    private final Supplier<Target> parentResolution;
+    private Target parent;
+
+    private CheckedResource(
+        String resourceId,
+        ResourceType resourceType,
+        Action action,
+        Supplier<Target> parentResolution) {
+      this.resourceId = resourceId;
+      this.resourceType = resourceType;
+      this.action = action;
+      this.parentResolution = parentResolution;
+    }
+
+    private Target parent() {
+      if (parent == null) {
+        parent = parentResolution.get();
+      }
+      return parent;
+    }
+  }
 
   public static boolean isManagedByGrants(ResourceType resourceType) {
     return RESOURCES_MANAGED_BY_GRANTS.contains(resourceType);
