@@ -12,6 +12,7 @@ import io.openaev.service.chaining.StepEventService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowService;
+import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class QueueChainingJob implements Job {
   private final WorkflowService workflowService;
   private final TenantScopedTransaction tenantTx;
   private final StepEventService stepEventService;
+  private final EntityManager entityManager;
 
   /** Periodically processes the next eligible step from the delay queue. */
   @Override
@@ -83,6 +85,10 @@ public class QueueChainingJob implements Job {
             // table. That returns empty, expandTargetBatches takes its "scope resolves to no asset"
             // branch, and the delayed inject fires with no per-asset target. No exception, no log.
             String tenantId = tenantOf(stepDelayQueue);
+            // The previous entry's changes are written before its scope is left, whether it
+            // succeeded or failed: flushed later, under this entry's tenant, an update of the
+            // previous tenant's row matches nothing on an active table and fails the whole pass.
+            entityManager.flush();
             if (tenantId == null) {
               // Cleared, not left alone. Every entry shares this transaction, so the PREVIOUS
               // entry's scope is still set here: doing nothing would process a tenant-less entry
@@ -150,9 +156,11 @@ public class QueueChainingJob implements Job {
   }
 
   /**
-   * The tenant a delayed step belongs to. {@code workflows} carries no tenant column of its own;
-   * its owner does. {@code chk_workflow_simulation_or_scenario} allows exactly one of a simulation
-   * or a scenario, and both are {@code TenantBase}, so both have to be read.
+   * The tenant a delayed step belongs to, read from the run's owner. {@code
+   * chk_workflow_simulation_or_scenario} allows exactly one of a simulation or a scenario, and both
+   * are {@code TenantBase}, so both have to be read. The run carries its own {@code tenant_id} too,
+   * and the two agree: the run takes its owner's tenant when it is inserted and refuses any other
+   * ({@code Workflow#attributeTenantFromOwner}), and neither column is updatable.
    */
   private static String tenantOf(StepDelayQueue stepDelayQueue) {
     // chk_workflow_simulation_or_scenario guarantees exactly one of the two is set, and both

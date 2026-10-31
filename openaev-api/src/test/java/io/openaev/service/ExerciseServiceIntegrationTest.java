@@ -27,6 +27,7 @@ import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionServi
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowEndService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -66,6 +67,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
+  @Autowired private WorkflowOwnerScope workflowOwnerScope;
   @Autowired private TeamService teamService;
   @Autowired private TagRuleService tagRuleService;
   @Autowired private DocumentService documentService;
@@ -160,6 +162,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             workflowService,
             workflowEndService,
             workflowPauseService,
+            workflowOwnerScope,
             pauseExerciseService,
             fileService,
             healthCheckUtils,

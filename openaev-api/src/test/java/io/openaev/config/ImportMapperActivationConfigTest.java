@@ -489,4 +489,47 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesAutonomousObjectiveTemplates() throws Exception {
     assertActiveTableEntry("autonomous_objective_templates");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains workflows")
+  void prodConfigActivatesWorkflows() throws Exception {
+    assertActiveTableEntry("workflows");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains steps")
+  void prodConfigActivatesSteps() throws Exception {
+    assertActiveTableEntry("steps");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains conditions")
+  void prodConfigActivatesConditions() throws Exception {
+    assertActiveTableEntry("conditions");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains scope_variables")
+  void prodConfigActivatesScopeVariables() throws Exception {
+    assertActiveTableEntry("scope_variables");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains steps_delay_queue")
+  void prodConfigActivatesStepsDelayQueue() throws Exception {
+    assertActiveTableEntry("steps_delay_queue");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains workflow_scope_rules")
+  void prodConfigActivatesWorkflowScopeRules() throws Exception {
+    assertActiveTableEntry("workflow_scope_rules");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains workflow_states")
+  void prodConfigActivatesWorkflowStates() throws Exception {
+    assertActiveTableEntry("workflow_states");
+  }
 }

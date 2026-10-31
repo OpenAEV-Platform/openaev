@@ -47,6 +47,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -97,6 +98,7 @@ public class ScenarioApi extends RestBehavior {
   private final DocumentService documentService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
+  private final WorkflowOwnerScope workflowOwnerScope;
   private final StepService stepService;
   private final ExpectationsDriftService expectationsDriftService;
   private final AutonomousRunService autonomousRunService;
@@ -684,17 +686,25 @@ public class ScenarioApi extends RestBehavior {
             .findById(currentUser().getId())
             .orElseThrow(ElementNotFoundException::new);
 
-    if (workflowService.isScenarioChaining(scenarioId)) {
-      // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
-      // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
-      // plan or run outcome is no longer the latest activity). No-op when the scenario carries no
-      // run or the feature is off, and never tears down a still-active run.
-      autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
+    // The scenario's workflow is read, and its simulation's started, in the scenario's own tenant
+    // whatever the caller's scope: access to the scenario was granted, its workflow follows it.
+    if (workflowOwnerScope.call(scenario, () -> workflowService.isScenarioChaining(scenarioId))) {
       simulation =
-          scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, launchedBy);
-      workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
-
+          workflowOwnerScope.call(
+              scenario,
+              () -> {
+                // A normal (operator-driven) launch makes any prior autonomous AI outcome on this
+                // scenario stale: clear a settled run so the scenario reverts to its normal
+                // overview / hero (the AI plan or run outcome is no longer the latest activity).
+                // No-op when the scenario carries no run or the feature is off, and never tears
+                // down a still-active run.
+                autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
+                Exercise launched =
+                    scenarioToExerciseService.toExercise(
+                        scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, launchedBy);
+                workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, launched);
+                return launched;
+              });
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
       simulation =

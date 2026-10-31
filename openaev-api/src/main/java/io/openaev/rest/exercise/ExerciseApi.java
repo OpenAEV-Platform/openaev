@@ -50,6 +50,7 @@ import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -125,6 +126,7 @@ public class ExerciseApi extends RestBehavior {
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
+  private final WorkflowOwnerScope workflowOwnerScope;
   private final ExpectationsDriftService expectationsDriftService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final TenantWriteScopeResolver writeScopeResolver;
@@ -1028,10 +1030,17 @@ public class ExerciseApi extends RestBehavior {
       throws IOException {
     Exercise exercise = exerciseService.exercise(exerciseId);
     int exportOptionsMask = ExportOptions.mask(isWithPlayers, isWithTeams, isWithVariableValues);
-    boolean isChaining = workflowService.isSimulationChaining(exerciseId);
+    boolean isChaining =
+        workflowOwnerScope.call(exercise, () -> workflowService.isSimulationChaining(exerciseId));
 
+    // The export carries the simulation's workflow, read in the simulation's own tenant whatever
+    // the caller's scope; the whole export runs there, as it serializes the workflow with the rest.
     byte[] zippedExport =
-        exportService.exportExerciseToZip(exercise, exportOptionsMask, isWithScopeDefinition);
+        workflowOwnerScope.call(
+            exercise,
+            () ->
+                exportService.exportExerciseToZip(
+                    exercise, exportOptionsMask, isWithScopeDefinition));
     String zipName =
         exportService.getZipFileName(
             exercise, exportOptionsMask, isChaining, isWithScopeDefinition);

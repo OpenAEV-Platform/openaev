@@ -31,6 +31,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.ScopeService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -74,6 +75,7 @@ import org.springframework.transaction.annotation.Transactional;
 @ExtendWith(MockitoExtension.class)
 class ScenarioServiceTest extends IntegrationTest {
 
+  @Autowired private WorkflowOwnerScope workflowOwnerScope;
   @Autowired ScenarioRepository scenarioRepository;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
@@ -161,6 +163,7 @@ class ScenarioServiceTest extends IntegrationTest {
             healthCheckUtils,
             scenarioMapper,
             workflowService,
+            workflowOwnerScope,
             workflowExportInitializer,
             bulkDeleteExecutor,
             autonomousRunServiceProvider);
