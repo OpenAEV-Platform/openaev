@@ -132,15 +132,16 @@ public class AttackPathApi extends RestBehavior {
    * Simulations that have attack-path data (id, endpoint count, execution count), for the front's
    * picker. Tenant-scoped through the {@link TxCtx}. When {@code scenarioId} is given (scenario
    * context, #6647 B0), the query is restricted to that scenario's simulations server-side. The
-   * rows are then grant-filtered to the ones the caller can READ (seed rows kept), so the picker
-   * never leaks a simulation the user is not granted on.
+   * rows are then grant-filtered to the ones the caller can READ (seed rows kept), each row in the
+   * tenant it comes from, so the picker never leaks a simulation the user is not granted on and
+   * never hides one it is granted on in another tenant of the scope.
    */
   @GetMapping("/simulations")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   public List<AttackPathSimSummaryRow> simulations(
       TxCtx ctx, @RequestParam(required = false) String scenarioId) {
-    return attackPathAccessControl.retainReadable(ctx, graphService.listSimulations(scenarioId));
+    return attackPathAccessControl.retainReadable(graphService.listSimulations(scenarioId));
   }
 
   /**
