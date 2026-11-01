@@ -765,6 +765,9 @@ public class ScenarioService {
             "scenarios",
             scenarioIdsToDelete,
             chunk -> {
+              // The ids were resolved under the v1 ambient tenant, the default one on the
+              // non-prefixed route, so each is checked against the request scope first.
+              chunk.forEach(id -> existsInScope(ctx, id));
               // Tear the autonomous run (simulation + timeline + XTM orchestration) down first,
               // inside the same chunk transaction, so an autonomous scenario is never left with an
               // orphaned autonomous_runs row after a bulk delete. No-op for manual scenarios.
@@ -1261,7 +1264,7 @@ public class ScenarioService {
     if (StringUtils.isBlank(scenarioId)) {
       throw new ElementNotFoundException();
     }
-    return copyScenarioContent(findInScope(ctx, scenarioId).orElseThrow());
+    return copyScenarioContent(scenario(ctx, scenarioId));
   }
 
   /** The metadata copy of a scenario of the current tenant, for work without a request scope. */

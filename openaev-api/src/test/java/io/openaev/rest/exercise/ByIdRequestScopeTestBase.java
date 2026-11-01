@@ -260,6 +260,10 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     return count("SELECT count(*) FROM exercises");
   }
 
+  int scenarioCount() {
+    return count("SELECT count(*) FROM scenarios");
+  }
+
   int autonomousRunCount(String scenarioId) {
     return count(
         "SELECT count(*) FROM autonomous_runs WHERE autonomous_run_scenario_id = ?", scenarioId);
@@ -304,6 +308,18 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
       return pathTenant == null
           ? SCENARIO_URI + "/" + id
           : TENANT_SCENARIO_URI.replace("{tenantId}", pathTenant) + "/" + id;
+    }
+
+    String simulations() {
+      return pathTenant == null
+          ? EXERCISE_URI
+          : TENANT_EXERCISE_URI.replace("{tenantId}", pathTenant);
+    }
+
+    String scenarios() {
+      return pathTenant == null
+          ? SCENARIO_URI
+          : TENANT_SCENARIO_URI.replace("{tenantId}", pathTenant);
     }
 
     String autonomousLaunch(String scenarioId) {
@@ -401,6 +417,15 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     return response.getStatus();
   }
 
+  /** Bulk deletes the given simulations by id. */
+  int bulkDeleteSimulations(Route route, String... ids) throws Exception {
+    return status(
+        route.with(
+            delete(route.simulations())
+                .content(asJsonString(Map.of("exercise_ids_to_process", List.of(ids))))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
   int getSimulationResultsByAttackPattern(Route route, String id) throws Exception {
     return status(route.with(get(route.simulation(id) + "/injects/results-by-attack-patterns")));
   }
@@ -422,6 +447,26 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
         route.with(
             put(route.scenario(id) + "/teams/remove")
                 .content(asJsonString(Map.of("scenario_teams", List.of(teamId))))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  /** Duplicates the scenario; a copy that was created is removed on teardown. */
+  int duplicateScenario(Route route, String id) throws Exception {
+    TenantContext.clearCurrentTenant();
+    MockHttpServletResponse response =
+        mvc.perform(route.with(post(route.scenario(id)))).andReturn().getResponse();
+    if (response.getStatus() == 200) {
+      seededScenarios.add(JsonPath.read(response.getContentAsString(), "$.scenario_id"));
+    }
+    return response.getStatus();
+  }
+
+  /** Bulk deletes the given scenarios by id. */
+  int bulkDeleteScenarios(Route route, String... ids) throws Exception {
+    return status(
+        route.with(
+            delete(route.scenarios())
+                .content(asJsonString(Map.of("scenario_ids_to_process", List.of(ids))))
                 .contentType(MediaType.APPLICATION_JSON)));
   }
 

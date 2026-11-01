@@ -329,4 +329,135 @@ class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
       assertThat(scenarioHasTeam(scenarioId, teamId)).isFalse();
     }
   }
+
+  @Nested
+  @DisplayName("Scenario duplicate and bulk deletes outside the request scope")
+  class DuplicateAndBulkDeleteOutsideTheScope {
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant scenario and a selector naming another tenant, its duplicate"
+            + " answers not found and copies nothing")
+    void given_defaultTenantScenarioAndSelectorNamingAnotherTenant_should_notDuplicateIt()
+        throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      int scenariosBefore = scenarioCount();
+
+      // Act
+      int duplicate = duplicateScenario(headerRoute(memberTenant), scenarioId);
+
+      // Assert
+      assertThat(duplicate).isEqualTo(404);
+      assertThat(scenarioCount()).isEqualTo(scenariosBefore);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant scenario on the route of another member tenant, its duplicate"
+            + " answers not found and copies nothing")
+    void given_defaultTenantScenarioOnRouteOfAnotherTenant_should_notDuplicateIt()
+        throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      int scenariosBefore = scenarioCount();
+
+      // Act
+      int duplicate = duplicateScenario(tenantRoute(memberTenant), scenarioId);
+
+      // Assert
+      assertThat(duplicate).isEqualTo(404);
+      assertThat(scenarioCount()).isEqualTo(scenariosBefore);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant scenario and no selector, a member of the default tenant"
+            + " duplicates it")
+    void given_defaultTenantScenarioAndNoSelector_should_duplicateIt() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      int scenariosBefore = scenarioCount();
+
+      // Act
+      int duplicate = duplicateScenario(noSelectorRoute(), scenarioId);
+
+      // Assert
+      assertThat(duplicate).isEqualTo(200);
+      assertThat(scenarioCount()).isEqualTo(scenariosBefore + 1);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant scenario and a selector naming another tenant, the bulk delete"
+            + " answers not found and keeps it")
+    void given_defaultTenantScenarioAndSelectorNamingAnotherTenant_should_notBulkDeleteIt()
+        throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+
+      // Act
+      int bulkDelete = bulkDeleteScenarios(headerRoute(memberTenant), scenarioId);
+
+      // Assert
+      assertThat(bulkDelete).isEqualTo(404);
+      assertThat(scenarioExists(scenarioId)).isTrue();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant scenario and no selector, a member of the default tenant bulk"
+            + " deletes it")
+    void given_defaultTenantScenarioAndNoSelector_should_bulkDeleteIt() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+
+      // Act
+      int bulkDelete = bulkDeleteScenarios(noSelectorRoute(), scenarioId);
+
+      // Assert
+      assertThat(bulkDelete).isEqualTo(200);
+      assertThat(scenarioExists(scenarioId)).isFalse();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant simulation and a selector naming another tenant, the bulk delete"
+            + " answers not found and keeps it")
+    void given_defaultTenantSimulationAndSelectorNamingAnotherTenant_should_notBulkDeleteIt()
+        throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(DEFAULT_TENANT);
+
+      // Act
+      int bulkDelete = bulkDeleteSimulations(headerRoute(memberTenant), simulationId);
+
+      // Assert
+      assertThat(bulkDelete).isEqualTo(404);
+      assertThat(simulationExists(simulationId)).isTrue();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant simulation and no selector, a member of the default tenant bulk"
+            + " deletes it")
+    void given_defaultTenantSimulationAndNoSelector_should_bulkDeleteIt() throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(DEFAULT_TENANT);
+
+      // Act
+      int bulkDelete = bulkDeleteSimulations(noSelectorRoute(), simulationId);
+
+      // Assert
+      assertThat(bulkDelete).isEqualTo(200);
+      assertThat(simulationExists(simulationId)).isFalse();
+    }
+  }
 }
