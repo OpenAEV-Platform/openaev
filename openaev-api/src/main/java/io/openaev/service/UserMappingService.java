@@ -10,6 +10,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.processor.datapack.PresetTenantData;
 import io.openaev.service.platform.groups.PlatformGroupService;
 import io.openaev.sso.GroupMapping;
 import jakarta.annotation.Nonnull;
@@ -85,6 +86,31 @@ public class UserMappingService {
         log.debug("Token group '{}' has no configured mapping — skipping", tokenGroup);
       }
     }
+  }
+
+  /**
+   * Puts an SSO admin in the "Admin" group of the provider's tenant, and takes them out when they
+   * lose the admin role. Admins get their markings from this group, not from {@code user_admin}.
+   */
+  public void mapAdminGroup(User user, String tenantId, boolean isAdmin) {
+    Optional<Group> adminGroup = tenantGroupService.findByName(PresetTenantData.ADMIN, tenantId);
+    if (adminGroup.isEmpty()) {
+      log.warn(
+          "No '{}' group in tenant {}, SSO admin role ignored", PresetTenantData.ADMIN, tenantId);
+      return;
+    }
+    String adminGroupId = adminGroup.get().getId();
+    List<Group> userGroups = user.getUnscopedGroups();
+    boolean member = userGroups.stream().anyMatch(g -> g.getId().equals(adminGroupId));
+    if (isAdmin == member) {
+      return;
+    }
+    if (isAdmin) {
+      userGroups.add(adminGroup.get());
+    } else {
+      userGroups.removeIf(g -> g.getId().equals(adminGroupId));
+    }
+    markingClearanceCacheManager.evictForUser(user.getId());
   }
 
   private static List<GroupMapping> safeParseMappings(String json) {
