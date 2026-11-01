@@ -133,6 +133,11 @@ public class ExerciseApi extends RestBehavior {
 
   // endregion
 
+  /** Resolves the simulation inside the request's tenant scope, or answers not found. */
+  private void requireSimulationInScope(final TxCtx ctx, final String exerciseId) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+  }
+
   // region healthchecks
   @GetMapping({
     EXERCISE_URI + "/{exerciseId}/healthchecks",
@@ -144,9 +149,8 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<HealthCheck> streamHealthChecks(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
+    requireSimulationInScope(ctx, exerciseId);
     return exerciseService.runChecks(exerciseId);
   }
 
@@ -219,10 +223,6 @@ public class ExerciseApi extends RestBehavior {
     return expectationsDriftService.dismissExerciseDrift(exerciseId, input.dismissed());
   }
 
-  private void requireSimulationInScope(final TxCtx ctx, final String exerciseId) {
-    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
-  }
-
   // endregion
 
   // region logs
@@ -233,6 +233,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<Log> logs(TxCtx ctx, @PathVariable String exercise) {
+    requireSimulationInScope(ctx, exercise);
     List<Log> logs = exerciseLogRepository.findAll(ExerciseLogSpecification.fromExercise(exercise));
     // log_tags is serialized open-in-view after the commit, when a lazy load on the v2-active tags
     // table fails closed to an empty array: the log edit form, filled from this response, then
@@ -275,6 +276,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String logId,
       @Valid @RequestBody LogCreateInput input) {
+    requireSimulationInScope(ctx, exerciseId);
     Log log = logRepository.findById(logId).orElseThrow(ElementNotFoundException::new);
     log.setUpdateAttributes(input);
     log.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -291,6 +293,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void deleteLog(TxCtx ctx, @PathVariable String exerciseId, @PathVariable String logId) {
+    requireSimulationInScope(ctx, exerciseId);
     logRepository.deleteById(logId);
   }
 
@@ -307,6 +310,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<Comcheck> comchecks(TxCtx ctx, @PathVariable String exercise) {
+    requireSimulationInScope(ctx, exercise);
     return comcheckRepository.findAll(ComcheckSpecification.fromExercise(exercise));
   }
 
@@ -321,6 +325,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public Comcheck comcheck(
       TxCtx ctx, @PathVariable String exercise, @PathVariable String comcheck) {
+    requireSimulationInScope(ctx, exercise);
     return findComcheck(exercise, comcheck);
   }
 
@@ -341,6 +346,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public List<ComcheckStatus> comcheckStatuses(
       TxCtx ctx, @PathVariable String exercise, @PathVariable String comcheck) {
+    requireSimulationInScope(ctx, exercise);
     return findComcheck(exercise, comcheck).getComcheckStatus();
   }
 
@@ -400,6 +406,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<RawPlayer> getPlayersByExercise(TxCtx ctx, @PathVariable String exerciseId) {
+    requireSimulationInScope(ctx, exerciseId);
     return userRepository.rawPlayersByExerciseId(exerciseId);
   }
 

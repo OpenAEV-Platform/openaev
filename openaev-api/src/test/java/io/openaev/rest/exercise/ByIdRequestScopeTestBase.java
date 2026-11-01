@@ -110,6 +110,7 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     seededScenarios.forEach(
         id -> jdbc.update("DELETE FROM autonomous_runs WHERE autonomous_run_scenario_id = ?", id));
     seededScenarios.forEach(id -> jdbc.update("DELETE FROM scenarios WHERE scenario_id = ?", id));
+    seededTeams.forEach(id -> jdbc.update("DELETE FROM users_teams WHERE team_id = ?", id));
     seededTeams.forEach(id -> jdbc.update("DELETE FROM teams WHERE team_id = ?", id));
     injectorContractComposer.reset();
     tenantHelper.deleteCommittedTenants(memberTenant, otherTenant);
@@ -161,6 +162,14 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
         .update(
             "INSERT INTO scenarios_teams (scenario_id, team_id) VALUES (?, ?)", scenarioId, teamId);
     return teamId;
+  }
+
+  /** Enrolls the caller in the team, so the player lists of its simulation or scenario hold it. */
+  String seedPlayerOfTeam(String teamId) {
+    String userId = testUserHolder.get().getId();
+    new JdbcTemplate(dataSource)
+        .update("INSERT INTO users_teams (user_id, team_id) VALUES (?, ?)", userId, teamId);
+    return userId;
   }
 
   /** Seeds a contract linked to an injector, in the given tenant. */
@@ -424,6 +433,46 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
             delete(route.simulations())
                 .content(asJsonString(Map.of("exercise_ids_to_process", List.of(ids))))
                 .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  int getSimulationHealthChecks(Route route, String id) throws Exception {
+    return status(route.with(get(route.simulation(id) + "/healthchecks")));
+  }
+
+  int getSimulationPlayers(Route route, String id) throws Exception {
+    return status(route.with(get(route.simulation(id) + "/players")));
+  }
+
+  int getSimulationLogs(Route route, String id) throws Exception {
+    return status(route.with(get(route.simulation(id) + "/logs")));
+  }
+
+  int getSimulationComchecks(Route route, String id) throws Exception {
+    return status(route.with(get(route.simulation(id) + "/comchecks")));
+  }
+
+  int getScenarioHealthChecks(Route route, String id) throws Exception {
+    return status(route.with(get(route.scenario(id) + "/healthchecks")));
+  }
+
+  int getScenarioPlayers(Route route, String id) throws Exception {
+    return status(route.with(get(route.scenario(id) + "/players")));
+  }
+
+  /** The player ids the simulation's player list answers. */
+  List<String> simulationPlayerIds(Route route, String id) throws Exception {
+    return playerIds(route.with(get(route.simulation(id) + "/players")));
+  }
+
+  /** The player ids the scenario's player list answers. */
+  List<String> scenarioPlayerIds(Route route, String id) throws Exception {
+    return playerIds(route.with(get(route.scenario(id) + "/players")));
+  }
+
+  private List<String> playerIds(MockHttpServletRequestBuilder request) throws Exception {
+    TenantContext.clearCurrentTenant();
+    String body = mvc.perform(request).andReturn().getResponse().getContentAsString();
+    return JsonPath.read(body, "$[*].user_id");
   }
 
   int getSimulationResultsByAttackPattern(Route route, String id) throws Exception {
