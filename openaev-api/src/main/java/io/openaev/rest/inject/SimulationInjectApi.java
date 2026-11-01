@@ -10,7 +10,8 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.comparator.InjectExecutionComparator;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -20,6 +21,7 @@ import io.openaev.execution.ExecutionContextService;
 import io.openaev.executors.Executor;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
@@ -31,6 +33,7 @@ import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.service.BulkInjectService;
 import io.openaev.service.InjectSearchService;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -65,7 +68,7 @@ public class SimulationInjectApi extends RestBehavior {
   private final InjectSearchService injectSearchService;
   private final Executor executor;
   private final InjectorContractRepository injectorContractRepository;
-  private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final UserRepository userRepository;
   private final InjectRepository injectRepository;
   private final ExecutionContextService executionContextService;
@@ -76,6 +79,8 @@ public class SimulationInjectApi extends RestBehavior {
   private final InjectMapper injectMapper;
   private final InjectUtils injectUtils;
   private final BulkInjectService bulkInjectService;
+  private final TenantWriteScopeResolver writeScopeResolver;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   // -- READ --
 
@@ -243,13 +248,9 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public InjectOutput createInjectForExercise(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     Inject persistedInject = this.injectService.createAndSaveInject(exercise, null, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
@@ -266,9 +267,7 @@ public class SimulationInjectApi extends RestBehavior {
   public List<Inject> createInjectsForExercise(
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     List<Inject> created = this.injectService.createAndSaveInjectList(exercise, null, inputs);
     KillChainPhaseInitializer.initializeFromInjects(created);
     return created;
@@ -284,14 +283,14 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.INJECT)
   public InjectOutput duplicateInjectForExercise(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
+    Exercise exercise =
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     Inject persistedInject =
         injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
-            exerciseId, injectId);
+            exercise, injectId);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
@@ -303,13 +302,32 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public InjectStatus executeInject(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for the transaction (resolveInjector and executor.directExecute resolve the injector
-      // through the v2 tenant-scoped injectors table).
+      // TenantScopeTransactionAspect reads it to set the tenant scope for the transaction
+      // (resolveInjector and executor.directExecute resolve the injector through the v2
+      // tenant-scoped injectors table); the handler resolves the simulation in the same scope.
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestPart("input") DirectInjectInput input,
       @RequestPart("file") Optional<MultipartFile> file) {
+    Exercise exercise =
+        this.exerciseService
+            .findByIdInScope(ctx, exerciseId)
+            .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+    // The execution belongs to the simulation: its tenant decides where the inject and the agent
+    // jobs of the dispatch are written, and which tenant's injector the contract resolves to. The
+    // simulation is resolved by primary key inside the request's read scope, which holds several
+    // tenants on the non-prefixed route while the ambient tenant there is the default one. The
+    // write tenant is checked against that same read scope, so a tenant the lookup admitted is
+    // never refused by the write and a tenant outside it is never written to.
+    String writeTenant =
+        this.writeScopeResolver.tenantForWrite(
+            TxCtx.forTenants(TxCtxScopeUtils.requestReadScope(ctx)), exercise.getTenant().getId());
+    return this.ambientTenantBridge.callInTenant(
+        writeTenant, () -> executeInjectInTenant(exercise, input, file));
+  }
+
+  private InjectStatus executeInjectInTenant(
+      Exercise exercise, DirectInjectInput input, Optional<MultipartFile> file) {
     InjectorContract injectorContract =
         this.injectorContractRepository
             .findById(input.getInjectorContract())
@@ -320,10 +338,7 @@ public class SimulationInjectApi extends RestBehavior {
         this.userRepository
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
-    inject.setExercise(
-        this.exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(() -> new ElementNotFoundException("Exercise not found")));
+    inject.setExercise(exercise);
     inject.setDependsDuration(0L);
     Inject savedInject = this.injectRepository.save(inject);
     Iterable<User> users = this.userRepository.findAllById(input.getUserIds());
@@ -489,7 +504,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public void deleteInject(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
-    this.simulationInjectService.deleteInject(exerciseId, injectId);
+    this.simulationInjectService.deleteInject(ctx, exerciseId, injectId);
   }
 
   /** See {@link KillChainPhaseInitializer}: hydrate before open-in-view rendering. */

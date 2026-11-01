@@ -324,7 +324,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#scenarioId",
       isEnterpriseEdition = true)
   public AutonomousRunCreateInput getScenarioConfig(TxCtx ctx, @PathVariable String scenarioId) {
-    return autonomousRunService.getScenarioAutonomousConfig(scenarioId);
+    return autonomousRunService.getScenarioAutonomousConfig(ctx, scenarioId);
   }
 
   @Operation(
@@ -344,7 +344,7 @@ public class AutonomousRunApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String scenarioId,
       @RequestBody(required = false) AutonomousRunCreateInput input) {
-    return autonomousRunService.saveScenarioAutonomousConfig(scenarioId, input);
+    return autonomousRunService.saveScenarioAutonomousConfig(ctx, scenarioId, input);
   }
 
   @Operation(summary = "Engage the orchestrator for a created run")

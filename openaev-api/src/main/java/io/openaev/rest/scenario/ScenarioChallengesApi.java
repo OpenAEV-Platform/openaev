@@ -5,10 +5,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.challenge.response.ChallengeInformation;
 import io.openaev.rest.challenge.response.ScenarioChallengesReader;
@@ -17,6 +15,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChallengeService;
+import io.openaev.service.scenario.ScenarioService;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ScenarioChallengesApi extends RestBehavior {
 
-  private final ScenarioRepository scenarioRepository;
+  private final ScenarioService scenarioService;
   private final UserRepository userRepository;
 
   private final DocumentService documentService;
@@ -52,8 +51,7 @@ public class ScenarioChallengesApi extends RestBehavior {
   public List<Document> playerDocuments(
       TxCtx ctx, @PathVariable String scenarioId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant());
+    Optional<Scenario> scenarioOpt = scenarioService.findInScope(ctx, scenarioId);
     final User user = impersonateUser(userRepository, userId);
     if (scenarioOpt.isPresent()) {
       if (!scenarioOpt.get().isUserHasAccess(user)
@@ -77,9 +75,7 @@ public class ScenarioChallengesApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public ScenarioChallengesReader observerChallenges(TxCtx ctx, @PathVariable String scenarioId) {
     Scenario scenario =
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
     ScenarioChallengesReader scenarioChallengesReader = new ScenarioChallengesReader(scenario);
     Iterable<Challenge> challenges = challengeService.getScenarioChallenges(scenario);
     scenarioChallengesReader.setScenarioChallenges(

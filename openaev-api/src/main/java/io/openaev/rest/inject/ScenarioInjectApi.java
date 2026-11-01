@@ -129,7 +129,7 @@ public class ScenarioInjectApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     assert scenarioId.equals(scenario.getId());
     return hydrateKillChainPhases(
         injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new));
@@ -147,12 +147,10 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public InjectOutput createInjectForScenario(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     Inject persistedInject = this.injectService.createAndSaveInject(null, scenario, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
@@ -170,7 +168,7 @@ public class ScenarioInjectApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody List<InjectInput> inputs) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     List<Inject> created = this.injectService.createAndSaveInjectList(null, scenario, inputs);
     KillChainPhaseInitializer.initializeFromInjects(created);
     return created;
@@ -192,7 +190,7 @@ public class ScenarioInjectApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectAssistantInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     List<Inject> generated =
         injectService.saveAll(
             this.injectAssistantService.generateInjectsForScenario(scenario, input));
@@ -210,14 +208,14 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public InjectOutput duplicateInjectForScenario(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
+    Scenario scenario =
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
     Inject persistedInject =
         injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
-            scenarioId, injectId);
+            scenario, injectId);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
@@ -233,13 +231,11 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public InjectOutput updateInjectForScenario(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody @NotNull InjectInput input) {
-    return scenarioInjectService.updateInjectForScenario(scenarioId, injectId, input);
+    return scenarioInjectService.updateInjectForScenario(ctx, scenarioId, injectId, input);
   }
 
   @PutMapping({
@@ -327,7 +323,7 @@ public class ScenarioInjectApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    this.scenarioInjectService.deleteInject(scenarioId, injectId);
+    this.scenarioInjectService.deleteInject(ctx, scenarioId, injectId);
   }
 
   /** See {@link KillChainPhaseInitializer}: hydrate before open-in-view rendering. */

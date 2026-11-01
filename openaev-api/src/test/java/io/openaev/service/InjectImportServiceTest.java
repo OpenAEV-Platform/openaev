@@ -6,19 +6,18 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.InjectImporter;
 import io.openaev.database.model.RuleAttribute;
 import io.openaev.database.model.Scenario;
-import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportTestSummary;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import java.text.SimpleDateFormat;
@@ -42,7 +41,6 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -337,8 +335,8 @@ public class InjectImportServiceTest {
 
     private final TxCtx ctx = TxCtx.forTenant("tenant-1");
 
-    @Mock private ScenarioRepository scenarioRepository;
-    @Mock private ExerciseRepository exerciseRepository;
+    @Mock private ScenarioService scenarioService;
+    @Mock private ExerciseService exerciseService;
     @Mock private ImportService importService;
 
     private InjectImportService injectImportService;
@@ -353,8 +351,8 @@ public class InjectImportServiceTest {
               null,
               null,
               null,
-              exerciseRepository,
-              scenarioRepository,
+              exerciseService,
+              scenarioService,
               importService,
               null,
               null,
@@ -368,17 +366,13 @@ public class InjectImportServiceTest {
       scenario.setId("sc-1");
       MultipartFile file = mock(MultipartFile.class);
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("sc-1", "tenant-1"))
-            .thenReturn(Optional.of(scenario));
+      when(scenarioService.findInScope(ctx, "sc-1")).thenReturn(Optional.of(scenario));
 
-        // -------- Act --------
-        injectImportService.importInjectsForScenario(ctx, file, "sc-1");
+      // -------- Act --------
+      injectImportService.importInjectsForScenario(ctx, file, "sc-1");
 
-        // -------- Assert --------
-        verify(importService).handleFileImport(ctx, file, null, scenario);
-      }
+      // -------- Assert --------
+      verify(importService).handleFileImport(ctx, file, null, scenario);
     }
 
     @Test
@@ -386,7 +380,7 @@ public class InjectImportServiceTest {
       // -------- Prepare --------
       Exercise exercise = new Exercise();
       exercise.setId("ex-1");
-      when(exerciseRepository.findById("ex-1")).thenReturn(Optional.of(exercise));
+      when(exerciseService.findByIdInScope(ctx, "ex-1")).thenReturn(Optional.of(exercise));
 
       MultipartFile file = mock(MultipartFile.class);
 
@@ -414,22 +408,18 @@ public class InjectImportServiceTest {
       // -------- Prepare --------
       MultipartFile file = mock(MultipartFile.class);
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("missing", "tenant-1"))
-            .thenReturn(Optional.empty());
+      when(scenarioService.findInScope(ctx, "missing")).thenReturn(Optional.empty());
 
-        // -------- Act / Assert --------
-        assertThrows(
-            ElementNotFoundException.class,
-            () -> injectImportService.importInjectsForScenario(ctx, file, "missing"));
-      }
+      // -------- Act / Assert --------
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> injectImportService.importInjectsForScenario(ctx, file, "missing"));
     }
 
     @Test
     void shouldThrowElementNotFound_whenExerciseMissing() {
       // -------- Prepare --------
-      when(exerciseRepository.findById("missing")).thenReturn(Optional.empty());
+      when(exerciseService.findByIdInScope(ctx, "missing")).thenReturn(Optional.empty());
       MultipartFile file = mock(MultipartFile.class);
 
       // -------- Act / Assert --------

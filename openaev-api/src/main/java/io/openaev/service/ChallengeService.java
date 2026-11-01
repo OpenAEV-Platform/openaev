@@ -167,9 +167,11 @@ public class ChallengeService {
     return new ChallengeResult(false);
   }
 
-  public SimulationChallengesReader playerChallenges(String exerciseId, User user) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+  /**
+   * Builds the challenges a player sees in a simulation the caller resolved in its tenant scope.
+   */
+  public SimulationChallengesReader playerChallenges(Exercise exercise, User user) {
+    String exerciseId = exercise.getId();
     SimulationChallengesReader reader = new SimulationChallengesReader(exercise);
     List<ChallengeInjectExpectation> challengeExpectations =
         injectExpectationRepository.findChallengeExpectationsByExerciseAndUser(
@@ -214,8 +216,10 @@ public class ChallengeService {
     return reader;
   }
 
+  /** Validates a challenge answer inside a simulation the caller resolved in its tenant scope. */
   public SimulationChallengesReader validateChallenge(
-      String exerciseId, String challengeId, ChallengeTryInput input, User user) {
+      Exercise exercise, String challengeId, ChallengeTryInput input, User user) {
+    String exerciseId = exercise.getId();
     ChallengeResult challengeResult = tryChallenge(challengeId, input);
     if (challengeResult.isResult()) {
       // Success: Find and update the user's expectations and challenge attempt
@@ -294,7 +298,7 @@ public class ChallengeService {
       challengeAttemptService.saveChallengeAttempts(attemptsToSave);
       expectationsToUpdate.forEach(injectExpectationService::updateInjectExpectation);
     }
-    return playerChallenges(exerciseId, user);
+    return playerChallenges(exercise, user);
   }
 
   // -- PRIVATE --
