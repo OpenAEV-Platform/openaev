@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveInjectFieldType } from '../../../../../../admin/components/common/injects/form/InjectContentFieldComponent';
+import { resolveInjectFieldType } from '../../../../../../admin/components/common/injects/form/injectFieldType';
 
 // #6973: a payload argument of type "document" was rendered as a plain text field in the inject form.
 describe('resolveInjectFieldType', () => {
