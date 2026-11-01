@@ -1,7 +1,9 @@
 import { type AxiosRequestConfig } from 'axios';
 import { useEffect, useMemo, useState } from 'react';
 
+import { type LoggedHelper } from '../../../../actions/helper';
 import { useFormatter } from '../../../../components/i18n';
+import { useHelper } from '../../../../store';
 import { simpleCall, simplePostCall } from '../../../../utils/Action';
 import {
   type Domain,
@@ -10,9 +12,10 @@ import {
   type EsCountInterval,
   type EsSeries,
   type Option,
+  type PlatformSettings,
   type Reporting,
+  type TenantSettingsOutput,
 } from '../../../../utils/api-types';
-import useAuth from '../../../../utils/hooks/useAuth';
 import {
   buildAttackPathsConfig,
   buildFailedExpectationsConfig,
@@ -201,6 +204,37 @@ const asString = (value: unknown): string | undefined => (typeof value === 'stri
 
 const initialState = <T>(): ModuleDataState<T> => ({ status: 'loading' });
 
+/** The name a PLATFORM report is about: the tenant's platform name first, as everywhere else in the app. */
+export const resolvePlatformName = (
+  tenantSettings?: Partial<TenantSettingsOutput> | null,
+  settings?: Partial<PlatformSettings> | null,
+): string | undefined => tenantSettings?.platform_name || settings?.platform_name || undefined;
+
+/**
+ * Subject of a PLATFORM report, derived from the settings on every render rather than frozen
+ * when the data effect runs: the render route can mount before the tenant and private
+ * settings are loaded (headless PDF capture, preview iframe remounted after a generation), and
+ * freezing then stamped the generic "Platform" label on the report (#8168). It stays
+ * loading until the name is known, so a capture never prints the placeholder; `fallbackName`
+ * (given only once PLATFORM_NAME_WAIT_MS has passed) keeps a page whose settings never load
+ * from waiting forever.
+ */
+export const platformSubjectState = (platformName?: string, fallbackName?: string): ModuleDataState<ReportingSubject> => {
+  const name = platformName || fallbackName;
+  return name
+    ? {
+        status: 'success',
+        data: {
+          name,
+          raw: {},
+        },
+      }
+    : initialState();
+};
+
+/** How long a PLATFORM report waits for the platform name before using the generic label. */
+export const PLATFORM_NAME_WAIT_MS = 5000;
+
 /**
  * Backoff schedule applied to every module query before it may settle as
  * 'error' (3 attempts total). Kept short: the headless renderer waits for the
@@ -240,9 +274,16 @@ export const retryWithBackoff = async <T>(
 // -- HOOK --------------------------------------------------------------------
 
 const useReportingRenderData = (reporting: Reporting | null, token: string | null): ReportingRenderData => {
+  const { settings, tenantSettings }: {
+    settings: PlatformSettings;
+    tenantSettings: TenantSettingsOutput;
+  } = useHelper((helper: LoggedHelper) => ({
+    settings: helper.getPlatformSettings(),
+    tenantSettings: helper.getTenantSettings(),
+  }));
+  const platformName = resolvePlatformName(tenantSettings, settings);
   const { t } = useFormatter();
-  const { settings } = useAuth();
-  const platformName = settings?.platform_name;
+  const [platformNameWaitOver, setPlatformNameWaitOver] = useState(false);
 
   const [subject, setSubject] = useState<ModuleDataState<ReportingSubject>>(initialState);
   const [posture, setPosture] = useState<ModuleDataState<PostureData>>(initialState);
@@ -299,13 +340,8 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
 
     // -- Subject --
     if (contextType === 'PLATFORM') {
-      setSubject({
-        status: 'success',
-        data: {
-          name: platformName ?? t('Platform'),
-          raw: {},
-        },
-      });
+      // Derived from the settings below (platformSubjectState), never frozen here.
+      setSubject(initialState());
     } else if (!contextId) {
       setSubject({ status: 'error' });
     } else if (contextType === 'PLAYER') {
@@ -570,18 +606,32 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
     return () => {
       cancelled = true;
     };
-    // platformName / t are stable enough for this one-shot page; keying the
-    // effect on them would refetch everything on locale hydration.
+    // The PLATFORM subject name is derived outside the effect, so settings
+    // hydration never refetches every module.
   }, [reporting?.reporting_id, token]);
+
+  const isPlatformReport = reporting?.reporting_context_type === 'PLATFORM';
+  useEffect(() => {
+    if (!isPlatformReport || platformName) return undefined;
+    const timer = setTimeout(() => setPlatformNameWaitOver(true), PLATFORM_NAME_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [isPlatformReport, platformName]);
+
+  const resolvedSubject = useMemo(
+    () => (isPlatformReport
+      ? platformSubjectState(platformName, platformNameWaitOver ? t('Platform') : undefined)
+      : subject),
+    [isPlatformReport, platformName, platformNameWaitOver, t, subject],
+  );
 
   const allSettled = useMemo(() => {
     if (!reporting) return false;
-    return [subject, posture, injectCount, mitre, securityDomains, trends, failedExpectations, findings, attackPaths]
+    return [resolvedSubject, posture, injectCount, mitre, securityDomains, trends, failedExpectations, findings, attackPaths]
       .every(state => state.status !== 'loading');
-  }, [reporting, subject, posture, injectCount, mitre, securityDomains, trends, failedExpectations, findings, attackPaths]);
+  }, [reporting, resolvedSubject, posture, injectCount, mitre, securityDomains, trends, failedExpectations, findings, attackPaths]);
 
   return {
-    subject,
+    subject: resolvedSubject,
     posture,
     injectCount,
     mitre,
