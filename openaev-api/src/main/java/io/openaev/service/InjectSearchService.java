@@ -397,20 +397,13 @@ public class InjectSearchService {
         searchPaginationInput);
   }
 
-  /**
-   * Unlike the other targets, the access right is read in the ambient tenant only: the endpoint
-   * passes no request scope.
-   */
   public Page<InjectResultOutput> getPageOfInjectResultsForOrganization(
-      @NotBlank final String organizationId, @Valid SearchPaginationInput searchPaginationInput) {
-    User currentUser = userService.currentUser();
+      @NotNull final TxCtx ctx,
+      @NotBlank final String organizationId,
+      @Valid SearchPaginationInput searchPaginationInput) {
     return getPageOfInjectResultsForTarget(
         InjectSpecification.targetsOrganization(organizationId),
-        SpecificationUtils.hasGrantAccess(
-            currentUser.getId(),
-            false,
-            canAccessEveryInject(currentUser),
-            Grant.GRANT_TYPE.OBSERVER),
+        readableInEachTenant(ctx),
         searchPaginationInput);
   }
 
