@@ -644,13 +644,15 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Before any read keyed on the scenario id alone: the workflow lookup below carries no tenant
+    // scope of its own, so it must not decide the answer for a scenario outside the request scope.
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
           "The scenario must be a chained scenario to be planned by the orchestrator");
     }
     AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
-    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     // Refine (follow-up) vs rebuild (from scratch): refine keeps the existing logic + history and
     // continues from it; rebuild wipes the logic map and re-authors fresh (the original behaviour).
     return effective.isRefine()
@@ -3979,12 +3981,14 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Before any read keyed on the scenario id alone: the workflow lookup below carries no tenant
+    // scope of its own, so it must not decide the answer for a scenario outside the request scope.
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
           "Only a chained scenario can carry an autonomous-run configuration");
     }
-    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (input == null) {
       scenario.setAutonomousConfig(null);
     } else {

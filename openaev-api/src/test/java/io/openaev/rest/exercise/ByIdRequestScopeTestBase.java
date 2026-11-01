@@ -8,6 +8,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExerciseFixture.createDefaultExercise;
 import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
 import static io.openaev.utils.fixtures.TeamFixture.getDefaultTeam;
+import static io.openaev.utils.fixtures.WorkflowFixture.getDefaultWorkflowTemplate;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -24,12 +25,14 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.Workflow;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exercise.form.UpdateExerciseInput;
 import io.openaev.rest.scenario.form.UpdateScenarioInput;
@@ -81,6 +84,7 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
   @Autowired private PlatformTransactionManager transactionManager;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private AutonomousRunRepository autonomousRunRepository;
+  @Autowired private WorkflowRepository workflowRepository;
 
   /** A tenant the caller is a member of. */
   String memberTenant;
@@ -109,6 +113,8 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     seededExercises.forEach(id -> jdbc.update("DELETE FROM exercises WHERE exercise_id = ?", id));
     seededScenarios.forEach(
         id -> jdbc.update("DELETE FROM autonomous_runs WHERE autonomous_run_scenario_id = ?", id));
+    seededScenarios.forEach(
+        id -> jdbc.update("DELETE FROM workflows WHERE workflow_scenario_id = ?", id));
     seededScenarios.forEach(id -> jdbc.update("DELETE FROM scenarios WHERE scenario_id = ?", id));
     seededTeams.forEach(id -> jdbc.update("DELETE FROM users_teams WHERE team_id = ?", id));
     seededTeams.forEach(id -> jdbc.update("DELETE FROM teams WHERE team_id = ?", id));
@@ -196,6 +202,33 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
           run.setScenarioId(scenarioId);
           return autonomousRunRepository.save(run).getId();
         });
+  }
+
+  /**
+   * Seeds the chaining workflow template of the scenario, in the scenario's tenant: the scenario
+   * becomes a chained one, which the autonomous endpoints require.
+   */
+  void seedChainingWorkflowOfScenario(String tenantId, String scenarioId) {
+    inTenantScope(
+        tenantId,
+        () -> {
+          Workflow template = getDefaultWorkflowTemplate();
+          template.setTenant(new Tenant(tenantId));
+          template.setScenario(scenarioRepository.getReferenceById(scenarioId));
+          return workflowRepository.save(template).getId();
+        });
+  }
+
+  /**
+   * The autonomous-run configuration stored on the scenario, read with raw JDBC on its own
+   * connection so no Hibernate filter and no statement inspector rewrites the ground-truth read.
+   */
+  String scenarioAutonomousConfig(String scenarioId) {
+    return new JdbcTemplate(dataSource)
+        .queryForObject(
+            "SELECT scenario_autonomous_config FROM scenarios WHERE scenario_id = ?",
+            String.class,
+            scenarioId);
   }
 
   int injectCount(String simulationId) {
@@ -342,11 +375,21 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     }
 
     String autonomousLaunch(String scenarioId) {
-      return (pathTenant == null
-              ? AutonomousRunApi.AUTONOMOUS_URI
-              : "/api/tenants/" + pathTenant + "/autonomous-runs")
-          + "/from-scenario/"
-          + scenarioId;
+      return autonomousRuns() + "/from-scenario/" + scenarioId;
+    }
+
+    String autonomousPlan(String scenarioId) {
+      return autonomousRuns() + "/plan-scenario/" + scenarioId;
+    }
+
+    String autonomousScenarioConfig(String scenarioId) {
+      return autonomousRuns() + "/scenario-config/" + scenarioId;
+    }
+
+    private String autonomousRuns() {
+      return pathTenant == null
+          ? AutonomousRunApi.AUTONOMOUS_URI
+          : "/api/tenants/" + pathTenant + "/autonomous-runs";
     }
 
     String scenarioChallenges(String id) {
@@ -535,6 +578,29 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
             post(route.autonomousLaunch(scenarioId))
                 .content("{}")
                 .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  /** Engages the orchestrator to author the scenario's attack path, no run executed. */
+  int planAutonomousScenario(Route route, String scenarioId) throws Exception {
+    return status(
+        route.with(
+            post(route.autonomousPlan(scenarioId))
+                .content("{}")
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  /** Saves an autonomous-run configuration on the scenario. */
+  int saveAutonomousScenarioConfig(Route route, String scenarioId) throws Exception {
+    return status(
+        route.with(
+            put(route.autonomousScenarioConfig(scenarioId))
+                .content(asJsonString(Map.of("objective", "by-id-objective")))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  /** Clears the autonomous-run configuration of the scenario: the same endpoint, with no body. */
+  int clearAutonomousScenarioConfig(Route route, String scenarioId) throws Exception {
+    return status(route.with(put(route.autonomousScenarioConfig(scenarioId))));
   }
 
   int dismissSimulationDrift(Route route, String id) throws Exception {

@@ -612,4 +612,120 @@ class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
       assertThat(new int[] {onTenantRoute, onHeaderRoute}).containsExactly(200, 404);
     }
   }
+
+  @Nested
+  @DisplayName("Autonomous plan and configuration of a scenario outside the request scope")
+  class AutonomousPlanAndConfigurationOutsideTheScope {
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant scenario and a selector naming another tenant, its autonomous plan"
+            + " and configuration answer not found and change nothing")
+    void given_defaultTenantScenarioAndSelectorNamingAnotherTenant_should_refusePlanAndConfig()
+        throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      Route route = headerRoute(memberTenant);
+
+      // Act
+      int plan = planAutonomousScenario(route, scenarioId);
+      int saveConfig = saveAutonomousScenarioConfig(route, scenarioId);
+      int clearConfig = clearAutonomousScenarioConfig(route, scenarioId);
+
+      // Assert
+      assertThat(new int[] {plan, saveConfig, clearConfig}).containsExactly(404, 404, 404);
+      assertThat(autonomousRunCount(scenarioId)).isZero();
+      assertThat(scenarioAutonomousConfig(scenarioId)).isNull();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant scenario on the route of another member tenant, its autonomous"
+            + " plan and configuration answer not found and change nothing")
+    void given_defaultTenantScenarioOnRouteOfAnotherTenant_should_refusePlanAndConfig()
+        throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      Route route = tenantRoute(memberTenant);
+
+      // Act
+      int plan = planAutonomousScenario(route, scenarioId);
+      int saveConfig = saveAutonomousScenarioConfig(route, scenarioId);
+      int clearConfig = clearAutonomousScenarioConfig(route, scenarioId);
+
+      // Assert
+      assertThat(new int[] {plan, saveConfig, clearConfig}).containsExactly(404, 404, 404);
+      assertThat(autonomousRunCount(scenarioId)).isZero();
+      assertThat(scenarioAutonomousConfig(scenarioId)).isNull();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a time-based default tenant scenario and no selector, a member of the default"
+            + " tenant reaches its autonomous plan and configuration, refused as not chained")
+    void given_timeBasedScenarioInScope_should_refusePlanAndConfigAsNotChained() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      Route route = noSelectorRoute();
+
+      // Act
+      // Reached: refused only because the seeded scenario carries no attack path workflow.
+      int plan = planAutonomousScenario(route, scenarioId);
+      int saveConfig = saveAutonomousScenarioConfig(route, scenarioId);
+      int clearConfig = clearAutonomousScenarioConfig(route, scenarioId);
+
+      // Assert
+      assertThat(new int[] {plan, saveConfig, clearConfig}).containsExactly(400, 400, 400);
+      assertThat(scenarioAutonomousConfig(scenarioId)).isNull();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a chained default tenant scenario and no selector, a member of the default tenant"
+            + " saves and clears its autonomous configuration")
+    void given_chainedScenarioInScope_should_saveAndClearItsConfig() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      seedChainingWorkflowOfScenario(DEFAULT_TENANT, scenarioId);
+      Route route = noSelectorRoute();
+
+      // Act
+      int saveConfig = saveAutonomousScenarioConfig(route, scenarioId);
+      String saved = scenarioAutonomousConfig(scenarioId);
+      int clearConfig = clearAutonomousScenarioConfig(route, scenarioId);
+
+      // Assert
+      assertThat(new int[] {saveConfig, clearConfig}).containsExactly(200, 200);
+      assertThat(saved).contains("by-id-objective");
+      assertThat(scenarioAutonomousConfig(scenarioId)).isNull();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a chained scenario of the default tenant and a selector naming another tenant, its"
+            + " autonomous configuration is neither written nor cleared")
+    void given_chainedScenarioOutsideTheScope_should_refuseItsConfig() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+      seedChainingWorkflowOfScenario(DEFAULT_TENANT, scenarioId);
+      Route route = headerRoute(memberTenant);
+
+      // Act
+      int saveOutsideTheScope = saveAutonomousScenarioConfig(route, scenarioId);
+      String afterRefusedSave = scenarioAutonomousConfig(scenarioId);
+      // A configuration saved by a member of its own tenant, which the refused clear must keep.
+      saveAutonomousScenarioConfig(noSelectorRoute(), scenarioId);
+      int clearOutsideTheScope = clearAutonomousScenarioConfig(route, scenarioId);
+
+      // Assert
+      assertThat(new int[] {saveOutsideTheScope, clearOutsideTheScope}).containsExactly(404, 404);
+      assertThat(afterRefusedSave).isNull();
+      assertThat(scenarioAutonomousConfig(scenarioId)).contains("by-id-objective");
+    }
+  }
 }
