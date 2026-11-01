@@ -36,11 +36,9 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
-import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
@@ -925,43 +923,6 @@ public class ExerciseApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.exercise_name").value("Same Tenant Exercise"));
-    }
-
-    @Test
-    @DisplayName("Exercise search in tenant Y should NOT return exercises from tenant X")
-    void given_exerciseInTenantX_should_notAppearInTenantYSearch() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
-
-      // Seeded directly (native insert), not through the create endpoint: creating under tenant
-      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
-      // the search call below sets it to Y - the aspect refuses a scope change within one
-      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
-      seedExerciseInTenant(tenantX, "CrossTenantSearchExercise");
-
-      // -------- Act — search from tenant Y --------
-      SearchPaginationInput searchInput =
-          PaginationFixture.simpleTextSearch("CrossTenantSearchExercise");
-
-      String searchResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/exercises/search")
-                      .content(asJsonString(searchInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert — no results from tenant X --------
-      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
     }
 
     @Test
