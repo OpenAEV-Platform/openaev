@@ -18,6 +18,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
@@ -127,6 +128,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
   @Autowired private AutonomousRunRepository autonomousRunRepository;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -314,10 +316,14 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     INJECT_ID = injectDefaultEmailSaved.getId();
 
     // -- EXECUTE --
-    this.exerciseService.removeTeams(
-        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-        exerciseSaved.getId(),
-        List.of(teamSaved.getId()));
+    // The service under test is built by hand, so it carries no Spring proxy and opens no
+    // transaction: the scoped read inside removeTeams needs one, with the scope on it.
+    TxCtx ctx = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+    this.tenantScopedTransaction.execute(
+        ctx,
+        () -> {
+          this.exerciseService.removeTeams(ctx, exerciseSaved.getId(), List.of(teamSaved.getId()));
+        });
 
     // -- ASSERT --
     List<Team> teams = this.teamRepository.findAll(fromExercise(exerciseSaved.getId()));
