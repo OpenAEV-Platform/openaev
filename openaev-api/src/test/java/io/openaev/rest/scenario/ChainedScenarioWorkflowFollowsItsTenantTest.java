@@ -64,10 +64,10 @@ import org.springframework.transaction.annotation.Transactional;
  * workflow, its export carries its workflow, and its launch gives the simulation a workflow.
  *
  * <p>The scenario lives in the default tenant. Each call is sent on the non-prefixed route by a
- * member of the scenario's tenant, by a caller with no membership at all, and by a caller whose
- * scope excludes that tenant (a platform admin who is a member of another tenant only). A by-id
- * load is resolved in the request scope, so that last caller answers "not found" instead of the
- * scenario.
+ * member of the scenario's tenant, by a caller whose scope excludes that tenant (a platform admin
+ * who is a member of another tenant only) and by a caller with no membership at all. A by-id load
+ * is resolved in the request scope, and an empty scope reaches nothing now that {@code scenarios}
+ * is isolated, so neither of those two callers finds the scenario.
  *
  * <p>The production active tables are armed, so the class follows what production enforces.
  */
@@ -427,17 +427,17 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given no tenant membership should export it as chained")
-    void given_noTenantMembership_should_exportItAsChained() throws Exception {
+    @DisplayName("given no tenant membership should not reach the scenario")
+    void given_noTenantMembership_should_notReachTheScenario() throws Exception {
       // Arrange
-      ChainedScenario rows = chainedScenarioWithAStep();
+      ChainedScenario rows = chainedScenario();
+      clearAmbientTenant();
 
-      // Act
-      String json = exportJson(rows.scenario());
-
-      // Assert
-      assertExportedAsChained(json);
-      assertNoTagRead(json);
+      // Act & Assert
+      mvc.perform(
+              get(SCENARIO_URI + "/" + rows.scenario().getId() + "/export")
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
     }
 
     @Test

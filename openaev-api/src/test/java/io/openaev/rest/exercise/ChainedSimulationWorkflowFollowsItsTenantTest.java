@@ -56,10 +56,10 @@ import org.springframework.transaction.annotation.Transactional;
  * its workflow, and its export carries its workflow.
  *
  * <p>The simulation lives in the default tenant. Each call is sent on the non-prefixed route by a
- * member of the simulation's tenant, by a caller with no membership at all, and by a caller whose
- * scope excludes that tenant (a platform admin who is a member of another tenant only). A by-id
- * load is resolved in the request scope, so that last caller answers "not found" instead of the
- * simulation.
+ * member of the simulation's tenant, by a caller whose scope excludes that tenant (a platform admin
+ * who is a member of another tenant only) and by a caller with no membership at all. A by-id load
+ * is resolved in the request scope, and an empty scope reaches nothing now that {@code exercises}
+ * is isolated, so neither of those two callers finds the simulation.
  *
  * <p>The production active tables are armed, so the class follows what production enforces.
  */
@@ -324,17 +324,17 @@ class ChainedSimulationWorkflowFollowsItsTenantTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given no tenant membership should export it as chained")
-    void given_noTenantMembership_should_exportItAsChained() throws Exception {
+    @DisplayName("given no tenant membership should not reach the simulation")
+    void given_noTenantMembership_should_notReachTheSimulation() throws Exception {
       // Arrange
-      ChainedSimulation rows = chainedSimulationWithAStep();
+      ChainedSimulation rows = chainedSimulation();
+      clearAmbientTenant();
 
-      // Act
-      Exported exported = export(rows.simulation());
-
-      // Assert
-      assertExportedAsChained(exported);
-      assertNoTagRead(exported);
+      // Act & Assert
+      mvc.perform(
+              get(EXERCISE_URI + "/" + rows.simulation().getId() + "/export")
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
     }
 
     @Test
