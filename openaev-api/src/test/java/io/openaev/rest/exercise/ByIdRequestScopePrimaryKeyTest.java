@@ -30,6 +30,10 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * caller's memberships on the non-prefixed route. Covers the direct inject execution, the
  * expectations, expectation drift and player challenges endpoints, and the scenario delete with an
  * autonomous run. Runs with the production list of isolated tables.
+ *
+ * <p>The direct inject execution also writes: the rows it creates belong to the simulation's
+ * tenant, which the last group asserts on the inject row itself on all three routes, so counting
+ * the rows is not taken for proof of where they landed.
  */
 @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @DisplayName("Simulation and scenario primary key loads in the request scope, production tables")
@@ -160,6 +164,7 @@ class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeTestBase {
           .containsExactly(200, 200, 200, 200, 200, 200);
       assertThat(simulationDriftDismissed(simulationId)).isFalse();
       assertThat(injectCount(simulationId)).isEqualTo(1);
+      assertThat(injectTenants(simulationId)).containsExactly(memberTenant);
     }
   }
 
@@ -256,6 +261,7 @@ class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeTestBase {
           .containsExactly(200, 200, 200, 200, 200, 200);
       assertThat(simulationDriftDismissed(simulationId)).isFalse();
       assertThat(injectCount(simulationId)).isEqualTo(1);
+      assertThat(injectTenants(simulationId)).containsExactly(DEFAULT_TENANT);
     }
 
     @Test
@@ -275,6 +281,96 @@ class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeTestBase {
       // Assert
       assertThat(new int[] {drift, dismiss, realign}).containsExactly(200, 200, 200);
       assertThat(scenarioDriftDismissed(scenarioId)).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("The direct inject execution writes in the simulation's tenant")
+  class DirectExecutionWriteTenant {
+
+    @Test
+    @DisplayName("given a simulation of another tenant and no selector, the inject carries it")
+    void given_simulationOfAnotherTenantAndNoSelector_should_writeTheInjectInItsTenant()
+        throws Exception {
+      // Arrange: the caller is a member of the default tenant and of the member tenant, so a
+      // request naming no tenant resolves both; off the tenant route the ambient tenant is the
+      // default one, which is not the simulation's.
+      String simulationId = seedSimulation(memberTenant);
+      String contractId = seedInjectorContract(memberTenant);
+
+      // Act
+      int execute = executeDirectInject(noSelectorRoute(), simulationId, contractId);
+
+      // Assert
+      assertThat(execute).isEqualTo(200);
+      assertThat(injectTenants(simulationId)).containsExactly(memberTenant);
+    }
+
+    @Test
+    @DisplayName("given a simulation of the selected tenant, the inject carries it")
+    void given_simulationOfTheSelectedTenant_should_writeTheInjectInItsTenant() throws Exception {
+      // Arrange: the selector pins the simulation's tenant while the ambient tenant off the
+      // tenant route stays the default one.
+      String simulationId = seedSimulation(memberTenant);
+      String contractId = seedInjectorContract(memberTenant);
+
+      // Act
+      int execute = executeDirectInject(headerRoute(memberTenant), simulationId, contractId);
+
+      // Assert
+      assertThat(execute).isEqualTo(200);
+      assertThat(injectTenants(simulationId)).containsExactly(memberTenant);
+    }
+
+    @Test
+    @DisplayName("given a simulation of the path tenant, the inject carries it")
+    void given_simulationOfThePathTenant_should_writeTheInjectInItsTenant() throws Exception {
+      // Arrange: on the tenant route the ambient tenant already is the simulation's.
+      String simulationId = seedSimulation(memberTenant);
+      String contractId = seedInjectorContract(memberTenant);
+
+      // Act
+      int execute = executeDirectInject(tenantRoute(memberTenant), simulationId, contractId);
+
+      // Assert
+      assertThat(execute).isEqualTo(200);
+      assertThat(injectTenants(simulationId)).containsExactly(memberTenant);
+    }
+
+    @Test
+    @DisplayName("given a threat arsenal item of another tenant, nothing is written")
+    void given_contractOutsideTheSimulationTenant_should_answerNotFoundAndWriteNothing()
+        throws Exception {
+      // Arrange: the simulation belongs to the member tenant and the item to the default one,
+      // which is also the ambient tenant off the tenant route; the request scope holds both.
+      String simulationId = seedSimulation(memberTenant);
+      String contractId = seedInjectorContract(DEFAULT_TENANT);
+
+      // Act
+      int execute = executeDirectInject(noSelectorRoute(), simulationId, contractId);
+
+      // Assert: the item is looked up in the simulation's tenant, where it does not exist
+      assertThat(injectTenants(simulationId))
+          .as("no inject row, in the simulation's tenant or in any other")
+          .isEmpty();
+      assertThat(execute).isEqualTo(404);
+    }
+
+    @Test
+    @DisplayName("given a simulation of the default tenant and no selector, the inject carries it")
+    void given_defaultTenantSimulationAndNoSelector_should_writeTheInjectInTheDefaultTenant()
+        throws Exception {
+      // Arrange: the member contrast of the three cases above, where the simulation's tenant and
+      // the ambient one are the same.
+      String simulationId = seedSimulation(DEFAULT_TENANT);
+      String contractId = seedInjectorContract(DEFAULT_TENANT);
+
+      // Act
+      int execute = executeDirectInject(noSelectorRoute(), simulationId, contractId);
+
+      // Assert
+      assertThat(execute).isEqualTo(200);
+      assertThat(injectTenants(simulationId)).containsExactly(DEFAULT_TENANT);
     }
   }
 }

@@ -202,6 +202,16 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     return count("SELECT count(*) FROM injects WHERE inject_exercise = ?", simulationId);
   }
 
+  /**
+   * The tenant of every inject row of the simulation, read with raw JDBC on its own connection so
+   * no Hibernate filter and no statement inspector rewrites the ground-truth read.
+   */
+  List<String> injectTenants(String simulationId) {
+    return new JdbcTemplate(dataSource)
+        .queryForList(
+            "SELECT tenant_id FROM injects WHERE inject_exercise = ?", String.class, simulationId);
+  }
+
   boolean simulationDriftDismissed(String id) {
     return Boolean.TRUE.equals(
         new JdbcTemplate(dataSource)
