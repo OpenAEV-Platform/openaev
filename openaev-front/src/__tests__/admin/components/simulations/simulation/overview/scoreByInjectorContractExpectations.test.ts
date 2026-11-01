@@ -15,7 +15,10 @@ const expectation = (overrides: Partial<InjectExpectationOutput>): InjectExpecta
 
 describe('isTopLevelScoredExpectation (#8396)', () => {
   it('keeps the team row of a tabletop inject and drops its player rows', () => {
-    expect(isTopLevelScoredExpectation(expectation({ inject_expectation_type: 'MANUAL', inject_expectation_team: 'team-1' }))).toBe(true);
+    expect(isTopLevelScoredExpectation(expectation({
+      inject_expectation_type: 'MANUAL',
+      inject_expectation_team: 'team-1',
+    }))).toBe(true);
     expect(isTopLevelScoredExpectation(expectation({
       inject_expectation_type: 'MANUAL',
       inject_expectation_team: 'team-1',
@@ -45,7 +48,10 @@ describe('isTopLevelScoredExpectation (#8396)', () => {
   });
 
   it('drops an expectation with no score yet', () => {
-    expect(isTopLevelScoredExpectation(expectation({ inject_expectation_asset: 'asset-1', inject_expectation_score: undefined }))).toBe(false);
+    expect(isTopLevelScoredExpectation(expectation({
+      inject_expectation_asset: 'asset-1',
+      inject_expectation_score: undefined,
+    }))).toBe(false);
     expect(isTopLevelScoredExpectation(expectation({
       inject_expectation_type: 'MANUAL',
       inject_expectation_team: 'team-1',
