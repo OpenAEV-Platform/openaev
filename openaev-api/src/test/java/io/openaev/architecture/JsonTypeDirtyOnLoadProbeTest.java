@@ -45,6 +45,7 @@ import io.openaev.database.model.ReportingModule;
 import io.openaev.database.model.ReportingModuleType;
 import io.openaev.database.model.ReportingSchedule;
 import io.openaev.database.model.ReportingSchedulePeriod;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSnapshot;
 import io.openaev.database.model.ScopeRuleSnapshot.AssetSnapshot;
@@ -76,6 +77,7 @@ import io.openaev.engine.api.WidgetType;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
@@ -171,7 +173,8 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
           "Step.conditionKeyTypes",
           "Condition.keyTypes",
           "WorkflowScopeRule.snapshotStart",
-          "WorkflowScopeRule.snapshotEnd");
+          "WorkflowScopeRule.snapshotEnd",
+          "Scenario.autonomousConfig");
 
   /**
    * Fields measured although their table is not tenant-active yet, because a dirty-on-load defect
@@ -436,6 +439,20 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
 
     assertNoUpdateOnLoad("conditions", condition, Condition.class);
   }
+
+  // -- scenarios --
+
+  @Test
+  @DisplayName("given a scenario with an autonomous configuration, when loaded, then no update")
+  void given_a_scenario_with_json_fields_should_not_update_on_load() {
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setTenant(defaultTenant());
+    scenario.setAutonomousConfig(Map.of("objective", "probe", "max_steps", 3));
+
+    assertNoUpdateOnLoad("scenarios", scenario, Scenario.class);
+  }
+
+  // -- tables not active yet, probed ahead of their activation --
 
   @Test
   @DisplayName(
