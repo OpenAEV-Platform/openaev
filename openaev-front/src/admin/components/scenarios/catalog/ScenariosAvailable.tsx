@@ -1,9 +1,10 @@
-import { RouteOutlined } from '@mui/icons-material';
-import { type ReactNode, useState } from 'react';
+import { GetAppOutlined, LibraryBooksOutlined, RouteOutlined, UpdateOutlined } from '@mui/icons-material';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import {
   fetchCatalogScenarioFacets,
+  fetchCatalogScenarios,
   SCENARIO_AUTHOR_FILTER,
   SCENARIO_INSTALLATION_FILTER,
   SCENARIO_INSTALLED,
@@ -81,6 +82,23 @@ const ScenariosAvailable = ({ tabs }: Props) => {
     fetchFacets: fetchCatalogScenarioFacets,
   });
 
+  // Header stats of the Available tab (F5): catalogue total, not installed, updates available.
+  const [catalogStats, setCatalogStats] = useState({
+    total: 0,
+    notInstalled: 0,
+    updates: 0,
+  });
+  useEffect(() => {
+    fetchCatalogScenarios().then((catalog) => {
+      const installedOnes = catalog.filter(item => (item.catalog_item_installed_scenarios ?? []).length > 0);
+      setCatalogStats({
+        total: catalog.length,
+        notInstalled: catalog.length - installedOnes.length,
+        updates: installedOnes.filter(item => !(item.catalog_item_installed_versions ?? []).includes(item.catalog_item_version)).length,
+      });
+    });
+  }, [items]);
+
   const facets: MarketplaceFacet[] = [
     {
       filterKey: SCENARIO_INSTALLATION_FILTER,
@@ -112,6 +130,26 @@ const ScenariosAvailable = ({ tabs }: Props) => {
         <MarketplaceHero
           title={t('Scenarios')}
           subtitle={t('Browse, install and version ready-to-run scenarios.')}
+          stats={[
+            {
+              id: 'catalog-total',
+              label: t('In the catalogue'),
+              value: catalogStats.total,
+              icon: LibraryBooksOutlined,
+            },
+            {
+              id: 'not-installed',
+              label: t('Not installed'),
+              value: catalogStats.notInstalled,
+              icon: GetAppOutlined,
+            },
+            {
+              id: 'updates',
+              label: t('Updates available'),
+              value: catalogStats.updates,
+              icon: UpdateOutlined,
+            },
+          ]}
         />
       )}
       sidebar={(

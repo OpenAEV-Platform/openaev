@@ -73,21 +73,20 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
             actions={['Duplicate', 'Export', 'Delete']}
             onDelete={onDelete}
             inList
-            leadingEntries={catalogItem
+            // Launch on every Active card, installed or local (F6); Update only for a catalogue scenario.
+            leadingEntries={[{
+              label: 'Launch',
+              action: () => {
+                launch();
+              },
+              userRight: canLaunch,
+            }, ...(updateAvailable
               ? [{
-                  label: 'Launch',
-                  action: () => {
-                    launch();
-                  },
-                  userRight: canLaunch,
-                }, ...(updateAvailable
-                  ? [{
-                      label: 'Update',
-                      action: () => setUpdating(true),
-                      userRight: canManage,
-                    }]
-                  : [])]
-              : []}
+                  label: 'Update',
+                  action: () => setUpdating(true),
+                  userRight: canManage,
+                }]
+              : [])]}
           />
         )}
         chips={null}
