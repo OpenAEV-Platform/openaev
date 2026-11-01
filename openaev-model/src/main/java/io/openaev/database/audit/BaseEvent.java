@@ -160,6 +160,11 @@ public class BaseEvent implements Cloneable {
         }
       }
     }
+
+    String streamSchema = data.getStreamSchema();
+    if (streamSchema != null) {
+      this.schema = streamSchema;
+    }
   }
 
   /**
