@@ -111,7 +111,22 @@ class ArchRuleRegistrationTest {
               TenantBackgroundTransactionRules.class,
               "noTenantFilterDisableOutsideBaseline",
               TenantFilterDisableArchTest.class,
-              "parameterised by the baseline, so the runner checks it from a @Test"));
+              "parameterised by the baseline, so the runner checks it from a @Test"),
+          new Helper(
+              WorkflowOwnerScopeCallerRules.class,
+              "ONLY_OWNER_SCOPE_MOVES_THE_CURRENT_TRANSACTION",
+              WorkflowOwnerScopeCallerArchTest.class,
+              "shared with WorkflowOwnerScopeCallerRulesTest, which proves it fires on fixtures"),
+          new Helper(
+              WorkflowOwnerScopeCallerRules.class,
+              "ownerScopeCalledOnlyFrom",
+              WorkflowOwnerScopeCallerArchTest.class,
+              "parameterised by the allowlist, so the runner builds it from the allowlist names"),
+          new Helper(
+              WorkflowOwnerScopeCallerRules.class,
+              "scopeSetOnCurrentTransactionOnlyFrom",
+              WorkflowOwnerScopeCallerArchTest.class,
+              "parameterised by the baseline, so the runner builds it from the baseline names"));
 
   /** The members the ArchUnit engine can run as a rule, whether or not they are annotated. */
   private static Stream<JavaMember> ruleMembers() {
