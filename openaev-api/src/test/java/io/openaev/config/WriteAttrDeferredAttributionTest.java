@@ -20,6 +20,7 @@ import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.Set;
+import javax.sql.DataSource;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +31,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,7 +48,9 @@ import org.springframework.transaction.annotation.Transactional;
  * composite-key test drives the executor registration. The test does no explicit {@code flush}; the
  * pending insert is forced out by a native read issued from the test method, so the flush stack
  * carries no production frame. The write must still be attributed to the service, captured when it
- * asked for the write at {@code persist}, and so the gate must report it.
+ * asked for the write at {@code persist}, and so the gate must report it. That read returns no row
+ * once {@code scenarios} is tenant-active, since the scope is B and the row is in the default
+ * tenant; the row's tenant is read back through JDBC, which the inspector never rewrites.
  *
  * <p>Non-vacuity is shown by a deliberate break: neutralising the ask-time capture so the entry
  * frame is read from the flush stack turns this green assertion red, because the deferred write is
@@ -72,6 +76,7 @@ class WriteAttrDeferredAttributionTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private ScenarioService scenarioService;
+  @Autowired private DataSource dataSource;
 
   private String tenantB;
 
@@ -102,7 +107,8 @@ class WriteAttrDeferredAttributionTest extends IntegrationTest {
     String id = scenarioService.createScenario(scenario).getId();
     // No explicit flush. The pending insert is forced out here, by a native read from the test
     // method, so the flush stack holds no production frame at all.
-    String writtenTenant = readTenantFromTestFrame(id);
+    flushFromTestFrame(id);
+    String writtenTenant = writtenTenant(id);
     WriteAttrDetectorRecorder.stop();
 
     // Assert
@@ -142,7 +148,8 @@ class WriteAttrDeferredAttributionTest extends IntegrationTest {
         postScenario(
             post(SCENARIO_URI + path).header("X-Tenant-Ids", tenantB).with(csrf()),
             path.isEmpty() ? SCENARIO_BODY : SCENARIO_WITH_CONTRACTS_BODY);
-    String writtenTenant = readTenantFromTestFrame(id);
+    flushFromTestFrame(id);
+    String writtenTenant = writtenTenant(id);
     WriteAttrDetectorRecorder.stop();
 
     // Assert
@@ -164,13 +171,27 @@ class WriteAttrDeferredAttributionTest extends IntegrationTest {
     return WriteAttrDetectorRecorder.violations();
   }
 
-  /** Native read from the test method: triggers Hibernate autoflush with no production frame. */
-  private String readTenantFromTestFrame(String scenarioId) {
-    return (String)
-        entityManager
-            .createNativeQuery("SELECT tenant_id FROM scenarios WHERE scenario_id = ?1")
-            .setParameter(1, scenarioId)
-            .getSingleResult();
+  /**
+   * Native read from the test method: triggers Hibernate autoflush with no production frame. The
+   * scope is tenant B while the row is written in the default tenant, so on a tenant-active {@code
+   * scenarios} the inspector lets no row through. The flush is what this read is for; the row's
+   * tenant is read back separately, through JDBC.
+   */
+  private void flushFromTestFrame(String scenarioId) {
+    entityManager
+        .createNativeQuery("SELECT tenant_id FROM scenarios WHERE scenario_id = ?1")
+        .setParameter(1, scenarioId)
+        .getResultList();
+  }
+
+  /**
+   * The tenant the row carries, read on the test transaction's connection through JDBC, which the
+   * statement inspector never rewrites.
+   */
+  private String writtenTenant(String scenarioId) {
+    return new JdbcTemplate(dataSource)
+        .queryForObject(
+            "SELECT tenant_id FROM scenarios WHERE scenario_id = ?", String.class, scenarioId);
   }
 
   private String postScenario(
