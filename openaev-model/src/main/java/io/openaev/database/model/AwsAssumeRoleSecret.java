@@ -59,4 +59,12 @@ public class AwsAssumeRoleSecret extends Secret {
   @Column(name = "secret_aws_source_profile_secret_access_key")
   @JsonIgnore
   private String awsSourceProfileSecretAccessKey;
+
+  @Column(name = "secret_aws_account_id")
+  @JsonProperty("secret_aws_account_id")
+  private String awsAccountId;
+
+  @Column(name = "secret_aws_endpoint_url")
+  @JsonProperty("secret_aws_endpoint_url")
+  private String awsEndpointUrl;
 }

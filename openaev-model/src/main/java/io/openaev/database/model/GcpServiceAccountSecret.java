@@ -44,4 +44,12 @@ public class GcpServiceAccountSecret extends Secret {
   @Column(name = "secret_gcp_project_id")
   @JsonProperty("secret_gcp_project_id")
   private String projectId;
+
+  @Column(name = "secret_gcp_custom_resource_manager_uri")
+  @JsonProperty("secret_gcp_custom_resource_manager_uri")
+  private String customResourceManagerUri;
+
+  @Column(name = "secret_gcp_custom_projects_uri")
+  @JsonProperty("secret_gcp_custom_projects_uri")
+  private String customProjectsUri;
 }

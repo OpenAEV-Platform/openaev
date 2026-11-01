@@ -5,7 +5,12 @@ import io.openaev.database.model.AwsRegion;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import java.nio.charset.StandardCharsets;
 
-/** Fixtures for {@link SecretStoreRequest} payloads used by the secret handlers. */
+/**
+ * Fixtures for {@link SecretStoreRequest} payloads used by the secret handlers.
+ *
+ * <p>The request is a record with one component per provider field, so every fixture goes through
+ * its builder: a test that needs a few extra fields calls {@code toBuilder()} on the fixture.
+ */
 public class SecretStoreRequestFixture {
 
   public static final AwsRegion AWS_DEFAULT_REGION = AwsRegion.EU_WEST_3;
@@ -24,6 +29,10 @@ public class SecretStoreRequestFixture {
   public static final String AWS_SOURCE_PROFILE_ACCESS_KEY_ID = "AKIAIOSFODNN7SOURCE0";
   public static final String AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY =
       "sourceProfileSecret-K7MDENG-bPxRfiCYEXAMPLE";
+  public static final String AWS_ACCOUNT_ID = "123456789012";
+  public static final String AWS_OTHER_ACCOUNT_ID = "210987654321";
+  public static final String AWS_ENDPOINT_URL = "http://localhost:4566";
+  public static final String AWS_OTHER_ENDPOINT_URL = "http://sovereign.example:4566";
 
   public static final String AZURE_ENVIRONMENT = "AzureCloud";
   public static final String AZURE_OTHER_ENVIRONMENT = "AzureUSGovernment";
@@ -34,6 +43,12 @@ public class SecretStoreRequestFixture {
   public static final String AZURE_TENANT_ID = "33333333-3333-3333-3333-333333333333";
   public static final String AZURE_OTHER_TENANT_ID = "55555555-5555-5555-5555-555555555555";
   public static final String AZURE_SUBSCRIPTION_ID = "44444444-4444-4444-4444-444444444444";
+  public static final String AZURE_AUTHORITY_HOST_URI = "https://localhost:4577";
+  public static final String AZURE_OTHER_AUTHORITY_HOST_URI = "https://login.sovereign.example";
+  public static final String AZURE_REQUESTS_CERTIFICATE =
+      "-----BEGIN CERTIFICATE-----\nMIIBEXAMPLECERTIFICATE\n-----END CERTIFICATE-----\n";
+  public static final String AZURE_OTHER_REQUESTS_CERTIFICATE =
+      "-----BEGIN CERTIFICATE-----\nMIIBOTHERCERTIFICATE\n-----END CERTIFICATE-----\n";
 
   public static final String GCP_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
   public static final String GCP_OTHER_SCOPE = "https://www.googleapis.com/auth/compute";
@@ -52,6 +67,18 @@ public class SecretStoreRequestFixture {
   public static final String GCP_OTHER_OAUTH_CLIENT_SECRET = "GOCSPX-gcpOtherClientSecretEXAMPLE";
   public static final String GCP_OAUTH_REFRESH_TOKEN = "1//03gcpRefreshTokenEXAMPLE";
   public static final String GCP_OTHER_OAUTH_REFRESH_TOKEN = "1//03gcpOtherRefreshTokenEXAMPLE";
+  public static final String GCP_CUSTOM_TOKEN_URI = "http://localhost:4589/token";
+  public static final String GCP_OTHER_CUSTOM_TOKEN_URI = "http://sovereign.example/token";
+  public static final String GCP_CUSTOM_PROJECTS_URI = "http://localhost:4588/v1/projects/";
+  public static final String GCP_OTHER_CUSTOM_PROJECTS_URI =
+      "http://sovereign.example/v1/projects/";
+  public static final String GCP_CUSTOM_RESOURCE_MANAGER_URI = "http://localhost:4588/token";
+  public static final String GCP_OTHER_CUSTOM_RESOURCE_MANAGER_URI =
+      "http://sovereign.example/resource-manager";
+  public static final String GCP_CUSTOM_IAM_URI = "http://localhost:4588/iam";
+  public static final String GCP_CUSTOM_OAUTH_ACCESS_TOKEN = "ya29.customAccessTokenEXAMPLE";
+  public static final String GCP_OTHER_CUSTOM_OAUTH_ACCESS_TOKEN =
+      "ya29.otherCustomAccessTokenEXAMPLE";
 
   private SecretStoreRequestFixture() {}
 
@@ -65,11 +92,19 @@ public class SecretStoreRequestFixture {
     return GCP_OTHER_PRIVATE_KEY_JSON.getBytes(StandardCharsets.UTF_8);
   }
 
+  /** The raw bytes of the reference Azure requests certificate. */
+  public static byte[] azureRequestsCertificateBytes() {
+    return AZURE_REQUESTS_CERTIFICATE.getBytes(StandardCharsets.UTF_8);
+  }
+
+  /** The raw bytes of a second certificate, used to assert certificate rotation. */
+  public static byte[] azureOtherRequestsCertificateBytes() {
+    return AZURE_OTHER_REQUESTS_CERTIFICATE.getBytes(StandardCharsets.UTF_8);
+  }
+
   /** A request carrying no value at all — every optional field is {@code null}. */
   public static SecretStoreRequest emptyRequest() {
-    return new SecretStoreRequest(
-        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-        null, null, null, null, null, null, null, null, null);
+    return SecretStoreRequest.builder().build();
   }
 
   // -- AWS_ACCESS_KEY --
@@ -90,31 +125,20 @@ public class SecretStoreRequestFixture {
       String awsAccessKeyId,
       String awsSecretAccessKey,
       String awsSessionToken) {
-    return new SecretStoreRequest(
-        null,
-        null,
-        null,
-        null,
-        awsDefaultRegion,
-        awsAccessKeyId,
-        awsSecretAccessKey,
-        awsSessionToken,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null);
+    return SecretStoreRequest.builder()
+        .awsDefaultRegion(awsDefaultRegion)
+        .awsAccessKeyId(awsAccessKeyId)
+        .awsSecretAccessKey(awsSecretAccessKey)
+        .awsSessionToken(awsSessionToken)
+        .build();
+  }
+
+  /** A complete AWS_ACCESS_KEY request targeting a sovereign or mocked AWS. */
+  public static SecretStoreRequest awsAccessKeyRequestWithOverrides() {
+    return awsAccessKeyRequest().toBuilder()
+        .awsAccountId(AWS_ACCOUNT_ID)
+        .awsEndpointUrl(AWS_ENDPOINT_URL)
+        .build();
   }
 
   // -- AWS_ASSUME_ROLE --
@@ -148,31 +172,22 @@ public class SecretStoreRequestFixture {
       AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
       String awsSourceProfileAccessKeyId,
       String awsSourceProfileSecretAccessKey) {
-    return new SecretStoreRequest(
-        null,
-        null,
-        null,
-        null,
-        awsDefaultRegion,
-        null,
-        null,
-        null,
-        awsRoleArn,
-        awsExternalId,
-        awsSourceIdentityType,
-        awsSourceProfileAccessKeyId,
-        awsSourceProfileSecretAccessKey,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null);
+    return SecretStoreRequest.builder()
+        .awsDefaultRegion(awsDefaultRegion)
+        .awsRoleArn(awsRoleArn)
+        .awsExternalId(awsExternalId)
+        .awsSourceIdentityType(awsSourceIdentityType)
+        .awsSourceProfileAccessKeyId(awsSourceProfileAccessKeyId)
+        .awsSourceProfileSecretAccessKey(awsSourceProfileSecretAccessKey)
+        .build();
+  }
+
+  /** A complete AWS_ASSUME_ROLE request targeting a sovereign or mocked AWS. */
+  public static SecretStoreRequest awsAssumeRoleRequestWithOverrides() {
+    return awsAssumeRoleInstanceDefaultRequest().toBuilder()
+        .awsAccountId(AWS_ACCOUNT_ID)
+        .awsEndpointUrl(AWS_ENDPOINT_URL)
+        .build();
   }
 
   // -- AZURE_SERVICE_PRINCIPAL --
@@ -199,31 +214,21 @@ public class SecretStoreRequestFixture {
       String azureClientSecret,
       String azureTenantId,
       String azureSubscriptionId) {
-    return new SecretStoreRequest(
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        azureEnvironment,
-        azureClientId,
-        azureClientSecret,
-        azureTenantId,
-        azureSubscriptionId,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null);
+    return SecretStoreRequest.builder()
+        .azureEnvironment(azureEnvironment)
+        .azureClientId(azureClientId)
+        .azureClientSecret(azureClientSecret)
+        .azureTenantId(azureTenantId)
+        .azureSubscriptionId(azureSubscriptionId)
+        .build();
+  }
+
+  /** A complete AZURE_SERVICE_PRINCIPAL request targeting a sovereign or mocked Azure. */
+  public static SecretStoreRequest azureServicePrincipalRequestWithOverrides() {
+    return azureServicePrincipalRequest().toBuilder()
+        .azureAuthorityHostUri(AZURE_AUTHORITY_HOST_URI)
+        .azureRequestsCertificate(azureRequestsCertificateBytes())
+        .build();
   }
 
   // -- AZURE_MANAGED_IDENTITY --
@@ -240,31 +245,19 @@ public class SecretStoreRequestFixture {
 
   public static SecretStoreRequest azureManagedIdentityRequest(
       String azureEnvironment, String azureClientId, String azureSubscriptionId) {
-    return new SecretStoreRequest(
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        azureEnvironment,
-        azureClientId,
-        null,
-        null,
-        azureSubscriptionId,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null);
+    return SecretStoreRequest.builder()
+        .azureEnvironment(azureEnvironment)
+        .azureClientId(azureClientId)
+        .azureSubscriptionId(azureSubscriptionId)
+        .build();
+  }
+
+  /** A valid AZURE_MANAGED_IDENTITY request targeting a sovereign or mocked Azure. */
+  public static SecretStoreRequest azureManagedIdentityRequestWithOverrides() {
+    return azureUserAssignedManagedIdentityRequest().toBuilder()
+        .azureAuthorityHostUri(AZURE_AUTHORITY_HOST_URI)
+        .azureRequestsCertificate(azureRequestsCertificateBytes())
+        .build();
   }
 
   // -- GCP_SERVICE_ACCOUNT --
@@ -281,31 +274,19 @@ public class SecretStoreRequestFixture {
 
   public static SecretStoreRequest gcpServiceAccountRequest(
       String gcpScope, String gcpProjectId, byte[] gcpPrivateKeyJson) {
-    return new SecretStoreRequest(
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        gcpScope,
-        gcpProjectId,
-        gcpPrivateKeyJson,
-        null,
-        null,
-        null);
+    return SecretStoreRequest.builder()
+        .gcpScope(gcpScope)
+        .gcpProjectId(gcpProjectId)
+        .gcpPrivateKeyJson(gcpPrivateKeyJson)
+        .build();
+  }
+
+  /** A complete GCP_SERVICE_ACCOUNT request targeting a sovereign or mocked GCP. */
+  public static SecretStoreRequest gcpServiceAccountRequestWithOverrides() {
+    return gcpServiceAccountRequestWithProject().toBuilder()
+        .gcpCustomResourceManagerUri(GCP_CUSTOM_RESOURCE_MANAGER_URI)
+        .gcpCustomProjectsUri(GCP_CUSTOM_PROJECTS_URI)
+        .build();
   }
 
   // -- GCP_OAUTH2 --
@@ -332,30 +313,22 @@ public class SecretStoreRequestFixture {
       String gcpOauthClientId,
       String gcpOauthClientSecret,
       String gcpOauthRefreshToken) {
-    return new SecretStoreRequest(
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        gcpScope,
-        gcpProjectId,
-        null,
-        gcpOauthClientId,
-        gcpOauthClientSecret,
-        gcpOauthRefreshToken);
+    return SecretStoreRequest.builder()
+        .gcpScope(gcpScope)
+        .gcpProjectId(gcpProjectId)
+        .gcpOauthClientId(gcpOauthClientId)
+        .gcpOauthClientSecret(gcpOauthClientSecret)
+        .gcpOauthRefreshToken(gcpOauthRefreshToken)
+        .build();
+  }
+
+  /** A complete GCP_OAUTH2 request targeting a sovereign or mocked GCP. */
+  public static SecretStoreRequest gcpOAuth2RequestWithOverrides() {
+    return gcpOAuth2RequestWithProject().toBuilder()
+        .gcpCustomTokenUri(GCP_CUSTOM_TOKEN_URI)
+        .gcpCustomProjectsUri(GCP_CUSTOM_PROJECTS_URI)
+        .gcpCustomIamUri(GCP_CUSTOM_IAM_URI)
+        .gcpCustomOauthAccessToken(GCP_CUSTOM_OAUTH_ACCESS_TOKEN)
+        .build();
   }
 }
