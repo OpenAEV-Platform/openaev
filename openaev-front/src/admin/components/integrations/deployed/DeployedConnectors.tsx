@@ -51,6 +51,26 @@ interface Props {
 }
 
 /**
+ * Two registered connectors can share the same type and name (e.g. the same
+ * external connector registered twice). Their cards would then be strictly
+ * identical, with no way to know which instance a card opens: suffix the title
+ * of those homonyms with a short id so each one can be told apart.
+ */
+const disambiguateHomonymConnectors = (items: ConnectorItem[]): ConnectorItem[] => {
+  const keyOf = (item: ConnectorItem) => `${item.type}::${item.title}`;
+  const counts = new Map<string, number>();
+  items.forEach((item) => {
+    counts.set(keyOf(item), (counts.get(keyOf(item)) ?? 0) + 1);
+  });
+  return items.map(item => ((counts.get(keyOf(item)) ?? 0) > 1
+    ? {
+        ...item,
+        title: `${item.title} (${item.id.slice(0, 8)})`,
+      }
+    : item));
+};
+
+/**
  * The "Deployed" tab of the integrations page: every registered collector,
  * injector and executor of the platform, rendered in the same faceted
  * marketplace as the catalog. Cards link to the connector detail pages and
@@ -144,7 +164,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     }
 
     return {
-      items: allItems,
+      items: disambiguateHomonymConnectors(allItems),
       metaById: meta,
     };
     // `t` is a new function every render (see useFormatter); `locale` is the
