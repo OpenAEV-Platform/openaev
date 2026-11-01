@@ -531,11 +531,10 @@ public class ScenarioService {
 
   /**
    * Loads a scenario by primary key and keeps it only when its tenant lies in the request's tenant
-   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
-   * the default one on the non-prefixed route: a member reaches its own scenario in any tenant of
-   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
-   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
-   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   * scope. For the callers that already loaded by primary key, so that scoping them refuses only
+   * what lies outside the scope. Transactional with the {@link TxCtx}, so the lookup carries the
+   * request scope even from a caller that opens no transaction of its own: without a transaction
+   * the statement inspector has no scope to read and the load fails closed.
    */
   @Transactional(readOnly = true)
   public Optional<Scenario> findByIdInScope(
@@ -572,10 +571,10 @@ public class ScenarioService {
   }
 
   /**
-   * Reads a scenario found inside the request's tenant scope. The native read itself keys on the v1
-   * ambient tenant, the default one on the non-prefixed route, so the scope is checked first. The
-   * detail also names the scenario's workflow, read in the scenario's own tenant once access is
-   * granted (WorkflowOwnerScope).
+   * Reads a scenario found inside the request's tenant scope: the access check runs first, then the
+   * native read of the detail aggregate runs in that same scope. The workflow id and the platforms
+   * the detail names are read separately, in the scenario's own tenant (WorkflowOwnerScope), since a
+   * workflow can never move tenant.
    */
   public ScenarioOutput getScenarioById(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
@@ -835,8 +834,8 @@ public class ScenarioService {
             "scenarios",
             scenarioIdsToDelete,
             chunk -> {
-              // The ids were resolved under the v1 ambient tenant, the default one on the
-              // non-prefixed route, so each is checked against the request scope first.
+              // The ids come from a search resolved in another transaction, so each is checked
+              // against the request scope inside this one before it is deleted.
               chunk.forEach(id -> existsInScope(ctx, id));
               // Tear the autonomous run (simulation + timeline + XTM orchestration) down first,
               // inside the same chunk transaction, so an autonomous scenario is never left with an

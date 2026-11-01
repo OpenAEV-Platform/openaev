@@ -46,7 +46,7 @@ public class MvcConfig implements WebMvcConfigurer {
     registry.addInterceptor(tenantInterceptor).addPathPatterns("/api/tenants/**");
     // Bridges the legacy v1 TenantContext for the orchestrator callbacks on the non-prefixed
     // autonomous route (the prefixed route names its tenant and is caller-scoped). Without it, the
-    // 8 callbacks that read/write v1 @Filter entities (Exercise, Team, Finding, Inject, Endpoint)
+    // 8 callbacks that read/write v1 @Filter entities (Team, Finding, Inject, Endpoint)
     // silently hit the DEFAULT tenant for a run owned by a non-default tenant. See
     // OrchestratorRunTenantInterceptor for why v1 must be established at request entry.
     registry
