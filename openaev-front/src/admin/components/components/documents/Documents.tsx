@@ -301,10 +301,12 @@ const Documents = () => {
                               ids={document.document_exercises ?? []}
                               resolve={(id) => {
                                 const exercise = exercisesMap[id];
-                                return exercise ? {
-                                  id: exercise.exercise_id,
-                                  name: exercise.exercise_name,
-                                } : undefined;
+                                return exercise
+                                  ? {
+                                      id: exercise.exercise_id,
+                                      name: exercise.exercise_name,
+                                    }
+                                  : undefined;
                               }}
                               onOpen={id => navigate(`/admin/simulations/${id}`)}
                             />
@@ -318,10 +320,12 @@ const Documents = () => {
                               ids={document.document_scenarios ?? []}
                               resolve={(id) => {
                                 const scenario = scenariosMap[id];
-                                return scenario ? {
-                                  id: scenario.scenario_id,
-                                  name: scenario.scenario_name,
-                                } : undefined;
+                                return scenario
+                                  ? {
+                                      id: scenario.scenario_id,
+                                      name: scenario.scenario_name,
+                                    }
+                                  : undefined;
                               }}
                               onOpen={id => navigate(`/admin/scenarios/${id}`)}
                             />
