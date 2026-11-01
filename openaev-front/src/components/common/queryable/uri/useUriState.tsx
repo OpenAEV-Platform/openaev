@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router';
 
 import { type Filter, type SearchPaginationInput } from '../../../../utils/api-types';
 import { generateFilterId } from '../filter/FilterUtils';
-import { buildSearchPagination, SearchPaginationInputSchema } from '../QueryableUtils';
+import { buildSearchPagination, isDefaultListState, SearchPaginationInputSchema } from '../QueryableUtils';
 import { type UriHelpers } from './UriHelpers';
 
 export const retrieveFromUri = (localStorageKey: string, searchParams: URLSearchParams): SearchPaginationInput | null => {
@@ -48,7 +48,12 @@ export const retrieveFromUri = (localStorageKey: string, searchParams: URLSearch
   return null;
 };
 
-const useUriState = (localStorageKey: string, initSearchPaginationInput: SearchPaginationInput, onChange: (input: SearchPaginationInput) => void) => {
+const useUriState = (
+  localStorageKey: string,
+  initSearchPaginationInput: SearchPaginationInput,
+  onChange: (input: SearchPaginationInput) => void,
+  defaultSearchPaginationInput?: Partial<SearchPaginationInput>,
+) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [input, setInput] = useState<SearchPaginationInput>(initSearchPaginationInput);
@@ -65,6 +70,21 @@ const useUriState = (localStorageKey: string, initSearchPaginationInput: SearchP
       }
     },
     updateUri: () => {
+      // The list's own default state (first page) carries no `query`
+      // parameter: a URL only pins what the user changed (#4181).
+      if (
+        defaultSearchPaginationInput
+        && (initSearchPaginationInput.page ?? 0) === 0
+        && isDefaultListState(initSearchPaginationInput, defaultSearchPaginationInput)
+      ) {
+        if (searchParams.has('query')) {
+          setSearchParams((searchParams) => {
+            searchParams.delete('query');
+            return searchParams;
+          }, { replace: true });
+        }
+        return;
+      }
       const params = qs.stringify({
         ...initSearchPaginationInput,
         key: localStorageKey,
