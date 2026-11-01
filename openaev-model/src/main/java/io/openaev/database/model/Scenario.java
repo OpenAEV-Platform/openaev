@@ -13,7 +13,6 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.OnDeleteAction;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
@@ -76,8 +75,10 @@ import org.hibernate.type.SqlTypes;
 @Data
 @Entity
 @Table(name = "scenarios")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
+// scenarios is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
+// TenantBaseListener (#6432). A create path that forgets to stamp the tenant fails loudly
+// on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Scenario.tags-injects",
