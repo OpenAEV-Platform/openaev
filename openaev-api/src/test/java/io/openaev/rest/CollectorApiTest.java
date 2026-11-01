@@ -565,6 +565,83 @@ public class CollectorApiTest extends IntegrationTest {
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getSecurityPlatform()).isNull();
     }
+
+    @Test
+    @DisplayName("given_unknown_supported_expectation_type_should_register_and_keep_known_types")
+    void given_unknown_supported_expectation_type_should_register_and_keep_known_types()
+        throws Exception {
+      // Arrange
+      CollectorCreateInput input = new CollectorCreateInput();
+      input.setId("logging-collector-id");
+      input.setType("openaev_logging_type");
+      input.setName("Logging Collector");
+      input.setPeriod(60);
+      input.setSupportedExpectationTypes(List.of("DETECTION", "LOGGING", "NOT_A_TYPE_YET"));
+
+      // Act
+      String response =
+          mvc.perform(
+                  multipart(tenantUri(TENANT_COLLECTOR_URI))
+                      .file(buildInputPart(input))
+                      .file(buildEmptyIconPart())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThatJson(response)
+          .inPath("collector_supported_expectation_types")
+          .isEqualTo(List.of("DETECTION", "LOGGING"));
+      Collector persisted =
+          collectorRepository
+              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
+              .orElseThrow();
+      assertThat(persisted.getSupportedExpectationTypes())
+          .containsExactly(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+              BaseInjectExpectation.EXPECTATION_TYPE.LOGGING);
+    }
+
+    @Test
+    @DisplayName("given_reregistration_without_declaration_should_reset_to_legacy_types")
+    void given_reregistration_without_declaration_should_reset_to_legacy_types() throws Exception {
+      // Arrange
+      CollectorCreateInput input = new CollectorCreateInput();
+      input.setId("downgraded-collector-id");
+      input.setType("openaev_downgraded_type");
+      input.setName("Downgraded Collector");
+      input.setPeriod(60);
+      input.setSupportedExpectationTypes(List.of("DETECTION", "PREVENTION", "LOGGING"));
+      mvc.perform(
+              multipart(tenantUri(TENANT_COLLECTOR_URI))
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+      input.setSupportedExpectationTypes(null);
+
+      // Act
+      mvc.perform(
+              multipart(tenantUri(TENANT_COLLECTOR_URI))
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      entityManager.flush();
+      entityManager.clear();
+      Collector persisted =
+          collectorRepository
+              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
+              .orElseThrow();
+      assertThat(persisted.getSupportedExpectationTypes()).isNull();
+      assertThat(persisted.supportsExpectationType(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING))
+          .isFalse();
+    }
   }
 
   // Tenant isolation is tested in CollectorHttpIsolationTest (with @TestPropertySource activating

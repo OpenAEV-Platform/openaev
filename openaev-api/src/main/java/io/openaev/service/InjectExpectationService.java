@@ -815,6 +815,34 @@ public class InjectExpectationService {
         tenantId, DETECTION, expirationTime, sourceId);
   }
 
+  // -- LOGGING --
+
+  /**
+   * Logging leaves still awaited from the given source: agent leaves, and agentless asset leaves
+   * (an injector such as Nmap or Nuclei scanning an endpoint without an agent). Only the leaves the
+   * source is eligible to answer and that have not expired are returned, so that expired or foreign
+   * leaves never fill the cap. Both are merged oldest first under a single cap, so a polling
+   * collector receives a bounded page across both.
+   *
+   * @param tenantId the tenant ID to scope the query
+   * @param sourceId the collector source ID
+   * @return the Logging expectations awaited from the source
+   */
+  public List<BaseInjectExpectation> loggingExpectationsNotFill(
+      @NotBlank final String tenantId, @NotBlank final String sourceId) {
+    List<BaseInjectExpectation> expectations = new ArrayList<>();
+    expectations.addAll(
+        this.injectExpectationRepository.findLoggingAgentExpectationsPendingForSource(
+            tenantId, sourceId, NOT_FILLED_FETCH_LIMIT));
+    expectations.addAll(
+        this.injectExpectationRepository.findLoggingAgentlessExpectationsNotFilledForSource(
+            tenantId, sourceId, NOT_FILLED_FETCH_LIMIT));
+    expectations.sort(
+        Comparator.comparing(
+            BaseInjectExpectation::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+    return expectations.stream().limit(NOT_FILLED_FETCH_LIMIT).toList();
+  }
+
   // -- MANUAL
 
   /**
