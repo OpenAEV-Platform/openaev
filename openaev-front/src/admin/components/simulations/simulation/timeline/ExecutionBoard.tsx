@@ -12,6 +12,7 @@ import { type Exercise, type Inject } from '../../../../../utils/api-types';
 import { getInjectStatusLabel } from '../../../../../utils/statusLabels';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import InjectIcon from '../../../common/injects/InjectIcon';
+import { injectIconType } from '../../../common/injects/injectIconType';
 import InjectPopover from '../../../common/injects/InjectPopover';
 import InjectStatus from '../../../common/injects/status/InjectStatus';
 import { formatRemaining } from './executionTime';
@@ -55,12 +56,7 @@ const rowInSx = {
 const injectIconFor = (inject: InjectStore) => (
   <InjectIcon
     isPayload={isNotEmptyField(inject.inject_injector_contract?.injector_contract_payload)}
-    type={
-      inject.inject_injector_contract?.injector_contract_payload
-        ? inject.inject_injector_contract.injector_contract_payload?.payload_collector_type
-        || inject.inject_injector_contract.injector_contract_payload?.payload_type
-        : inject.inject_type
-    }
+    type={injectIconType(inject)}
     variant="inline"
   />
 );
