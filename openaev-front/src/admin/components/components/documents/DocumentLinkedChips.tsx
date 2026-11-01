@@ -55,7 +55,7 @@ const DocumentLinkedChips = ({ ids, resolve, onOpen }: Props) => {
           <Chip
             data-linked-chip
             startIcon={<RowingOutlined style={{ fontSize: 12 }} />}
-            label={first.name}
+            label={first.name ?? ''}
             onClick={open}
           />
         </TooltipTrigger>
