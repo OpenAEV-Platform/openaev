@@ -53,7 +53,9 @@ import org.springframework.stereotype.Service;
  *
  * <p>Realignment overwrites the drifted injects' stored expectations with the contract's current
  * predefined expectations, chunk by chunk in short independent transactions, tracked as a massive
- * operation (header progress indicator, per-entity stream events suppressed).
+ * operation (header progress indicator, per-entity stream events suppressed). Only the content
+ * column is written: the injects are not re-saved as whole entities, so their associations (asset
+ * groups, teams, tags) are never merged and a dangling association cannot fail the realignment.
  */
 @Service
 @RequiredArgsConstructor
@@ -307,7 +309,14 @@ public class ExpectationsDriftService {
                 chunkRunner.call(
                     () -> {
                       chunk.forEach(this::applyContractExpectations);
-                      return injectRepository.saveAll(chunk);
+                      // Content-only update: a saveAll would merge the detached injects with
+                      // their associations, and one asset group row that can no longer be loaded
+                      // failed the whole realignment with a 500 (#8645).
+                      chunk.forEach(
+                          inject ->
+                              injectRepository.updateContent(
+                                  inject.getId(), inject.getContent(), inject.getUpdatedAt()));
+                      return chunk.size();
                     }));
         bulkOperationMonitor.progress(operationId, chunk.size());
       }
