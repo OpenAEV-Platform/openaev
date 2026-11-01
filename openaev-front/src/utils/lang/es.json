@@ -4096,6 +4096,7 @@
   "This group will have planner permission on new payloads.": "Este grupo tendrá permiso de planificador sobre los nuevos payloads.",
   "This group will have planner permission on new scenarios.": "Este grupo tendrá permiso para planificar nuevos escenarios.",
   "This group will have planner permission on new simulations.": "Este grupo tendrá permiso para planificar nuevas simulaciones.",
+  "This inject has no target. Its results are in the Execution details tab.": "Esta inyección no tiene objetivo. Sus resultados están en la pestaña Detalles de ejecución.",
   "This inject has not been executed yet. It is saved as a draft and can be edited before being queued for execution.": "Esta inyección aún no se ha ejecutado. Se ha guardado como borrador y se puede editar antes de ponerla en cola para su ejecución.",
   "This inject is disabled and will not be executed.": "Esta inyección está desactivada y no se ejecutará.",
   "This installation requires only local standard privileges.": "Esta instalación solo requiere privilegios estándar locales.",

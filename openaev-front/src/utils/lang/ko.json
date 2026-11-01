@@ -4096,6 +4096,7 @@
   "This group will have planner permission on new payloads.": "이 그룹은 새 페이로드에 대한 계획자 권한을 갖습니다.",
   "This group will have planner permission on new scenarios.": "이 그룹은 새 시나리오에 대한 계획자 권한을 갖습니다.",
   "This group will have planner permission on new simulations.": "이 그룹은 새 시뮬레이션에 대한 계획자 권한을 갖습니다.",
+  "This inject has no target. Its results are in the Execution details tab.": "이 인젝트에는 대상이 없습니다. 결과는 실행 세부 정보 탭에 있습니다.",
   "This inject has not been executed yet. It is saved as a draft and can be edited before being queued for execution.": "이 인젝트는 아직 실행되지 않았습니다. 초안으로 저장되어 있으며, 실행 대기열에 등록되기 전에 편집할 수 있습니다.",
   "This inject is disabled and will not be executed.": "이 인젝트는 비활성화되어 있어 실행되지 않습니다.",
   "This installation requires only local standard privileges.": "이 설치에는 로컬 표준 권한만 필요합니다.",

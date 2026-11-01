@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { InjectTarget } from '../../../utils/api-types';
-import { getTargetOverviewLabel, getTargetOverviewUrl } from '../../../utils/target/TargetUtils';
+import { getTargetOverviewLabel, getTargetOverviewUrl, hasNoTarget } from '../../../utils/target/TargetUtils';
 
 const TARGET_ID = '123e4567-e89b-12d3-a456-426614174000';
 
@@ -55,6 +55,35 @@ describe('TargetUtils', () => {
 
       // Assert
       expect(result).toBe(expected);
+    });
+  });
+
+  // -- hasNoTarget --
+
+  describe('hasNoTarget', () => {
+    it('given every probe answered and no target tab should return true', () => {
+      // Act
+      const result = hasNoTarget(true, 0);
+
+      // Assert
+      expect(result).toBe(true);
+    });
+
+    it('given probes still running should return false', () => {
+      // The overview must keep its skeleton while a probe may still find targets.
+      // Act
+      const result = hasNoTarget(false, 0);
+
+      // Assert
+      expect(result).toBe(false);
+    });
+
+    it('given at least one target tab should return false', () => {
+      // Act
+      const result = hasNoTarget(true, 2);
+
+      // Assert
+      expect(result).toBe(false);
     });
   });
 });

@@ -4096,6 +4096,7 @@
   "This group will have planner permission on new payloads.": "Эта группа будет иметь право планировщика на новые полезные нагрузки.",
   "This group will have planner permission on new scenarios.": "Эта группа будет иметь право планировщика на новые сценарии.",
   "This group will have planner permission on new simulations.": "Эта группа будет иметь право планировщика на новые симуляции.",
+  "This inject has no target. Its results are in the Execution details tab.": "У этого инъекта нет цели. Его результаты находятся на вкладке «Детали выполнения».",
   "This inject has not been executed yet. It is saved as a draft and can be edited before being queued for execution.": "Этот инъект ещё не был выполнен. Он сохранён в качестве черновика и может быть отредактирован перед отправкой в очередь на выполнение.",
   "This inject is disabled and will not be executed.": "Этот инъект отключен и не будет выполнен.",
   "This installation requires only local standard privileges.": "Для этой установки требуются только локальные стандартные привилегии.",

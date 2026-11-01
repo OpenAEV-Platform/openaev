@@ -4096,6 +4096,7 @@
   "This group will have planner permission on new payloads.": "このグループは新しいペイロードのプランナー権限を持つ。",
   "This group will have planner permission on new scenarios.": "このグループには、新しいシナリオに対するプランナー権限が付与されます。",
   "This group will have planner permission on new simulations.": "このグループには、新しいシミュレーションに対するプランナー権限が付与されます。",
+  "This inject has no target. Its results are in the Execution details tab.": "このインジェクトにはターゲットがありません。結果は「実行の詳細」タブにあります。",
   "This inject has not been executed yet. It is saved as a draft and can be edited before being queued for execution.": "このインジェクトはまだ実行されていません。ドラフトとして保存されており、実行キューに入れる前に編集できます。",
   "This inject is disabled and will not be executed.": "このインジェクトは無効化されており、実行されません。",
   "This installation requires only local standard privileges.": "このインストールにはローカル標準権限のみが必要です。",
