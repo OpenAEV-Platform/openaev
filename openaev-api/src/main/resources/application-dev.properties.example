@@ -157,13 +157,13 @@ ai.token=
 ai.model=mistral
 ai.model_images=
 
-# Minio Properties
+# S3 Properties (RustFS)
 # Ports match docker-compose: API on 10000, console on 10001
-minio.endpoint=localhost
-minio.bucket=openaev
-minio.port=10000
-minio.access-key=minioadmin
-minio.access-secret=minioadmin
+openaev.s3.endpoint=localhost
+openaev.s3.bucket=openaev
+openaev.s3.port=10000
+openaev.s3.access-key=minioadmin
+openaev.s3.access-secret=minioadmin
 
 # Logging
 logging.level.root=fatal

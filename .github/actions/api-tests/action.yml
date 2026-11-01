@@ -1,10 +1,10 @@
 name: API Tests
 description: >
-  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, Silo),
+  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, RustFS),
   download pre-compiled artifacts, and run API tests for a single shard.
   Requires job-level env vars:
   SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME,
-  SPRING_DATASOURCE_PASSWORD, MINIO_ENDPOINT, MINIO_PORT, ENGINE_URL,
+  SPRING_DATASOURCE_PASSWORD, OPENAEV_S3_ENDPOINT, OPENAEV_S3_PORT, ENGINE_URL,
   OPENBAS_RABBITMQ_HOSTNAME, GH_TOKEN.
 
 inputs:
@@ -182,12 +182,12 @@ runs:
         done
         docker exec rabbitmq rabbitmq-diagnostics -q check_running || { echo "❌ RabbitMQ failed to start"; exit 1; }
 
-        echo "⏳ Waiting for Silo..."
+        echo "⏳ Waiting for RustFS..."
         for i in $(seq 1 30); do
-          curl -sf http://localhost:11000/minio/health/live && break
+          curl -sf http://localhost:11000/health/ready && break
           sleep 1
         done
-        curl -sf http://localhost:11000/minio/health/live || { echo "❌ Silo failed to start"; exit 1; }
+        curl -sf http://localhost:11000/health/ready || { echo "❌ RustFS failed to start"; exit 1; }
 
         echo "✅ All services ready"
 

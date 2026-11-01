@@ -19,6 +19,7 @@ implemented.
 | [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
 | [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
 | [Elasticsearch 9 and engine auto-detection](#elasticsearch-9)  | -             | \[MigrationVersion\]        |
+| [Object storage, RustFS and the openaev.s3 configuration](#s3-object-storage-rustfs) | \[MigrationVersion\] | \[MigrationVersion\] |
 | [Windows agent config file permissions](#windows-agent-config-permissions) | -             | 3.261016.0 |
 
 ## OpenAEV 2.2.0
@@ -137,6 +138,14 @@ is removed: a value still set is ignored with a warning. `engine.client` forces 
 cannot decide.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-elasticsearch-9.md)
+
+<a id="s3-object-storage-rustfs"></a>
+
+#### Object storage, RustFS and the openaev.s3 configuration
+
+Starting with **OpenAEV \[MigrationVersion\]**, the reference Docker deployment runs RustFS as S3 object storage instead of Silo, and the `minio.*` connection parameters (`MINIO_*`) are renamed `openaev.s3.*` (`OPENAEV_S3_*`). The former names are still read. Docker deployments that adopt the new reference compose file need a migration step for the storage volume.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-s3-object-storage-rustfs.md)
 
 ## OpenAEV 3.261016.0
 

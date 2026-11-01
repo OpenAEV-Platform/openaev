@@ -1,11 +1,11 @@
 name: API Types Check
 description: >
-  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, Silo),
+  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, RustFS),
   download and run the backend JAR, and verify that generated API types
   are up to date.
   Requires job-level env vars: SPRING_DATASOURCE_URL,
   SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD,
-  MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_ACCESS_SECRET,
+  OPENAEV_S3_ENDPOINT, OPENAEV_S3_PORT, OPENAEV_S3_ACCESS_KEY, OPENAEV_S3_ACCESS_SECRET,
   ENGINE_URL, OPENBAS_RABBITMQ_HOSTNAME, OPENAEV_ADMIN_EMAIL,
   OPENAEV_ADMIN_PASSWORD, OPENAEV_ADMIN_TOKEN,
   OPENAEV_ADMIN_ENCRYPTION_KEY, OPENAEV_ADMIN_ENCRYPTION_SALT,
@@ -86,12 +86,12 @@ runs:
         done
         docker exec rabbitmq rabbitmq-diagnostics -q check_running || { echo "❌ RabbitMQ failed to start"; exit 1; }
 
-        echo "⏳ Waiting for Silo..."
+        echo "⏳ Waiting for RustFS..."
         for i in $(seq 1 30); do
-          curl -sf http://localhost:11000/minio/health/live && break
+          curl -sf http://localhost:11000/health/ready && break
           sleep 1
         done
-        curl -sf http://localhost:11000/minio/health/live || { echo "❌ Silo failed to start"; exit 1; }
+        curl -sf http://localhost:11000/health/ready || { echo "❌ RustFS failed to start"; exit 1; }
 
         echo "✅ All services ready"
 

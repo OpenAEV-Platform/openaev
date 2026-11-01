@@ -1,13 +1,13 @@
 name: E2E Tests
 description: >
-  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, Silo),
+  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, RustFS),
   download and run the backend Docker image, and run Playwright E2E tests.
   The Docker image is built in parallel by the docker-build job; this action
   waits for a registry marker or image artifact and loads the first usable source.
   Requires job-level env vars: SPRING_DATASOURCE_URL,
   SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD,
-  MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_ACCESS_SECRET,
-  ENGINE_URL, OPENBAS_RABBITMQ_HOSTNAME, OPENAEV_ADMIN_EMAIL,
+  MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_ACCESS_SECRET (former
+  names of openaev.s3.*, kept on purpose to check they are still read), ENGINE_URL, OPENBAS_RABBITMQ_HOSTNAME, OPENAEV_ADMIN_EMAIL,
   OPENAEV_ADMIN_PASSWORD, OPENAEV_ADMIN_TOKEN,
   OPENAEV_ADMIN_ENCRYPTION_KEY, OPENAEV_ADMIN_ENCRYPTION_SALT,
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
@@ -171,12 +171,12 @@ runs:
         done
         docker exec rabbitmq rabbitmq-diagnostics -q check_running || { echo "❌ RabbitMQ failed to start"; exit 1; }
 
-        echo "⏳ Waiting for Silo..."
+        echo "⏳ Waiting for RustFS..."
         for i in $(seq 1 30); do
-          curl -sf http://localhost:11000/minio/health/live && break
+          curl -sf http://localhost:11000/health/ready && break
           sleep 1
         done
-        curl -sf http://localhost:11000/minio/health/live || { echo "❌ Silo failed to start"; exit 1; }
+        curl -sf http://localhost:11000/health/ready || { echo "❌ RustFS failed to start"; exit 1; }
 
         echo "✅ All services ready"
 
@@ -251,6 +251,26 @@ runs:
           fi
           sleep 2
         done
+
+    - name: Check the former storage names were read
+      shell: bash
+      run: |
+        # The packaged logging config must let the warning through, and it must list every former
+        # name the job sets, without values.
+        WARNING=$(docker logs openaev-app 2>&1 | grep 'The minio configuration section is deprecated' || true)
+        echo "${WARNING:-no deprecation warning}"
+        echo "$WARNING" | grep -qF '[minio.endpoint, minio.port, minio.access-key, minio.access-secret]' \
+          || { echo "❌ The former minio names are not all reported as read"; exit 1; }
+        if echo "$WARNING" | grep -qF -e "$MINIO_ACCESS_SECRET" -e "$MINIO_ACCESS_KEY" -e "$MINIO_ENDPOINT"; then
+          echo "❌ The warning contains a value"; exit 1
+        fi
+        # Only former names are set: no name may be reported as ignored or hidden
+        if docker logs openaev-app 2>&1 | grep -qF -e 'the openaev.s3 name is set' -e 'a minio name of higher priority is set'; then
+          echo "❌ Unexpected storage configuration warning"
+          docker logs openaev-app 2>&1 | grep -F '[S3]' || true
+          exit 1
+        fi
+        echo "✅ Former storage names read and reported"
 
     - name: Start XTM Composer
       uses: ./.github/actions/start-xtm-composer
