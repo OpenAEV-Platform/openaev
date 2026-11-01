@@ -11,7 +11,8 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import healthcheckFixLink from '../../common/healthchecks/healthcheckFixLink';
 import ScenarioLaunchTargetsDrawer from '../catalog/ScenarioLaunchTargetsDrawer';
-import loadScenarioLaunchBlockers, { hardBlockerCount, type ScenarioLaunchBlockers } from './scenarioLaunchBlockers';
+import RevokedPayloadFix from './RevokedPayloadFix';
+import loadScenarioLaunchBlockers, { hardBlockerCount, type RevokedInject, type ScenarioLaunchBlockers } from './scenarioLaunchBlockers';
 
 interface Props {
   scenario: Scenario;
@@ -66,6 +67,10 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
   // Fixes need the right to edit the scenario; without it the blocker stays visible, read-only.
   const fix = (action: ReactNode) => (canManage ? action : undefined);
 
+  const revokedGroups = Array.from((blockers?.revokedInjects ?? []).reduce((groups, inject) => {
+    if (inject.contractId) groups.set(inject.contractId, [...(groups.get(inject.contractId) ?? []), inject]);
+    return groups;
+  }, new Map<string, RevokedInject[]>()).entries());
   const hard = blockers ? hardBlockerCount(blockers) : 0;
   const soft = blockers?.healthchecks.length ?? 0;
   let summary = t('Ready to launch');
@@ -100,7 +105,20 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
                   title={blockers.revokedInjects.length === 1
                     ? t('1 inject runs a revoked payload')
                     : t('{count} injects run a revoked payload', { count: String(blockers.revokedInjects.length) })}
-                  description={`${names(blockers.revokedInjects)}. ${t('Move them to a payload version that is not revoked, or remove them.')}`}
+                  description={(
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                    >
+                      <span>{`${names(blockers.revokedInjects.map(inject => inject.title))}. ${t('Move them to a payload version that is not revoked, or remove them.')}`}</span>
+                      {/* One version picker per revoked payload version, right in the check (F18). */}
+                      {canManage && revokedGroups.map(([contractId, injects]) => (
+                        <RevokedPayloadFix key={contractId} contractId={contractId} injects={injects} onMoved={check} />
+                      ))}
+                    </div>
+                  )}
                   action={fix(
                     <Button asChild size="sm" priority="secondary">
                       <Link to={`/admin/scenarios/${scenario.scenario_id}/injects`}>{t('Open the injects')}</Link>

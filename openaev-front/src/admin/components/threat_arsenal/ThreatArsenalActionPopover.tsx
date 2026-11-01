@@ -299,19 +299,8 @@ const ThreatArsenalActionPopover = ({
             {t('Edit customization')}
           </MenuItem>
         )}
-        {hasDeleteCapability && !managed && (
-          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
-        )}
-        {((hasDeleteCapability && managed) || (hasRevokeCapability && (canRevoke || canLift))) && <Divider />}
-        {hasDeleteCapability && managed && (
-          <MenuItem onClick={() => {
-            handlePopoverClose();
-            setUninstall(true);
-          }}
-          >
-            {t('Uninstall')}
-          </MenuItem>
-        )}
+        {/* Revoking stops a version from running and can be lifted: its own group, away from removal (L41). */}
+        {hasRevokeCapability && !!payloadId && (canRevoke || canLift) && <Divider />}
         {hasRevokeCapability && !!payloadId && canRevoke && (
           <MenuItem onClick={handleOpenRevocation}>{t('Revoke')}</MenuItem>
         )}
@@ -323,6 +312,19 @@ const ThreatArsenalActionPopover = ({
           >
             {t('Lift revocation')}
           </MenuItem>
+        )}
+        {hasDeleteCapability && <Divider />}
+        {hasDeleteCapability && managed && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            setUninstall(true);
+          }}
+          >
+            {t('Uninstall')}
+          </MenuItem>
+        )}
+        {hasDeleteCapability && !managed && (
+          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
       </Menu>
 

@@ -12,6 +12,7 @@ import { useHelper } from '../../../store';
 import { type AttackPattern, type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
 import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescriptions';
+import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { actionDomains } from './threatArsenalDomainSections';
 import { getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
@@ -66,6 +67,9 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status;
   const statusLabel = getStatusLabel(status);
   const name = tPick(action.action_labels);
+  // Trust line (idea A): version and source together, as in the drawer.
+  const origin = payloadOrigin(action.action_payload);
+  const olderInUse = action.action_payload?.payload_older_versions_in_use ?? 0;
 
   return (
     <MarketplaceCard
@@ -115,6 +119,12 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       )}
       chips={(
         <>
+          {olderInUse > 0 && (
+            <Chip
+              label={olderInUse === 1 ? t('1 older version still in use') : t('{count} older versions still in use', { count: String(olderInUse) })}
+              severity="medium"
+            />
+          )}
           {techniques.length > 0 && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -158,6 +168,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       )}
       caption={[
         version ? `v${version}` : null,
+        origin ? t(PAYLOAD_ORIGIN_LABELS[origin]) : null,
         builtIn ? `${t('Built-in')}${platformVersion ? ` · v${platformVersion}` : ''}` : null,
         `${t('Updated')} ${nsd(action.injector_contract_updated_at)}`,
       ].filter(Boolean).join(' · ')}

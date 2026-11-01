@@ -5,9 +5,16 @@ import { type HealthCheck, type InjectOutput, type Scenario } from '../../../../
 import { type MissingPrerequisite } from '../catalog/ScenarioTargetsDrawer';
 
 // Everything that stops a scenario from launching, or makes the run fail, gathered before the launch.
+export interface RevokedInject {
+  id: string;
+  title: string;
+  // The injector contract of the revoked payload version, to move the inject to another version.
+  contractId?: string;
+}
+
 export interface ScenarioLaunchBlockers {
   // Injects running a revoked payload: skipped, and the server refuses the launch (F9, F18).
-  revokedInjects: string[];
+  revokedInjects: RevokedInject[];
   // Targetable injects without a target: launch stays disabled until each has one (section 6.3).
   untargetedInjects: string[];
   // What a catalogue scenario needs from the platform (injectors, executors, edition).
@@ -30,8 +37,12 @@ const loadScenarioLaunchBlockers = (scenario: Scenario): Promise<ScenarioLaunchB
     size: 1000,
   }, false).then(({ data }: { data: { content: InjectOutput[] } }) => data.content
     .filter(inject => inject.inject_enabled && inject.inject_payload_revoked)
-    .map(inject => inject.inject_title))
-    .catch(() => [] as string[]);
+    .map(inject => ({
+      id: inject.inject_id,
+      title: inject.inject_title,
+      contractId: inject.inject_injector_contract?.injector_contract_id,
+    })))
+    .catch(() => [] as RevokedInject[]);
   const targets = fetchScenarioTargets(scenario.scenario_id)
     .then(({ data }) => data.injects
       .filter(inject => inject.target_fields.length > 0 && !inject.is_targeted)

@@ -1,11 +1,12 @@
 import { Button, Text, Textarea } from '@filigran/design-system';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
+import { Link } from 'react-router';
 
-import { fetchThreatArsenalVersions } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
+import { fetchThreatArsenalUsages, fetchThreatArsenalVersions } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
-import { type PayloadVersionOutput } from '../../../utils/api-types';
+import { type PayloadUsageOutput, type PayloadVersionOutput } from '../../../utils/api-types';
 import payloadRevocationChoices from './payloadRevocationChoices';
 import PayloadVersionSelect from './PayloadVersionSelect';
 
@@ -43,6 +44,21 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
   }, [open, actionId, payloadId, lift, customized]);
 
   const version = versions?.find(v => v.payload_id === selected);
+
+  // Name what the revocation stops, not only a count: the scenarios using the chosen version.
+  const [usages, setUsages] = useState<PayloadUsageOutput[] | null>(null);
+  useEffect(() => {
+    setUsages(null);
+    if (open && version?.payload_action_id) {
+      fetchThreatArsenalUsages(version.payload_action_id)
+        .then((response: { data: PayloadUsageOutput[] }) => setUsages(response.data))
+        .catch(() => setUsages([]));
+    }
+  }, [open, version?.payload_action_id]);
+  const scenarios = Array.from(new Map((usages ?? [])
+    .filter(usage => usage.usage_scenario_id)
+    .map(usage => [usage.usage_scenario_id as string, usage.usage_scenario_name ?? ''])).entries());
+  const injectCount = version?.payload_usage_count ?? 0;
   const inherited = lift && customized && !!version && !version.payload_revoked_in_tenant;
   const needsReason = !lift || inherited;
 
@@ -90,9 +106,25 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
             />
             {version && (
               <Text variant="content-caption">
-                {t('Used by {count} injects', { count: String(version.payload_usage_count) })}
+                {injectCount === 1 ? t('Used by 1 inject') : t('Used by {count} injects', { count: String(injectCount) })}
               </Text>
             )}
+          </div>
+        )}
+        {scenarios.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <Text variant="content-base-bold">{lift ? t('These scenarios can launch again:') : t('These scenarios will not launch until it is lifted:')}</Text>
+            <ul style={{
+              margin: '4px 0 0',
+              paddingLeft: 20,
+            }}
+            >
+              {scenarios.map(([scenarioId, scenarioName]) => (
+                <li key={scenarioId}>
+                  <Link to={`/admin/scenarios/${scenarioId}`} target="_blank">{scenarioName || scenarioId}</Link>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         {needsReason && versions?.length !== 0 && (

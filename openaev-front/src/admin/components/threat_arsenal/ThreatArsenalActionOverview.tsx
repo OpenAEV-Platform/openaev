@@ -53,6 +53,7 @@ import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import PayloadRevocationBanner from './PayloadRevocationBanner';
+import PayloadTrustLine from './PayloadTrustLine';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 
 // Human labels for the predefined expectation types carried by a payload/contract.
@@ -325,6 +326,11 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                 {description}
               </Typography>
             )}
+
+            {/* Trust line (idea A): the same version and source line as the card. */}
+            <div style={{ marginTop: 12 }}>
+              <PayloadTrustLine payload={action.action_payload} updatedAt={action.injector_contract_updated_at} />
+            </div>
 
             <Box sx={{
               display: 'flex',
