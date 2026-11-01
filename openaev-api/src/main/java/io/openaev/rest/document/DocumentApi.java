@@ -106,8 +106,8 @@ public class DocumentApi extends RestBehavior {
     // must be refused with 400 whether the uploaded bytes match an existing document or not, not
     // only on the new-document branch. The new document below is attributed to this tenant.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
-    // the non-prefixed route: resolve the ids the caller supplies in the write tenant, so the
+    // The parents still on the v1 filter are scoped by the ambient tenant, which is the default one
+    // on the non-prefixed route: resolve the ids the caller supplies in the write tenant, so the
     // document is only bound to parents of its own tenant.
     return ambientTenantBridge.callInTenantChecked(
         tenantId, () -> uploadDocumentInTenant(tenantId, input, file));
@@ -310,9 +310,9 @@ public class DocumentApi extends RestBehavior {
     // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
     // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
-    // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
-    // the non-prefixed route: resolve the ids the caller supplies in the tenant of the document, so
-    // it keeps the parents of its own tenant and is never bound to those of another one.
+    // The parents still on the v1 filter are scoped by the ambient tenant, which is the default one
+    // on the non-prefixed route: resolve the ids the caller supplies in the tenant of the document,
+    // so it keeps the parents of its own tenant and is never bound to those of another one.
     return ambientTenantBridge.callInTenant(
         document.getTenant().getId(), () -> updateDocumentInTenant(document, input));
   }
