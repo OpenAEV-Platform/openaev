@@ -26,10 +26,13 @@ public class HttpClientFactory {
 
   /** Create default httpClient for all the app with extra trusted certs */
   private CloseableHttpClient httpClientBuilder(
-      boolean disableAutomaticRetries, Timeout connectionTimeout) {
+      boolean disableAutomaticRetries, Timeout connectionTimeout, boolean withProxy) {
     HttpClientBuilder custom = HttpClients.custom();
     if (disableAutomaticRetries) {
       custom.disableAutomaticRetries();
+    }
+    if (withProxy) {
+      custom.setRoutePlanner(new EnvironmentProxyRoutePlanner());
     }
     try {
       SSLContext sslContext = SSLContext.getInstance("TLS");
@@ -67,7 +70,7 @@ public class HttpClientFactory {
 
   /** Create default httpClient for all the app with extra trusted certs */
   public CloseableHttpClient httpClientCustom() {
-    return httpClientBuilder(false, null);
+    return httpClientBuilder(false, null, false);
   }
 
   /**
@@ -76,7 +79,7 @@ public class HttpClientFactory {
    * synchronous calls appear stuck for hours.
    */
   public CloseableHttpClient httpClientNoRetry() {
-    return httpClientBuilder(true, null);
+    return httpClientBuilder(true, null, false);
   }
 
   /**
@@ -85,6 +88,15 @@ public class HttpClientFactory {
    * otherwise waits minutes on an unreachable host.
    */
   public CloseableHttpClient httpClientNoRetry(Timeout connectionTimeout) {
-    return httpClientBuilder(true, connectionTimeout);
+    return httpClientBuilder(true, connectionTimeout, false);
+  }
+
+  /**
+   * {@link #httpClientNoRetry(Timeout)} that goes through the proxy the platform runs behind (JVM
+   * proxy properties, then {@code HTTPS_PROXY} / {@code HTTP_PROXY} minus {@code NO_PROXY}). Other
+   * clients ignore the proxy settings: only calls that used to honor them elsewhere opt in.
+   */
+  public CloseableHttpClient httpClientNoRetryWithProxy(Timeout connectionTimeout) {
+    return httpClientBuilder(true, connectionTimeout, true);
   }
 }

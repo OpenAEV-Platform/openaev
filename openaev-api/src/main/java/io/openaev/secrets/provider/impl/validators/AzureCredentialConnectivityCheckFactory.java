@@ -2,6 +2,7 @@ package io.openaev.secrets.provider.impl.validators;
 
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.management.AzureEnvironment;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 
 /**
  * Builds the Azure SDK credential objects used to probe a stored credential.
@@ -37,4 +38,15 @@ public interface AzureCredentialConnectivityCheckFactory {
    * @return a credential able to request tokens for that identity
    */
   TokenCredential forManagedIdentity(String clientId);
+
+  /**
+   * The HTTP client the credentials built by this factory send their requests through.
+   *
+   * <p>Shared and owned by the factory: callers must not close it. Reusing it for the probe's own
+   * calls keeps them under the same TLS trust, proxy and timeouts as the token exchange, and avoids
+   * rebuilding an SSL context and a connection pool for every credential checked.
+   *
+   * @return the shared Apache client
+   */
+  CloseableHttpClient httpClient();
 }
