@@ -279,7 +279,8 @@ public class ExpectationApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String expectationId,
       @Valid @RequestBody @NotNull InjectExpectationUpdateFromCollectorInput input) {
-    return toOutput(injectExpectationService.updateInjectExpectation(expectationId, input));
+    return toOutput(
+        injectExpectationService.updateInjectExpectationFromCollector(expectationId, input));
   }
 
   @Operation(
