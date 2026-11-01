@@ -253,7 +253,9 @@ public class ThreatArsenalApi {
   public ThreatArsenalBulkDeleteOutput bulkDeleteActions(
       // TxCtx is still declared so the resolver injects the request scope; there is no real
       // transaction here to write the GUC into (SUPPORTS), so ThreatArsenalService#bulkDelete
-      // deletes only within the tenants of this scope, each in its own read/chunk transactions.
+      // resolves the write tenant from this scope and carries it into its own read/chunk
+      // transactions. No @RequireTenantSelector: a scope that names several tenants must be
+      // refused rather than silently narrowed to the default one, since the request deletes.
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     return ThreatArsenalBulkDeleteOutput.of(threatArsenalService.bulkDelete(ctx, input));
   }

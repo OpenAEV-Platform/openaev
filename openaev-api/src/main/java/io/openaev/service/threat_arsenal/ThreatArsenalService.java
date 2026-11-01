@@ -7,6 +7,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -37,11 +38,9 @@ import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
-import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -66,6 +65,7 @@ public class ThreatArsenalService {
   private final AmbientTenantBridge ambientTenantBridge;
   private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
   private final UserService userService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // PermissionService pulls in InjectService, which depends on this service, so a plain
   // constructor-injected field here is a circular bean dependency. @Lazy setter injection (same
@@ -476,38 +476,46 @@ public class ThreatArsenalService {
    * deleted (payload-based, and - for collector-sourced payloads - only when deprecated), mirroring
    * the per-row delete eligibility. Non-eligible actions are silently skipped.
    *
-   * <p>Deliberately NOT transactional as a whole: in each tenant, the eligibility is resolved in a
-   * short read transaction, then the actions are deleted in small independent chunks through {@link
+   * <p>Deliberately NOT transactional as a whole: the eligibility is resolved in a short read
+   * transaction, then the actions are deleted in small independent chunks through {@link
    * BulkDeleteExecutor}, which also tracks the deletion as a massive operation (header progress
    * indicator) and suppresses the per-entity stream events.
    *
-   * <p>Only the items of the tenants in the request scope are considered, one tenant at a time: an
-   * item is resolved, judged and deleted in its own tenant. The ambient tenant follows that tenant
-   * for the injector contracts, and every read and chunk transaction carries its scope for the
-   * injectors and payloads that InjectorContract#getInjectorType()/getPayload() resolve through. A
-   * tenant where the caller does not hold the delete right is skipped: the endpoint's access check
-   * only sees the request's own tenant, while the scope can name others.
+   * <p>The whole deletion happens in one tenant, the one the request writes to: the tenant of the
+   * route, or the single tenant the selector names. A scope naming several tenants, or none, cannot
+   * designate it and the request is refused (400) before anything is read. Acting in one tenant is
+   * what bounds a selection: an item id is not a tenant boundary, since injectors_contracts keys
+   * its rows on (id, tenant_id) and two tenants onboarded from the same source hold two rows under
+   * the same id, so a selection replayed in a second tenant would delete namesake rows the caller
+   * never selected.
    *
-   * @param ctx the request scope, which bounds the tenants the items are deleted from
+   * <p>The eligibility and the deletion are both read in that tenant. The ambient tenant follows it
+   * for the injector contracts, and every read and chunk transaction carries its scope for the
+   * injectors and payloads that InjectorContract#getInjectorType()/getPayload() resolve through.
+   * The delete right is checked there too: the endpoint's access check reads the request context
+   * tenant, which is the default one on the non-prefixed route, while the write tenant is the one
+   * the selector names.
+   *
+   * @param ctx the request scope, which the write tenant is resolved from
    * @param input the search + selection input
    * @return the ids that were actually deleted
    */
   public List<String> bulkDelete(TxCtx ctx, InjectorContractSearchPaginationInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     User caller = userService.currentUser();
-    List<String> deletedIds = new ArrayList<>();
-    for (String tenantId : TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx).stream().sorted().toList()) {
-      deletedIds.addAll(
-          ambientTenantBridge.callInTenant(
-              tenantId,
-              () ->
-                  mayDeleteInTenant(caller, tenantId)
-                      ? bulkDeleteInTenant(tenantId, input)
-                      : List.of()));
-    }
-    return deletedIds.stream().distinct().sorted().toList();
+    return ambientTenantBridge.callInTenant(
+        tenantId,
+        () ->
+            mayDeleteInTenant(caller, tenantId)
+                ? bulkDeleteInTenant(tenantId, input)
+                : List.<String>of());
   }
 
-  /** The decision the endpoint's access check takes, read in the given tenant. */
+  /**
+   * The decision the endpoint's access check takes, read in the write tenant: the caller's
+   * capabilities are the ones of its groups in the ambient tenant (User#getCapabilities), which the
+   * bridge has moved to the write tenant. The scope is passed for the reads the check itself makes.
+   */
   private boolean mayDeleteInTenant(User caller, String tenantId) {
     return permissionService.hasPermissionInTenant(
         TxCtx.forTenant(tenantId), caller, "", ResourceType.THREAT_ARSENAL, Action.DELETE);

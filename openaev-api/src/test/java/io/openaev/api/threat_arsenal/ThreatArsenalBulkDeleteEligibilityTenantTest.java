@@ -46,26 +46,32 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * The threat arsenal bulk delete only removes items whose tenant is in the request scope, and
- * decides whether each item can be deleted in that item's tenant, the tenant it deletes it from.
- * Explicit selections and select-all requests follow the same rule.
+ * The threat arsenal bulk delete acts in exactly one tenant, the tenant the request writes to: the
+ * tenant of the route, or the single tenant the header names. A scope that names several tenants,
+ * or none, cannot designate it, so the request is refused with 400 and nothing is deleted. Explicit
+ * selections and select-all requests follow the same rule.
+ *
+ * <p>The rule matters because an item id does not name a tenant: {@code injector_contract_id} is
+ * part of a composite primary key with {@code tenant_id}, so two tenants onboarded from the same
+ * source hold two rows under the same id. Acting in one tenant is what keeps a selection from
+ * reaching the namesake rows of the others.
  *
  * <p>An item linked to an injector is a built-in action that the bulk delete keeps; an item linked
- * to no injector is removed. The caller is a member of the default tenant and of a second tenant,
- * and the request header narrows its scope on the non-prefixed route. A caller that is not an
- * administrator only deletes in the tenants of that scope where it holds the delete right.
+ * to no injector is removed. Eligibility is read, and the item deleted, in the write tenant. A
+ * caller that does not hold the delete right there deletes nothing.
  *
  * <p>The production active tables are armed, so the class follows what production enforces. The
  * rows are committed, as a real request sees them, and removed after each test.
  */
 @TestPropertySource(properties = "spring.quartz.auto-startup=false")
 @TestInstance(PER_CLASS)
-@DisplayName("Threat arsenal bulk delete acts within the request scope, in each item's own tenant")
+@DisplayName("Threat arsenal bulk delete acts in the request's write tenant")
 class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
 
   private static final String BULK_DELETE_URI = "/bulk-delete";
   private static final String SEARCH_URI = "/search";
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
+  private static final String WRITE_SCOPE_ERROR = "TENANT_WRITE_SCOPE";
 
   @DynamicPropertySource
   static void productionActiveTables(DynamicPropertyRegistry registry) {
@@ -93,10 +99,16 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
 
   /**
    * Makes the caller a member of the default tenant (through {@code @WithMockUser}) and of a second
-   * tenant, in every test, so the scope of a request without a header never depends on the order
-   * the tests run in.
+   * tenant. Each test builds its own mock user, so a test that does not call this one keeps a
+   * single-tenant membership whatever the order the tests run in.
    */
   private void joinOtherTenant() {
+    createOtherTenant();
+    tenantHelper.attachCurrentUserToTenant(otherTenantId);
+  }
+
+  /** The second tenant, created once for the class, without attaching the caller to it. */
+  private void createOtherTenant() {
     if (otherTenantId == null) {
       otherTenantId =
           new TransactionTemplate(transactionManager)
@@ -109,11 +121,24 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
                     }
                   });
     }
-    tenantHelper.attachCurrentUserToTenant(otherTenantId);
   }
 
   /** Commits a custom payload-less item in the given tenant, linked to an injector or not. */
   private CommittedItem commitItem(String tenantId, boolean linkedToInjector, String label) {
+    return commit(tenantId, linkedToInjector, label, null);
+  }
+
+  /**
+   * Commits an unlinked item under a chosen id, so that two tenants can hold the namesake rows a
+   * datapack onboarded in both of them. Unlinked, because the fixture links its injector on the id
+   * it generated itself.
+   */
+  private CommittedItem commitUnlinkedItem(String tenantId, String label, String contractId) {
+    return commit(tenantId, false, label, contractId);
+  }
+
+  private CommittedItem commit(
+      String tenantId, boolean linkedToInjector, String label, String contractId) {
     TenantContext.setCurrentTenant(tenantId);
     try {
       return new TransactionTemplate(transactionManager)
@@ -125,6 +150,9 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
                 contract.setLabels(new HashMap<>(Map.of("en", label)));
                 if (!linkedToInjector) {
                   contract.clearInjectors();
+                }
+                if (contractId != null) {
+                  contract.setId(contractId);
                 }
                 InjectorContract saved =
                     injectorContractComposer.forInjectorContract(contract).persist().get();
@@ -148,7 +176,7 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
   }
 
   private MockHttpServletRequestBuilder bulkDelete(String url, CommittedItem... items) {
-    List<String> ids = Arrays.stream(items).map(CommittedItem::contractId).toList();
+    List<String> ids = Arrays.stream(items).map(CommittedItem::contractId).distinct().toList();
     return post(url + BULK_DELETE_URI)
         .contentType(MediaType.APPLICATION_JSON)
         .content(asJsonString(Map.of("injector_contract_ids_to_process", ids)));
@@ -189,6 +217,15 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
     MockHttpServletResponse response = send(request);
     assertThat(response.getStatus()).as("the bulk delete succeeds").isEqualTo(200);
     return JsonPath.read(response.getContentAsString(), "$.deleted_ids");
+  }
+
+  /** Sends a bulk delete and checks the request scope could not designate a write tenant. */
+  private void assertRefusedForWriteScope(MockHttpServletRequestBuilder request) throws Exception {
+    MockHttpServletResponse response = send(request);
+    assertThat(response.getStatus()).as("the bulk delete is refused").isEqualTo(400);
+    assertThat(JsonPath.<String>read(response.getContentAsString(), "$.message"))
+        .as("the refusal names the write scope")
+        .isEqualTo(WRITE_SCOPE_ERROR);
   }
 
   /**
@@ -233,134 +270,6 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
               "DELETE FROM injectors_contracts WHERE injector_contract_id = ?", item.contractId());
       if (item.injectorId() != null) {
         jdbc().update("DELETE FROM injectors WHERE injector_id = ?", item.injectorId());
-      }
-    }
-  }
-
-  @Nested
-  @DisplayName("A request whose scope excludes the item's tenant")
-  class ScopeExcludingTheItemTenant {
-
-    @Test
-    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-    @DisplayName("given an explicit selection should neither delete nor report the items")
-    void given_explicitSelection_should_neitherDeleteNorReportTheItems() throws Exception {
-      // Arrange
-      joinOtherTenant();
-      String label = newLabel();
-      CommittedItem linked = null;
-      CommittedItem unlinked = null;
-      try {
-        linked = commitItem(Tenant.DEFAULT_TENANT_UUID, true, label);
-        unlinked = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
-
-        // Act
-        List<String> deleted =
-            deletedIds(
-                bulkDelete(THREAT_ARSENAL_URL, linked, unlinked)
-                    .header(TENANT_IDS_HEADER, otherTenantId));
-
-        // Assert
-        assertThat(deleted).as("no item is reported").isEmpty();
-        assertThat(stored(linked)).as("the linked item is kept").isEqualTo(1);
-        assertThat(stored(unlinked)).as("the unlinked item is kept").isEqualTo(1);
-      } finally {
-        remove(linked, unlinked);
-      }
-    }
-
-    @Test
-    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-    @DisplayName("given a select-all request should neither delete nor report the items")
-    void given_selectAll_should_neitherDeleteNorReportTheItems() throws Exception {
-      // Arrange
-      joinOtherTenant();
-      String label = newLabel();
-      CommittedItem linked = null;
-      CommittedItem unlinked = null;
-      try {
-        linked = commitItem(Tenant.DEFAULT_TENANT_UUID, true, label);
-        unlinked = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
-        assertLabelMatches(Tenant.DEFAULT_TENANT_UUID, label, 2);
-
-        // Act
-        List<String> deleted =
-            deletedIds(
-                bulkDeleteAllLabelled(THREAT_ARSENAL_URL, label)
-                    .header(TENANT_IDS_HEADER, otherTenantId));
-
-        // Assert
-        assertThat(deleted).as("no item is reported").isEmpty();
-        assertThat(stored(linked)).as("the linked item is kept").isEqualTo(1);
-        assertThat(stored(unlinked)).as("the unlinked item is kept").isEqualTo(1);
-      } finally {
-        remove(linked, unlinked);
-      }
-    }
-  }
-
-  @Nested
-  @DisplayName("A request whose header names the item's tenant only")
-  class HeaderNamingTheItemTenant {
-
-    @Test
-    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-    @DisplayName("given an explicit selection should delete only the unlinked item")
-    void given_explicitSelection_should_deleteOnlyTheUnlinkedItem() throws Exception {
-      // Arrange
-      joinOtherTenant();
-      String label = newLabel();
-      CommittedItem linked = null;
-      CommittedItem unlinked = null;
-      try {
-        linked = commitItem(otherTenantId, true, label);
-        unlinked = commitItem(otherTenantId, false, label);
-
-        // Act
-        List<String> deleted =
-            deletedIds(
-                bulkDelete(THREAT_ARSENAL_URL, linked, unlinked)
-                    .header(TENANT_IDS_HEADER, otherTenantId));
-
-        // Assert
-        assertThat(deleted)
-            .as("only the unlinked item is reported")
-            .containsExactly(unlinked.contractId());
-        assertThat(stored(linked)).as("the linked item is kept").isEqualTo(1);
-        assertThat(stored(unlinked)).as("the unlinked item is removed").isZero();
-      } finally {
-        remove(linked, unlinked);
-      }
-    }
-
-    @Test
-    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-    @DisplayName("given a select-all request should delete only the unlinked item")
-    void given_selectAll_should_deleteOnlyTheUnlinkedItem() throws Exception {
-      // Arrange
-      joinOtherTenant();
-      String label = newLabel();
-      CommittedItem linked = null;
-      CommittedItem unlinked = null;
-      try {
-        linked = commitItem(otherTenantId, true, label);
-        unlinked = commitItem(otherTenantId, false, label);
-        assertLabelMatches(otherTenantId, label, 2);
-
-        // Act
-        List<String> deleted =
-            deletedIds(
-                bulkDeleteAllLabelled(THREAT_ARSENAL_URL, label)
-                    .header(TENANT_IDS_HEADER, otherTenantId));
-
-        // Assert
-        assertThat(deleted)
-            .as("only the unlinked item is reported")
-            .containsExactly(unlinked.contractId());
-        assertThat(stored(linked)).as("the linked item is kept").isEqualTo(1);
-        assertThat(stored(unlinked)).as("the unlinked item is removed").isZero();
-      } finally {
-        remove(linked, unlinked);
       }
     }
   }
@@ -426,8 +335,8 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("A request without header from a member of the item's tenant")
-  class MemberOfTheItemTenant {
+  @DisplayName("A request whose header names one tenant")
+  class HeaderNamingOneTenant {
 
     @Test
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
@@ -435,6 +344,221 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
     void given_explicitSelection_should_deleteOnlyTheUnlinkedItem() throws Exception {
       // Arrange
       joinOtherTenant();
+      String label = newLabel();
+      CommittedItem linked = null;
+      CommittedItem unlinked = null;
+      try {
+        linked = commitItem(otherTenantId, true, label);
+        unlinked = commitItem(otherTenantId, false, label);
+
+        // Act
+        List<String> deleted =
+            deletedIds(
+                bulkDelete(THREAT_ARSENAL_URL, linked, unlinked)
+                    .header(TENANT_IDS_HEADER, otherTenantId));
+
+        // Assert
+        assertThat(deleted)
+            .as("only the unlinked item is reported")
+            .containsExactly(unlinked.contractId());
+        assertThat(stored(linked)).as("the linked item is kept").isEqualTo(1);
+        assertThat(stored(unlinked)).as("the unlinked item is removed").isZero();
+      } finally {
+        remove(linked, unlinked);
+      }
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given a select-all request should delete only the unlinked item")
+    void given_selectAll_should_deleteOnlyTheUnlinkedItem() throws Exception {
+      // Arrange
+      joinOtherTenant();
+      String label = newLabel();
+      CommittedItem linked = null;
+      CommittedItem unlinked = null;
+      try {
+        linked = commitItem(otherTenantId, true, label);
+        unlinked = commitItem(otherTenantId, false, label);
+        assertLabelMatches(otherTenantId, label, 2);
+
+        // Act
+        List<String> deleted =
+            deletedIds(
+                bulkDeleteAllLabelled(THREAT_ARSENAL_URL, label)
+                    .header(TENANT_IDS_HEADER, otherTenantId));
+
+        // Assert
+        assertThat(deleted)
+            .as("only the unlinked item is reported")
+            .containsExactly(unlinked.contractId());
+        assertThat(stored(linked)).as("the linked item is kept").isEqualTo(1);
+        assertThat(stored(unlinked)).as("the unlinked item is removed").isZero();
+      } finally {
+        remove(linked, unlinked);
+      }
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given items of another tenant should neither delete nor report them")
+    void given_itemsOfAnotherTenant_should_neitherDeleteNorReportThem() throws Exception {
+      // Arrange
+      joinOtherTenant();
+      String label = newLabel();
+      CommittedItem linked = null;
+      CommittedItem unlinked = null;
+      try {
+        linked = commitItem(Tenant.DEFAULT_TENANT_UUID, true, label);
+        unlinked = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
+        assertLabelMatches(Tenant.DEFAULT_TENANT_UUID, label, 2);
+
+        // Act
+        List<String> deletedExplicitly =
+            deletedIds(
+                bulkDelete(THREAT_ARSENAL_URL, linked, unlinked)
+                    .header(TENANT_IDS_HEADER, otherTenantId));
+        List<String> deletedByFilter =
+            deletedIds(
+                bulkDeleteAllLabelled(THREAT_ARSENAL_URL, label)
+                    .header(TENANT_IDS_HEADER, otherTenantId));
+
+        // Assert
+        assertThat(deletedExplicitly).as("no item is reported by the explicit selection").isEmpty();
+        assertThat(deletedByFilter).as("no item is reported by the select-all").isEmpty();
+        assertThat(stored(linked)).as("the linked item is kept").isEqualTo(1);
+        assertThat(stored(unlinked)).as("the unlinked item is kept").isEqualTo(1);
+      } finally {
+        remove(linked, unlinked);
+      }
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given the same item id in both tenants should delete only the named tenant's row")
+    void given_theSameItemIdInBothTenants_should_deleteOnlyTheNamedTenantRow() throws Exception {
+      // Arrange: the two tenants hold the namesake rows of one onboarded item.
+      joinOtherTenant();
+      String label = newLabel();
+      String sharedId = UUID.randomUUID().toString();
+      CommittedItem inDefaultTenant = null;
+      CommittedItem inOtherTenant = null;
+      try {
+        inDefaultTenant = commitUnlinkedItem(Tenant.DEFAULT_TENANT_UUID, label, sharedId);
+        inOtherTenant = commitUnlinkedItem(otherTenantId, label, sharedId);
+
+        // Act
+        List<String> deleted =
+            deletedIds(
+                bulkDelete(THREAT_ARSENAL_URL, inOtherTenant)
+                    .header(TENANT_IDS_HEADER, otherTenantId));
+
+        // Assert
+        assertThat(deleted).as("the item is reported once").containsExactly(sharedId);
+        assertThat(stored(inOtherTenant)).as("the named tenant's row is removed").isZero();
+        assertThat(stored(inDefaultTenant))
+            .as("the namesake row of the other tenant is kept")
+            .isEqualTo(1);
+      } finally {
+        remove(inDefaultTenant, inOtherTenant);
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("A request whose scope does not designate one write tenant")
+  class ScopeWithoutOneWriteTenant {
+
+    private String bothTenants() {
+      return Tenant.DEFAULT_TENANT_UUID + "," + otherTenantId;
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given a header naming two tenants should refuse and keep both namesake rows")
+    void given_aHeaderNamingTwoTenants_should_refuseAndKeepBothNamesakeRows() throws Exception {
+      // Arrange: one ticked id, and a namesake row in each of the two tenants of the scope.
+      joinOtherTenant();
+      String label = newLabel();
+      String sharedId = UUID.randomUUID().toString();
+      CommittedItem inDefaultTenant = null;
+      CommittedItem inOtherTenant = null;
+      try {
+        inDefaultTenant = commitUnlinkedItem(Tenant.DEFAULT_TENANT_UUID, label, sharedId);
+        inOtherTenant = commitUnlinkedItem(otherTenantId, label, sharedId);
+
+        // Act
+        assertRefusedForWriteScope(
+            bulkDelete(THREAT_ARSENAL_URL, inDefaultTenant)
+                .header(TENANT_IDS_HEADER, bothTenants()));
+
+        // Assert
+        assertThat(stored(inDefaultTenant)).as("the default tenant row is kept").isEqualTo(1);
+        assertThat(stored(inOtherTenant)).as("the other tenant row is kept").isEqualTo(1);
+      } finally {
+        remove(inDefaultTenant, inOtherTenant);
+      }
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given no header from a multi-tenant caller should refuse and keep every item")
+    void given_noHeaderFromAMultiTenantCaller_should_refuseAndKeepEveryItem() throws Exception {
+      // Arrange
+      joinOtherTenant();
+      String label = newLabel();
+      CommittedItem inDefaultTenant = null;
+      CommittedItem inOtherTenant = null;
+      try {
+        inDefaultTenant = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
+        inOtherTenant = commitItem(otherTenantId, false, label);
+
+        // Act
+        assertRefusedForWriteScope(bulkDelete(THREAT_ARSENAL_URL, inDefaultTenant, inOtherTenant));
+        assertRefusedForWriteScope(bulkDeleteAllLabelled(THREAT_ARSENAL_URL, label));
+
+        // Assert
+        assertThat(stored(inDefaultTenant)).as("the default tenant item is kept").isEqualTo(1);
+        assertThat(stored(inOtherTenant)).as("the other tenant item is kept").isEqualTo(1);
+      } finally {
+        remove(inDefaultTenant, inOtherTenant);
+      }
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = false)
+    @DisplayName("given a caller belonging to no tenant should refuse and keep every item")
+    void given_aCallerBelongingToNoTenant_should_refuseAndKeepEveryItem() throws Exception {
+      // Arrange
+      createOtherTenant();
+      String label = newLabel();
+      CommittedItem inDefaultTenant = null;
+      CommittedItem inOtherTenant = null;
+      try {
+        inDefaultTenant = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
+        inOtherTenant = commitItem(otherTenantId, false, label);
+
+        // Act
+        assertRefusedForWriteScope(bulkDelete(THREAT_ARSENAL_URL, inDefaultTenant, inOtherTenant));
+
+        // Assert
+        assertThat(stored(inDefaultTenant)).as("the default tenant item is kept").isEqualTo(1);
+        assertThat(stored(inOtherTenant)).as("the other tenant item is kept").isEqualTo(1);
+      } finally {
+        remove(inDefaultTenant, inOtherTenant);
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("A request without a selector from a single-tenant caller")
+  class SingleTenantCallerWithoutSelector {
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given an explicit selection should delete only the unlinked item")
+    void given_explicitSelection_should_deleteOnlyTheUnlinkedItem() throws Exception {
+      // Arrange: the caller belongs to the default tenant only, so the scope names it alone.
       String label = newLabel();
       CommittedItem linked = null;
       CommittedItem unlinked = null;
@@ -458,12 +582,8 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("A caller holding the delete right in one tenant of its scope only")
-  class DeleteRightInOneTenantOfTheScope {
-
-    private String bothTenants() {
-      return Tenant.DEFAULT_TENANT_UUID + "," + otherTenantId;
-    }
+  @DisplayName("A caller whose delete right is read in the write tenant")
+  class DeleteRightInTheWriteTenant {
 
     /** The caller sees the items of the other tenant but may not delete them there. */
     private void readOnlyInOtherTenant() {
@@ -476,35 +596,26 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
     @WithMockUser(
         withCapabilities = Capability.DELETE_THREAT_ARSENALS,
         autoJoinDefaultTenant = true)
-    @DisplayName("given an explicit selection should delete only in the tenant where it holds it")
-    void given_explicitSelection_should_deleteOnlyInTheTenantWhereItHoldsIt() throws Exception {
-      // Arrange
+    @DisplayName("given an explicit selection without the right there should delete nothing")
+    void given_explicitSelectionWithoutTheRightThere_should_deleteNothing() throws Exception {
+      // Arrange: the right is held in the default tenant, not in the tenant written to.
       readOnlyInOtherTenant();
       String label = newLabel();
-      CommittedItem inDefaultTenant = null;
       CommittedItem inOtherTenant = null;
       try {
-        inDefaultTenant = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
         inOtherTenant = commitItem(otherTenantId, false, label);
 
         // Act
         List<String> deleted =
             deletedIds(
-                bulkDelete(THREAT_ARSENAL_URL, inDefaultTenant, inOtherTenant)
-                    .header(TENANT_IDS_HEADER, bothTenants()));
+                bulkDelete(THREAT_ARSENAL_URL, inOtherTenant)
+                    .header(TENANT_IDS_HEADER, otherTenantId));
 
         // Assert
-        assertThat(deleted)
-            .as("only the item of the tenant holding the right is reported")
-            .containsExactly(inDefaultTenant.contractId());
-        assertThat(stored(inDefaultTenant))
-            .as("the item of the tenant holding the right is removed")
-            .isZero();
-        assertThat(stored(inOtherTenant))
-            .as("the item of the tenant without the right is kept")
-            .isEqualTo(1);
+        assertThat(deleted).as("no item is reported").isEmpty();
+        assertThat(stored(inOtherTenant)).as("the item is kept").isEqualTo(1);
       } finally {
-        remove(inDefaultTenant, inOtherTenant);
+        remove(inOtherTenant);
       }
     }
 
@@ -512,37 +623,27 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
     @WithMockUser(
         withCapabilities = Capability.DELETE_THREAT_ARSENALS,
         autoJoinDefaultTenant = true)
-    @DisplayName("given a select-all request should delete only in the tenant where it holds it")
-    void given_selectAll_should_deleteOnlyInTheTenantWhereItHoldsIt() throws Exception {
+    @DisplayName("given a select-all request without the right there should delete nothing")
+    void given_selectAllWithoutTheRightThere_should_deleteNothing() throws Exception {
       // Arrange
       readOnlyInOtherTenant();
       String label = newLabel();
-      CommittedItem inDefaultTenant = null;
       CommittedItem inOtherTenant = null;
       try {
-        inDefaultTenant = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
         inOtherTenant = commitItem(otherTenantId, false, label);
-        assertLabelMatches(Tenant.DEFAULT_TENANT_UUID, label, 1);
         assertLabelMatches(otherTenantId, label, 1);
 
         // Act
         List<String> deleted =
             deletedIds(
                 bulkDeleteAllLabelled(THREAT_ARSENAL_URL, label)
-                    .header(TENANT_IDS_HEADER, bothTenants()));
+                    .header(TENANT_IDS_HEADER, otherTenantId));
 
         // Assert
-        assertThat(deleted)
-            .as("only the item of the tenant holding the right is reported")
-            .containsExactly(inDefaultTenant.contractId());
-        assertThat(stored(inDefaultTenant))
-            .as("the item of the tenant holding the right is removed")
-            .isZero();
-        assertThat(stored(inOtherTenant))
-            .as("the item of the tenant without the right is kept")
-            .isEqualTo(1);
+        assertThat(deleted).as("no item is reported").isEmpty();
+        assertThat(stored(inOtherTenant)).as("the item is kept").isEqualTo(1);
       } finally {
-        remove(inDefaultTenant, inOtherTenant);
+        remove(inOtherTenant);
       }
     }
 
@@ -550,33 +651,28 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
     @WithMockUser(
         withCapabilities = Capability.DELETE_THREAT_ARSENALS,
         autoJoinDefaultTenant = true)
-    @DisplayName("given the right in the other tenant too should delete in both tenants")
-    void given_rightInTheOtherTenantToo_should_deleteInBothTenants() throws Exception {
+    @DisplayName("given the right in the write tenant should delete its item")
+    void given_theRightInTheWriteTenant_should_deleteItsItem() throws Exception {
       // Arrange
       joinOtherTenant();
       tenantHelper.grantCapabilitiesInTenant(
           otherTenantId, Set.of(Capability.DELETE_THREAT_ARSENALS));
       String label = newLabel();
-      CommittedItem inDefaultTenant = null;
       CommittedItem inOtherTenant = null;
       try {
-        inDefaultTenant = commitItem(Tenant.DEFAULT_TENANT_UUID, false, label);
         inOtherTenant = commitItem(otherTenantId, false, label);
 
         // Act
         List<String> deleted =
             deletedIds(
-                bulkDelete(THREAT_ARSENAL_URL, inDefaultTenant, inOtherTenant)
-                    .header(TENANT_IDS_HEADER, bothTenants()));
+                bulkDelete(THREAT_ARSENAL_URL, inOtherTenant)
+                    .header(TENANT_IDS_HEADER, otherTenantId));
 
         // Assert
-        assertThat(deleted)
-            .as("the items of both tenants are reported")
-            .containsExactlyInAnyOrder(inDefaultTenant.contractId(), inOtherTenant.contractId());
-        assertThat(stored(inDefaultTenant)).as("the default tenant item is removed").isZero();
-        assertThat(stored(inOtherTenant)).as("the other tenant item is removed").isZero();
+        assertThat(deleted).as("the item is reported").containsExactly(inOtherTenant.contractId());
+        assertThat(stored(inOtherTenant)).as("the item is removed").isZero();
       } finally {
-        remove(inDefaultTenant, inOtherTenant);
+        remove(inOtherTenant);
       }
     }
   }
