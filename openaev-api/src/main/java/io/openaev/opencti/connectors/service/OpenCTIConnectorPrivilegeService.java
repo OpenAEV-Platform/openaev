@@ -69,8 +69,8 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
     legacyOpenCTIConnectorMigration.deleteLegacyConnectorIfExists(email);
 
     Group group =
-        createWellKnownGroupWithRole(
-            createWellKnownRole(connector.getTenantId()), connector.getTenantId());
+        ensureWellKnownGroupWithRole(
+            ensureWellKnownRole(connector.getTenantId()), connector.getTenantId());
     Optional<User> connectorUser =
         userService.findByTokenAndTenantId(connector.getToken(), connector.getTenantId());
     Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);

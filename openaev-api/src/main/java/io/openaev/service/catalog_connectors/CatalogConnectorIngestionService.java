@@ -24,6 +24,10 @@ public class CatalogConnectorIngestionService {
   public static final String OPENAEV_KEY_URL = "OPENAEV_URL";
   public static final String OPENAEV_KEY_TOKEN = "OPENAEV_TOKEN";
   public static final String OPENAEV_KEY_TENANT_ID = "OPENAEV_TENANT_ID";
+
+  public static final Set<String> PLATFORM_MANAGED_KEYS =
+      Set.of(OPENAEV_KEY_URL, OPENAEV_KEY_TOKEN, OPENAEV_KEY_TENANT_ID);
+
   private final CatalogConnectorService catalogConnectorService;
   private final FileService fileService;
   private final ConnectorInstanceService connectorInstanceService;

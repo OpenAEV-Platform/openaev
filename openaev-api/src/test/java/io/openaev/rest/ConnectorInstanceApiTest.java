@@ -3,6 +3,7 @@ package io.openaev.rest;
 import static io.openaev.database.model.SettingKeys.*;
 import static io.openaev.database.model.SettingKeys.XTM_COMPOSER_LAST_CONNECTIVITY_CHECK;
 import static io.openaev.rest.connector_instance.ConnectorInstanceApi.CONNECTOR_INSTANCE_URI;
+import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TOKEN;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.*;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.*;
@@ -29,7 +30,6 @@ import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.TenantRepository;
-import io.openaev.database.repository.TokenRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.Integration;
 import io.openaev.integration.Manager;
@@ -37,6 +37,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedStatus;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.account.CatalogConnectorPrivilegeService;
 import io.openaev.service.connector_instances.XtmComposerEncryptionService;
 import io.openaev.service.connectors.HeartbeatWindow;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -56,8 +57,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -82,7 +84,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @Autowired
   private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
 
-  @MockitoBean private TokenRepository tokenRepository;
+  @MockitoBean private CatalogConnectorPrivilegeService catalogConnectorPrivilegeService;
 
   @Autowired private PlatformSettingsService platformSettingsService;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -216,9 +218,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     void givenExistingInstance_creatingAnotherInstance_shouldSucceed() throws Exception {
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
-      Token token = new Token();
-      token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
+      when(catalogConnectorPrivilegeService.getOrCreateToken(anyString()))
+          .thenReturn("fake-token-value");
 
       CatalogConnectorConfiguration confDef1 =
           createCatalogConfiguration(
@@ -289,9 +290,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         throws Exception {
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
-      Token token = new Token();
-      token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
+      when(catalogConnectorPrivilegeService.getOrCreateToken(anyString()))
+          .thenReturn("fake-token-value");
 
       CatalogConnectorConfiguration confDef1 =
           createCatalogConfiguration(
@@ -427,9 +427,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     void should_successfullyCreateConnectorInstance() throws Exception {
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
-      Token token = new Token();
-      token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
+      when(catalogConnectorPrivilegeService.getOrCreateToken(anyString()))
+          .thenReturn("fake-token-value");
 
       Set<String> enumList = Set.of("info", "debug", "warn");
       CatalogConnectorConfiguration confDef1 =
@@ -475,16 +474,23 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           createConfigurationInput(confDef3.getConnectorConfigurationKey(), "secret-password");
       input.setConfigurations(List.of(confInput1, confInput2, confInput3));
 
-      mvc.perform(
-              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
+      String response =
+          mvc.perform(
+                  post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response)
+          .inPath("connector_instance_configurations[*].connector_instance_configuration_key")
+          .isArray()
+          .contains("COLLECTOR_ID")
+          .doesNotContain(OPENAEV_KEY_TOKEN, confDef3.getConnectorConfigurationKey());
 
       List<ConnectorInstancePersisted> instanceDb =
           connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());
@@ -522,6 +528,40 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       assertTrue(confValueCollectorId.isPresent());
       assertFalse(confValueCollectorId.get().getValue().asText().isEmpty());
       assertFalse(confValueCollectorId.get().isEncrypted());
+    }
+
+    @Test
+    @DisplayName("Should refuse a connector instance that sets the OpenAEV token itself")
+    void given_openAevTokenInInput_should_beRejected() throws Exception {
+      // Arrange: the catalog declares the key, so only the platform rule can reject it
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+      CatalogConnectorConfiguration tokenDefinition =
+          createCatalogConfiguration(
+              OPENAEV_KEY_TOKEN,
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              null);
+      CatalogConnector catalogConnector =
+          getCatalogConnectorWithConfiguration(Set.of(tokenDefinition));
+      CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
+      input.setCatalogConnectorId(catalogConnector.getId());
+      input.setConfigurations(List.of(createConfigurationInput(OPENAEV_KEY_TOKEN, "my-own-token")));
+
+      // Act & Assert
+      mvc.perform(
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message", containsString("managed by the platform")));
+      assertTrue(
+          connectorInstanceRepository
+              .findAllByCatalogConnectorId(catalogConnector.getId())
+              .isEmpty());
     }
   }
 
@@ -852,6 +892,35 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         .containsExactlyInAnyOrderElementsOf(List.of("value1"));
   }
 
+  @Test
+  @DisplayName("Given connector instance id should not retrieve the OpenAEV token")
+  void givenConnectorInstanceId_shouldNotRetrieveOpenAEVToken() throws Exception {
+    ConnectorInstanceConfiguration confValue1 =
+        createConnectorInstanceConfiguration("key1", "value1");
+    ConnectorInstanceConfiguration tokenConf =
+        createConnectorInstanceConfiguration(OPENAEV_KEY_TOKEN, "service-account-token");
+    CatalogConnector catalogConnector = getCatalogConnector();
+    ConnectorInstance instance =
+        getConnectorInstance(catalogConnector, Set.of(confValue1, tokenConf));
+
+    String response =
+        mvc.perform(
+                get(CONNECTOR_INSTANCE_URI + "/" + instance.getId() + "/configurations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThatJson(response).isArray().size().isEqualTo(1);
+    assertThatJson(response)
+        .inPath("[*].connector_instance_configuration_key")
+        .isArray()
+        .containsExactlyInAnyOrderElementsOf(List.of("key1"));
+  }
+
   @Nested
   @DisplayName("Update connector instance configuration")
   class UpdateConnectorInstanceConfigurations {
@@ -989,6 +1058,52 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               .toList()
               .containsAll(List.of("new value 02", "new value 01")));
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"OPENAEV_URL", "OPENAEV_TOKEN", "OPENAEV_TENANT_ID"})
+    @DisplayName("Should refuse to overwrite a configuration key managed by the platform")
+    void given_platformManagedKey_should_beRejectedAndLeftUnchanged(String platformManagedKey)
+        throws Exception {
+      // Arrange: the catalog declares the key, so only the platform rule can reject it
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+      CatalogConnectorConfiguration platformManagedDefinition =
+          createCatalogConfiguration(
+              platformManagedKey,
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              null);
+      CatalogConnector catalogConnector =
+          getCatalogConnectorWithConfiguration(Set.of(platformManagedDefinition));
+      ConnectorInstanceConfiguration platformManagedConfiguration =
+          createConnectorInstanceConfiguration(platformManagedKey, "set-by-the-platform");
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, Set.of(platformManagedConfiguration));
+
+      CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
+      input.setCatalogConnectorId(catalogConnector.getId());
+      input.setConfigurations(
+          List.of(createConfigurationInput(platformManagedKey, "set-by-the-user")));
+
+      // Act
+      mvc.perform(
+              put(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId() + "/configurations")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // Assert
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message", containsString("managed by the platform")));
+      assertEquals(
+          "set-by-the-platform",
+          connectorInstanceConfigurationRepository
+              .findById(platformManagedConfiguration.getId())
+              .orElseThrow()
+              .getValue()
+              .asText());
+    }
   }
 
   @Nested
@@ -1074,16 +1189,26 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
       platformSettingsService.saveSettings(composerSettings);
 
-      mvc.perform(
-              put(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId() + "/requested-status")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
+      String response =
+          mvc.perform(
+                  put(CONNECTOR_INSTANCE_URI
+                          + "/"
+                          + connectorInstance.getId()
+                          + "/requested-status")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // The response is the output DTO, never the entity: its configurations hold the OpenAEV
+      // token of the catalog connector service account (#8678)
+      assertThatJson(response).inPath("connector_instance_id").isEqualTo(connectorInstance.getId());
+      assertThatJson(response).inPath("connector_instance_requested_status").isEqualTo("starting");
+      assertThatJson(response).inPath("connector_instance_configurations").isAbsent();
 
       Optional<ConnectorInstancePersisted> instanceSaved =
           connectorInstanceRepository.findById(connectorInstance.getId());
