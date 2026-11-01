@@ -68,11 +68,11 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const status = action.action_payload?.payload_status;
   const statusColor = getStatusColor(theme, status);
   const statusLabel = getStatusLabel(status);
-  // A payload that is not approved shows its approval status instead of Verified / Unverified /
-  // Deprecated: the approval decides whether it can be used.
-  // A new version waiting shows as Pending (the latest version's status).
+  // Approval and Verified / Unverified / Deprecated are two different things (is it trusted by a
+  // second person, does it work): each keeps its own slot so neither masks the other. The approval
+  // chip only shows when it needs attention; a new version waiting shows as Pending approval.
   const approvalStatus = displayedApprovalStatus(action.action_payload?.payload_approval_status, action.action_payload?.payload_pending_version);
-  const approvalWins = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
+  const approvalNeedsAttention = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
   const name = tPick(action.action_labels);
 
   const showCheckbox = anySelected || selected || checked;
@@ -142,17 +142,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           />
         </Box>
 
-        {approvalWins && (
-          <Box sx={{
-            position: 'absolute',
-            top: 12,
-            right: 48,
-          }}
-          >
-            <ApprovalStatusChip status={approvalStatus} />
-          </Box>
-        )}
-        {!approvalWins && statusLabel && (
+        {statusLabel && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Box
@@ -312,6 +302,16 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
               </TooltipTrigger>
               {secondaryDomainsLabel && <TooltipContent>{secondaryDomainsLabel}</TooltipContent>}
             </Tooltip>
+          )}
+          {approvalNeedsAttention && (
+            <span style={{
+              marginLeft: 'auto',
+              display: 'inline-flex',
+              maxWidth: '100%',
+            }}
+            >
+              <ApprovalStatusChip status={approvalStatus} />
+            </span>
           )}
         </Box>
 

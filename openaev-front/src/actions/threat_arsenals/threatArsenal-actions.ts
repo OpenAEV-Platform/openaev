@@ -48,6 +48,16 @@ export const fetchThreatArsenalActionUsage = (actionId: string) => {
   return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usage`);
 };
 
+// Approval history of the action's payload (who created, edited, approved or rejected it), newest first.
+export const fetchThreatArsenalActionApprovals = (actionId: string) => {
+  return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/approvals`);
+};
+
+// Versions submitted after the first approval, newest first (version 1 is not listed).
+export const fetchThreatArsenalActionVersions = (actionId: string) => {
+  return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/versions`);
+};
+
 export const duplicateThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}/duplicate`;
   return simplePostCall(uri, {});

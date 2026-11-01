@@ -4,24 +4,28 @@ import { isLaunchBlocked, launchBlockedLabel, payloadApprovalDisplay } from '../
 import { type LaunchBlockerOutput } from '../../../../utils/api-types';
 
 describe('payloadApprovalDisplay', () => {
-  it('names a pending or rejected payload with a display-only status', () => {
+  it('names a pending or rejected payload with the same wording as the Threat Arsenal', () => {
     expect(payloadApprovalDisplay('PENDING')).toMatchObject({
       status: 'PAYLOAD_PENDING_APPROVAL',
-      label: 'Payload pending approval',
+      shortLabel: 'Pending approval',
+      label: 'Pending approval',
     });
     expect(payloadApprovalDisplay('REJECTED')).toMatchObject({
       status: 'PAYLOAD_REJECTED',
-      label: 'Payload rejected',
+      shortLabel: 'Rejected',
+      label: 'Rejected',
     });
   });
 
   it('informs, without blocking, about a new version pending approval of an approved payload', () => {
     expect(payloadApprovalDisplay('APPROVED', true)).toMatchObject({
       status: 'PAYLOAD_PENDING_APPROVAL',
-      label: 'New version pending approval',
+      label: 'Pending approval',
     });
-    // A never-approved payload keeps its blocking display, whatever the flag.
-    expect(payloadApprovalDisplay('PENDING', true)?.label).toBe('Payload pending approval');
+    // Same chip, but the explanation says the approved version keeps running.
+    expect(payloadApprovalDisplay('APPROVED', true)?.tooltip).toContain('keeps running the approved version');
+    // A never-approved payload keeps its blocking explanation, whatever the flag.
+    expect(payloadApprovalDisplay('PENDING', true)?.tooltip).toContain('launching this inject is blocked');
   });
 
   it('shows nothing for an approved payload or an inject without payload', () => {

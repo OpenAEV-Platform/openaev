@@ -44,10 +44,10 @@ import ImportUploaderThreatArsenal from './ImportUploaderThreatArsenal';
 import ThreatArsenalCard from './ThreatArsenalCard';
 import { ACTION_PARAM, toThreatArsenalAction } from './threatArsenalDeepLink';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
-import ThreatArsenalHero from './ThreatArsenalHero';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 import ThreatArsenalListRow from './ThreatArsenalListRow';
+import ThreatArsenalPageHeader from './ThreatArsenalPageHeader';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
 import ThreatArsenalSortSelect from './ThreatArsenalSortSelect';
@@ -537,9 +537,9 @@ const ThreatArsenal = () => {
         gap: 2,
       }}
       >
-        <ThreatArsenalHero
+        <ThreatArsenalPageHeader
+          active="all"
           totalElements={totalElements}
-          stats={[]}
           rightSlot={headerRightSlot}
         />
 

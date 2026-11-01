@@ -1,11 +1,12 @@
-import { Button, Text, Textarea, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Text, Textarea } from '@filigran/design-system';
 import { CheckCircleOutlined, DoNotDisturbOnOutlined, FactCheckOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactElement, useEffect, useState } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchMe } from '../../../../actions/Application';
 import {
   approveThreatArsenalAction,
+  fetchThreatArsenalActionApprovals,
   fetchThreatArsenalActionUsage,
   rejectThreatArsenalAction,
 } from '../../../../actions/threat_arsenals/threatArsenal-actions';
@@ -15,7 +16,6 @@ import Section from '../../../../components/common/overview/Section';
 import { useFormatter } from '../../../../components/i18n';
 import {
   type PayloadApprovalOutput,
-  type PayloadVersionOutput,
   type ThreatArsenalActionFullOutput,
   type ThreatArsenalActionUsageOutput,
 } from '../../../../utils/api-types';
@@ -24,11 +24,15 @@ import { type Error as ApiError, notifyErrorHandler } from '../../../../utils/er
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../../utils/fdsLayer';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
-import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../utils/permissions/types';
-import ApprovalStatusChip from './ApprovalStatusChip';
-import { APPROVAL_COMMENT_MAX_LENGTH, approvalOriginLabel, displayedApprovalStatus, isPayloadUsed } from './approvalStatusUtils';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { APPROVAL_COMMENT_MAX_LENGTH, type ApprovalOrigin, isPayloadUsed } from './approvalStatusUtils';
+import PayloadApprovalHistory from './PayloadApprovalHistory';
 import PayloadUsage from './PayloadUsage';
+import PayloadVersionCard, { type VersionDecision } from './PayloadVersionCard';
 import PayloadVersionComparison from './PayloadVersionComparison';
+
+// History events that submit content for approval (as opposed to a decision on it).
+const SUBMISSION_ORIGINS: ApprovalOrigin[] = ['CREATE', 'UPDATE', 'DUPLICATE', 'IMPORT', 'COLLECTOR'];
 
 interface Props {
   action: ThreatArsenalActionFullOutput;
@@ -37,15 +41,14 @@ interface Props {
 }
 
 /**
- * Approval block of an action drawer: the status, the latest decision (who approved or rejected,
- * with the comment) and the Approve / Reject actions for holders of "Approve content". When an
- * approved action has a pending version, the decision acts on that version: the block shows the
- * active and pending versions and what the pending one changes. No history list: the full history
- * stays available through the API. "Used in" is information only: a pending version never blocks
- * what uses the action.
+ * Approval block of an action drawer, built around the payload version (OOUX: the version is the
+ * object an approver decides on). Each version is its own card with its own status and decision:
+ * the pending version (with what it changes and the Approve / Reject actions of holders of
+ * "Approve content") above the approved version in use. Then "Used in" (information only: a pending
+ * version never blocks what uses the action) and the approval history.
  */
 const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDecided }) => {
-  const { t, nsdt } = useFormatter();
+  const { t } = useFormatter();
   const theme = useTheme();
   const ability = useAbility();
   const dispatch = useAppDispatch();
@@ -57,6 +60,7 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState<string | undefined>(undefined);
   const [usage, setUsage] = useState<ThreatArsenalActionUsageOutput | undefined>(undefined);
+  const [history, setHistory] = useState<PayloadApprovalOutput[]>([]);
 
   const status = action.action_approval_status;
   const latest = action.action_approval_latest;
@@ -97,6 +101,21 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
     };
   }, [action.action_id]);
 
+  // Approval history: gives each version card its own decision, and the audit trail below.
+  useEffect(() => {
+    let cancelled = false;
+    fetchThreatArsenalActionApprovals(action.action_id)
+      .then((response) => {
+        if (!cancelled) setHistory(response.data as PayloadApprovalOutput[]);
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [action.action_id, status, pendingVersion?.version_id]);
+
   const closeApprove = () => {
     setApproveOpen(false);
     setComment('');
@@ -132,126 +151,136 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
     }).catch(error => onDecisionError(error, closeReject));
   };
 
-  // A disabled button fires no pointer event, so the tooltip hangs on an enabled wrapper.
-  const withPermissionTooltip = (button: ReactElement) => (canApprove
-    ? button
-    : (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span style={{ display: 'inline-flex' }}>{button}</span>
-          </TooltipTrigger>
-          <TooltipContent>{t(PERMISSION_REQUIRED)}</TooltipContent>
-        </Tooltip>
-      ));
-
-  const decisionActions = isPending && (
-    <div style={{
-      display: 'flex',
-      gap: theme.spacing(1),
-    }}
-    >
-      {withPermissionTooltip(
-        <Button
-          type="button"
-          size="sm"
-          priority="secondary"
-          variant="destructive"
-          startIcon={<DoNotDisturbOnOutlined fontSize="small" />}
-          disabled={!canApprove}
-          onClick={() => setRejectOpen(true)}
-        >
-          {t('Reject')}
-        </Button>,
-      )}
-      {withPermissionTooltip(
-        <Button
-          type="button"
-          size="sm"
-          startIcon={<CheckCircleOutlined fontSize="small" />}
-          disabled={!canApprove}
-          onClick={() => setApproveOpen(true)}
-        >
-          {t('Approve')}
-        </Button>,
-      )}
-    </div>
+  // Who can decide sees the buttons on the version they act on; the others see why nothing happens
+  // yet instead of greyed-out buttons ("hidden, not greyed out", as in the Scenario Factory screens).
+  const decisionActions = canApprove && (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        priority="secondary"
+        variant="destructive"
+        startIcon={<DoNotDisturbOnOutlined fontSize="small" />}
+        onClick={() => setRejectOpen(true)}
+      >
+        {t('Reject')}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        startIcon={<CheckCircleOutlined fontSize="small" />}
+        onClick={() => setApproveOpen(true)}
+      >
+        {t('Approve')}
+      </Button>
+    </>
   );
 
-  const describe = (entry: PayloadApprovalOutput) => {
-    const who = entry.approval_actor_name ?? t('the platform');
-    const what = entry.approval_automatic && entry.approval_status === 'APPROVED' && entry.approval_origin !== 'SYSTEM' && entry.approval_origin !== 'MIGRATION'
-      ? `${t('Auto-approved')} · ${t(approvalOriginLabel(entry.approval_origin))}`
-      : t(approvalOriginLabel(entry.approval_origin));
-    return `${what} · ${who} · ${nsdt(entry.approval_created_at)}`;
-  };
+  // Each card shows its own version's decision, taken from the history: the decision that made
+  // the active version approved, the latest rejection, and who submitted what is pending.
+  const toDecision = (entry?: PayloadApprovalOutput): VersionDecision | undefined => (entry
+    ? {
+        who: entry.approval_actor_name,
+        when: entry.approval_created_at,
+        comment: entry.approval_comment,
+        automatic: entry.approval_automatic,
+      }
+    : undefined);
+  const activeDecision = toDecision(history.find(entry => entry.approval_status === 'APPROVED')
+    ?? (latest?.approval_status === 'APPROVED' ? latest : undefined));
+  const rejection = history.find(entry => entry.approval_origin === 'REJECT')
+    ?? (latest?.approval_status === 'REJECTED' ? latest : undefined);
+  const submission = history.find(entry => SUBMISSION_ORIGINS.includes(entry.approval_origin));
 
-  const describeVersion = (version: PayloadVersionOutput) => {
-    const who = version.version_origin === 'COLLECTOR'
-      ? t('Synchronized by a collector')
-      : version.version_author_name ?? t('Unknown user');
-    return `${who} · ${nsdt(version.version_created_at)}`;
+  const renderVersions = () => {
+    if (status === 'APPROVED' && pendingVersion) {
+      const pendingNumber = pendingVersion.version_number ?? activeNumber + 1;
+      return (
+        <>
+          <PayloadVersionCard
+            versionNumber={pendingNumber}
+            status="PENDING"
+            authorName={pendingVersion.version_author_name}
+            fromCollector={pendingVersion.version_origin === 'COLLECTOR'}
+            submittedAt={pendingVersion.version_created_at}
+            actions={decisionActions || undefined}
+            note={canApprove
+              ? undefined
+              : t('Waiting for an approver. v{number} keeps running until this version is approved.', { number: String(activeNumber) })}
+          >
+            {action.action_active_content && (
+              <PayloadVersionComparison
+                active={action.action_active_content}
+                pending={pendingVersion.version_content}
+                activeNumber={activeNumber}
+                pendingNumber={pendingNumber}
+              />
+            )}
+          </PayloadVersionCard>
+          <PayloadVersionCard
+            versionNumber={activeNumber}
+            status="APPROVED"
+            inUse
+            decision={activeDecision}
+          />
+        </>
+      );
+    }
+    if (status === 'APPROVED') {
+      return <PayloadVersionCard versionNumber={activeNumber} status="APPROVED" inUse decision={activeDecision} />;
+    }
+    if (status === 'REJECTED') {
+      return (
+        <PayloadVersionCard
+          versionNumber={activeNumber}
+          status="REJECTED"
+          authorName={submission?.approval_actor_name}
+          fromCollector={submission?.approval_origin === 'COLLECTOR'}
+          submittedAt={submission?.approval_created_at}
+          decision={toDecision(rejection)}
+          note={t('It can\'t be used. Edit the action to submit a new version for approval.')}
+        />
+      );
+    }
+    if (status === 'PENDING') {
+      return (
+        <PayloadVersionCard
+          versionNumber={activeNumber}
+          status="PENDING"
+          authorName={submission?.approval_actor_name}
+          fromCollector={submission?.approval_origin === 'COLLECTOR'}
+          submittedAt={submission?.approval_created_at}
+          actions={decisionActions || undefined}
+          note={canApprove
+            ? t('New action: it can\'t be used in atomic testings, scenarios or simulations until it is approved.')
+            : t('Waiting for an approver. It can\'t be used until it is approved.')}
+        />
+      );
+    }
+    return null;
   };
 
   return (
     <Section
       title={t('Approval')}
       icon={<FactCheckOutlined fontSize="small" />}
-      action={decisionActions || undefined}
     >
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: theme.spacing(2),
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing(1.5),
       }}
       >
-        <Field label="Status">
-          {/* The latest version's status: Pending while a new version waits (the approved one keeps running). */}
-          <ApprovalStatusChip status={displayedApprovalStatus(status, !!pendingVersion)} />
-        </Field>
-        <Field label="Last decision">
-          <Text variant="content-base">{latest ? describe(latest) : '-'}</Text>
-        </Field>
-        {status === 'APPROVED' && (
-          <Field label="Active version">
-            <Text variant="content-base">
-              {pendingVersion
-                ? t('v{number} (approved, still in use)', { number: String(activeNumber) })
-                : `v${activeNumber}`}
-            </Text>
-          </Field>
-        )}
-        {pendingVersion && (
-          <Field label="Pending version">
-            <Text variant="content-base">{describeVersion(pendingVersion)}</Text>
-          </Field>
-        )}
-      </div>
-      {pendingVersion && action.action_active_content && (
-        <div style={{ marginTop: theme.spacing(1.5) }}>
-          <Field label="Changes in the pending version">
-            <PayloadVersionComparison
-              active={action.action_active_content}
-              pending={pendingVersion.version_content}
-              activeNumber={activeNumber}
-              pendingNumber={pendingVersion.version_number ?? activeNumber + 1}
-            />
-          </Field>
-        </div>
-      )}
-      {latest?.approval_comment && (
-        <div style={{ marginTop: theme.spacing(1.5) }}>
-          <Field label={latest.approval_status === 'REJECTED' ? 'Reason' : 'Comment'}>
-            <Text variant="content-base">{latest.approval_comment}</Text>
-          </Field>
-        </div>
-      )}
-      {isPayloadUsed(usage) && (
-        <div style={{ marginTop: theme.spacing(1.5) }}>
+        {renderVersions()}
+        {isPayloadUsed(usage) && (
           <Field label="Used in">
             <PayloadUsage usage={usage} />
           </Field>
-        </div>
-      )}
+        )}
+        <Section title={t('Approval history')} collapsible defaultCollapsed>
+          <PayloadApprovalHistory history={history} />
+        </Section>
+      </div>
       <DialogConfirmation
         open={approveOpen}
         handleClose={closeApprove}

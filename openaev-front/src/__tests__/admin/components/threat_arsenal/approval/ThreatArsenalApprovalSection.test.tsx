@@ -1,6 +1,6 @@
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ThreatArsenalApprovalSection from '../../../../../admin/components/threat_arsenal/approval/ThreatArsenalApprovalSection';
@@ -11,6 +11,7 @@ const mockCan = vi.fn();
 const mockApprove = vi.fn();
 const mockReject = vi.fn();
 const mockUsage = vi.fn();
+const mockApprovals = vi.fn();
 const { mockDispatch, mockNotifyError } = vi.hoisted(() => ({
   mockDispatch: vi.fn(),
   mockNotifyError: vi.fn(),
@@ -45,6 +46,7 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   approveThreatArsenalAction: (...args: unknown[]) => mockApprove(...args),
   rejectThreatArsenalAction: (...args: unknown[]) => mockReject(...args),
   fetchThreatArsenalActionUsage: (...args: unknown[]) => mockUsage(...args),
+  fetchThreatArsenalActionApprovals: (...args: unknown[]) => mockApprovals(...args),
 }));
 
 const pendingAction = {
@@ -101,6 +103,8 @@ describe('ThreatArsenalApprovalSection', () => {
     mockReject.mockReset();
     mockUsage.mockReset();
     mockUsage.mockResolvedValue({ data: {} });
+    mockApprovals.mockReset();
+    mockApprovals.mockResolvedValue({ data: [] });
     mockDispatch.mockReset();
     mockNotifyError.mockReset();
   });
@@ -110,7 +114,7 @@ describe('ThreatArsenalApprovalSection', () => {
   });
 
   describe('permissions', () => {
-    it('disables approve and reject without Approve content', () => {
+    it('hides approve and reject without Approve content and says what happens next', () => {
       // Arrange
       mockCan.mockReturnValue(false);
 
@@ -118,8 +122,9 @@ describe('ThreatArsenalApprovalSection', () => {
       renderSection(pendingAction);
 
       // Assert
-      expect((screen.getByRole('button', { name: /Approve/ }) as HTMLButtonElement).disabled).toBe(true);
-      expect((screen.getByRole('button', { name: /Reject/ }) as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.queryByRole('button', { name: /Approve/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Reject/ })).toBeNull();
+      expect(screen.getByText('Waiting for an approver. It can\'t be used until it is approved.')).toBeTruthy();
       expect(mockCan).toHaveBeenCalledWith('APPROVE', 'THREAT_ARSENALS');
     });
 
@@ -216,7 +221,7 @@ describe('ThreatArsenalApprovalSection', () => {
   });
 
   describe('pending version (Task 5)', () => {
-    it('offers the decision on an approved action with a pending version and shows its changes', async () => {
+    it('shows the pending version and the version in use as two cards, the decision on the pending one', async () => {
       // Arrange
       mockCan.mockReturnValue(true);
 
@@ -224,12 +229,19 @@ describe('ThreatArsenalApprovalSection', () => {
       renderSection(actionWithPendingVersion);
 
       // Assert
-      expect((screen.getByRole('button', { name: /Approve/ }) as HTMLButtonElement).disabled).toBe(false);
-      expect(screen.getByText('Pending version')).toBeTruthy();
-      // The status is the latest version's (Pending), not "Approved"; the active version stays in use.
-      expect(screen.getByText('Pending approval')).toBeTruthy();
-      expect(screen.queryByText('Approved')).toBeNull();
-      expect(screen.getByText('v{number} (approved, still in use)')).toBeTruthy();
+      // Each version is its own card with its own status: v2 pending, v1 approved and in use.
+      const cards = screen.getAllByRole('article');
+      expect(cards).toHaveLength(2);
+      expect(cards[0].textContent).toContain('v2');
+      expect(cards[0].textContent).toContain('Pending approval');
+      expect(cards[1].textContent).toContain('v1');
+      expect(cards[1].textContent).toContain('Approved');
+      expect(cards[1].textContent).toContain('In use');
+      // Approve / Reject sit on the pending version's card only.
+      expect(within(cards[0]).getByRole('button', { name: /Approve/ })).toBeTruthy();
+      expect(within(cards[0]).getByRole('button', { name: /Reject/ })).toBeTruthy();
+      expect(within(cards[1]).queryByRole('button', { name: /Approve/ })).toBeNull();
+      expect(within(cards[1]).queryByRole('button', { name: /Reject/ })).toBeNull();
       const diff = screen.getByLabelText('Command');
       expect(diff.textContent).toContain('  whoami');
       expect(diff.textContent).toContain('+ id');
@@ -267,17 +279,29 @@ describe('ThreatArsenalApprovalSection', () => {
       expect(await screen.findByText('Reject version {number}? The active version stays in use.')).toBeTruthy();
     });
 
-    it('shows the latest decision but no history list', async () => {
+    it('shows the decision of the version in use on its own card, and the approval history', async () => {
       // Arrange
       mockCan.mockReturnValue(true);
+      mockApprovals.mockResolvedValue({
+        data: [{
+          approval_id: 'entry-approved',
+          approval_status: 'APPROVED',
+          approval_origin: 'CREATE',
+          approval_automatic: true,
+          approval_actor_name: 'Admin User',
+          approval_created_at: '2026-10-07T10:00:00Z',
+        }],
+      });
 
       // Act
       renderSection(actionWithPendingVersion);
 
       // Assert
-      expect(screen.getByText('Last decision')).toBeTruthy();
-      expect(screen.queryByText('Version history')).toBeNull();
-      expect(screen.queryByText('Approval history')).toBeNull();
+      expect(await screen.findByText('Auto-approved: {name} holds Approve content')).toBeTruthy();
+      const cards = screen.getAllByRole('article');
+      expect(cards[0].textContent).not.toContain('Auto-approved');
+      expect(screen.getByText('Approval history')).toBeTruthy();
+      expect(mockApprovals).toHaveBeenCalledWith('action-1');
     });
   });
 

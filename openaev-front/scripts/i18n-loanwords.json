@@ -185,7 +185,8 @@
     "Version",
     "Vision",
     "Website",
-    "Workstation"
+    "Workstation",
+    "Version {number}"
   ],
   "es": [
     "{count} roles",
@@ -327,7 +328,8 @@
     "Variables",
     "Version",
     "Vision",
-    "{count, plural, one {# simulation} other {# simulations}}"
+    "{count, plural, one {# simulation} other {# simulations}}",
+    "Version {number}"
   ],
   "it": [
     "Audio",

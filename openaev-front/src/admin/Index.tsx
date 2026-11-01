@@ -69,6 +69,7 @@ const IndexCustomDashboard = lazy(() => import('./components/workspaces/custom_d
 const IndexReporting = lazy(() => import('./components/reporting/Index'));
 const IndexSettings = lazy(() => import('./components/settings/Index'));
 const ThreatArsenal = lazy(() => import('./components/threat_arsenal/ThreatArsenal'));
+const ThreatArsenalToReview = lazy(() => import('./components/threat_arsenal/ThreatArsenalToReview'));
 const Credentials = lazy(() => import('./components/assets/credentials/Credentials'));
 const CredentialDetail = lazy(() => import('./components/assets/credentials/CredentialDetailPage'));
 
@@ -523,6 +524,18 @@ const Index = () => {
             <Route
               path="threat-arsenal"
               element={errorWrapper(ThreatArsenal)()}
+            />
+            <Route
+              path="threat-arsenal/to-review"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.APPROVE,
+                    subject: SUBJECTS.THREAT_ARSENALS,
+                  }]}
+                  Component={errorWrapper(ThreatArsenalToReview)()}
+                />
+              )}
             />
             <Route
               path="integrations/*"

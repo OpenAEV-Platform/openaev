@@ -25,14 +25,13 @@ describe('PayloadApprovalWarningChip', () => {
     cleanup();
   });
 
-  it('shows a compact "Pending" chip, the full text with the action name as its tooltip label', () => {
+  it('shows a "Pending approval" chip, named with the action for assistive technologies', () => {
     // Arrange / Act
     renderChip('PENDING');
 
-    // Assert: short label on the chip, the full text names it (tooltip and assistive technologies)
-    expect(screen.getByText('Pending')).toBeTruthy();
-    expect(screen.queryByText('Payload pending approval')).toBeNull();
-    expect(screen.getByLabelText('Payload pending approval – TEST-A')).toBeTruthy();
+    // Assert: same wording as the Threat Arsenal chip; the name carries the action
+    expect(screen.getByText('Pending approval')).toBeTruthy();
+    expect(screen.getByLabelText('Pending approval – TEST-A')).toBeTruthy();
   });
 
   it('shows a compact "Rejected" chip for a rejected payload', () => {
@@ -41,7 +40,7 @@ describe('PayloadApprovalWarningChip', () => {
 
     // Assert
     expect(screen.getByText('Rejected')).toBeTruthy();
-    expect(screen.getByLabelText('Payload rejected – TEST-A')).toBeTruthy();
+    expect(screen.getByLabelText('Rejected – TEST-A')).toBeTruthy();
   });
 
   it('can render as an icon only, to sit next to another status', () => {
@@ -49,17 +48,17 @@ describe('PayloadApprovalWarningChip', () => {
     renderChip('PENDING', 'icon');
 
     // Assert
-    expect(screen.getByRole('img', { name: 'Payload pending approval – TEST-A' })).toBeTruthy();
-    expect(screen.queryByText('Pending')).toBeNull();
+    expect(screen.getByRole('img', { name: 'Pending approval – TEST-A' })).toBeTruthy();
+    expect(screen.queryByText('Pending approval')).toBeNull();
   });
 
-  it('shows a "Pending" chip for an approved payload whose new version waits for approval', () => {
+  it('shows the same "Pending approval" chip for an approved payload whose new version waits for approval', () => {
     // Arrange / Act
     renderChip('APPROVED', 'chip', true);
 
     // Assert
-    expect(screen.getByText('Pending')).toBeTruthy();
-    expect(screen.getByLabelText('New version pending approval – TEST-A')).toBeTruthy();
+    expect(screen.getByText('Pending approval')).toBeTruthy();
+    expect(screen.getByLabelText('Pending approval – TEST-A')).toBeTruthy();
   });
 
   it('renders nothing for an approved payload or an inject without payload', () => {
