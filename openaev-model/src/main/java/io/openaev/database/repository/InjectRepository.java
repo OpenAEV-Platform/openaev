@@ -243,11 +243,20 @@ public interface InjectRepository
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
+  /**
+   * Contract id of the challenge publication inject (ChallengeContract.CHALLENGE_PUBLISH in
+   * openaev-api). inject_injector_contract holds a contract id, never an injector id: filtering on
+   * the challenge injector id matched no inject at all (#8060).
+   */
+  String CHALLENGE_PUBLISH_CONTRACT_ID = "f8e70b27-a69c-4b9f-a2df-e217c36b3981";
+
   // Ids only: Hibernate 7 cannot map Inject from a native result set, its tenant-scoped
   // @JoinFormula associations need generated column aliases a plain select i.* does not carry.
   @Query(
       value =
-          "select i.inject_id from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+          "select i.inject_id from injects i where i.inject_injector_contract = '"
+              + CHALLENGE_PUBLISH_CONTRACT_ID
+              + "'"
               + " and i.inject_content like :challengeId"
               + " and i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
