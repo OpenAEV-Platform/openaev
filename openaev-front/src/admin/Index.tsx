@@ -21,6 +21,7 @@ import useAuth from '../utils/hooks/useAuth';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
+import useLiveStream from '../utils/stream/useLiveStream';
 import { isFeatureEnabled } from '../utils/utils';
 import ChatbotProvider from './components/ariane/ChatbotProvider';
 import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
@@ -135,6 +136,7 @@ const Index = () => {
     // scrollbar. Said explicitly, it holds whichever overflow value is used.
     minWidth: 0,
   };
+  useLiveStream();
   // load taxonomies at login and reload tenant-scoped data on tenant switch
   useDataLoader(() => {
     dispatch(fetchAttackPatterns());
