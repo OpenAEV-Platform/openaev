@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -245,11 +246,27 @@ class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
       int results = getSimulationResultsByAttackPattern(route, simulationId);
       int scenario = getScenarioOfSimulation(route, simulationId);
       int duplicate = duplicateSimulation(route, simulationId);
+      int healthChecks = getSimulationHealthChecks(route, simulationId);
+      int players = getSimulationPlayers(route, simulationId);
+      int logs = getSimulationLogs(route, simulationId);
+      int comchecks = getSimulationComchecks(route, simulationId);
       int removeTeam = removeSimulationTeam(route, simulationId, teamId);
 
       // Assert
-      assertThat(new int[] {read, teams, results, scenario, duplicate, removeTeam})
-          .containsExactly(404, 404, 404, 404, 404, 404);
+      assertThat(
+              new int[] {
+                read,
+                teams,
+                results,
+                scenario,
+                duplicate,
+                healthChecks,
+                players,
+                logs,
+                comchecks,
+                removeTeam
+              })
+          .containsExactly(404, 404, 404, 404, 404, 404, 404, 404, 404, 404);
       assertThat(simulationCount()).isEqualTo(simulationsBefore);
       assertThat(simulationHasTeam(simulationId, teamId)).isTrue();
     }
@@ -273,11 +290,27 @@ class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
       int results = getSimulationResultsByAttackPattern(route, simulationId);
       int scenario = getScenarioOfSimulation(route, simulationId);
       int duplicate = duplicateSimulation(route, simulationId);
+      int healthChecks = getSimulationHealthChecks(route, simulationId);
+      int players = getSimulationPlayers(route, simulationId);
+      int logs = getSimulationLogs(route, simulationId);
+      int comchecks = getSimulationComchecks(route, simulationId);
       int removeTeam = removeSimulationTeam(route, simulationId, teamId);
 
       // Assert
-      assertThat(new int[] {read, teams, results, scenario, duplicate, removeTeam})
-          .containsExactly(200, 200, 200, 200, 200, 200);
+      assertThat(
+              new int[] {
+                read,
+                teams,
+                results,
+                scenario,
+                duplicate,
+                healthChecks,
+                players,
+                logs,
+                comchecks,
+                removeTeam
+              })
+          .containsExactly(200, 200, 200, 200, 200, 200, 200, 200, 200, 200);
       assertThat(simulationCount()).isEqualTo(simulationsBefore + 1);
       assertThat(simulationHasTeam(simulationId, teamId)).isFalse();
     }
@@ -298,10 +331,13 @@ class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
       int read = getScenario(route, scenarioId);
       int teams = getScenarioTeams(route, scenarioId);
       int launch = launchAutonomousRun(route, scenarioId);
+      int healthChecks = getScenarioHealthChecks(route, scenarioId);
+      int players = getScenarioPlayers(route, scenarioId);
       int removeTeam = removeScenarioTeam(route, scenarioId, teamId);
 
       // Assert
-      assertThat(new int[] {read, teams, launch, removeTeam}).containsExactly(404, 404, 404, 404);
+      assertThat(new int[] {read, teams, launch, healthChecks, players, removeTeam})
+          .containsExactly(404, 404, 404, 404, 404, 404);
       assertThat(autonomousRunCount(scenarioId)).isZero();
       assertThat(scenarioHasTeam(scenarioId, teamId)).isTrue();
     }
@@ -322,10 +358,13 @@ class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
       int teams = getScenarioTeams(route, scenarioId);
       // Reached: refused only because the seeded scenario has no attack path workflow.
       int launch = launchAutonomousRun(route, scenarioId);
+      int healthChecks = getScenarioHealthChecks(route, scenarioId);
+      int players = getScenarioPlayers(route, scenarioId);
       int removeTeam = removeScenarioTeam(route, scenarioId, teamId);
 
       // Assert
-      assertThat(new int[] {read, teams, launch, removeTeam}).containsExactly(200, 200, 400, 200);
+      assertThat(new int[] {read, teams, launch, healthChecks, players, removeTeam})
+          .containsExactly(200, 200, 400, 200, 200, 200);
       assertThat(scenarioHasTeam(scenarioId, teamId)).isFalse();
     }
   }
@@ -458,6 +497,119 @@ class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
       // Assert
       assertThat(bulkDelete).isEqualTo(200);
       assertThat(simulationExists(simulationId)).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("Health checks and player lists of a simulation or scenario")
+  class HealthChecksAndPlayerLists {
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant simulation on the route of another tenant, its health checks,"
+            + " players, logs and comchecks answer not found")
+    void given_defaultTenantSimulationOnRouteOfAnotherTenant_should_refuseItsSubResources()
+        throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(DEFAULT_TENANT);
+      Route route = tenantRoute(memberTenant);
+
+      // Act
+      int healthChecks = getSimulationHealthChecks(route, simulationId);
+      int players = getSimulationPlayers(route, simulationId);
+      int logs = getSimulationLogs(route, simulationId);
+      int comchecks = getSimulationComchecks(route, simulationId);
+
+      // Assert
+      assertThat(new int[] {healthChecks, players, logs, comchecks})
+          .containsExactly(404, 404, 404, 404);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a default tenant scenario on the route of another tenant, its health checks and"
+            + " players answer not found")
+    void given_defaultTenantScenarioOnRouteOfAnotherTenant_should_refuseItsSubResources()
+        throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(DEFAULT_TENANT);
+
+      // Act
+      int healthChecks = getScenarioHealthChecks(tenantRoute(memberTenant), scenarioId);
+      int players = getScenarioPlayers(tenantRoute(memberTenant), scenarioId);
+
+      // Assert
+      assertThat(new int[] {healthChecks, players}).containsExactly(404, 404);
+    }
+
+    @Test
+    @DisplayName("given a simulation of a member tenant, its player list holds its players")
+    void given_simulationOfMemberTenant_should_listItsPlayers() throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(memberTenant);
+      String playerId = seedPlayerOfTeam(seedTeamOfSimulation(memberTenant, simulationId));
+
+      // Act
+      List<String> onTenantRoute = simulationPlayerIds(tenantRoute(memberTenant), simulationId);
+      List<String> onHeaderRoute = simulationPlayerIds(headerRoute(memberTenant), simulationId);
+
+      // Assert
+      assertThat(onTenantRoute).containsExactly(playerId);
+      assertThat(onHeaderRoute).containsExactly(playerId);
+    }
+
+    @Test
+    @DisplayName("given a scenario of a member tenant, its player list holds its players")
+    void given_scenarioOfMemberTenant_should_listItsPlayers() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(memberTenant);
+      String playerId = seedPlayerOfTeam(seedTeamOfScenario(memberTenant, scenarioId));
+
+      // Act
+      List<String> onTenantRoute = scenarioPlayerIds(tenantRoute(memberTenant), scenarioId);
+      List<String> onHeaderRoute = scenarioPlayerIds(headerRoute(memberTenant), scenarioId);
+
+      // Assert
+      assertThat(onTenantRoute).containsExactly(playerId);
+      assertThat(onHeaderRoute).containsExactly(playerId);
+    }
+
+    @Test
+    @DisplayName(
+        "given a simulation of a member tenant, its health checks are answered on both routes")
+    void given_simulationOfMemberTenant_should_answerItsHealthChecks() throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(memberTenant);
+
+      // Act
+      int onTenantRoute = getSimulationHealthChecks(tenantRoute(memberTenant), simulationId);
+      int onHeaderRoute = getSimulationHealthChecks(headerRoute(memberTenant), simulationId);
+
+      // Assert
+      assertThat(new int[] {onTenantRoute, onHeaderRoute}).containsExactly(200, 200);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scenario of a member tenant, its health checks are answered on its tenant route,"
+            + " and not on the selector until the table is isolated")
+    void given_scenarioOfMemberTenant_should_answerItsHealthChecksOnItsTenantRoute()
+        throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(memberTenant);
+
+      // Act
+      int onTenantRoute = getScenarioHealthChecks(tenantRoute(memberTenant), scenarioId);
+      int onHeaderRoute = getScenarioHealthChecks(headerRoute(memberTenant), scenarioId);
+
+      // Assert
+      // The scenario health checks resolve the scenario through the scope query, which the v1
+      // entity filter also narrows to the ambient tenant, the default one on the non-prefixed
+      // route. The simulation twin and both player lists resolve by primary key and answer on
+      // both routes. Removing the filter at the activation turns the second status into 200.
+      assertThat(new int[] {onTenantRoute, onHeaderRoute}).containsExactly(200, 404);
     }
   }
 }

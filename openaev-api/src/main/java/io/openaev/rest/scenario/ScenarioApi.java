@@ -496,6 +496,7 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Iterable<RawPlayer> getPlayersByScenario(TxCtx ctx, @PathVariable String scenarioId) {
+    requireScenarioInScope(ctx, scenarioId);
     return userRepository.rawPlayersByScenarioId(scenarioId);
   }
 
