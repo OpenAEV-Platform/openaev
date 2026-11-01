@@ -76,7 +76,7 @@ import org.springframework.web.bind.annotation.*;
 public class TeamApi extends RestBehavior {
 
   public static final String TEAM_URI = "/api/teams";
-  static final String TENANT_TEAM_URI = TENANT_PREFIX + "/teams";
+  public static final String TENANT_TEAM_URI = TENANT_PREFIX + "/teams";
 
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;

@@ -43,7 +43,7 @@ import org.springframework.web.bind.annotation.*;
 public class PlayerApi extends RestBehavior {
 
   public static final String PLAYER_URI = "/api/players";
-  private static final String TENANT_PLAYER_URI = TENANT_PREFIX + "/players";
+  public static final String TENANT_PLAYER_URI = TENANT_PREFIX + "/players";
 
   @Resource private SessionManager sessionManager;
 

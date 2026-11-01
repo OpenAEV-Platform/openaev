@@ -5,10 +5,12 @@ import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.TenantDecisionScopeAssertions.assertDecidedIn;
 import static io.openaev.utils.fixtures.ExerciseFixture.createDefaultExercise;
 import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.Mockito.clearInvocations;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -23,6 +25,7 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
+import io.openaev.service.PermissionService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
@@ -41,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,12 +59,15 @@ import org.springframework.transaction.annotation.Transactional;
  * default tenant is listed, a row of B that the caller holds no grant on is not. The member
  * contrast grants the right in B and reads B's rows on B's tenant route.
  *
- * <p>These requests pin what a member reads, not where the decision is taken. Until {@code
- * exercises} and {@code scenarios} are activated, their v1 tenant filter and the native predicates
- * on the ambient tenant keep B's rows out of a read made in the default tenant, so a decision taken
- * in the ambient tenant only passes them too. The per-tenant decision is pinned by {@code
- * PermissionServiceTenantDecisionTest}, on rows of both tenants, and the list sites by the
- * simulation and scenario service tests, on stubbed rows of both tenants.
+ * <p>Each request also pins the scope its decisions are taken on: {@code assertDecidedIn} reads the
+ * tenants {@link PermissionService} received for every row decision of the request, the two of the
+ * header route and the single one of B's tenant route. What a member reads is the weaker of the two
+ * contrasts until {@code exercises} and {@code scenarios} are activated: their v1 tenant filter and
+ * the native predicates on the ambient tenant keep B's rows out of a read made in the default
+ * tenant, and the rows that stay visible are those of the ambient tenant, which the per-tenant
+ * decision and a decision taken in the ambient tenant alone answer the same way. The decision
+ * itself is pinned by {@code PermissionServiceTenantDecisionTest}, on rows of both tenants, and the
+ * list sites by the simulation and scenario service tests, on stubbed rows of both tenants.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -84,6 +91,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
   }
 
   @Autowired private MockMvc mvc;
+  @MockitoSpyBean private PermissionService permissionService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -96,6 +104,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
     exerciseComposer.reset();
     tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
     tenantB = tenantHelper.createTenantWithCurrentUser("list-decision-b").getId();
+    clearInvocations(permissionService);
   }
 
   @Nested
@@ -115,6 +124,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath(listed("scenario_id", scenarioOfDefault)).isNotEmpty())
           .andExpect(jsonPath(listed("scenario_id", scenarioOfB)).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -134,6 +144,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath(listed("scenario_id", scenarioOfDefault)).isNotEmpty())
           .andExpect(jsonPath(listed("scenario_id", scenarioOfB)).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -148,6 +159,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath(searched("scenario_id", scenarioOfDefault)).isNotEmpty())
           .andExpect(jsonPath(searched("scenario_id", scenarioOfB)).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -169,6 +181,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
       mvc.perform(inB(post(TENANT_SCENARIO_URI + "/search", tenantB)).content(largeSearch()))
           .andExpect(status().isOk())
           .andExpect(jsonPath(searched("scenario_id", scenarioOfB)).isNotEmpty());
+      assertDecidedIn(permissionService, tenantB);
     }
   }
 
@@ -195,6 +208,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
           .andExpect(jsonPath("$[?(@ == '" + scenarioOfDefault + "')]").isNotEmpty())
           .andExpect(jsonPath("$[?(@ == '" + scenarioOfB + "')]").isEmpty());
       assertThat(rowCount("scenarios", "scenario_id", scenarioOfB)).isEqualTo(1);
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -211,6 +225,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath("$[?(@ == '" + scenarioOfB + "')]").isNotEmpty());
       assertThat(rowCount("scenarios", "scenario_id", scenarioOfB)).isZero();
+      assertDecidedIn(permissionService, tenantB);
     }
   }
 
@@ -231,6 +246,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath(listed("exercise_id", simulationOfDefault)).isNotEmpty())
           .andExpect(jsonPath(listed("exercise_id", simulationOfB)).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -250,6 +266,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath(listed("exercise_id", simulationOfDefault)).isNotEmpty())
           .andExpect(jsonPath(listed("exercise_id", simulationOfB)).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -264,6 +281,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath(searched("exercise_id", simulationOfDefault)).isNotEmpty())
           .andExpect(jsonPath(searched("exercise_id", simulationOfB)).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -285,6 +303,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
       mvc.perform(inB(post(TENANT_EXERCISE_URI + "/search", tenantB)).content(largeSearch()))
           .andExpect(status().isOk())
           .andExpect(jsonPath(searched("exercise_id", simulationOfB)).isNotEmpty());
+      assertDecidedIn(permissionService, tenantB);
     }
   }
 
@@ -312,6 +331,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
           .andExpect(jsonPath("$[?(@ == '" + simulationOfDefault + "')]").isNotEmpty())
           .andExpect(jsonPath("$[?(@ == '" + simulationOfB + "')]").isEmpty());
       assertThat(rowCount("exercises", "exercise_id", simulationOfB)).isEqualTo(1);
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -328,6 +348,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath("$[?(@ == '" + simulationOfB + "')]").isNotEmpty());
       assertThat(rowCount("exercises", "exercise_id", simulationOfB)).isZero();
+      assertDecidedIn(permissionService, tenantB);
     }
   }
 

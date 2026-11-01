@@ -6,9 +6,17 @@ import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.TENANT_ATOMIC_TESTING_URI;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.rest.inject.InjectApi.TENANT_INJECT_URI;
+import static io.openaev.rest.organization.OrganizationApi.ORGANIZATION_URI;
+import static io.openaev.rest.organization.OrganizationApi.TENANT_ORGANIZATION_URI;
+import static io.openaev.rest.team.TeamApi.TEAM_URI;
+import static io.openaev.rest.team.TeamApi.TENANT_TEAM_URI;
+import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
+import static io.openaev.rest.user.PlayerApi.TENANT_PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.TenantDecisionScopeAssertions.assertDecidedIn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.Mockito.clearInvocations;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -21,13 +29,23 @@ import io.openaev.database.model.Asset;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Organization;
+import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
+import io.openaev.service.PermissionService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.TeamFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.OrganizationComposer;
+import io.openaev.utils.fixtures.composers.TeamComposer;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +61,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,11 +76,15 @@ import org.springframework.transaction.annotation.Transactional;
  * the default tenant is read, an inject of B that the caller holds no grant on is not. The member
  * contrast grants the right in B and reads B's injects on B's tenant route.
  *
- * <p>These requests pin what a member reads, not where the decision is taken. Until {@code
- * injects}, {@code exercises} and {@code scenarios} are activated, their v1 tenant filter and the
- * native predicates on the ambient tenant keep B's injects out of a read made in the default
- * tenant, so a decision taken in the ambient tenant only passes them too. The per-tenant decision
- * is pinned by {@code PermissionServiceTenantDecisionTest}, on rows of both tenants.
+ * <p>Each request also pins the scope its decisions are taken on: {@code assertDecidedIn} reads the
+ * tenants {@link PermissionService} received for every row decision of the request, the two of the
+ * header route and the single one of B's tenant route. What a member reads is the weaker of the two
+ * contrasts until {@code injects}, {@code exercises} and {@code scenarios} are activated: their v1
+ * tenant filter and the native predicates on the ambient tenant keep B's injects out of a read made
+ * in the default tenant, and the injects that stay visible are those of the ambient tenant, which
+ * the per-tenant decision and a decision taken in the ambient tenant alone answer the same way. The
+ * decision itself is pinned by {@code PermissionServiceTenantDecisionTest}, on rows of both
+ * tenants.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -85,9 +108,13 @@ class InjectListDecisionTenantTest extends IntegrationTest {
   }
 
   @Autowired private MockMvc mvc;
+  @MockitoSpyBean private PermissionService permissionService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private TeamComposer teamComposer;
+  @Autowired private UserComposer userComposer;
+  @Autowired private OrganizationComposer organizationComposer;
 
   private String tenantB;
 
@@ -95,8 +122,12 @@ class InjectListDecisionTenantTest extends IntegrationTest {
   void setUp() throws Exception {
     injectComposer.reset();
     endpointComposer.reset();
+    teamComposer.reset();
+    userComposer.reset();
+    organizationComposer.reset();
     tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
     tenantB = tenantHelper.createTenantWithCurrentUser("inject-list-decision-b").getId();
+    clearInvocations(permissionService);
   }
 
   @Nested
@@ -117,6 +148,7 @@ class InjectListDecisionTenantTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath(searched(injectOfDefault)).isNotEmpty())
           .andExpect(jsonPath(searched(injectOfB)).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -130,6 +162,7 @@ class InjectListDecisionTenantTest extends IntegrationTest {
       mvc.perform(inB(post(TENANT_ATOMIC_TESTING_URI + "/search", tenantB)).content(largeSearch()))
           .andExpect(status().isOk())
           .andExpect(jsonPath(searched(injectOfB)).isNotEmpty());
+      assertDecidedIn(permissionService, tenantB);
     }
   }
 
@@ -153,6 +186,7 @@ class InjectListDecisionTenantTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath(searched(injectOfDefault)).isNotEmpty())
           .andExpect(jsonPath(searched(injectOfB)).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -169,6 +203,7 @@ class InjectListDecisionTenantTest extends IntegrationTest {
                   .content(largeSearch()))
           .andExpect(status().isOk())
           .andExpect(jsonPath(searched(injectOfB)).isNotEmpty());
+      assertDecidedIn(permissionService, tenantB);
     }
   }
 
@@ -186,6 +221,7 @@ class InjectListDecisionTenantTest extends IntegrationTest {
       // -- ACT & ASSERT --
       mvc.perform(inBothTenants(post(INJECT_URI + "/export")).content(exportById(injectOfB)))
           .andExpect(status().isNotFound());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -199,6 +235,7 @@ class InjectListDecisionTenantTest extends IntegrationTest {
               inBothTenants(post(INJECT_URI + "/search/export"))
                   .content(exportFromSearch(injectOfB)))
           .andExpect(status().isNotFound());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -214,6 +251,7 @@ class InjectListDecisionTenantTest extends IntegrationTest {
               inBothTenants(post(INJECT_URI + "/search/export"))
                   .content(exportFromSearch(injectOfDefault)))
           .andExpect(status().isOk());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -230,6 +268,136 @@ class InjectListDecisionTenantTest extends IntegrationTest {
               inB(post(TENANT_INJECT_URI + "/search/export", tenantB))
                   .content(exportFromSearch(injectOfB)))
           .andExpect(status().isOk());
+      assertDecidedIn(permissionService, tenantB);
+    }
+  }
+
+  @Nested
+  @DisplayName("Injects played on a team, a player and an organization")
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  class TeamPlayerAndOrganizationInjectSearch {
+
+    @Test
+    @DisplayName("given the access right only outside B should search the default team inject only")
+    void given_accessRightOnlyOutsideB_should_searchDefaultTeamInjectOnly() throws Exception {
+      // -- ARRANGE --
+      TeamTarget ofDefault = targetedTeamIn(Tenant.DEFAULT_TENANT_UUID);
+      TeamTarget ofB = targetedTeamIn(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              inBothTenants(post(TEAM_URI + "/{teamId}/injects/search", ofDefault.teamId()))
+                  .content(largeSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(searched(ofDefault.injectId())).isNotEmpty());
+      mvc.perform(
+              inBothTenants(post(TEAM_URI + "/{teamId}/injects/search", ofB.teamId()))
+                  .content(largeSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(searched(ofB.injectId())).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
+    }
+
+    @Test
+    @DisplayName(
+        "given the access right only outside B should search the default player inject only")
+    void given_accessRightOnlyOutsideB_should_searchDefaultPlayerInjectOnly() throws Exception {
+      // -- ARRANGE --
+      TeamTarget ofDefault = targetedTeamIn(Tenant.DEFAULT_TENANT_UUID);
+      TeamTarget ofB = targetedTeamIn(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              inBothTenants(post(PLAYER_URI + "/{userId}/injects/search", ofDefault.playerId()))
+                  .content(largeSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(searched(ofDefault.injectId())).isNotEmpty());
+      mvc.perform(
+              inBothTenants(post(PLAYER_URI + "/{userId}/injects/search", ofB.playerId()))
+                  .content(largeSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(searched(ofB.injectId())).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
+    }
+
+    @Test
+    @DisplayName(
+        "given the access right only outside B should search the default organization inject only")
+    void given_accessRightOnlyOutsideB_should_searchDefaultOrganizationInjectOnly()
+        throws Exception {
+      // -- ARRANGE --
+      TeamTarget ofDefault = targetedTeamIn(Tenant.DEFAULT_TENANT_UUID);
+      TeamTarget ofB = targetedTeamIn(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              inBothTenants(
+                      post(
+                          ORGANIZATION_URI + "/{organizationId}/injects/search",
+                          ofDefault.organizationId()))
+                  .content(largeSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(searched(ofDefault.injectId())).isNotEmpty());
+      mvc.perform(
+              inBothTenants(
+                      post(
+                          ORGANIZATION_URI + "/{organizationId}/injects/search",
+                          ofB.organizationId()))
+                  .content(largeSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(searched(ofB.injectId())).isEmpty());
+      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
+    }
+
+    @Test
+    @DisplayName("given the access right in B should search B's team inject")
+    void given_accessRightInB_should_searchBTeamInject() throws Exception {
+      // -- ARRANGE --
+      TeamTarget ofB = targetedTeamIn(tenantB);
+      grantInB(Capability.ACCESS_ASSESSMENT);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              inB(post(TENANT_TEAM_URI + "/{teamId}/injects/search", tenantB, ofB.teamId()))
+                  .content(largeSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(searched(ofB.injectId())).isNotEmpty());
+      assertDecidedIn(permissionService, tenantB);
+    }
+
+    @Test
+    @DisplayName("given the access right in B should search B's player inject")
+    void given_accessRightInB_should_searchBPlayerInject() throws Exception {
+      // -- ARRANGE --
+      TeamTarget ofB = targetedTeamIn(tenantB);
+      grantInB(Capability.ACCESS_ASSESSMENT);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              inB(post(TENANT_PLAYER_URI + "/{userId}/injects/search", tenantB, ofB.playerId()))
+                  .content(largeSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(searched(ofB.injectId())).isNotEmpty());
+      assertDecidedIn(permissionService, tenantB);
+    }
+
+    @Test
+    @DisplayName("given the access right in B should search B's organization inject")
+    void given_accessRightInB_should_searchBOrganizationInject() throws Exception {
+      // -- ARRANGE --
+      TeamTarget ofB = targetedTeamIn(tenantB);
+      grantInB(Capability.ACCESS_ASSESSMENT);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              inB(post(
+                      TENANT_ORGANIZATION_URI + "/{organizationId}/injects/search",
+                      tenantB,
+                      ofB.organizationId()))
+                  .content(largeSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(searched(ofB.injectId())).isNotEmpty());
+      assertDecidedIn(permissionService, tenantB);
     }
   }
 
@@ -253,6 +421,34 @@ class InjectListDecisionTenantTest extends IntegrationTest {
     Endpoint persisted = endpointComposer.forEndpoint(endpoint).persist().get();
     entityManager.flush();
     return persisted;
+  }
+
+  /** A team, the organization and the player it links, and the inject that targets the team. */
+  private record TeamTarget(
+      String teamId, String organizationId, String playerId, String injectId) {}
+
+  /**
+   * A team of {@code tenantId} with an organization and a player of its own, targeted by one inject
+   * of the same tenant. The three target endpoints reach that inject through this team.
+   */
+  private TeamTarget targetedTeamIn(String tenantId) {
+    Tenant tenant = new Tenant(tenantId);
+    Organization organization = OrganizationFixture.createDefaultOrganisation();
+    organization.setTenant(tenant);
+    organizationComposer.forOrganization(organization).persist();
+    User player = UserFixture.getUserWithDefaultEmail();
+    userComposer.forUser(player).persist();
+    Team team = TeamFixture.getDefaultTeam();
+    team.setTenant(tenant);
+    team.setOrganization(organization);
+    team.setUsers(new ArrayList<>(List.of(player)));
+    teamComposer.forTeam(team).persist();
+    Inject inject = InjectFixture.getDefaultInject();
+    inject.setTenant(tenant);
+    inject.setTeams(new ArrayList<>(List.of(team)));
+    String injectId = injectComposer.forInject(inject).persist().get().getId();
+    entityManager.flush();
+    return new TeamTarget(team.getId(), organization.getId(), player.getId(), injectId);
   }
 
   private static String searched(String injectId) {

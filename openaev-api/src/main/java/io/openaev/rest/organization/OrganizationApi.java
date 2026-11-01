@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.*;
 public class OrganizationApi extends RestBehavior {
 
   public static final String ORGANIZATION_URI = "/api/organizations";
-  static final String TENANT_ORGANIZATION_URI = TENANT_PREFIX + "/organizations";
+  public static final String TENANT_ORGANIZATION_URI = TENANT_PREFIX + "/organizations";
 
   private final OrganizationService organizationService;
   private final InjectSearchService injectSearchService;
@@ -91,7 +91,7 @@ public class OrganizationApi extends RestBehavior {
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     organizationService.findById(organizationId);
     return injectSearchService.getPageOfInjectResultsForOrganization(
-        organizationId, searchPaginationInput);
+        ctx, organizationId, searchPaginationInput);
   }
 
   @PostMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
