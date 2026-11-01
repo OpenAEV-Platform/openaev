@@ -419,7 +419,7 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "given a default tenant scenario and a selector naming another tenant, the bulk delete"
-            + " answers not found and keeps it")
+            + " keeps it and deletes nothing")
     void given_defaultTenantScenarioAndSelectorNamingAnotherTenant_should_notBulkDeleteIt()
         throws Exception {
       // Arrange
@@ -429,8 +429,10 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       int bulkDelete = bulkDeleteScenarios(headerRoute(memberTenant), scenarioId);
 
       // Assert
-      assertThat(bulkDelete).isEqualTo(404);
+      // The eligible ids are resolved in the request scope, which no longer reaches the row, so
+      // the request deletes nothing and succeeds instead of answering not found.
       assertThat(scenarioExists(scenarioId)).isTrue();
+      assertThat(bulkDelete).isEqualTo(200);
     }
 
     @Test
@@ -454,7 +456,7 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "given a default tenant simulation and a selector naming another tenant, the bulk delete"
-            + " answers not found and keeps it")
+            + " keeps it and deletes nothing")
     void given_defaultTenantSimulationAndSelectorNamingAnotherTenant_should_notBulkDeleteIt()
         throws Exception {
       // Arrange
@@ -464,8 +466,9 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       int bulkDelete = bulkDeleteSimulations(headerRoute(memberTenant), simulationId);
 
       // Assert
-      assertThat(bulkDelete).isEqualTo(404);
+      // Same as the scenario above: the eligible ids are resolved in the request scope.
       assertThat(simulationExists(simulationId)).isTrue();
+      assertThat(bulkDelete).isEqualTo(200);
     }
 
     @Test
