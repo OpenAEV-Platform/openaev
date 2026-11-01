@@ -532,4 +532,16 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesWorkflowStates() throws Exception {
     assertActiveTableEntry("workflow_states");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains exercises")
+  void prodConfigActivatesExercises() throws Exception {
+    assertActiveTableEntry("exercises");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains scenarios")
+  void prodConfigActivatesScenarios() throws Exception {
+    assertActiveTableEntry("scenarios");
+  }
 }
