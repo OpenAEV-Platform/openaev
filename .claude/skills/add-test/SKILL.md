@@ -123,7 +123,8 @@ class {Feature}ServiceUnitTest {
 
 ```bash
 mvn test -pl openaev-api -Dtest="{Feature}ApiTest"
-mvn jacoco:check
+# Coverage of the lines this branch changes, the rule CI checks (80%)
+pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml --compare-branch=origin/main --src-roots openaev-api/src/main/java --fail-under 80
 ```
 
 ## Sub-Skills

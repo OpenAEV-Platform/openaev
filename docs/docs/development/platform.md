@@ -87,7 +87,8 @@ The frontend dev server starts on port `3001` and proxies API requests to the ba
 mvn test                                          # Run all tests
 mvn test -pl openaev-api -Dtest=MyTestClass       # Run a single test class
 mvn test -pl openaev-api -Dtest=MyTestClass#myMethod  # Run a single test method
-mvn jacoco:check                                  # Verify coverage thresholds
+# Coverage of the backend lines your branch changes: CI asks for 80%
+pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml --compare-branch=origin/main --src-roots openaev-api/src/main/java --fail-under 80
 ```
 
 !!! note

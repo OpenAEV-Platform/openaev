@@ -76,9 +76,10 @@ For every feature, ensure coverage of:
 
 ## Coverage Requirements
 
-- **Line coverage**: ≥50% (enforced by `mvn jacoco:check`)
-- **Branch coverage**: ≥30% (enforced by `mvn jacoco:check`)
-- **Target for new code**: aim for 80%+ line coverage on new features
+- **Changed lines**: a PR covers at least 80% of the backend lines it changes. CI checks it with diff-cover
+  in the `coverage-backend` job (advisory in the Pipeline Gate for now).
+- **Check it locally** after `mvn test`, which writes `openaev-api/target/site/jacoco/jacoco.xml`:
+  `pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml --compare-branch=origin/main --src-roots openaev-api/src/main/java --fail-under 80`
 
 ## Output Format
 
@@ -105,7 +106,7 @@ Test class: path/to/TestClass.java
 
 ## Verification
 - `mvn test -pl openaev-api -Dtest="{TestClass}"` → ✅ PASS
-- `mvn jacoco:check` → ✅ PASS
+- diff-cover on the changed lines → ✅ ≥ 80%
 ```
 
 ## Boundaries
@@ -113,6 +114,6 @@ Test class: path/to/TestClass.java
 - Only create or modify test files, fixtures, and composers
 - Never change production code to make tests pass — flag the issue instead
 - Always verify: `mvn test -Dtest="{TestClass}"` after creating tests
-- Always check coverage: `mvn jacoco:check` after adding tests
+- Always check the coverage of the changed lines with diff-cover after adding tests
 - If a test requires a complex setup, create a dedicated fixture — never inline test data
 - For tenant isolation tests: write the tests, then flag `multi-tenancy-reviewer` to verify the isolation logic is correct
