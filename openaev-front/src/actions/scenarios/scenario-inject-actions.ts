@@ -15,9 +15,9 @@ export const fetchScenarioInjectsSimple = (scenarioId: Scenario['scenario_id']) 
   return getReferential(schema.arrayOfInjects, uri)(dispatch);
 };
 
-export const searchScenarioInjectsSimple = (scenarioId: Scenario['scenario_id'], input: SearchPaginationInput) => {
+export const searchScenarioInjectsSimple = (scenarioId: Scenario['scenario_id'], input: SearchPaginationInput, notifyError: boolean = true) => {
   const uri = `/api/scenarios/${scenarioId}/injects/simple`;
-  return simplePostCall(uri, input);
+  return simplePostCall(uri, input, undefined, notifyError);
 };
 
 export const bulkDeleteInjectsForScenario = (scenarioId: Scenario['scenario_id'], data: InjectBulkProcessingInput) => {

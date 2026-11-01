@@ -1,11 +1,12 @@
 import { Button, Switch } from '@filigran/design-system';
-import { RouteOutlined } from '@mui/icons-material';
+import { GetAppOutlined, LibraryBooksOutlined, RouteOutlined, UpdateOutlined } from '@mui/icons-material';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { fetchCatalogSettings, updateCatalogSettings } from '../../../../actions/catalog/payload-catalog-actions';
 import {
   fetchCatalogScenarioFacets,
+  fetchCatalogScenarios,
   installAllCatalogScenarios,
   SCENARIO_AUTHOR_FILTER,
   SCENARIO_INSTALLATION_FILTER,
@@ -106,6 +107,22 @@ const ScenariosAvailable = ({ tabs }: Props) => {
       })
       .finally(() => setInstallingAll(false));
   };
+  // Header stats of the Available tab (F5): catalogue total, not installed, updates available.
+  const [catalogStats, setCatalogStats] = useState({
+    total: 0,
+    notInstalled: 0,
+    updates: 0,
+  });
+  useEffect(() => {
+    fetchCatalogScenarios().then((catalog) => {
+      const installedOnes = catalog.filter(item => (item.catalog_item_installed_scenarios ?? []).length > 0);
+      setCatalogStats({
+        total: catalog.length,
+        notInstalled: catalog.length - installedOnes.length,
+        updates: installedOnes.filter(item => !(item.catalog_item_installed_versions ?? []).includes(item.catalog_item_version)).length,
+      });
+    });
+  }, [items]);
 
   const facets: MarketplaceFacet[] = [
     {
@@ -156,6 +173,26 @@ const ScenariosAvailable = ({ tabs }: Props) => {
               {canInstall && <Button onClick={installEverything} loading={installingAll}>{t('Install all')}</Button>}
             </div>
           )}
+          stats={[
+            {
+              id: 'catalog-total',
+              label: t('In the catalogue'),
+              value: catalogStats.total,
+              icon: LibraryBooksOutlined,
+            },
+            {
+              id: 'not-installed',
+              label: t('Not installed'),
+              value: catalogStats.notInstalled,
+              icon: GetAppOutlined,
+            },
+            {
+              id: 'updates',
+              label: t('Updates available'),
+              value: catalogStats.updates,
+              icon: UpdateOutlined,
+            },
+          ]}
         />
       )}
       sidebar={(

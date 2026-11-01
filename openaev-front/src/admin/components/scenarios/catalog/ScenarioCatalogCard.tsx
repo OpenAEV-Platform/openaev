@@ -26,6 +26,17 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
   // The newest installed version: one instance per scenario.
   const installed = (item.catalog_item_installed_scenarios ?? [])[0];
   const missing = item.catalog_item_missing_requirements ?? [];
+  // Name what is missing (Nmap, Nuclei, Enterprise Edition) rather than a generic "requirements".
+  const missingNames = (item.catalog_item_missing_prerequisites ?? [])
+    // Short name for the chip ("Nmap: The network mapper" → "Nmap"); the tooltip keeps the full list.
+    .map(prerequisite => (prerequisite.requirement_catalog_connector_title ?? prerequisite.requirement_label).split(':')[0].trim())
+    .filter(name => name.length > 0);
+  let needs = t('Requirements missing');
+  if (missingNames.length === 1 || missingNames.length === 2) {
+    needs = t('Needs {names}', { names: missingNames.join(', ') });
+  } else if (missingNames.length > 2) {
+    needs = t('Needs {count} prerequisites', { count: String(missingNames.length) });
+  }
 
   const footer = (
     <div style={{
@@ -39,7 +50,7 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="inline-flex">
-              <Chip label={t('Requirements missing')} severity="high" />
+              <Chip label={needs} severity="high" />
             </span>
           </TooltipTrigger>
           <TooltipContent>{missing.join(', ')}</TooltipContent>
@@ -48,6 +59,8 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
     </div>
   );
 
+  // Buttons the user has no right for are hidden, not greyed out without a reason (MPRD RBAC).
+  const canInstallOrOpen = !!installed || canInstall;
   return (
     <MarketplaceCard
       accent={theme.palette.primary.main}
@@ -60,7 +73,7 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
       platforms={item.catalog_item_platforms ?? []}
       onClick={onOpen}
       footerRight={footer}
-      action={(
+      action={canInstallOrOpen && (
         <div style={{
           display: 'flex',
           gap: 8,
@@ -80,7 +93,6 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
                     stop(event);
                     onInstall();
                   }}
-                  disabled={!canInstall}
                 >
                   {t('Install')}
                 </Button>
@@ -93,7 +105,6 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
                 stop(event);
                 onLaunch();
               }}
-              disabled={!installed && !canInstall}
             >
               {t('Launch')}
             </Button>

@@ -10,6 +10,8 @@ import MarketplaceCard from '../../../../components/common/marketplace/Marketpla
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Domain } from '../../../../utils/api-types';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props { contract: CatalogInjectorContract }
 
@@ -25,6 +27,15 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ contract }
   const accent = domain?.domain_color ?? theme.palette.primary.main;
   const integrationHref = useHref(`/admin/integrations/catalog/${contract.catalog_connector_id}`);
   const openIntegration = () => window.open(integrationHref, '_blank', 'noopener');
+  // Enabling an integration is a tenant setting: without that right the button would be a dead end.
+  const canEnable = useAbility().can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+  const integration = contract.catalog_connector_title;
+  let integrationCaption = t('Provided by an integration');
+  if (integration) {
+    integrationCaption = canEnable
+      ? t('Requires the {integration} integration', { integration })
+      : t('Ask an administrator to enable the {integration} integration', { integration });
+  }
 
   return (
     <MarketplaceCard
@@ -59,17 +70,15 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ contract }
         </>
       )}
       platforms={contract.contract_platforms ?? []}
-      onClick={openIntegration}
-      action={(
+      onClick={canEnable ? openIntegration : undefined}
+      action={canEnable && (
         <span onClick={event => event.stopPropagation()}>
           <Button size="sm" onClick={openIntegration}>
             {t('Enable integration')}
           </Button>
         </span>
       )}
-      caption={contract.catalog_connector_title
-        ? t('Requires the {integration} integration', { integration: contract.catalog_connector_title })
-        : t('Provided by an integration')}
+      caption={integrationCaption}
     />
   );
 };
