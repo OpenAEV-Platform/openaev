@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_PREFIX;
+import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -8,8 +9,8 @@ import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.service.platform.groups.PlatformGroupService;
 import io.openaev.sso.GroupMapping;
 import jakarta.annotation.Nonnull;
 import jakarta.validation.constraints.NotBlank;
@@ -34,7 +35,8 @@ import org.springframework.stereotype.Service;
 public class UserMappingService {
   private static final ObjectMapper mapper = new ObjectMapper();
 
-  private final GroupRepository groupRepository;
+  private final PlatformGroupService platformGroupService;
+  private final TenantGroupService tenantGroupService;
   private final TenantRepository tenantRepository;
   private final Environment env;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
@@ -55,50 +57,19 @@ public class UserMappingService {
     boolean groupsChanged = false;
 
     for (GroupMapping mapping : groupMappings) {
-      String idpGroup = mapping.getIdpGroup();
-      String userGroup = mapping.getUserGroup();
-      boolean autoCreate = mapping.isAutoCreate();
-      if (groupsFromToken.contains(idpGroup)) {
-        Optional<Group> groupOptional = groupRepository.findByName(userGroup);
-        if (groupOptional.isPresent()) {
-          List<Group> userGroups = user.getUnscopedGroups();
-          boolean alreadyAssigned =
-              userGroups.stream()
-                  .anyMatch(userG -> userG.getName().equals(groupOptional.get().getName()));
-          if (!alreadyAssigned) {
-            userGroups.add(groupOptional.get());
-            user.setGroups(userGroups);
-            groupsChanged = true;
-          }
-        } else {
-          if (autoCreate) {
-            Group newGroup = new Group();
-            newGroup.setName(userGroup);
-            groupRepository.save(newGroup);
-            List<Group> userGroups = user.getUnscopedGroups();
-            userGroups.add(newGroup);
-            user.setGroups(userGroups);
-            groupsChanged = true;
-          } else {
-            log.error(
-                "Group '{}' not found in database and autoCreate is disabled for mapping '{}'",
-                userGroup,
-                idpGroup);
-          }
+      String tenantId = mapping.getTenantId();
+      Tenant tenant = null;
+      if (hasText(tenantId)) {
+        tenant = tenantRepository.findById(tenantId).orElse(null);
+        if (tenant == null) {
+          log.warn("Group mapping tenant ID '{}' configured but not found in database", tenantId);
+          continue;
         }
-        attachTenantFromGroupMapping(mapping, user);
       }
-
-      // If the user no longer has this group in the token but still has it assigned,
-      // remove it — the user was removed from the group in the identity provider
-      if (!groupsFromToken.contains(idpGroup)
-          && user.getUnscopedGroups().stream()
-              .anyMatch(groupOfUser -> groupOfUser.getName().equals(mapping.getUserGroup()))) {
-        List<Group> userGroups = user.getUnscopedGroups();
-        userGroups.removeIf(group -> group.getName().equals(mapping.getUserGroup()));
-        user.setGroups(userGroups);
-        groupsChanged = true;
-      }
+      groupsChanged |=
+          groupsFromToken.contains(mapping.getIdpGroup())
+              ? grantGroup(user, mapping, tenant)
+              : revokeGroup(user, mapping.getUserGroup(), tenant);
     }
 
     if (groupsChanged) {
@@ -129,25 +100,60 @@ public class UserMappingService {
     }
   }
 
-  /**
-   * Attaches the user to the tenant configured in the group mapping, if any. Skips if tenantId is
-   * not set, the user is already attached, or the tenant is not found.
-   */
-  private void attachTenantFromGroupMapping(GroupMapping mapping, User user) {
-    String tenantId = mapping.getTenantId();
-    if (tenantId == null || tenantId.isBlank()) {
-      return;
+  private boolean grantGroup(User user, GroupMapping mapping, Tenant tenant) {
+    if (tenant != null) {
+      attachTenant(user, tenant);
     }
-    boolean alreadyAttached = user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId));
-    if (alreadyAttached) {
-      return;
+    List<Group> userGroups = user.getUnscopedGroups();
+    if (userGroups.stream().anyMatch(g -> isMappedGroup(g, mapping.getUserGroup(), tenant))) {
+      return false;
     }
-    if (!tenantRepository.existsById(tenantId)) {
-      log.warn("Group mapping tenant ID '{}' configured but not found in database", tenantId);
-      return;
+    Optional<Group> group = findOrCreateGroup(mapping, tenant);
+    group.ifPresent(userGroups::add);
+    return group.isPresent();
+  }
+
+  /** The user left the group in the identity provider. */
+  private static boolean revokeGroup(User user, String userGroup, Tenant tenant) {
+    return user.getUnscopedGroups().removeIf(g -> isMappedGroup(g, userGroup, tenant));
+  }
+
+  /** A mapping with a tenant targets a group of that tenant, otherwise a platform group. */
+  private static boolean isMappedGroup(Group group, String name, Tenant tenant) {
+    if (!group.getName().equals(name)) {
+      return false;
     }
-    Tenant tenant = tenantRepository.getReferenceById(tenantId);
-    user.getTenants().add(tenant);
+    return tenant == null
+        ? group.getTenant() == null
+        : group.getTenant() != null && tenant.getId().equals(group.getTenant().getId());
+  }
+
+  private Optional<Group> findOrCreateGroup(GroupMapping mapping, Tenant tenant) {
+    String userGroup = mapping.getUserGroup();
+    Optional<Group> existing =
+        tenant == null
+            ? platformGroupService.findByName(userGroup)
+            : tenantGroupService.findByName(userGroup, tenant.getId());
+    if (existing.isPresent()) {
+      return existing;
+    }
+    if (!mapping.isAutoCreate()) {
+      log.error(
+          "Group '{}' not found in database and autoCreate is disabled for mapping '{}'",
+          userGroup,
+          mapping.getIdpGroup());
+      return Optional.empty();
+    }
+    return Optional.of(
+        tenant == null
+            ? platformGroupService.createPlatformGroup(userGroup, null, false)
+            : tenantGroupService.createGroup(userGroup, tenant.getId()));
+  }
+
+  private static void attachTenant(User user, Tenant tenant) {
+    if (user.getTenants().stream().noneMatch(t -> t.getId().equals(tenant.getId()))) {
+      user.getTenants().add(tenant);
+    }
   }
 
   /**
