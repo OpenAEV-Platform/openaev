@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -123,8 +124,20 @@ public class PermissionService {
    * @param decision a check of this service, such as {@link #hasCapabilityPermission}
    */
   public boolean holdsInTenant(@NotNull final String tenantId, final BooleanSupplier decision) {
+    return inTenant(tenantId, decision::getAsBoolean);
+  }
+
+  /**
+   * Runs {@code work} with the caller's rights read in {@code tenantId}, as {@link #holdsInTenant}
+   * reads them for a single decision. For a handler that decides several rows of the same tenant:
+   * the tenant is entered once for the whole group instead of once per row.
+   *
+   * @param tenantId the tenant of the rows the decisions gate
+   * @param work the decisions, and whatever they produce
+   */
+  public <T> T inTenant(@NotNull final String tenantId, final Supplier<T> work) {
     Objects.requireNonNull(tenantId, "tenantId must not be null");
-    return ambientTenantBridge.callInTenant(tenantId, decision::getAsBoolean);
+    return ambientTenantBridge.callInTenant(tenantId, work);
   }
 
   /**

@@ -341,6 +341,39 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
           .andExpect(jsonPath(pickerPath(simulationId)).exists());
     }
 
+    @Test
+    @DisplayName("given the right only outside B should still list the default tenant's simulation")
+    void given_rightOnlyOutsideB_should_listDefaultTenantSimulation() throws Exception {
+      // -- ARRANGE --
+      memberOfDefaultTenant();
+      String ofDefault = seedExecution(Tenant.DEFAULT_TENANT_UUID);
+      String ofB = seedExecution(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(withoutSelector(get(ATTACK_PATH_URI + "/simulations")))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(pickerPath(ofDefault)).exists())
+          .andExpect(jsonPath(pickerPath(ofB)).doesNotExist());
+    }
+
+    @Test
+    @DisplayName("given the right in both tenants should list both simulations")
+    void given_rightInBothTenants_should_listBothSimulations() throws Exception {
+      // -- ARRANGE --
+      memberOfDefaultTenant();
+      grantInB(Capability.ACCESS_ASSESSMENT);
+      String ofDefault = seedExecution(Tenant.DEFAULT_TENANT_UUID);
+      String ofB = seedExecution(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(withoutSelector(get(ATTACK_PATH_URI + "/simulations")))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(pickerPath(ofDefault)).exists())
+          .andExpect(jsonPath(pickerPath(ofB)).exists())
+          // The tenant a row is decided in is a read-side key, never an API field.
+          .andExpect(jsonPath("$..tenantId").doesNotExist());
+    }
+
     private String graphUri() {
       return ATTACK_PATH_URI + "/simulations/{simulationId}/graph";
     }
@@ -489,20 +522,33 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
   }
 
   /**
-   * The non-prefixed route selecting B. The ambient tenant is cleared first: fixtures leave one on
-   * the test thread, and the request must see production's fallback to the default tenant.
+   * The non-prefixed route with no selector: the scope is the caller's whole membership, so the
+   * rows come from the default tenant and from B at once. The ambient tenant is cleared first:
+   * fixtures leave one on the test thread, and the request must see production's fallback to the
+   * default tenant.
    */
-  private MockHttpServletRequestBuilder inB(MockHttpServletRequestBuilder request) {
+  private MockHttpServletRequestBuilder withoutSelector(MockHttpServletRequestBuilder request) {
     TenantContext.clearCurrentTenant();
     assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
-    return request
-        .header(TENANT_IDS_HEADER, tenantB)
-        .contentType(MediaType.APPLICATION_JSON)
-        .with(csrf());
+    return request.contentType(MediaType.APPLICATION_JSON).with(csrf());
+  }
+
+  /** The same route selecting B, so the scope names B alone while the ambient tenant stays out. */
+  private MockHttpServletRequestBuilder inB(MockHttpServletRequestBuilder request) {
+    return withoutSelector(request).header(TENANT_IDS_HEADER, tenantB);
   }
 
   private void grantInB(Capability... capabilities) {
     tenantHelper.grantCapabilitiesInTenant(tenantB, Set.of(capabilities));
+  }
+
+  /**
+   * Membership of the default tenant, which {@code @WithMockUser} does not give. Without it the
+   * scope of a request with no selector is B alone, and the default tenant's rows are never read.
+   * The capabilities stay the ones {@code @WithMockUser} grants: membership is not a right.
+   */
+  private void memberOfDefaultTenant() {
+    tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
   }
 
   private String defaultSearch() {
