@@ -250,11 +250,10 @@ public class ExerciseService {
 
   /**
    * Loads an exercise by primary key and keeps it only when its tenant lies in the request's tenant
-   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
-   * the default one on the non-prefixed route: a member reaches its own exercise in any tenant of
-   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
-   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
-   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   * scope. For the callers that already loaded by primary key, so that scoping them refuses only
+   * what lies outside the scope. Transactional with the {@link TxCtx}, so the lookup carries the
+   * request scope even from a caller that opens no transaction of its own: without a transaction
+   * the statement inspector has no scope to read and the load fails closed.
    */
   @Transactional(readOnly = true)
   public Optional<Exercise> findByIdInScope(
@@ -292,10 +291,9 @@ public class ExerciseService {
   }
 
   /**
-   * Reads the details of a simulation found inside the request's tenant scope. The native read
-   * itself keys on the v1 ambient tenant, the default one on the non-prefixed route, so the scope
-   * is checked first. The detail also names the simulation's workflow, read in the simulation's own
-   * tenant once access is granted (WorkflowOwnerScope).
+   * Reads the details of a simulation found inside the request's tenant scope. The native read is
+   * rewritten by the statement inspector, so it runs in the simulation's own tenant, which is also
+   * the tenant of the workflow the detail names.
    */
   public RawSimulationIndexing rawSimulation(
       @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
