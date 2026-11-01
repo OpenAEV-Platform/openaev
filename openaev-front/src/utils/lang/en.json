@@ -4096,6 +4096,7 @@
   "This group will have planner permission on new payloads.": "This group will have planner permission on new payloads.",
   "This group will have planner permission on new scenarios.": "This group will have planner permission on new scenarios.",
   "This group will have planner permission on new simulations.": "This group will have planner permission on new simulations.",
+  "This inject has no target. Its results are in the Execution details tab.": "This inject has no target. Its results are in the Execution details tab.",
   "This inject has not been executed yet. It is saved as a draft and can be edited before being queued for execution.": "This inject has not been executed yet. It is saved as a draft and can be edited before being queued for execution.",
   "This inject is disabled and will not be executed.": "This inject is disabled and will not be executed.",
   "This installation requires only local standard privileges.": "This installation requires only local standard privileges.",

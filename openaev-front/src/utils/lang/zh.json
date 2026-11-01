@@ -4096,6 +4096,7 @@
   "This group will have planner permission on new payloads.": "该组在新的有效载荷上有计划者权限。",
   "This group will have planner permission on new scenarios.": "该组将拥有新方案的计划者权限。",
   "This group will have planner permission on new simulations.": "这个组有新模拟的计划权限.",
+  "This inject has no target. Its results are in the Execution details tab.": "此注入没有目标。其结果位于“执行详情”选项卡中。",
   "This inject has not been executed yet. It is saved as a draft and can be edited before being queued for execution.": "此注入尚未执行。它已保存为草稿，可在排队执行前进行编辑。",
   "This inject is disabled and will not be executed.": "此注入已禁用，将不会被执行。",
   "This installation requires only local standard privileges.": "此安装仅需要本地标准权限。",

@@ -11,7 +11,7 @@ import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type InjectTarget, type SearchPaginationInput } from '../../../../utils/api-types';
-import { isAgentless } from '../../../../utils/target/TargetUtils';
+import { hasNoTarget, isAgentless } from '../../../../utils/target/TargetUtils';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 import PaginatedTargetTab from './PaginatedTargetTab';
 import TargetResultsDetail from './target_result/TargetResultsDetail';
@@ -326,6 +326,19 @@ const AtomicTesting = () => {
 
   if (!injectResultOverviewOutput) {
     return <Loader variant="inElement" />;
+  }
+
+  // Inject types with no target (no team, asset, asset group, agent, player or AI target) have
+  // nothing to show per target: one explanation replaces the two empty panes (#3842).
+  if (hasNoTarget(allTargetsChecked, tabConfig.length)) {
+    return (
+      <Box style={{ marginBottom: theme.spacing(3) }}>
+        <SectionLabel>{t('Targets')}</SectionLabel>
+        <Paper padding={16}>
+          <Empty message={t('This inject has no target. Its results are in the Execution details tab.')} />
+        </Paper>
+      </Box>
+    );
   }
 
   return (
