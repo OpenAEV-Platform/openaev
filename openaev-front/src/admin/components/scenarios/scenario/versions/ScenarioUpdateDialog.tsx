@@ -244,6 +244,25 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
               gap: 20,
             }}
             >
+              {/* Idea B: the size of the update first, then the details below. */}
+              <div style={section} data-testid="scenario-update-summary">
+                <Text variant="title-xs">{t('In this update')}</Text>
+                <div style={row}>
+                  <Chip label={t('Changes from Filigran: {count}', { count: String(taken.length) })} severity="info" />
+                  <Chip label={t('Your edits kept: {count}', { count: String(kept.length) })} />
+                  <Chip
+                    label={t('Conflicts to decide: {count}', { count: String(conflicts.length) })}
+                    severity={conflicts.length > 0 ? 'medium' : 'low'}
+                  />
+                  <Chip label={t('Injects added: {count}', { count: String(preview.elements.filter(element => element.change === 'ADDED').length) })} />
+                  <Chip label={t('Injects removed: {count}', { count: String(preview.elements.filter(element => element.change === 'REMOVED').length) })} />
+                </div>
+                <Text variant="content-caption">
+                  {conflicts.length > 0
+                    ? t('Only the conflicts need a choice; everything else is combined for you.')
+                    : t('Nothing to decide: apply it, or look at the details first.')}
+                </Text>
+              </div>
               <Alert severity="info" title={t('Your targets, teams, schedule and tags stay as they are.')} />
               {preview.revoked_payloads.length > 0 && (
                 <Alert
