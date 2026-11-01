@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Simulation and scenario by-id reads resolve the row inside the request's tenant scope, with the
- * production list of isolated tables ({@code exercises} and {@code scenarios} are not in it). On
+ * production list of isolated tables, which now carries {@code exercises} and {@code scenarios}. On
  * the tenant route the scope is the path tenant, so nothing changes there. On the non-prefixed
  * route the scope is the {@code X-Tenant-Ids} selector, or the caller's memberships when it names
  * none: a row outside that scope is not found by id.
@@ -172,8 +172,8 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
     @Test
     @DisplayName(
         "given a caller with no membership and no selector, a default tenant simulation and"
-            + " scenario stay reachable by id while the two tables keep the v1 filter")
-    void given_callerWithNoMembershipAndNoSelector_should_reachDefaultTenantRowsUntilIsolation()
+            + " scenario are not found by id")
+    void given_callerWithNoMembershipAndNoSelector_should_notReachDefaultTenantRows()
         throws Exception {
       // Arrange
       String simulationId = seedSimulation(DEFAULT_TENANT);
@@ -186,7 +186,7 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       int scenarioUpdate = updateScenario(route, scenarioId);
 
       // Assert
-      assertThat(new int[] {simulationUpdate, scenarioUpdate}).containsExactly(200, 200);
+      assertThat(new int[] {simulationUpdate, scenarioUpdate}).containsExactly(404, 404);
     }
 
     @Test
