@@ -43,7 +43,7 @@ import org.springframework.web.bind.annotation.*;
 public class PlayerApi extends RestBehavior {
 
   public static final String PLAYER_URI = "/api/players";
-  private static final String TENANT_PLAYER_URI = TENANT_PREFIX + "/players";
+  public static final String TENANT_PLAYER_URI = TENANT_PREFIX + "/players";
 
   @Resource private SessionManager sessionManager;
 
@@ -94,7 +94,7 @@ public class PlayerApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String userId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return injectSearchService.getPageOfInjectResultsForPlayer(userId, searchPaginationInput);
+    return injectSearchService.getPageOfInjectResultsForPlayer(ctx, userId, searchPaginationInput);
   }
 
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})

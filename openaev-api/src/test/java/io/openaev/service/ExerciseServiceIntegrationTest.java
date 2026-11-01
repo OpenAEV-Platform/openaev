@@ -5,20 +5,28 @@ import static io.openaev.utils.fixtures.ExerciseFixture.getExercise;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.repository.*;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.exercise.service.PauseExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
@@ -33,6 +41,7 @@ import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.LessonsCategoryFixture;
@@ -41,14 +50,17 @@ import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
+import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
@@ -71,6 +83,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private DocumentService documentService;
   @Autowired private InjectService injectService;
   @Autowired private UserService userService;
+  @Autowired private ObjectProvider<PermissionService> permissionServiceProvider;
   @Autowired private ScopeService scopeService;
   @Autowired private GrantService grantService;
   @Autowired private ExerciseTeamUserService exerciseTeamUserService;
@@ -119,53 +132,58 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
 
   @InjectMocks private ExerciseService exerciseService;
   @Autowired private StepService stepService;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private WorkflowEndService workflowEndService;
 
   @BeforeEach
   void setUp() {
-    exerciseService =
-        new ExerciseService(
-            enterpriseEditionService,
-            injectDuplicateService,
-            teamService,
-            variableService,
-            tagRuleService,
-            documentService,
-            injectService,
-            userService,
-            grantService,
-            exerciseTeamUserService,
-            scopeService,
-            exerciseMapper,
-            injectMapper,
-            resultUtils,
-            actionMetricCollector,
-            licenseCacheManager,
-            assetRepository,
-            assetGroupRepository,
-            injectExpectationRepository,
-            articleRepository,
-            exerciseRepository,
-            bulkDeleteExecutor,
-            pauseRepository,
-            teamRepository,
-            userRepository,
-            exerciseTeamUserRepository,
-            injectRepository,
-            lessonsCategoryRepository,
-            lessonsService,
-            urlAccessTokenService,
-            injectExpectationMapper,
-            scenarioRecurrenceService,
-            workflowService,
-            workflowEndService,
-            workflowPauseService,
-            pauseExerciseService,
-            fileService,
-            healthCheckUtils,
-            eventPublisher,
-            attackPathExecutionService,
-            autonomousRunRepository);
+    exerciseService = exerciseServiceReading(exerciseRepository);
+  }
+
+  private ExerciseService exerciseServiceReading(ExerciseRepository repository) {
+    return new ExerciseService(
+        enterpriseEditionService,
+        injectDuplicateService,
+        teamService,
+        variableService,
+        tagRuleService,
+        documentService,
+        injectService,
+        userService,
+        grantService,
+        exerciseTeamUserService,
+        scopeService,
+        exerciseMapper,
+        injectMapper,
+        resultUtils,
+        actionMetricCollector,
+        licenseCacheManager,
+        assetRepository,
+        assetGroupRepository,
+        injectExpectationRepository,
+        articleRepository,
+        repository,
+        bulkDeleteExecutor,
+        pauseRepository,
+        teamRepository,
+        userRepository,
+        exerciseTeamUserRepository,
+        injectRepository,
+        lessonsCategoryRepository,
+        lessonsService,
+        urlAccessTokenService,
+        injectExpectationMapper,
+        scenarioRecurrenceService,
+        workflowService,
+        workflowEndService,
+        workflowPauseService,
+        pauseExerciseService,
+        fileService,
+        healthCheckUtils,
+        eventPublisher,
+        attackPathExecutionService,
+        autonomousRunRepository,
+        permissionServiceProvider);
   }
 
   @AfterAll
@@ -300,5 +318,87 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     assertEquals(0, teams.size());
     Inject injectAssert = this.injectRepository.findById(INJECT_ID).orElseThrow();
     assertEquals(0, injectAssert.getTeams().size());
+  }
+
+  /**
+   * The repository returns simulations of the default tenant and of B together, as the list query
+   * does once {@code exercises} is activated. Until then its native predicate on the ambient tenant
+   * returns the rows of one tenant only, which is why the rows are stubbed here: through the real
+   * repository a decision taken in the ambient tenant would pass this test.
+   */
+  @Nested
+  @Transactional
+  @DisplayName("Simulation list decision")
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  class SimulationListDecision {
+
+    @AfterEach
+    void clearAmbientTenant() {
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @DisplayName(
+        "given simulations of two tenants and the access right only outside B should list every default simulation and B's granted ones")
+    void
+        given_simulationsOfTwoTenantsAndAccessRightOnlyOutsideB_should_listDefaultAndGrantedBSimulations()
+            throws Exception {
+      // -- ARRANGE --
+      tenantIsolationTestHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+      String tenantB =
+          tenantIsolationTestHelper
+              .createTenantWithCurrentUser("simulation-list-decision-b")
+              .getId();
+      TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+      RawExerciseSimple ofDefault =
+          rawSimulation("simulation-of-default", Tenant.DEFAULT_TENANT_UUID);
+      RawExerciseSimple ofB = rawSimulation("simulation-of-b", tenantB);
+      RawExerciseSimple grantedOfB = rawSimulation("granted-simulation-of-b", tenantB);
+      ExerciseRepository rowsOfBothTenants = mock(ExerciseRepository.class);
+      when(rowsOfBothTenants.rawAll()).thenReturn(List.of(ofDefault, ofB, grantedOfB));
+      when(rowsOfBothTenants.rawAllGranted(testUserHolder.get().getId()))
+          .thenReturn(List.of(grantedOfB));
+
+      // -- ACT --
+      List<String> listed =
+          exerciseServiceReading(rowsOfBothTenants)
+              .exercises(TxCtx.forTenants(Set.of(Tenant.DEFAULT_TENANT_UUID, tenantB)))
+              .stream()
+              .map(ExerciseSimple::getId)
+              .toList();
+
+      // -- ASSERT --
+      assertThat(listed)
+          .containsExactlyInAnyOrder("simulation-of-default", "granted-simulation-of-b");
+    }
+
+    @Test
+    @DisplayName("given a simulation should list it with its tenant")
+    void given_simulation_should_listItWithItsTenant() {
+      // -- ARRANGE --
+      TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+      String simulationId = exerciseRepository.saveAndFlush(getExercise()).getId();
+
+      // -- ACT --
+      List<RawExerciseSimple> listed = exerciseRepository.rawAll();
+      List<RawExerciseSimple> found = exerciseRepository.rawByExerciseIds(List.of(simulationId));
+
+      // -- ASSERT --
+      assertThat(listed)
+          .filteredOn(row -> simulationId.equals(row.getExercise_id()))
+          .extracting(RawExerciseSimple::getTenant_id)
+          .containsExactly(Tenant.DEFAULT_TENANT_UUID);
+      assertThat(found)
+          .extracting(RawExerciseSimple::getTenant_id)
+          .containsExactly(Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    private RawExerciseSimple rawSimulation(String id, String tenantId) {
+      RawExerciseSimple simulation = mock(RawExerciseSimple.class);
+      lenient().when(simulation.getExercise_id()).thenReturn(id);
+      lenient().when(simulation.getTenant_id()).thenReturn(tenantId);
+      lenient().when(simulation.getExercise_status()).thenReturn(ExerciseStatus.SCHEDULED.name());
+      return simulation;
+    }
   }
 }
