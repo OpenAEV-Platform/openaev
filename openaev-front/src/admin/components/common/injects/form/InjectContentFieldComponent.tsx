@@ -8,6 +8,7 @@ import {
   useWatch,
 } from 'react-hook-form';
 
+import DocumentField from '../../../../../components/fields/DocumentField';
 import RichTextField from '../../../../../components/fields/RichTextField';
 import SelectFieldController, { type Item } from '../../../../../components/fields/SelectFieldController';
 import SeparatorFieldController from '../../../../../components/fields/SeparatorFieldController';
@@ -25,6 +26,24 @@ interface Props {
   placeholder?: string;
 }
 
+export type InjectFieldType = EnhancedContractElement['type'] | 'richText' | 'document';
+
+/**
+ * The widget an inject content field renders as. A payload argument of type `document` reaches the
+ * contract as a plain text field that only keeps the type in `argumentType`: it is rendered as the
+ * document picker the payload form uses for its default value, storing the document id the
+ * executor resolves (#6973).
+ */
+export const resolveInjectFieldType = (field: Pick<EnhancedContractElement, 'type' | 'richText' | 'argumentType'>): InjectFieldType => {
+  if (field.argumentType === 'document' && field.type === 'text') {
+    return 'document';
+  }
+  if (field.type === 'textarea' && field.richText) {
+    return 'richText';
+  }
+  return field.type;
+};
+
 const InjectContentFieldComponent = ({
   field,
   readOnly = false,
@@ -40,10 +59,7 @@ const InjectContentFieldComponent = ({
     name: field.key,
   });
   const [informationToDisplay, setInformationToDisplay] = useState<string>('');
-  let fieldType: EnhancedContractElement['type'] | 'richText' = field.type;
-  if (field.type === 'textarea' && field.richText) {
-    fieldType = 'richText';
-  }
+  const fieldType = resolveInjectFieldType(field);
 
   useEffect(() => {
     const findInformation = (value: string) => (field.choices as ChoiceItem[]).find(c => c.value === value)?.information ?? '';
@@ -135,6 +151,22 @@ const InjectContentFieldComponent = ({
               errorLabel={error?.message}
             />
           </>
+        );
+      case 'document':
+        return (
+          <Controller
+            name={field.key}
+            control={control}
+            render={({ field: { onChange, value }, fieldState: { error: fieldError } }) => (
+              <DocumentField
+                label={t(label)}
+                fieldValue={(value as string) ?? ''}
+                fieldOnChange={onChange}
+                error={fieldError ?? error}
+                style={{}}
+              />
+            )}
+          />
         );
       case 'ai-target':
         return (
