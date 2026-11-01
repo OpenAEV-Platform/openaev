@@ -10,6 +10,8 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.comparator.InjectExecutionComparator;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -31,6 +33,7 @@ import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.service.BulkInjectService;
 import io.openaev.service.InjectSearchService;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -76,6 +79,8 @@ public class SimulationInjectApi extends RestBehavior {
   private final InjectMapper injectMapper;
   private final InjectUtils injectUtils;
   private final BulkInjectService bulkInjectService;
+  private final TenantWriteScopeResolver writeScopeResolver;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   // -- READ --
 
@@ -308,6 +313,21 @@ public class SimulationInjectApi extends RestBehavior {
         this.exerciseService
             .findByIdInScope(ctx, exerciseId)
             .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+    // The execution belongs to the simulation: its tenant decides where the inject and the agent
+    // jobs of the dispatch are written, and which tenant's injector the contract resolves to. The
+    // simulation is resolved by primary key inside the request's read scope, which holds several
+    // tenants on the non-prefixed route while the ambient tenant there is the default one. The
+    // write tenant is checked against that same read scope, so a tenant the lookup admitted is
+    // never refused by the write and a tenant outside it is never written to.
+    String writeTenant =
+        this.writeScopeResolver.tenantForWrite(
+            TxCtx.forTenants(TxCtxScopeUtils.requestReadScope(ctx)), exercise.getTenant().getId());
+    return this.ambientTenantBridge.callInTenant(
+        writeTenant, () -> executeInjectInTenant(exercise, input, file));
+  }
+
+  private InjectStatus executeInjectInTenant(
+      Exercise exercise, DirectInjectInput input, Optional<MultipartFile> file) {
     InjectorContract injectorContract =
         this.injectorContractRepository
             .findById(input.getInjectorContract())
