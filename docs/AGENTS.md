@@ -140,6 +140,21 @@ End pages with a `## What's next?` section containing a bullet list of links. Us
 3. Add cross-links from related pages.
 4. Follow the page structure matching the page type (feature, reference, or index).
 
+## Documenting a preview feature
+
+Hide the documentation of a feature behind its backend `PreviewFeature` constant:
+
+```markdown
+{% if feature_visible("CREDENTIAL_ASSET") %}
+...
+{% endif %}
+```
+
+- The content stays hidden while the constant exists in `PreviewFeature.java`, and shows once the backend removes it.
+- Inside a table or a list, use `{%- if ... %}` and `{%- endif %}` so the hidden lines do not split it.
+- Preview the hidden content locally with `DOCS_FEATURE_FLAGS=CREDENTIAL_ASSET mkdocs serve` (`*` shows all of them).
+- When the backend removes the constant, the strict build fails until you remove the `feature_visible()` blocks.
+
 
 <!-- filigran-conventions:start -->
 ## Commit, PR & issue conventions
