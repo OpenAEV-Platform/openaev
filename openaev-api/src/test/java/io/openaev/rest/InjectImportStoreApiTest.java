@@ -33,8 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The xls upload of the inject import is checked on the scenario or simulation the injects go into,
- * not on the mapper (#5347). A user who can edit that scenario or simulation can upload without
- * the tenant settings capability; a user who can only read it cannot. The service is mocked: these
+ * not on the mapper (#5347). A user who can edit that scenario or simulation can upload without the
+ * tenant settings capability; a user who can only read it cannot. The service is mocked: these
  * tests only cover who may call the endpoint.
  */
 @TestInstance(PER_CLASS)
