@@ -1,16 +1,20 @@
-import { DoNotDisturbOnOutlined, HourglassEmptyOutlined } from '@mui/icons-material';
+import { DoNotDisturbOnOutlined, GetAppOutlined, HourglassEmptyOutlined, LayersOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import * as qs from 'qs';
-import { type FunctionComponent, useMemo } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
+import { fetchAvailableActions } from '../../../actions/catalog/injector-contract-catalog-actions';
+import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import { HeroStat, HeroStats } from '../../../components/common/detail/EntityDetailCommon';
 import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../components/i18n';
-import { useAbility } from '../../../utils/permissions/permissionsContext';
+import { type ThreatArsenalAction } from '../../../utils/api-types';
+import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import useApprovalDesignVariant from './approval/useApprovalDesignVariant';
+import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import { THREAT_ARSENAL_MY_CHANGES_PATH, THREAT_ARSENAL_TO_REVIEW_PATH } from './threatArsenalDeepLink';
 import ThreatArsenalTabs from './ThreatArsenalTabs';
 import useThreatArsenalFacetCounts from './useThreatArsenalFacetCounts';
@@ -22,7 +26,12 @@ interface StatsProps {
   onFilterApproval?: (status: ApprovalTileStatus) => void;
 }
 
-interface Props { active: 'to-review' | 'my-changes' }
+interface HeroProps extends StatsProps {
+  /** After Create: e.g. the Active list adds the new action on top. */
+  onCreate?: (action: ThreatArsenalAction) => void;
+}
+
+interface Props extends HeroProps { active: 'to-review' | 'my-changes' }
 
 // The list page reads its filters from the `query` parameter it writes itself (key "threat-arsenal"),
 // so a tile on another page opens the list already filtered.
@@ -56,10 +65,11 @@ const tileButtonStyle = {
 } as const;
 
 /**
- * Approval tiles of the Threat Arsenal Hero: the work waiting for approval, each a link (one click
- * from anywhere in the arsenal) or, on the list itself, a filter of that list.
+ * Tiles of the Threat Arsenal Hero, the same on every tab: what is active, what the catalogue still
+ * offers, and the work waiting for approval. Each is a link to the tab (and filter) it counts; on the
+ * Active list the approval tiles filter that list in place.
  */
-export const ThreatArsenalApprovalStats: FunctionComponent<StatsProps> = ({ onFilterApproval }) => {
+export const ThreatArsenalHeroStats: FunctionComponent<StatsProps> = ({ onFilterApproval }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const ability = useAbility();
@@ -73,9 +83,21 @@ export const ThreatArsenalApprovalStats: FunctionComponent<StatsProps> = ({ onFi
   const facetCounts = useThreatArsenalFacetCounts(allActions);
   const pendingCount = facetCounts?.approvals?.PENDING ?? 0;
   const rejectedCount = facetCounts?.approvals?.REJECTED ?? 0;
+  const [activeCount, setActiveCount] = useState(0);
+  const [notInstalledCount, setNotInstalledCount] = useState(0);
+  useEffect(() => {
+    searchThreatArsenalActions(buildSearchPagination({ size: 1 }))
+      .then(({ data }: { data: { totalElements?: number } }) => setActiveCount(data?.totalElements ?? 0))
+      .catch(() => setActiveCount(0));
+    fetchAvailableActions()
+      .then(items => setNotInstalledCount(items.length))
+      .catch(() => setNotInstalledCount(0));
+  }, []);
 
   return (
     <HeroStats>
+      <HeroStat icon={LayersOutlined} label={t('Active')} value={activeCount} to="/admin/threat-arsenal" />
+      <HeroStat icon={GetAppOutlined} label={t('Not installed')} value={notInstalledCount} to="/admin/threat-arsenal/available" />
       {[
         {
           status: 'PENDING' as const,
@@ -124,11 +146,28 @@ export const ThreatArsenalApprovalStats: FunctionComponent<StatsProps> = ({ onFi
 };
 
 /**
- * Header of the approval pages of the Threat Arsenal (To review, My changes), on the design system
- * Hero shared with the Scenario Factory marketplaces, above the one Threat Arsenal tab bar.
+ * The Threat Arsenal Hero, the same on every tab (design system Hero: identity and the one section
+ * action in the header, the summary tiles in the body). What acts on one tab's list (export, import,
+ * install all) sits in that tab's toolbar instead, beside the list.
  */
-const ThreatArsenalPageHeader: FunctionComponent<Props> = ({ active }) => {
+export const ThreatArsenalHero: FunctionComponent<HeroProps> = ({ onFilterApproval, onCreate }) => {
   const { t } = useFormatter();
+  return (
+    <MarketplaceHero
+      title={t('Threat Arsenal')}
+      subtitle={t('Browse, install and version the actions your simulations run.')}
+      bottomSlot={<ThreatArsenalHeroStats onFilterApproval={onFilterApproval} />}
+      rightSlot={(
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
+          <CreateThreatArsenalAction onCreate={onCreate} />
+        </Can>
+      )}
+    />
+  );
+};
+
+/** Header of the approval pages of the Threat Arsenal (To review, My changes): the Hero, then the tabs. */
+const ThreatArsenalPageHeader: FunctionComponent<Props> = ({ active, onCreate }) => {
   const theme = useTheme();
 
   return (
@@ -138,11 +177,7 @@ const ThreatArsenalPageHeader: FunctionComponent<Props> = ({ active }) => {
       gap: theme.spacing(2),
     }}
     >
-      <MarketplaceHero
-        title={t('Threat Arsenal')}
-        subtitle={t('Browse, install and version the actions your simulations run.')}
-        bottomSlot={<ThreatArsenalApprovalStats />}
-      />
+      <ThreatArsenalHero onCreate={onCreate} />
       <ThreatArsenalTabs active={active} />
     </div>
   );

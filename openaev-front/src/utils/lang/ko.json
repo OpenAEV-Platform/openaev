@@ -595,6 +595,7 @@
   "Auto-approved: {name} holds Approve content": "자동 승인: {name} 님은 \"콘텐츠 승인\" 권한이 있습니다",
   "Auto-generated from the objective if left empty": "비워 두면 목표에서 자동으로 생성됩니다",
   "Auto-generated if left empty": "비워 두면 자동으로 생성됩니다",
+  "Auto-install": "자동 설치",
   "Auto-organize": "자동 구성",
   "Automatic": "자동",
   "Automatic logout in": "자동 로그아웃 시간",

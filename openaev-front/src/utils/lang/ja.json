@@ -595,6 +595,7 @@
   "Auto-approved: {name} holds Approve content": "自動承認：{name} は「コンテンツを承認」を持っています",
   "Auto-generated from the objective if left empty": "空欄の場合は目標から自動生成されます",
   "Auto-generated if left empty": "空欄の場合は自動生成されます",
+  "Auto-install": "自動インストール",
   "Auto-organize": "自動整理",
   "Automatic": "自動",
   "Automatic logout in": "自動ログアウト時間",

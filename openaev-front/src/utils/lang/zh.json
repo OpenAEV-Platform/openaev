@@ -595,6 +595,7 @@
   "Auto-approved: {name} holds Approve content": "自动批准：{name} 拥有“批准内容”权限",
   "Auto-generated from the objective if left empty": "留空则根据目标自动生成",
   "Auto-generated if left empty": "留空则自动生成",
+  "Auto-install": "自动安装",
   "Auto-organize": "自动组织",
   "Automatic": "自动化",
   "Automatic logout in": "自动注销时间",

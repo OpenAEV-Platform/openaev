@@ -595,6 +595,7 @@
   "Auto-approved: {name} holds Approve content": "Утверждено автоматически: у {name} есть «Утверждать контент»",
   "Auto-generated from the objective if left empty": "Генерируется автоматически из цели, если оставить пустым",
   "Auto-generated if left empty": "Генерируется автоматически, если оставить пустым",
+  "Auto-install": "Автоустановка",
   "Auto-organize": "Автоматическая организация",
   "Automatic": "Автоматический",
   "Automatic logout in": "Автоматический выход из системы через",

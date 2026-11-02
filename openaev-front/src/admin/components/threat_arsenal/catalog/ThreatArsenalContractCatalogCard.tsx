@@ -13,6 +13,7 @@ import { useHelper } from '../../../../store';
 import { type Domain } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { CARD_INFO_ICONS } from '../threatArsenalCardInfo';
 
 interface Props { contract: CatalogInjectorContract }
 
@@ -60,13 +61,18 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ contract }
       subtitle={contract.catalog_connector_title ? `${t('by')} ${contract.catalog_connector_title}` : undefined}
       height="100%"
       info={[
-        {
-          label: t('Provider'),
-          value: integration ?? '–',
-        },
+        ...(integration
+          ? [{
+              label: t('Provider'),
+              value: integration,
+              icon: CARD_INFO_ICONS.provider,
+              truncate: true,
+            }]
+          : []),
         {
           label: t('Source'),
           value: t('Integration'),
+          icon: CARD_INFO_ICONS.source,
         },
       ]}
       chips={null}

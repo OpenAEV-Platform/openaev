@@ -397,7 +397,7 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
         }]}
       />
       <MarketplaceBrowser
-        hero={<ThreatArsenalPageHeader active={mode} />}
+        hero={<ThreatArsenalPageHeader active={mode} onCreate={() => waiting.reload()} />}
         tabs={viewTabs}
         sidebar={(
           <ReviewSlicePanel

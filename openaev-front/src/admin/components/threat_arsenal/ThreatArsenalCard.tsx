@@ -19,6 +19,7 @@ import { approvalStatusSeverity, displayedApprovalStatus } from './approval/appr
 import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalCardBanner from './ThreatArsenalCardBanner';
+import { CARD_INFO_ICONS } from './threatArsenalCardInfo';
 import { actionDomains } from './threatArsenalDomainSections';
 import { getStatusHint, getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
 
@@ -84,7 +85,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   primaryAction,
   review,
 }) => {
-  const { t, tPick, nsd } = useFormatter();
+  const { t, tPick, fd, fldt } = useFormatter();
   const theme = useTheme();
   const version = action.action_payload?.payload_version;
   const platformVersion = usePlatformVersion();
@@ -195,36 +196,46 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           <TooltipContent>{techniques.join(', ')}</TooltipContent>
         </Tooltip>
       )}
-      // Always the same three columns, so Version, Source and Updated line up across the grid.
-      info={review
+      // One meta row (icon + value, label on hover), as in the detail heroes; facts with no value are left out.
+      info={(review
         ? [
             {
               label: t('Version'),
               value: version ? `v${version}` : '–',
+              icon: CARD_INFO_ICONS.version,
             },
             {
               label: t('Submitted by'),
               value: review.submittedBy ?? action.action_author_name ?? '–',
+              icon: CARD_INFO_ICONS.person,
+              truncate: true,
             },
             {
               label: t('Submitted'),
-              value: nsd(action.injector_contract_updated_at),
+              value: fd(action.injector_contract_updated_at),
+              hint: fldt(action.injector_contract_updated_at),
+              icon: CARD_INFO_ICONS.date,
             },
           ]
         : [
             {
               label: t('Version'),
               value: (version && `v${version}`) || (builtIn && platformVersion ? `v${platformVersion}` : '–'),
+              icon: CARD_INFO_ICONS.version,
             },
             {
               label: t('Source'),
               value: builtIn ? t('Built-in') : (origin && t(PAYLOAD_ORIGIN_LABELS[origin])) || '–',
+              icon: CARD_INFO_ICONS.source,
+              truncate: true,
             },
             {
               label: t('Updated'),
-              value: nsd(action.injector_contract_updated_at),
+              value: fd(action.injector_contract_updated_at),
+              hint: fldt(action.injector_contract_updated_at),
+              icon: CARD_INFO_ICONS.date,
             },
-          ]}
+          ]).filter(item => item.value !== '–')}
       chips={null}
       // Approval just above the strip, bottom left, only when it needs attention: the strip keeps
       // the DS layout (one status and the platforms), so nothing truncates.

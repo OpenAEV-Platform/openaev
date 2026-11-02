@@ -10,6 +10,7 @@ import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
 import { type CatalogItemOutput, type Domain } from '../../../../utils/api-types';
+import { CARD_INFO_ICONS } from '../threatArsenalCardInfo';
 import { getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from '../threatArsenalStatusUtils';
 import { INSTALLED_PATH, installedState } from './notifyPayloadInstalled';
 
@@ -23,7 +24,7 @@ interface Props {
 }
 
 const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ item, installed, installing, canInstall, onInstall, onOpen }) => {
-  const { t, nsd } = useFormatter();
+  const { t, fd, fldt } = useFormatter();
   const theme = useTheme();
   const domainName = item.catalog_item_category;
   const domain: Domain | undefined = useHelper(
@@ -51,15 +52,22 @@ const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ item, installed, i
         {
           label: t('Version'),
           value: `v${item.catalog_item_version}`,
+          icon: CARD_INFO_ICONS.version,
         },
         {
           label: t('Source'),
           value: t('Filigran'),
+          icon: CARD_INFO_ICONS.source,
+          truncate: true,
         },
-        {
-          label: t('Published'),
-          value: item.catalog_item_published_at ? nsd(item.catalog_item_published_at) : '–',
-        },
+        ...(item.catalog_item_published_at
+          ? [{
+              label: t('Published'),
+              value: fd(item.catalog_item_published_at),
+              hint: fldt(item.catalog_item_published_at),
+              icon: CARD_INFO_ICONS.date,
+            }]
+          : []),
       ]}
       chips={null}
       platforms={[]}
