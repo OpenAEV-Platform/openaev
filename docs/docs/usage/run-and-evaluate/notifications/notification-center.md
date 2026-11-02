@@ -45,7 +45,7 @@ Each row in the list shows:
    Scenario whose score degraded, or the Asset that was created. A Notification is not navigable when its
    Operation is **Deletion** (the entity no longer exists) or when its Resource type has no dedicated detail page
    (Payload, Vulnerability, Document, Challenge). A payload approval Notification opens the Action's drawer in the
-   [Threat Arsenal](../build/threat-arsenals/threat-arsenals.md).
+   [Threat Arsenal](../../build/threat-arsenals/threat-arsenals.md).
 3. Click a **Digest** Notification's row to open a dialog listing every composed Trigger group and the events it
    matched. Any event pointing to an entity that still exists is itself clickable, and closes the dialog before
    navigating.
