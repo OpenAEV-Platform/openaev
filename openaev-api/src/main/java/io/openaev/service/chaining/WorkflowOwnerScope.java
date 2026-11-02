@@ -29,6 +29,9 @@ import org.springframework.stereotype.Component;
  * that reference it are swept in the contract's own tenant, the tenant whose copy of the contract
  * was deleted.
  *
+ * <p>The bridge that tells the engine an inject or an expectation changed names no owner entity at
+ * all: it passes the tenant read from the changed row itself, through {@link #runInOwnerTenant}.
+ *
  * <p>The work runs on the request's own transaction (see {@link
  * TenantScopedTransaction#executeOnCurrentTransaction}, including what it flushes when the work
  * throws), so it keeps the transaction's locks, visibility and outcome, and the request's scope is
@@ -64,6 +67,23 @@ public class WorkflowOwnerScope {
   /** Runs {@code work} in the tenant of {@code scenario}. */
   public <E extends Exception> void run(Scenario scenario, ScopedAction<E> work) throws E {
     call(scenario, asWork(work));
+  }
+
+  /**
+   * Runs {@code work} in {@code ownerTenantId}, for an owner reached through a row that carries its
+   * tenant rather than through the owner entity: the inject or the expectation whose change is
+   * being published names no simulation the caller loaded, and its own {@code tenant_id} is the
+   * tenant of the simulation, atomic testing or autonomous run that owns it.
+   *
+   * <p>The same contract as the overloads above: the tenant is the row's own, read from the row and
+   * never from the request, and the caller must already have been granted the change it is
+   * publishing. The allowlist pinned by the architecture test is what keeps that true.
+   */
+  public <E extends Exception> void runInOwnerTenant(String ownerTenantId, ScopedAction<E> work)
+      throws E {
+    tenantTx.executeOnCurrentTransaction(
+        TxCtx.forTenant(Objects.requireNonNull(ownerTenantId, "owner without a tenant")),
+        asWork(work));
   }
 
   /** Work with no result, allowed to throw a checked exception. */

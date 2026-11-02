@@ -23,6 +23,7 @@ import io.openaev.scheduler.jobs.QueueChainingJob;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.WorkflowOwnerScope;
+import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.xtmhub.XtmHubService;
@@ -124,7 +125,10 @@ final class WorkflowOwnerScopeCallerRules {
           "the step sweep of a deleted contract passes the contract it deletes, loaded by"
               + " deleteInjectorContract(String) under the request's tenant filter, or by"
               + " deleteInjectorContractById on the request's tenant, after the DELETE access"
-              + " check");
+              + " check",
+          WorkflowUpdateEventPublisher.class,
+          "the update-event bridge passes the tenant of the inject or expectation that changed,"
+              + " read from its own row, after the change itself was granted and written");
 
   private WorkflowOwnerScopeCallerRules() {}
 

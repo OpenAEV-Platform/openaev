@@ -2,6 +2,9 @@ package io.openaev.service.chaining;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -14,9 +17,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectRepository;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -24,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,11 +49,53 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class WorkflowUpdateEventPublisherTest {
 
   private static final String TENANT_A = "tenant-a";
+  private static final String TENANT_B = "tenant-b";
 
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepService stepService;
+  @Mock private WorkflowOwnerScope workflowOwnerScope;
+  @Mock private InjectRepository injectRepository;
+  @Mock private InjectExpectationRepository injectExpectationRepository;
 
   @InjectMocks private WorkflowUpdateEventPublisher publisher;
+
+  /** Every inject belongs to tenant A unless a test says otherwise, and the scope runs the work. */
+  private final Map<String, String> tenantByInjectId = new LinkedHashMap<>();
+
+  @BeforeEach
+  void resolveTheOwnerTenantAndRunTheScopedWork() {
+    tenantByInjectId.clear();
+    lenient()
+        .doAnswer(
+            invocation -> {
+              ((WorkflowOwnerScope.ScopedAction<?>) invocation.getArgument(1)).run();
+              return null;
+            })
+        .when(workflowOwnerScope)
+        .runInOwnerTenant(anyString(), any());
+    lenient()
+        .when(injectRepository.findTenantIdsByInjectIds(anySet()))
+        .thenAnswer(
+            invocation -> {
+              Collection<?> injectIds = invocation.getArgument(0);
+              return injectIds.stream()
+                  .map(
+                      injectId ->
+                          new Object[] {
+                            injectId, tenantByInjectId.getOrDefault(injectId.toString(), TENANT_A)
+                          })
+                  .toList();
+            });
+    lenient()
+        .when(injectExpectationRepository.findDistinctInjectIdsByInjectExpectationIds(anySet()))
+        .thenAnswer(
+            invocation -> {
+              Set<?> expectationIds = invocation.getArgument(0);
+              return expectationIds.stream()
+                  .map(expectationId -> "inject-of-" + expectationId)
+                  .collect(Collectors.toCollection(LinkedHashSet::new));
+            });
+  }
 
   private static ExternalUpdateEvent eventFor(String stepId, String tenantId) {
     ExternalUpdateEvent event = new ExternalUpdateEvent();
@@ -112,6 +163,69 @@ class WorkflowUpdateEventPublisherTest {
 
       // -- Assert --
       verify(queueChainingService).updateStep("step-1");
+    }
+  }
+
+  @Nested
+  @DisplayName("Owning tenant")
+  class OwningTenant {
+
+    @Test
+    @DisplayName("given injects of two tenants, should look their steps up once in each tenant")
+    void given_injectsOfTwoTenants_should_lookTheirStepsUpOnceInEachTenant() throws Exception {
+      // -- Arrange --
+      tenantByInjectId.put("inject-1", TENANT_A);
+      tenantByInjectId.put("inject-2", TENANT_B);
+      when(stepService.findStepIdsActiveByInjectIds(Set.of("inject-1", "inject-2")))
+          .thenReturn(Set.of());
+
+      // -- Act --
+      publisher.publishForInjects(Set.of("inject-1", "inject-2"));
+
+      // -- Assert --
+      verify(workflowOwnerScope).runInOwnerTenant(eq(TENANT_A), any());
+      verify(workflowOwnerScope).runInOwnerTenant(eq(TENANT_B), any());
+      verify(stepService, times(2)).findStepIdsActiveByInjectIds(Set.of("inject-1", "inject-2"));
+    }
+
+    @Test
+    @DisplayName("given an expectation, should look its step up in the tenant of its inject")
+    void given_expectation_should_lookItsStepUpInTheTenantOfItsInject() throws Exception {
+      // -- Arrange --
+      tenantByInjectId.put("inject-of-exp-1", TENANT_B);
+      when(stepService.findStepIdsActiveByExpectationIds(Set.of("exp-1")))
+          .thenReturn(Set.of("step-1"));
+
+      // -- Act --
+      publisher.publishForExpectations(Set.of("exp-1"));
+
+      // -- Assert --
+      verify(workflowOwnerScope).runInOwnerTenant(eq(TENANT_B), any());
+      verify(queueChainingService).updateStep("step-1");
+    }
+
+    @Test
+    @DisplayName("given an inject whose row is gone, should look no step up")
+    void given_injectWhoseRowIsGone_should_lookNoStepUp() {
+      // -- Arrange --
+      when(injectRepository.findTenantIdsByInjectIds(anySet())).thenReturn(List.of());
+
+      // -- Act --
+      publisher.publishForInject("inject-gone");
+
+      // -- Assert --
+      verifyNoInteractions(stepService, queueChainingService, workflowOwnerScope);
+    }
+
+    @Test
+    @DisplayName("given no expectation at all, should resolve nothing and look no step up")
+    void given_noExpectationAtAll_should_resolveNothingAndLookNoStepUp() {
+      // -- Act --
+      publisher.publishForExpectations(Set.of());
+
+      // -- Assert --
+      verifyNoInteractions(
+          injectExpectationRepository, injectRepository, stepService, queueChainingService);
     }
   }
 
