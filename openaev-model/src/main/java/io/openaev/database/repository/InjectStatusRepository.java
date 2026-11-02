@@ -22,6 +22,11 @@ public interface InjectStatusRepository
 
   Optional<InjectStatus> findByInjectId(@NotNull String injectId);
 
+  // One SQL row per joined execution_traces row (that is the point: it forces Hibernate to
+  // register/prime the ordered, filtered subselect for InjectStatus.traces). Hibernate used to
+  // silently collapse those duplicate-PK rows into a single entity for getSingleResult(); as of
+  // Hibernate 7.1 it no longer does (that collapsing was itself the bug, per the Hibernate team),
+  // so this is now a List and the single entity is picked below.
   @Query(
       value =
           "SELECT ins.*, t.*"
@@ -34,7 +39,11 @@ public interface InjectStatusRepository
               + " WHERE i.inject_id = :injectId"
               + " ORDER BY t.execution_time ASC, t.execution_trace_id ASC",
       nativeQuery = true)
-  Optional<InjectStatus> findInjectStatusWithGlobalExecutionTraces(String injectId);
+  List<InjectStatus> findInjectStatusRowsWithGlobalExecutionTraces(String injectId);
+
+  default Optional<InjectStatus> findInjectStatusWithGlobalExecutionTraces(String injectId) {
+    return findInjectStatusRowsWithGlobalExecutionTraces(injectId).stream().findFirst();
+  }
 
   /**
    * The execution status name of many injects at once, as {@code (injectId, statusName)} pairs. The

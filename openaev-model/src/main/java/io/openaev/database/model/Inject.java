@@ -409,6 +409,10 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   private List<Communication> communications = new ArrayList<>();
 
   // CascadeType.ALL is required here because expectations are embedded
+  // Batch fetching instead of @Fetch(SUBSELECT): BaseInjectExpectation is a SINGLE_TABLE
+  // inheritance root, and subselect-fetching a collection of an inherited entity hits a Hibernate
+  // bug (HHH-16258-style null-collection registration) when the owning Inject is reloaded via
+  // EntityManager.refresh(). Batching keeps the same one-query-per-tenant-batch behaviour.
   @Schema(implementation = String[].class)
   @Getter
   @OneToMany(
@@ -416,7 +420,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
-  @Fetch(FetchMode.SUBSELECT)
+  @BatchSize(size = 1000)
   @JsonProperty("inject_expectations")
   @JsonSerialize(using = MultiModelSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
