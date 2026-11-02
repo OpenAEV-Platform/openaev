@@ -11,23 +11,20 @@
 
 ## Description of changes
 
-On Windows, the agent no longer stores its token in clear text in `openaev-agent-config.toml`. It encrypts the token
-with **DPAPI (Data Protection API)** into `openaev-agent-token.dpapi`, in the installation folder. Only the account the
-agent runs as can decrypt it.
-
-The installer writes the token to a temporary file, `openaev-agent-token.bootstrap`. At its first start, the agent
-encrypts the token, checks that it can decrypt it back, then deletes the temporary file. See
+On Windows, the agent no longer keeps its token in clear text in `openaev-agent-config.toml`. When it starts, it
+encrypts the token with **DPAPI (Data Protection API)** into `openaev-agent-token.dpapi`, in the installation folder,
+then removes the token from the config file. Only the account the agent runs as can decrypt it. See
 [Token storage](../../integrations/agents/windows.md#token-storage) for details.
 
 Linux and macOS agents are not affected for now.
 
 ## Impact
 
-| Installation mode                             | Automatic upgrade from the platform | Result                                                                             |
-|:----------------------------------------------|:------------------------------------|:-----------------------------------------------------------------------------------|
-| **Standard installation (session)**           | Runs the new installer              | Token encrypted automatically                                                      |
-| **Advanced installation as System (service)** | Runs the new installer              | Token encrypted automatically                                                      |
-| **Advanced installation as User (service)**   | Replaces the binary only            | The token can stay in clear text in the config file: reinstall the agent by hand   |
+| Installation mode                             | Automatic upgrade from the platform | Result                                                                                  |
+|:----------------------------------------------|:------------------------------------|:----------------------------------------------------------------------------------------|
+| **Standard installation (session)**           | Runs the new installer              | Token encrypted automatically                                                           |
+| **Advanced installation as System (service)** | Runs the new installer              | Token encrypted automatically                                                           |
+| **Advanced installation as User (service)**   | Replaces the binary only            | Token encrypted, but it stays in clear text in the config file until you reinstall once |
 
 Other impacts:
 
@@ -36,12 +33,10 @@ Other impacts:
 
 ## Migration guide
 
-After upgrading, for each **Advanced installation as User (service)**:
+Nothing to do for the **Standard installation (session)** and the **Advanced installation as System (service)**.
 
-1. **Reinstall the agent from the platform**.
-2. Check that `openaev-agent.log` contains `Token moved to the OS secret store`, and no
-   `The token is still in clear text` warning. For a full check, see
-   [Who can access the token files](../../integrations/agents/windows.md#who-can-access-the-token-files).
+For each **Advanced installation as User (service)**, reinstall the agent from the platform once after upgrading.
+Until then, the agent logs `The token is still in clear text` at each start.
 
 !!! warning
 

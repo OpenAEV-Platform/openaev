@@ -163,13 +163,8 @@ cannot list or search Documents.
 {% if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 ### Token storage on the endpoint
 
-The agent reads its token each time it contacts OpenAEV and wipes it from memory after use.
-
-| OS      | Where the token is stored                                                                                  |
-|:--------|:-----------------------------------------------------------------------------------------------------------|
-| Windows | Encrypted with DPAPI (Data Protection API) in `openaev-agent-token.dpapi` (see [Token storage](windows.md#token-storage)) |
-| Linux   | In `openaev-agent-config.toml`, readable only by the agent's account (file mode `600`)                     |
-| macOS   | In `openaev-agent-config.toml`, readable only by the agent's account (file mode `600`)                     |
+The agent reads its token each time it contacts OpenAEV and wipes it from memory after use. On Windows, it also
+encrypts the token with **DPAPI (Data Protection API)** (see [Token storage](windows.md#token-storage)).
 
 {% endif %}
 ### Signed agents

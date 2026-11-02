@@ -65,43 +65,37 @@ Windows account. Only the account the agent runs as can decrypt the token.
 
 ### How it works
 
-1. The installer writes the platform URL and the other settings to `openaev-agent-config.toml`. The token is **not**
-   in this file.
-2. The installer writes the token to a temporary file, `openaev-agent-token.bootstrap`, and creates an empty
-   `openaev-agent-token.dpapi` file. Both files are only readable by the accounts listed below.
-3. At its first start, the agent encrypts the token into `openaev-agent-token.dpapi`, checks that it can decrypt it
-   back, then deletes the bootstrap file.
-4. Each time the agent contacts OpenAEV, it decrypts the token, uses it, then wipes it from memory.
+1. The installer writes the token and the other settings to `openaev-agent-config.toml`, as before.
+2. When the agent starts, it encrypts the token into `openaev-agent-token.dpapi`, then removes the token from
+   `openaev-agent-config.toml`.
+3. Each time the agent contacts OpenAEV, it decrypts the token, uses it, then wipes it from memory.
 
-If the agent cannot encrypt the token (step 3), it logs an error, keeps the bootstrap file and keeps working with it.
-It tries again at its next start.
+The agent repeats step 2 at each start, so a new token written by an upgrade or a reinstall is encrypted too.
 
 ### Files in the installation folder
 
-| File                              | Content                            | Lifetime                         |
-|:----------------------------------|:-----------------------------------|:---------------------------------|
-| `openaev-agent-config.toml`       | Settings, without the token        | Permanent                        |
-| `openaev-agent-token.bootstrap`   | Token in clear text                | Deleted at the agent first start |
-| `openaev-agent-token.dpapi`       | Token encrypted with DPAPI         | Permanent                        |
+| File                          | Content                                                 |
+|:------------------------------|:--------------------------------------------------------|
+| `openaev-agent-config.toml`   | Settings. The token only until the agent first starts   |
+| `openaev-agent-token.dpapi`   | Token encrypted with DPAPI                              |
 
-### Who can access the token files
+### Who can access the token file
 
-| Installation mode                             | Agent account     | Access to the token files                                                    |
-|:----------------------------------------------|:------------------|:-----------------------------------------------------------------------------|
-| **Standard installation (session)**           | Logged-in user    | SYSTEM, Administrators and the user                                          |
-| **Advanced installation as User (service)**   | Service account   | SYSTEM, Administrators, and the service account (read, write or delete only) |
-| **Advanced installation as System (service)** | SYSTEM            | SYSTEM and Administrators                                                    |
+| Installation mode                             | Agent account     | Access to `openaev-agent-token.dpapi`             |
+|:----------------------------------------------|:------------------|:--------------------------------------------------|
+| **Standard installation (session)**           | Logged-in user    | SYSTEM, Administrators and the user               |
+| **Advanced installation as User (service)**   | Service account   | SYSTEM, Administrators and the service account    |
+| **Advanced installation as System (service)** | SYSTEM            | SYSTEM and Administrators                         |
 
 To check that the token is protected, run in PowerShell as administrator:
 
 ```powershell
 icacls "[FOLDER_PATH]\openaev-agent-token.dpapi"
-Test-Path "[FOLDER_PATH]\openaev-agent-token.bootstrap"
 Select-String "[FOLDER_PATH]\openaev-agent-config.toml" -Pattern '^\s*token\s*='
 ```
 
-The expected result: only the accounts of the table above appear, with no `(I)` (inherited permissions), `Test-Path`
-returns `False`, and `Select-String` returns nothing.
+The expected result: only the accounts of the table above appear, with no `(I)` (inherited permissions), and
+`Select-String` returns nothing.
 
 !!! warning "Limits of DPAPI"
 
@@ -114,15 +108,12 @@ returns `False`, and `Select-String` returns nothing.
 
 ### Token storage messages in the log
 
-| Message in `openaev-agent.log`                                    | Meaning                                                                                      | Action                                         |
-|:------------------------------------------------------------------|:---------------------------------------------------------------------------------------------|:-----------------------------------------------|
-| `Token moved to the OS secret store`                              | The token is encrypted and the clear-text copies are deleted                                 | None                                           |
-| `Could not move the token to the OS secret store: ...`            | The agent could not encrypt the token. It keeps using the clear-text copy                    | Check the cause in the message, then restart   |
-| `The token is still in clear text in ...openaev-agent-config.toml` | The token is encrypted, but the agent cannot remove it from the config file                  | Reinstall the agent                            |
-| `no token in ...openaev-agent-token.dpapi, reinstall the agent`    | No token was ever encrypted, and no bootstrap file is left                                   | Reinstall the agent                            |
-
-The agent also goes offline if `openaev-agent-token.dpapi` is damaged, or if the agent account can no longer decrypt
-it. In both cases, reinstall the agent.
+| Message in `openaev-agent.log`                                        | Meaning                                                                        | Action              |
+|:----------------------------------------------------------------------|:-------------------------------------------------------------------------------|:--------------------|
+| `Token moved to the OS secret store`                                  | The token is encrypted and removed from the config file                        | None                |
+| `Could not save the token in the OS secret store: ...`                | The agent could not encrypt the token, so it cannot reach OpenAEV              | Reinstall the agent |
+| `The token is still in clear text in ...openaev-agent-config.toml: ...` | The token is encrypted, but the agent cannot remove it from the config file    | Reinstall the agent |
+| `Unable to read the token from ...openaev-agent-token.dpapi: ...`     | The file is missing or damaged, or the agent account can no longer decrypt it  | Reinstall the agent |
 
 {% endif %}
 ## Uninstall the agent
