@@ -12,6 +12,7 @@ import type {
   ScopeTeamOutput,
   StepOutput,
 } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import useLivePolling from '../../../../utils/hooks/useLivePolling';
 import useRemainingViewportHeight from '../../../../utils/hooks/useRemainingViewportHeight';
 import { type LogicContext } from './AddComponentButton';
@@ -116,6 +117,8 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
     const isFirstRead = shapeSignatureRef.current === null;
     if (force || (!isFirstRead && signature !== shapeSignatureRef.current)) {
       setRefreshKey(k => k + 1);
+      // The scope healthchecks depend on the steps: the scenario/simulation header must re-run them.
+      MESSAGING$.refreshHealthchecks.next();
     }
     shapeSignatureRef.current = signature;
   }, [workflowId]);

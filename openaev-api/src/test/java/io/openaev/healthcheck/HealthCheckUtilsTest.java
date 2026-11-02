@@ -853,8 +853,8 @@ public class HealthCheckUtilsTest {
     @Test
     void
         given_audience_scope_entries_and_only_explicit_audience_steps_should_return_ineffective_audience_warning() {
-      // -- PREPARE -- every audience step carries an explicit drawer audience, so the scope's
-      // team entry is never consumed by the fallback and must be flagged as ineffective.
+      // -- PREPARE -- every audience step carries an explicit drawer audience that does not pick
+      // the scope's team, so the team entry is never consumed and must be flagged as ineffective.
       Workflow workflow = new Workflow();
       workflow.setWorkflowScopeRules(
           List.of(
@@ -886,6 +886,60 @@ public class HealthCheckUtilsTest {
       // -- ASSERT --
       assertFalse(hasDetail(checks, HealthCheck.Detail.INEFFECTIVE_AUDIENCE_TARGETS));
       assertFalse(hasDetail(checks, HealthCheck.Detail.MISSING_AUDIENCE_TARGETS));
+    }
+
+    @Test
+    void given_scope_team_picked_in_explicit_audience_should_not_warn() {
+      // -- PREPARE -- the drawer of a chained scenario only offers its scope teams: picking the
+      // scope's team explicitly consumes the scope entry (issue #7884).
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.TEAM_ID, "team-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_SCOPE_TEAM_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(checks.isEmpty());
+    }
+
+    @Test
+    void given_scope_team_and_all_teams_audience_should_not_warn() {
+      // -- PREPARE -- all-teams mode targets every scenario team, i.e. every scope team.
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.TEAM_ID, "team-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_ALL_TEAMS_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(checks.isEmpty());
+    }
+
+    @Test
+    void given_scope_player_and_only_explicit_audience_steps_should_return_ineffective_warning() {
+      // -- PREPARE -- the scope's team is picked in the drawer, but scope players are only
+      // consumed by the fallback, which an explicit drawer audience skips.
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.TEAM_ID, "team-1"),
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.PLAYER_ID, "player-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_SCOPE_TEAM_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(hasDetail(checks, HealthCheck.Detail.INEFFECTIVE_AUDIENCE_TARGETS));
     }
 
     @Test
@@ -936,6 +990,24 @@ public class HealthCheckUtilsTest {
         "injector_contract_content":
         "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
         "inject_all_teams":false,"inject_teams":["team-9"]}
+        """;
+
+    /** The same tabletop step with the scope's team picked in the Configure-action drawer. */
+    private static final String EMAIL_STEP_WITH_SCOPE_TEAM_DATA =
+        """
+        {"inject_injector_contract":{"injector_contract_id":"contract-email",
+        "injector_contract_content":
+        "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
+        "inject_all_teams":false,"inject_teams":["team-1"]}
+        """;
+
+    /** The same tabletop step in all-teams mode. */
+    private static final String EMAIL_STEP_WITH_ALL_TEAMS_DATA =
+        """
+        {"inject_injector_contract":{"injector_contract_id":"contract-email",
+        "injector_contract_content":
+        "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
+        "inject_all_teams":true,"inject_teams":[]}
         """;
 
     /** A technical step: payload inject running on an endpoint. */
