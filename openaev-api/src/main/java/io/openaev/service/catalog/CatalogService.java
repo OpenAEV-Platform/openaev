@@ -417,7 +417,12 @@ public class CatalogService {
             firstSync,
             addedIds,
             refused.stream()
-                .map(r -> new Refused(r.externalId(), r.version(), r.reason()))
+                .map(
+                    r ->
+                        new Refused(
+                            names(manifest).getOrDefault(r.externalId(), r.externalId()),
+                            r.version(),
+                            r.reason()))
                 .toList()));
     return new CatalogSyncOutput(
         manifest.release(),
@@ -612,6 +617,18 @@ public class CatalogService {
 
   private static List<CatalogManifest.Item> items(CatalogManifest manifest) {
     return manifest.items() == null ? List.of() : manifest.items();
+  }
+
+  // What a notification can show for an item: a scenario's name, a payload version's slug.
+  private static Map<String, String> names(CatalogManifest manifest) {
+    Map<String, String> names = new HashMap<>();
+    items(manifest).stream()
+        .filter(item -> item.externalId() != null && item.name() != null)
+        .forEach(item -> names.put(item.externalId(), item.name()));
+    payloadVersions(manifest).stream()
+        .filter(version -> version.openaevId() != null && version.payload() != null)
+        .forEach(version -> names.putIfAbsent(version.openaevId(), version.payload()));
+    return names;
   }
 
   private static String channel(CatalogManifest manifest) {

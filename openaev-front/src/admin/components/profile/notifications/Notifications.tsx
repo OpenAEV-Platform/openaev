@@ -29,7 +29,7 @@ import ToolBar from '../../common/ToolBar';
 import NotificationCenterTabs from '../NotificationCenterTabs';
 import DigestNotificationDialog from './DigestNotificationDialog';
 import NotificationOperationChip from './NotificationOperationChip';
-import { eventLinkState, eventsOf, eventUrl, getFirstOperation, operationIcon } from './notificationUtils';
+import { displayMessage, eventLinkState, eventsOf, eventUrl, getFirstOperation, operationIcon } from './notificationUtils';
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
@@ -37,8 +37,8 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  notification_operation: { width: '12%' },
-  notification_message: { width: '45%' },
+  notification_operation: { width: '16%' },
+  notification_message: { width: '41%' },
   notification_created_at: { width: '20%' },
   notification_name: { width: '16%' },
 };
@@ -152,8 +152,12 @@ const Notifications = () => {
     return eventUrl(eventsOf(notification).at(0)) ?? null;
   };
 
+  const opensDetails = (notification: NotificationOutput) => (
+    notification.notification_type === 'DIGEST' || eventsOf(notification).at(0)?.resource_type === 'CATALOG_SYNC'
+  );
+
   const isRowClickable = (notification: NotificationOutput) => (
-    notification.notification_type === 'DIGEST' || rowUrl(notification) !== null
+    opensDetails(notification) || rowUrl(notification) !== null
   );
 
   // Headers
@@ -175,7 +179,8 @@ const Notifications = () => {
         if (notification.notification_type === 'DIGEST') {
           return <em>{t('Digest with {count} events', { count: String(events.length) })}</em>;
         }
-        const message = events.at(0)?.message ?? '-';
+        // A sync alert lists the refused items on the next lines: shown in the details dialog.
+        const message = displayMessage(events.at(0)?.message).split('\n')[0];
         return (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -365,7 +370,7 @@ const Notifications = () => {
                         }
                       : {
                           onClick: () => {
-                            if (notification.notification_type === 'DIGEST') {
+                            if (opensDetails(notification)) {
                               markRead(notification);
                               setDigestToOpen(notification);
                             }

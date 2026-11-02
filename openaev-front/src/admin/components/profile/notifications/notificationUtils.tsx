@@ -81,7 +81,7 @@ export const OPERATION_LABELS: Record<string, string> = {
   BASE_UPDATE_AVAILABLE: 'Filigran update available',
   INSTALLED_AUTOMATICALLY: 'Installed automatically',
   RELEASE_RECEIVED: 'Release received',
-  SYNC_BLOCKED: 'Catalog sync blocked',
+  SYNC_BLOCKED: 'Sync blocked',
   MULTIPLE: 'Multiple',
 };
 
@@ -123,8 +123,10 @@ const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   SECURITY_PLATFORM: id => `${SECURITY_PLATFORM_BASE_URL}/${id}`,
   PAYLOAD: () => '/admin/threat-arsenal',
   CATALOG: () => '/admin/threat-arsenal/available',
-  CATALOG_SYNC: () => '/admin/threat-arsenal/available',
 };
+
+// Messages start with their resource type ("[payload] ..."), which the list already shows.
+export const displayMessage = (message?: string) => (message ?? '-').replace(/^\[[^\]]+\]\s*/, '');
 
 /** Router state the page needs to open the entity: the Threat Arsenal opens a payload's action. */
 export const eventLinkState = (event?: NotificationEvent) => (

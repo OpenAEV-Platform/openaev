@@ -316,17 +316,18 @@ public class ContentNotificationListener {
   }
 
   private void alertAdministrators(CatalogReleaseApplied event) {
+    // First line for the list, then one line per refused item for the details.
     String refused =
         event.refused().stream()
-            .map(r -> r.externalId() + " v" + r.version() + " (" + r.reason() + ")")
-            .collect(Collectors.joining(", "));
+            .map(r -> "\n- " + r.name() + " v" + r.version() + ": " + r.reason())
+            .collect(Collectors.joining());
     NotificationContent.Group group =
         new NotificationContent.Group(
             "Catalog sync blocked",
             List.of(
                 new NotificationContent.Event(
                     SYNC_BLOCKED,
-                    "[catalog] Release %s: %s refused: %s"
+                    "[catalog] Release %s: %s refused%s"
                         .formatted(event.release(), count(event.refused().size(), "item"), refused),
                     ResourceType.CATALOG_SYNC,
                     event.release())));

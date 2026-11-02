@@ -20,7 +20,7 @@ public final class ContentNotificationEvents {
   public record ListRevocationsChanged(
       String repository, List<ListedVersion> revoked, List<ListedVersion> lifted) {}
 
-  public record Refused(String externalId, String version, String reason) {}
+  public record Refused(String name, String version, String reason) {}
 
   public record CatalogReleaseApplied(
       String tenantId,

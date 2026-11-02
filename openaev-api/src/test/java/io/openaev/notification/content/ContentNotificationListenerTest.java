@@ -369,7 +369,7 @@ class ContentNotificationListenerTest {
               "2026.10.30",
               true,
               List.of(),
-              List.of(new Refused("easm", "1.0.0", "Archive hash mismatch"))));
+              List.of(new Refused("EASM Scenario", "1.0.0", "Archive hash mismatch"))));
 
       // Assert
       ArgumentCaptor<NotificationContent.Group> group =
@@ -382,8 +382,8 @@ class ContentNotificationListenerTest {
                 assertThat(event.operation()).isEqualTo(SYNC_BLOCKED);
                 assertThat(event.message())
                     .isEqualTo(
-                        "[catalog] Release 2026.10.30: 1 item refused: easm v1.0.0 (Archive hash"
-                            + " mismatch)");
+                        "[catalog] Release 2026.10.30: 1 item refused"
+                            + "\n- EASM Scenario v1.0.0: Archive hash mismatch");
               });
     }
   }

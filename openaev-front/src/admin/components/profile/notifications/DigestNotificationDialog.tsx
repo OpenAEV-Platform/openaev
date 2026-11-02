@@ -5,7 +5,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type NotificationOutput } from '../../../../utils/api-types';
 import NotificationOperationChip from './NotificationOperationChip';
-import { contentGroupsOf, eventLinkState, eventUrl, operationIcon } from './notificationUtils';
+import { contentGroupsOf, displayMessage, eventLinkState, eventUrl, operationIcon } from './notificationUtils';
 
 /**
  * Details of a digest notification: every composed trigger group with its
@@ -26,7 +26,7 @@ const DigestNotificationDialog = ({ notification, onClose }: {
       slots={{ transition: Transition }}
       slotProps={{ paper: { elevation: 1 } }}
     >
-      <DialogTitle>{t('Digest details')}</DialogTitle>
+      <DialogTitle>{t(notification?.notification_type === 'DIGEST' ? 'Digest details' : 'Details')}</DialogTitle>
       <DialogContent>
         {notification !== null && contentGroupsOf(notification).map((group, groupIndex) => (
           <div key={`${notification.notification_id}-${groupIndex}`}>
@@ -50,7 +50,7 @@ const DigestNotificationDialog = ({ notification, onClose }: {
                     >
                       <NotificationOperationChip operation={event.operation ?? 'NONE'} />
                     </div>
-                    <ListItemText primary={event.message} />
+                    <ListItemText primary={displayMessage(event.message)} sx={{ whiteSpace: 'pre-line' }} />
                   </>
                 );
                 return url
