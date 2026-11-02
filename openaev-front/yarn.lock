@@ -512,9 +512,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@filigran/chatbot@npm:3.14.0":
-  version: 3.14.0
-  resolution: "@filigran/chatbot@npm:3.14.0"
+"@filigran/chatbot@npm:3.16.1":
+  version: 3.16.1
+  resolution: "@filigran/chatbot@npm:3.16.1"
   dependencies:
     remark-parse: "npm:^11.0.0"
     unified: "npm:^11.0.0"
@@ -524,7 +524,7 @@ __metadata:
     react-markdown: ">=10"
     remark-breaks: ">=4"
     remark-gfm: ">=4"
-  checksum: 10c0/aa6e8f20c9c7ec7a8fe8ef95ea750fb75e015f57bbf19145c3b689285b1812abb8ec5dee443a0653b0fd31f4ad608b4e8e68aac819e2c4430934c56807167a88
+  checksum: 10c0/1e319b6f08ac4439810b6803ffa14eec85ce6e82148fb062b88a7fe8653db5f62b8889fa3f657eccabed28618829c7da06b0ff520420209c9c895230f6e71d4b
   languageName: node
   linkType: hard
 
@@ -9315,7 +9315,7 @@ __metadata:
     "@emotion/styled": "npm:11.14.1"
     "@eslint/js": "npm:10.0.1"
     "@faker-js/faker": "npm:10.6.0"
-    "@filigran/chatbot": "npm:3.14.0"
+    "@filigran/chatbot": "npm:3.16.1"
     "@filigran/design-system": "npm:1.3.0"
     "@filigran/rich-text-editor": "npm:@filigran/rich-text-editor@1.2.2"
     "@fontsource/geologica": "npm:5.3.0"
