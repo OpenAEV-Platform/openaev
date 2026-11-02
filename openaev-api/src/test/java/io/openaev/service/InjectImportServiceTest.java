@@ -17,6 +17,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.FileTooBigException;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.utils.InjectImportUtils;
@@ -45,6 +46,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 @ExtendWith(MockitoExtension.class)
 public class InjectImportServiceTest {
@@ -468,6 +470,58 @@ public class InjectImportServiceTest {
       assertEquals(2, result.getAvailableSheets().size());
       assertTrue(result.getAvailableSheets().contains("Sheet1"));
       assertTrue(result.getAvailableSheets().contains("Sheet2"));
+    }
+
+    @Test
+    @DisplayName("Accepts an upper-case xlsx extension")
+    void given_upperCaseExtension_should_storeFile() throws Exception {
+      // -------- Prepare --------
+      InjectImportService service =
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
+      Workbook wb = new XSSFWorkbook();
+      wb.createSheet("Timeline");
+      java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+      wb.write(bos);
+      wb.close();
+      byte[] content = bos.toByteArray();
+      MultipartFile file = mock(MultipartFile.class);
+      when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream(content));
+      when(file.getBytes()).thenReturn(content);
+      when(file.getOriginalFilename()).thenReturn("PLAN.XLSX");
+
+      // -------- Act --------
+      io.openaev.rest.scenario.response.ImportPostSummary result =
+          service.storeXlsFileForImport(file);
+
+      // -------- Assert --------
+      assertEquals(List.of("Timeline"), result.getAvailableSheets());
+    }
+
+    @Test
+    @DisplayName("Rejects a file that is not xls or xlsx")
+    void given_csvFile_should_rejectAsUnsupportedMediaType() {
+      // -------- Prepare --------
+      InjectImportService service =
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
+      MultipartFile file = mock(MultipartFile.class);
+      when(file.getOriginalFilename()).thenReturn("injects.csv");
+
+      // -------- Act & Assert --------
+      assertThrows(UnsupportedMediaTypeException.class, () -> service.storeXlsFileForImport(file));
+    }
+
+    @Test
+    @DisplayName("Rejects a file of 25 MB or more")
+    void given_fileOf25Mb_should_rejectAsTooBig() {
+      // -------- Prepare --------
+      InjectImportService service =
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
+      MultipartFile file = mock(MultipartFile.class);
+      when(file.getOriginalFilename()).thenReturn("injects.xlsx");
+      when(file.getSize()).thenReturn(25L * 1000 * 1000);
+
+      // -------- Act & Assert --------
+      assertThrows(FileTooBigException.class, () -> service.storeXlsFileForImport(file));
     }
   }
 

@@ -107,9 +107,10 @@ public class InjectImportService {
     result.setImportId(fileID);
     try {
       // We're opening the file and listing the names of the sheets
-      Workbook workbook = WorkbookFactory.create(file.getInputStream());
-      for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-        result.getAvailableSheets().add(workbook.getSheetName(i));
+      try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+          result.getAvailableSheets().add(workbook.getSheetName(i));
+        }
       }
 
       // Writing the file in a temp dir
@@ -144,8 +145,9 @@ public class InjectImportService {
   }
 
   private void validateExtension(MultipartFile file) {
+    // Lower-cased so a file named PLAN.XLSX is accepted like plan.xlsx.
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
-    if (!ACCEPTED_FILE_TYPES.contains(extension)) {
+    if (extension == null || !ACCEPTED_FILE_TYPES.contains(extension.toLowerCase(Locale.ROOT))) {
       throw new UnsupportedMediaTypeException(
           "Only the following file types are accepted : " + String.join(", ", ACCEPTED_FILE_TYPES));
     }

@@ -51,7 +51,8 @@ public class ExerciseImportApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Store an xls file to import injects into a simulation")
   // Checked on the simulation, not on the mapper: a user who can edit the simulation can upload
-  // the file without the tenant settings capability. TxCtx is not used directly.
+  // the file without the tenant settings capability. TxCtx is not used directly: it scopes the
+  // transaction the access check reads the simulation in.
   public ImportPostSummary storeXlsFile(
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
