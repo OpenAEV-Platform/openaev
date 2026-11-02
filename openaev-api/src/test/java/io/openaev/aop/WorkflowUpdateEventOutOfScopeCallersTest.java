@@ -241,6 +241,19 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given no tenant membership should notify the step in that tenant")
+    void given_anExecutionReportWithNoTenantMembership_should_notifyTheStep() throws Exception {
+      // Arrange
+      Seeded seeded = seedChainedInject();
+
+      // Act
+      int httpStatus = reportInjectExecution(seeded.injectId());
+
+      // Assert
+      assertStepNotifiedInItsTenant(httpStatus, seeded);
+    }
+
+    @Test
     @DisplayName("given a membership of its tenant should notify the step in that tenant")
     void given_anExecutionReportFromAMemberOfItsTenant_should_notifyTheStep() throws Exception {
       // Arrange
