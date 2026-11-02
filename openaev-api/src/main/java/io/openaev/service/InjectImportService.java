@@ -17,6 +17,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.ratelimit.exception.RateLimitedException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.FileTooBigException;
@@ -91,13 +92,24 @@ public class InjectImportService {
   // 25mb in byte
   private static final int MAXIMUM_FILE_SIZE_ALLOWED = 25 * 1000 * 1000;
   private static final List<String> ACCEPTED_FILE_TYPES = List.of("xls", "xlsx");
-  // Each user keeps at most this many uploads on disk (about 75 MB): a new upload replaces the
-  // oldest one, so repeated uploads cannot fill the temp disk.
+  // Each user has at most this many uploads being parsed or kept on disk (about 75 MB): a new
+  // upload replaces the oldest stored one, so repeated or parallel uploads cannot fill the temp
+  // disk or the memory.
   static final int MAX_PENDING_UPLOADS_PER_USER = 3;
 
-  // Upload ids still on disk, oldest first, per uploader. Kept in memory on this node, like the
-  // files themselves in its temp dir.
-  private final Map<String, Deque<String>> pendingUploadsByUser = new ConcurrentHashMap<>();
+  // Upload slots per uploader, oldest first. A slot is taken before the file is parsed and freed
+  // when the file is deleted. Kept in memory on this node, like the files in its temp dir.
+  private final Map<String, Deque<PendingUpload>> pendingUploadsByUser = new ConcurrentHashMap<>();
+
+  /** One upload slot: in progress until the file is written, then stored. */
+  private static final class PendingUpload {
+    private final String importId;
+    private volatile boolean stored;
+
+    private PendingUpload(String importId) {
+      this.importId = importId;
+    }
+  }
 
   private final InjectMapper injectMapper;
   private final InjectService injectService;
@@ -106,7 +118,8 @@ public class InjectImportService {
   /**
    * Store a xls file for ulterior import, for the current user. The file is deleted after a
    * successful import, after {@value #FILE_STORAGE_DURATION} minutes, or when the user uploads more
-   * than {@value #MAX_PENDING_UPLOADS_PER_USER} files.
+   * than {@value #MAX_PENDING_UPLOADS_PER_USER} files. Refused with 429 when all the user's slots
+   * are taken by uploads still in progress.
    *
    * @param file MultipartFile
    * @return ImportPostSummary containing the importId and the list of available sheets
@@ -123,6 +136,8 @@ public class InjectImportService {
     // Generating a UUID for identifying the file
     String fileID = UUID.randomUUID().toString();
     result.setImportId(fileID);
+    // Taken before parsing, so parallel uploads of one user are bounded too.
+    reserveUpload(ownerId, fileID);
     try {
       // We're opening the file and listing the names of the sheets
       try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
@@ -146,28 +161,55 @@ public class InjectImportService {
       tempDir.toFile().deleteOnExit();
       tempFile.toFile().deleteOnExit();
     } catch (Exception ex) {
+      // Frees the slot and removes anything already written.
+      deleteStoredFile(fileID);
       log.error("Error while importing an xls file", ex);
       throw new BadRequestException("File seems to be corrupt");
     }
-    trackUpload(ownerId, fileID);
+    markStored(ownerId, fileID);
 
     return result;
   }
 
-  /** Records the upload and deletes the owner's oldest ones beyond the limit. */
-  private void trackUpload(String ownerId, String importId) {
+  /**
+   * Takes an upload slot for the owner. When all slots are taken, deletes the oldest stored uploads
+   * to make room; refuses when the slots are all taken by uploads still in progress.
+   */
+  void reserveUpload(String ownerId, String importId) {
     List<String> evicted = new ArrayList<>();
     pendingUploadsByUser.compute(
         ownerId,
         (owner, uploads) -> {
-          Deque<String> queue = uploads == null ? new ConcurrentLinkedDeque<>() : uploads;
-          queue.addLast(importId);
-          while (queue.size() > MAX_PENDING_UPLOADS_PER_USER) {
-            evicted.add(queue.removeFirst());
+          Deque<PendingUpload> queue = uploads == null ? new ConcurrentLinkedDeque<>() : uploads;
+          int toEvict = Math.max(0, queue.size() + 1 - MAX_PENDING_UPLOADS_PER_USER);
+          List<PendingUpload> stored = queue.stream().filter(upload -> upload.stored).toList();
+          if (toEvict > stored.size()) {
+            throw new RateLimitedException(
+                "Too many xls uploads in progress, retry when one is done",
+                (long) MAX_PENDING_UPLOADS_PER_USER,
+                0L,
+                1L);
           }
+          stored.stream()
+              .limit(toEvict)
+              .forEach(
+                  upload -> {
+                    queue.remove(upload);
+                    evicted.add(upload.importId);
+                  });
+          queue.addLast(new PendingUpload(importId));
           return queue;
         });
     evicted.forEach(this::deleteStoredFile);
+  }
+
+  private void markStored(String ownerId, String importId) {
+    Deque<PendingUpload> uploads = pendingUploadsByUser.get(ownerId);
+    if (uploads != null) {
+      uploads.stream()
+          .filter(upload -> upload.importId.equals(importId))
+          .forEach(upload -> upload.stored = true);
+    }
   }
 
   /** Deletes a stored upload from disk and from the pending list. Safe to call twice. */
@@ -181,7 +223,7 @@ public class InjectImportService {
                 pendingUploadsByUser.computeIfPresent(
                     owner,
                     (key, uploads) -> {
-                      uploads.remove(importId);
+                      uploads.removeIf(upload -> upload.importId.equals(importId));
                       return uploads.isEmpty() ? null : uploads;
                     }));
     FileUtils.deleteQuietly(validatePathTraversal(BASE_DIR, importId).toFile());

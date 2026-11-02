@@ -3,6 +3,7 @@ package io.openaev.rest.exercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
+import io.openaev.annotation.NoTenantScope;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -50,14 +51,17 @@ public class ExerciseImportApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   // Checked on the simulation, not on the mapper: a user who can edit the simulation can upload
-  // the file without the tenant settings capability. The file work touches no DB. The endpoint
-  // @Transactional rule still requires the annotation, so NOT_SUPPORTED keeps it while suspending
-  // any transaction: the access check commits in its own short transaction, and no connection is
-  // held while the file is parsed and written to disk. TxCtx is not used directly.
+  // the file without the tenant settings capability. No transaction and no TxCtx here, so no
+  // connection is held while the file is parsed and written to disk: the access check and the
+  // existence check each commit in their own short transaction. The endpoint @Transactional rule
+  // still requires the annotation, hence NOT_SUPPORTED. NoTenantScope: a TxCtx would make the
+  // tenant scope aspect query outside any transaction; the simulation table is not v2-scoped and
+  // the
+  // existence check binds the tenant itself.
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  @NoTenantScope
   @Operation(summary = "Store an xls file to import injects into a simulation")
   public ImportPostSummary storeXlsFile(
-      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @RequestPart("file") @NotNull MultipartFile file) {
     // A capability passes the access check for any id: refuse a simulation that is unknown or in

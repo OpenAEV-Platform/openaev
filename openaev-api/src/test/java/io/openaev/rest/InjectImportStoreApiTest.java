@@ -62,6 +62,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
 
   private final List<String> committedResourceIds = new ArrayList<>();
+  private String committedUserId;
 
   @BeforeEach
   void setUp() {
@@ -92,14 +93,64 @@ class InjectImportStoreApiTest extends IntegrationTest {
           .executeUpdate();
     }
     committedResourceIds.clear();
+    if (committedUserId != null) {
+      deleteCommittedMockUser(committedUserId);
+      committedUserId = null;
+    }
     TestTransaction.flagForCommit();
     TestTransaction.end();
     TestTransaction.start();
   }
 
-  /** Commits the arrange step so the upload, which runs outside this transaction, can see it. */
+  /**
+   * Deletes what the commit made permanent for the {@code @WithMockUser} user: its tenant
+   * membership, groups, roles and their grants. Ids are compared as text so the cleanup does not
+   * depend on the column types.
+   */
+  @SuppressWarnings("unchecked")
+  private void deleteCommittedMockUser(String userId) {
+    List<String> groupIds =
+        entityManager
+            .createNativeQuery(
+                "SELECT CAST(group_id AS varchar) FROM users_groups WHERE user_id = :user")
+            .setParameter("user", userId)
+            .getResultList();
+    List<String> roleIds =
+        groupIds.isEmpty()
+            ? List.of()
+            : entityManager
+                .createNativeQuery(
+                    "SELECT CAST(role_id AS varchar) FROM groups_roles"
+                        + " WHERE CAST(group_id AS varchar) IN (:groups)")
+                .setParameter("groups", groupIds)
+                .getResultList();
+    deleteWhere("DELETE FROM users_tenants WHERE user_id = :ids", List.of(userId));
+    deleteWhere("DELETE FROM users_groups WHERE user_id = :ids", List.of(userId));
+    deleteWhere("DELETE FROM grants WHERE CAST(grant_group AS varchar) IN (:ids)", groupIds);
+    deleteWhere("DELETE FROM groups_roles WHERE CAST(group_id AS varchar) IN (:ids)", groupIds);
+    deleteWhere("DELETE FROM roles_capabilities WHERE CAST(role_id AS varchar) IN (:ids)", roleIds);
+    deleteWhere("DELETE FROM roles WHERE CAST(role_id AS varchar) IN (:ids)", roleIds);
+    deleteWhere("DELETE FROM groups WHERE CAST(group_id AS varchar) IN (:ids)", groupIds);
+    deleteWhere("DELETE FROM users WHERE user_id = :ids", List.of(userId));
+  }
+
+  private void deleteWhere(String sql, List<String> ids) {
+    if (ids.isEmpty()) {
+      return;
+    }
+    entityManager
+        .createNativeQuery(sql)
+        .setParameter("ids", ids.size() == 1 ? ids.getFirst() : ids)
+        .executeUpdate();
+  }
+
+  /**
+   * Commits the arrange step so the upload, which runs outside this transaction, can see it. This
+   * also commits the mock user, so it is deleted after the test too.
+   */
   private void commitArrange(String resourceId) {
     committedResourceIds.add(resourceId);
+    committedUserId = testUserHolder.get().getId();
     entityManager.flush();
     entityManager.clear();
     TestTransaction.flagForCommit();

@@ -3,6 +3,7 @@ package io.openaev.rest.scenario;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
+import io.openaev.annotation.NoTenantScope;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -50,14 +51,16 @@ public class ScenarioImportApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   // Checked on the scenario, not on the mapper: a user who can edit the scenario can upload
-  // the file without the tenant settings capability. The file work touches no DB. The endpoint
-  // @Transactional rule still requires the annotation, so NOT_SUPPORTED keeps it while suspending
-  // any transaction: the access check commits in its own short transaction, and no connection is
-  // held while the file is parsed and written to disk. TxCtx is not used directly.
+  // the file without the tenant settings capability. No transaction and no TxCtx here, so no
+  // connection is held while the file is parsed and written to disk: the access check and the
+  // existence check each commit in their own short transaction. The endpoint @Transactional rule
+  // still requires the annotation, hence NOT_SUPPORTED. NoTenantScope: a TxCtx would make the
+  // tenant scope aspect query outside any transaction; the scenario table is not v2-scoped and the
+  // existence check binds the tenant itself.
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  @NoTenantScope
   @Operation(summary = "Store an xls file to import injects into a scenario")
   public ImportPostSummary storeXlsFile(
-      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestPart("file") @NotNull MultipartFile file) {
     // A capability passes the access check for any id: refuse a scenario that is unknown or in
