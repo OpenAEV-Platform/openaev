@@ -6332,7 +6332,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"happy-dom@npm:^21.0.0":
+"happy-dom@npm:21.0.4":
   version: 21.0.4
   resolution: "happy-dom@npm:21.0.4"
   dependencies:
@@ -9350,7 +9350,7 @@ __metadata:
     final-form: "npm:4.20.10"
     final-form-arrays: "npm:4.0.1"
     globals: "npm:17.13.0"
-    happy-dom: "npm:^21.0.0"
+    happy-dom: "npm:21.0.4"
     html-react-parser: "npm:6.1.9"
     html-to-image: "npm:1.11.13"
     i18n-auto-translation: "npm:2.2.3"
