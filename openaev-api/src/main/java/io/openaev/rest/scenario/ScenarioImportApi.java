@@ -50,9 +50,8 @@ public class ScenarioImportApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Store an xls file to import injects into a scenario")
-  // Checked on the scenario (not on the mapper), so a user who can edit it can import without
-  // the tenant settings capability. TxCtx keeps the tenant scope of the access check. Not used
-  // directly.
+  // Checked on the scenario, not on the mapper: a user who can edit the scenario can upload
+  // the file without the tenant settings capability. TxCtx is not used directly.
   public ImportPostSummary storeXlsFile(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
