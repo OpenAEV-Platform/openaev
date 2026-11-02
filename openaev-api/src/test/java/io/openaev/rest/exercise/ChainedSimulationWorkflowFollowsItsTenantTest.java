@@ -16,6 +16,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Workflow;
 import io.openaev.ee.EnterpriseEditionService;
@@ -23,9 +24,13 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.ZipUtils;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.StepFixture;
+import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.StepComposer;
+import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
@@ -70,6 +75,8 @@ class ChainedSimulationWorkflowFollowsItsTenantTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private StepComposer stepComposer;
+  @Autowired private TagComposer tagComposer;
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private EntityManager manager;
@@ -83,25 +90,48 @@ class ChainedSimulationWorkflowFollowsItsTenantTest extends IntegrationTest {
     when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     exerciseComposer.reset();
     injectComposer.reset();
+    stepComposer.reset();
+    tagComposer.reset();
+    workflowComposer.reset();
   }
 
-  private record ChainedSimulation(Exercise simulation, Workflow template) {}
+  private record ChainedSimulation(Exercise simulation, Workflow template, Tag tag) {}
 
-  /** A chained simulation of the default tenant: its workflow template and one inject. */
+  /** A chained simulation of the default tenant: its workflow template, one inject and one tag. */
   private ChainedSimulation chainedSimulation() {
+    return chainedSimulation(false);
+  }
+
+  /**
+   * The same simulation with one step on its workflow template: the export must find that step
+   * already loaded, which only holds while the graph is read in the simulation's tenant.
+   */
+  private ChainedSimulation chainedSimulationWithAStep() {
+    return chainedSimulation(true);
+  }
+
+  /**
+   * The tag is an ordinary row of a tenant-active table the export serialises, read under the scope
+   * the request resolved and not under the simulation's tenant.
+   */
+  private ChainedSimulation chainedSimulation(boolean withAStep) {
+    Tag tag = TagFixture.getTagWithText("chained-simulation-export");
     ExerciseComposer.Composer simulation =
         exerciseComposer
             .forExercise(ExerciseFixture.createDefaultCrisisExercise())
-            .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()));
-    Workflow template =
+            .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+            .withTag(tagComposer.forTag(tag));
+    WorkflowComposer.Composer workflow =
         workflowComposer
             .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-            .withSimulation(simulation)
-            .persist()
-            .get();
+            .withSimulation(simulation);
+    if (withAStep) {
+      workflow.withStep(stepComposer.forStep(StepFixture.getDefaultStepTemplate()));
+    }
+    Workflow template = workflow.persist().get();
     manager.flush();
     manager.clear();
-    return new ChainedSimulation(simulation.get(), template);
+    return new ChainedSimulation(simulation.get(), template, tag);
   }
 
   /** Makes the current caller a member of another tenant than the simulation's, and of no other. */
@@ -177,8 +207,26 @@ class ChainedSimulationWorkflowFollowsItsTenantTest extends IntegrationTest {
   /** A chained export carries the workflow instead of the runtime injects, and says so. */
   private static void assertExportedAsChained(Exported exported) {
     assertThatJson(exported.json()).node("exercise_workflow").isPresent();
+    // The workflow graph is loaded in the simulation's tenant, so the serialization finds its
+    // steps: an empty collection here would mean they were read under the request's scope.
+    assertThatJson(exported.json()).node("exercise_workflow.workflow_steps").isArray().hasSize(1);
     assertThatJson(exported.json()).node("exercise_injects").isArray().isEmpty();
     assertThat(exported.fileName()).contains("with_scope_definition");
+  }
+
+  /**
+   * The simulation's tags are read under the request's scope: a scope without its tenant sees none.
+   */
+  private static void assertNoTagRead(Exported exported) {
+    assertThatJson(exported.json()).node("exercise_tags").isArray().isEmpty();
+  }
+
+  /**
+   * A caller scoped to the simulation's tenant reads its tags as it reads any row of that tenant.
+   */
+  private static void assertTagRead(Exported exported, Tag tag) {
+    assertThatJson(exported.json()).node("exercise_tags").isArray().hasSize(1);
+    assertThatJson(exported.json()).node("exercise_tags[0].tag_id").isEqualTo(tag.getId());
   }
 
   @Nested
@@ -259,13 +307,14 @@ class ChainedSimulationWorkflowFollowsItsTenantTest extends IntegrationTest {
     void given_scopeWithoutItsTenant_should_exportItAsChained() throws Exception {
       // Arrange
       joinOtherTenantOnly();
-      ChainedSimulation rows = chainedSimulation();
+      ChainedSimulation rows = chainedSimulationWithAStep();
 
       // Act
       Exported exported = export(rows.simulation());
 
       // Assert
       assertExportedAsChained(exported);
+      assertNoTagRead(exported);
     }
 
     @Test
@@ -273,13 +322,14 @@ class ChainedSimulationWorkflowFollowsItsTenantTest extends IntegrationTest {
     @DisplayName("given no tenant membership should export it as chained")
     void given_noTenantMembership_should_exportItAsChained() throws Exception {
       // Arrange
-      ChainedSimulation rows = chainedSimulation();
+      ChainedSimulation rows = chainedSimulationWithAStep();
 
       // Act
       Exported exported = export(rows.simulation());
 
       // Assert
       assertExportedAsChained(exported);
+      assertNoTagRead(exported);
     }
 
     @Test
@@ -287,13 +337,14 @@ class ChainedSimulationWorkflowFollowsItsTenantTest extends IntegrationTest {
     @DisplayName("given a membership of its tenant should export it as chained")
     void given_membershipOfItsTenant_should_exportItAsChained() throws Exception {
       // Arrange
-      ChainedSimulation rows = chainedSimulation();
+      ChainedSimulation rows = chainedSimulationWithAStep();
 
       // Act
       Exported exported = export(rows.simulation());
 
       // Assert
       assertExportedAsChained(exported);
+      assertTagRead(exported, rows.tag());
     }
   }
 }
