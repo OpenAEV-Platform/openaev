@@ -27,6 +27,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -48,12 +49,15 @@ public class ScenarioImportApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Operation(summary = "Store an xls file to import injects into a scenario")
   // Checked on the scenario, not on the mapper: a user who can edit the scenario can upload
-  // the file without the tenant settings capability. No transaction here: the access check
-  // commits in its own short transaction, so no connection is held while the file is parsed and
-  // written to disk.
+  // the file without the tenant settings capability. The file work touches no DB. The endpoint
+  // @Transactional rule still requires the annotation, so NOT_SUPPORTED keeps it while suspending
+  // any transaction: the access check commits in its own short transaction, and no connection is
+  // held while the file is parsed and written to disk. TxCtx is not used directly.
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  @Operation(summary = "Store an xls file to import injects into a scenario")
   public ImportPostSummary storeXlsFile(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestPart("file") @NotNull MultipartFile file) {
     return injectImportService.storeXlsFileForImport(file);
