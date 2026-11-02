@@ -2300,6 +2300,7 @@
   "Installed automatically": "Automatisch installiert",
   "Installing it as a system grants system-wide privileges.": "Die Installation als System gewährt systemweite Privilegien.",
   "Installing the agent is requiring local administrator privileges.": "Für die Installation des Agenten sind lokale Administratorrechte erforderlich.",
+  "Installs each new Filigran action as soon as it is published.": "Installiert jede neue Filigran-Aktion, sobald sie veröffentlicht ist.",
   "Instance name": "Instanzname",
   "Instance trigger:": "Instanz-Trigger:",
   "INSTANCE_DEFAULT": "Standardinstanz",

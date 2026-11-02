@@ -109,9 +109,8 @@ export const operationIcon = (operation: string): ReactNode => {
   }
 };
 
-// Resource types with a dedicated detail page. Types without a standalone
-// detail route (payload, vulnerability, document, challenge) are deliberately
-// absent: their notifications are not navigable.
+// Resource types with a page to open. Types without one (vulnerability, document, challenge) are
+// absent: their notifications are not navigable. A payload opens its action in the Threat Arsenal.
 const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   SCENARIO: id => `${SCENARIO_BASE_URL}/${id}`,
   SIMULATION: id => `${SIMULATION_BASE_URL}/${id}`,
@@ -122,7 +121,15 @@ const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   TEAM: id => `${TEAM_BASE_URL}/${id}`,
   PLAYER: id => `${PERSON_BASE_URL}/${id}`,
   SECURITY_PLATFORM: id => `${SECURITY_PLATFORM_BASE_URL}/${id}`,
+  PAYLOAD: () => '/admin/threat-arsenal',
+  CATALOG: () => '/admin/threat-arsenal/available',
+  CATALOG_SYNC: () => '/admin/threat-arsenal/available',
 };
+
+/** Router state the page needs to open the entity: the Threat Arsenal opens a payload's action. */
+export const eventLinkState = (event?: NotificationEvent) => (
+  event?.resource_type === 'PAYLOAD' && event.resource_id ? { openPayloadId: event.resource_id } : undefined
+);
 
 /**
  * URL of the entity that triggered an event, or undefined when not navigable

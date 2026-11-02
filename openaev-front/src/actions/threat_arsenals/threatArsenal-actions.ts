@@ -31,6 +31,8 @@ export const isThreatArsenalNameAvailable = (name: string, actionId?: string) =>
   }, false);
 };
 
+export const fetchThreatArsenalActionIdOfPayload = (payloadId: string) => simpleCall(`${THREAT_ARSENAL_URI}/action-id`, { params: { payload_id: payloadId } });
+
 export const fetchThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
   return simpleCall(uri);

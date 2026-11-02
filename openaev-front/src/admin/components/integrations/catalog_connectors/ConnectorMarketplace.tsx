@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactNode, useMemo, useState } from 'react';
 
+import MARKETPLACE_GRID_SX from '../../../../components/common/marketplace/marketplaceGridSx';
 import { useFormatter } from '../../../../components/i18n';
 import {
   CONNECTOR_TYPE_ORDER,
@@ -24,6 +25,8 @@ interface Props {
   /** Right side of each card footer (deploy button, instance status...). */
   /** The view is passed on: a card's footer shares its row with the use-case chips, a line's does not. */
   renderFooterAction?: (item: ConnectorItem, view: 'card' | 'line') => ReactNode;
+  /** The card's main action (Deploy), in the bottom bar like the other marketplaces. */
+  renderAction?: (item: ConnectorItem, view: 'card' | 'line') => ReactNode;
   searchPlaceholder?: string;
 }
 
@@ -36,7 +39,7 @@ const VIEW_STORAGE_KEY = 'integrations_marketplace_view';
  * Filter state is persisted in the URL query string (per-tab, since each tab
  * has its own URL).
  */
-const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: Props) => {
+const ConnectorMarketplace = ({ items, renderFooterAction, renderAction, searchPlaceholder }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
 
@@ -228,32 +231,19 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
                     <CatalogConnectorLine
                       key={item.id}
                       connector={item}
-                      footerAction={renderFooterAction?.(item, 'line')}
+                      footerAction={renderFooterAction?.(item, 'line') ?? renderAction?.(item, 'line')}
                     />
                   ))}
                 </Box>
               ) : (
-                /* Capped at 4 columns like OpenCTI (Grid2 xs-12 sm-6 lg-4 xl-3):
-                   cards grow with the screen instead of multiplying columns.
-                   minmax(0, 1fr) keeps every track the same width even when a
-                   card's intrinsic content would otherwise stretch its column. */
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gap: 2,
-                    gridTemplateColumns: {
-                      xs: 'minmax(0, 1fr)',
-                      sm: 'repeat(2, minmax(0, 1fr))',
-                      lg: 'repeat(3, minmax(0, 1fr))',
-                      xl: 'repeat(4, minmax(0, 1fr))',
-                    },
-                  }}
-                >
+                // Same grid as the Threat Arsenal and scenario marketplaces.
+                <Box sx={MARKETPLACE_GRID_SX}>
                   {section.items.map(item => (
                     <CatalogConnectorCard
                       key={item.id}
                       connector={item}
                       footerAction={renderFooterAction?.(item, 'card')}
+                      action={renderAction?.(item, 'card')}
                     />
                   ))}
                 </Box>

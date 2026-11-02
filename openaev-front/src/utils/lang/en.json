@@ -2300,6 +2300,7 @@
   "Installed automatically": "Installed automatically",
   "Installing it as a system grants system-wide privileges.": "Installing it as a system grants system-wide privileges.",
   "Installing the agent is requiring local administrator privileges.": "Installing the agent is requiring local administrator privileges.",
+  "Installs each new Filigran action as soon as it is published.": "Installs each new Filigran action as soon as it is published.",
   "Instance name": "Instance name",
   "Instance trigger:": "Instance trigger:",
   "INSTANCE_DEFAULT": "Instance default",

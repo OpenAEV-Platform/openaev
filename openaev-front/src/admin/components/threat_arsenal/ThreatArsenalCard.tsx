@@ -153,7 +153,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       )}
       action={!action.action_payload?.payload_revoked && (
         <span onClick={event => event.stopPropagation()}>
-          <Button size="sm" priority="secondary" onClick={onRunTest}>{t('Run a test')}</Button>
+          <Button size="sm" onClick={onRunTest}>{t('Run a test')}</Button>
         </span>
       )}
       caption={[

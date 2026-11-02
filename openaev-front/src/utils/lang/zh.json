@@ -2300,6 +2300,7 @@
   "Installed automatically": "已自动安装",
   "Installing it as a system grants system-wide privileges.": "将其安装为系统将授予全系统权限。",
   "Installing the agent is requiring local administrator privileges.": "安装代理需要本地管理员权限。",
+  "Installs each new Filigran action as soon as it is published.": "每个新的 Filigran 操作发布后立即安装。",
   "Instance name": "实例名称",
   "Instance trigger:": "实例触发器：",
   "INSTANCE_DEFAULT": "实例默认值",

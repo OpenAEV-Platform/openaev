@@ -10,7 +10,8 @@ interface Props {
   disabled?: boolean;
 }
 
-// The versions of the contract's payload an inject can run: installed and not revoked.
+// The versions of the contract's payload an inject can run: installed and not revoked. The
+// current one is listed even when revoked, so the field shows what the inject runs today.
 const PayloadContractVersionSelect: FunctionComponent<Props> = ({ contractId, onChange, disabled = false }) => {
   const [versions, setVersions] = useState<PayloadVersionOutput[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,13 +29,15 @@ const PayloadContractVersionSelect: FunctionComponent<Props> = ({ contractId, on
   if (!loading && !current) {
     return null;
   }
+  const listed = current && !usable.includes(current) ? [current, ...usable] : usable;
   return (
     <PayloadVersionSelect
       value={current?.payload_version ?? ''}
-      options={usable.map(v => ({
+      options={listed.map(v => ({
         version: v.payload_version as string,
         latest: v.payload_is_latest,
         installed: true,
+        revoked: v.payload_revoked,
       }))}
       onChange={(version) => {
         const target = usable.find(v => v.payload_version === version);

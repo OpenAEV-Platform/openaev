@@ -2300,6 +2300,7 @@
   "Installed automatically": "자동 설치됨",
   "Installing it as a system grants system-wide privileges.": "시스템으로 설치하면 시스템 전체 권한이 부여됩니다.",
   "Installing the agent is requiring local administrator privileges.": "에이전트를 설치하려면 로컬 관리자 권한이 필요합니다.",
+  "Installs each new Filigran action as soon as it is published.": "새 Filigran 액션이 게시되는 즉시 설치합니다.",
   "Instance name": "인스턴스 이름",
   "Instance trigger:": "인스턴스 트리거:",
   "INSTANCE_DEFAULT": "인스턴스 기본값",

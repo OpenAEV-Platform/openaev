@@ -60,6 +60,16 @@ public class ThreatArsenalApi {
     return threatArsenalService.isNameAvailable(name, actionId);
   }
 
+  @GetMapping({THREAT_ARSENAL_URL + "/action-id", TENANT_THREAT_ARSENAL_URL + "/action-id"})
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "The action that runs a payload version, for links that only know the payload")
+  public ThreatArsenalActionIdOutput actionIdOfPayload(
+      TxCtx ctx, @RequestParam("payload_id") String payloadId) {
+    return new ThreatArsenalActionIdOutput(threatArsenalService.actionIdOfPayload(payloadId));
+  }
+
   @GetMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})
   @Transactional
   @AccessControl(

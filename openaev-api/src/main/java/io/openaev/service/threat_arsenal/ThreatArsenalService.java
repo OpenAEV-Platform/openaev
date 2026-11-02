@@ -356,6 +356,15 @@ public class ThreatArsenalService {
     return action;
   }
 
+  /** The action (its contract) that runs this payload version. */
+  @Transactional(readOnly = true)
+  public String actionIdOfPayload(String payloadId) {
+    return injectorContractService
+        .findOptionalByPayload(payloadVersionService.findById(payloadId))
+        .map(InjectorContract::getId)
+        .orElseThrow(() -> new ElementNotFoundException("No action for payload " + payloadId));
+  }
+
   /** An action as the cards show it: version, description, origin, revocation. */
   @Transactional(readOnly = true)
   public ThreatArsenalAction describe(ThreatArsenalAction action) {

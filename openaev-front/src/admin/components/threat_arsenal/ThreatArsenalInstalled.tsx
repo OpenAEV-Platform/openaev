@@ -4,6 +4,7 @@ import { useLocation } from 'react-router';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../actions/AttackPattern';
+import { fetchThreatArsenalAction, fetchThreatArsenalActionIdOfPayload } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
@@ -14,7 +15,7 @@ import useMarketplaceView from '../../../components/common/marketplace/useMarket
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
-import { type AttackPattern, type ThreatArsenalAction } from '../../../utils/api-types';
+import { type AttackPattern, type ThreatArsenalAction, type ThreatArsenalActionFullOutput, type ThreatArsenalActionIdOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
@@ -48,11 +49,25 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
   });
   const attackPatterns: AttackPattern[] = useHelper((helper: AttackPatternHelper) => helper.getAttackPatterns());
   const location = useLocation();
-  // A payload just installed from the Available tab: shown alone, its drawer open. Read once, as
-  // the list rewrites the URL (and drops this state) when it loads.
-  const toOpen = useRef((location.state as { openName?: string } | null)?.openName);
+  // A payload just installed from the Available tab, or named by a notification: shown alone, its
+  // drawer open. Read once, as the list rewrites the URL (and drops this state) when it loads.
+  const openState = location.state as {
+    openName?: string;
+    openPayloadId?: string;
+  } | null;
+  const toOpen = useRef(openState?.openName);
   useEffect(() => {
-    if (toOpen.current) installed.queryableHelpers.textSearchHelpers.handleTextSearch(toOpen.current);
+    if (toOpen.current) {
+      installed.queryableHelpers.textSearchHelpers.handleTextSearch(toOpen.current);
+    } else if (openState?.openPayloadId) {
+      fetchThreatArsenalActionIdOfPayload(openState.openPayloadId)
+        .then((result: { data: ThreatArsenalActionIdOutput }) => fetchThreatArsenalAction(result.data.action_id))
+        .then((result: { data: ThreatArsenalActionFullOutput }) => {
+          toOpen.current = tPick(result.data.action_labels);
+          installed.queryableHelpers.textSearchHelpers.handleTextSearch(toOpen.current);
+        })
+        .catch(() => undefined);
+    }
   }, []);
   useEffect(() => {
     const found = toOpen.current && installed.threatArsenalActions.find(action => tPick(action.action_labels) === toOpen.current);

@@ -2300,6 +2300,7 @@
   "Installed automatically": "Установлено автоматически",
   "Installing it as a system grants system-wide privileges.": "Установка в качестве системы дает общесистемные привилегии.",
   "Installing the agent is requiring local administrator privileges.": "Установка агента требует привилегий локального администратора.",
+  "Installs each new Filigran action as soon as it is published.": "Устанавливает каждое новое действие Filigran сразу после публикации.",
   "Instance name": "Имя экземпляра",
   "Instance trigger:": "Триггер экземпляра:",
   "INSTANCE_DEFAULT": "Значение по умолчанию для экземпляра",

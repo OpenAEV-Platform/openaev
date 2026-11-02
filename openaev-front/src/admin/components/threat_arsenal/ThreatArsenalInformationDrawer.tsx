@@ -1,4 +1,5 @@
 import { Button, Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { PlayArrowOutlined } from '@mui/icons-material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchCatalogPayloadVersions, installCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
@@ -215,7 +216,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       handleClose={onClose}
       title={t('Action information')}
       headerActions={shownActionId && shownAction && !shownRow?.payload_revoked && (
-        <Button size="sm" onClick={() => onRunTest(shownAction)}>{t('Run a test')}</Button>
+        <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => onRunTest(shownAction)}>{t('Run a test')}</Button>
       )}
     >
       {threatArsenalAction == null ? <></> : (

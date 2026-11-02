@@ -39,6 +39,8 @@ interface Props {
   open: boolean;
   handleClose: () => void;
   onUpdateInject: (data: Inject) => Promise<void>;
+  // The list shows the inject's revocation, which a version change can lift.
+  onVersionChanged?: () => void;
   massUpdateInject?: (data: Inject[]) => Promise<void>;
   injectId: string;
   isAtomic?: boolean;
@@ -52,6 +54,7 @@ const UpdateInject: React.FC<Props> = ({
   open,
   handleClose,
   onUpdateInject,
+  onVersionChanged,
   massUpdateInject,
   injectId,
   isAtomic = false,
@@ -136,6 +139,7 @@ const UpdateInject: React.FC<Props> = ({
           MESSAGING$.notifyError(refusal.reason ?? t('This version cannot be used by this inject'));
           return undefined;
         }
+        onVersionChanged?.();
         return dispatch(fetchInject(injectId));
       })
       .finally(() => setChangingVersion(false));
