@@ -25,7 +25,7 @@ import java.util.stream.Stream;
  * <p>The stream mirrors these entries by hand, on the streamed entities (see {@link
  * io.openaev.database.audit.StreamAssetReference} for which kind each entry maps to): adding or
  * changing an entry here needs the matching override on its entity, or the stream keeps sending
- * what the SQL now hides.
+ * what the SQL now hides. {@code MarkingDerivedTablesStreamTest} fails when they disagree.
  */
 public final class MarkingDerivedTables {
 

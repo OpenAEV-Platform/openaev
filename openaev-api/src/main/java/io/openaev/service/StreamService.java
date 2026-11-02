@@ -16,6 +16,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.audit.StreamAssetReference;
+import io.openaev.database.audit.StreamEmbeddedElements;
 import io.openaev.database.model.*;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
@@ -166,8 +167,8 @@ public class StreamService {
   }
 
   /**
-   * The payload with the listed assets the clearance does not allow removed. An id the event did
-   * not capture is removed too: its markings are unknown.
+   * The payload with the listed assets and the embedded elements the clearance does not allow
+   * removed. An id or element the event did not capture is removed too: its markings are unknown.
    */
   private ObjectNode withoutHiddenAssets(BaseEvent event, MarkingCtx clearance) {
     ObjectNode instanceData = mapper.valueToTree(event.getInstance());
@@ -179,6 +180,25 @@ public class StreamService {
             assetId -> {
               if (visibleIds.contains(assetId.asText())) {
                 visible.add(assetId);
+              }
+            });
+      }
+    }
+    for (StreamEmbeddedElements embedded : event.getStreamEmbeddedElements()) {
+      String[] steps = embedded.path().split("\\.");
+      JsonNode parent = instanceData;
+      for (int i = 0; i < steps.length - 1; i++) {
+        parent = parent.path(steps[i]);
+      }
+      String property = steps[steps.length - 1];
+      if (parent instanceof ObjectNode container
+          && container.get(property) instanceof ArrayNode elements) {
+        Set<String> visibleIds = embedded.visibleIds(clearance);
+        ArrayNode visible = container.putArray(property);
+        elements.forEach(
+            element -> {
+              if (visibleIds.contains(element.path(embedded.idProperty()).asText())) {
+                visible.add(element);
               }
             });
       }
@@ -382,7 +402,8 @@ public class StreamService {
           ObjectNode instanceData = mapper.valueToTree(event.getInstance());
           instanceData.putNull("notifier_configuration");
           sendStreamEvent(fluxSink, event.clone(), instanceData);
-        } else if (!event.getStreamAssetReferences().isEmpty()
+        } else if ((!event.getStreamAssetReferences().isEmpty()
+                || !event.getStreamEmbeddedElements().isEmpty())
             && !(clearance instanceof MarkingCtx.All)) {
           sendStreamEvent(fluxSink, event.clone(), withoutHiddenAssets(event, clearance));
         } else {

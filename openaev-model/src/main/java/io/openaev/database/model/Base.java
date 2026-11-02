@@ -3,6 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.openaev.database.audit.StreamAssetReference;
+import io.openaev.database.audit.StreamEmbeddedElements;
 import jakarta.persistence.Transient;
 import java.util.Collection;
 import java.util.HashSet;
@@ -176,6 +177,16 @@ public interface Base {
    */
   @JsonIgnore
   default List<StreamAssetReference> getStreamAssetReferences() {
+    return List.of();
+  }
+
+  /**
+   * Returns the objects of tables derived from assets this entity's stream payload embeds whole (an
+   * inject's expectations and traces), so that a reader receives only those their clearance allows.
+   * Called when the event is built, while they are still loaded.
+   */
+  @JsonIgnore
+  default List<StreamEmbeddedElements> getStreamEmbeddedElements() {
     return List.of();
   }
 

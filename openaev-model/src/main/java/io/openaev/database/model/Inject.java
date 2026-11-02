@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.StreamAssetReference;
+import io.openaev.database.audit.StreamEmbeddedElements;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.*;
@@ -737,5 +738,20 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonIgnore
   public List<StreamAssetReference> getStreamAssetReferences() {
     return List.of(StreamAssetReference.listing("inject_assets", assets));
+  }
+
+  /**
+   * The expectations and execution traces embedded in the payload: those of a hidden asset (or of
+   * its agents) are not sent, as the REST API does not return them.
+   */
+  @Override
+  @JsonIgnore
+  public List<StreamEmbeddedElements> getStreamEmbeddedElements() {
+    return List.of(
+        StreamEmbeddedElements.of("inject_expectations", "inject_expectation_id", expectations),
+        StreamEmbeddedElements.of(
+            "inject_status.status_traces",
+            "execution_trace_id",
+            status == null ? List.of() : status.getTraces()));
   }
 }

@@ -899,6 +899,71 @@ public class StreamServiceTest {
     assertEquals(List.of("a"), idsAt(captureWireEvent(mockSink, jsonMapper), "inject_assets"));
   }
 
+  private static List<String> idsAt(JsonNode wire, String path, String idProperty) {
+    JsonNode node = wire.path("instance");
+    for (String step : path.split("\\.")) {
+      node = node.path(step);
+    }
+    return node.valueStream().map(element -> element.path(idProperty).asText()).toList();
+  }
+
+  private static Inject injectRunOn(Endpoint asset) {
+    Agent agent = AgentFixture.createDefaultAgentService();
+    agent.setId("agent-id");
+    agent.setAsset(asset);
+    PreventionInjectExpectation onAsset = new PreventionInjectExpectation();
+    onAsset.setId("expectation-on-asset");
+    onAsset.setAsset(asset);
+    ManualInjectExpectation onTeam = new ManualInjectExpectation();
+    onTeam.setId("expectation-on-team");
+    ExecutionTrace agentTrace = new ExecutionTrace();
+    agentTrace.setId("trace-of-agent");
+    agentTrace.setAgent(agent);
+    ExecutionTrace globalTrace = new ExecutionTrace();
+    globalTrace.setId("trace-global");
+    InjectStatus status = new InjectStatus();
+    status.setId("status-id");
+    status.setTraces(List.of(globalTrace, agentTrace));
+    Inject inject = InjectFixture.getDefaultInject();
+    inject.setId(RESOURCE_ID);
+    inject.setExpectations(List.of(onAsset, onTeam));
+    inject.setStatus(status);
+    return inject;
+  }
+
+  @Test
+  public void given_injectRunOnAHiddenAsset_should_beReceivedWithoutTheAssetsExpectationsAndTraces()
+      throws Exception {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    User admin = mock(User.class);
+    FluxSink<Object> adminSink = registerSecondConsumer(admin);
+    Inject inject = injectRunOn(endpoint("r", "tlp-red"));
+    stubRead(mockUser, inject, true);
+    stubRead(admin, inject, true);
+    readerHolds(mockUser, AMBER);
+    readerHolds(admin, MarkingCtx.all());
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, inject, jsonMapper));
+
+    // Assert
+    JsonNode amberWire = captureWireEvent(mockSink, jsonMapper);
+    assertEquals(
+        List.of("expectation-on-team"),
+        idsAt(amberWire, "inject_expectations", "inject_expectation_id"));
+    assertEquals(
+        List.of("trace-global"),
+        idsAt(amberWire, "inject_status.status_traces", "execution_trace_id"));
+    JsonNode adminWire = captureWireEvent(adminSink, jsonMapper);
+    assertEquals(
+        List.of("expectation-on-asset", "expectation-on-team"),
+        idsAt(adminWire, "inject_expectations", "inject_expectation_id"));
+    assertEquals(
+        List.of("trace-global", "trace-of-agent"),
+        idsAt(adminWire, "inject_status.status_traces", "execution_trace_id"));
+  }
+
   @Test
   public void given_assetGroupOfHiddenAssetsOnly_should_beReceivedWithNoAsset() {
     // Arrange

@@ -34,7 +34,8 @@ import java.util.stream.Collectors;
  *
  * <p>An entity whose table is not in {@code MarkingDerivedTables} is not filtered in SQL, so it is
  * not filtered on the stream either. These overrides are written by hand: a change to {@code
- * MarkingDerivedTables} needs the matching change on the streamed entity.
+ * MarkingDerivedTables} needs the matching change on the streamed entity, which {@code
+ * MarkingDerivedTablesStreamTest} checks.
  *
  * @param property the JSON property listing the asset ids in the payload
  * @param markingsByAssetId the markings of each listed asset, empty for an unmarked one

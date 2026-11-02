@@ -2,12 +2,16 @@ package io.openaev.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.StreamAssetReference;
+import io.openaev.database.audit.StreamEmbeddedElements;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Endpoint;
+import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.JoinColumn;
@@ -18,6 +22,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -171,6 +176,92 @@ class MarkingDerivedTablesStreamTest {
             .containsAll(properties);
       }
     }
+  }
+
+  // -- Embedded objects --
+
+  @Test
+  @DisplayName("an object of a derived table embedded in a streamed payload is declared")
+  void given_embeddedDerivedObject_should_beAStreamEmbeddedElement() throws Exception {
+    Set<String> derivedTables =
+        MarkingDerivedTables.ALL.stream()
+            .filter(entry -> joinTableFields(entry.table()).isEmpty())
+            .map(MarkedTable::table)
+            .collect(Collectors.toSet());
+    for (Class<?> entity : ENTITIES) {
+      // An asset's own children carry the asset's markings: the whole event is decided on them.
+      if (Asset.class.isAssignableFrom(entity) || !isStreamed(entity)) {
+        continue;
+      }
+      // Arrange
+      Set<String> embedded = new HashSet<>();
+      collectEmbeddedDerivedPaths(entity, "", derivedTables, new HashSet<>(), embedded);
+
+      // Act
+      Set<String> declared =
+          instantiate(entity).getStreamEmbeddedElements().stream()
+              .map(StreamEmbeddedElements::path)
+              .collect(Collectors.toSet());
+
+      // Assert
+      assertThat(declared)
+          .as(
+              "%s embeds objects of a table derived from assets: getStreamEmbeddedElements() must"
+                  + " declare each path",
+              entity.getSimpleName())
+          .containsAll(embedded);
+    }
+  }
+
+  /**
+   * The JSON paths, from the entity, of the embedded objects (not ids) whose table is derived from
+   * assets. An embedded object of another table is walked into, since it may embed some in turn.
+   */
+  private static void collectEmbeddedDerivedPaths(
+      Class<?> type,
+      String prefix,
+      Set<String> derivedTables,
+      Set<Class<?>> walked,
+      Set<String> paths) {
+    if (!walked.add(type)) {
+      return;
+    }
+    fieldsOf(type)
+        .filter(MarkingDerivedTablesStreamTest::isEmbeddedInPayload)
+        .forEach(
+            field -> {
+              Class<?> element = elementType(field);
+              if (element == null || !element.isAnnotationPresent(Entity.class)) {
+                return;
+              }
+              String path = prefix + field.getAnnotation(JsonProperty.class).value();
+              if (derivedTables.contains(tableOf(element))) {
+                paths.add(path);
+              } else {
+                collectEmbeddedDerivedPaths(element, path + ".", derivedTables, walked, paths);
+              }
+            });
+    walked.remove(type);
+  }
+
+  /** Serialized as a whole object: no {@code @JsonIgnore}, and no id-only serializer. */
+  private static boolean isEmbeddedInPayload(Field field) {
+    if (!field.isAnnotationPresent(JsonProperty.class)
+        || field.isAnnotationPresent(JsonIgnore.class)) {
+      return false;
+    }
+    JsonSerialize serializer = field.getAnnotation(JsonSerialize.class);
+    return serializer == null || serializer.using() == MultiModelSerializer.class;
+  }
+
+  private static Class<?> elementType(Field field) {
+    if (!Collection.class.isAssignableFrom(field.getType())) {
+      return field.getType();
+    }
+    return field.getGenericType() instanceof ParameterizedType collection
+            && collection.getActualTypeArguments()[0] instanceof Class<?> element
+        ? element
+        : null;
   }
 
   // -- Registry --

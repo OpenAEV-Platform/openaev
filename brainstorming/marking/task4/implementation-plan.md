@@ -398,8 +398,8 @@ filters ANDed together. Small-to-medium change in `MarkedTable` and `MarkingDime
 
 Size: L, check with Guillaume and Damien for the POC to revisit Stream.
 
-**Status**: leak reproduced (2026-10-08). Fixed by §2, phases 1 and 2 done, behind the `MARKING`
-preview feature; checked by unit and integration tests, still to check by hand in two browsers.
+**Status**: ✅ leak reproduced (2026-10-08), fixed by §2 (phases 1 to 3), behind the `MARKING` preview
+feature; checked by unit and integration tests, and by hand in two browsers (2026-11-02).
 
 ### 1) What we observed: two browsers, one admin, one `TLP:GREEN` user
 
@@ -471,6 +471,7 @@ sequenceDiagram
 |---|---|---|
 | 1 | Asset events (create, update, delete), on the asset's own markings | ✅ done |
 | 2 | Objects derived from an asset: agents, asset expectations, findings, injects, asset groups | ✅ done |
+| 3 | Objects embedded whole in a payload: an inject's expectations and execution traces | ✅ done |
 
 #### 1. The reader's clearance
 
@@ -512,9 +513,12 @@ serialized (`@JsonIgnore`).
 |---|---|---|
 | `streamMarkings` | `Base.getStreamMarkings()`: the entity's own markings, or those of the one asset it belongs to | `Asset` and its subtypes; `Agent` (`agent_asset`); `TechnicalInjectExpectation` (`inject_expectation_asset`) |
 | `streamAssetReferences` | `Base.getStreamAssetReferences()`: per JSON property, each listed asset id with its markings (`StreamAssetReference`) | `Finding` (`finding_assets`, *about*); `Inject` (`inject_assets`, *listing*); `AssetGroup` (`asset_group_assets`, `asset_group_dynamic_assets`, *listing*) |
+| `streamEmbeddedElements` | `Base.getStreamEmbeddedElements()`: per JSON path, each embedded element id with the markings of its asset (`StreamEmbeddedElements`, from the element's own `getStreamMarkings()`) | `Inject` (`inject_expectations`, `inject_status.status_traces`); `ExecutionTrace.getStreamMarkings()` returns its agent's |
 
 - *about*: the entity is hidden when all its assets are (a finding, `throughLinkRows` in SQL).
 - *listing*: the entity stays visible; only the hidden ids are removed (the link tables in SQL).
+- *embedded*: whole objects of a derived table inside the payload; the hidden ones are removed. Found by the
+  two-browser test: the inject event carried the RED expectations and the RED agent's traces (`stdout`).
 - If the markings cannot be read (a lazy asset that cannot be loaded during the flush), the event carries
   `UNRESOLVED_MARKING`, which no clearance holds: only the readers who see everything receive it.
 
@@ -523,9 +527,9 @@ serializing `finding_assets`, `inject_assets` or `asset_group_assets` loads them
 eager. An expectation update can cost one asset load.
 
 **Written per entity, not derived from `MarkingDerivedTables`.** The entries above mirror
-`MarkingDerivedTables`, except `execution_traces`: `ExecutionTrace` has no `ModelBaseListener`, so traces
-are never streamed. A table added to `MarkingDerivedTables` is not filtered on the stream until its entity
-overrides one of the two methods. Which kind to pick (*about*, *listing*, belongs to one asset), and why
+`MarkingDerivedTables`. `ExecutionTrace` has no `ModelBaseListener`: traces only reach the stream embedded
+in their inject. A table added to `MarkingDerivedTables` is not filtered on the stream until its entity
+overrides the matching method (`MarkingDerivedTablesStreamTest` fails until it does). Which kind to pick (*about*, *listing*, belongs to one asset), and why
 it is written by hand rather than inferred: `tech-design.md`, "The stream: the same rule, on each
 streamed entity".
 
@@ -540,6 +544,7 @@ In `streamDatabaseEvent`, after the tenant and READ gates:
 | `streamMarkings` not all held | dropped: no tombstone, deletions included |
 | *about* reference with every asset hidden | dropped |
 | otherwise, with asset references | sent on a per-consumer copy of the payload, hidden ids removed; an id the event did not capture is removed too |
+| with embedded elements | same copy, hidden elements removed; an element the event did not capture is removed too |
 | no link (null FK: a team expectation, a finding with no asset) | sent, like `asset_id IS NULL` in SQL |
 
 ##### Worked example: amber, holding `{CLEAR, GREEN, AMBER}`
@@ -555,23 +560,27 @@ Tenant with assets A (`TLP:GREEN`) and R (`TLP:RED`).
 | finding on A and R | *about* `finding_assets`: A `{GREEN}`, R `{RED}` | the finding, `finding_assets = [A]` |
 | inject targeting A and R | *listing* `inject_assets`: A `{GREEN}`, R `{RED}` | the inject, `inject_assets = [A]` |
 | asset group with R only | *listing* `asset_group_assets`: R `{RED}` | the group, `asset_group_assets = []` |
+| inject run on R | *embedded* expectations on R `{RED}`, traces of R's agent `{RED}`, global trace `{}` | the inject, `inject_expectations = []`, only the global trace |
 | endpoint A updated | `streamMarkings = {GREEN}` | the event as today |
 
 #### 4. Tests
 
 - `MarkingCtxTest` (`allows`), `StreamClearanceServiceTest` (switches, bypass, clearance, no tenant).
-- `BaseEventTest`: markings and links captured per entity, kept as they were when the event was built,
-  not serialized, `UNRESOLVED_MARKING` fallback, `isVisibleUnder`.
+- `BaseEventTest`: markings, links and embedded elements captured per entity, kept as they were when the
+  event was built, not serialized, `UNRESOLVED_MARKING` fallback, `isVisibleUnder`.
 - `StreamServiceTest`: each row of the worked example, each reader served by their own clearance, the
   clearance read in the row's tenant, no lookup for unmarked events or refused READ.
+- `MarkingDerivedTablesStreamTest`: the stream overrides match `MarkingDerivedTables` (one asset, link
+  tables with their kind, chained tables not streamed, every embedded object of a derived table declared,
+  no override without an entry).
 - Unchanged and green: `InjectServiceTest` (dispatch rule), `StreamApiDisconnectTest`,
-  `AssetMarkingIsolationTest`, and the integration suites persisting findings, expectations, asset groups
-  and endpoints (the capture runs in the JPA callbacks).
+  `AssetMarkingIsolationTest`, `AtomicTestingApiTest`, `InjectApiTest`, `InjectStatusServiceTest`,
+  `InjectExpectationServiceTest`, `FindingServiceTest`, `AssetGroupApiTest`, `EndpointApiTest` (the
+  capture runs in the JPA callbacks).
 
-**Not covered**: other streamed entities embedding asset ids outside the five above.
-
-**To check by hand**: two browsers, admin and amber, `MARKING` on and `assets` active. Amber's
-EventStream tab must show nothing about R, and the findings and injects on A and R with A only.
+✅ **Checked by hand** (2026-11-02): admin and amber, `MARKING` on, `assets` active, a simulation run on a
+RED endpoint. Amber's EventStream shows no endpoint, agent, expectation or finding event for it, and the
+inject with `inject_assets`, `inject_expectations` empty and only the global trace.
 
 ### 3) Longer term implementation: stream a signal, not the content
 

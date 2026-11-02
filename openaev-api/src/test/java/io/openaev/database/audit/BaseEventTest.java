@@ -14,8 +14,11 @@ import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.PreventionInjectExpectation;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -401,6 +404,85 @@ class BaseEventTest {
       // Act & Assert
       assertThat(event.isVisibleUnder(AMBER)).isFalse();
       assertThat(event.isVisibleUnder(MarkingCtx.all())).isTrue();
+    }
+
+    private static Inject injectRunOn(Endpoint asset) {
+      Agent agent = AgentFixture.createDefaultAgentService();
+      agent.setId("agent-id");
+      agent.setAsset(asset);
+      PreventionInjectExpectation onAsset = new PreventionInjectExpectation();
+      onAsset.setId("expectation-on-asset");
+      onAsset.setAsset(asset);
+      ManualInjectExpectation onTeam = new ManualInjectExpectation();
+      onTeam.setId("expectation-on-team");
+      ExecutionTrace agentTrace = new ExecutionTrace();
+      agentTrace.setId("trace-of-agent");
+      agentTrace.setAgent(agent);
+      ExecutionTrace globalTrace = new ExecutionTrace();
+      globalTrace.setId("trace-global");
+      InjectStatus status = new InjectStatus();
+      status.setId("status-id");
+      status.setTraces(List.of(globalTrace, agentTrace));
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId("inject-id");
+      inject.setExpectations(List.of(onAsset, onTeam));
+      inject.setStatus(status);
+      return inject;
+    }
+
+    @Test
+    @DisplayName(
+        "An inject carries its embedded expectations and traces, each with its asset's markings")
+    void given_injectRunOnAMarkedAsset_should_carryItsEmbeddedObjectsWithTheirMarkings() {
+      // Act
+      BaseEvent event = eventFor(DATA_UPDATE, injectRunOn(endpoint("r", "tlp-red")));
+
+      // Assert
+      assertThat(event.getStreamEmbeddedElements())
+          .containsExactlyInAnyOrder(
+              new StreamEmbeddedElements(
+                  "inject_expectations",
+                  "inject_expectation_id",
+                  Map.of(
+                      "expectation-on-asset", Set.of("tlp-red"), "expectation-on-team", Set.of())),
+              new StreamEmbeddedElements(
+                  "inject_status.status_traces",
+                  "execution_trace_id",
+                  Map.of("trace-of-agent", Set.of("tlp-red"), "trace-global", Set.of())));
+      assertThat(event.hasMarkingLinks()).isTrue();
+      assertThat(event.isVisibleUnder(AMBER)).isTrue();
+    }
+
+    @Test
+    @DisplayName("An embedded object hidden from the clearance is not visible, the others are")
+    void given_embeddedObjects_should_keepOnlyThoseTheClearanceAllows() {
+      // Arrange
+      BaseEvent event = eventFor(DATA_UPDATE, injectRunOn(endpoint("r", "tlp-red")));
+
+      // Act & Assert
+      assertThat(event.getStreamEmbeddedElements())
+          .hasSize(2)
+          .allSatisfy(
+              elements ->
+                  assertThat(elements.visibleIds(AMBER))
+                      .containsExactlyInAnyOrder(
+                          "inject_expectations".equals(elements.path())
+                              ? "expectation-on-team"
+                              : "trace-global"));
+    }
+
+    @Test
+    @DisplayName("An inject not run yet carries no embedded object")
+    void given_injectNotRun_should_carryNoEmbeddedObject() {
+      // Arrange
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId("inject-id");
+
+      // Act
+      BaseEvent event = eventFor(DATA_UPDATE, inject);
+
+      // Assert
+      assertThat(event.getStreamEmbeddedElements()).isEmpty();
     }
 
     @Test

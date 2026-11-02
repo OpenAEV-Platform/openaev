@@ -80,6 +80,12 @@ public class BaseEvent implements Cloneable {
    */
   @JsonIgnore private final List<StreamAssetReference> streamAssetReferences;
 
+  /**
+   * The objects of tables derived from assets the payload embeds whole, with their markings (see
+   * {@link Base#getStreamEmbeddedElements()}), copied when the event is built for the same reason.
+   */
+  @JsonIgnore private final List<StreamEmbeddedElements> streamEmbeddedElements;
+
   /** The type of event (e.g., DATA_PERSIST, DATA_UPDATE, DATA_DELETE). */
   @JsonProperty("event_type")
   private String type;
@@ -130,20 +136,27 @@ public class BaseEvent implements Cloneable {
     this.permissionResourceType = resolvedPermissionResourceType;
     Set<String> resolvedStreamMarkings;
     List<StreamAssetReference> resolvedStreamAssetReferences;
+    List<StreamEmbeddedElements> resolvedStreamEmbeddedElements;
     try {
       resolvedStreamMarkings = markingSet(data.getStreamMarkings());
       resolvedStreamAssetReferences =
           data.getStreamAssetReferences().stream()
               .filter(reference -> !reference.markingsByAssetId().isEmpty())
               .toList();
+      resolvedStreamEmbeddedElements =
+          data.getStreamEmbeddedElements().stream()
+              .filter(elements -> !elements.markingsById().isEmpty())
+              .toList();
     } catch (RuntimeException e) {
       // The asset an entity depends on may not be loadable here (a lazy proxy during a flush).
       log.debug("Cannot resolve stream markings of {}", data.getClass().getSimpleName(), e);
       resolvedStreamMarkings = Set.of(UNRESOLVED_MARKING);
       resolvedStreamAssetReferences = List.of();
+      resolvedStreamEmbeddedElements = List.of();
     }
     this.streamMarkings = resolvedStreamMarkings;
     this.streamAssetReferences = resolvedStreamAssetReferences;
+    this.streamEmbeddedElements = resolvedStreamEmbeddedElements;
     Class<?> baseClass = data.getClass();
 
     /*
@@ -284,7 +297,9 @@ public class BaseEvent implements Cloneable {
   /** Whether the event depends on markings at all: most do not, and skip the clearance lookup. */
   @JsonIgnore
   public boolean hasMarkingLinks() {
-    return !streamMarkings.isEmpty() || !streamAssetReferences.isEmpty();
+    return !streamMarkings.isEmpty()
+        || !streamAssetReferences.isEmpty()
+        || !streamEmbeddedElements.isEmpty();
   }
 
   /**

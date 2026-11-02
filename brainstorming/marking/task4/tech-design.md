@@ -694,6 +694,7 @@ whether a reader who can see none of the linked assets should see the entity at 
 | **about** | The entity is a by-product of the assets and is meaningless without them. | The entity's own table is filtered: `throughLinkRows("findings", …)`, so it is hidden when it has assets and none is visible. | `StreamAssetReference.about(...)` |
 | **listing** | The entity exists on its own, and the assets are only configuration (targets, members). | Only the link table is filtered: `linkedTo("injects_assets", …)`, `linkedTo("asset_groups_assets", …)`. The `injects` and `asset_groups` rows stay. | `StreamAssetReference.listing(...)` |
 | **belongs to one asset** | A single foreign key to the asset. | `linkedTo("agents", "agent_asset", …)`, `linkedTo("injects_expectations", "asset_id", …)` | not a reference: override `getStreamMarkings()` to return the asset's markings |
+| **embedded** | The payload carries whole objects of a derived table, not their ids (an inject's expectations and execution traces). | The element's own table is filtered (3), (6)/(7), so the REST API never returns the hidden ones. | `getStreamEmbeddedElements()`: `StreamEmbeddedElements.of(path, idProperty, elements)`; each element's markings come from its own `getStreamMarkings()` |
 
 Applied today:
 
@@ -704,21 +705,15 @@ Applied today:
 | `AssetGroup` | listing | `getStreamAssetReferences()`: `listing("asset_group_assets", …)`, `listing("asset_group_dynamic_assets", …)` |
 | `Agent` | belongs to one asset | `getStreamMarkings()`: the markings of `asset` |
 | `TechnicalInjectExpectation` | belongs to one asset | `getStreamMarkings()`: the markings of `asset` (null for a team or player expectation) |
+| `ExecutionTrace` | belongs to one asset, through its agent (chain (7) → (6)) | `getStreamMarkings()`: the markings of its agent's asset (null for a global trace, which has no agent) |
+| `Inject` | embedded | `getStreamEmbeddedElements()`: `inject_expectations` (by `inject_expectation_id`) and `inject_status.status_traces` (by `execution_trace_id`) |
 
-- `execution_traces` has no override: `ExecutionTrace` has no `ModelBaseListener`, so traces are never
-  streamed.
-- `asset_group_dynamic_assets` is not in `MarkingDerivedTables`: it is a computed (`@Transient`) list,
-  not a table, but it lists asset ids in the payload, so it is filtered like the static members.
-- An entity whose table is not in `MarkingDerivedTables` is not filtered in SQL, so it is not filtered on
-  the stream either. Changing that is a decision on the SQL first.
+- `ExecutionTrace` has no `ModelBaseListener`: a trace never produces an event of its own. It reaches the
+  stream only embedded in its inject, hence its `getStreamMarkings()`, used to filter the embedded traces.
 
-**Written by hand, on purpose.** Adding or changing an entry in `MarkingDerivedTables` needs the matching
-override on its streamed entity (both javadocs say so). Two alternatives were weighed:
+**Why the embedded kind.**  `inject_expectations` and `inject_status.status_traces` those two lists are serialized
+as whole objects (`MultiModelSerializer`, eager collections). The
+stream now removes, per reader, the embedded elements their clearance does not allow;
 
-- **Inferring the overrides from `MarkingDerivedTables`** through the JPA annotations (`@Table`,
-  `@JoinColumn`, `@JoinTable`, `@JsonProperty`) at startup: one place to edit, but about 300–400 more
-  lines, mostly reflection, a hook from `openaev-model` (`ModelBaseListener`) to `openaev-api` (where
-  the registry lives), and the decision no longer readable on the entity. Not worth it for a list of 7
-  entries that changes when an asset relationship is remodeled.
-- **A consistency test** comparing the overrides with `MarkingDerivedTables`: about 70 lines, and CI
-  fails when one side is forgotten. Not added yet; the first option to take if the list grows.
+`MarkingDerivedTablesStreamTest` checks that the overrides match `MarkingDerivedTables`, embedded objects
+included: CI fails when one side changes without the other.
