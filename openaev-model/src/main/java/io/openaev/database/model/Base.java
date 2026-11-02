@@ -2,9 +2,11 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.openaev.database.audit.StreamAssetReference;
 import jakarta.persistence.Transient;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.hibernate.LazyInitializationException;
 import org.springframework.beans.BeanUtils;
@@ -150,6 +152,31 @@ public interface Base {
   @JsonIgnore
   default String getStreamSchema() {
     return null;
+  }
+
+  /**
+   * Returns the markings a reader must all hold to receive this entity's events on the stream:
+   * those of the entity, or of the one asset it belongs to (an agent, an asset expectation), which
+   * hides it with the asset.
+   *
+   * <p>The stream applies the rule the SQL filtering applies to the rows ({@code
+   * is_marking_set_allowed}): no marking means visible to every reader.
+   *
+   * @return the marking ids, or {@code null} for an entity with no marking of its own
+   */
+  @JsonIgnore
+  default String[] getStreamMarkings() {
+    return null;
+  }
+
+  /**
+   * Returns the assets this entity's stream payload lists (an inject's targets, a finding's
+   * assets), so that a reader receives only those their clearance allows. Called when the event is
+   * built, while the assets are still loaded.
+   */
+  @JsonIgnore
+  default List<StreamAssetReference> getStreamAssetReferences() {
+    return List.of();
   }
 
   /**

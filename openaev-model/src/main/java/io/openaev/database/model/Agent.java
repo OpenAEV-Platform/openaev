@@ -190,4 +190,11 @@ public class Agent implements TenantBase, AuditStateCapturable {
   }
 
   public Agent() {}
+
+  /** An agent belongs to its asset: its events are hidden with the asset. */
+  @Override
+  @JsonIgnore
+  public String[] getStreamMarkings() {
+    return asset == null ? null : asset.getMarkingIds();
+  }
 }

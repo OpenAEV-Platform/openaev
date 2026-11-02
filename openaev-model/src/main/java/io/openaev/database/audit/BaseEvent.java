@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.BulkOperationContext;
+import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.ResourceType;
 import jakarta.persistence.EmbeddedId;
@@ -12,6 +13,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.context.request.RequestAttributes;
@@ -55,6 +61,24 @@ public class BaseEvent implements Cloneable {
   @JsonIgnore private final String permissionResourceId;
 
   @JsonIgnore private final ResourceType permissionResourceType;
+
+  /**
+   * Stands for markings that could not be read when the event was built. No clearance holds it, so
+   * the event only reaches the readers who see everything: the stream fails closed.
+   */
+  static final String UNRESOLVED_MARKING = "unresolved-marking";
+
+  /**
+   * The markings a reader must all hold to receive this event (see {@link
+   * Base#getStreamMarkings()}), copied when the event is built: consumers run after commit.
+   */
+  @JsonIgnore private final Set<String> streamMarkings;
+
+  /**
+   * The assets the payload lists, with their markings (see {@link
+   * Base#getStreamAssetReferences()}), copied when the event is built for the same reason.
+   */
+  @JsonIgnore private final List<StreamAssetReference> streamAssetReferences;
 
   /** The type of event (e.g., DATA_PERSIST, DATA_UPDATE, DATA_DELETE). */
   @JsonProperty("event_type")
@@ -104,6 +128,22 @@ public class BaseEvent implements Cloneable {
     }
     this.permissionResourceId = resolvedPermissionResourceId;
     this.permissionResourceType = resolvedPermissionResourceType;
+    Set<String> resolvedStreamMarkings;
+    List<StreamAssetReference> resolvedStreamAssetReferences;
+    try {
+      resolvedStreamMarkings = markingSet(data.getStreamMarkings());
+      resolvedStreamAssetReferences =
+          data.getStreamAssetReferences().stream()
+              .filter(reference -> !reference.markingsByAssetId().isEmpty())
+              .toList();
+    } catch (RuntimeException e) {
+      // The asset an entity depends on may not be loadable here (a lazy proxy during a flush).
+      log.debug("Cannot resolve stream markings of {}", data.getClass().getSimpleName(), e);
+      resolvedStreamMarkings = Set.of(UNRESOLVED_MARKING);
+      resolvedStreamAssetReferences = List.of();
+    }
+    this.streamMarkings = resolvedStreamMarkings;
+    this.streamAssetReferences = resolvedStreamAssetReferences;
     Class<?> baseClass = data.getClass();
 
     /*
@@ -220,6 +260,31 @@ public class BaseEvent implements Cloneable {
    */
   public void setInstanceData(JsonNode instanceData) {
     this.instanceData = instanceData;
+  }
+
+  static Set<String> markingSet(String[] markingIds) {
+    return markingIds == null
+        ? Set.of()
+        : Arrays.stream(markingIds)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toUnmodifiableSet());
+  }
+
+  /**
+   * Whether a reader with this clearance may receive the event: the clearance allows the markings
+   * of the entity (or of the asset it belongs to), and it is not about assets that are all hidden.
+   * The listed assets the clearance does not allow are removed from the payload by the stream.
+   */
+  @JsonIgnore
+  public boolean isVisibleUnder(MarkingCtx clearance) {
+    return clearance.allows(streamMarkings)
+        && streamAssetReferences.stream().noneMatch(ref -> ref.hidesEntityUnder(clearance));
+  }
+
+  /** Whether the event depends on markings at all: most do not, and skip the clearance lookup. */
+  @JsonIgnore
+  public boolean hasMarkingLinks() {
+    return !streamMarkings.isEmpty() || !streamAssetReferences.isEmpty();
   }
 
   /**

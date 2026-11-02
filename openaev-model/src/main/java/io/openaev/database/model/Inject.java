@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.StreamAssetReference;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.*;
@@ -729,5 +730,12 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @Override
   public ResourceType getPermissionResourceType() {
     return getParentResourceType();
+  }
+
+  /** An inject stays visible whatever its targets: only the hidden ones are not listed. */
+  @Override
+  @JsonIgnore
+  public List<StreamAssetReference> getStreamAssetReferences() {
+    return List.of(StreamAssetReference.listing("inject_assets", assets));
   }
 }
