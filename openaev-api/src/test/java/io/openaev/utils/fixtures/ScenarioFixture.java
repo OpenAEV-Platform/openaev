@@ -2,9 +2,11 @@ package io.openaev.utils.fixtures;
 
 import static io.openaev.database.model.Scenario.SEVERITY.critical;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -30,7 +32,7 @@ public class ScenarioFixture {
   }
 
   public static Scenario getScenario(List<Team> scenarioTeams, Set<Inject> scenarioInjects) {
-    Scenario scenario = new Scenario();
+    Scenario scenario = newScenario();
     scenario.setName("Crisis simulation");
     scenario.setDescription("A crisis simulation for my enterprise");
     scenario.setSubtitle("A crisis simulation");
@@ -45,7 +47,7 @@ public class ScenarioFixture {
   }
 
   public static Scenario createDefaultCrisisScenario() {
-    Scenario scenario = new Scenario();
+    Scenario scenario = newScenario();
     scenario.setName("Crisis scenario");
     scenario.setDescription("A crisis scenario for my enterprise");
     scenario.setSubtitle("A crisis scenario");
@@ -55,13 +57,25 @@ public class ScenarioFixture {
   }
 
   public static Scenario createDefaultIncidentResponseScenario() {
-    Scenario scenario = new Scenario();
+    Scenario scenario = newScenario();
     scenario.setName("Incident response scenario");
     scenario.setDescription("An incident response scenario for my enterprise");
     scenario.setSubtitle("An incident response scenario");
     scenario.setCategory("incident-response");
     scenario.setSeverity(critical);
     scenario.setExercises(new ArrayList<>());
+    return scenario;
+  }
+
+  /**
+   * Stamps the ambient tenant, which is what {@code TenantBaseListener} does for a scenario today.
+   * Once {@code scenarios} is tenant-active the listener is gone from {@code Scenario}, so an
+   * unattributed scenario fails on the not-null tenant column; a test that needs another tenant
+   * overrides it.
+   */
+  private static Scenario newScenario() {
+    Scenario scenario = new Scenario();
+    scenario.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return scenario;
   }
 }

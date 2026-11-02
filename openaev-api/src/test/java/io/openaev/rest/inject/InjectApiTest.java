@@ -174,10 +174,12 @@ class InjectApiTest extends IntegrationTest {
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
     scenario.setReplyTos(new ArrayList<>(List.of("test@test.com")));
+    scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     SCENARIO = scenarioService.createScenario(scenario);
 
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
+    exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     exercise.setStart(Instant.now());
     exercise.setReplyTos(new ArrayList<>(List.of("test@test.com")));
     exercise.setStatus(RUNNING);

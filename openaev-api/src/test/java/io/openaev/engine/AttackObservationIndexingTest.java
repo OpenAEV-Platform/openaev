@@ -478,6 +478,27 @@ class AttackObservationIndexingTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Query plan
+  // ---------------------------------------------------------------------------
+
+  @Nested
+  @DisplayName("query plan")
+  class QueryPlan {
+
+    @Test
+    @DisplayName("a fetch runs on a custom plan")
+    void given_fetch_should_forceCustomPlan() {
+      attackObservationHandler.fetch(FROM, null, 2);
+
+      assertThat(
+              entityManager
+                  .createNativeQuery("SELECT current_setting('plan_cache_mode')")
+                  .getSingleResult())
+          .isEqualTo("force_custom_plan");
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Fan-out
   // ---------------------------------------------------------------------------
 

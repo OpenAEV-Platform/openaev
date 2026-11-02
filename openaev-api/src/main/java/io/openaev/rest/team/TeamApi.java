@@ -171,7 +171,7 @@ public class TeamApi extends RestBehavior {
   @Transactional
   public Team getTeam(
       TxCtx ctx, @PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamService.teamInScopeWithTags(ctx, teamId);
+    return teamService.teamInScopeWithCollections(ctx, teamId);
   }
 
   @GetMapping({"/api/teams/{teamId}/players", TENANT_TEAM_URI + "/{teamId}/players"})

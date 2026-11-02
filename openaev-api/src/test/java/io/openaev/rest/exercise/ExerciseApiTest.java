@@ -280,7 +280,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Get scenario from exercise id")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void givenExerciseId_whenGettingScenarioFromExercise_thenReturnScenario() throws Exception {
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     Scenario scenarioSaved = scenarioRepository.save(scenario);
@@ -305,7 +305,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @DisplayName("Check if a rule applies when a rule is found")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void checkIfRuleAppliesTest_WHEN_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
@@ -344,7 +346,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @DisplayName("Check if a rule applies when no rule is found")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void checkIfRuleAppliesTest_WHEN_no_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
@@ -402,7 +406,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when launch exercise with Crowdstrike")
-    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+    @WithMockUser(
+        withCapabilities = {Capability.LAUNCH_ASSESSMENT},
+        autoJoinDefaultTenant = true)
     void given_crowdstrike_should_not_launchExercise() throws Exception {
       Exercise exercise = getExercise(executorFixture.getTaniumExecutor());
       ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
@@ -420,6 +426,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when schedule exercise with Tanium")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_ASSESSMENT},
+        autoJoinDefaultTenant = true)
     void given_tanium_should_not_scheduleExercise() throws Exception {
       Exercise exercise = getExercise(executorFixture.getTaniumExecutor());
       ExerciseUpdateStartDateInput input = new ExerciseUpdateStartDateInput();
@@ -436,6 +445,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when schedule exercise with Sentinel One")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_ASSESSMENT},
+        autoJoinDefaultTenant = true)
     void given_sentinelone_should_not_scheduleExercise() throws Exception {
       Exercise exercise = getExercise(executorFixture.getSentineloneExecutor());
       ExerciseUpdateStartDateInput input = new ExerciseUpdateStartDateInput();
@@ -485,7 +497,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Should enable all users of newly added teams when replacing exercise teams")
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void replacingTeamsShouldEnableNewTeamUsers() throws Exception {
     // -- PREPARE --
     User userTom = userRepository.save(UserFixture.getUser("Tom", "TEST", "tom-test@fake.email"));
@@ -537,6 +551,9 @@ public class ExerciseApiTest extends IntegrationTest {
     @Test
     @DisplayName(
         "Deselecting a team should remove its exercise-team-user links only for that exercise")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_ASSESSMENT},
+        autoJoinDefaultTenant = true)
     void deselectedTeamShouldRemoveLinksOnlyForCurrentExercise() throws Exception {
       // -- PREPARE --
       User userTom = userRepository.save(UserFixture.getUser("Tom", "RT1", "tom-rt1@fake.email"));
@@ -607,6 +624,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Replacing teams should update the exercise team list in database")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_ASSESSMENT},
+        autoJoinDefaultTenant = true)
     void replacingTeamsShouldPersistNewTeamListInDatabase() throws Exception {
       // -- PREPARE --
       Team teamToRemove = TeamFixture.getEmptyTeam();
@@ -661,6 +681,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should delete exercise and cascade related data")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_existingExercise_should_deleteExerciseAndCascadeRelatedData() throws Exception {
       // Arrange
       User user = userRepository.save(UserFixture.getUser("Del", "USER", "del-user@fake.email"));

@@ -132,7 +132,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Add an inject for scenario")
   @Test
   @Order(1)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void addInjectForScenarioTest() throws Exception {
     // -- PREPARE --
     InjectInput input = new InjectInput();
@@ -171,7 +171,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Retrieve injects for scenario")
   @Test
   @Order(2)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void retrieveInjectsForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -192,7 +192,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Retrieve inject for scenario")
   @Test
   @Order(3)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void retrieveInjectForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -213,7 +213,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Update inject for scenario")
   @Test
   @Order(4)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateInjectForScenarioTest() throws Exception {
     // -- PREPARE --
     Inject inject = injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow();
@@ -245,7 +245,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Delete inject for scenario")
   @Test
   @Order(5)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void deleteInjectForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     mvc.perform(
@@ -293,6 +293,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName("Given unchanged assets, should not rewrite the inject assets")
     @Test
     @Transactional
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_unchangedAssets_should_notRewriteInjectAssets() throws Exception {
       // -- PREPARE --
       EndpointComposer.Composer endpointWrapper =
@@ -323,6 +324,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName("Given changed assets, should replace the inject assets")
     @Test
     @Transactional
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_changedAssets_should_replaceInjectAssets() throws Exception {
       // -- PREPARE --
       EndpointComposer.Composer removedEndpointWrapper =
@@ -386,6 +388,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
     @DisplayName("Given number of inject by ttp more than 5, should throw an exception")
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_injectByTTPNumberMoreThan5_should_throwAnException() {
       // --PREPARE--
       InjectAssistantInput input = new InjectAssistantInput();
@@ -631,7 +634,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName("Retrieve injects simple list for scenario with asset")
     @Test
     @Transactional
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void retrieveInjectSimpleForScenarioTestWithAsset() throws Exception {
       // -- PREPARE --
       ScenarioComposer.Composer composer =
@@ -668,7 +671,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName("Retrieve injects simple list for scenario with asset group")
     @Test
     @Transactional
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Order(value = 13)
     void retrieveInjectSimpleForScenarioTestWithAssetGroup() throws Exception {
       // -- PREPARE --
@@ -714,7 +717,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
         "createInjectForScenario: should return InjectOutput with inject_id and inject_ready")
     @Test
     @Order(1)
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void createInjectForScenario_shouldReturnInjectOutputWithChecks() throws Exception {
       // -- PREPARE --
       InjectInput input = new InjectInput();
@@ -748,7 +751,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
         "createInjectForScenario: inject_ready should reflect missing content when contract is set")
     @Test
     @Order(2)
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void createInjectForScenario_shouldReturnChecksReflectingInjectState() throws Exception {
       // -- PREPARE --
       InjectInput input = new InjectInput();
@@ -779,7 +782,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
         "updateInjectForScenario: should return InjectOutput with updated title and inject_ready")
     @Test
     @Order(3)
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void updateInjectForScenario_shouldReturnInjectOutputWithChecks() throws Exception {
       // -- PREPARE --
       Inject inject = injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow();
@@ -824,7 +827,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
         "duplicateInjectForScenario: should return InjectOutput with new inject_id and inject_ready")
     @Test
     @Order(4)
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void duplicateInjectForScenario_shouldReturnInjectOutputWithChecks() throws Exception {
       // -- EXECUTE --
       String response =
