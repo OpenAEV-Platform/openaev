@@ -11,6 +11,10 @@ description: >
   Reported through the Pipeline Gate as advisory, never blocking.
 
 inputs:
+  no-cache:
+    description: "true bypasses the pip cache; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
   git-plugins:
     description: "'true' builds with the git plugins, as the deployed site does"
     required: false
@@ -27,10 +31,28 @@ runs:
       with:
         python-version: '3.15'
 
+    # Only main writes the pip cache; pull requests restore it read-only.
+    - name: Restore pip downloads
+      id: pip-cache
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.cache/pip
+        key: docs-pip-${{ runner.os }}-${{ hashFiles('docs/requirements.txt') }}
+        restore-keys: |
+          docs-pip-${{ runner.os }}-
+
     - name: Install documentation dependencies
       shell: bash
       working-directory: docs
       run: pip install --quiet --no-deps -r requirements.txt && pip check
+
+    - name: Save pip downloads
+      if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.pip-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.cache/pip
+        key: docs-pip-${{ runner.os }}-${{ hashFiles('docs/requirements.txt') }}
 
     - name: Check for underscores in MkDocs URIs
       shell: bash
