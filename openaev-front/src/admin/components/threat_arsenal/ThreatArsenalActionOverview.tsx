@@ -294,7 +294,13 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               >
                 {name || '-'}
               </Typography>
-              {approvalWins && <ApprovalStatusChip status={approvalStatus} />}
+              {approvalWins && (
+                <ApprovalStatusChip
+                  status={approvalStatus}
+                  pendingVersion={!!(action.action_payload?.payload_pending_version ?? payload?.payload_pending_version)
+                    || (action.action_payload?.payload_installed_versions ?? 0) > 1}
+                />
+              )}
               {!approvalWins && statusLabel && statusColor && (
                 <Box
                   sx={{

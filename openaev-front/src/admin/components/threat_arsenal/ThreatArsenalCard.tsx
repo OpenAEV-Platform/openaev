@@ -19,7 +19,7 @@ import { displayedApprovalStatus } from './approval/approvalStatusUtils';
 import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { actionDomains } from './threatArsenalDomainSections';
-import { getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
+import { getStatusHint, getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
 
 interface Props {
   action: ThreatArsenalAction;
@@ -73,12 +73,15 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
   const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status;
   const statusLabel = getStatusLabel(status);
+  const statusHint = getStatusHint(status);
   // Approval and Verified / Unverified / Deprecated are two different things (is it trusted by a
   // second person, does it work): each keeps its own slot so neither masks the other. The approval
   // chip only shows when it needs attention, on top with the other "to do" chips; the lifecycle
   // status stays in the footer. Same card on every Threat Arsenal tab.
   const approvalStatus = displayedApprovalStatus(action.action_payload?.payload_approval_status, action.action_payload?.payload_pending_version);
   const approvalNeedsAttention = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
+  // New action or new version of an installed one (a Scenario Factory version is its own payload).
+  const isNewVersion = !!action.action_payload?.payload_pending_version || (action.action_payload?.payload_installed_versions ?? 0) > 1;
   const name = tPick(action.action_labels);
   // Trust line (idea A): version and source together, as in the drawer.
   const origin = payloadOrigin(action.action_payload);
@@ -135,7 +138,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       chips={(
         <>
           {/* What needs someone first: the approval, then injects left on an older version. */}
-          {approvalNeedsAttention && <ApprovalStatusChip status={approvalStatus} />}
+          {approvalNeedsAttention && <ApprovalStatusChip status={approvalStatus} pendingVersion={isNewVersion} />}
           {olderInUse > 0 && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -183,7 +186,17 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           gap: 8,
         }}
         >
-          {statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
+          {statusLabel && (
+            // Verified reads like "approved" next to the approval chip: the hint tells them apart.
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t(statusHint ?? statusLabel)}</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       )}
       action={showRunTest && canRunTest && !action.action_payload?.payload_revoked && (
