@@ -37,8 +37,8 @@ import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFr
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
-import AssetCategoryIcon from '../AssetCategoryIcon';
 import { patchRowsFromStore } from '../asset-stream-values';
+import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScoreCell from '../PostureScoreCell';
 import usePostureScores from '../usePostureScores';
 import AssetPopover from './AssetPopover';
