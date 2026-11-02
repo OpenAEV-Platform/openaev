@@ -66,7 +66,7 @@ const ScenariosAvailable = ({ tabs }: Props) => {
   useEffect(() => {
     fetchCatalogSettings().then(({ data }) => setAutoInstall(!!data.scenario_auto_install));
   }, []);
-  const { launch, targetsDrawer } = useScenarioLaunch();
+  const { launch, launchDrawer } = useScenarioLaunch();
   const [launchAfterInstall, setLaunchAfterInstall] = useState(false);
   const [installingAll, setInstallingAll] = useState(false);
   const install = (item: CatalogItemOutput, thenLaunch: boolean) => {
@@ -240,7 +240,12 @@ const ScenariosAvailable = ({ tabs }: Props) => {
             onLaunch={() => {
               const installed = (item.catalog_item_installed_scenarios ?? [])[0];
               if (installed) {
-                launch(installed.scenario_id, item.catalog_item_name ?? item.catalog_item_external_id);
+                launch({
+                  scenario_id: installed.scenario_id,
+                  scenario_name: item.catalog_item_name ?? item.catalog_item_external_id,
+                  scenario_catalog_id: item.catalog_item_external_id,
+                  scenario_version: installed.version,
+                });
               } else {
                 install(item, true);
               }
@@ -274,14 +279,19 @@ const ScenariosAvailable = ({ tabs }: Props) => {
           onInstalled={(scenarioId) => {
             if (launchAfterInstall) {
               setInstalling(null);
-              launch(scenarioId, installing.catalog_item_name ?? installing.catalog_item_external_id);
+              launch({
+                scenario_id: scenarioId,
+                scenario_name: installing.catalog_item_name ?? installing.catalog_item_external_id,
+                scenario_catalog_id: installing.catalog_item_external_id,
+                scenario_version: installing.catalog_item_version,
+              });
             } else {
               navigate(`/admin/scenarios/${scenarioId}`);
             }
           }}
         />
       )}
-      {targetsDrawer}
+      {launchDrawer}
     </MarketplaceBrowser>
   );
 };

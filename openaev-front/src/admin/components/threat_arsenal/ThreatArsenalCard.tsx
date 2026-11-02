@@ -10,6 +10,8 @@ import usePlatformVersion from '../../../components/common/marketplace/usePlatfo
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type AttackPattern, type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import InjectIcon from '../common/injects/InjectIcon';
 import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescriptions';
 import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
@@ -70,6 +72,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   // Trust line (idea A): version and source together, as in the drawer.
   const origin = payloadOrigin(action.action_payload);
   const olderInUse = action.action_payload?.payload_older_versions_in_use ?? 0;
+  // Running a test creates an atomic test: hidden without that right, as the PRD hides what a user cannot do.
+  const canRunTest = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
 
   return (
     <MarketplaceCard
@@ -161,7 +165,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           {statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
         </div>
       )}
-      action={!action.action_payload?.payload_revoked && (
+      action={canRunTest && !action.action_payload?.payload_revoked && (
         <span onClick={event => event.stopPropagation()}>
           <Button size="sm" onClick={onRunTest}>{t('Run a test')}</Button>
         </span>

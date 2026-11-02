@@ -67,6 +67,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
+  const canRunTest = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
 
   const [loading, setLoading] = useState(false);
   const [fullOutput, setFullOutput] = useState<ThreatArsenalActionFullOutput | null>(null);
@@ -215,7 +216,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       open={open}
       handleClose={onClose}
       title={t('Action information')}
-      headerActions={shownActionId && shownAction && !shownRow?.payload_revoked && (
+      headerActions={canRunTest && shownActionId && shownAction && !shownRow?.payload_revoked && (
         <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => onRunTest(shownAction)}>{t('Run a test')}</Button>
       )}
     >
