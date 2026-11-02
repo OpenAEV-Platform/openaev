@@ -50,10 +50,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.lessons_template.LessonsTemplateApi#createLessonsTemplateCategory",
           "io.openaev.rest.lessons.ScenarioLessonsApi#applyScenarioLessonsTemplate",
           "io.openaev.rest.lessons.ExerciseLessonsApi#applyExerciseLessonsTemplate",
-          "io.openaev.rest.scenario.ScenarioImportApi#storeXlsFile",
           "io.openaev.rest.scenario.ScenarioImportApi#dryRunImportXLSFile",
           "io.openaev.rest.scenario.ScenarioImportApi#validateImportXLSFile",
-          "io.openaev.rest.exercise.ExerciseImportApi#storeXlsFile",
           "io.openaev.rest.exercise.ExerciseImportApi#dryRunImportXLSFile",
           "io.openaev.rest.exercise.ExerciseImportApi#validateImportXLSFile",
           // cwes: reached through a vulnerability's @ManyToMany, so every vulnerability/CVE
