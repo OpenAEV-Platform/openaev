@@ -17,13 +17,19 @@ import org.springframework.stereotype.Component;
  *
  * <p>It moves the request's transaction to the owner's one tenant, which may lie outside the
  * request's scope, and checks nothing about the caller. The caller must have checked its access to
- * the owner first, by loading it through the request's access check, and pass that loaded entity.
+ * the owner first and pass that loaded entity. That check is the by-id load of the simulation, the
+ * scenario or the contract on the ambient tenant, the v1 thread-local {@link
+ * io.openaev.context.TenantContext#getCurrentTenant()}: the path tenant on the {@code
+ * /api/tenants/{tenantId}} route, and the default tenant on the non-prefixed route, which sets it
+ * from neither the caller's scope nor an {@code X-Tenant-Ids} header. The request's v2 scope plays
+ * no part in it, because {@code exercises}, {@code scenarios} and {@code injectors_contracts} are
+ * not tenant-active; moving that load to the request's scope belongs to those tables' activation.
  * Once access is granted, its workflow follows it: a workflow inherits its owner's tenant and can
  * never move (see {@code Workflow#attributeTenantFromOwner}), so reading it under the caller's
  * scope would miss it whenever that scope does not include the owner's tenant, and a status change,
  * a duplicate or an export would then go on as if the owner were not chained. The classes allowed
- * to call this one are an allowlist pinned by an architecture test, each with the reason its owner
- * was loaded that way.
+ * to call this one are an allowlist pinned by an architecture test, each with the check its owner
+ * went through.
  *
  * <p>An injector contract is handled the same way: once its deletion is granted, the step templates
  * that reference it are swept in the contract's own tenant, the tenant whose copy of the contract
