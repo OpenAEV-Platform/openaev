@@ -1217,12 +1217,18 @@ public class OpenSearchService implements EngineService {
   }
 
   public EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime) {
-    Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
+    ListConfiguration.ListPerspective perspective = runtime.getWidget().getPerspective();
+    if (perspective == null || perspective.getFilter() == null) {
+      throw new IllegalArgumentException("A list widget needs a perspective with a filter");
+    }
+    Filters.FilterGroup searchFilters = perspective.getFilter();
     String entityName =
         searchFilters.getFilters().stream()
             .filter(filter -> "base_entity".equals(filter.getKey()))
+            .filter(filter -> filter.getValues() != null && !filter.getValues().isEmpty())
             .findAny()
-            .orElseThrow()
+            .orElseThrow(
+                () -> new IllegalArgumentException("A list widget needs a base_entity filter"))
             .getValues()
             .getFirst();
     List<EngineSortField> sorts = runtime.getWidget().getSorts();
@@ -1314,7 +1320,9 @@ public class OpenSearchService implements EngineService {
         searchEngine.getModels().stream()
             .filter(esBaseEsModel -> entityName.equals(esBaseEsModel.getName()))
             .findAny();
-    return model.get().getModel();
+    return model
+        .orElseThrow(() -> new IllegalArgumentException("Unknown entity: " + entityName))
+        .getModel();
   }
 
   @Override
