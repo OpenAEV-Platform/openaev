@@ -190,7 +190,7 @@ const ThreatArsenalAvailable = ({ tabs }: Props) => {
                       </IconButton>
                     </TooltipTrigger>
                     <TooltipContent>
-                      {t('Each time Filigran publishes a new action, it is installed right away. New versions of installed actions always install; your injects keep their version until you move them. Click to learn more.')}
+                      {t('Installs each new Filigran action as soon as it is published.')}
                     </TooltipContent>
                   </Tooltip>
                 </div>

@@ -701,6 +701,7 @@ const Injects: FunctionComponent<Props> = ({
               open
               handleClose={() => setSelectedInjectId(null)}
               onUpdateInject={onUpdateInject}
+              onVersionChanged={() => setReloadInjectCount(prev => prev + 1)}
               massUpdateInject={massUpdateInject}
               injectId={selectedInjectId}
               injects={injects}

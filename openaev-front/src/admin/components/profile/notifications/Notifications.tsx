@@ -29,7 +29,7 @@ import ToolBar from '../../common/ToolBar';
 import NotificationCenterTabs from '../NotificationCenterTabs';
 import DigestNotificationDialog from './DigestNotificationDialog';
 import NotificationOperationChip from './NotificationOperationChip';
-import { eventsOf, eventUrl, getFirstOperation, operationIcon } from './notificationUtils';
+import { eventLinkState, eventsOf, eventUrl, getFirstOperation, operationIcon } from './notificationUtils';
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
@@ -119,6 +119,13 @@ const Notifications = () => {
     });
   };
 
+  // Opening a notification reads it, as in OpenCTI.
+  const markRead = (notification: NotificationOutput) => {
+    if (!notification.notification_is_read) {
+      onToggleRead(notification);
+    }
+  };
+
   const onDelete = (notification: NotificationOutput) => {
     deleteNotification(notification.notification_id).then(() => {
       setNotifications(notifications.filter(existing => existing.notification_id !== notification.notification_id));
@@ -168,7 +175,15 @@ const Notifications = () => {
         if (notification.notification_type === 'DIGEST') {
           return <em>{t('Digest with {count} events', { count: String(events.length) })}</em>;
         }
-        return events.at(0)?.message ?? '-';
+        const message = events.at(0)?.message ?? '-';
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>{message}</span>
+            </TooltipTrigger>
+            <TooltipContent>{message}</TooltipContent>
+          </Tooltip>
+        );
       },
     },
     {
@@ -345,8 +360,17 @@ const Notifications = () => {
                       ? {
                           component: Link,
                           to: url,
+                          state: eventLinkState(eventsOf(notification).at(0)),
+                          onClick: () => markRead(notification),
                         }
-                      : { onClick: () => notification.notification_type === 'DIGEST' && setDigestToOpen(notification) })}
+                      : {
+                          onClick: () => {
+                            if (notification.notification_type === 'DIGEST') {
+                              markRead(notification);
+                              setDigestToOpen(notification);
+                            }
+                          },
+                        })}
                     sx={clickable ? undefined : { cursor: 'default' }}
                   >
                     <ListItemIcon

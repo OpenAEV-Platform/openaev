@@ -5,7 +5,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type NotificationOutput } from '../../../../utils/api-types';
 import NotificationOperationChip from './NotificationOperationChip';
-import { contentGroupsOf, eventUrl, operationIcon } from './notificationUtils';
+import { contentGroupsOf, eventLinkState, eventUrl, operationIcon } from './notificationUtils';
 
 /**
  * Details of a digest notification: every composed trigger group with its
@@ -60,6 +60,7 @@ const DigestNotificationDialog = ({ notification, onClose }: {
                         divider
                         component={Link}
                         to={url}
+                        state={eventLinkState(event)}
                         onClick={onClose}
                       >
                         {content}

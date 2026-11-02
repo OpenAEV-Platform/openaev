@@ -13604,6 +13604,11 @@ export interface ThreatArsenalActionFullOutput {
   file_drop_file?: string;
 }
 
+export interface ThreatArsenalActionIdOutput {
+  /** @minLength 1 */
+  action_id: string;
+}
+
 export interface ThreatArsenalActionUpdateInput {
   action_arguments?: PayloadArgument[];
   action_attack_patterns?: string[];

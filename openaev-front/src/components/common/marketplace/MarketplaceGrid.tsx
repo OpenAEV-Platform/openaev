@@ -2,6 +2,7 @@ import { Box, Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 
+import MARKETPLACE_GRID_SX from './marketplaceGridSx';
 import { MarketplaceListHeader, MarketplaceListRowSkeleton } from './MarketplaceListRow';
 import { MarketplaceViewContext } from './MarketplaceViewContext';
 import { type ViewMode } from './useMarketplaceView';
@@ -15,12 +16,6 @@ interface Props {
   // Header of the column showing the card overline, in list view.
   overlineLabel?: string;
 }
-
-const GRID_SX = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-  gap: 2,
-};
 
 // Card grid of a marketplace, with a skeleton shaped like MarketplaceCard while loading.
 const MarketplaceGrid: FunctionComponent<Props> = ({ loading, isEmpty, emptyState, children, view = 'grid', overlineLabel = 'Category' }) => {
@@ -44,7 +39,7 @@ const MarketplaceGrid: FunctionComponent<Props> = ({ loading, isEmpty, emptyStat
   }
   if (loading) {
     return (
-      <Box sx={GRID_SX}>
+      <Box sx={MARKETPLACE_GRID_SX}>
         {Array.from({ length: 12 }).map((_, idx) => (
           <Box
             key={idx}
@@ -78,7 +73,7 @@ const MarketplaceGrid: FunctionComponent<Props> = ({ loading, isEmpty, emptyStat
   if (isEmpty) {
     return <>{emptyState}</>;
   }
-  return <Box sx={GRID_SX}>{children}</Box>;
+  return <Box sx={MARKETPLACE_GRID_SX}>{children}</Box>;
 };
 
 export default MarketplaceGrid;

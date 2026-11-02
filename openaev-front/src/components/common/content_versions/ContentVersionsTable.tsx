@@ -23,7 +23,6 @@ interface HistoryDetails {
   changelog?: string;
   compared_to?: string;
   source?: string;
-  list_serial?: number;
 }
 
 const HISTORY_PER_PAGE = 10;
@@ -254,20 +253,13 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
         parts.push(details.repository);
       }
     }
-    if (entry.content_history_action === 'REVOKE' || entry.content_history_action === 'LIFT_REVOCATION') {
-      if (details?.source !== 'repository') {
-        parts.push(t('In this tenant'));
-      } else if (details.list_serial != null) {
-        parts.push(t('Revocation list #{serial} of {repository}', {
-          serial: String(details.list_serial),
-          repository: details.repository ?? '-',
-        }));
-      } else {
-        parts.push(t('Revocation list of {repository}', { repository: details.repository ?? '-' }));
-      }
+    // A user's revocation shows its user; a list's comes from Filigran.
+    if ((entry.content_history_action === 'REVOKE' || entry.content_history_action === 'LIFT_REVOCATION')
+      && details?.source === 'repository') {
+      parts.push(t('By Filigran'));
     }
     if (details?.reason) {
-      parts.push(details.reason);
+      parts.push(`${t('Reason')}: ${details.reason}`);
     }
     return parts.length > 0 ? parts.join(' · ') : '-';
   };
@@ -311,6 +303,8 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
                   <TableCell align="right">
                     {changes.length > 0 && (
                       <IconButton
+                        priority="tertiary"
+                        size="sm"
                         icon={open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                         aria-label={open ? t('Hide the changes') : t('Show the changes')}
                         onClick={() => setOpened(open ? null : entry.content_history_id)}

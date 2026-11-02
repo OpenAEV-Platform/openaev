@@ -13,6 +13,7 @@ interface Props {
   connector: ConnectorItem;
   /** Right side of the card footer (deploy button, instance status, migrate action...). */
   footerAction?: ReactNode;
+  action?: ReactNode;
 }
 
 // Use-case chips for the footer-left; exported for the lines view.
@@ -121,7 +122,7 @@ const CollapsedUseCaseChips = ({ useCases }: { useCases: string[] }) => {
   );
 };
 
-const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
+const CatalogConnectorCard = ({ connector, footerAction, action }: Props) => {
   const { t, nsd } = useFormatter();
   const platformVersion = usePlatformVersion();
   const typeLabels: Record<ConnectorItemType, string> = {
@@ -144,6 +145,7 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
       chips={<CollapsedUseCaseChips useCases={connector.useCases} />}
       platforms={[]}
       footerRight={footerAction}
+      action={action}
       caption={[
         // No image to deploy: the connector ships with the platform.
         // Tags such as "rolling" are not version numbers.
