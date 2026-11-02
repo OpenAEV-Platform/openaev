@@ -43,9 +43,9 @@ import java.util.function.Predicate;
  *   <li>{@link TenantScopedTransaction#executeOnCurrentTransaction} moves the transaction to one
  *       tenant for the duration of some work. {@link WorkflowOwnerScope} is its only allowed
  *       caller, and passes the tenant of a simulation, a scenario or an injector contract. That is
- *       safe only when that owner was loaded through the request's own access check, so the callers
- *       of {@link WorkflowOwnerScope} are an allowlist, each with the reason the owner it passes
- *       was loaded that way.
+ *       safe only when the caller was granted that owner before passing it, so the callers of
+ *       {@link WorkflowOwnerScope} are an allowlist, each with the check the owner it passes went
+ *       through.
  *   <li>{@link TenantScopedTransaction#setScopeOnCurrentTransaction} sets the scope for the rest of
  *       the transaction. Its direct callers are a baseline, each with the scope it sets and where
  *       that scope comes from. The baseline may only shrink.
@@ -105,32 +105,40 @@ final class WorkflowOwnerScopeCallerRules {
    * The classes allowed to call {@link WorkflowOwnerScope}, each with how the simulation, scenario
    * or injector contract it passes was loaded. Every entry must still call it: an entry with no
    * call left is removed in the same change.
+   *
+   * <p>"The ambient tenant" below is the v1 thread-local {@link
+   * io.openaev.context.TenantContext#getCurrentTenant()}: the path tenant on the {@code
+   * /api/tenants/{tenantId}} route, which {@code TenantInterceptor} sets once it has checked the
+   * caller's membership of it, and the default tenant on the non-prefixed route, which sets it from
+   * neither the caller's scope nor an {@code X-Tenant-Ids} header. It is not the request's v2
+   * scope: {@code exercises}, {@code scenarios} and {@code injectors_contracts} are not
+   * tenant-active, so that scope plays no part in these loads.
    */
   static final Map<Class<?>, String> OWNER_SCOPE_CALLERS =
       Map.of(
           ExerciseApi.class,
           "the export's file name passes the simulation from ExerciseService#exercise,"
-              + " findByIdAndTenantId on the request's tenant",
+              + " findByIdAndTenantId on the ambient tenant",
           ExportService.class,
           "the simulation's export passes the simulation ExerciseApi loaded through"
-              + " ExerciseService#exercise, findByIdAndTenantId on the request's tenant, and"
+              + " ExerciseService#exercise, findByIdAndTenantId on the ambient tenant, and"
               + " scopes only its workflow reads",
           ExerciseService.class,
           "every call passes a simulation from ExerciseService#exercise (findByIdAndTenantId on the"
-              + " request's tenant), or the duplicate copyExercise built from one, which carries"
+              + " ambient tenant), or the duplicate copyExercise built from one, which carries"
               + " its tenant",
           ScenarioApi.class,
           "the launch passes the scenario from ScenarioService#scenario, findByIdAndTenantId on"
-              + " the request's tenant",
+              + " the ambient tenant",
           ScenarioService.class,
           "every call passes a scenario from ScenarioService#scenario (findByIdAndTenantId on the"
-              + " request's tenant), or the duplicate copyScenario built from one, which carries"
+              + " ambient tenant), or the duplicate copyScenario built from one, which carries"
               + " its tenant",
           InjectorContractService.class,
           "the step sweep of a deleted contract passes the contract it deletes, loaded by"
-              + " deleteInjectorContract(String) under the request's tenant filter, or by"
-              + " deleteInjectorContractById on the request's tenant, after the DELETE access"
-              + " check",
+              + " deleteInjectorContract(String) under the tenantFilter armed on the ambient"
+              + " tenant, or by deleteInjectorContractById on the ambient tenant, after the DELETE"
+              + " access check",
           WorkflowUpdateEventPublisher.class,
           "the update-event bridge passes the tenant of the inject or expectation that changed,"
               + " read from its own row, after the change itself was granted and written");
@@ -189,7 +197,7 @@ final class WorkflowOwnerScopeCallerRules {
                 allowed))
         .because(
             "WorkflowOwnerScope runs work in the tenant of the owner it is given,"
-                + " which is safe only for one loaded through the request's access check");
+                + " which is safe only for one the caller has already been granted");
   }
 
   /** The allowlist as class names. */
