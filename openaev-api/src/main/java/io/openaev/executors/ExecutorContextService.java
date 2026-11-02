@@ -33,4 +33,11 @@ public abstract class ExecutorContextService {
    */
   public abstract List<Agent> launchBatchExecutorSubprocess(
       Inject inject, Set<Agent> agents, InjectStatus injectStatus, String token);
+
+  /**
+   * Release the resources this context service owns, called when its executor integration stops.
+   * A new context service is built on every start, so a resource kept here would outlive the
+   * integration. Already scheduled dispatches still run; nothing new is accepted.
+   */
+  public void shutdown() {}
 }
