@@ -154,6 +154,27 @@ DELETE /api/scenarios/{scenarioId}
 
 To list Scenarios, see [Pagination](#pagination).
 
+Import Injects from an XLS file into a Scenario. Each call needs the right to edit the Scenario, not the mapper:
+
+```http
+POST /api/scenarios/{scenarioId}/xls/store
+POST /api/scenarios/{scenarioId}/xls/{importId}/dry
+POST /api/scenarios/{scenarioId}/xls/{importId}/import
+```
+
+1. `store` uploads the file as `multipart/form-data` in a `file` field (`.xls` or `.xlsx`, under 25 MB). It returns the `import_id` and the `available_sheets`.
+2. `dry` previews the Injects without saving them. `import` creates them. Both take the same body:
+
+```json
+{
+  "sheet_name": "Timeline",
+  "import_mapper_id": "<mapper-uuid>",
+  "timezone_offset": 0
+}
+```
+
+For a Simulation, use the same calls under `/api/exercises/{exerciseId}/xls/...`.
+
 ## What's next?
 
 - [Filters](filters.md) -- Filter format and operators
