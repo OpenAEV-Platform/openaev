@@ -743,18 +743,13 @@ public class ScenarioService {
       HttpServletResponse response)
       throws IOException {
     Scenario scenario = this.scenario(scenarioId);
-    // The export carries the scenario's workflow, read in the scenario's own tenant whatever the
-    // caller's scope; the whole export runs there, as it serializes the workflow with the rest.
-    workflowOwnerScope.run(
+    writeScenarioExport(
         scenario,
-        () ->
-            writeScenarioExport(
-                scenario,
-                isWithTeams,
-                isWithPlayers,
-                isWithVariableValues,
-                isWithScopeDefinition,
-                response));
+        isWithTeams,
+        isWithPlayers,
+        isWithVariableValues,
+        isWithScopeDefinition,
+        response);
   }
 
   private void writeScenarioExport(
@@ -767,7 +762,12 @@ public class ScenarioService {
       throws IOException {
     String scenarioId = scenario.getId();
     ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
-    boolean isChaining = workflowService.isScenarioChaining(scenarioId);
+    // The scenario's workflow is read in the scenario's own tenant whatever the caller's scope, as
+    // a workflow inherits its owner's tenant and can never move. Every other table this export
+    // reads (documents, tags, challenges, channels, variables) stays under the scope the request
+    // resolved, so the owner scope holds only over the chaining reads of this method.
+    boolean isChaining =
+        workflowOwnerScope.call(scenario, () -> workflowService.isScenarioChaining(scenarioId));
     List<Inject> exportedInjects =
         isChaining ? new ArrayList<>() : new ArrayList<>(scenario.getInjects());
 
@@ -922,12 +922,20 @@ public class ScenarioService {
             .map(Document::getId)
             .toList());
 
-    // Add Workflow (chaining) if present — scope definition is optional
+    // Add Workflow (chaining) if present — scope definition is optional. The whole workflow graph
+    // is loaded inside the owner's tenant, so the serialization below finds it already initialized.
     Optional<Workflow> workflowOpt =
-        workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
+        workflowOwnerScope.call(
+            scenario,
+            () -> {
+              Optional<Workflow> workflow =
+                  workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
+              workflow.ifPresent(
+                  found -> workflowExportInitializer.initialize(found, isWithScopeDefinition));
+              return workflow;
+            });
     workflowOpt.ifPresent(
         workflow -> {
-          workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
           if (isChaining) {
             scenarioTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));
           }

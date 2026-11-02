@@ -1030,17 +1030,14 @@ public class ExerciseApi extends RestBehavior {
       throws IOException {
     Exercise exercise = exerciseService.exercise(exerciseId);
     int exportOptionsMask = ExportOptions.mask(isWithPlayers, isWithTeams, isWithVariableValues);
+    // The file name says whether the simulation is chained, read in the simulation's own tenant
+    // whatever the caller's scope. The export reads its workflow in that tenant too, and every
+    // other table it serialises under the request's scope, see ExportService#exportExerciseToZip.
     boolean isChaining =
         workflowOwnerScope.call(exercise, () -> workflowService.isSimulationChaining(exerciseId));
 
-    // The export carries the simulation's workflow, read in the simulation's own tenant whatever
-    // the caller's scope; the whole export runs there, as it serializes the workflow with the rest.
     byte[] zippedExport =
-        workflowOwnerScope.call(
-            exercise,
-            () ->
-                exportService.exportExerciseToZip(
-                    exercise, exportOptionsMask, isWithScopeDefinition));
+        exportService.exportExerciseToZip(exercise, exportOptionsMask, isWithScopeDefinition);
     String zipName =
         exportService.getZipFileName(
             exercise, exportOptionsMask, isChaining, isWithScopeDefinition);

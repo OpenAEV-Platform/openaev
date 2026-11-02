@@ -16,6 +16,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Workflow;
 import io.openaev.ee.EnterpriseEditionService;
@@ -23,9 +24,13 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.ZipUtils;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.StepFixture;
+import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.fixtures.composers.StepComposer;
+import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
@@ -69,6 +74,8 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private StepComposer stepComposer;
+  @Autowired private TagComposer tagComposer;
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private EntityManager manager;
@@ -82,25 +89,50 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
     when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     scenarioComposer.reset();
     injectComposer.reset();
+    stepComposer.reset();
+    tagComposer.reset();
+    workflowComposer.reset();
   }
 
-  private record ChainedScenario(Scenario scenario, Workflow template) {}
+  private record ChainedScenario(Scenario scenario, Workflow template, Tag tag) {}
 
-  /** A chained scenario of the default tenant: its workflow template and one inject. */
+  /** A chained scenario of the default tenant: its workflow template, one inject and one tag. */
   private ChainedScenario chainedScenario() {
+    return chainedScenario(false);
+  }
+
+  /**
+   * The same scenario with one step on its workflow template: the export must find that step
+   * already loaded, which only holds while the graph is read in the scenario's tenant. Only the
+   * export asks for a step: a launch would enqueue it, which needs a broker publisher channel the
+   * test stack does not open.
+   */
+  private ChainedScenario chainedScenarioWithAStep() {
+    return chainedScenario(true);
+  }
+
+  /**
+   * The tag is an ordinary row of a tenant-active table the export serialises, read under the scope
+   * the request resolved and not under the scenario's tenant.
+   */
+  private ChainedScenario chainedScenario(boolean withAStep) {
+    Tag tag = TagFixture.getTagWithText("chained-scenario-export");
     ScenarioComposer.Composer scenario =
         scenarioComposer
             .forScenario(ScenarioFixture.createDefaultCrisisScenario())
-            .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()));
-    Workflow template =
+            .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+            .withTag(tagComposer.forTag(tag));
+    WorkflowComposer.Composer workflow =
         workflowComposer
             .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-            .withScenario(scenario)
-            .persist()
-            .get();
+            .withScenario(scenario);
+    if (withAStep) {
+      workflow.withStep(stepComposer.forStep(StepFixture.getDefaultStepTemplate()));
+    }
+    Workflow template = workflow.persist().get();
     manager.flush();
     manager.clear();
-    return new ChainedScenario(scenario.get(), template);
+    return new ChainedScenario(scenario.get(), template, tag);
   }
 
   /** Makes the current caller a member of another tenant than the scenario's, and of no other. */
@@ -161,6 +193,28 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
             .getContentAsByteArray();
     return ZipUtils.getZipEntry(
         zip, "%s.json".formatted(scenario.getName()), ZipUtils::streamToString);
+  }
+
+  /** A chained export carries the workflow instead of the runtime injects. */
+  private static void assertExportedAsChained(String json) {
+    assertThatJson(json).node("scenario_workflow").isPresent();
+    // The workflow graph is loaded in the scenario's tenant, so the serialization finds its steps:
+    // an empty collection here would mean they were read under the request's scope.
+    assertThatJson(json).node("scenario_workflow.workflow_steps").isArray().hasSize(1);
+    assertThatJson(json).node("scenario_injects").isArray().isEmpty();
+  }
+
+  /**
+   * The scenario's tags are read under the request's scope: a scope without its tenant sees none.
+   */
+  private static void assertNoTagRead(String json) {
+    assertThatJson(json).node("scenario_tags").isArray().isEmpty();
+  }
+
+  /** A caller scoped to the scenario's tenant reads its tags as it reads any row of that tenant. */
+  private static void assertTagRead(String json, Tag tag) {
+    assertThatJson(json).node("scenario_tags").isArray().hasSize(1);
+    assertThatJson(json).node("scenario_tags[0].tag_id").isEqualTo(tag.getId());
   }
 
   @Nested
@@ -281,14 +335,14 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
     void given_scopeWithoutItsTenant_should_exportItAsChained() throws Exception {
       // Arrange
       joinOtherTenantOnly();
-      ChainedScenario rows = chainedScenario();
+      ChainedScenario rows = chainedScenarioWithAStep();
 
       // Act
       String json = exportJson(rows.scenario());
 
       // Assert
-      assertThatJson(json).node("scenario_workflow").isPresent();
-      assertThatJson(json).node("scenario_injects").isArray().isEmpty();
+      assertExportedAsChained(json);
+      assertNoTagRead(json);
     }
 
     @Test
@@ -296,14 +350,14 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
     @DisplayName("given no tenant membership should export it as chained")
     void given_noTenantMembership_should_exportItAsChained() throws Exception {
       // Arrange
-      ChainedScenario rows = chainedScenario();
+      ChainedScenario rows = chainedScenarioWithAStep();
 
       // Act
       String json = exportJson(rows.scenario());
 
       // Assert
-      assertThatJson(json).node("scenario_workflow").isPresent();
-      assertThatJson(json).node("scenario_injects").isArray().isEmpty();
+      assertExportedAsChained(json);
+      assertNoTagRead(json);
     }
 
     @Test
@@ -311,14 +365,14 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
     @DisplayName("given a membership of its tenant should export it as chained")
     void given_membershipOfItsTenant_should_exportItAsChained() throws Exception {
       // Arrange
-      ChainedScenario rows = chainedScenario();
+      ChainedScenario rows = chainedScenarioWithAStep();
 
       // Act
       String json = exportJson(rows.scenario());
 
       // Assert
-      assertThatJson(json).node("scenario_workflow").isPresent();
-      assertThatJson(json).node("scenario_injects").isArray().isEmpty();
+      assertExportedAsChained(json);
+      assertTagRead(json, rows.tag());
     }
   }
 }
