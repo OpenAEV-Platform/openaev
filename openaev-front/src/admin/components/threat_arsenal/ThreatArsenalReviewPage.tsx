@@ -5,43 +5,58 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
+  IconButton,
   Input,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuTrigger,
   SearchField,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   Text,
 } from '@filigran/design-system';
-import { BookmarkAddOutlined, ExpandLess, ExpandMore, FactCheckOutlined } from '@mui/icons-material';
+import { AddOutlined, DeleteOutlined, EditOutlined, ExpandLess, ExpandMore, FactCheckOutlined, MoreVert } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
+import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import { type UserHelper } from '../../../actions/helper';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceGrid from '../../../components/common/marketplace/MarketplaceGrid';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
-import { type ThreatArsenalAction } from '../../../utils/api-types';
+import { type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
+import { tint } from '../../../utils/tint';
 import { displayedApprovalStatus } from './approval/approvalStatusUtils';
+import ReviewSlicePanel, { type SliceValue } from './approval/ReviewSlicePanel';
 import {
   builtInViews,
   matches,
+  matchesFilters,
   readSavedViews,
   type ReviewContext,
   type ReviewFilters,
   type ReviewKind,
   type ReviewSource,
   type ReviewView,
+  sameFilters,
+  sliceValueOf,
   writeSavedViews,
 } from './approval/reviewViews';
-import ReviewViewsSidebar from './approval/ReviewViewsSidebar';
 import { isFromCollector, type QueueItem, useApprovalQueue, useQueueDrawer } from './approval/useApprovalQueue';
+import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import computeActionFlags from './threatArsenalActionFlags';
 import ThreatArsenalCard from './ThreatArsenalCard';
+import { actionDomains } from './threatArsenalDomainSections';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import ThreatArsenalPageHeader from './ThreatArsenalPageHeader';
 
@@ -51,10 +66,11 @@ const VIEW_PARAM = 'view';
 
 /**
  * The review pages of the Threat Arsenal (To review for approvers, My changes for authors), after
- * GitHub's pull request and issue dashboards: built-in views and saved views on the left, a search
- * and two filters on top, and the same cards as the Active tab, grouped into New actions and New
- * versions that fold like GitHub's inbox sections. Opening a card shows its Versions tab, where the
- * version is decided.
+ * GitHub Projects: views as tabs with their counts (built-in ones per role, plus the person's own
+ * with "+ New view"), a filter bar that offers to save or discard what changed, a "Slice by" rail,
+ * and the same cards as the Active tab grouped into New actions and New versions. In My changes the
+ * New actions group ends with "+ New action", like GitHub's "+ Add item". Opening a card shows its
+ * Versions tab, where the version is decided.
  */
 const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
   const { t, tPick } = useFormatter();
@@ -70,15 +86,18 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
     size: 20,
   });
   const drawer = useQueueDrawer();
+  const allDomains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
 
   const builtIn = builtInViews(mode);
   const [saved, setSaved] = useState<ReviewView[]>(() => readSavedViews(mode, me));
   const views = [...builtIn, ...saved];
   const activeView = views.find(view => view.id === searchParams.get(VIEW_PARAM)) ?? builtIn[0];
   const [filters, setFilters] = useState<ReviewFilters>(activeView.filters);
-  const [saving, setSaving] = useState(false);
+  const [naming, setNaming] = useState<'new' | 'rename' | null>(null);
   const [viewName, setViewName] = useState('');
   const [folded, setFolded] = useState<Record<string, boolean>>({});
+  const viewLabel = (view: ReviewView) => (view.saved ? view.label : t(view.label));
+  const changed = !sameFilters(filters, activeView.filters);
 
   const context: ReviewContext = {
     me,
@@ -88,40 +107,97 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
     ) ?? undefined,
     fromCollector: isFromCollector,
     isLaterVersion: item => !!item.full?.action_pending_version || (item.action.action_payload?.payload_installed_versions ?? 0) > 1,
+    author: item => item.full?.action_last_modified_by_name ?? t('Unknown'),
+    domain: (item) => {
+      const domain = actionDomains(item.action as ThreatArsenalAction, allDomains)[0];
+      return domain ? t(domain.domain_name) : t('Unknown');
+    },
   };
   const all: QueueItem[] = useMemo(() => [...(waiting.items ?? []), ...(approved.items ?? [])], [waiting.items, approved.items]);
   const loading = waiting.items === null || approved.items === null;
-  const listed = (view: ReviewView, applied: ReviewFilters) => all.filter(item => matches(item, view, applied, context, tPick(item.action.action_labels)));
-  const counts = Object.fromEntries(views.map(view => [view.id, listed(view, view.filters).length]));
-  const shown = listed(activeView, filters);
+  const name = (item: QueueItem) => tPick(item.action.action_labels);
+  const counts = Object.fromEntries(views.map(view => [view.id, all.filter(item => matches(item, view, view.filters, context, name(item))).length]));
+  const shown = all.filter(item => matches(item, activeView, filters, context, name(item)));
+
+  // The slice rail counts what the view and filters list, whatever value is picked.
+  const unsliced = all.filter(item => matchesFilters(item, activeView, filters, context, name(item)));
+  const sliceLabels: Record<string, string> = {
+    people: t('From people'),
+    collectors: t('From collectors'),
+    new: t('New actions'),
+    version: t('New versions'),
+  };
+  const sliceValues: SliceValue[] = Object.entries(unsliced.reduce<Record<string, number>>((acc, item) => {
+    const value = sliceValueOf(item, filters.sliceField, context);
+    return {
+      ...acc,
+      [value]: (acc[value] ?? 0) + 1,
+    };
+  }, {}))
+    .map(([value, count]) => ({
+      value,
+      label: sliceLabels[value] ?? value,
+      count,
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 
   const selectView = (view: ReviewView) => {
     setFilters(view.filters);
     searchParams.set(VIEW_PARAM, view.id);
     setSearchParams(searchParams, { replace: true });
   };
-  const saveView = () => {
-    const view: ReviewView = {
-      id: `saved-${Date.now()}`,
-      label: viewName.trim(),
-      base: activeView.base,
-      filters,
-      saved: true,
-    };
-    const next = [...saved, view];
+  const storeViews = (next: ReviewView[]) => {
     setSaved(next);
     writeSavedViews(mode, me, next);
-    setSaving(false);
-    setViewName('');
-    selectView(view);
   };
-  const deleteView = (view: ReviewView) => {
-    const next = saved.filter(other => other.id !== view.id);
-    setSaved(next);
-    writeSavedViews(mode, me, next);
-    if (view.id === activeView.id) selectView(builtIn[0]);
+  const openNaming = (kind: 'new' | 'rename') => {
+    setViewName(kind === 'rename' ? activeView.label : '');
+    setNaming(kind);
   };
+  const submitName = () => {
+    if (naming === 'rename') {
+      storeViews(saved.map(view => (view.id === activeView.id
+        ? {
+            ...view,
+            label: viewName.trim(),
+          }
+        : view)));
+    } else {
+      // A new view starts from what is on screen: the current view's base, search, filters and slice.
+      const view: ReviewView = {
+        id: `saved-${Date.now()}`,
+        label: viewName.trim(),
+        base: activeView.base,
+        filters,
+        saved: true,
+      };
+      storeViews([...saved, view]);
+      selectView(view);
+    }
+    setNaming(null);
+  };
+  const saveChanges = () => {
+    if (!activeView.saved) {
+      openNaming('new');
+      return;
+    }
+    storeViews(saved.map(view => (view.id === activeView.id
+      ? {
+          ...view,
+          filters,
+        }
+      : view)));
+  };
+  const deleteView = () => {
+    storeViews(saved.filter(view => view.id !== activeView.id));
+    selectView(builtIn[0]);
+  };
+  const setFilter = (patch: Partial<ReviewFilters>) => setFilters({
+    ...filters,
+    ...patch,
+  });
 
+  const canAdd = mode === 'my-changes';
   const sections = [
     {
       id: 'new',
@@ -133,7 +209,7 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
       label: t('New versions'),
       items: shown.filter(item => context.isLaterVersion(item)),
     },
-  ].filter(section => section.items.length > 0);
+  ].filter(section => section.items.length > 0 || (canAdd && section.id === 'new'));
 
   const card = (item: QueueItem) => (
     <ThreatArsenalCard
@@ -152,6 +228,43 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
         onClick: () => drawer.open(item),
       }}
       {...computeActionFlags(item.action as ThreatArsenalAction)}
+    />
+  );
+
+  // GitHub's "+ Add item" at the end of a group: a card-sized tile that opens the Create form.
+  const addTile = (
+    <CreateThreatArsenalAction
+      key="add"
+      onCreate={() => waiting.reload()}
+      renderTrigger={open => (
+        <button
+          type="button"
+          onClick={open}
+          style={{
+            all: 'unset',
+            boxSizing: 'border-box',
+            cursor: 'pointer',
+            minHeight: 280,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: theme.spacing(1),
+            padding: theme.spacing(3),
+            textAlign: 'center',
+            borderRadius: theme.shape.borderRadius,
+            border: `1px dashed ${tint(theme.palette.text.primary, 24)}`,
+            color: theme.palette.primary.main,
+          }}
+        >
+          <AddOutlined />
+          <Text variant="content-base-bold" style={{ color: 'inherit' }}>{t('New action')}</Text>
+          <Text variant="content-compact" className="text-default-secondary">
+            {t('It is sent for review when you create it.')}
+          </Text>
+        </button>
+      )}
     />
   );
 
@@ -175,6 +288,48 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
     </div>
   );
 
+  const viewTabs = (
+    <Tabs value={activeView.id} onValueChange={id => selectView(views.find(view => view.id === id) ?? builtIn[0])} panels="external">
+      <TabsList
+        aria-label={t('Views')}
+        actions={(
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing(0.5),
+          }}
+          >
+            <Button priority="tertiary" size="sm" startIcon={<AddOutlined fontSize="small" />} onClick={() => openNaming('new')}>
+              {t('New view')}
+            </Button>
+            {activeView.saved && (
+              <Menu>
+                <MenuTrigger asChild>
+                  <IconButton size="sm" priority="tertiary" icon={<MoreVert fontSize="small" />} aria-label={t('Options of the view {name}', { name: activeView.label })} />
+                </MenuTrigger>
+                <MenuContent align="end">
+                  <MenuItem startIcon={<EditOutlined fontSize="small" />} onSelect={() => openNaming('rename')}>{t('Rename view')}</MenuItem>
+                  <MenuItem startIcon={<DeleteOutlined fontSize="small" />} onSelect={deleteView}>{t('Delete view')}</MenuItem>
+                </MenuContent>
+              </Menu>
+            )}
+          </div>
+        )}
+      >
+        {views.map(view => (
+          <TabsTrigger
+            key={view.id}
+            value={view.id}
+            badge={counts[view.id] ?? 0}
+            badgeLabel={t('{count, plural, one {# item} other {# items}}', { count: String(counts[view.id] ?? 0) })}
+          >
+            {viewLabel(view)}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  );
+
   const toolbar = (
     <div style={{
       display: 'flex',
@@ -193,23 +348,11 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
           placeholder={t('Search these results...')}
           fullWidth
           value={filters.search}
-          onChange={event => setFilters({
-            ...filters,
-            search: event.target.value,
-          })}
-          onClear={() => setFilters({
-            ...filters,
-            search: '',
-          })}
+          onChange={event => setFilter({ search: event.target.value })}
+          onClear={() => setFilter({ search: '' })}
         />
       </div>
-      <Select
-        value={filters.source}
-        onValueChange={value => setFilters({
-          ...filters,
-          source: value as ReviewSource,
-        })}
-      >
+      <Select value={filters.source} onValueChange={value => setFilter({ source: value as ReviewSource })}>
         <SelectTrigger aria-label={t('Source')} style={{ minWidth: 150 }}><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">{t('All sources')}</SelectItem>
@@ -217,13 +360,7 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
           <SelectItem value="collectors">{t('From collectors')}</SelectItem>
         </SelectContent>
       </Select>
-      <Select
-        value={filters.kind}
-        onValueChange={value => setFilters({
-          ...filters,
-          kind: value as ReviewKind,
-        })}
-      >
+      <Select value={filters.kind} onValueChange={value => setFilter({ kind: value as ReviewKind })}>
         <SelectTrigger aria-label={t('Type')} style={{ minWidth: 150 }}><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">{t('Actions and versions')}</SelectItem>
@@ -231,9 +368,13 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
           <SelectItem value="version">{t('New versions')}</SelectItem>
         </SelectContent>
       </Select>
-      <Button priority="secondary" startIcon={<BookmarkAddOutlined fontSize="small" />} onClick={() => setSaving(true)}>
-        {t('Save view')}
-      </Button>
+      {/* As in GitHub: once the filters differ from the view, offer to keep or drop the change. */}
+      {changed && (
+        <>
+          <Button priority="tertiary" onClick={() => setFilters(activeView.filters)}>{t('Discard')}</Button>
+          <Button priority="secondary" onClick={saveChanges}>{activeView.saved ? t('Save changes') : t('Save as new view')}</Button>
+        </>
+      )}
     </div>
   );
 
@@ -256,15 +397,19 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
       />
       <MarketplaceBrowser
         hero={<ThreatArsenalPageHeader active={mode} />}
+        tabs={viewTabs}
         sidebar={(
-          <ReviewViewsSidebar
-            builtIn={builtIn}
-            saved={saved}
-            activeId={activeView.id}
-            counts={counts}
-            onSelect={selectView}
-            onAdd={() => setSaving(true)}
-            onDelete={deleteView}
+          <ReviewSlicePanel
+            fields={mode === 'to-review' ? ['author', 'domain', 'source', 'kind'] : ['domain', 'source', 'kind']}
+            field={filters.sliceField}
+            values={sliceValues}
+            total={unsliced.length}
+            selected={filters.sliceValue}
+            onFieldChange={sliceField => setFilter({
+              sliceField,
+              sliceValue: null,
+            })}
+            onSelect={sliceValue => setFilter({ sliceValue })}
           />
         )}
         toolbar={toolbar}
@@ -302,19 +447,22 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
                 {!folded[section.id] && (
                   <MarketplaceGrid loading={false} isEmpty={false} emptyState={null}>
                     {section.items.map(card)}
+                    {canAdd && section.id === 'new' && addTile}
                   </MarketplaceGrid>
                 )}
               </section>
             ))}
       </MarketplaceBrowser>
 
-      <Dialog open={saving} onOpenChange={open => !open && setSaving(false)}>
+      <Dialog open={naming !== null} onOpenChange={open => !open && setNaming(null)}>
         <DialogContent size="sm">
-          <DialogTitle>{t('Save view')}</DialogTitle>
+          <DialogTitle>{naming === 'rename' ? t('Rename view') : t('New view')}</DialogTitle>
           <DialogBody>
-            <Text variant="content-compact" className="text-default-secondary">
-              {t('Saves "{view}" with the current search and filters, so you can open it again in one click.', { view: activeView.saved ? activeView.label : t(activeView.label) })}
-            </Text>
+            {naming === 'new' && (
+              <Text variant="content-compact" className="text-default-secondary">
+                {t('Starts from "{view}" with the current search, filters and slice. It opens as a new tab.', { view: viewLabel(activeView) })}
+              </Text>
+            )}
             <Input
               label={t('Name')}
               value={viewName}
@@ -324,8 +472,8 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
             />
           </DialogBody>
           <DialogFooter>
-            <Button priority="secondary" onClick={() => setSaving(false)}>{t('Cancel')}</Button>
-            <Button disabled={viewName.trim() === ''} onClick={saveView}>{t('Save')}</Button>
+            <Button priority="secondary" onClick={() => setNaming(null)}>{t('Cancel')}</Button>
+            <Button disabled={viewName.trim() === ''} onClick={submitName}>{t('Save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

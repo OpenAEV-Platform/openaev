@@ -1,4 +1,4 @@
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useState } from 'react';
 
 import { addThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import ButtonCreate from '../../../components/common/ButtonCreate';
@@ -15,7 +15,11 @@ import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPa
 import notifySubmittedForApproval from './approval/notifySubmittedForApproval';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 
-interface Props { onCreate?: (action: ThreatArsenalAction) => void }
+interface Props {
+  onCreate?: (action: ThreatArsenalAction) => void;
+  /** Another way to open the form than the Create button, e.g. a "New action" row in a list. */
+  renderTrigger?: (open: () => void) => ReactNode;
+}
 
 function handleCleanupCommandValue(cleanupCommand: string | null | undefined): string | null {
   return cleanupCommand === '' ? null : (cleanupCommand ?? null);
@@ -31,7 +35,7 @@ function handleCleanupExecutorValue(
   return null;
 }
 
-const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
+const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate, renderTrigger }) => {
   const [open, setOpen] = useState(false);
   const { t } = useFormatter();
   const ability = useAbility();
@@ -72,7 +76,7 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
 
   return (
     <>
-      <ButtonCreate onClick={handleOpen} />
+      {renderTrigger ? renderTrigger(handleOpen) : <ButtonCreate onClick={handleOpen} />}
       <Drawer
         open={open}
         handleClose={handleClose}

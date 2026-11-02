@@ -1,24 +1,28 @@
 import { type QueueItem } from './useApprovalQueue';
 
 /**
- * Views of the review pages, after GitHub's pull request and issue dashboards: a few built-in views
- * per role (To review for approvers, My changes for authors), plus views a person saves from the
- * current search and filters. DESIGN DEMO: saved views live in this browser only; the product would
- * store them per user on the server.
+ * Views of the review pages, after GitHub Projects: each view is a tab holding a saved filter
+ * (base set + search + source + type) and a "slice by" field; built-in views per role (To review
+ * for approvers, My changes for authors), plus views a person adds with "+ New view". DESIGN DEMO:
+ * saved views live in this browser only; the product would store them per user on the server.
  */
 export type ReviewSource = 'all' | 'people' | 'collectors';
 export type ReviewKind = 'all' | 'new' | 'version';
+export type SliceField = 'author' | 'domain' | 'source' | 'kind';
 
 export interface ReviewFilters {
   search: string;
   source: ReviewSource;
   kind: ReviewKind;
+  sliceField: SliceField;
+  /** Value picked in the slice panel; null shows every value. */
+  sliceValue: string | null;
 }
 
 export interface ReviewView {
   id: string;
   label: string;
-  /** Built-in base the saved filters apply to. */
+  /** Built-in base the filters apply to. */
   base: string;
   filters: ReviewFilters;
   saved?: boolean;
@@ -29,12 +33,16 @@ export interface ReviewContext {
   status: (item: QueueItem) => string | undefined;
   fromCollector: (item: QueueItem) => boolean;
   isLaterVersion: (item: QueueItem) => boolean;
+  author: (item: QueueItem) => string;
+  domain: (item: QueueItem) => string;
 }
 
 export const NO_FILTERS: ReviewFilters = {
   search: '',
   source: 'all',
   kind: 'all',
+  sliceField: 'author',
+  sliceValue: null,
 };
 
 type Base = (item: QueueItem, context: ReviewContext) => boolean;
@@ -52,55 +60,30 @@ export const REVIEW_BASES: Record<string, Base> = {
   'all-mine': (item, c) => mine(item, c),
 };
 
-export const builtInViews = (mode: 'to-review' | 'my-changes'): ReviewView[] => (mode === 'to-review'
-  ? [
-      {
-        id: 'needs-review',
-        label: 'Needs your review',
-        base: 'needs-review',
-        filters: NO_FILTERS,
-      },
-      {
-        id: 'from-collectors',
-        label: 'From collectors',
-        base: 'from-collectors',
-        filters: NO_FILTERS,
-      },
-      {
-        id: 'rejected',
-        label: 'Rejected',
-        base: 'rejected',
-        filters: NO_FILTERS,
-      },
-      {
-        id: 'approved',
-        label: 'Recently approved',
-        base: 'approved',
-        filters: NO_FILTERS,
-      },
-    ]
-  : [
-      {
-        id: 'waiting',
-        label: 'Waiting for review',
-        base: 'waiting',
-        filters: NO_FILTERS,
-      },
-      {
-        id: 'needs-changes',
-        label: 'Needs your changes',
-        base: 'needs-changes',
-        filters: NO_FILTERS,
-      },
-      {
-        id: 'all-mine',
-        label: 'All my changes',
-        base: 'all-mine',
-        filters: NO_FILTERS,
-      },
-    ]);
+// Authors only see their own changes: slicing them by who submitted would show one value.
+const view = (id: string, label: string, sliceField: SliceField = 'author'): ReviewView => ({
+  id,
+  label,
+  base: id,
+  filters: {
+    ...NO_FILTERS,
+    sliceField,
+  },
+});
 
-export const matches = (item: QueueItem, view: ReviewView, filters: ReviewFilters, context: ReviewContext, name: string) => {
+export const builtInViews = (mode: 'to-review' | 'my-changes'): ReviewView[] => (mode === 'to-review'
+  ? [view('needs-review', 'Needs your review'), view('from-collectors', 'From collectors'), view('rejected', 'Rejected'), view('approved', 'Recently approved')]
+  : [view('waiting', 'Waiting for review', 'domain'), view('needs-changes', 'Needs your changes', 'domain'), view('all-mine', 'All my changes', 'domain')]);
+
+export const sliceValueOf = (item: QueueItem, field: SliceField, context: ReviewContext): string => {
+  if (field === 'source') return context.fromCollector(item) ? 'collectors' : 'people';
+  if (field === 'kind') return context.isLaterVersion(item) ? 'version' : 'new';
+  if (field === 'domain') return context.domain(item);
+  return context.author(item);
+};
+
+/** Everything but the slice: what the slice panel counts. */
+export const matchesFilters = (item: QueueItem, view: ReviewView, filters: ReviewFilters, context: ReviewContext, name: string) => {
   const base = REVIEW_BASES[view.base];
   if (!base || !base(item, context)) return false;
   if (filters.source === 'people' && context.fromCollector(item)) return false;
@@ -110,12 +93,29 @@ export const matches = (item: QueueItem, view: ReviewView, filters: ReviewFilter
   return !filters.search || name.toLowerCase().includes(filters.search.toLowerCase());
 };
 
+export const matches = (item: QueueItem, view: ReviewView, filters: ReviewFilters, context: ReviewContext, name: string) => matchesFilters(item, view, filters, context, name)
+  && (filters.sliceValue === null || sliceValueOf(item, filters.sliceField, context) === filters.sliceValue);
+
+export const sameFilters = (a: ReviewFilters, b: ReviewFilters) => a.search === b.search && a.source === b.source && a.kind === b.kind
+  && a.sliceField === b.sliceField && a.sliceValue === b.sliceValue;
+
 const storageKey = (mode: string, me?: string) => `threat-arsenal:review-views:${mode}:${me ?? 'anonymous'}`;
 
 export const readSavedViews = (mode: string, me?: string): ReviewView[] => {
   try {
     const raw = window.localStorage.getItem(storageKey(mode, me));
-    return raw ? (JSON.parse(raw) as ReviewView[]) : [];
+    // Views saved before the slice existed get the default slice.
+    return raw
+      ? (JSON.parse(raw) as ReviewView[]).map(v => ({
+          ...v,
+          filters: {
+            ...NO_FILTERS,
+            ...v.filters,
+            // Authors never slice by author.
+            ...(mode === 'my-changes' && (v.filters?.sliceField ?? 'author') === 'author' ? { sliceField: 'domain' as SliceField } : {}),
+          },
+        }))
+      : [];
   } catch {
     return [];
   }
