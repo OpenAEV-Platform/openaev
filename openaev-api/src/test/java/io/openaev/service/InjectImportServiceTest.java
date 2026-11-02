@@ -473,31 +473,6 @@ public class InjectImportServiceTest {
     }
 
     @Test
-    @DisplayName("Accepts an upper-case xlsx extension")
-    void given_upperCaseExtension_should_storeFile() throws Exception {
-      // -------- Prepare --------
-      InjectImportService service =
-          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
-      Workbook wb = new XSSFWorkbook();
-      wb.createSheet("Timeline");
-      java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
-      wb.write(bos);
-      wb.close();
-      byte[] content = bos.toByteArray();
-      MultipartFile file = mock(MultipartFile.class);
-      when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream(content));
-      when(file.getBytes()).thenReturn(content);
-      when(file.getOriginalFilename()).thenReturn("PLAN.XLSX");
-
-      // -------- Act --------
-      io.openaev.rest.scenario.response.ImportPostSummary result =
-          service.storeXlsFileForImport(file, "user-1");
-
-      // -------- Assert --------
-      assertEquals(List.of("Timeline"), result.getAvailableSheets());
-    }
-
-    @Test
     @DisplayName("Rejects a file that is not xls or xlsx")
     void given_csvFile_should_rejectAsUnsupportedMediaType() {
       // -------- Prepare --------
@@ -577,33 +552,6 @@ public class InjectImportServiceTest {
 
       // -------- Assert --------
       assertFalse(uploadExists(importId));
-    }
-
-    @Test
-    @DisplayName("Keeps the imported file until the import commits")
-    void given_activeTransaction_should_deleteFileOnlyAfterCommit() throws Exception {
-      // -------- Prepare --------
-      InjectImportService service =
-          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
-      String importId = service.storeXlsFileForImport(xlsxFile(), "user-1").getImportId();
-      org.springframework.transaction.support.TransactionSynchronizationManager
-          .initSynchronization();
-      try {
-        // -------- Act --------
-        service.deleteStoredFileAfterCommit(importId);
-
-        // -------- Assert --------
-        assertTrue(uploadExists(importId));
-        org.springframework.transaction.support.TransactionSynchronizationManager
-            .getSynchronizations()
-            .forEach(
-                org.springframework.transaction.support.TransactionSynchronization::afterCommit);
-        assertFalse(uploadExists(importId));
-      } finally {
-        org.springframework.transaction.support.TransactionSynchronizationManager
-            .clearSynchronization();
-        service.deleteStoredFile(importId);
-      }
     }
 
     @Test

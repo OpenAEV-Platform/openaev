@@ -61,8 +61,6 @@ import org.apache.logging.log4j.util.Strings;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellReference;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
@@ -140,10 +138,9 @@ public class InjectImportService {
     reserveUpload(ownerId, fileID);
     try {
       // We're opening the file and listing the names of the sheets
-      try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
-        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-          result.getAvailableSheets().add(workbook.getSheetName(i));
-        }
+      Workbook workbook = WorkbookFactory.create(file.getInputStream());
+      for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+        result.getAvailableSheets().add(workbook.getSheetName(i));
       }
 
       // Writing the file in a temp dir
@@ -217,34 +214,9 @@ public class InjectImportService {
     // Only an upload id is deleted: never the temp dir itself or a path outside it.
     isValidUUID(importId);
     pendingUploadsByUser
-        .keySet()
-        .forEach(
-            owner ->
-                pendingUploadsByUser.computeIfPresent(
-                    owner,
-                    (key, uploads) -> {
-                      uploads.removeIf(upload -> upload.importId.equals(importId));
-                      return uploads.isEmpty() ? null : uploads;
-                    }));
+        .values()
+        .forEach(uploads -> uploads.removeIf(upload -> upload.importId.equals(importId)));
     FileUtils.deleteQuietly(validatePathTraversal(BASE_DIR, importId).toFile());
-  }
-
-  /**
-   * Deletes the upload once the current transaction commits, so a failed import keeps the file and
-   * can be retried. Deletes it at once when no transaction is active.
-   */
-  void deleteStoredFileAfterCommit(String importId) {
-    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-      deleteStoredFile(importId);
-      return;
-    }
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCommit() {
-            deleteStoredFile(importId);
-          }
-        });
   }
 
   private void validateUploadedFile(MultipartFile file) {
@@ -253,9 +225,8 @@ public class InjectImportService {
   }
 
   private void validateExtension(MultipartFile file) {
-    // Lower-cased so a file named PLAN.XLSX is accepted like plan.xlsx.
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
-    if (extension == null || !ACCEPTED_FILE_TYPES.contains(extension.toLowerCase(Locale.ROOT))) {
+    if (!ACCEPTED_FILE_TYPES.contains(extension)) {
       throw new UnsupportedMediaTypeException(
           "Only the following file types are accepted : " + String.join(", ", ACCEPTED_FILE_TYPES));
     }
@@ -325,8 +296,8 @@ public class InjectImportService {
               .peek(inject -> inject.setListened(false))
               .toList());
       Iterable<Inject> newInjects = injectRepository.saveAll(importTestSummary.getInjects());
-      // The file is no longer needed once its injects are committed.
-      deleteStoredFileAfterCommit(importId);
+      // The file is no longer needed once its injects are saved.
+      deleteStoredFile(importId);
       if (exercise != null) {
         computeInjectInExercise(exercise, newInjects);
       } else if (scenario != null) {
@@ -479,12 +450,9 @@ public class InjectImportService {
                 .orElseThrow(() -> new BadRequestException("No file found in import directory"));
       }
 
-      // We open the file and convert it to an apache POI object. The workbook is read into
-      // memory, so the stream is closed right away and the file can be deleted later.
-      Workbook workbook;
-      try (InputStream xlsFile = Files.newInputStream(file)) {
-        workbook = WorkbookFactory.create(xlsFile);
-      }
+      // We open the file and convert it to an apache POI object
+      InputStream xlsFile = Files.newInputStream(file);
+      Workbook workbook = WorkbookFactory.create(xlsFile);
       Sheet selectedSheet = workbook.getSheet(sheetName);
 
       Map<Integer, InjectTime> mapInstantByRowIndex = new HashMap<>();
