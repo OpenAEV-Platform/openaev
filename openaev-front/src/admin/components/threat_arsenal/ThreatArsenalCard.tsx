@@ -1,7 +1,7 @@
 import { Button, Chip, type ChipSeverity, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useMemo } from 'react';
+import { type FunctionComponent, type ReactNode, useMemo } from 'react';
 
 import type { AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
@@ -15,8 +15,9 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import InjectIcon from '../common/injects/InjectIcon';
 import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescriptions';
 import { approvalStatusSeverity, displayedApprovalStatus } from './approval/approvalStatusUtils';
-import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
+import { PAYLOAD_ORIGIN_LABELS, type PayloadOrigin, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
+import ThreatArsenalCardBanner from './ThreatArsenalCardBanner';
 import { actionDomains } from './threatArsenalDomainSections';
 import { getStatusHint, getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
 
@@ -104,11 +105,12 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const approvalNeedsAttention = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
   // New action or new version of an installed one (a Scenario Factory version is its own payload).
   const isNewVersion = !!action.action_payload?.payload_pending_version || (action.action_payload?.payload_installed_versions ?? 0) > 1;
-  // Approval copy: short on the tag, the full sentence on hover.
-  let approvalLabel = t('Rejected');
+  // Approval as two short tags: what waits (new action / new version) and its state (pending /
+  // rejected); the hover says it in full.
+  const approvalKind = isNewVersion ? t('New version') : t('New action');
+  const approvalState = approvalStatus === 'REJECTED' ? t('Rejected') : t('Pending');
   let approvalHint = t('Rejected: edit it to submit it for approval again.');
   if (approvalStatus === 'PENDING') {
-    approvalLabel = isNewVersion ? t('New version pending') : t('New action pending');
     approvalHint = isNewVersion
       ? t('A new version waits for approval. The approved version keeps running until then.')
       : t('A new action waits for approval. It cannot be used until it is approved.');
@@ -119,6 +121,32 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const olderInUse = action.action_payload?.payload_older_versions_in_use ?? 0;
   // Running a test creates an atomic test: hidden without that right, as the PRD hides what a user cannot do.
   const canRunTest = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  // The one thing to act on, in the Figma CardBanner: revoked first, then injects left behind.
+  const versionsLink = `/admin/threat-arsenal?action=${encodeURIComponent(action.injector_contract_id)}&tab=versions`;
+  let banner: ReactNode = null;
+  if (action.action_payload?.payload_revoked) {
+    banner = (
+      <ThreatArsenalCardBanner
+        tone="critical"
+        message={t('Revoked: injects using it are skipped')}
+        link={{
+          label: t('Versions'),
+          to: versionsLink,
+        }}
+      />
+    );
+  } else if (olderInUse > 0) {
+    banner = (
+      <ThreatArsenalCardBanner
+        tone="warning"
+        message={olderInUse === 1 ? t('1 inject runs an older version') : t('{count} injects run an older version', { count: String(olderInUse) })}
+        link={{
+          label: t('Migrate'),
+          to: versionsLink,
+        }}
+      />
+    );
+  }
 
   return (
     <MarketplaceCard
@@ -175,29 +203,49 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           })}
         />
       )}
-      chips={(
-        <>
-          {olderInUse > 0 && (
-            <HintChip
-              label={t('{count} to migrate', { count: String(olderInUse) })}
-              hint={olderInUse === 1
-                ? t('1 inject still runs an older version. Move it from the Versions tab.')
-                : t('{count} injects still run an older version. Move them from the Versions tab.', { count: String(olderInUse) })}
-              severity="medium"
-              maxWidth={140}
-            />
-          )}
-          {techniques.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Chip label={techniques.length > 1 ? `${techniques[0]} +${techniques.length - 1}` : techniques[0]} />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{techniques.join(', ')}</TooltipContent>
-            </Tooltip>
-          )}
-        </>
+      banner={banner}
+      height={320}
+      tags={techniques.length > 0 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <Chip label={techniques.length > 1 ? `${techniques[0]} +${techniques.length - 1}` : techniques[0]} />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{techniques.join(', ')}</TooltipContent>
+        </Tooltip>
+      )}
+      info={[
+        version
+          ? {
+              label: t('Version'),
+              value: `v${version}`,
+            }
+          : null,
+        origin || builtIn
+          ? {
+              label: t('Source'),
+              value: builtIn ? `${t('Built-in')}${platformVersion ? ` · v${platformVersion}` : ''}` : t(PAYLOAD_ORIGIN_LABELS[origin as PayloadOrigin]),
+            }
+          : null,
+        {
+          label: t('Updated'),
+          value: nsd(action.injector_contract_updated_at),
+        },
+      ].filter((item): item is {
+        label: string;
+        value: string;
+      } => item !== null)}
+      chips={approvalNeedsAttention && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex" style={{ gap: 4 }}>
+              <Chip label={approvalKind} />
+              <Chip label={approvalState} severity={approvalStatusSeverity(approvalStatus)} />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{approvalHint}</TooltipContent>
+        </Tooltip>
       )}
       // A team target says more than the Internal / Service platforms of these contracts.
       platforms={action.action_targets_teams ? [] : action.action_platforms ?? []}
@@ -213,20 +261,11 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           <TooltipContent>{t('Targets teams')}</TooltipContent>
         </Tooltip>
       )}
-      footerRight={approvalNeedsAttention && (
-        <HintChip label={approvalLabel} hint={approvalHint} severity={approvalStatusSeverity(approvalStatus)} maxWidth={180} />
-      )}
-      action={showRunTest && canRunTest && !action.action_payload?.payload_revoked && (
+      footerRight={showRunTest && canRunTest && !action.action_payload?.payload_revoked && (
         <span onClick={event => event.stopPropagation()}>
           <Button size="sm" onClick={onRunTest}>{t('Run a test')}</Button>
         </span>
       )}
-      caption={[
-        version ? `v${version}` : null,
-        origin ? t(PAYLOAD_ORIGIN_LABELS[origin]) : null,
-        builtIn ? `${t('Built-in')}${platformVersion ? ` · v${platformVersion}` : ''}` : null,
-        `${t('Updated')} ${nsd(action.injector_contract_updated_at)}`,
-      ].filter(Boolean).join(' · ')}
     />
   );
 };

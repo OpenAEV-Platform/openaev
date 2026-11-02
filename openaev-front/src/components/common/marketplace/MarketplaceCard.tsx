@@ -33,6 +33,19 @@ interface Props {
   /** A few lines under the header. */
   description?: string;
   chips: ReactNode;
+  /**
+   * Figma Card (8467:4560) parts the code library does not ship yet (DS 1.3.0): a full-bleed
+   * CardBanner at the top for the one thing to act on, a tags row under the header, and CardInfo
+   * label / value pairs under the description. Optional: cards without them are unchanged.
+   */
+  banner?: ReactNode;
+  tags?: ReactNode;
+  info?: {
+    label: string;
+    value: string;
+  }[];
+  /** Fixed card height in the grid (cards of one grid align); taller when the extra parts are used. */
+  height?: number;
   platforms: string[];
   /** Shown with the platforms, e.g. a team target. */
   target?: ReactNode;
@@ -66,6 +79,10 @@ const MarketplaceCard: FunctionComponent<Props> = ({
   subtitle,
   description,
   chips,
+  banner,
+  tags,
+  info,
+  height = 280,
   platforms,
   target,
   caption,
@@ -135,6 +152,9 @@ const MarketplaceCard: FunctionComponent<Props> = ({
     );
   }
 
+  // Fewer description lines when a banner and info rows take the room.
+  let descriptionLines = subtitle || caption ? 3 : 4;
+  if (info?.length) descriptionLines = banner ? 1 : 2;
   const interaction = linkTo
     ? { href }
     : onClick && { onClick: () => onClick() };
@@ -149,7 +169,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
         'height': '100%',
         // The doubled class beats the design system hover rules, which load after and use :has().
         '&& > div': {
-          height: 280,
+          height,
           transition: 'transform 0.3s ease-in-out, border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
         },
         // Same hover as the OpenCTI integrations cards: the surface keeps its colour.
@@ -176,6 +196,17 @@ const MarketplaceCard: FunctionComponent<Props> = ({
       }}
     >
       <Card {...interaction} elevation={1} selected={selected} gap={16} padding={24}>
+        {banner && (
+          // Full bleed, like CardMetaBar at the bottom: the card's 24px padding is taken back.
+          <div style={{
+            margin: '-24px -24px 0',
+            position: 'relative',
+            zIndex: 1,
+          }}
+          >
+            {banner}
+          </div>
+        )}
         <CardHeader
           icon={(
             <Box sx={{
@@ -294,6 +325,18 @@ const MarketplaceCard: FunctionComponent<Props> = ({
           </Tooltip>
           {subtitle && <CardSubtitle>{subtitle}</CardSubtitle>}
         </CardHeader>
+        {tags && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 4,
+            minWidth: 0,
+          }}
+          >
+            {tags}
+          </div>
+        )}
         <Box sx={{
           flexGrow: 1,
           overflow: 'hidden',
@@ -303,12 +346,39 @@ const MarketplaceCard: FunctionComponent<Props> = ({
           {description && (
             <Tooltip open={fullText === 'description'}>
               <TooltipTrigger asChild>
-                <CardContent ref={descriptionRef} clamp={subtitle || caption ? 3 : 4}>{description}</CardContent>
+                <CardContent ref={descriptionRef} clamp={descriptionLines}>{description}</CardContent>
               </TooltipTrigger>
               <TooltipContent>{description}</TooltipContent>
             </Tooltip>
           )}
         </Box>
+        {info && info.length > 0 && (
+          <dl style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${info.length}, minmax(0, 1fr))`,
+            gap: 8,
+            margin: 0,
+          }}
+          >
+            {info.map(item => (
+              <div key={item.label} style={{ minWidth: 0 }}>
+                <Text as="dt" variant="content-caption" className="text-default-secondary">{item.label}</Text>
+                <Text
+                  as="dd"
+                  variant="content-compact"
+                  style={{
+                    margin: 0,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {item.value}
+                </Text>
+              </div>
+            ))}
+          </dl>
+        )}
         <Box sx={{
           display: 'flex',
           alignItems: 'flex-end',
