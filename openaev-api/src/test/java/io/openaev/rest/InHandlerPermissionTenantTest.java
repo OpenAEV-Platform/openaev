@@ -411,6 +411,17 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
       })
   class MarkingAssignment {
 
+    /**
+     * The two endpoints are gated by MANAGE_ASSETS and by MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+     * which a request authorized in every tenant of its scope requires in B as well. Granting them
+     * in B leaves the removal right as the only difference between the two contrasts, which is what
+     * these tests are about.
+     */
+    @BeforeEach
+    void grantTheEndpointRightsInB() {
+      grantInB(Capability.MANAGE_ASSETS, Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES);
+    }
+
     @Test
     @DisplayName("given the removal right only outside B should refuse removing a group marking")
     void given_removalRightOnlyOutsideB_should_refuseRemovingGroupMarking() throws Exception {
