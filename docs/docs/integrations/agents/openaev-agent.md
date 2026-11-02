@@ -168,8 +168,8 @@ The agent reads its token each time it contacts OpenAEV and wipes it from memory
 | OS      | Where the token is stored                                                                                  |
 |:--------|:-----------------------------------------------------------------------------------------------------------|
 | Windows | Encrypted with DPAPI (Data Protection API) in `openaev-agent-token.dpapi` (see [Token storage](windows.md#token-storage)) |
-| Linux   | In clear text in `openaev-agent-config.toml`                                                               |
-| macOS   | In clear text in `openaev-agent-config.toml`                                                               |
+| Linux   | In `openaev-agent-config.toml`, readable only by the agent's account (file mode `600`)                     |
+| macOS   | In `openaev-agent-config.toml`, readable only by the agent's account (file mode `600`)                     |
 
 {% endif %}
 ### Signed agents
