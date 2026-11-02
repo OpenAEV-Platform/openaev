@@ -132,6 +132,16 @@ class CapabilityDecisionTenantTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.MANAGE_STIX_BUNDLE})
   class MarkingReadClearance {
 
+    /**
+     * The asset search is gated by ACCESS_ASSETS, which a request authorized in every tenant of its
+     * scope requires in B as well. Granting it in B leaves the clearance capability as the only
+     * difference between the two contrasts, which is what these tests are about.
+     */
+    @BeforeEach
+    void grantTheEndpointRightInB() {
+      grantInB(Capability.ACCESS_ASSETS);
+    }
+
     @Test
     @DisplayName("given the clearance capability only outside B should not search B's marked asset")
     void given_clearanceCapabilityOnlyOutsideB_should_notSearchBMarkedAsset() throws Exception {
