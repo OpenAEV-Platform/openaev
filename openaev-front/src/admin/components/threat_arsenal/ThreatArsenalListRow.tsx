@@ -153,7 +153,10 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
               >
                 {/* Payload-less built-in actions need no approval: they show a dash. */}
                 {/* A new version waiting shows as Pending (the latest version's status). */}
-                <ApprovalStatusChip status={displayedApprovalStatus(action.action_payload?.payload_approval_status, action.action_payload?.payload_pending_version)} />
+                <ApprovalStatusChip
+                  status={displayedApprovalStatus(action.action_payload?.payload_approval_status, action.action_payload?.payload_pending_version)}
+                  pendingVersion={!!action.action_payload?.payload_pending_version}
+                />
               </div>
               <Typography
                 component="div"

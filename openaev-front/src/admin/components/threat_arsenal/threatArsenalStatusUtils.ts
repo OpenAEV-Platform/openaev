@@ -25,6 +25,19 @@ export const STATUS_LABEL_MAP: Record<PayloadStatus, string> = {
   DEPRECATED: 'Deprecated',
 };
 
+// Verified sits next to the approval chip and reads like "approved": the hint says it is about
+// whether the command works, not about a second person's sign-off.
+export const STATUS_HINT_MAP: Record<PayloadStatus, string> = {
+  VERIFIED: 'Verified: the command is known to work. Approval is separate: it says whether a second person signed it off.',
+  UNVERIFIED: 'Unverified: nobody has confirmed the command works yet. Approval is separate.',
+  DEPRECATED: 'Deprecated: kept for history, no longer maintained.',
+};
+
+export const getStatusHint = (status: PayloadStatus | string | undefined | null): string | null => {
+  if (!status) return null;
+  return STATUS_HINT_MAP[status as PayloadStatus] ?? null;
+};
+
 export const getStatusLabel = (status: PayloadStatus | string | undefined | null): string | null => {
   if (!status) return null;
   return STATUS_LABEL_MAP[status as PayloadStatus] ?? null;

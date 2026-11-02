@@ -15,7 +15,7 @@ import InjectIcon from '../common/injects/InjectIcon';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import { displayedApprovalStatus } from './approval/approvalStatusUtils';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
-import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
+import { getStatusColor, getStatusHint, getStatusLabel } from './threatArsenalStatusUtils';
 
 interface Props {
   action: ThreatArsenalAction;
@@ -68,6 +68,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const status = action.action_payload?.payload_status;
   const statusColor = getStatusColor(theme, status);
   const statusLabel = getStatusLabel(status);
+  const statusHint = getStatusHint(status);
   // Approval and Verified / Unverified / Deprecated are two different things (is it trusted by a
   // second person, does it work): each keeps its own slot so neither masks the other. The approval
   // chip only shows when it needs attention; a new version waiting shows as Pending approval.
@@ -179,7 +180,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
                 {t(statusLabel)}
               </Box>
             </TooltipTrigger>
-            <TooltipContent>{t(statusLabel)}</TooltipContent>
+            <TooltipContent>{t(statusHint ?? statusLabel)}</TooltipContent>
           </Tooltip>
         )}
       </Box>
@@ -310,7 +311,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
               maxWidth: '100%',
             }}
             >
-              <ApprovalStatusChip status={approvalStatus} />
+              <ApprovalStatusChip status={approvalStatus} pendingVersion={!!action.action_payload?.payload_pending_version} />
             </span>
           )}
         </Box>

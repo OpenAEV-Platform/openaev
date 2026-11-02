@@ -38,6 +38,16 @@ export const approvalStatusSeverity = (status: ApprovalStatus): ChipSeverity => 
 export const approvalStatusLabel = (status: ApprovalStatus): string => STATUS_LABELS[status] ?? status;
 
 /**
+ * Label of the chip that stands for a whole action (card, list row, overview): a pending status
+ * says what waits, a new action (cannot be used yet) or a new version (the approved one keeps
+ * running), so nobody has to open the action to know.
+ */
+export const actionApprovalLabel = (status: ApprovalStatus, pendingVersion: boolean): string => {
+  if (status !== 'PENDING') return approvalStatusLabel(status);
+  return pendingVersion ? 'New version, pending approval' : 'New action, pending approval';
+};
+
+/**
  * The status shown for an action: its latest version's. An approved action with a new version
  * waiting shows PENDING; the approved version keeps running until that version is decided.
  */
