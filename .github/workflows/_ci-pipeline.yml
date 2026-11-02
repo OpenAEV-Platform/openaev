@@ -19,7 +19,7 @@ on:
         required: true
       no-cache:
         description: >
-          Bypass every Maven, Yarn, Playwright and buildx cache, for both reads and
+          Bypass every Maven, Yarn, Playwright, buildx and pip cache, for both reads and
           writes. Set by Nightly, which may run slow and whose entries would only evict the
           ones Core CI PRs read.
         type: boolean
@@ -190,6 +190,7 @@ jobs:
           fetch-depth: ${{ inputs.docs-git-plugins && '0' || '1' }}
       - uses: ./.github/actions/docs-check
         with:
+          no-cache: ${{ inputs.no-cache }}
           git-plugins: ${{ inputs.docs-git-plugins }}
           github-token: ${{ inputs.docs-git-plugins && github.token || '' }}
 
