@@ -31,7 +31,7 @@ Markings decide which assets you see; capabilities decide what you can do with t
 |---|---|
 | First admin (created at install from `openaev.admin.email`, fixed id) | all, in every tenant |
 | Everyone else, `user_admin` and `BYPASS` (tenant or platform) included | only what their groups' markings allow |
-| Agent and OpenCTI accounts | all assets of their own tenant: their group is given every marking of that tenant, like a normal user who holds them all |
+| Agent, OpenCTI and catalog connector accounts | all assets of their own tenant: their group is given every marking of that tenant, like a normal user who holds them all |
 
 Background jobs run without a user and still see everything, as today.
 
@@ -65,9 +65,9 @@ What changes for them:
 - "Admin" receives every marking of the tenant, PAP and custom types included, so Alice sees every asset of tenant A.
 
 How the agent and OpenCTI groups get every marking: like in OpenCTI, a group can be set to **receive new markings**.
-When a marking is created, every group of the tenant with this setting gets it. The agent and OpenCTI groups have it
-on, and get every existing marking when they are created (the OpenCTI group is created when the first connector
-registers; all connectors of a tenant share it). At upgrade, a data pack turns it on for the existing technical groups
+When a marking is created, every group of the tenant with this setting gets it. The agent, OpenCTI and "Catalog connectors" groups
+have it on, and get every existing marking when they are created (the OpenCTI group is created when the first
+connector registers; all connectors of a tenant share it; "Catalog connectors" comes from #8827). At upgrade, a data pack turns it on for the existing technical groups
 and gives them the markings that already exist. Nobody can change these groups' markings through the API.
 
 Like in OpenCTI, the admin groups have it on too: "Admin" in every tenant and "Administrators" in the default tenant.
@@ -136,7 +136,7 @@ for (group : groupsOfTenant(tenantId).where(autoNewMarking)) {
   evictClearance(group.users());
 }
 
-// when the agent, OpenCTI, "Admin" or "Administrators" group is created, and once at upgrade (data pack)
+// when the agent, OpenCTI, "Catalog connectors", "Admin" or "Administrators" group is created, and once at upgrade (data pack)
 group.autoNewMarking = true;
 addIfMissing(group.markings, tenantMarkings(tenantId));
 
@@ -177,6 +177,7 @@ else {
 | 4 | Admin groups receive every marking; the setting in the API (turning it on needs `ASSIGN_MARKING` and every marking) | to do |
 | 5 | SSO admins join the "Admin" group | #8823 (draft, stacked on #8739), ships with step 3 |
 | 6 | Check in the app with the `MARKING` flag on | to do |
+| 7 | "Catalog connectors" group (#8827) receives every marking; remove #8827's temporary bypass | to do |
 
 ## Breaking changes
 
