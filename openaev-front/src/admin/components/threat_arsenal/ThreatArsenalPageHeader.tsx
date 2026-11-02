@@ -8,12 +8,11 @@ import { buildSearchPagination } from '../../../components/common/queryable/Quer
 import { useFormatter } from '../../../components/i18n';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { THREAT_ARSENAL_MY_CHANGES_PATH, THREAT_ARSENAL_TO_REVIEW_PATH } from './threatArsenalDeepLink';
 import useThreatArsenalFacetCounts from './useThreatArsenalFacetCounts';
 
-export const THREAT_ARSENAL_TO_REVIEW_PATH = '/admin/threat-arsenal/to-review';
-
 interface Props {
-  active: 'all' | 'to-review';
+  active: 'all' | 'to-review' | 'my-changes';
   totalElements?: number;
   rightSlot?: ReactNode;
 }
@@ -21,14 +20,16 @@ interface Props {
 /**
  * Header of the Threat Arsenal pages, on the design system Hero shared with the Scenario Factory
  * marketplaces: the title, the work waiting for approval as stat tiles (visible as soon as the page
- * opens, without filtering), and the tabs "All actions" / "To review". The "To review" tab is only
- * offered to holders of "Approve content" (hidden, not greyed out).
+ * opens, without filtering), and the tabs. Holders of "Approve content" get "To review" (what waits
+ * for their decision); people who edit without approving get "My changes" (what they submitted and
+ * what was decided). Tabs a role cannot use are hidden, not greyed out.
  */
 const ThreatArsenalPageHeader: FunctionComponent<Props> = ({ active, totalElements, rightSlot }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const ability = useAbility();
   const canApprove = ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS);
+  const canSubmit = !canApprove && ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
 
   // Counts over the whole arsenal, never the current page or filters.
   const allActions = useMemo(() => buildSearchPagination({}), []);
@@ -65,7 +66,7 @@ const ThreatArsenalPageHeader: FunctionComponent<Props> = ({ active, totalElemen
         ]}
         rightSlot={rightSlot}
       />
-      {canApprove && (
+      {(canApprove || canSubmit) && (
         <MarketplaceTabs
           active={active}
           tabs={[
@@ -74,11 +75,17 @@ const ThreatArsenalPageHeader: FunctionComponent<Props> = ({ active, totalElemen
               label: t('All actions'),
               to: '/admin/threat-arsenal',
             },
-            {
-              value: 'to-review',
-              label: pendingCount > 0 ? `${t('To review')} (${pendingCount})` : t('To review'),
-              to: THREAT_ARSENAL_TO_REVIEW_PATH,
-            },
+            canApprove
+              ? {
+                  value: 'to-review',
+                  label: pendingCount > 0 ? `${t('To review')} (${pendingCount})` : t('To review'),
+                  to: THREAT_ARSENAL_TO_REVIEW_PATH,
+                }
+              : {
+                  value: 'my-changes',
+                  label: t('My changes'),
+                  to: THREAT_ARSENAL_MY_CHANGES_PATH,
+                },
           ]}
         />
       )}

@@ -27,23 +27,28 @@ import {
 
 import AppNavbar from '../../../components/common/menu/navbar/AppNavbar';
 import { type NavMenuEntries } from '../../../components/common/menu/navbar/nav-menu-model';
+import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
+import usePendingApprovalCount from '../threat_arsenal/approval/usePendingApprovalCount';
 import settingsEntries from './config/settings.config';
 import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
 
 const LeftBar = () => {
   const ability = useAbility();
+  const { t } = useFormatter();
   const { userTenants } = useAuth();
   // The tenant switcher only appears when the user can switch (more than one
   // tenant). Passing no headerElement in the single-tenant case keeps the menu
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  // Approvers see how much waits for them without opening the Threat Arsenal.
+  const pendingApprovals = usePendingApprovalCount(ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS));
 
   const entries: NavMenuEntries[] = [
     {
@@ -100,6 +105,12 @@ const LeftBar = () => {
           path: `/admin/threat-arsenal`,
           icon: () => (<LayersOutlined />),
           label: 'Threat Arsenal',
+          badge: pendingApprovals
+            ? {
+                count: pendingApprovals,
+                label: String(t('{count} to review', { count: pendingApprovals })),
+              }
+            : undefined,
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
         },
       ],

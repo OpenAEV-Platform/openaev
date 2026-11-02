@@ -26,6 +26,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import notifySubmittedForApproval from './approval/notifySubmittedForApproval';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 
@@ -194,6 +195,9 @@ const ThreatArsenalActionPopover = ({
     const response = await updateThreatArsenalAction(actionId, inputValues);
     if (response.data && onUpdate) {
       onUpdate(response.data as ThreatArsenalAction);
+    }
+    if (!ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS)) {
+      notifySubmittedForApproval(t, response.data as ThreatArsenalAction | undefined);
     }
     handleCloseEdit();
   };

@@ -9,7 +9,10 @@ import {
   type ThreatArsenalActionCreateInput as ApiThreatArsenalActionCreateInput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import notifySubmittedForApproval from './approval/notifySubmittedForApproval';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 
 interface Props { onCreate?: (action: ThreatArsenalAction) => void }
@@ -31,6 +34,7 @@ function handleCleanupExecutorValue(
 const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
   const [open, setOpen] = useState(false);
   const { t } = useFormatter();
+  const ability = useAbility();
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -58,6 +62,9 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
     return addThreatArsenalAction(inputValues).then(({ data }: { data: ThreatArsenalAction }) => {
       if (data && onCreate) {
         onCreate(data);
+      }
+      if (!ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS)) {
+        notifySubmittedForApproval(t, data);
       }
       setOpen(false);
     });

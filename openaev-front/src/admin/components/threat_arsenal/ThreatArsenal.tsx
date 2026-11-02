@@ -38,6 +38,7 @@ import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
+import useNewVersionPendingCount from './approval/useNewVersionPendingCount';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import ImportUploaderThreatArsenal from './ImportUploaderThreatArsenal';
@@ -168,6 +169,7 @@ const ThreatArsenal = () => {
   // from `threatArsenalActions`, which only holds the currently loaded page and
   // would yield misleading page-bound counts).
   const facetCounts = useThreatArsenalFacetCounts(searchPaginationInput);
+  const newVersionCount = useNewVersionPendingCount(searchPaginationInput);
 
   const availableFilterNames = [
     'action_injectors',
@@ -553,6 +555,7 @@ const ThreatArsenal = () => {
             domainElements={iconBarOrderedDomains}
             authorOptions={authorOptions}
             facetCounts={facetCounts}
+            newVersionCount={newVersionCount}
             searchPaginationInput={searchPaginationInput}
             filterHelpers={queryableHelpers.filterHelpers}
           />

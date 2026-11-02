@@ -14,7 +14,7 @@ import {
   TEAM_BASE_URL,
 } from '../../../../constants/BaseUrls';
 import { type NotificationOutput } from '../../../../utils/api-types';
-import { ACTION_PARAM } from '../../threat_arsenal/threatArsenalDeepLink';
+import { ACTION_PARAM, THREAT_ARSENAL_TO_REVIEW_PATH } from '../../threat_arsenal/threatArsenalDeepLink';
 
 /** A single matched event inside a notification content group. */
 export interface NotificationEvent {
@@ -130,6 +130,11 @@ const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
 export const eventUrl = (event?: NotificationEvent): string | undefined => {
   if (!event?.resource_id || !event.resource_type || event.operation === 'DELETE') {
     return undefined;
+  }
+  // Something waits for a decision: open it inside the approver's review queue, where the next
+  // pending item is one click away, instead of the whole arsenal.
+  if (event.resource_type === 'THREAT_ARSENAL' && event.operation === 'APPROVAL_PENDING') {
+    return `${THREAT_ARSENAL_TO_REVIEW_PATH}?${ACTION_PARAM}=${encodeURIComponent(event.resource_id)}`;
   }
   return RESOURCE_TYPE_URLS[event.resource_type]?.(event.resource_id);
 };

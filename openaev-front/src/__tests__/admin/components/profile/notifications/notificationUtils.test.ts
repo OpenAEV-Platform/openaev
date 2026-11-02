@@ -3,11 +3,24 @@ import { describe, expect, it } from 'vitest';
 import { eventUrl, operationLabel } from '../../../../../admin/components/profile/notifications/notificationUtils';
 
 describe('notificationUtils, payload approval', () => {
-  it('links a payload approval event to the action drawer in the Threat Arsenal', () => {
+  it('opens a pending-approval event inside the approver\'s To review queue, on that action', () => {
     // Arrange / Act
     const url = eventUrl({
       operation: 'APPROVAL_PENDING',
       message: 'Payload "Whoami" is pending approval',
+      resource_type: 'THREAT_ARSENAL',
+      resource_id: 'contract-1',
+    });
+
+    // Assert
+    expect(url).toBe('/admin/threat-arsenal/to-review?action=contract-1');
+  });
+
+  it('opens a decision event (approved, rejected) on the action drawer in the Threat Arsenal', () => {
+    // Arrange / Act
+    const url = eventUrl({
+      operation: 'REJECTED',
+      message: 'Your payload "Whoami" was rejected',
       resource_type: 'THREAT_ARSENAL',
       resource_id: 'contract-1',
     });
