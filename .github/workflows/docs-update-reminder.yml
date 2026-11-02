@@ -242,12 +242,11 @@ jobs:
 
             const expected  = gaps.filter(g => g.severity === 'CRITICAL' || g.severity === 'HIGH');
             const suggested = gaps.filter(g => g.severity !== 'CRITICAL' && g.severity !== 'HIGH');
-            const failed    = expected.length > 0;
 
             const lines = [
               MARKER,
-              failed
-                ? `${TITLE} — ❌ Docs update expected`
+              expected.length > 0
+                ? `${TITLE} — 📌 Docs update expected`
                 : `${TITLE} — ⚠️ Docs update suggested`,
               '',
               `**${funcFiles.length}** application file(s) changed and no docs file. This is a reminder, not a required check: it never blocks the merge.`,
@@ -275,14 +274,13 @@ jobs:
             }
 
             lines.push('---');
-            lines.push(failed
-              ? `> Nothing to document? Add the \`${SKIP_LABEL}\` label and this check turns green.`
-              : `> Nothing to document? Add the \`${SKIP_LABEL}\` label to close this reminder.`);
+            lines.push(`> Nothing to document? Add the \`${SKIP_LABEL}\` label to close this reminder.`);
 
             await publishReport(lines.join('\n'));
 
-            if (failed) {
-              core.setFailed(
+            // A warning, not a failure: the job stays green, as a reminder must not look like a broken PR.
+            if (expected.length > 0) {
+              core.warning(
                 `${expected.length} change(s) usually need a docs update. `
                 + `Update docs/ or add the '${SKIP_LABEL}' label. This does not block the merge.`
               );
