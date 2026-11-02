@@ -23,7 +23,10 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.payload.form.PayloadCreateInput;
+import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.service.ImportEntry;
+import io.openaev.service.payload.PayloadContentHashService;
 import io.openaev.utils.constants.Constants;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.DocumentFixture;
@@ -43,6 +46,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.HashMap;
 import java.util.zip.ZipEntry;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,6 +71,8 @@ class V1_DataImporterTest extends IntegrationTest {
   @Autowired private TagRepository tagRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private PayloadRepository payloadRepository;
+  @Autowired private PayloadContentHashService payloadContentHashService;
+  @Autowired private PayloadCreationService payloadCreationService;
   @Autowired private AttackPatternRepository attackPatternRepository;
   @Autowired private KillChainPhaseRepository killChainPhaseRepository;
   @Autowired private InjectorRepository injectorRepository;
@@ -4011,21 +4017,42 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   @WithMockUser
-  void
-      given_importedPayloadUuidExistingOnlyInAnotherTenant_when_deduplicating_should_notReuseForeignPayload()
-          throws Exception {
+  void given_sameContentPayloadOnlyInAnotherTenant_when_linkingImportedPayload_should_notReuseIt()
+      throws Exception {
     // -- Arrange --
-    // The imported payload carries a source UUID that collides with a payload belonging to ANOTHER
-    // tenant. findById is a PK load that bypasses the Hibernate tenant filter, so the dedup lookup
-    // must be tenant-scoped: the foreign payload (and its contract) must never be reused, even when
-    // the current user would pass the RBAC check on the foreign contract.
+    // The import links a payload by the hash of its content, never by the id the file carries. A
+    // payload with the same content in ANOTHER tenant must never be reused, even when the current
+    // user would pass the RBAC check on its contract and the Hibernate tenant filter is off.
+    String currentTenant = TenantContext.getCurrentTenant();
+    TxCtx ctx = TxCtx.forTenant(currentTenant);
+    JsonNode contractNode =
+        readMissingContractWithPayloadFixture()
+            .get("scenario_workflow")
+            .get("workflow_steps")
+            .get(0)
+            .get("step_data")
+            .get("inject_injector_contract");
+    JsonNode payloadNode = contractNode.get("injector_contract_payload");
+    PayloadCreateInput input =
+        ReflectionTestUtils.invokeMethod(
+            importer,
+            "buildPayloadCreateInput",
+            ctx,
+            new HashMap<String, Base>(),
+            payloadNode,
+            contractNode);
+    assertNotNull(input);
+    String hash =
+        payloadContentHashService.hash(
+            payloadCreationService.toPayload(ctx, currentTenant, input), List.of());
+    assertNotNull(hash, "the imported payload must have a content hash to compare");
+
     Tenant foreignTenant =
         tenantRepository.save(TenantFixture.getTenant("v1-import-foreign-tenant-payload"));
-    String sourcePayloadId = "cccccccc-0003-0003-0003-000000000004";
     Command foreignPayload = PayloadFixture.createCommand("sh", "echo hello", null, null);
-    foreignPayload.setId(sourcePayloadId);
     foreignPayload.setName("step missing contract payload");
     foreignPayload.setTenant(foreignTenant);
+    foreignPayload.setContentHash(hash);
     payloadRepository.save(foreignPayload);
     InjectorContract foreignContract = new InjectorContract();
     foreignContract.setId(UUID.randomUUID().toString());
@@ -4038,36 +4065,23 @@ class V1_DataImporterTest extends IntegrationTest {
     foreignContract.setPlatforms(new Endpoint.PLATFORM_TYPE[0]);
     foreignContract.setPayload(foreignPayload);
     injectorContractRepository.save(foreignContract);
-    // Make the RBAC check pass on the foreign contract, so only tenant scoping protects.
     addGrantToCurrentUser(
         Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
         Grant.GRANT_TYPE.OBSERVER,
         foreignContract.getId());
-
-    JsonNode payloadNode =
-        readMissingContractWithPayloadFixture()
-            .get("scenario_workflow")
-            .get("workflow_steps")
-            .get(0)
-            .get("step_data")
-            .get("inject_injector_contract")
-            .get("injector_contract_payload");
-
-    // Simulate a session WITHOUT the Hibernate tenant filter (background paths): the tenant-scoped
-    // lookup must protect on its own.
     entityManager.flush();
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
 
     // -- Act --
-    Optional<InjectorContract> reusable =
+    Optional<InjectorContract> linked =
         ReflectionTestUtils.invokeMethod(
-            importer, "findReusableContractForImportedPayload", payloadNode);
+            importer, "findContractWithSameContent", ctx, currentTenant, input, null);
 
     // -- Assert --
-    assertNotNull(reusable);
+    assertNotNull(linked);
     assertTrue(
-        reusable.isEmpty(),
-        "a payload UUID colliding with another tenant's payload must never be reused by dedup");
+        linked.isEmpty(),
+        "a payload with the same content in another tenant must never be reused by the import");
   }
 
   @Test

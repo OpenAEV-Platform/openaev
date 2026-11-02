@@ -97,6 +97,7 @@ public class ThreatArsenalService {
   public void setPermissionService(@Lazy PermissionService permissionService) {
     this.permissionService = permissionService;
   }
+
   private final PayloadVersionService payloadVersionService;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */

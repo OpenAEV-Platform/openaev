@@ -18,6 +18,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
+import io.openaev.service.payload.PayloadExecutionSnapshotService;
 import io.openaev.utils.InjectUtils;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
@@ -102,6 +103,7 @@ class InjectStatusServiceTest {
     @Mock private EntityManager entityManager;
     @Mock private ObjectMapper objectMapper;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private PayloadExecutionSnapshotService payloadExecutionSnapshotService;
 
     private InjectStatusService injectStatusService;
     private Inject inject;
@@ -115,6 +117,7 @@ class InjectStatusServiceTest {
               agentRepository,
               injectAgentResolverService,
               injectUtils,
+              payloadExecutionSnapshotService,
               injectAuthorisationRepository,
               injectStatusRepository,
               executionTraceRepositoryHelper,
