@@ -186,8 +186,8 @@ public class StepTargetingService {
   }
 
   /**
-   * Returns the IDs of the teams selected in the Configure-action drawer ({@code inject_teams}),
-   * or an empty set when none is selected.
+   * Returns the IDs of the teams selected in the Configure-action drawer ({@code inject_teams}), or
+   * an empty set when none is selected.
    */
   public Set<String> getExplicitAudienceTeamIds(Step step) {
     JsonObject data = parseStepData(step);
