@@ -104,12 +104,15 @@ public class QueueChainingService {
   /**
    * Server-side tenant source for a ready event: the workflow row's own tenant, read with a
    * projection query (not {@code TenantContext}, not lazy entity navigation), for a run owned by a
-   * simulation or a scenario alike. While {@code workflows} is not tenant-active, this is correct
-   * on any thread (the request thread, the chaining worker, or a scheduler such as {@code
-   * QueueChainingJob}), none of which is guaranteed to carry the tenant or keep a Hibernate session
-   * open; once it is, the read follows the transaction's scope (see {@link
-   * WorkflowRepository#findTenantIdByWorkflowId}). Null when the workflow row is not found; the
-   * consumer falls back rather than failing (#6357).
+   * simulation or a scenario alike. It needs no Hibernate session and no ambient tenant, so it is
+   * correct on any thread (the request thread, the chaining worker, or a scheduler such as {@code
+   * QueueChainingJob}), none of which is guaranteed to carry either. {@code workflows} is
+   * tenant-active, so the read follows the transaction's scope (see {@link
+   * WorkflowRepository#findTenantIdByWorkflowId}): it is the run's own tenant when the producer
+   * runs in it, which every producer of a ready event does. Null when no row is visible, either
+   * because the workflow does not exist or because the producer's scope does not cover its tenant;
+   * the consumer then falls back to the default tenant rather than failing (#6357), so a producer
+   * scoped elsewhere would send the event to the wrong tenant instead of refusing it.
    */
   private String tenantIdOfWorkflow(Workflow workflowRun) {
     if (workflowRun == null || workflowRun.getId() == null) {
@@ -147,11 +150,15 @@ public class QueueChainingService {
 
   /**
    * Server-side tenant for update-event stamping: the step row's own tenant, read with a projection
-   * query that touches no lazy association, so it needs no open session (the update-event producer
-   * runs on a scheduler or queue thread via {@code WorkflowUpdateEventAspect}). While {@code steps}
-   * is not tenant-active, it resolves with no ambient tenant context; once it is, the read follows
-   * the transaction's scope (see {@link StepRepository#findTenantIdByStepId}). Null when the step
-   * row is not found; the consumer falls back (#6357). Symmetric with {@link #tenantIdOfWorkflow}
+   * query that touches no lazy association, so it needs no open session and no ambient tenant
+   * context (the update-event producer runs on a request, scheduler or queue thread via {@code
+   * WorkflowUpdateEventAspect}). {@code steps} is tenant-active, so the read follows the
+   * transaction's scope (see {@link StepRepository#findTenantIdByStepId}); {@link
+   * WorkflowUpdateEventPublisher} is what puts that scope on the step's own tenant before calling
+   * here, whatever the scope the caller's transaction was opened with. Null when no row is visible,
+   * either because the step does not exist or because the scope does not cover its tenant; the
+   * consumer then falls back to the default tenant (#6357), so an unscoped producer would send the
+   * event to the wrong tenant instead of refusing it. Symmetric with {@link #tenantIdOfWorkflow}
    * used by {@link #readyStep}.
    */
   private String tenantIdOfStep(String stepId) {

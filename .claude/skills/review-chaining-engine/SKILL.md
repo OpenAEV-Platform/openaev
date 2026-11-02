@@ -63,8 +63,8 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 
 ### 6. External Update Bridge (AOP)
 - [ ] Methods that mutate inject status are annotated with `@WorkflowUpdateEvent`, except a method that
-      runs with no transaction: the aspect would then look the step up with no tenant scope, so such a
-      method calls `WorkflowUpdateEventPublisher` from a scoped transaction instead
+      runs with no transaction: the aspect has then no transaction to move to the inject's owning
+      tenant, so such a method calls `WorkflowUpdateEventPublisher` from a scoped transaction instead
 - [ ] The annotation is not placed on a method only reached by a self-invocation: Spring AOP is
       proxy-based, so the aspect never runs and no event is published
 - [ ] SpEL expressions correctly extract inject/expectation IDs

@@ -20,6 +20,7 @@ import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.CronService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -85,6 +86,7 @@ class ExerciseServiceUnitTest {
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
   @Mock private WorkflowService workflowService;
+  @Mock private WorkflowOwnerScope workflowOwnerScope;
   @Mock private LessonsService lessonsService;
   @Mock private ApplicationEventPublisher eventPublisher;
 
@@ -413,6 +415,17 @@ class ExerciseServiceUnitTest {
       exercise = mock(Exercise.class);
     }
 
+    // The owner's tenant scope is the integration tests' concern; here the work just runs.
+    private void runScopedWorkInPlace() throws Exception {
+      doAnswer(
+              invocation -> {
+                invocation.<WorkflowOwnerScope.ScopedAction<?>>getArgument(1).run();
+                return null;
+              })
+          .when(workflowOwnerScope)
+          .run(any(Exercise.class), any());
+    }
+
     @Test
     void findAllById_shouldDelegate() {
       List<String> ids = List.of("1", "2");
@@ -430,12 +443,14 @@ class ExerciseServiceUnitTest {
     }
 
     @Test
-    void deleteById_shouldCheckTenantAndDelegate() {
+    void deleteById_shouldCheckTenantAndDelegate() throws Exception {
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class);
           MockedStatic<SessionHelper> sh = mockStatic(SessionHelper.class)) {
         // Arrange
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(exerciseRepository.existsByIdAndTenantId("id", "tenant-1")).thenReturn(true);
+        when(exerciseRepository.findByIdAndTenantId("id", "tenant-1"))
+            .thenReturn(Optional.of(exercise));
+        runScopedWorkInPlace();
         OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
         when(principal.getId()).thenReturn("user-1");
         sh.when(SessionHelper::currentUser).thenReturn(principal);
@@ -444,7 +459,7 @@ class ExerciseServiceUnitTest {
         mockedExerciseService.deleteById("id");
 
         // Assert
-        verify(exerciseRepository).existsByIdAndTenantId("id", "tenant-1");
+        verify(exerciseRepository).findByIdAndTenantId("id", "tenant-1");
         verify(exerciseRepository).deleteById("id");
       }
     }
@@ -454,7 +469,7 @@ class ExerciseServiceUnitTest {
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         // Arrange
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(exerciseRepository.existsByIdAndTenantId("id", "tenant-1")).thenReturn(false);
+        when(exerciseRepository.findByIdAndTenantId("id", "tenant-1")).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThrows(ElementNotFoundException.class, () -> mockedExerciseService.deleteById("id"));

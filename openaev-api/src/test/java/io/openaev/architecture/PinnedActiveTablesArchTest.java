@@ -50,7 +50,7 @@ import org.junit.jupiter.api.TestFactory;
 class PinnedActiveTablesArchTest {
 
   /** How many lines are {@code probe} or {@code control}. Raising it is a review call. */
-  static final int DELIBERATE_SIZE = 94;
+  static final int DELIBERATE_SIZE = 95;
 
   /** How many lines are {@code drifts}. Lower it, never raise it. */
   static final int DEBT_SIZE = 127;
