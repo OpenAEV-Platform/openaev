@@ -543,6 +543,18 @@ const ThreatArsenal = () => {
           active="all"
           totalElements={totalElements}
           rightSlot={headerRightSlot}
+          onFilterApproval={(status) => {
+            // Same as ticking the sidebar row: one approval value, new versions not singled out.
+            queryableHelpers.filterHelpers.handleRemoveFilterByKey('action_payload_approval_status');
+            queryableHelpers.filterHelpers.handleRemoveFilterByKey('action_payload_pending_version');
+            queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue({
+              id: generateFilterId(),
+              key: 'action_payload_approval_status',
+              operator: 'eq',
+              values: [status],
+              mode: 'and',
+            });
+          }}
         />
 
         <Box sx={{

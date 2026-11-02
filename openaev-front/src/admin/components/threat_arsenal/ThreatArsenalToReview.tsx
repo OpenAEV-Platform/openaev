@@ -1,12 +1,9 @@
-import { Alert, Button, Paper, Spinner, Text } from '@filigran/design-system';
+import { Paper, Spinner, Text } from '@filigran/design-system';
 import { FactCheckOutlined, GroupsOutlined, SyncOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { Link } from 'react-router';
 
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
-import { useAbility } from '../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { ApprovalQueueGroup } from './approval/approvalQueue';
 import { isFromCollector, useApprovalQueue, useQueueDrawer } from './approval/useApprovalQueue';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
@@ -21,8 +18,6 @@ import ThreatArsenalPageHeader from './ThreatArsenalPageHeader';
 const ThreatArsenalToReview = () => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const ability = useAbility();
-  const canSeeRoles = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
 
   const { items, remove } = useApprovalQueue(['PENDING']);
   const drawer = useQueueDrawer();
@@ -95,18 +90,6 @@ const ThreatArsenalToReview = () => {
       }}
       >
         <ThreatArsenalPageHeader active="to-review" />
-        <Alert
-          severity="info"
-          title={t('Approval needs a second person only for roles without "Approve content"')}
-          description={t('People whose role holds "Approve content" approve their own changes automatically. Remove it from a role to make its members submit changes for review.')}
-          action={canSeeRoles
-            ? (
-                <Button size="sm" priority="secondary" asChild>
-                  <Link to="/admin/settings/security/roles">{t('Review roles')}</Link>
-                </Button>
-              )
-            : undefined}
-        />
         {renderQueue()}
       </div>
 
