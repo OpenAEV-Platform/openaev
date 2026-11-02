@@ -14,7 +14,7 @@ import MarketplaceSections from '../../../../../components/common/marketplace/Ma
 import { generateFilterId } from '../../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
-import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
+import { useQueryable } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
@@ -140,6 +140,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
       latest_versions_only: true,
       exclude_revoked_payloads: true,
       group_by_primary_domain: true,
+      approved_payloads_only: true,
     }).finally(() => {
       if (seq === fetchSeqRef.current) {
         setLoading(false);
@@ -165,15 +166,24 @@ const InjectContractPicker: FunctionComponent<Props> = ({
       page: 0,
     };
   };
+  // Not persisted: the picker always opens on its intended defaults (atomic-capable actions in an
+  // atomic testing) and never on filters left by an earlier use of the picker in another scenario,
+  // simulation or atomic testing.
   const {
     queryableHelpers,
     searchPaginationInput,
-  } = useQueryableWithLocalStorage(isAtomic ? 'injector-contracts-picker-atomic' : 'injector-contracts-picker', initSearchPaginationInput());
+  } = useQueryable(initSearchPaginationInput());
   const totalElements = queryableHelpers.paginationHelpers.getTotalElements();
+  // Only actions whose payload is approved (or payload-less built-ins) can be picked: the list and
+  // every facet count (domains, platforms, kill chain, status, authors) use the same scope, so a
+  // count always equals what the list shows when it is clicked.
+  const pickableSearchPaginationInput: InjectorContractSearchPaginationInput = useMemo(() => ({
+    ...searchPaginationInput,
+    approved_payloads_only: true,
+  }), [searchPaginationInput]);
 
-  // Deep-link TTP scoping: replace (not merge) any attack pattern filter left
-  // over from a previous session so the picker opens exactly on the requested
-  // techniques; the filter stays a regular editable chip afterwards.
+  // Deep-link TTP scoping: open exactly on the requested techniques; the filter
+  // stays a regular editable chip afterwards.
   useEffect(() => {
     if (initialAttackPatternIds && initialAttackPatternIds.length > 0) {
       queryableHelpers.filterHelpers.handleRemoveFilterByKey(MITRE_FILTER_KEY);
@@ -184,7 +194,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
   // Domain facet (live counts + toggling of the injector_contract_domains filter)
   const { iconBarOrderedDomains } = useDomainIconFilter({
     domainOptions,
-    searchPaginationInput,
+    searchPaginationInput: pickableSearchPaginationInput,
     queryableHelpers,
   });
 
@@ -270,7 +280,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
       >
         <InjectContractSidebar
           domainElements={iconBarOrderedDomains}
-          searchPaginationInput={searchPaginationInput}
+          searchPaginationInput={pickableSearchPaginationInput}
           filterHelpers={queryableHelpers.filterHelpers}
         />
         <Box sx={{

@@ -3,12 +3,14 @@ package io.openaev.database.repository;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.FileDrop;
 import io.openaev.database.model.Payload;
+import jakarta.persistence.LockModeType;
 import jakarta.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -141,4 +143,12 @@ public interface PayloadRepository
       "SELECT pi.id, COUNT(p) FROM Payload p JOIN p.identity pi WHERE pi.id IN :identityIds"
           + " AND pi.uninstalled = false GROUP BY pi.id")
   List<Object[]> countInstalledVersions(@Param("identityIds") Collection<String> identityIds);
+
+  /**
+   * Loads a payload version with a row lock held until the end of the transaction, so two approval
+   * decisions on the same version cannot cross.
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT p FROM Payload p WHERE p.id = :id")
+  Optional<Payload> findByIdForUpdate(@Param("id") String id);
 }

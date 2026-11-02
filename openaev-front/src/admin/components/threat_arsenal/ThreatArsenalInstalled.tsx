@@ -1,6 +1,6 @@
 import { Box } from '@mui/material';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../actions/AttackPattern';
@@ -22,6 +22,7 @@ import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import ThreatArsenalCardGrid, { type ThreatArsenalItemsProps } from './ThreatArsenalCardGrid';
+import { ACTION_PARAM, toThreatArsenalAction } from './threatArsenalDeepLink';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalHeaderActions from './ThreatArsenalHeaderActions';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
@@ -38,6 +39,30 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
   const { t, tPick } = useFormatter();
   const canDelete = useAbility().can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
   const [openedAction, setOpenedAction] = useState<ThreatArsenalAction | null>(null);
+  // Approval notifications link to ?action=<id>: open that action's drawer.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedActionId = searchParams.get(ACTION_PARAM);
+  useEffect(() => {
+    if (!linkedActionId) {
+      return undefined;
+    }
+    let cancelled = false;
+    fetchThreatArsenalAction(linkedActionId)
+      .then((response: { data: ThreatArsenalActionFullOutput }) => {
+        if (!cancelled) setOpenedAction(toThreatArsenalAction(response.data));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedActionId]);
+  const closeOpenedAction = () => {
+    setOpenedAction(null);
+    if (linkedActionId) {
+      searchParams.delete(ACTION_PARAM);
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
   const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);
   const [runTestAction, setRunTestAction] = useState<ThreatArsenalAction | null>(null);
   const [isBulkDeleteDialogOpened, setBulkDeleteDialogOpened] = useState<boolean>(false);
@@ -87,7 +112,14 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     isChecked: selection.isSelectedAction,
     onSelect: setOpenedAction,
     onToggle: selection.onToggleEntity,
-    onUpdate: installed.replaceAction,
+    // After a save from a row or a card, the open drawer of that action shows the saved version.
+    onUpdate: (result) => {
+      installed.replaceAction(result);
+      setOpenedAction(prev => (prev && (prev.injector_contract_id === result.injector_contract_id
+        || prev.injector_contract_id === result.action_previous_version_id)
+        ? result
+        : prev));
+    },
     onDuplicate: (result, open = true) => {
       installed.prependActions([result]);
       // F22: "Duplicate to edit" opens the copy right away; a customized copy opens its editor instead.
@@ -176,8 +208,9 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
       {openedAction !== null && (
         <ThreatArsenalInformationDrawer
           open
-          onClose={() => setOpenedAction(null)}
+          onClose={closeOpenedAction}
           threatArsenalAction={openedAction}
+          onApprovalChanged={(actionId, status) => installed.setApprovalStatus(actionId, status)}
           onRunTest={setRunTestAction}
         />
       )}

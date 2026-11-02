@@ -25,6 +25,7 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.TenantScopedJobRunner;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,7 @@ class InjectsExecutionJobTenantScopeTest {
   private static final String INJECT_TENANT = "11111111-2222-3333-4444-555555555555";
 
   @Mock private InjectHelper injectHelper;
+  @Mock private PayloadApprovalGate payloadApprovalGate;
   @Mock private InjectService injectService;
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private InjectStatusService injectStatusService;

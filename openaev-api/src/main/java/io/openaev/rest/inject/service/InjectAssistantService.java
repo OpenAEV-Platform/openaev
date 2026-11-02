@@ -14,6 +14,7 @@ import io.openaev.rest.inject.form.InjectAssistantInput;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -38,6 +39,22 @@ public class InjectAssistantService {
   private final AiMetricCollector aiMetricCollector;
 
   private final InjectorContractRepository injectorContractRepository;
+  private final PayloadApprovalGate payloadApprovalGate;
+
+  /**
+   * Automatic selection only picks actions whose payload can run, like the pickers users see: the
+   * query keeps approved payloads (before its random pick), this also drops a payload changed since
+   * its approval. No match falls back to the manual placeholder, as when nothing matches.
+   */
+  private List<InjectorContract> searchRunnableContracts(
+      String attackPatternExternalId, List<String> platformArchitecturePairs, Integer limit) {
+    return injectorContractRepositoryHelper
+        .searchInjectorContractsByAttackPatternAndEnvironment(
+            attackPatternExternalId, platformArchitecturePairs, limit)
+        .stream()
+        .filter(contract -> payloadApprovalGate.isRunnable(contract.getPayload()))
+        .toList();
+  }
 
   // -- Used in Assistance AI
 
@@ -237,7 +254,7 @@ public class InjectAssistantService {
       AttackPattern attackPattern,
       InjectorContract contractForPlaceholder) {
     List<InjectorContract> injectorContracts =
-        this.injectorContractRepositoryHelper.searchInjectorContractsByAttackPatternAndEnvironment(
+        searchRunnableContracts(
             attackPattern.getExternalId(), emptyList(), injectsPerAttackPattern);
 
     if (!injectorContracts.isEmpty()) {
@@ -302,8 +319,12 @@ public class InjectAssistantService {
             .collect(Collectors.toSet());
 
     Set<InjectorContract> contracts =
-        injectorContractRepository.findInjectorContractsByVulnerabilityIdIn(
-            vulnerabilityExternalIds, injectsPerVulnerability);
+        injectorContractRepository
+            .findInjectorContractsByVulnerabilityIdIn(
+                vulnerabilityExternalIds, injectsPerVulnerability)
+            .stream()
+            .filter(contract -> payloadApprovalGate.isRunnable(contract.getPayload()))
+            .collect(Collectors.toSet());
 
     Map<String, Set<InjectorContract>> mapVulnerabilityInjectorContract = new HashMap<>();
 
@@ -427,7 +448,7 @@ public class InjectAssistantService {
       AttackPattern attackPattern) {
     List<String> allPlatformArchitecturePairs = Endpoint.PLATFORM_TYPE.getAllNamesAsStrings();
     List<InjectorContract> injectorContracts =
-        this.injectorContractRepositoryHelper.searchInjectorContractsByAttackPatternAndEnvironment(
+        searchRunnableContracts(
             attackPattern.getExternalId(), allPlatformArchitecturePairs, injectsPerAttackPattern);
 
     return injectorContracts.stream()
@@ -519,7 +540,7 @@ public class InjectAssistantService {
 
     // Try to find injectors contract covering all platform-architecture pairs at once
     List<InjectorContract> injectorContracts =
-        this.injectorContractRepositoryHelper.searchInjectorContractsByAttackPatternAndEnvironment(
+        searchRunnableContracts(
             attackPattern.getExternalId(),
             groupedAssets.keySet().stream().toList(),
             injectsPerAttackPattern);
@@ -532,11 +553,10 @@ public class InjectAssistantService {
           (platformArchitecture, endpointValue) -> {
             // For each platform architecture pairs try to find injectorContracts
             List<InjectorContract> injectorContractsForGroup =
-                this.injectorContractRepositoryHelper
-                    .searchInjectorContractsByAttackPatternAndEnvironment(
-                        attackPattern.getExternalId(),
-                        List.of(platformArchitecture),
-                        injectsPerAttackPattern);
+                searchRunnableContracts(
+                    attackPattern.getExternalId(),
+                    List.of(platformArchitecture),
+                    injectsPerAttackPattern);
 
             // Else take the manual injectorContract
             if (injectorContractsForGroup.isEmpty()) {
@@ -741,9 +761,8 @@ public class InjectAssistantService {
       return existingInjectorContract;
     }
     // Else find from DB
-    return this.injectorContractRepositoryHelper
-        .searchInjectorContractsByAttackPatternAndEnvironment(
-            attackPattern.getExternalId(), platformArchitecturePairs, injectsPerAttackPattern);
+    return searchRunnableContracts(
+        attackPattern.getExternalId(), platformArchitecturePairs, injectsPerAttackPattern);
   }
 
   /**

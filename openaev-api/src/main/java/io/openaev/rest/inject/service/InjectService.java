@@ -67,6 +67,9 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.payload.PayloadRevocationService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
+import io.openaev.service.readiness.InjectSensitiveFields;
+import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.FilterUtilsJpa;
@@ -124,6 +127,8 @@ public class InjectService {
   // agent-callback bypass.
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final PreviewFeatureService previewFeatureService;
+  private final PayloadApprovalGate payloadApprovalGate;
+  private final LaunchReadinessService launchReadinessService;
   private final AiTargetRepository aiTargetRepository;
   private final CollectorService collectorService;
   private final EnterpriseEditionService enterpriseEditionService;
@@ -194,6 +199,12 @@ public class InjectService {
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(input.getInjectorContract());
+    // Only an approved payload can be picked for an inject (payload-less actions always can).
+    payloadApprovalGate.requireApproved(
+        "Adding this action to an inject",
+        injectorContract.getPayload(),
+        ResourceType.INJECT,
+        null);
 
     if (injectorContract.getConvertedContent() == null) {
       injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
@@ -676,6 +687,12 @@ public class InjectService {
   }
 
   public void throwIfInjectNotLaunchable(Inject inject) {
+    // Before the licence shortcut: payload approval applies to every edition.
+    payloadApprovalGate.requireApproved(
+        "Launching \"" + inject.getTitle() + "\"",
+        List.of(inject),
+        ResourceType.INJECT,
+        inject.getId());
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
@@ -985,6 +1002,7 @@ public class InjectService {
       @NotBlank final String injectId, @jakarta.validation.constraints.NotNull InjectInput input) {
     Inject inject =
         this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    String sensitiveBefore = InjectSensitiveFields.fingerprint(inject);
     // Managing case where input.dependsDuration is null, as the field is marked as NotNull
     if (input.getDependsDuration() == null) {
       input.setDependsDuration(inject.getDependsDuration());
@@ -1122,6 +1140,10 @@ public class InjectService {
         });
     inject.setDocuments(injectDocuments);
 
+    // What it runs or targets changed: a scheduled run waits for a deliberate action again.
+    if (!sensitiveBefore.equals(InjectSensitiveFields.fingerprint(inject))) {
+      launchReadinessService.onSensitiveChange(inject);
+    }
     return inject;
   }
 
@@ -1766,6 +1788,9 @@ public class InjectService {
       return;
     }
 
+    // Automatic selection only adds actions whose payload is approved (or payload-less), whatever
+    // filter the client sent: the others are skipped (see countActionsWithoutApprovedPayload).
+    input.setApprovedPayloadsOnly(true);
     input.setSize(INJECTOR_CONTRACT_PAGE_SIZE);
     int pageNumber = 0;
     Page<? extends InjectorContractBaseOutput> page;
@@ -1794,6 +1819,28 @@ public class InjectService {
         bulkOperationMonitor.fail(operationId);
       }
       throw e;
+    }
+  }
+
+  /**
+   * How many actions of a threat arsenal selection a bulk "add to scenario(s)" skips because their
+   * payload is not approved. Leaves the input as it was.
+   */
+  public long countActionsWithoutApprovedPayload(InjectorContractSearchPaginationInput input) {
+    boolean approvedPayloadsOnly = input.isApprovedPayloadsOnly();
+    var size = input.getSize();
+    var page = input.getPage();
+    try {
+      input.setSize(1);
+      input.setApprovedPayloadsOnly(false);
+      long selected = fetchInjectorContractsPage(input, 0).getTotalElements();
+      input.setApprovedPayloadsOnly(true);
+      long approved = fetchInjectorContractsPage(input, 0).getTotalElements();
+      return Math.max(0, selected - approved);
+    } finally {
+      input.setApprovedPayloadsOnly(approvedPayloadsOnly);
+      input.setSize(size);
+      input.setPage(page);
     }
   }
 

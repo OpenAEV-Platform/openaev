@@ -10,6 +10,8 @@ import { useFormatter } from '../../../../../components/i18n';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { isAgent, isAssetGroups, isAssets } from '../../../../../utils/target/TargetUtils';
 import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
@@ -42,9 +44,15 @@ const TargetResultsDetail = ({ inject, target, isAgentless, position, total, onS
   const dispatch = useAppDispatch();
 
   // Collectors are needed by the expectation result lists to resolve each
-  // collector-sourced result to its security platform (pivot link).
+  // collector-sourced result to its security platform (pivot link). Reading them needs
+  // "Access tenant settings": without it, skip the call (the lists fall back to the
+  // collector name and image) rather than raising an "Access denied" toast.
+  const ability = useAbility();
+  const canReadCollectors = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
   useDataLoader(() => {
-    dispatch(fetchCollectors());
+    if (canReadCollectors) {
+      dispatch(fetchCollectors());
+    }
   });
 
   const [sortedGroupedTargetResults, setSortedGroupedTargetResults] = useState<Record<string, InjectExpectationsStore[]>>({});

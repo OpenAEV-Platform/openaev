@@ -52,6 +52,7 @@ import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
+import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import PayloadRevocationBanner from './PayloadRevocationBanner';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 
@@ -92,6 +93,9 @@ interface Props {
   // update drawer) that fetch the payload documents ad hoc instead of loading
   // the whole store.
   documentsMap?: Record<string, ApiDocument>;
+  // Name of the user who last modified the payload: null when unknown (collector or system
+  // write), undefined when the host does not load it (the field is then not shown).
+  lastModifiedByName?: string | null;
   loading: boolean;
 }
 
@@ -103,6 +107,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   expectedSecurityPlatforms,
   providing,
   documentsMap: documentsMapOverride,
+  lastModifiedByName,
   loading,
 }) => {
   const { t, tPick, nsdt } = useFormatter();
@@ -138,6 +143,10 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status ?? payload?.payload_status;
   const statusColor = status ? getStatusColor(theme, status) : undefined;
   const statusLabel = getStatusLabel(status);
+  // A version that is not approved shows its approval status instead of Verified / Unverified /
+  // Deprecated: the approval decides whether it can be used.
+  const approvalStatus = action.action_payload?.payload_approval_status ?? payload?.payload_approval_status;
+  const approvalWins = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED' || approvalStatus === 'SUPERSEDED';
   const name = tPick(action.action_labels);
   const description = payload?.payload_description ?? '';
   const platforms = payload?.payload_platforms ?? action.action_platforms ?? [];
@@ -279,7 +288,8 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               >
                 {name || '-'}
               </Typography>
-              {statusLabel && statusColor && (
+              {approvalWins && <ApprovalStatusChip status={approvalStatus} />}
+              {!approvalWins && statusLabel && statusColor && (
                 <Box
                   sx={{
                     display: 'inline-flex',
@@ -487,6 +497,14 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                 )
               : <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>}
           </Field>
+
+          {payload && lastModifiedByName !== undefined && (
+            <Field label="Last modified by">
+              {lastModifiedByName
+                ? <Typography variant="body2">{lastModifiedByName}</Typography>
+                : <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>}
+            </Field>
+          )}
         </Box>
       </Section>
 

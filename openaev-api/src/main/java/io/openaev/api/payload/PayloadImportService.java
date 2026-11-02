@@ -18,8 +18,11 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpsertService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
+import io.openaev.service.UserService;
 import io.openaev.service.ZipJsonService;
 import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.*;
@@ -47,6 +50,8 @@ public class PayloadImportService {
   private final AmbientTenantBridge ambientTenantBridge;
   private final PayloadVersionService payloadVersionService;
   private final PayloadUpsertService payloadUpsertService;
+  private final UserService userService;
+  private final PayloadApprovalService payloadApprovalService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -144,14 +149,31 @@ public class PayloadImportService {
 
   private PayloadImportResult importPayloadInTenant(TxCtx ctx, MultipartFile file, String tenantId)
       throws Exception {
+    // The imported payload is a write of the importing user; the export never carries it.
+    User importingUser = userService.currentUserOrNull();
     return synchronise(
         ctx,
         zipJsonApi.handleImport(
-            file, "payload_name", IMPORT_OPTIONS, PayloadImportService::asLocalImport, tenantId));
+            file,
+            "payload_name",
+            IMPORT_OPTIONS,
+            payload -> {
+              asLocalImport(payload).setLastModifiedBy(importingUser);
+              return payload;
+            },
+            tenantId),
+        importingUser);
   }
 
   private PayloadImportResult synchronise(
       TxCtx ctx, ZipJsonService.ImportOutput<Payload> response) {
+    return synchronise(ctx, response, null);
+  }
+
+  // A local import is a new version written by the importing user; a catalogue version is decided
+  // by its install (trusted source).
+  private PayloadImportResult synchronise(
+      TxCtx ctx, ZipJsonService.ImportOutput<Payload> response, @Nullable User importingUser) {
 
     List<AttackPattern> attackPatterns =
         extractRelationshipObjects(
@@ -164,6 +186,10 @@ public class PayloadImportService {
         extractRelationshipObjects(
             "tags", object -> handleTagImport(ctx, object), response.sourceDocument());
 
+    if (importingUser != null) {
+      payloadApprovalService.onWrite(
+          response.persistedData(), importingUser, PayloadApproval.ORIGIN.IMPORT);
+    }
     payloadVersionService.refreshLatest(response.persistedData().getIdentity());
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(

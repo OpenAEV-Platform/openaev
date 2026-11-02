@@ -8,6 +8,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectDependenciesRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.composers.InjectComposer;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 class InjectsExecutionJobUnitTest {
 
   @Mock private InjectDependenciesRepository injectDependenciesRepository;
+  @Mock private PayloadApprovalGate payloadApprovalGate;
 
   @Mock private InjectExpectationRepository injectExpectationRepository;
 

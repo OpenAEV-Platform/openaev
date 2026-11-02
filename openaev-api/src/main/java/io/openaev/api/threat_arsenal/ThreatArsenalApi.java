@@ -238,6 +238,104 @@ public class ThreatArsenalApi {
     return threatArsenalService.update(actionId, input);
   }
 
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/usage",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/usage"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "Where the payload of an action is used",
+      description =
+          "Counts of atomic testings, scenarios and simulations still to run using the payload,"
+              + " with the first names of each for users who can read them.")
+  public ThreatArsenalActionUsageOutput actionUsage(
+      // Unused by the handler body; sets the tenant scope of the transaction (payloads are v2
+      // tenant-scoped).
+      TxCtx ctx, @NotBlank @PathVariable final String actionId) {
+    return ThreatArsenalActionUsageOutput.from(threatArsenalService.usage(actionId));
+  }
+
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/approve",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/approve"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.APPROVE,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "Approve the pending payload version of an action",
+      description =
+          "Requires Approve content. The injects stay on the version they run: when the approved"
+              + " version replaces an approved version still in use, the response names that"
+              + " version's action and its usages (action_previous_version_id,"
+              + " action_previous_version_usages), so the approver can move them.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "The decision and, after an approval, the move offer"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "The version is not pending, or the action has no payload")
+  })
+  public ThreatArsenalApprovalDecisionOutput approveAction(
+      @RequireTenantSelector TxCtx ctx,
+      @NotBlank @PathVariable final String actionId,
+      @Valid @RequestBody ThreatArsenalApproveInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
+    return threatArsenalService.approve(actionId, input);
+  }
+
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/reject",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/reject"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.APPROVE,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "Reject the pending payload version of an action",
+      description =
+          "Requires Approve content. The injects stay on the version they run. A reason is"
+              + " required.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "The decision"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "The version is not pending, the action has no payload, or no reason")
+  })
+  public ThreatArsenalApprovalDecisionOutput rejectAction(
+      @RequireTenantSelector TxCtx ctx,
+      @NotBlank @PathVariable final String actionId,
+      @Valid @RequestBody ThreatArsenalRejectInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
+    return threatArsenalService.reject(actionId, input);
+  }
+
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/approvals",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/approvals"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(summary = "Approval history of the payload of an action, newest first")
+  public List<PayloadApprovalOutput> actionApprovals(
+      // Unused by the handler body; sets the tenant scope of the transaction (payloads and
+      // payload_approvals are v2 tenant-scoped).
+      TxCtx ctx, @NotBlank @PathVariable final String actionId) {
+    return threatArsenalService.approvals(actionId);
+  }
+
   @PostMapping({
     THREAT_ARSENAL_URL + "/{actionId}/duplicate",
     TENANT_THREAT_ARSENAL_URL + "/{actionId}/duplicate"

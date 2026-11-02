@@ -14,6 +14,7 @@ import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload.PayloadVersionNumbering;
 import io.openaev.service.payload.PayloadVersionNumbering.Change;
 import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.utils.SemanticVersion;
 import jakarta.annotation.Nullable;
 import java.util.*;
@@ -62,6 +63,7 @@ public class PayloadVariantService {
 
   private final PayloadVersionService payloadVersionService;
   private final PayloadVersionNumbering payloadVersionNumbering;
+  private final PayloadApprovalService payloadApprovalService;
   private final PayloadRevocationService payloadRevocationService;
   private final PayloadService payloadService;
   private final InjectorContractRepository injectorContractRepository;
@@ -153,6 +155,8 @@ public class PayloadVariantService {
     Payload saved =
         payloadVersionService.addVersion(
             identity, first, PayloadVersionService.Numbering.fixed(Payload.FIRST_VERSION));
+    // A customized copy is a local payload: approved like a duplicate, by its author's rights.
+    payloadApprovalService.onWrite(saved, user, PayloadApproval.ORIGIN.DUPLICATE);
     InjectorContract contract = synchronise(saved, contractOf(base));
     contentHistoryService.payloadCustomized(base, saved);
     return new VariantResult(saved, contract, null, 0);
@@ -352,6 +356,8 @@ public class PayloadVariantService {
             identity,
             candidate,
             highest -> PayloadVersionNumbering.bump(highest.getVersion(), change));
+    payloadApprovalService.onWrite(
+        saved, userService.currentUserOrNull(), PayloadApproval.ORIGIN.UPDATE);
     InjectorContract contract =
         synchronise(saved, previousContract != null ? previousContract : contractOf(base));
     if (previousContract != null && contract != null) {
@@ -363,9 +369,12 @@ public class PayloadVariantService {
     } else {
       contentHistoryService.payloadOverridden(current, saved);
     }
-    int usages =
-        previousContract == null ? 0 : payloadVersionService.countTemplateUsages(previousContract);
-    return new VariantResult(saved, contract, current, usages);
+    // The saver is asked to move the injects only when the new version is approved at once; a
+    // pending version is offered to them by the approver who approves it.
+    return payloadApprovalService
+        .moveOffer(saved)
+        .map(offer -> new VariantResult(saved, contract, offer.from(), offer.usages()))
+        .orElseGet(() -> new VariantResult(saved, contract, current, 0));
   }
 
   /** The base content with the overrides on top: the row a variant version stores. */

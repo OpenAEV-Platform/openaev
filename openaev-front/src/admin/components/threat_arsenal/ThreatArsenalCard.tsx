@@ -12,6 +12,7 @@ import { useHelper } from '../../../store';
 import { type AttackPattern, type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
 import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescriptions';
+import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { actionDomains } from './threatArsenalDomainSections';
 import { getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
@@ -65,6 +66,10 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
   const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status;
   const statusLabel = getStatusLabel(status);
+  // A version that is not approved shows its approval status instead of Verified / Unverified /
+  // Deprecated: the approval decides whether it can be used.
+  const approvalStatus = action.action_payload?.payload_approval_status;
+  const approvalWins = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED' || approvalStatus === 'SUPERSEDED';
   const name = tPick(action.action_labels);
 
   return (
@@ -148,7 +153,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           gap: 8,
         }}
         >
-          {statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
+          {approvalWins && <ApprovalStatusChip status={approvalStatus} />}
+          {!approvalWins && statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
         </div>
       )}
       action={!action.action_payload?.payload_revoked && (

@@ -106,7 +106,8 @@ public class PayloadVersionChangeService {
         contractId == null
             ? 0
             : usagesOf(injectorContractService.injectorContract(contractId)).size(),
-        payload == null ? null : payload.getCreatedAt());
+        payload == null ? null : payload.getCreatedAt(),
+        payload == null ? null : payload.getApprovalStatus());
   }
 
   private static Payload.PAYLOAD_STATUS catalogStatus(CatalogItem item) {
@@ -288,6 +289,10 @@ public class PayloadVersionChangeService {
     if (payloadRevocationService.isRevoked(target)) {
       throw new BadRequestException("The target version is revoked");
     }
+    // Payload approval: injects only move to a version an approver approved.
+    if (target.getApprovalStatus() != Payload.PAYLOAD_APPROVAL_STATUS.APPROVED) {
+      throw new BadRequestException("The target version is not approved");
+    }
     InjectorContract targetContract = injectorContractService.findByPayload(target);
     User user = userService.currentUser();
     scenarioRevisionService.takeIfCatalog(
@@ -319,7 +324,9 @@ public class PayloadVersionChangeService {
   public int repointAllUsages(Payload source, Payload target) {
     InjectorContract sourceContract = injectorContractService.findByPayload(source);
     InjectorContract targetContract = injectorContractService.findByPayload(target);
-    if (sourceContract == null || targetContract == null) {
+    if (sourceContract == null
+        || targetContract == null
+        || target.getApprovalStatus() != Payload.PAYLOAD_APPROVAL_STATUS.APPROVED) {
       return 0;
     }
     int moved = 0;

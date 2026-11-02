@@ -1,10 +1,12 @@
 package io.openaev.utils.mapper;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.api.threat_arsenal.dto.PayloadApprovalOutput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionFullOutput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalExpectationDetail;
 import io.openaev.database.model.*;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
@@ -38,6 +40,7 @@ public class ThreatArsenalMapper {
   private final PayloadMapper payloadMapper;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final EntityManager entityManager;
+  private final PayloadApprovalService payloadApprovalService;
 
   /**
    * Resolves an author association that may be an uninitialized proxy detached from its session
@@ -143,7 +146,13 @@ public class ThreatArsenalMapper {
         injectorContract.getCreatedAt(),
         injectorContract.getUpdatedAt(),
         injectorContract.getProviding(),
-        toExpectationDetails(injectorContract));
+        toExpectationDetails(injectorContract),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -239,6 +248,8 @@ public class ThreatArsenalMapper {
 
     // Mirrors InjectorContract#getProviding for the payload branch: the output types a payload
     // produces are the distinct contract output element types across its output parsers.
+    User lastModifiedBy = resolveAuthor(User.class, payload.getLastModifiedBy());
+
     List<ContractOutputType> providing =
         payload.getOutputParsers().stream()
             .flatMap(op -> op.getContractOutputElements().stream())
@@ -278,6 +289,17 @@ public class ThreatArsenalMapper {
         providing,
         // Payloads declare expectations by type only (no per-expectation name/description/order),
         // so there are no details to expose - readers fall back to action_expectations.
-        null);
+        null,
+        lastModifiedBy != null ? lastModifiedBy.getId() : null,
+        lastModifiedBy != null ? lastModifiedBy.getNameOrEmail() : null,
+        payload.getApprovalStatus(),
+        payload.getId() != null
+            ? payloadApprovalService
+                .latest(payload.getId())
+                .map(PayloadApprovalOutput::from)
+                .orElse(null)
+            : null,
+        payload.getId(),
+        payload.getVersion());
   }
 }

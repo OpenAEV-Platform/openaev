@@ -36,6 +36,7 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.scenario.revision.ScenarioApplyService;
 import io.openaev.utils.SemanticVersion;
@@ -102,6 +103,7 @@ public class CatalogInstallService {
   private final WorkflowService workflowService;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final ObjectMapper mapper;
+  private final PayloadApprovalService payloadApprovalService;
 
   // -- LIST --
 
@@ -440,6 +442,8 @@ public class CatalogInstallService {
                   + " conflicts with a payload already installed");
         }
         payloadVersionService.moveToIdentity(payload, identity, ref.version());
+        // Payload approval: a catalogue version is approved on arrival when its source is trusted.
+        payloadApprovalService.onWrite(payload, null, PayloadApproval.ORIGIN.CATALOG);
       }
       managed.put(payload.getId(), payload);
     }

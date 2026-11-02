@@ -13,11 +13,14 @@ import {
   type PayloadVersionOutput,
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
+  type ThreatArsenalApprovalDecisionOutput,
 } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import ThreatArsenalApprovalSection from './approval/ThreatArsenalApprovalSection';
 import CatalogPayloadVersionPreview from './catalog/CatalogPayloadVersionPreview';
 import PayloadHistoryTab from './PayloadHistoryTab';
+import PayloadNewVersionDialog from './PayloadNewVersionDialog';
 import PayloadVersionSelect from './PayloadVersionSelect';
 import PayloadVersionsTab from './PayloadVersionsTab';
 import ThreatArsenalActionOverview from './ThreatArsenalActionOverview';
@@ -33,6 +36,8 @@ const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
     payload_platforms: action.action_platforms ?? [],
     payload_source: action.action_source,
     payload_status: action.action_status,
+    // Always set for payload-based actions, the only ones converted here.
+    payload_approval_status: action.action_approval_status ?? 'PENDING',
     payload_type: action.action_type,
     payload_external_id: action.action_external_id,
     payload_arguments: action.action_arguments,
@@ -57,6 +62,8 @@ interface Props {
   onClose: () => void;
   threatArsenalAction: ThreatArsenalAction | null;
   onRunTest: (action: ThreatArsenalAction) => void;
+  /** Called after an approve / reject decision, so the list can refresh the row. */
+  onApprovalChanged?: (actionId: string, status: ThreatArsenalActionFullOutput['action_approval_status']) => void;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
@@ -64,6 +71,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   onClose,
   threatArsenalAction,
   onRunTest,
+  onApprovalChanged,
 }) => {
   const { t } = useFormatter();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -77,6 +85,8 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   const [shownVersion, setShownVersion] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
   const [versionsLoading, setVersionsLoading] = useState(false);
+  // An approved version whose replaced version still runs injects: the approver is asked to move them.
+  const [moveOffer, setMoveOffer] = useState<ThreatArsenalApprovalDecisionOutput | null>(null);
 
   const payload = threatArsenalAction?.action_payload;
   const shownRow = versions.find(v => v.payload_version === shownVersion);
@@ -193,66 +203,107 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
         : null;
     }
     return shownAction && (
-      <ThreatArsenalActionOverview
-        action={fullOutput?.action_labels
-          ? {
-              ...shownAction,
-              action_labels: fullOutput.action_labels,
-            }
-          : shownAction}
-        payload={selectedPayload}
-        expectations={fullOutput?.action_expectations}
-        expectationDetails={fullOutput?.action_expectation_details}
-        expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
-        providing={fullOutput?.action_providing}
-        loading={loading}
-      />
+      <>
+        {fullOutput && selectedPayload && (
+          <div style={{ marginBottom: 16 }}>
+            <ThreatArsenalApprovalSection
+              action={fullOutput}
+              onDecided={(decision) => {
+                setFullOutput(previous => (previous
+                  ? {
+                      ...previous,
+                      action_approval_status: decision.action_approval_status,
+                      action_approval_latest: decision.action_approval_latest,
+                    }
+                  : previous));
+                onApprovalChanged?.(decision.action_id, decision.action_approval_status);
+                loadVersions();
+                // The approver decides whether the injects on the replaced version move to it.
+                if (decision.action_approval_status === 'APPROVED' && decision.action_previous_version_id
+                  && (decision.action_previous_version_usages ?? 0) > 0) {
+                  setMoveOffer(decision);
+                }
+              }}
+            />
+          </div>
+        )}
+        <ThreatArsenalActionOverview
+          action={fullOutput?.action_labels
+            ? {
+                ...shownAction,
+                action_labels: fullOutput.action_labels,
+              }
+            : shownAction}
+          payload={selectedPayload}
+          expectations={fullOutput?.action_expectations}
+          expectationDetails={fullOutput?.action_expectation_details}
+          expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
+          providing={fullOutput?.action_providing}
+          lastModifiedByName={fullOutput ? (fullOutput.action_last_modified_by_name ?? null) : undefined}
+          loading={loading}
+        />
+      </>
     );
   };
 
   return (
-    <Drawer
-      open={open}
-      handleClose={onClose}
-      title={t('Action information')}
-      headerActions={shownActionId && shownAction && !shownRow?.payload_revoked && (
-        <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => onRunTest(shownAction)}>{t('Run a test')}</Button>
+    <>
+      <Drawer
+        open={open}
+        handleClose={onClose}
+        title={t('Action information')}
+        headerActions={shownActionId && shownAction && !shownRow?.payload_revoked && (
+          <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => onRunTest(shownAction)}>{t('Run a test')}</Button>
+        )}
+      >
+        {threatArsenalAction == null ? <></> : (
+          <>
+            {payload && (
+              <Tabs value={tab} onValueChange={value => setTab(value as 'overview' | 'versions' | 'history')} panels="external">
+                <TabsList actions={tab === 'overview' && shownVersion && (
+                  <PayloadVersionSelect
+                    value={shownVersion}
+                    options={versions
+                      .filter(v => !!v.payload_version)
+                      .map(v => ({
+                        version: v.payload_version as string,
+                        latest: v.payload_is_latest,
+                        installed: v.payload_installed,
+                        revoked: v.payload_revoked,
+                        approvalStatus: v.payload_approval_status,
+                      }))}
+                    onChange={setShownVersion}
+                    loading={versionsLoading}
+                  />
+                )}
+                >
+                  <TabsTrigger value="overview">{t('Overview')}</TabsTrigger>
+                  <TabsTrigger value="versions">{t('Versions')}</TabsTrigger>
+                  <TabsTrigger value="history">{t('History')}</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+            <div style={{ marginTop: payload ? 16 : 0 }}>
+              {tab === 'versions' && payload && <PayloadVersionsTab actionId={threatArsenalAction.injector_contract_id} onChanged={loadVersions} />}
+              {tab === 'history' && payload && <PayloadHistoryTab actionId={threatArsenalAction.injector_contract_id} />}
+              {(tab === 'overview' || !payload) && renderOverview()}
+            </div>
+          </>
+        )}
+      </Drawer>
+      {moveOffer?.action_previous_version_id && (
+        <PayloadNewVersionDialog
+          previousActionId={moveOffer.action_previous_version_id}
+          newPayloadId={moveOffer.action_payload_id ?? ''}
+          newVersion={moveOffer.action_payload_version ?? ''}
+          usages={moveOffer.action_previous_version_usages ?? 0}
+          onClose={() => {
+            setMoveOffer(null);
+            loadVersions();
+          }}
+        />
       )}
-    >
-      {threatArsenalAction == null ? <></> : (
-        <>
-          {payload && (
-            <Tabs value={tab} onValueChange={value => setTab(value as 'overview' | 'versions' | 'history')} panels="external">
-              <TabsList actions={tab === 'overview' && shownVersion && (
-                <PayloadVersionSelect
-                  value={shownVersion}
-                  options={versions
-                    .filter(v => !!v.payload_version)
-                    .map(v => ({
-                      version: v.payload_version as string,
-                      latest: v.payload_is_latest,
-                      installed: v.payload_installed,
-                      revoked: v.payload_revoked,
-                    }))}
-                  onChange={setShownVersion}
-                  loading={versionsLoading}
-                />
-              )}
-              >
-                <TabsTrigger value="overview">{t('Overview')}</TabsTrigger>
-                <TabsTrigger value="versions">{t('Versions')}</TabsTrigger>
-                <TabsTrigger value="history">{t('History')}</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          )}
-          <div style={{ marginTop: payload ? 16 : 0 }}>
-            {tab === 'versions' && payload && <PayloadVersionsTab actionId={threatArsenalAction.injector_contract_id} onChanged={loadVersions} />}
-            {tab === 'history' && payload && <PayloadHistoryTab actionId={threatArsenalAction.injector_contract_id} />}
-            {(tab === 'overview' || !payload) && renderOverview()}
-          </div>
-        </>
-      )}
-    </Drawer>
+    </>
   );
 };
 

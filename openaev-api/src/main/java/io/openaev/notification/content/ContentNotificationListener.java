@@ -169,7 +169,10 @@ public class ContentNotificationListener {
         () -> {
           Payload added = payloadVersionService.findById(event.payloadId());
           PayloadIdentity identity = added.getIdentity();
-          if (!added.getId().equals(identity.getLatestPayloadId())) {
+          // Payload approval: a version is available once approved (the approval sends the event
+          // again); one waiting for approval is not announced.
+          if (!added.getId().equals(identity.getLatestPayloadId())
+              || added.getApprovalStatus() != Payload.PAYLOAD_APPROVAL_STATUS.APPROVED) {
             return List.of();
           }
           List<Emit> emits = new ArrayList<>();

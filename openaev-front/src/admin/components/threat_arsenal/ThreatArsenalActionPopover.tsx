@@ -1,6 +1,7 @@
-import { Button, IconButton } from '@filigran/design-system';
+import { Alert, Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type MouseEvent, useEffect, useState } from 'react';
 
 import { uninstallCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
@@ -87,6 +88,7 @@ const ThreatArsenalActionPopover = ({
 
   const { t, tPick } = useFormatter();
   const ability = useAbility();
+  const theme = useTheme();
 
   // -- Popover --
   const handlePopoverOpen = (event: MouseEvent<HTMLButtonElement>) => {
@@ -139,6 +141,9 @@ const ThreatArsenalActionPopover = ({
     handleCloseEdit();
     if (saved?.action_previous_version_id && (saved.action_previous_version_usages ?? 0) > 0) {
       setNewVersion(saved);
+    } else if (saved?.action_previous_version_id && saved.action_payload?.payload_approval_status === 'PENDING') {
+      // The move question goes to the approver, when the version is approved.
+      MESSAGING$.notifySuccess(t('v{version} is waiting for approval. Injects keep running their current version until an approver approves it.', { version: saved.action_payload.payload_version ?? '' }));
     }
   };
 
@@ -236,6 +241,12 @@ const ThreatArsenalActionPopover = ({
   };
 
   const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
+
+  // Saving what an action runs adds a version: without "Approve content", it waits for approval and
+  // the injects stay on their version until an approver approves it and moves them.
+  const versionNote = (): string | null => (ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS)
+    ? null
+    : t('Changes to what this action runs create a new version that waits for approval. Injects keep running their current version until an approver approves the new one.'));
   const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
   const hasRevokeCapability = ability.can(ACTIONS.REVOKE, SUBJECTS.THREAT_ARSENALS);
@@ -407,6 +418,11 @@ const ThreatArsenalActionPopover = ({
         title={`${t('Update the action :')} ${name}`}
       >
         <>
+          {fetchedAction && !!payloadId && versionNote() && (
+            <div style={{ marginBottom: theme.spacing(2) }}>
+              <Alert severity="info" title={versionNote()} />
+            </div>
+          )}
           {fetchedAction && !!payloadId && (
             <SnapshotRemediationProvider>
               <ThreatArsenalActionForm

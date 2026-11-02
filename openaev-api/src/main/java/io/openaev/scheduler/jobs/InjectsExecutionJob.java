@@ -28,6 +28,8 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.payload_approval.BlockedPayloadsException.BlockedPayload;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.AgentUtils;
 import jakarta.validation.constraints.NotNull;
@@ -96,6 +98,7 @@ public class InjectsExecutionJob implements Job {
 
   private final HealthCheckUtils healthCheckUtils;
   private final Optional<AuditLogger> auditLogger;
+  private final PayloadApprovalGate payloadApprovalGate;
 
   public List<Exercise> autoStartDueExercises() {
     // The poll spans every tenant and only ids leave it. Each tenant's simulations are then started
@@ -142,7 +145,30 @@ public class InjectsExecutionJob implements Job {
   }
 
   private List<Exercise> promoteToRunning(List<String> exerciseIds) {
-    List<Exercise> exercises = new ArrayList<>(exerciseRepository.findAllById(exerciseIds));
+    List<Exercise> exercises = new ArrayList<>();
+    for (Exercise exercise : exerciseRepository.findAllById(exerciseIds)) {
+      // A scheduled run that uses a payload version which is not approved does not start at all:
+      // it goes back to draft (no start date, so the user plans it again on purpose) and the
+      // refusal is audited. Normally done as soon as the payload is blocked; this covers any race.
+      List<BlockedPayload> blocked = payloadApprovalGate.blockedPayloads(exercise.getInjects());
+      if (blocked.isEmpty()) {
+        exercises.add(exercise);
+      } else {
+        exercise.setStart(null);
+        exercise.setUpdatedAt(now());
+        exerciseRepository.save(exercise);
+        payloadApprovalGate.auditBlocked(
+            "Starting the scheduled simulation \"" + exercise.getName() + "\"",
+            blocked,
+            ResourceType.SIMULATION,
+            exercise.getId(),
+            SYSTEM);
+        log.warn(
+            "Scheduled simulation {} moved back to draft: {} payload(s) not approved",
+            exercise.getId(),
+            blocked.size());
+      }
+    }
     exercises.forEach(
         exercise -> {
           exercise.setStatus(ExerciseStatus.RUNNING);

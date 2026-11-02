@@ -21,6 +21,9 @@ public class PayloadFixture {
     payload.setPlatforms(platforms);
     payload.setSource(MANUAL);
     payload.setStatus(VERIFIED);
+    // Existing content, approved without a recorded fingerprint (like the migration did): the
+    // approval gates let it run. Approval tests set PENDING / REJECTED explicitly.
+    payload.setApprovalStatus(Payload.PAYLOAD_APPROVAL_STATUS.APPROVED);
   }
 
   public static Command createCommand(

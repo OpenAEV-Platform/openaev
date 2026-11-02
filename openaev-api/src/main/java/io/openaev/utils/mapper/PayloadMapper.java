@@ -257,6 +257,7 @@ public class PayloadMapper {
                     .type(payloadToSimple.getType())
                     .collectorType(payloadToSimple.getCollectorTypeValue())
                     .status(payloadToSimple.getStatus())
+                    .approvalStatus(payloadToSimple.getApprovalStatus())
                     .build())
         .orElse(null);
   }
@@ -370,7 +371,10 @@ public class PayloadMapper {
             .detectionRemediations(payload.getDetectionRemediations())
             .outputParsers(payload.getOutputParsers())
             .createdAt(payload.getCreatedAt())
-            .updatedAt(payload.getUpdatedAt());
+            .updatedAt(payload.getUpdatedAt())
+            .lastModifiedBy(
+                payload.getLastModifiedBy() != null ? payload.getLastModifiedBy().getId() : null)
+            .approvalStatus(payload.getApprovalStatus());
 
     switch (Hibernate.unproxy(payload)) {
       case Command command ->

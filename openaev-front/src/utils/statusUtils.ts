@@ -92,6 +92,9 @@ const STATUS_COLOR_STYLE: Record<string, keyof typeof colorStyles> = {
   'QUEUING': 'yellow',
   'DRAFT': 'blueGrey',
   'DISABLED': 'blueGrey',
+  // Display-only: an inject not run yet whose payload is not approved (never stored)
+  'PAYLOAD_PENDING_APPROVAL': 'orange',
+  'PAYLOAD_REJECTED': 'red',
   // Expectation display labels
   'FAILED': 'red',
   'ASSET_INACTIVE': 'red',

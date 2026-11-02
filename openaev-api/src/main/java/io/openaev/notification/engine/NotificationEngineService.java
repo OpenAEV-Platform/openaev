@@ -165,6 +165,9 @@ public class NotificationEngineService {
           case CREATE -> "created";
           case UPDATE -> "updated";
           case DELETE -> "deleted";
+          // Sent by PayloadApprovalNotificationService with its own messages, never matched here
+          // (triggers cannot subscribe to them).
+          case APPROVAL_PENDING -> "pending approval";
           default -> eventType.name().toLowerCase().replace('_', ' ');
         };
     String resourceLabel = entry.getResourceType().name().toLowerCase().replace('_', ' ');

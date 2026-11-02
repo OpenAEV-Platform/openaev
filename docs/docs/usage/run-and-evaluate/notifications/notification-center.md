@@ -1,9 +1,10 @@
 # Notification Center
 
 The **Notification Center** is where every Notification produced by your Triggers lands. It is reachable from the
-bell icon in the top navigation bar and has two tabs: **Alerts**, covered by this page, and **Triggers**, where you
-configure what you're notified about (see [Triggers](triggers.md)). This page details how to read, filter, and
-manage the Alerts tab.
+bell icon in the top navigation bar and has three tabs: **Alerts**, covered by this page, **Triggers**, where you
+configure what you're notified about (see [Triggers](triggers.md)), and **Preferences**, where you choose how you
+receive the notifications the platform sends you itself. This page details how to read, filter, and manage the
+Alerts tab, and the Preferences tab.
 
 ## What Is the Notification Center?
 
@@ -14,7 +15,8 @@ Center is open.
 Each row in the list shows:
 
 - **Operation**: a colored chip showing what happened: **Creation**, **Modification**, **Deletion**,
-  **Score degradation**, or, for a Digest Notification, **Multiple** (several operations rolled up together). The
+  **Score degradation**, **Pending approval**, **Approved**, **Rejected**, **Superseded** (payload approval, see
+  below), or, for a Digest Notification, **Multiple** (several operations rolled up together). The
   row's icon mirrors the same operation with a distinct bell glyph, and an unread Notification shows an additional
   dot on that icon.
 - **Message**: the human-readable description of the event. A Digest Notification instead shows how many events it
@@ -42,7 +44,8 @@ Each row in the list shows:
 2. Click a **Live** Notification's row to open the entity that produced it in a new context, for example, the
    Scenario whose score degraded, or the Asset that was created. A Notification is not navigable when its
    Operation is **Deletion** (the entity no longer exists) or when its Resource type has no dedicated detail page
-   (Payload, Vulnerability, Document, Challenge).
+   (Payload, Vulnerability, Document, Challenge). A payload approval Notification opens the Action's drawer in the
+   [Threat Arsenal](../build/threat-arsenals/threat-arsenals.md).
 3. Click a **Digest** Notification's row to open a dialog listing every composed Trigger group and the events it
    matched. Any event pointing to an entity that still exists is itself clickable, and closes the dialog before
    navigating.
@@ -55,6 +58,27 @@ Each row in the list shows:
 - Select one or more rows with their checkbox (or **select all**) to reveal a bulk toolbar: **Mark as read**,
   **Mark as unread**, or delete the selection.
 - Click the delete icon on a row to remove that single Notification.
+
+### Payload approval notifications
+
+The platform notifies you about payload approval without any Trigger to configure:
+
+| You receive | When |
+|---|---|
+| **Payloads pending approval** | A Payload, or a new version of an approved Payload, waits for approval. Sent to the users whose role in the Tenant explicitly holds *Approve content*, except its author. Platform administrators and *Bypass* holders without that capability are not notified. A Payload already pending does not notify again |
+| **Approval of your payloads** | A Payload or version you submitted is approved, rejected (with the reason), or replaced by a newer version submitted by someone else |
+
+Notifications are sent in batches every minute: several Payloads going pending at once (for example a Collector
+synchronization) give one Notification listing them all. Each item links to its Action in the Threat Arsenal.
+
+### Choose how you receive them
+
+1. Open the Notification Center and select the **Preferences** tab.
+2. For **Payloads to approve** and **Outcome of my payloads**, turn **In-app** (the Alerts tab and the bell) and
+   **Email** on or off. By default, In-app is on and Email is off.
+
+Your preferences apply to every Tenant you belong to. Emails are sent through the platform's mailer, with the same
+content and links as the in-app Notification.
 
 ## Example: Investigating a Score Degradation Alert
 

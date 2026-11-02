@@ -40,6 +40,10 @@ a release:
 Installing a new version never changes your Injects: they keep their version until you move them. See
 [Move Injects to another version](#move-injects-to-another-version).
 
+Filigran versions are verified by Filigran, so they arrive **approved**: no approver needs to review them
+(see [Approval of payloads](threat-arsenals.md#approval-of-payloads)). A customized copy is your own content:
+its versions follow the approval rules of the Threat Arsenal.
+
 You need the permission to manage the tenant settings to change this switch.
 
 ### Content you had before the catalog

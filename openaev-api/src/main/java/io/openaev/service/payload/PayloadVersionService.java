@@ -428,8 +428,8 @@ public class PayloadVersionService {
   }
 
   /**
-   * Points the identity to its highest non-revoked version, or to none. To call after every new
-   * version, revocation or lift.
+   * Points the identity to its highest non-revoked version, and to its highest approved one, or to
+   * none. To call after every new version, approval decision, revocation or lift.
    */
   public Optional<Payload> refreshLatest(PayloadIdentity identity) {
     List<Payload> versions = versionsOf(identity);
@@ -437,8 +437,20 @@ public class PayloadVersionService {
     Optional<Payload> latest =
         highestOf(versions.stream().filter(v -> !revoked.contains(v.getId())).toList());
     String latestId = latest.map(Payload::getId).orElse(null);
-    if (!Objects.equals(identity.getLatestPayloadId(), latestId)) {
+    // Payload approval: pickers and automatic selection use the highest approved version, so a
+    // newer version waiting for approval does not hide the one that can run.
+    String latestApprovedId =
+        highestOf(
+                versions.stream()
+                    .filter(v -> !revoked.contains(v.getId()))
+                    .filter(v -> v.getApprovalStatus() == Payload.PAYLOAD_APPROVAL_STATUS.APPROVED)
+                    .toList())
+            .map(Payload::getId)
+            .orElse(null);
+    if (!Objects.equals(identity.getLatestPayloadId(), latestId)
+        || !Objects.equals(identity.getLatestApprovedPayloadId(), latestApprovedId)) {
       identity.setLatestPayloadId(latestId);
+      identity.setLatestApprovedPayloadId(latestApprovedId);
       payloadIdentityRepository.save(identity);
     }
     return latest;

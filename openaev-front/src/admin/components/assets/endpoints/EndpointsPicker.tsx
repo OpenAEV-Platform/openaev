@@ -235,7 +235,18 @@ const EndpointsPicker: FunctionComponent<Props> = ({
   if (payloadArch && payloadArch !== 'ALL_ARCHITECTURES') {
     quickFilter.filters?.push(buildFilter('endpoint_arch', [payloadArch], 'eq'));
   }
-  const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({ filterGroup: quickFilter }));
+  // The compatibility filter is a removable default: "Clear all" empties the filters (it does not
+  // bring it back), and it is set again from the current action each time the picker opens, so a
+  // filter removed or edited earlier never lingers.
+  const { queryableHelpers, searchPaginationInput } = useQueryable(
+    buildSearchPagination({}),
+    buildSearchPagination({ filterGroup: quickFilter }),
+  );
+  useEffect(() => {
+    if (!open) return;
+    queryableHelpers.filterHelpers.handleClearAllFilters();
+    quickFilter.filters?.forEach(({ id: _id, ...filter }) => queryableHelpers.filterHelpers.handleAddFilter(filter));
+  }, [open]);
 
   const paginationComponent = (
     <PaginationComponentV2

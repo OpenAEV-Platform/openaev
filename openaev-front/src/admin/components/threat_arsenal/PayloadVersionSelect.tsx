@@ -2,12 +2,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner 
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { type PayloadVersionOutput } from '../../../utils/api-types';
+import { approvalStatusLabel } from './approval/approvalStatusUtils';
 
 export interface PayloadVersionOption {
   version: string;
   latest?: boolean;
   installed?: boolean;
   revoked?: boolean;
+  // Payload approval: a version that is not approved is labelled with its status.
+  approvalStatus?: PayloadVersionOutput['payload_approval_status'];
 }
 
 interface Props {
@@ -24,6 +28,7 @@ const PayloadVersionSelect: FunctionComponent<Props> = ({ value, options, onChan
     option.latest && t('Latest version'),
     !option.installed && t('Not installed'),
     option.revoked && t('Revoked'),
+    option.approvalStatus && option.approvalStatus !== 'APPROVED' && t(approvalStatusLabel(option.approvalStatus)),
   ].filter(Boolean).join(' · ');
   // While loading, the current version is the only option, so the trigger keeps its label.
   const shown = loading && !options.some(option => option.version === value)

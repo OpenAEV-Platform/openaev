@@ -20,9 +20,11 @@ import io.openaev.rest.exception.ManagedPayloadReadOnlyException;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.service.GrantService;
+import io.openaev.service.UserService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.payload.PayloadVersionNumbering;
 import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -73,6 +75,9 @@ public class PayloadUpdateService {
     }
   }
 
+  private final UserService userService;
+  private final PayloadApprovalService payloadApprovalService;
+
   @Transactional(rollbackFor = Exception.class)
   public PayloadSaveResult updatePayload(String payloadId, PayloadUpdateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
@@ -111,6 +116,8 @@ public class PayloadUpdateService {
 
     Payload candidate = payloadService.copyForNewVersion(current);
     payloadUtils.copyProperties(input, candidate);
+    // Null outside an authenticated request (system flows): an unknown modifier, never a stale one.
+    candidate.setLastModifiedBy(userService.currentUserOrNull());
     if (candidate instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));
     } else if (candidate instanceof FileDrop fileDrop) {
@@ -135,6 +142,7 @@ public class PayloadUpdateService {
             current.getIdentity(),
             candidate,
             highest -> PayloadVersionNumbering.bump(highest.getVersion(), change.get()));
+    payloadApprovalService.onWrite(saved, saved.getLastModifiedBy(), PayloadApproval.ORIGIN.UPDATE);
     InjectorContract contract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             saved, attackPatterns, domains, tags);
@@ -143,7 +151,11 @@ public class PayloadUpdateService {
             grantService.copyGrants(
                 previous.getId(), contract.getId(), Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL));
     contentHistoryService.payloadUpdated(current, saved);
-    int usages = currentContract.map(payloadVersionService::countTemplateUsages).orElse(0);
-    return new PayloadSaveResult(saved, contract, current, usages);
+    // The saver is asked to move the injects only when the new version is approved at once; a
+    // pending version is offered to them by the approver who approves it.
+    return payloadApprovalService
+        .moveOffer(saved)
+        .map(offer -> new PayloadSaveResult(saved, contract, offer.from(), offer.usages()))
+        .orElseGet(() -> new PayloadSaveResult(saved, contract, current, 0));
   }
 }

@@ -9,6 +9,7 @@ import io.openaev.database.model.CatalogItem;
 import io.openaev.database.model.ContentType;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.PayloadApproval;
 import io.openaev.database.model.PayloadIdentity;
 import io.openaev.notification.content.ContentNotificationEvents.PayloadInstalledAutomatically;
 import io.openaev.rest.exception.BadRequestException;
@@ -20,6 +21,7 @@ import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadVersionChangeService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.payload.PayloadVersionService.Promotion;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
 import io.openaev.utils.SemanticVersion;
@@ -52,6 +54,7 @@ public class CatalogPayloadService {
   private final PayloadVariantService payloadVariantService;
   private final OrganizationService organizationService;
   private final ApplicationEventPublisher eventPublisher;
+  private final PayloadApprovalService payloadApprovalService;
 
   // -- LIST --
 
@@ -137,6 +140,8 @@ public class CatalogPayloadService {
           .copiesToRepoint()
           .forEach(copy -> payloadVersionChangeService.repointAllUsages(copy, release));
     }
+    // Payload approval: a catalogue version is approved on arrival when its source is trusted.
+    payloadApprovalService.onWrite(payload, null, PayloadApproval.ORIGIN.CATALOG);
     payload.setAuthorUser(null);
     payload.setAuthorTeam(null);
     payload.setAuthorOrganization(

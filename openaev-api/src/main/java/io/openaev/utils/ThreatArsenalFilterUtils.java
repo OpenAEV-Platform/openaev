@@ -31,6 +31,7 @@ public class ThreatArsenalFilterUtils {
           Map.entry("action_domains", "injector_contract_domains"),
           Map.entry("action_tags", "injector_contract_tags"),
           Map.entry("action_payload_status", "injector_contract_payload_status"),
+          Map.entry("action_payload_approval_status", "injector_contract_payload_approval_status"),
           Map.entry("action_injectors", "injector_contract_injectors"),
           Map.entry("action_updated_at", "injector_contract_updated_at"),
           Map.entry("action_author", "injector_contract_payload_author"),

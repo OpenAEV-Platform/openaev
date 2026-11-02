@@ -105,7 +105,11 @@ const AddActionList = ({
 
   const searchActions = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
+    // Only actions whose payload is approved (or payload-less built-ins) can be picked.
+    return searchThreatArsenalActions({
+      ...input,
+      approved_payloads_only: true,
+    }).finally(() => setLoading(false));
   };
 
   const availableFilterNames = [

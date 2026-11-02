@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY } from '../../../admin/components/xtm_hub/XtmHubRedirect';
 
-const { mockDispatch, mockHelperState } = vi.hoisted(() => ({
+const { mockCan, mockDispatch, mockHelperState } = vi.hoisted(() => ({
+  mockCan: vi.fn(() => true),
   mockDispatch: vi.fn(),
   mockHelperState: {
     tenantSettings: { platform_home_dashboard: 'dashboard-id' as string | undefined },
@@ -49,7 +50,10 @@ vi.mock('../../../admin/components/workspaces/custom_dashboards/NoDashboardCompo
 
 vi.mock('../../../admin/components/workspaces/custom_dashboards/SelectDashboardButton', () => ({ default: () => <div data-testid="select-dashboard-button" /> }));
 
-vi.mock('../../../utils/permissions/permissionsContext', () => ({ Can: ({ children }: { children: ReactNode }) => <>{children}</> }));
+vi.mock('../../../utils/permissions/permissionsContext', () => ({
+  Can: ({ children }: { children: ReactNode }) => <>{children}</>,
+  useAbility: () => ({ can: mockCan }),
+}));
 
 import Home from '../../../admin/components/Home';
 
@@ -83,6 +87,8 @@ const renderHome = (route: string) => render(
 describe('Home permission dialog', () => {
   beforeEach(() => {
     mockDispatch.mockClear();
+    mockCan.mockReset();
+    mockCan.mockReturnValue(true);
     sessionStorage.clear();
   });
 
@@ -133,6 +139,23 @@ describe('Home permission dialog', () => {
       // Assert
       await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
       expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  describe('without "Access tenant settings"', () => {
+    it('shows why there is no home dashboard instead of loading refused widgets', () => {
+      // Arrange
+      mockCan.mockReturnValue(false);
+      mockHelperState.tenantSettings = { platform_home_dashboard: undefined };
+      mockHelperState.me = undefined;
+
+      // Act
+      renderHome('/admin');
+
+      // Assert
+      expect(screen.getByText(/The home dashboard needs the "Access tenant settings" capability/)).toBeTruthy();
+      expect(screen.queryByTestId('default-home-dashboard')).toBeNull();
+      expect(mockCan).toHaveBeenCalledWith('ACCESS', 'TENANT_SETTINGS');
     });
   });
 });

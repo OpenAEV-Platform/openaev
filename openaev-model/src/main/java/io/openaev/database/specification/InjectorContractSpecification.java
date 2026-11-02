@@ -26,12 +26,41 @@ public class InjectorContractSpecification {
     };
   }
 
+  /**
+   * Only the contracts a user may pick for an inject: payload-less built-in actions and actions
+   * whose payload version is approved.
+   */
+  public static Specification<InjectorContract> withApprovedOrNoPayload() {
+    return (root, query, cb) -> {
+      Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
+      return cb.or(
+          cb.isNull(payload.get("id")),
+          cb.equal(payload.get("approvalStatus"), Payload.PAYLOAD_APPROVAL_STATUS.APPROVED));
+    };
+  }
+
   /** Contracts without a payload, or whose payload the tenant did not uninstall (F26). */
   public static Specification<InjectorContract> withoutUninstalledPayload() {
     return (root, query, cb) -> {
       Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
       Join<Object, Object> identity = payload.join("identity", JoinType.LEFT);
       return cb.or(cb.isNull(payload.get("id")), cb.isFalse(identity.get("uninstalled")));
+    };
+  }
+
+  /**
+   * Contracts without payload, or whose payload is the highest approved version of an installed one
+   * (payload approval): what pickers and automatic selection offer while a newer version waits.
+   */
+  public static Specification<InjectorContract> withLatestApprovedPayload() {
+    return (root, query, cb) -> {
+      Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
+      Join<Object, Object> identity = payload.join("identity", JoinType.LEFT);
+      return cb.or(
+          cb.isNull(payload.get("id")),
+          cb.and(
+              cb.isFalse(identity.get("uninstalled")),
+              cb.equal(payload.get("id"), identity.get("latestApprovedPayloadId"))));
     };
   }
 

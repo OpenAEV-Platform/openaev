@@ -105,6 +105,8 @@ class ContentNotificationListenerTest {
     payload.setName("Network discovery");
     payload.setVersion(version);
     payload.setIdentity(identity);
+    // Payload approval: a version is announced once approved.
+    payload.setApprovalStatus(Payload.PAYLOAD_APPROVAL_STATUS.APPROVED);
     return payload;
   }
 
@@ -235,6 +237,24 @@ class ContentNotificationListenerTest {
           NEW_PAYLOAD_VERSION,
           "[scenario] Salt Typhoon: Network discovery v1.1.0 is available, 1 inject still runs"
               + " an older version");
+    }
+
+    @Test
+    @DisplayName("A latest version waiting for approval tells nobody until it is approved")
+    void given_pendingLatestVersion_should_sendNothing() {
+      // Arrange
+      PayloadIdentity identity = identity(false);
+      identity.setLatestPayloadId("payload-2");
+      Payload added = payload("payload-2", "1.1.0", identity);
+      added.setApprovalStatus(Payload.PAYLOAD_APPROVAL_STATUS.PENDING);
+      when(payloadVersionService.findById("payload-2")).thenReturn(added);
+
+      // Act
+      listener.onVersionAdded(new PayloadVersionAdded(TENANT, "payload-2"));
+
+      // Assert
+      verify(engine, never())
+          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString());
     }
 
     @Test

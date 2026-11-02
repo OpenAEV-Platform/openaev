@@ -20,4 +20,6 @@ public record PayloadVersionOutput(
     @JsonProperty("payload_changelog") String changelog,
     @JsonProperty("payload_published_at") Instant publishedAt,
     @JsonProperty("payload_usage_count") @NotNull Integer usageCount,
-    @JsonProperty("payload_created_at") Instant createdAt) {}
+    @JsonProperty("payload_created_at") Instant createdAt,
+    // Payload approval: null for a catalogue version not installed.
+    @JsonProperty("payload_approval_status") Payload.PAYLOAD_APPROVAL_STATUS approvalStatus) {}

@@ -18,6 +18,7 @@ import {
 } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import PayloadVersionSelect from './PayloadVersionSelect';
 
 const VERSIONS_PER_PAGE = 5;
@@ -126,6 +127,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
         <Text variant="content-base-bold">{`v${source.payload_version ?? '-'}`}</Text>
         {!source.payload_installed && <Chip label={t('Not installed')} />}
         {source.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
+        {source.payload_approval_status && source.payload_approval_status !== 'APPROVED' && <ApprovalStatusChip status={source.payload_approval_status} />}
         <Box sx={{ flex: 1 }} />
         {source.payload_installed
           ? (
@@ -358,7 +360,10 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged }) =
           key={source.payload_version}
           source={source}
           usages={source.payload_action_id ? usages[source.payload_action_id] ?? [] : []}
-          targets={versions.filter(v => v.payload_version && v.payload_version !== source.payload_version && !v.payload_revoked)}
+          // Payload approval: injects move only to an approved version (a catalogue version not
+          // installed yet is approved when installed, its source being trusted).
+          targets={versions.filter(v => v.payload_version && v.payload_version !== source.payload_version && !v.payload_revoked
+            && (v.payload_installed ? v.payload_approval_status === 'APPROVED' : true))}
           canMigrate={canManage}
           loading={!!source.payload_action_id && (loadingUsages.has(source.payload_action_id) || (!usages[source.payload_action_id] && (source.payload_usage_count ?? 0) > 0))}
           installAction={installButton(source)}

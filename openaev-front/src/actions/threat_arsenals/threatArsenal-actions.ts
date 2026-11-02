@@ -4,6 +4,7 @@ import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCal
 import type {
   InjectorContractSearchPaginationInput, SearchPaginationInput,
   ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
+  ThreatArsenalApproveInput, ThreatArsenalRejectInput,
 } from '../../utils/api-types';
 import { arrayOfSecurityPlatforms } from '../assets/asset-schema';
 
@@ -41,6 +42,22 @@ export const fetchThreatArsenalAction = (actionId: string) => {
 export const updateThreatArsenalAction = (actionId: string, data: ThreatArsenalActionUpdateInput) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
   return simplePutCall(uri, data, {}, true, true);
+};
+
+// Payload approval: approve / reject need "Approve content" and act on the pending version when
+// there is one; errors (nothing pending, content changed since shown, missing reason) are surfaced
+// by the default error handling.
+// notifyError false: the caller handles errors itself (e.g. a 403 when Approve content was removed).
+export const approveThreatArsenalAction = (actionId: string, data: ThreatArsenalApproveInput, notifyError = true) => {
+  return simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/approve`, data, undefined, notifyError);
+};
+
+export const rejectThreatArsenalAction = (actionId: string, data: ThreatArsenalRejectInput, notifyError = true) => {
+  return simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/reject`, data, undefined, notifyError);
+};
+
+export const fetchThreatArsenalActionUsage = (actionId: string) => {
+  return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usage`);
 };
 
 export const duplicateThreatArsenalAction = (actionId: string) => {

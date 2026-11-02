@@ -1,6 +1,7 @@
 package io.openaev.rest.injector_contract;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.database.specification.InjectorContractSpecification.withLatestApprovedPayload;
 import static io.openaev.database.specification.InjectorContractSpecification.withLatestPayload;
 import static io.openaev.database.specification.InjectorContractSpecification.withoutRevokedPayload;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
@@ -82,7 +83,10 @@ public class InjectorContractApi extends RestBehavior {
       InjectorContractSearchPaginationInput input) {
     Specification<InjectorContract> scope = Specification.unrestricted();
     if (input.isLatestVersionsOnly()) {
-      scope = scope.and(withLatestPayload());
+      // A picker of approved actions offers each payload in its latest approved version.
+      scope =
+          scope.and(
+              input.isApprovedPayloadsOnly() ? withLatestApprovedPayload() : withLatestPayload());
     }
     if (input.isExcludeRevokedPayloads()) {
       scope = scope.and(withoutRevokedPayload());
@@ -100,8 +104,8 @@ public class InjectorContractApi extends RestBehavior {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec.and(versionScope(input)),
-                specCount.and(versionScope(input)),
+                input.restrictToPickable(spec.and(versionScope(input))),
+                input.restrictToPickable(specCount.and(versionScope(input))),
                 pageable,
                 input.isIncludeFullDetails()
                     ? InjectorContractService.OutputMode.FULL
@@ -122,7 +126,7 @@ public class InjectorContractApi extends RestBehavior {
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
-    return injectorContractService.getDomainCounts(filtered);
+    return injectorContractService.getDomainCounts(filtered, pickerScope(input));
   }
 
   /**
@@ -141,9 +145,9 @@ public class InjectorContractApi extends RestBehavior {
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
     return new InjectorContractFacetCountsOutput(
-        injectorContractService.getPlatformCounts(filtered),
-        injectorContractService.getKillChainPhaseCounts(filtered),
-        injectorContractService.getStatusCounts(filtered));
+        injectorContractService.getPlatformCounts(filtered, pickerScope(input)),
+        injectorContractService.getKillChainPhaseCounts(filtered, pickerScope(input)),
+        injectorContractService.getStatusCounts(filtered, pickerScope(input)));
   }
 
   /**
@@ -160,7 +164,7 @@ public class InjectorContractApi extends RestBehavior {
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
-    return injectorContractService.getAuthorCounts(filtered);
+    return injectorContractService.getAuthorCounts(filtered, pickerScope(input));
   }
 
   /**
@@ -275,5 +279,11 @@ public class InjectorContractApi extends RestBehavior {
   private InjectorContract hydrated(InjectorContract injectorContract) {
     AttackPatternInitializer.initializeFromContract(injectorContract);
     return injectorContract;
+  }
+
+  /** Same scope as the picker list search, so every facet count equals what the list shows. */
+  private static Specification<InjectorContract> pickerScope(
+      InjectorContractSearchPaginationInput input) {
+    return input.restrictToPickable(Specification.unrestricted());
   }
 }

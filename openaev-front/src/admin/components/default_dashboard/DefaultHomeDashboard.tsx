@@ -15,6 +15,8 @@ import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import limitConcurrency from '../../../utils/limitConcurrency';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { CustomDashboardContext, type CustomDashboardContextType, type WidgetResultsConf } from '../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardReactLayout from '../workspaces/custom_dashboards/CustomDashboardReactLayout';
 import { getTimeRangeItems } from '../workspaces/custom_dashboards/widgets/configuration/common/TimeRangeUtils';
@@ -46,9 +48,14 @@ const DefaultHomeDashboard = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  // Connected security platforms power the orbiting nodes in the command center.
+  // Connected security platforms power the orbiting nodes in the command center. Reading them
+  // needs "Access security platforms": without it the command center shows none.
+  const ability = useAbility();
+  const canReadSecurityPlatforms = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
   useDataLoader(() => {
-    dispatch(fetchSecurityPlatforms());
+    if (canReadSecurityPlatforms) {
+      dispatch(fetchSecurityPlatforms());
+    }
   });
 
   const [timeRange, setTimeRange] = useLocalStorage<DefaultTimeRange>('default-home-dashboard-time-range', 'LAST_QUARTER');

@@ -37,6 +37,7 @@ columns:
 | **Platform** | The platforms the Action supports, such as Windows, Linux, or macOS.                                            |
 | **Tags**     | Tags that help you categorize and search for Actions.                                                           |
 | **Status**   | The reliability or lifecycle state of the Action. See [Action status logic](#action-status-logic).              |
+| **Approval** | Whether the payload content is trusted. See [Approval of payloads](#approval-of-payloads).                      |
 | **Updated**  | The date of the last modification.                                                                              |
 
 ### Action status logic
@@ -46,6 +47,66 @@ columns:
 | **Verified**    | OpenAEV has tested the Action and confirmed that it works as expected.                                          |
 | **Unverified**  | OpenAEV has not tested the Action. It may or may not work.                                                      |
 | **Deprecated**  | The original source marked the Action as deprecated. It remains available for reference, but OpenAEV does not guarantee that it still works. |
+
+## Approval of payloads
+
+Each version of a payload-based Action carries an **approval status** that tells whether its content is trusted. A version never changes once created (see [Filigran catalog and versions](filigran-catalog.md#versions-of-an-action)), so its approval covers exactly what it runs. Only users whose role holds the **Approve content** capability (*Threat Arsenal → Access threat arsenal → Approve content*) can approve or reject a version.
+
+| Approval       | Meaning                                                                                              |
+|----------------|------------------------------------------------------------------------------------------------------|
+| **Pending**    | The version waits for an approver: it was created or saved by someone who cannot approve it. |
+| **Approved**   | The content is trusted: Injects can run this version. |
+| **Rejected**   | An approver refused the version, with a reason. Its author can save a new version. |
+| **Superseded** | A newer version of the same Action was saved before anyone decided on this one: it can no longer be approved. |
+
+How the status of a new version is set:
+
+* **Filigran catalog versions are approved on arrival**: they are verified by Filigran (see [Filigran catalog and versions](filigran-catalog.md)). The approval history records them as *Verified by Filigran*.
+* Creating, saving, duplicating, customizing or importing an Action is **auto-approved** when you hold *Approve content*; the approval history records it as an automatic approval by its author. Otherwise the new version is **Pending**.
+* Saving a change to what an Action contains adds a new version; changing only its tags or domains keeps the version and its status.
+* Versions synchronized by a collector are **Pending**: collectors bring scripts written by third parties, which is what an approver must review.
+* Payloads the platform generates itself are **Approved** automatically, recorded as a *System* approval in the history: for example the file drop created for a security coverage.
+* Payloads that existed before approval was introduced are **Approved**.
+* Built-in Actions without a payload need no approval.
+
+**Who approves by default.** When payload approval is introduced, every tenant role that can manage threat arsenal actions also receives *Approve content*, and so does the default *Manager* role of new tenants. Their authors' versions stay approved, so nothing changes for them. Maker-checker is **opt-in**: remove *Approve content* from the roles of the authors who must be checked, and their new versions become **Pending** until someone else approves them.
+
+To approve or reject, open the Action (the list shows its latest version), then use **Approve** or **Reject** in its *Approval* section. A rejection requires a reason. The *History* tab shows what the version changes compared with the previous one. The *Approval* section also shows the latest decision (who approved or rejected it, when, with the comment) and, as information, where the Action is used (*Used in*: Atomic Tests, Scenarios and Simulations still to run, with links for users who can open them). The list can be filtered by approval status, and the *Versions* tab shows the status of every version.
+
+### Notifications
+
+Approvers and authors are notified in the [Notification Center](../../notifications/notification-center.md#payload-approval-notifications), without any Trigger to configure:
+
+* users whose role in the Tenant explicitly holds *Approve content* are told when a Payload, or a new version of an approved Payload, waits for approval (never about their own edits, and not again for each newer version while one already waits);
+* authors are told when their version is approved, rejected (with the reason), or superseded by someone else's newer version.
+
+Notifications are batched every minute and link to the version's Action. Each user chooses in-app and email delivery in the Notification Center's **Preferences** tab (in-app on, email off by default).
+
+Scenario owners are told that a new version of an Action they use is available only once that version is approved.
+
+### Versions and approval
+
+A new version never changes what already runs: each Inject keeps the version it uses until someone moves it, in Atomic Tests, Scenarios and chaining workflows. Simulations already created keep their version.
+
+* **Saved by an author without *Approve content*.** The new version is **Pending**. The author is told that Injects keep running their current version until an approver approves it; nobody is asked to move them yet.
+* **Approved by an approver.** When the approved version replaces an approved version still used by Injects, the approver is asked: *N scenario injects, atomic tests or chained steps use vX. Move them to vY*, checked by default. Only the Injects and chained steps the approver can edit move; the others stay on their version and are reported. Unchecked, every Inject stays where it is.
+* **Saved by an approver.** The version is approved at once, so the person saving it gets the same question.
+* **Rejected or superseded.** The Injects stay on their version. The author of a superseded version is told.
+* **Moving later.** From the *Versions* tab, anyone who can edit an Inject can move it to another **approved** version. A version that is not approved cannot be a target.
+* **Picking an Action.** Pickers and automatic selection offer each Action in its latest **approved** version, so a newer version waiting for approval does not hide the one that can run.
+
+### Only approved payloads can run
+
+* **Picking an action.** When you add an Action to an Atomic Test, a Scenario, a Simulation or a chaining workflow, the picker lists only Actions with an **Approved** version, plus built-in Actions without a payload; its filter counts (domains, platforms, kill chain, status, authors) count exactly what it lists. In the inject form, the version selector only offers approved versions. Adding a non-approved version through the API is refused too.
+* **Launch buttons.** When an Atomic Test, a Scenario or a Simulation uses a payload version that is not approved (*Pending*, *Rejected* or *Superseded*, for example after an import), its **Launch**, **Launch now**, **Relaunch now** and **Start now** buttons are disabled; hovering them tells why, for example *Can't launch: TEST-A is pending approval* (up to three Actions, then "+N"). The server refuses such launches on every path (including the API and scheduled runs) and writes the refusal to the audit log.
+* **Indicators.** An inject whose payload version is not approved shows a compact **Pending**, **Rejected** or **Superseded** chip (the full text is in its tooltip). In the Atomic Tests list and on an Atomic Test page, a blocked Atomic Test shows **Draft**; its last results stay visible. In a Simulation's results, an inject that has not run yet shows the chip in its status; one that already ran keeps its execution status.
+* **Scheduled runs.** Saving a new version never pauses a schedule or moves a Simulation back to *Draft*: Injects keep running their version. Scheduled runs that use a version that is not approved are refused, like manual launches. A schedule is paused only when an inject changes what it runs or targets (see [Scenarios](../scenario/scenario.md) and [Atomic Tests](../../evaluate/atomic-testing/atomic-testing.md)).
+* **Actions picked by the platform.** Wherever the platform picks Actions on its own, it follows the same rule as the picker: only approved versions, plus built-in Actions without a payload.
+    * The inject assistant (injects generated from attack patterns) and the security coverage generation (from attack patterns, vulnerabilities, indicators and files) never pick a non-approved Action. When no approved Action matches, they create the usual manual placeholder inject.
+    * **Add to scenario(s)** from a selection of Actions adds only the approved ones and tells you how many were skipped.
+    * The AI orchestrator is only offered approved Actions, and a chaining step using a non-approved Action is refused.
+    * Imports are unchanged: a spreadsheet import (with an import mapper) and a Scenario, Simulation or Atomic Test file import keep their injects. An inject whose payload version is not approved shows its approval chip, and its launch stays blocked until the version is approved.
+* **Last check before running.** Right before an inject runs, the platform checks its payload version again: if it is not approved, the inject ends in error instead of running.
 
 ## Create an Action
 

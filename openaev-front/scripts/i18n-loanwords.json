@@ -373,7 +373,8 @@
     "Variables",
     "Version",
     "Vision",
-    "~{count} injects"
+    "~{count} injects",
+    "{count, plural, one {# simulation} other {# simulations}}"
   ],
   "it": [
     "Audio",

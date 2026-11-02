@@ -25,6 +25,7 @@ import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadContentHashService;
 import io.openaev.service.payload.PayloadVersionNumbering;
 import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.SemanticVersion;
 import java.util.ArrayList;
@@ -66,6 +67,7 @@ public class PayloadUpsertService {
   private final ContentHistoryService contentHistoryService;
   private final GrantService grantService;
   private final PayloadContentHashService payloadContentHashService;
+  private final PayloadApprovalService payloadApprovalService;
 
   /**
    * Legacy collector upsert. A catalogue payload with this external ID wins and is not touched.
@@ -137,6 +139,7 @@ public class PayloadUpsertService {
     Payload saved =
         payloadVersionService.addVersion(
             identity, payload, PayloadVersionService.Numbering.fixed(version));
+    payloadApprovalService.onWrite(saved, null, PayloadApproval.ORIGIN.CATALOG);
     payloadService.synchroniseInjectorContractBasedOnPayload(
         saved,
         attackPatterns,
@@ -213,6 +216,8 @@ public class PayloadUpsertService {
     Payload payload = payloadType.getPayloadSupplier().get();
     payload.setTenant(new Tenant(tenantId));
     payloadUtils.copyProperties(input, payload, false);
+    // A collector write is not a user's modification.
+    payload.setLastModifiedBy(null);
 
     if (collectorType != null) {
       payload.setCollectorType(collectorType);
@@ -227,6 +232,7 @@ public class PayloadUpsertService {
             payload.identityOrNew(),
             payload,
             PayloadVersionService.Numbering.fixed(Payload.FIRST_VERSION));
+    payloadApprovalService.onWrite(saved, null, PayloadApproval.ORIGIN.COLLECTOR);
     payloadService.synchroniseInjectorContractBasedOnPayload(
         saved,
         attackPatterns,
@@ -274,6 +280,8 @@ public class PayloadUpsertService {
 
     Payload candidate = payloadService.copyForNewVersion(current);
     payloadUtils.copyProperties(input, candidate, false);
+    // A collector write is not a user's modification.
+    candidate.setLastModifiedBy(null);
     if (collectorOrganization != null) {
       candidate.setAuthorOrganization(collectorOrganization);
     }
@@ -295,6 +303,7 @@ public class PayloadUpsertService {
             identity,
             candidate,
             highest -> PayloadVersionNumbering.bump(highest.getVersion(), change.get()));
+    payloadApprovalService.onWrite(saved, null, PayloadApproval.ORIGIN.COLLECTOR);
     InjectorContract contract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             saved, attackPatterns, domains, tags);

@@ -11,7 +11,7 @@ import { buildSearchPagination } from '../../../components/common/queryable/Quer
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
-import { type SearchPaginationInput, type ThreatArsenalAction } from '../../../utils/api-types';
+import { type PayloadSimple, type SearchPaginationInput, type ThreatArsenalAction } from '../../../utils/api-types';
 import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
@@ -25,6 +25,9 @@ export const INSTALLED_FILTER_NAMES = [
   'action_domains',
   'action_tags',
   'action_payload_status',
+  // Approval status of the payload version (Pending / Approved / Rejected / Superseded): one or
+  // more values, like the sidebar Approval facet.
+  'action_payload_approval_status',
   'action_updated_at',
   'action_author',
   MITRE_FILTER_KEY,
@@ -167,6 +170,17 @@ const useInstalledActions = () => {
       || a.injector_contract_id === result.action_previous_version_id
       ? result
       : a)));
+  // After an approval decision in the drawer, the row shows the new status.
+  const setApprovalStatus = (actionId: string, status: PayloadSimple['payload_approval_status']) =>
+    setThreatArsenalActions(prev => prev.map(a => (a.injector_contract_id === actionId && a.action_payload
+      ? {
+          ...a,
+          action_payload: {
+            ...a.action_payload,
+            payload_approval_status: status,
+          },
+        }
+      : a)));
   const prependActions = (results: ThreatArsenalAction[]) => setThreatArsenalActions(prev => [...results, ...prev]);
   const removeAction = (actionId: string) =>
     setThreatArsenalActions(prev => prev.filter(a => a.injector_contract_id !== actionId));
@@ -175,6 +189,7 @@ const useInstalledActions = () => {
     threatArsenalActions,
     setThreatArsenalActions: setLoadedActions,
     replaceAction,
+    setApprovalStatus,
     prependActions,
     removeAction,
     loading,

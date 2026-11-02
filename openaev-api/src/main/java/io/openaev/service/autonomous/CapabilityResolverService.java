@@ -1,6 +1,6 @@
 package io.openaev.service.autonomous;
 
-import static io.openaev.database.specification.InjectorContractSpecification.withLatestPayload;
+import static io.openaev.database.specification.InjectorContractSpecification.withLatestApprovedPayload;
 
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
@@ -20,6 +20,7 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,6 +59,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CapabilityResolverService {
 
   private final InjectorContractRepository injectorContractRepository;
+  private final PayloadApprovalGate payloadApprovalGate;
   private final CatalogConnectorRepository catalogConnectorRepository;
   private final InjectorRepository injectorRepository;
   private final AgentRepository agentRepository;
@@ -242,7 +244,12 @@ public class CapabilityResolverService {
 
   private ContractIndex buildIndex() {
     ContractIndex index = new ContractIndex();
-    for (InjectorContract contract : injectorContractRepository.findAll(withLatestPayload())) {
+    for (InjectorContract contract :
+        injectorContractRepository.findAll(withLatestApprovedPayload())) {
+      // The orchestrator only gets actions that can run (approved payload version, or none)
+      if (!payloadApprovalGate.isRunnable(contract.getPayload())) {
+        continue;
+      }
       ResolvedContract resolved = toResolved(contract);
       for (AttackPattern pattern : contract.getAttackPatterns()) {
         String extId = pattern.getExternalId();

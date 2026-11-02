@@ -17,7 +17,13 @@ public enum NotificationTriggerEventType {
   BASE_UPDATE_AVAILABLE(ResourceType.PAYLOAD),
   RELEASE_RECEIVED(ResourceType.CATALOG),
   // Sent to platform administrators without a trigger: no trigger can watch catalogue syncs.
-  SYNC_BLOCKED(ResourceType.CATALOG_SYNC);
+  SYNC_BLOCKED(ResourceType.CATALOG_SYNC),
+  // Payload approval notifications: sent by the platform to approvers and authors, never
+  // subscribed to through a trigger (refused by trigger validation).
+  APPROVAL_PENDING(ResourceType.PAYLOAD),
+  APPROVED(ResourceType.PAYLOAD),
+  REJECTED(ResourceType.PAYLOAD),
+  SUPERSEDED(ResourceType.PAYLOAD);
 
   private final ResourceType resourceType;
 

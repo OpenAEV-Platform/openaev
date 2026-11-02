@@ -63,6 +63,10 @@ public class PayloadIdentity implements TenantBase, Auditable {
   @Column(name = "latest_payload_id")
   private String latestPayloadId;
 
+  // Written by PayloadVersionService only: the highest approved, non-revoked version, else null.
+  @Column(name = "latest_approved_payload_id")
+  private String latestApprovedPayloadId;
+
   // F26: hidden, out of auto-install, never deleted.
   @Column(name = "uninstalled")
   private boolean uninstalled;

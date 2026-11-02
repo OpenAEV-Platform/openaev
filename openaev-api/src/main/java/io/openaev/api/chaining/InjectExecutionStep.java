@@ -39,6 +39,7 @@ import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.chaining.*;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -79,6 +80,7 @@ import org.springframework.transaction.interceptor.TransactionAspectSupport;
 public class InjectExecutionStep implements ActionStep {
 
   private final InjectorContractService injectorContractService;
+  private final PayloadApprovalGate payloadApprovalGate;
   private final UserService userService;
   private final AssetService assetService;
   private final TeamService teamService;
@@ -714,6 +716,10 @@ public class InjectExecutionStep implements ActionStep {
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
+    // Every step template (written by a user or by the AI orchestrator) is authored here: only an
+    // action whose payload is approved, or payload-less, can be used, like in the pickers.
+    payloadApprovalGate.requireApproved(
+        "Adding this action to a step", injectorContract.getPayload(), ResourceType.STEP, null);
 
     Injector injector = injectUtils.resolveInjector(data.getInjectorId(), injectorContract);
     Inject inject = data.toInject(injectorContract, injector);

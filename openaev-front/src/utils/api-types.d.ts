@@ -10,6 +10,99 @@
  * ---------------------------------------------------------------
  */
 
+export interface PayloadApprovalOutput {
+  /** User who caused the entry, null for platform or collector writes */
+  approval_actor?: string;
+  /** Display name of that user at the time */
+  approval_actor_name?: string;
+  /** True when set by the approval rules (automatic approval of an approver's own write), false for an explicit approve or reject */
+  approval_automatic?: boolean;
+  /** Comment of an approval, or reason of a rejection */
+  approval_comment?: string;
+  /**
+   * When the entry was recorded
+   * @format date-time
+   */
+  approval_created_at: string;
+  /** Entry identifier */
+  approval_id: string;
+  /** What produced this entry */
+  approval_origin:
+    | "CREATE"
+    | "UPDATE"
+    | "DUPLICATE"
+    | "IMPORT"
+    | "COLLECTOR"
+    | "CATALOG"
+    | "SYSTEM"
+    | "MIGRATION"
+    | "APPROVE"
+    | "REJECT"
+    | "SUPERSEDE";
+  /** Status set by this entry */
+  approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
+}
+
+export interface NotificationPreferenceInput {
+  /** Also sent by email */
+  notification_preference_email?: boolean;
+  /** Shown in the notification center and the bell */
+  notification_preference_in_app?: boolean;
+  /** Notification type */
+  notification_preference_type:
+    | "PAYLOAD_APPROVAL_REQUESTS"
+    | "PAYLOAD_APPROVAL_OUTCOMES";
+}
+
+export interface NotificationPreferenceOutput {
+  /** Also sent by email */
+  notification_preference_email?: boolean;
+  /** Shown in the notification center and the bell */
+  notification_preference_in_app?: boolean;
+  /** Notification type */
+  notification_preference_type:
+    | "PAYLOAD_APPROVAL_REQUESTS"
+    | "PAYLOAD_APPROVAL_OUTCOMES";
+}
+
+export interface ThreatArsenalApprovalDecisionOutput {
+  /** Action of the decided version */
+  action_id: string;
+  /** The decision, as recorded in the approval history */
+  action_approval_latest?: PayloadApprovalOutput;
+  /** Approval status of the version after the decision */
+  action_approval_status?: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
+  /** Id of the decided payload version */
+  action_payload_id?: string;
+  /** Number of the decided payload version (e.g. 1.2.0) */
+  action_payload_version?: string;
+  /** After an approval: the action of the approved version this one replaces, still run by injects the approver may move to it */
+  action_previous_version_id?: string;
+  /**
+   * After an approval: scenario injects, atomic tests and chained steps still on the replaced version
+   * @format int32
+   */
+  action_previous_version_usages?: number;
+}
+
+export interface ThreatArsenalApproveInput {
+  /**
+   * Optional comment recorded in the approval history
+   * @minLength 0
+   * @maxLength 2000
+   */
+  approval_comment?: string;
+}
+
+export interface ThreatArsenalRejectInput {
+  /**
+   * Reason of the rejection, shown to the author and kept in the history
+   * @minLength 0
+   * @maxLength 2000
+   */
+  approval_reason: string;
+}
+
 type UtilRequiredKeys<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 export interface AdHocWidgetInput {
@@ -245,6 +338,7 @@ export interface AiAttack {
   ai_attack_multi_turn?: Record<string, any>;
   ai_attack_success_detector?: Record<string, any>;
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -289,6 +383,8 @@ export interface AiAttack {
   /** @minLength 1 */
   payload_id: string;
   payload_is_latest?: boolean;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   payload_origin_id?: string;
@@ -2136,6 +2232,7 @@ type BaseInjectorContractBaseOutputInjectorContractHasFullDetailsMapping<
 
 interface BasePayload {
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -2180,6 +2277,8 @@ interface BasePayload {
   /** @minLength 1 */
   payload_id: string;
   payload_is_latest?: boolean;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   payload_origin_id?: string;
@@ -2959,6 +3058,7 @@ export interface Command {
   command_content: string;
   command_executor: string;
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -3003,6 +3103,8 @@ export interface Command {
   /** @minLength 1 */
   payload_id: string;
   payload_is_latest?: boolean;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   payload_origin_id?: string;
@@ -4073,6 +4175,7 @@ export interface DirectInjectInput {
 export interface DnsResolution {
   dns_resolution_hostname: string;
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -4117,6 +4220,8 @@ export interface DnsResolution {
   /** @minLength 1 */
   payload_id: string;
   payload_is_latest?: boolean;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   payload_origin_id?: string;
@@ -5711,6 +5816,7 @@ export interface EventOutput {
 export interface Executable {
   executable_file: string;
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -5755,6 +5861,8 @@ export interface Executable {
   /** @minLength 1 */
   payload_id: string;
   payload_is_latest?: boolean;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   payload_origin_id?: string;
@@ -6172,6 +6280,7 @@ export interface ExportOptionsInput {
 export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -6216,6 +6325,8 @@ export interface FileDrop {
   /** @minLength 1 */
   payload_id: string;
   payload_is_latest?: boolean;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   payload_origin_id?: string;
@@ -7385,10 +7496,17 @@ export interface InjectResultOverviewOutput {
   inject_injector_contract?: AtomicInjectorContractOutput;
   /** Kill chain phases */
   inject_kill_chain_phases?: KillChainPhaseSimple[];
+  /** Payloads that keep this atomic testing from being launched (not approved or changed since their approval); empty when it can be launched */
+  inject_launch_blocked_by?: LaunchBlockerOutput[];
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
   /** Recurrence cron expression for scheduled relaunch */
   inject_recurrence?: string;
+  /**
+   * When the recurrence was paused (an action not approved, or a sensitive change); null when not paused. Saving or removing the schedule re-enables it
+   * @format date-time
+   */
+  inject_recurrence_paused_at?: string;
   /**
    * End date of the recurrence scheduling
    * @format date-time
@@ -7570,6 +7688,10 @@ export interface InjectorContract {
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
   injector_contract_payload?: Payload;
+  injector_contract_payload_approval_status?:
+    | "PENDING"
+    | "APPROVED"
+    | "REJECTED";
   injector_contract_payload_author?: string;
   injector_contract_payload_author_organization?: Organization;
   injector_contract_payload_author_team?: Team;
@@ -7789,6 +7911,8 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Leave out contracts whose payload is revoked (pickers, F9) */
   exclude_revoked_payloads?: boolean;
+  /** Return only the actions that can be picked for an inject: payload-less actions and actions whose payload is approved */
+  approved_payloads_only?: boolean;
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
   /** Sort by primary domain first, to show the results in domain sections */
@@ -8090,6 +8214,21 @@ export interface KillChainPhaseUpdateInput {
 
 export interface KillChainPhaseUpsertInput {
   kill_chain_phases: KillChainPhaseCreateInput[];
+}
+
+/**
+ * A payload that keeps an atomic testing, a scenario or a simulation from being launched: not
+ * approved, or its content changed since its approval.
+ */
+export interface LaunchBlockerOutput {
+  /** Approval status of the payload (APPROVED when its content changed) */
+  approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
+  /** Payload identifier */
+  id: string;
+  /** Payload name */
+  name: string;
+  /** Why it blocks the launch */
+  reason: string;
 }
 
 export interface LessonsAnswer {
@@ -8488,6 +8627,7 @@ export interface NetworkTraffic {
   /** @format int32 */
   network_traffic_port_src: number;
   network_traffic_protocol: string;
+  payload_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
@@ -8532,6 +8672,8 @@ export interface NetworkTraffic {
   /** @minLength 1 */
   payload_id: string;
   payload_is_latest?: boolean;
+  /** User who last modified the payload */
+  payload_last_modified_by?: string;
   /** @minLength 1 */
   payload_name: string;
   payload_origin_id?: string;
@@ -8613,6 +8755,10 @@ export interface NotificationTriggerInput {
     | "BASE_UPDATE_AVAILABLE"
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
+    | "APPROVAL_PENDING"
+    | "APPROVED"
+    | "REJECTED"
+    | "SUPERSEDED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8735,6 +8881,10 @@ export interface NotificationTriggerOutput {
     | "BASE_UPDATE_AVAILABLE"
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
+    | "APPROVAL_PENDING"
+    | "APPROVED"
+    | "REJECTED"
+    | "SUPERSEDED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -10007,6 +10157,8 @@ export interface PayloadOutput {
   executable_file?: string;
   /** Dropped file path for file-drop payloads */
   file_drop_file?: string;
+  /** Approval status of the payload */
+  payload_approval_status?: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   /** Payload input arguments definition */
   payload_arguments?: PayloadArgument[];
   /** MITRE ATT&CK patterns associated with the payload */
@@ -10062,6 +10214,8 @@ export interface PayloadOutput {
    * @minLength 1
    */
   payload_id: string;
+  /** Id of the user who last modified the payload */
+  payload_last_modified_by?: string;
   /**
    * Payload display name
    * @minLength 1
@@ -10145,6 +10299,7 @@ export interface PayloadRevocationOutput {
 
 export interface PayloadSimple {
   payload_base_version?: string;
+  payload_approval_status?: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   payload_collector_type?: string;
   payload_conflict?: boolean;
   payload_description?: string;
@@ -10332,6 +10487,7 @@ export interface PayloadVersionChangeOutput {
 }
 
 export interface PayloadVersionOutput {
+  payload_approval_status?: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   payload_action_id?: string;
   payload_changelog?: string;
   /** @format date-time */
@@ -11404,6 +11560,7 @@ export interface RoleInput {
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
     | "REVOKE_THREAT_ARSENALS"
+    | "APPROVE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -11492,6 +11649,7 @@ export interface RoleOutput {
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
     | "REVOKE_THREAT_ARSENALS"
+    | "APPROVE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -11792,6 +11950,8 @@ export interface ScenarioOutput {
   scenario_id: string;
   /** @uniqueItems true */
   scenario_kill_chain_phases?: KillChainPhaseOutput[];
+  /** Payloads that keep this scenario from being launched (not approved or changed since their approval); empty when it can be launched */
+  scenario_launch_blocked_by?: LaunchBlockerOutput[];
   /** Whether the lessons learned module is enabled for the scenario */
   scenario_lessons_enabled?: boolean;
   /**
@@ -11818,6 +11978,11 @@ export interface ScenarioOutput {
   scenario_platforms?: string[];
   /** Recurrence of the scenario */
   scenario_recurrence?: string;
+  /**
+   * When the schedule was paused (an action not approved, or a sensitive change); null when not paused. Saving or stopping the schedule re-enables it
+   * @format date-time
+   */
+  scenario_recurrence_paused_at?: string;
   /**
    * Recurrence end date of the scenario
    * @format date-time
@@ -12530,6 +12695,8 @@ export interface SimulationDetails {
   /** @minLength 1 */
   exercise_id: string;
   exercise_kill_chain_phases?: KillChainPhase[];
+  /** Payloads that keep this simulation from being started (not approved or changed since their approval); empty when it can be started */
+  exercise_launch_blocked_by?: LaunchBlockerOutput[];
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
@@ -13473,6 +13640,10 @@ export interface ThreatArsenalActionCreateInput {
 }
 
 export interface ThreatArsenalActionFullOutput {
+  /** Latest entry of the approval history */
+  action_approval_latest?: PayloadApprovalOutput;
+  /** Approval status of the action payload, null for payload-less actions */
+  action_approval_status?: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
   /** Action input arguments definition */
   action_arguments?: PayloadArgument[];
   /** MITRE ATT&CK patterns associated with the action */
@@ -13532,11 +13703,19 @@ export interface ThreatArsenalActionFullOutput {
   action_id: string;
   /** Action display name */
   action_labels: Record<string, string>;
+  /** Id of the user who last modified the action payload */
+  action_last_modified_by?: string;
+  /** Display name of the user who last modified the action payload */
+  action_last_modified_by_name?: string;
   /**
    * Parsers used to process action outputs
    * @uniqueItems true
    */
   action_output_parsers?: OutputParser[];
+  /** Id of the payload version the action runs, null for payload-less actions */
+  action_payload_id?: string;
+  /** Number of the payload version the action runs (e.g. 1.2.0) */
+  action_payload_version?: string;
   /** Supported endpoint platforms for this action */
   action_platforms?: (
     | "Linux"
@@ -13672,6 +13851,42 @@ export interface ThreatArsenalActionUpdateInput {
   file_drop_file?: string;
 }
 
+/** An atomic testing, scenario or simulation using the payload of an action. */
+export interface ThreatArsenalActionUsageItem {
+  /** Identifier */
+  id: string;
+  /** Name */
+  name: string;
+}
+
+/**
+ * Where the payload of an action is used, to warn before an approval change blocks launches. The
+ * name lists are null when the user cannot read that type of resource (counts only).
+ */
+export interface ThreatArsenalActionUsageOutput {
+  /** First 20 atomic testings by name (the count is exact), null without access to atomic testings */
+  usage_atomic_testings?: ThreatArsenalActionUsageItem[];
+  /**
+   * Number of atomic testings using the payload
+   * @format int64
+   */
+  usage_atomic_testings_count?: number;
+  /** First 20 scenarios by name (the count is exact), null without access to scenarios */
+  usage_scenarios?: ThreatArsenalActionUsageItem[];
+  /**
+   * Number of scenarios using the payload
+   * @format int64
+   */
+  usage_scenarios_count?: number;
+  /** First 20 simulations by name (the count is exact), null without access to simulations */
+  usage_simulations?: ThreatArsenalActionUsageItem[];
+  /**
+   * Number of simulations still to run (scheduled, running, paused)
+   * @format int64
+   */
+  usage_simulations_count?: number;
+}
+
 export interface ThreatArsenalActionWithContentOutput {
   /** CPU architecture targeted for action execution */
   action_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
@@ -13716,6 +13931,10 @@ export interface ThreatArsenalActionWithContentOutput {
   injector_contract_updated_at: string;
 }
 
+/**
+ * Body of the 409 answer to an action update sent with check_approval_impact: the edit would send
+ * the approved payload back to pending while it is used. Nothing was saved.
+ */
 export interface ThreatArsenalBulkDeleteOutput {
   /**
    * Number of actions that were actually deleted
@@ -13747,6 +13966,8 @@ export interface ThreatArsenalExpectationDetail {
 }
 
 export interface ThreatArsenalFacetCountsOutput {
+  /** Number of contracts per payload approval status under the current filters (payload-less contracts are not counted) */
+  approvals?: Record<string, number>;
   /** Number of contracts per platform under the current filters */
   platforms?: Record<string, number>;
   /** Number of contracts per payload status under the current filters */
@@ -13898,6 +14119,7 @@ export interface User {
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
     | "REVOKE_THREAT_ARSENALS"
+    | "APPROVE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"

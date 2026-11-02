@@ -234,6 +234,9 @@ public class PresetTenantData {
               Capability.MANAGE_THREAT_ARSENALS,
               Capability.DELETE_THREAT_ARSENALS,
               Capability.REVOKE_THREAT_ARSENALS,
+              // Authors approve their own payloads by default: maker-checker is opt-in, by removing
+              // it from the role (same as the roles upgraded by V6_20261102100300000)
+              Capability.APPROVE_THREAT_ARSENALS,
               Capability.ACCESS_DASHBOARDS,
               Capability.MANAGE_DASHBOARDS,
               Capability.DELETE_DASHBOARDS,

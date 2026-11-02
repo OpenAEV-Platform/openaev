@@ -77,7 +77,7 @@ Platform settings, Tenants and the platform users, groups, roles and sessions ca
 | `Access reportings` | Access, Manage, Delete | Reports |
 | `Access findings` | Access | Findings from Simulations and Atomic Tests |
 | `Access assessment` | Access, Manage, Delete, Launch | Scenarios, Simulations and Atomic Tests; `Launch assessment` needs only Access |
-| `Access threat arsenal` | Access, Manage, Delete | Threat Arsenal actions |
+| `Access threat arsenal` | Access, Manage, Delete, Approve content | Threat Arsenal actions; `Approve content` needs only Access: approve or reject payload versions, and the versions its holders create are approved automatically (see [Approval of payloads](../usage/build/threat-arsenals/threat-arsenals.md#approval-of-payloads)). A content decision, separate from `Launch assessment` |
 | `Access teams & persons` | Access, Manage, Delete | Teams and Players |
 | `Access assets` | Access, Manage, Delete | Assets and asset groups |
 | `Access security platforms` | Access, Manage, Delete | Security platform integrations |
@@ -98,6 +98,10 @@ Platform settings, Tenants and the platform users, groups, roles and sessions ca
 | `Access tenants` | Access, Manage, Delete | Tenants |
 
 Once the role is created, it can be assigned to a **group**. All users in that group will automatically inherit the role's permissions.
+
+!!! note "Approve content after an upgrade"
+
+    When payload approval is introduced, every tenant role that can manage threat arsenal actions also receives *Approve content*, and so does the default *Manager* role of new tenants: authors keep working as before, their payload versions are approved automatically. To require a second person's approval (maker-checker), remove *Approve content* from the roles of the authors who must be checked. Roles you create or edit afterwards never receive it automatically.
 
 ## Delegating capabilities
 
