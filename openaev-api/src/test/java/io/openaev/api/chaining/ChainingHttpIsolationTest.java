@@ -163,7 +163,10 @@ class ChainingHttpIsolationTest extends IntegrationTest {
     teamComposer.reset();
     assetGroupComposer.reset();
 
-    // Tenant A is foreign to the caller, who holds no membership in it.
+    // Creating a tenant enrols its creator, so the caller is a member of A as well as of B. What
+    // keeps A's rows out of the cases below is the request path, not the memberships: every request
+    // reaching for an A row is sent on B's path, so the resolved scope is {B} whatever the caller
+    // belongs to. The two cases that read A on A's path state that premise themselves.
     String tenantA = tenantHelper.createTenant("chaining-iso-a").getId();
     String tenantB = tenantHelper.createTenantWithCurrentUser("chaining-iso-b").getId();
     graphA = seedGraph(tenantA);
@@ -736,7 +739,9 @@ class ChainingHttpIsolationTest extends IntegrationTest {
     @DisplayName(
         "given a member of both tenants on A's path, when reading A's step, then it is found")
     void given_memberOfBothTenantsOnTenantAPath_should_readTenantAStep() throws Exception {
-      // Arrange
+      // Arrange: kept although the seed already enrolled the caller in A (the insert is a no-op
+      // when the membership stands), so this case states its own premise instead of resting on a
+      // side effect of tenant creation.
       tenantHelper.attachCurrentUserToTenant(graphA.tenantId());
 
       // Act, Assert
