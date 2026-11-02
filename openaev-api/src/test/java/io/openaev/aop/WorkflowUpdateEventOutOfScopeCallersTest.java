@@ -78,8 +78,11 @@ import org.springframework.test.web.servlet.MockMvc;
  * one with no membership at all, and by a member of the simulation's tenant: the step receives its
  * event in every case, stamped with the simulation's tenant.
  *
- * <p>The caller with no membership resolves no scope at all, so its read is not narrowed and it
- * reaches the step either way: it is pinned as a non-regression, not as a reproduction.
+ * <p>The caller with no membership is the narrowest of the three, not an unscoped one: an empty set
+ * of authorized tenants resolves to the missing scope ({@link
+ * io.openaev.config.TenantScopeResolver#resolve}), whose setting value is empty, and {@code
+ * can_access_tenant} denies every row on an empty setting. It found no step before the fix either,
+ * so the three cases are three reproductions.
  *
  * <p>The production active tables are armed, so the class follows what production enforces.
  *
@@ -135,6 +138,10 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
     if (ownerTenantId == null) {
       ownerTenantId = tenantHelper.createTenant("chained-bridge-owner").getId();
     }
+    // Creating a tenant enrols the user that created it, so the caller of whichever method happens
+    // to create this one would be a member of the simulation's tenant. Each case states the
+    // membership it wants, starting from none.
+    tenantHelper.detachCurrentUserFromTenant(ownerTenantId);
     originalUpdateQueue = ReflectionTestUtils.getField(queueChainingService, "updateQueueService");
     updateQueue = mock(BatchQueueService.class);
     queueChainingService.setUpdateQueueService(updateQueue);
