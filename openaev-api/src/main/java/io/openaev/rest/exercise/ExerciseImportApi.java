@@ -40,10 +40,7 @@ public class ExerciseImportApi extends RestBehavior {
   private final ImportMapperRepository importMapperRepository;
   private final ExerciseService exerciseService;
 
-  @PostMapping({
-    EXERCISE_URI + "/{exerciseId}/xls/store",
-    TENANT_EXERCISE_URI + "/{exerciseId}/xls/store"
-  })
+  @PostMapping(TENANT_EXERCISE_URI + "/{exerciseId}/xls/store")
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,

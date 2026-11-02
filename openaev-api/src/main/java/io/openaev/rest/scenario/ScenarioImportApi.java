@@ -40,10 +40,7 @@ public class ScenarioImportApi extends RestBehavior {
   private final ImportMapperRepository importMapperRepository;
   private final ScenarioService scenarioService;
 
-  @PostMapping({
-    SCENARIO_URI + "/{scenarioId}/xls/store",
-    TENANT_SCENARIO_URI + "/{scenarioId}/xls/store"
-  })
+  @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/xls/store")
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

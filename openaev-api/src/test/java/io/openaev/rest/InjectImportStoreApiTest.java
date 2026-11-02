@@ -1,7 +1,7 @@
 package io.openaev.rest;
 
-import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -46,8 +46,8 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Xls import of injects")
 class InjectImportStoreApiTest extends IntegrationTest {
 
-  public static final String SCENARIO_XLS_URI = SCENARIO_URI + "/{scenarioId}/xls";
-  public static final String SIMULATION_XLS_URI = EXERCISE_URI + "/{exerciseId}/xls";
+  public static final String SCENARIO_XLS_URI = TENANT_SCENARIO_URI + "/{scenarioId}/xls";
+  public static final String SIMULATION_XLS_URI = TENANT_EXERCISE_URI + "/{exerciseId}/xls";
   private static final String SHEET_NAME = "Timeline";
 
   @Autowired private MockMvc mvc;
@@ -63,7 +63,8 @@ class InjectImportStoreApiTest extends IntegrationTest {
   private ResultActions upload(String xlsUri, String resourceId) throws Exception {
     MockMultipartFile file =
         new MockMultipartFile("file", "injects.xlsx", "application/octet-stream", workbook());
-    return mvc.perform(multipart(xlsUri + "/store", resourceId).file(file).with(csrf()));
+    return mvc.perform(
+        multipart(tenantUri(xlsUri + "/store"), resourceId).file(file).with(csrf()));
   }
 
   /** Uploads the file, then runs the dry run and the import with a mapper of the same tenant. */
@@ -82,7 +83,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
     input.setTimezoneOffset(0);
     for (String step : new String[] {"dry", "import"}) {
       mvc.perform(
-              post(xlsUri + "/{importId}/" + step, resourceId, importId)
+              post(tenantUri(xlsUri + "/{importId}/" + step), resourceId, importId)
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input))
                   .with(csrf()))
