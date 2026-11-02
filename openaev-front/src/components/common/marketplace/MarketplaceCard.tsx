@@ -26,6 +26,8 @@ interface Props {
   title: string;
   /** Small label above the title, e.g. the kind of content. */
   overline?: string;
+  /** At the end of the overline row, e.g. a status chip; keeps the title its full width. */
+  overlineEnd?: ReactNode;
   /** One line under the title, e.g. the author. */
   subtitle?: string;
   /** A few lines under the header. */
@@ -60,6 +62,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
   icon,
   title,
   overline,
+  overlineEnd,
   subtitle,
   description,
   chips,
@@ -245,21 +248,41 @@ const MarketplaceCard: FunctionComponent<Props> = ({
             </Box>
           )}
         >
-          {overline && (
-            <Text
-              variant="content-caption"
-              className="block text-filigran-brand-primary"
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                marginBottom: 4,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
+          {(overline || overlineEnd) && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              minWidth: 0,
+              marginBottom: overlineEnd ? 4 : 0,
+            }}
             >
-              {overline}
-            </Text>
+              <Text
+                variant="content-caption"
+                className="block text-filigran-brand-primary"
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  marginBottom: overlineEnd ? 0 : 4,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {overline ?? ''}
+              </Text>
+              {overlineEnd && (
+                <div style={{
+                  flexShrink: 0,
+                  position: 'relative',
+                  zIndex: 1,
+                }}
+                >
+                  {overlineEnd}
+                </div>
+              )}
+            </div>
           )}
           <Tooltip open={fullText === 'title'}>
             <TooltipTrigger asChild>
