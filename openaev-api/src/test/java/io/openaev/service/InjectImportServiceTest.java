@@ -463,7 +463,7 @@ public class InjectImportServiceTest {
 
       // -------- Act --------
       io.openaev.rest.scenario.response.ImportPostSummary result =
-          service.storeXlsFileForImport(file);
+          service.storeXlsFileForImport(file, "user-1");
 
       // -------- Assert --------
       assertNotNull(result.getImportId());
@@ -491,7 +491,7 @@ public class InjectImportServiceTest {
 
       // -------- Act --------
       io.openaev.rest.scenario.response.ImportPostSummary result =
-          service.storeXlsFileForImport(file);
+          service.storeXlsFileForImport(file, "user-1");
 
       // -------- Assert --------
       assertEquals(List.of("Timeline"), result.getAvailableSheets());
@@ -507,7 +507,7 @@ public class InjectImportServiceTest {
       when(file.getOriginalFilename()).thenReturn("injects.csv");
 
       // -------- Act & Assert --------
-      assertThrows(UnsupportedMediaTypeException.class, () -> service.storeXlsFileForImport(file));
+      assertThrows(UnsupportedMediaTypeException.class, () -> service.storeXlsFileForImport(file, "user-1"));
     }
 
     @Test
@@ -521,7 +521,80 @@ public class InjectImportServiceTest {
       when(file.getSize()).thenReturn(25L * 1000 * 1000);
 
       // -------- Act & Assert --------
-      assertThrows(FileTooBigException.class, () -> service.storeXlsFileForImport(file));
+      assertThrows(FileTooBigException.class, () -> service.storeXlsFileForImport(file, "user-1"));
+    }
+
+    @Test
+    @DisplayName("Deletes the oldest upload of a user beyond the limit")
+    void given_oneUploadOverTheLimit_should_deleteTheOldest() throws Exception {
+      // -------- Prepare --------
+      InjectImportService service =
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
+      List<String> importIds = new java.util.ArrayList<>();
+
+      // -------- Act --------
+      for (int i = 0; i <= InjectImportService.MAX_PENDING_UPLOADS_PER_USER; i++) {
+        importIds.add(service.storeXlsFileForImport(xlsxFile(), "user-1").getImportId());
+      }
+
+      // -------- Assert --------
+      assertFalse(uploadExists(importIds.getFirst()));
+      importIds.stream().skip(1).forEach(importId -> assertTrue(uploadExists(importId)));
+      importIds.forEach(service::deleteStoredFile);
+    }
+
+    @Test
+    @DisplayName("Does not delete the uploads of another user")
+    void given_uploadsOfTwoUsers_should_countThemSeparately() throws Exception {
+      // -------- Prepare --------
+      InjectImportService service =
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
+      String otherUserUpload = service.storeXlsFileForImport(xlsxFile(), "user-2").getImportId();
+      List<String> importIds = new java.util.ArrayList<>();
+
+      // -------- Act --------
+      for (int i = 0; i <= InjectImportService.MAX_PENDING_UPLOADS_PER_USER; i++) {
+        importIds.add(service.storeXlsFileForImport(xlsxFile(), "user-1").getImportId());
+      }
+
+      // -------- Assert --------
+      assertTrue(uploadExists(otherUserUpload));
+      service.deleteStoredFile(otherUserUpload);
+      importIds.forEach(service::deleteStoredFile);
+    }
+
+    @Test
+    @DisplayName("Deleting an upload removes its file from disk")
+    void given_storedUpload_should_beRemovedFromDisk() throws Exception {
+      // -------- Prepare --------
+      InjectImportService service =
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
+      String importId = service.storeXlsFileForImport(xlsxFile(), "user-1").getImportId();
+
+      // -------- Act --------
+      service.deleteStoredFile(importId);
+
+      // -------- Assert --------
+      assertFalse(uploadExists(importId));
+    }
+
+    private MultipartFile xlsxFile() throws Exception {
+      Workbook wb = new XSSFWorkbook();
+      wb.createSheet("Sheet1");
+      java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+      wb.write(bos);
+      wb.close();
+      byte[] content = bos.toByteArray();
+      MultipartFile file = mock(MultipartFile.class);
+      when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream(content));
+      when(file.getBytes()).thenReturn(content);
+      when(file.getOriginalFilename()).thenReturn("injects.xlsx");
+      return file;
+    }
+
+    private boolean uploadExists(String importId) {
+      return java.nio.file.Files.exists(
+          java.nio.file.Path.of(InjectImportService.BASE_DIR, importId));
     }
   }
 
@@ -560,7 +633,7 @@ public class InjectImportServiceTest {
       when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream(content));
       when(file.getBytes()).thenReturn(content);
       when(file.getOriginalFilename()).thenReturn("injects.xlsx");
-      String importId = service.storeXlsFileForImport(file).getImportId();
+      String importId = service.storeXlsFileForImport(file, "user-1").getImportId();
 
       InjectImporter importer = new InjectImporter();
       importer.setId(UUID.randomUUID().toString());

@@ -40,6 +40,8 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,6 +54,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.util.Strings;
 import org.apache.poi.ss.usermodel.*;
@@ -86,18 +89,31 @@ public class InjectImportService {
   // 25mb in byte
   private static final int MAXIMUM_FILE_SIZE_ALLOWED = 25 * 1000 * 1000;
   private static final List<String> ACCEPTED_FILE_TYPES = List.of("xls", "xlsx");
+  // Each user keeps at most this many uploads on disk (about 75 MB): a new upload replaces the
+  // oldest one, so repeated uploads cannot fill the temp disk.
+  static final int MAX_PENDING_UPLOADS_PER_USER = 3;
+
+  // Upload ids still on disk, oldest first, per uploader. Kept in memory on this node, like the
+  // files themselves in its temp dir.
+  private final Map<String, Deque<String>> pendingUploadsByUser = new ConcurrentHashMap<>();
 
   private final InjectMapper injectMapper;
   private final InjectService injectService;
   private final TenantWriteScopeResolver tenantWriteScopeResolver;
 
   /**
-   * Store a xls file for ulterior import. The file will be deleted on exit.
+   * Store a xls file for ulterior import, for the current user. The file is deleted after a
+   * successful import, after {@value #FILE_STORAGE_DURATION} minutes, or when the user uploads more
+   * than {@value #MAX_PENDING_UPLOADS_PER_USER} files.
    *
    * @param file MultipartFile
    * @return ImportPostSummary containing the importId and the list of available sheets
    */
   public ImportPostSummary storeXlsFileForImport(MultipartFile file) {
+    return storeXlsFileForImport(file, currentUser().getId());
+  }
+
+  ImportPostSummary storeXlsFileForImport(MultipartFile file, String ownerId) {
     // Checked here so every upload route applies the same limits before the file is written.
     validateUploadedFile(file);
     ImportPostSummary result = new ImportPostSummary();
@@ -122,11 +138,7 @@ public class InjectImportService {
       Files.write(tempFile, file.getBytes());
 
       CompletableFuture.delayedExecutor(FILE_STORAGE_DURATION, TimeUnit.MINUTES)
-          .execute(
-              () -> {
-                tempFile.toFile().delete();
-                tempDir.toFile().delete();
-              });
+          .execute(() -> deleteStoredFile(fileID));
 
       // We're making sure the files are deleted when the backend restart
       tempDir.toFile().deleteOnExit();
@@ -135,8 +147,31 @@ public class InjectImportService {
       log.error("Error while importing an xls file", ex);
       throw new BadRequestException("File seems to be corrupt");
     }
+    trackUpload(ownerId, fileID);
 
     return result;
+  }
+
+  /** Records the upload and deletes the owner's oldest ones beyond the limit. */
+  private void trackUpload(String ownerId, String importId) {
+    List<String> evicted = new ArrayList<>();
+    pendingUploadsByUser.compute(
+        ownerId,
+        (owner, uploads) -> {
+          Deque<String> queue = uploads == null ? new ConcurrentLinkedDeque<>() : uploads;
+          queue.addLast(importId);
+          while (queue.size() > MAX_PENDING_UPLOADS_PER_USER) {
+            evicted.add(queue.removeFirst());
+          }
+          return queue;
+        });
+    evicted.forEach(this::deleteStoredFile);
+  }
+
+  /** Deletes a stored upload from disk and from the pending list. Safe to call twice. */
+  void deleteStoredFile(String importId) {
+    pendingUploadsByUser.values().forEach(uploads -> uploads.remove(importId));
+    FileUtils.deleteQuietly(validatePathTraversal(BASE_DIR, importId).toFile());
   }
 
   private void validateUploadedFile(MultipartFile file) {
@@ -217,6 +252,8 @@ public class InjectImportService {
               .peek(inject -> inject.setListened(false))
               .toList());
       Iterable<Inject> newInjects = injectRepository.saveAll(importTestSummary.getInjects());
+      // The file is no longer needed once its injects are saved.
+      deleteStoredFile(importId);
       if (exercise != null) {
         computeInjectInExercise(exercise, newInjects);
       } else if (scenario != null) {
@@ -369,9 +406,12 @@ public class InjectImportService {
                 .orElseThrow(() -> new BadRequestException("No file found in import directory"));
       }
 
-      // We open the file and convert it to an apache POI object
-      InputStream xlsFile = Files.newInputStream(file);
-      Workbook workbook = WorkbookFactory.create(xlsFile);
+      // We open the file and convert it to an apache POI object. The workbook is read into
+      // memory, so the stream is closed right away and the file can be deleted later.
+      Workbook workbook;
+      try (InputStream xlsFile = Files.newInputStream(file)) {
+        workbook = WorkbookFactory.create(xlsFile);
+      }
       Sheet selectedSheet = workbook.getSheet(sheetName);
 
       Map<Integer, InjectTime> mapInstantByRowIndex = new HashMap<>();

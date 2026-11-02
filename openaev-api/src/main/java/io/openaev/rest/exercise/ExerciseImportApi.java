@@ -60,6 +60,9 @@ public class ExerciseImportApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @RequestPart("file") @NotNull MultipartFile file) {
+    // A capability passes the access check for any id: refuse a simulation that is unknown or in
+    // another tenant before writing the file.
+    this.exerciseService.existsByIdAndTenantId(exerciseId);
     return injectImportService.storeXlsFileForImport(file);
   }
 
