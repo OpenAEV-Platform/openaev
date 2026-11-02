@@ -189,7 +189,8 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given a marking from another tenant (the user has no access to), should refuse to assign it")
+        "given a marking from another tenant, which the caller holds no clearance for, should refuse"
+            + " to assign it")
     void given_markingFromAnotherTenant_should_refuse() throws Exception {
       // -- ARRANGE --
       String otherTenantId = tenantHelper.createTenant("marking-assign-other").getId();
@@ -206,18 +207,21 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
       assignMarkings(List.of(foreign.getId())).andExpect(status().isForbidden());
 
       // -- ASSERT --
-      // 🔴 403, not 404, and the difference is the point. Two independent guards cover this:
+      // 🔴 403, not 404, and the difference is the point. Two independent guards could cover this:
       //
-      //   1. the statement inspector, because marking_definitions is tenant-active — it would hide
-      //      the row and the size check would 404;
+      //   1. the statement inspector, if marking_definitions were tenant-active here — it would
+      //      hide the row and the size check would 404;
       //   2. the escalation guard, because a clearance is per tenant, so nobody — admin included —
       //      holds another tenant's marking.
       //
-      // Guard 1 does NOT fire here: the composer persisted this entity into the same persistence
-      // context, so findAllById is served from Hibernate's first-level cache and never reaches SQL.
-      // An inspector cannot rewrite a query that is not issued. That is a real property of the
-      // mechanism worth stating in a test rather than discovering in production, and it is exactly
-      // why the escalation guard is not redundant with tenant isolation.
+      // Guard 1 does NOT fire here, for two reasons. This class declares no active-tables property
+      // and the default is empty, so the inspector gates no table at all in it. And were
+      // marking_definitions armed, the composer persisted this entity into the same persistence
+      // context, so findAllById would still be served from Hibernate's first-level cache and never
+      // reach SQL; an inspector cannot rewrite a query that is not issued. That second one is a
+      // real property of the mechanism worth stating in a test rather than discovering in
+      // production, and it is exactly why the escalation guard is not redundant with tenant
+      // isolation.
       assertTrue(reloadedGroup().getMarkings().isEmpty());
     }
   }

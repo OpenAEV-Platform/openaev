@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Filters;
@@ -28,6 +29,7 @@ import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
@@ -62,6 +64,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private TenantMembershipCacheManager tenantMembershipCacheManager;
+  @Autowired private TestUserHolder testUserHolder;
 
   @Nested
   @WithMockUser(
@@ -1261,16 +1265,25 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     @DisplayName("given_tenantCallerIsNotMemberOf_should_forbidOptionsByName")
     void given_tenantCallerIsNotMemberOf_should_forbidOptionsByName() throws Exception {
       // Arrange: capability granted in a tenant the caller belongs to, but the request targets a
-      // different tenant the caller was never attached to.
+      // different tenant the caller holds no membership in. Creating a tenant enrols its creator,
+      // so the membership that creation granted is undone and its absence asserted; without that,
+      // the 403 below would be the capability refusal (empty body) and the case would never reach
+      // the membership check it is named after.
       tenantIsolationTestHelper.createTenantWithCapabilities(
           "marking-options-authz-home", Set.of(Capability.ACCESS_MARKING_DEFINITION));
       Tenant foreignTenant =
           tenantIsolationTestHelper.createTenant(
               "marking-options-authz-foreign-" + UUID.randomUUID());
+      tenantIsolationTestHelper.detachCurrentUserFromTenant(foreignTenant.getId());
+      assertThat(
+              tenantMembershipCacheManager.existsByUserIdAndTenantId(
+                  testUserHolder.get().getId(), foreignTenant.getId()))
+          .isFalse();
 
       // Act & Assert
       mvc.perform(get(URI + "/options", foreignTenant.getId()).with(csrf()))
-          .andExpect(status().isForbidden());
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value("TENANT_ACCESS_DENIED"));
     }
   }
 
