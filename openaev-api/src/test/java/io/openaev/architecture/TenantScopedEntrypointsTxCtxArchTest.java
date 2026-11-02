@@ -277,7 +277,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.asset.endpoint.EndpointApi#endpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#endpoint",
           "io.openaev.rest.asset.endpoint.EndpointApi#assets",
-          "io.openaev.rest.asset.endpoint.EndpointApi#targetEndpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#findEndpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#updateEndpoint",
           "io.openaev.rest.asset.endpoint.EndpointApi#deleteEndpoint",

@@ -5068,28 +5068,6 @@ export interface EndpointTarget {
     | "SUCCESS";
 }
 
-export interface EndpointTargetOutput {
-  /**
-   * List agents installed
-   * @uniqueItems true
-   */
-  asset_agents?: AgentOutput[];
-  /** Hostname */
-  asset_hostname?: string;
-  /**
-   * Asset Id
-   * @minLength 1
-   */
-  asset_id: string;
-  /**
-   * List IPs
-   * @uniqueItems true
-   */
-  asset_ips?: string[];
-  /** Seen IP */
-  asset_seen_ip?: string;
-}
-
 export interface EngineSortField {
   direction: "ASC" | "DESC";
   fieldName: string;
@@ -9142,25 +9120,6 @@ export interface PageCustomDomain {
 
 export interface PageEndpointOutput {
   content?: EndpointOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageEndpointTargetOutput {
-  content?: EndpointTargetOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;

@@ -18,7 +18,6 @@ import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset.endpoint.form.*;
-import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import io.openaev.rest.asset.form.AssetBulkProcessingInput;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.BadRequestException;
@@ -241,22 +240,6 @@ public class EndpointApi extends RestBehavior {
     List<EndpointOutput> assetOutputs =
         assetPage.getContent().stream().map(endpointMapper::toAssetOutput).toList();
     return new PageImpl<>(assetOutputs, assetPage.getPageable(), assetPage.getTotalElements());
-  }
-
-  @LogExecutionTime
-  @PostMapping({ENDPOINT_URI + "/targets", TENANT_ENDPOINT_URI + "/targets"})
-  @Transactional
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
-  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
-  // executors table (each endpoint's agents eager-load their executor).
-  public Page<EndpointTargetOutput> targetEndpoints(
-      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-
-    Page<Endpoint> endpointPage = endpointService.searchManagedEndpoints(searchPaginationInput);
-    List<EndpointTargetOutput> endpointTargetOutputs =
-        endpointPage.getContent().stream().map(endpointMapper::toEndpointTargetOutput).toList();
-    return new PageImpl<>(
-        endpointTargetOutputs, endpointPage.getPageable(), endpointPage.getTotalElements());
   }
 
   @LogExecutionTime
