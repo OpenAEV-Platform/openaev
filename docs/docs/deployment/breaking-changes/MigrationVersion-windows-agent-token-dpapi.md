@@ -19,15 +19,15 @@ The installer writes the token to a temporary file, `openaev-agent-token.bootstr
 encrypts the token, checks that it can decrypt it back, then deletes the temporary file. See
 [Token storage](../../integrations/agents/windows.md#token-storage) for details.
 
-Linux and macOS agents are not affected.
+Linux and macOS agents are not affected for now.
 
 ## Impact
 
-| Installation mode                             | Upgrade from the platform | Result                                                                                       |
-|:----------------------------------------------|:--------------------------|:---------------------------------------------------------------------------------------------|
-| **Standard installation (session)**           | Runs the new installer    | Token encrypted automatically                                                                |
-| **Advanced installation as System (service)** | Runs the new installer    | Token encrypted automatically                                                                |
-| **Advanced installation as User (service)**   | Replaces the binary only  | The agent tries to encrypt the token. The clear-text copy often stays in the config file     |
+| Installation mode                             | Automatic upgrade from the platform | Result                                                                             |
+|:----------------------------------------------|:------------------------------------|:-----------------------------------------------------------------------------------|
+| **Standard installation (session)**           | Runs the new installer              | Token encrypted automatically                                                      |
+| **Advanced installation as System (service)** | Runs the new installer              | Token encrypted automatically                                                      |
+| **Advanced installation as User (service)**   | Replaces the binary only            | The token can stay in clear text in the config file: reinstall the agent by hand   |
 
 Other impacts:
 
@@ -39,17 +39,9 @@ Other impacts:
 After upgrading, for each **Advanced installation as User (service)**:
 
 1. **Reinstall the agent from the platform**.
-2. Check that the token is no longer in clear text:
-
-    ```powershell
-    Select-String "<install folder>\openaev-agent-config.toml" -Pattern '^\s*token\s*='
-    Test-Path "<install folder>\openaev-agent-token.bootstrap"
-    ```
-
-    `Select-String` returns nothing and `Test-Path` returns `False`.
-
-3. Check `openaev-agent.log`: it contains `Token moved to the OS secret store`, and no
-   `The token is still in clear text` warning.
+2. Check that `openaev-agent.log` contains `Token moved to the OS secret store`, and no
+   `The token is still in clear text` warning. For a full check, see
+   [Who can access the token files](../../integrations/agents/windows.md#who-can-access-the-token-files).
 
 !!! warning
 
