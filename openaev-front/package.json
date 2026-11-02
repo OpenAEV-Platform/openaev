@@ -127,7 +127,7 @@
     "eslint-plugin-react-refresh": "0.5.7",
     "eslint-plugin-simple-import-sort": "14.0.0",
     "globals": "17.13.0",
-    "happy-dom": "^20.8.9",
+    "happy-dom": "^21.0.0",
     "i18n-auto-translation": "2.2.3",
     "knip": "6.44.0",
     "license-checker-rseidelsohn": "5.0.1",
