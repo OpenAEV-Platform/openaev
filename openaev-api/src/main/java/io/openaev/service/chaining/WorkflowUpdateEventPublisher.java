@@ -1,13 +1,19 @@
 package io.openaev.service.chaining;
 
 import io.openaev.aop.WorkflowUpdateEvent;
+import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectRepository;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -17,11 +23,18 @@ import org.springframework.stereotype.Service;
  * Publishes the workflow update events that tell the chaining engine an inject it waits on has
  * changed, and keeps the events the queue refused so that a later publication sends them again.
  *
- * <p>The steps are looked up, and each event's tenant is read, in the caller's transaction, so the
- * caller must already carry the scope of the injects it names: the {@link WorkflowUpdateEvent}
- * aspect runs in the annotated method's transaction, and the batched callback handler publishes
- * from each tenant's own scoped transaction. A kept event carries the tenant it was built with, so
- * it is resent as is, from whatever scope the next publication runs in.
+ * <p>The steps are looked up, and each event's tenant is read, in the tenant that owns the injects
+ * named, whatever the scope the caller's transaction was opened with: a step belongs to the tenant
+ * of the simulation, atomic testing or autonomous run that owns the inject, and a caller scoped to
+ * another tenant would find none and leave the step waiting for the timeout job. That tenant is the
+ * changed row's own, read with a projection that no tenant scope narrows, and the work runs in it
+ * through {@link WorkflowOwnerScope}, on the caller's own transaction. A kept event carries the
+ * tenant it was built with, so it is resent as is, from whatever scope the next publication runs
+ * in.
+ *
+ * <p>The caller must therefore run inside a transaction: the {@link WorkflowUpdateEvent} aspect
+ * runs in the annotated method's transaction, and the batched callback handler publishes from each
+ * tenant's own scoped transaction.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,6 +46,12 @@ public class WorkflowUpdateEventPublisher {
 
   private final QueueChainingService queueChainingService;
   private final StepService stepService;
+  private final WorkflowOwnerScope workflowOwnerScope;
+  // Read straight from the repositories, as the batched callback handler already does for the same
+  // bridge: resolving the owner is the one read here that must stay outside any tenant scope, which
+  // is a contract of these projections and not of the services that wrap them.
+  private final InjectRepository injectRepository;
+  private final InjectExpectationRepository injectExpectationRepository;
 
   /**
    * Notifies the active step that runs the given inject, if any, then resends the kept events.
@@ -41,11 +60,15 @@ public class WorkflowUpdateEventPublisher {
    */
   public void publishForInject(String injectId) {
     if (StringUtils.isNotBlank(injectId)) {
-      stepService
-          .findStepIdActiveByInjectId(injectId)
-          .ifPresentOrElse(
-              stepId -> send(Set.of(stepId)),
-              () -> log.info("Step active not found for inject {}", injectId));
+      notifyInEachOwnerTenant(
+          ownerTenantsOfInjects(Set.of(injectId)),
+          () -> {
+            Optional<String> activeStep = stepService.findStepIdActiveByInjectId(injectId);
+            if (activeStep.isEmpty()) {
+              log.info("Step active not found for inject {}", injectId);
+            }
+            return activeStep.map(Set::of).orElseGet(Set::of);
+          });
     }
     resendUnsentEvents();
   }
@@ -56,7 +79,9 @@ public class WorkflowUpdateEventPublisher {
    * @param injectIds the injects that changed
    */
   public void publishForInjects(Set<String> injectIds) {
-    send(stepService.findStepIdsActiveByInjectIds(injectIds));
+    notifyInEachOwnerTenant(
+        ownerTenantsOfInjects(injectIds),
+        () -> stepService.findStepIdsActiveByInjectIds(injectIds));
     resendUnsentEvents();
   }
 
@@ -67,8 +92,51 @@ public class WorkflowUpdateEventPublisher {
    * @param expectationIds the expectations that changed
    */
   public void publishForExpectations(Set<String> expectationIds) {
-    send(stepService.findStepIdsActiveByExpectationIds(expectationIds));
+    notifyInEachOwnerTenant(
+        ownerTenantsOfExpectations(expectationIds),
+        () -> stepService.findStepIdsActiveByExpectationIds(expectationIds));
     resendUnsentEvents();
+  }
+
+  /**
+   * Looks the active steps up and sends their events once per owning tenant, each time in that
+   * tenant's own scope: the lookup, and the step tenant each event is stamped with, are both read
+   * there. A batch mixing tenants, which the batched callback handler and the expiration job can
+   * produce, is notified once per tenant it touches; an id whose row no longer exists resolves no
+   * tenant and is simply not notified.
+   */
+  private void notifyInEachOwnerTenant(
+      Set<String> ownerTenantIds, Supplier<Set<String>> activeSteps) {
+    for (String ownerTenantId : ownerTenantIds) {
+      workflowOwnerScope.runInOwnerTenant(ownerTenantId, () -> send(activeSteps.get()));
+    }
+  }
+
+  /**
+   * The tenants owning the given injects, read from their own {@code tenant_id} with a native
+   * projection that neither the Hibernate tenant filter nor an ambient tenant context changes, so
+   * it resolves the owner from a caller that may not be allowed to see it.
+   */
+  private Set<String> ownerTenantsOfInjects(Set<String> injectIds) {
+    if (injectIds == null || injectIds.isEmpty()) {
+      return Set.of();
+    }
+    return injectRepository.findTenantIdsByInjectIds(injectIds).stream()
+        .map(row -> (String) row[1])
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * The tenants owning the given expectations, through the inject each belongs to: an expectation
+   * carries no tenant of its own, and its inject's tenant is the one its chaining step lives in.
+   */
+  private Set<String> ownerTenantsOfExpectations(Set<String> expectationIds) {
+    if (expectationIds == null || expectationIds.isEmpty()) {
+      return Set.of();
+    }
+    return ownerTenantsOfInjects(
+        injectExpectationRepository.findDistinctInjectIdsByInjectExpectationIds(expectationIds));
   }
 
   private void send(Set<String> stepIds) {
