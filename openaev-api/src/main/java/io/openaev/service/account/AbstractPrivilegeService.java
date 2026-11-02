@@ -1,6 +1,7 @@
 package io.openaev.service.account;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
@@ -20,6 +21,7 @@ public abstract class AbstractPrivilegeService {
   protected final TenantGroupService tenantGroupService;
   protected final UserService userService;
   protected final TenantUserService tenantUserService;
+  protected final MarkingClearanceCacheManager markingClearanceCacheManager;
 
   protected abstract WellKnownAccess wellKnownAccess();
 
@@ -54,9 +56,9 @@ public abstract class AbstractPrivilegeService {
     Group saved =
         group.isPresent()
             ? tenantGroupService.updateInternalGroupWithRoles(group.get(), input, roles)
-            : tenantGroupService.createInternalGroupWithRole(groupId, input, roles, tenantId);
+            : tenantGroupService.createInternalGroupWithRole(tenantId, groupId, input, roles);
     if (receivesEveryMarking()) {
-      tenantGroupService.receiveEveryMarking(saved, tenantId);
+      tenantGroupService.receiveEveryMarking(tenantId, saved);
     }
     return saved;
   }
@@ -65,12 +67,20 @@ public abstract class AbstractPrivilegeService {
     return UUID.nameUUIDFromBytes((UUID.fromString(name) + ":" + tenantId).getBytes()).toString();
   }
 
-  public static void applyUserServiceAttributes(
+  protected void applyUserServiceAttributes(
       User user, String firstname, String lastname, String email, Group group) {
+    boolean groupsChanged =
+        !user.getUnscopedGroups().stream()
+            .map(Group::getId)
+            .toList()
+            .equals(List.of(group.getId()));
     user.setFirstname(firstname);
     user.setLastname(lastname);
     user.setEmail(email);
     user.setAdmin(false);
     user.setGroups(new ArrayList<>(List.of(group)));
+    if (groupsChanged) {
+      markingClearanceCacheManager.evictForUser(user.getId());
+    }
   }
 }

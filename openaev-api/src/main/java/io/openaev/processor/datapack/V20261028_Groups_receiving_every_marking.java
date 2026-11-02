@@ -34,11 +34,11 @@ public class V20261028_Groups_receiving_every_marking extends DataPack {
               ReservedServiceAccount.CATALOG_CONNECTOR)) {
         tenantGroupService
             .findByIdAndTenant(getUUIDFromName(account.access().groupId(), tenantId), tenantId)
-            .ifPresent(group -> tenantGroupService.receiveEveryMarking(group, tenantId));
+            .ifPresent(group -> tenantGroupService.receiveEveryMarking(tenantId, group));
       }
       tenantGroupService
           .findByNameAndTenantId(PresetTenantData.ADMIN, tenantId)
-          .ifPresent(group -> tenantGroupService.receiveEveryMarking(group, tenantId));
+          .ifPresent(group -> tenantGroupService.receiveEveryMarking(tenantId, group));
       return true;
     } catch (Exception e) {
       log.error("Unexpected error during DataPack 20261028 initialization.", e);

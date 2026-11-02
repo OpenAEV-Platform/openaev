@@ -9,6 +9,7 @@ import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.config.SessionManager;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
@@ -55,6 +56,7 @@ class CatalogConnectorPrivilegeServiceTest {
   @Mock private UserService userService;
   @Mock private TenantUserService tenantUserService;
   @Mock private SessionManager sessionManager;
+  @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
 
   @InjectMocks private CatalogConnectorPrivilegeService privilegeService;
 
@@ -117,7 +119,7 @@ class CatalogConnectorPrivilegeServiceTest {
       assertThat(account.getUnscopedGroups()).containsExactly(group);
       verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
       verify(userService).saveUser(account);
-      verify(tenantGroupService).receiveEveryMarking(group, TENANT_ID);
+      verify(tenantGroupService).receiveEveryMarking(TENANT_ID, group);
     }
 
     @Test
@@ -206,7 +208,7 @@ class CatalogConnectorPrivilegeServiceTest {
               TENANT_ID);
       verify(tenantGroupService)
           .createInternalGroupWithRole(
-              eq(GROUP_ID), groupInput.capture(), eq(List.of(role)), eq(TENANT_ID));
+              eq(TENANT_ID), eq(GROUP_ID), groupInput.capture(), eq(List.of(role)));
       assertThat(groupInput.getValue().getName()).isEqualTo(CATALOG_CONNECTOR.access().groupName());
       assertThat(groupInput.getValue().getDescription())
           .isEqualTo(CATALOG_CONNECTOR.access().groupDescription());
@@ -283,7 +285,7 @@ class CatalogConnectorPrivilegeServiceTest {
     @DisplayName("Reserves the account group")
     void given_catalogConnectorGroupId_should_beRejected() {
       // Act & Assert
-      assertThatThrownBy(() -> ReservedKeyValidator.validateGroupId(GROUP_ID))
+      assertThatThrownBy(() -> ReservedKeyValidator.validateGroupId(GROUP_ID, TENANT_ID))
           .isInstanceOf(BadRequestException.class);
     }
   }

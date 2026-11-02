@@ -63,10 +63,10 @@ class V20261028GroupsReceivingEveryMarkingTest {
     dataPack.process(TENANT);
 
     // Assert
-    verify(tenantGroupService).receiveEveryMarking(agentGroup, TENANT.getId());
-    verify(tenantGroupService).receiveEveryMarking(openCtiGroup, TENANT.getId());
-    verify(tenantGroupService).receiveEveryMarking(catalogGroup, TENANT.getId());
-    verify(tenantGroupService).receiveEveryMarking(adminGroup, TENANT.getId());
+    verify(tenantGroupService).receiveEveryMarking(TENANT.getId(), agentGroup);
+    verify(tenantGroupService).receiveEveryMarking(TENANT.getId(), openCtiGroup);
+    verify(tenantGroupService).receiveEveryMarking(TENANT.getId(), catalogGroup);
+    verify(tenantGroupService).receiveEveryMarking(TENANT.getId(), adminGroup);
     verify(dataPackService).registerDataPack(dataPack.getPackId(), TENANT);
   }
 

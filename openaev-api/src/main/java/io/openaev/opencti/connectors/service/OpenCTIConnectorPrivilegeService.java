@@ -1,5 +1,6 @@
 package io.openaev.opencti.connectors.service;
 
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
@@ -34,9 +35,15 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
+      MarkingClearanceCacheManager markingClearanceCacheManager,
       LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration,
       TenantScopedTransaction tenantTx) {
-    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
+    super(
+        tenantRoleService,
+        tenantGroupService,
+        userService,
+        tenantUserService,
+        markingClearanceCacheManager);
     this.legacyOpenCTIConnectorMigration = legacyOpenCTIConnectorMigration;
     this.tenantTx = tenantTx;
   }

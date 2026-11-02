@@ -1,5 +1,6 @@
 package io.openaev.rest.group;
 
+import static io.openaev.api.groups.TenantGroupApi.GROUP_URI;
 import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -11,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.GroupRepository;
@@ -18,9 +21,11 @@ import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.MarkingDefinitionFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
+import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.TenantRoleComposer;
@@ -33,6 +38,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -48,6 +54,8 @@ public class TenantGroupApiTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private MarkingClearanceCacheManager markingClearanceCacheManager;
 
   @Nested
   @DisplayName("Create")
@@ -501,6 +509,61 @@ public class TenantGroupApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, should forbid making a group with unowned markings a default group")
+    void given_manageTenantUsersGroupsAndRoles_should_forbidDefaultAssignWithUnownedMarkings()
+        throws Exception {
+      // -------- Arrange --------
+      Group group = groupWithMarking("DefaultGroupMarked", persistedMarking());
+      markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
+      TenantGroupCreateInput input = new TenantGroupCreateInput();
+      input.setName("DefaultGroupMarked");
+      input.setDefaultUserAssignation(true);
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(tenantUri(TENANT_GROUP_URI) + "/" + group.getId() + "/information")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, should forbid assigning users to group with unowned markings")
+    void given_manageTenantUsersGroupsAndRoles_should_forbidUpdateGroupUsersWithUnownedMarkings()
+        throws Exception {
+      // -------- Arrange --------
+      Group group = groupWithMarking("UserGroupMarked", persistedMarking());
+      markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
+
+      // -------- Act & Assert --------
+      updateUsers(tenantUri(TENANT_GROUP_URI), group.getId()).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "Given a user of another tenant only, should update group users without tenant in URL")
+    void given_userOfAnotherTenantOnly_should_updateGroupUsersWithoutTenantInUrl()
+        throws Exception {
+      // -------- Arrange --------
+      // On /api/groups the thread-local tenant is the default one, not the group's.
+      String otherTenantId =
+          tenantIsolationHelper.createTenantWithCurrentUser("users-without-tenant").getId();
+      Group group = TenantGroupFixture.getGroup("UserGroupOtherTenant");
+      group.setTenant(entityManager.getReference(Tenant.class, otherTenantId));
+      groupRepository.save(group);
+
+      // -------- Act & Assert --------
+      updateUsers(GROUP_URI, group.getId()).andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
     @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("Given ACCESS_TENANT_USERS_GROUPS_AND_ROLES only, should be forbidden to update")
     void given_accessTenantUsersGroupsAndRoles_should_forbidUpdate() throws Exception {
@@ -520,6 +583,31 @@ public class TenantGroupApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isForbidden());
+    }
+
+    private ResultActions updateUsers(String groupsUri, String groupId) throws Exception {
+      GroupUpdateUsersInput input = new GroupUpdateUsersInput();
+      input.setUserIds(List.of(testUserHolder.get().getId()));
+      return mvc.perform(
+          put(groupsUri + "/" + groupId + "/users")
+              .content(asJsonString(input))
+              .contentType(MediaType.APPLICATION_JSON)
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf()));
+    }
+
+    private Group groupWithMarking(String name, MarkingDefinition marking) {
+      Group group = tenantGroupComposer.forGroup(TenantGroupFixture.getGroup(name)).persist().get();
+      group.setMarkings(new HashSet<>(Set.of(marking)));
+      return groupRepository.save(group);
+    }
+
+    private MarkingDefinition persistedMarking() {
+      return markingDefinitionComposer
+          .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
+          .withTenantId(TenantContext.getCurrentTenant())
+          .persist()
+          .get();
     }
   }
 
