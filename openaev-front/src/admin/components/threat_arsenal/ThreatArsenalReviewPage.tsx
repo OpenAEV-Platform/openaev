@@ -79,9 +79,9 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const waiting = useApprovalQueue(['PENDING', 'REJECTED']);
-  // Approved actions are many: the newest only, without their detail.
-  const approved = useApprovalQueue(['APPROVED'], () => true, {
-    details: false,
+  // Approved actions are many: the newest only. Platform content (Filigran, starter pack) and an
+  // approver's own edits are approved automatically: they were never reviewed, so they are left out.
+  const approved = useApprovalQueue(['APPROVED'], item => item.full?.action_approval_latest?.approval_automatic === false, {
     newestFirst: true,
     size: 20,
   });
@@ -224,7 +224,8 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
       showRunTest={false}
       review={{ submittedBy: item.full?.action_last_modified_by_name ?? undefined }}
       primaryAction={{
-        label: mode === 'to-review' ? t('Review') : t('View'),
+        // Only a pending version has something to decide; a decided one is only looked at.
+        label: mode === 'to-review' && context.status(item) === 'PENDING' ? t('Review') : t('View'),
         onClick: () => drawer.open(item),
       }}
       {...computeActionFlags(item.action as ThreatArsenalAction)}
