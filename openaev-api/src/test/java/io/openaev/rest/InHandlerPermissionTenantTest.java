@@ -61,6 +61,8 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -297,8 +299,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
       String reportingId = seedPlatformReporting(tenantB);
 
       // -- ACT & ASSERT --
-      mvc.perform(inB(get(REPORTINGS_URI + "/{reportingId}", reportingId)))
-          .andExpect(status().isNotFound());
+      mvc.perform(inB(get(REPORTINGS_URI + "/{reportingId}", reportingId))).andExpect(refused());
     }
 
     @Test
@@ -308,10 +309,18 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
       // -- ARRANGE --
       String reportingId = seedPlatformReporting(tenantB);
 
-      // -- ACT & ASSERT --
-      mvc.perform(inB(post(REPORTINGS_URI + "/search")).content(defaultSearch()))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath(reportingPath(reportingId)).doesNotExist());
+      // -- ACT --
+      MvcResult result =
+          mvc.perform(inB(post(REPORTINGS_URI + "/search")).content(defaultSearch())).andReturn();
+
+      // -- ASSERT --
+      // Not returned either way: once the scope-wide capability gate (#8654) lands, the whole
+      // request is refused before reaching this check; until then this row is filtered out of
+      // an ok response here.
+      assertThat(result.getResponse().getStatus()).isIn(200, 403);
+      if (result.getResponse().getStatus() == 200) {
+        jsonPath(reportingPath(reportingId)).doesNotExist().match(result);
+      }
     }
 
     @Test
@@ -326,7 +335,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
       // -- ACT & ASSERT --
       mvc.perform(
               inB(get(REPORTINGS_URI + "/context/{contextType}", ReportingContextType.PLATFORM)))
-          .andExpect(status().isNotFound());
+          .andExpect(refused());
     }
 
     @Test
@@ -612,6 +621,15 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
 
   private void grantInB(Capability... capabilities) {
     tenantHelper.grantCapabilitiesInTenant(tenantB, Set.of(capabilities));
+  }
+
+  /**
+   * A refusal taken before any row is read: not found, the shape a per-row RBAC check in this diff
+   * throws; or forbidden, the shape the scope-wide capability gate (#8654) throws when it lands
+   * ahead of the handler. Either way the row is not returned.
+   */
+  private ResultMatcher refused() {
+    return result -> assertThat(result.getResponse().getStatus()).isIn(404, 403);
   }
 
   /**
