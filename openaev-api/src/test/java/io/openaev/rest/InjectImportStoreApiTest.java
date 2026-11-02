@@ -78,6 +78,9 @@ class InjectImportStoreApiTest extends IntegrationTest {
     if (committedResourceIds.isEmpty()) {
       return;
     }
+    // Roll back what the act step wrote (mapper, import), then delete the committed arrange rows.
+    TestTransaction.end();
+    TestTransaction.start();
     for (String id : committedResourceIds) {
       entityManager
           .createNativeQuery("DELETE FROM grants WHERE grant_resource = :id")

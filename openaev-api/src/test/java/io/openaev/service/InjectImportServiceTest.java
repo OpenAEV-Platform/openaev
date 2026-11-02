@@ -507,7 +507,8 @@ public class InjectImportServiceTest {
       when(file.getOriginalFilename()).thenReturn("injects.csv");
 
       // -------- Act & Assert --------
-      assertThrows(UnsupportedMediaTypeException.class, () -> service.storeXlsFileForImport(file, "user-1"));
+      assertThrows(
+          UnsupportedMediaTypeException.class, () -> service.storeXlsFileForImport(file, "user-1"));
     }
 
     @Test
