@@ -288,6 +288,67 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
           .andExpect(status().isNotFound());
     }
 
+    @Test
+    @DisplayName(
+        "given the reportings right only outside B should refuse B's platform-wide reporting")
+    void given_reportingsRightOnlyOutsideB_should_refuseBPlatformReporting() throws Exception {
+      // -- ARRANGE --
+      // No grant in B: the class-level capability only covers the default tenant.
+      String reportingId = seedPlatformReporting(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(inB(get(REPORTINGS_URI + "/{reportingId}", reportingId)))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "given the reportings right only outside B should not search B's platform-wide reporting")
+    void given_reportingsRightOnlyOutsideB_should_notSearchBPlatformReporting() throws Exception {
+      // -- ARRANGE --
+      String reportingId = seedPlatformReporting(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(inB(post(REPORTINGS_URI + "/search")).content(defaultSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(reportingPath(reportingId)).doesNotExist());
+    }
+
+    @Test
+    @DisplayName(
+        "given the reportings right only outside B should refuse B's platform-wide reportings of"
+            + " context")
+    void given_reportingsRightOnlyOutsideB_should_refuseBPlatformReportingsOfContext()
+        throws Exception {
+      // -- ARRANGE --
+      seedPlatformReporting(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              inB(get(REPORTINGS_URI + "/context/{contextType}", ReportingContextType.PLATFORM)))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "given the reportings right in B should read and search B's platform-wide reporting")
+    void given_reportingsRightInB_should_readAndSearchBPlatformReporting() throws Exception {
+      // -- ARRANGE --
+      grantInB(Capability.ACCESS_REPORTINGS);
+      String reportingId = seedPlatformReporting(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(inB(get(REPORTINGS_URI + "/{reportingId}", reportingId)))
+          .andExpect(status().isOk());
+      mvc.perform(inB(post(REPORTINGS_URI + "/search")).content(defaultSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(reportingPath(reportingId)).exists());
+      mvc.perform(
+              inB(get(REPORTINGS_URI + "/context/{contextType}", ReportingContextType.PLATFORM)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[?(@.reporting_id == '" + reportingId + "')]").exists());
+    }
+
     private String reportingPath(String reportingId) {
       return "$.content[?(@.reporting_id == '" + reportingId + "')]";
     }
@@ -572,6 +633,16 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
             "in-handler-" + UUID.randomUUID(),
             ReportingContextType.SIMULATION,
             UUID.randomUUID().toString());
+    reporting.setTenant(new Tenant(tenantId));
+    String reportingId = reportingComposer.forReporting(reporting).persist().get().getId();
+    entityManager.flush();
+    return reportingId;
+  }
+
+  private String seedPlatformReporting(String tenantId) {
+    Reporting reporting =
+        ReportingFixture.createReporting(
+            "in-handler-" + UUID.randomUUID(), ReportingContextType.PLATFORM, null);
     reporting.setTenant(new Tenant(tenantId));
     String reportingId = reportingComposer.forReporting(reporting).persist().get().getId();
     entityManager.flush();

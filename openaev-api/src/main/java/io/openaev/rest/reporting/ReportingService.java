@@ -477,8 +477,12 @@ public class ReportingService {
       final ReportingContextType contextType, final String contextId, @NotNull final User user) {
     ResourceType subjectType = contextType == null ? null : SUBJECT_RESOURCE_TYPES.get(contextType);
     if (subjectType == null || !StringUtils.hasText(contextId)) {
-      // PLATFORM reporting (or subject-less legacy row): capability gate only.
-      return () -> true;
+      // PLATFORM reporting (or subject-less legacy row): no subject to check, but the caller
+      // still needs the REPORTINGS capability in this reporting's own tenant. The caller
+      // evaluates this supplier inside holdsInTenant/holdsInScope, which sets the ambient
+      // tenant to the one under decision, so the capability check below lands there.
+      return () ->
+          this.permissionService.hasCapabilityPermission(user, ResourceType.REPORT, Action.READ);
     }
     return () ->
         this.permissionService.hasPermission(
@@ -540,11 +544,21 @@ public class ReportingService {
         grantFilteredTypes.isEmpty()
             ? List.of()
             : this.grantService.findReadGrantedResourceIds(user);
+    // Platform-wide reportings carry no subject: visible only where the user holds the
+    // REPORTINGS capability in this tenant, decided here rather than inside the predicate so
+    // holdsInTenant can switch the ambient tenant once instead of once per matched row.
+    boolean platformWideVisible =
+        this.permissionService.holdsInTenant(
+            tenantId,
+            () ->
+                this.permissionService.hasCapabilityPermission(
+                    user, ResourceType.REPORT, Action.SEARCH));
     return inTenant.and(
         (root, query, cb) -> {
           List<Predicate> anyOf = new ArrayList<>();
-          // Platform-wide reportings carry no subject: the capability gate suffices.
-          anyOf.add(cb.isNull(root.get("contextId")));
+          if (platformWideVisible) {
+            anyOf.add(cb.isNull(root.get("contextId")));
+          }
           if (!visibleTypes.isEmpty()) {
             anyOf.add(root.get("contextType").in(visibleTypes));
           }
