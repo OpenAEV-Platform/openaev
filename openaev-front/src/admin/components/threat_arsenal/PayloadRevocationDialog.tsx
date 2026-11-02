@@ -82,6 +82,9 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
   const defaultReplacement = (replacements.find(v => v.payload_is_latest) ?? replacements[0])?.payload_version ?? '';
   useEffect(() => setReplacement(defaultReplacement), [defaultReplacement]);
   const canReplace = !lift && injectCount > 0 && replacements.length > 0;
+  // The impact is always stated, also when it is none: what runs elsewhere keeps running.
+  const otherUsage = (versions ?? []).filter(v => v.payload_id !== version?.payload_id)
+    .reduce((sum, v) => sum + (v.payload_usage_count ?? 0), 0);
   const inherited = lift && customized && !!version && !version.payload_revoked_in_tenant;
   const needsReason = !lift || inherited;
 
@@ -156,6 +159,21 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
                 {injectCount === 1 ? t('Used by 1 inject') : t('Used by {count} injects', { count: String(injectCount) })}
               </Text>
             )}
+          </div>
+        )}
+        {version && injectCount === 0 && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            marginBottom: 16,
+          }}
+          >
+            <Text variant="content-base-bold">{lift ? t('Runs again in:') : t('Will fail until it is lifted:')}</Text>
+            <Text variant="content-base">
+              {t('Nothing: no scenario inject, atomic test or chained step uses v{version}.', { version: version.payload_version ?? '' })}
+              {otherUsage > 0 && ` ${t('{count, plural, one {# inject keeps} other {# injects keep}} running on other versions.', { count: String(otherUsage) })}`}
+            </Text>
           </div>
         )}
         {version && injectCount > 0 && (
