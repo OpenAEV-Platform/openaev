@@ -27,7 +27,7 @@
         <commons-io.version>2.22.0</commons-io.version>
         <commons-validator.version>1.11.0</commons-validator.version>
         <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
-        <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
+        <jacoco-plugin.version>0.8.16</jacoco-plugin.version>
         <jjwt.version>0.13.0</jjwt.version>
         <pyroscope.version>2.9.2</pyroscope.version>
         <bouncycastle.version>1.86.2</bouncycastle.version>
