@@ -22,6 +22,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import VersionApprovalPanel from './approval/VersionApprovalPanel';
 import PayloadOriginChip from './PayloadOriginChip';
+import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 import PayloadVersionSelect from './PayloadVersionSelect';
 
 const VERSIONS_PER_PAGE = 5;
@@ -46,12 +47,6 @@ interface UsagesProps {
   onDecided: (updated: ThreatArsenalActionFullOutput) => void;
   onMigrate: (source: PayloadVersionOutput, target: PayloadVersionOutput, usages: PayloadUsageOutput[]) => Promise<PayloadVersionChangeOutput | null>;
 }
-
-const USAGE_TYPE_LABELS: Record<string, string> = {
-  inject: 'Inject',
-  atomic_testing: 'Atomic testing',
-  step: 'Chained step',
-};
 
 // The injects, atomic tests and chained steps on one version, moved together to another version (F30).
 const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets, canMigrate, loading, installAction, baseline, onDecided, onMigrate }) => {
