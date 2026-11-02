@@ -6358,6 +6358,7 @@ export interface GroupGrantInput {
 }
 
 export interface GroupUpdateMarkingsInput {
+  group_auto_new_marking?: boolean;
   group_markings: string[];
 }
 
@@ -12771,6 +12772,7 @@ export interface TenantGroupCreateInput {
 }
 
 export interface TenantGroupMarkingsOutput {
+  group_auto_new_marking?: boolean;
   /**
    * Group Id
    * @minLength 1

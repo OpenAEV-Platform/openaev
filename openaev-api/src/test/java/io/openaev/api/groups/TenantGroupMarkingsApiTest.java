@@ -306,7 +306,7 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
     return mvc.perform(
         put(TENANT_GROUP_URI + "/{groupId}/markings", tenantId, group.getId())
-            .content(asJsonString(new GroupUpdateMarkingsInput(markingIds)))
+            .content(asJsonString(new GroupUpdateMarkingsInput(markingIds, null)))
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
             .with(csrf()));

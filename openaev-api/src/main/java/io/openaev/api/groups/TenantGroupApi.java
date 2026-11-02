@@ -133,7 +133,9 @@ public class TenantGroupApi extends RestBehavior {
               + " this request's payload actually does, checked independently and in addition to"
               + " the group's own WRITE control above. A caller may only assign markings they hold"
               + " themselves, and only markings defined in their own tenant. Every member's cached"
-              + " clearance is evicted, so the change takes effect on their next request.")
+              + " clearance is evicted, so the change takes effect on their next request."
+              + " group_auto_new_marking, when sent, makes the group receive every marking, existing"
+              + " and future; turning it on needs ASSIGN_MARKING and every marking.")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Group updated"),

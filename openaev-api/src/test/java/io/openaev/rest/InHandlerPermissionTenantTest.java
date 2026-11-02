@@ -580,7 +580,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
     }
 
     private String clearGroup() {
-      return asJsonString(new GroupUpdateMarkingsInput(List.of()));
+      return asJsonString(new GroupUpdateMarkingsInput(List.of(), null));
     }
 
     private String clearAsset() {

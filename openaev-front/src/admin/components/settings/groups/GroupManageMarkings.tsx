@@ -1,3 +1,4 @@
+import { Switch } from '@filigran/design-system';
 import { LensOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
@@ -9,9 +10,10 @@ import { useMarkingDefinitionsWithLoading } from '../../../../utils/hooks/useMar
 
 interface Props {
   initialState: string[];
+  initialAutoNewMarking?: boolean;
   open: boolean;
   onClose: () => void;
-  onSubmit: (markingIds: string[]) => void;
+  onSubmit: (markingIds: string[], autoNewMarking: boolean) => void;
   groupName?: string;
   title?: string;
 }
@@ -24,6 +26,7 @@ interface Props {
 // (MarkingScopeResolver).
 const GroupManageMarkings: FunctionComponent<Props> = ({
   initialState,
+  initialAutoNewMarking = false,
   open,
   onClose,
   onSubmit,
@@ -45,12 +48,14 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [autoNewMarking, setAutoNewMarking] = useState(false);
 
   useEffect(() => {
     if (open) {
       setSelectedIds(initialState);
+      setAutoNewMarking(initialAutoNewMarking);
     }
-  }, [open, initialState]);
+  }, [open, initialState, initialAutoNewMarking]);
 
   const toggleMarking = (markingId: string) => {
     setSelectedIds(prev => (prev.includes(markingId) ? prev.filter(id => id !== markingId) : [...prev, markingId]));
@@ -99,7 +104,7 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   };
 
   const handleSubmit = () => {
-    onSubmit(selectedIds);
+    onSubmit(selectedIds, autoNewMarking);
     handleClose();
   };
 
@@ -110,6 +115,13 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
       onClose={handleClose}
       onSubmit={handleSubmit}
       title={title ?? t('Manage markings for group: {groupName}', { groupName })}
+      headerComponent={(
+        <Switch
+          checked={autoNewMarking}
+          onCheckedChange={checked => setAutoNewMarking(checked === true)}
+          label={t('Auto assign new markings')}
+        />
+      )}
       values={markingValues}
       elements={elements}
       selectedIds={selectedIds}
