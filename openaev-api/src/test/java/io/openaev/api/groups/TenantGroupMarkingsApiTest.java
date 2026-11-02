@@ -53,8 +53,10 @@ import org.springframework.transaction.annotation.Transactional;
  * the seeded low orders into any clearance. Asserting an exact set would be asserting the seed.
  *
  * <p>Also pins the {@code TenantGroupService} entry in {@code TenantActiveTableAccessArchTest}: the
- * cross-tenant case below is what makes "the inspector scopes this read" checkable rather than a
- * claim in a comment.
+ * cross-tenant case below is what makes checkable, rather than a claim in a comment, that the
+ * escalation guard alone refuses a foreign marking in the configuration this class exercises
+ * (marking_definitions left ungated); see that case's own comment for what the inspector does once
+ * the table is actually active.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -209,19 +211,25 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
       // -- ASSERT --
       // 🔴 403, not 404, and the difference is the point. Two independent guards could cover this:
       //
-      //   1. the statement inspector, if marking_definitions were tenant-active here — it would
-      //      hide the row and the size check would 404;
-      //   2. the escalation guard, because a clearance is per tenant, so nobody — admin included —
+      //   1. the statement inspector, when marking_definitions is tenant-active: it would hide the
+      //      row and the size check would 404;
+      //   2. the escalation guard, because a clearance is per tenant, so nobody, admin included,
       //      holds another tenant's marking.
       //
-      // Guard 1 does NOT fire here, for two reasons. This class declares no active-tables property
-      // and the default is empty, so the inspector gates no table at all in it. And were
-      // marking_definitions armed, the composer persisted this entity into the same persistence
-      // context, so findAllById would still be served from Hibernate's first-level cache and never
-      // reach SQL; an inspector cannot rewrite a query that is not issued. That second one is a
-      // real property of the mechanism worth stating in a test rather than discovering in
-      // production, and it is exactly why the escalation guard is not redundant with tenant
-      // isolation.
+      // Guard 1 does NOT fire in the configuration this class actually exercises: it carries no
+      // @TestPropertySource of its own, so in the default run, with no active-tables system
+      // property on the JVM, the shipped test properties declare no active tables and the inspector
+      // gates nothing here, which is why the row above is found unfiltered and the case reaches
+      // guard 2. That is not marking_definitions' real configuration: the table is unconditionally
+      // active in the properties the application ships, and under the production shadow shard,
+      // which hands that same list to every class with no narrower one of its own,
+      // TenantGroupService's findAllById query is rewritten with can_access_tenant and the foreign
+      // row never comes back, so the size mismatch 404s before guard 2 is ever reached. Confirmed
+      // by running this class with that shard's exact system properties: this assertion then
+      // fails with 404, not 403. So this case pins guard 2 in isolation from the inspector, in a
+      // configuration that does not match how marking_definitions actually ships; either way the
+      // assignment is refused, since a clearance is per tenant and nobody holds another tenant's
+      // marking regardless of which guard catches it first.
       assertTrue(reloadedGroup().getMarkings().isEmpty());
     }
   }

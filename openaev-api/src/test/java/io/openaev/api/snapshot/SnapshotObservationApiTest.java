@@ -12,7 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.snapshot.form.SnapshotSearchInput;
-import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AttackPattern;
@@ -27,6 +26,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.IndexingStatusRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -89,7 +89,7 @@ class SnapshotObservationApiTest extends IntegrationTest {
   @Autowired private FindingComposer findingComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private TenantComposer tenantComposer;
-  @Autowired private TenantMembershipCacheManager tenantMembershipCacheManager;
+  @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -289,12 +289,16 @@ class SnapshotObservationApiTest extends IntegrationTest {
       // -- ARRANGE: a tenant the mock user does not belong to --
       // Creating a tenant enrols its creator, so the membership that creation granted is undone
       // and its absence asserted; without that, the 403 below would be the capability refusal
-      // (empty body) and the case would never reach the membership check it is named after.
+      // (empty body) and the case would never reach the membership check it is named after. The
+      // premise is asserted through the uncached repository method, not
+      // TenantMembershipCacheManager.existsByUserIdAndTenantId: that method is @Cacheable and would
+      // populate the exact cache entry TenantInterceptor reads next, so the request below would
+      // read an entry this assertion wrote, not one it only observed.
       Tenant foreignTenant =
           tenantIsolationTestHelper.createTenant("snapshot-non-member-" + UUID.randomUUID());
       tenantIsolationTestHelper.detachCurrentUserFromTenant(foreignTenant.getId());
       assertThat(
-              tenantMembershipCacheManager.existsByUserIdAndTenantId(
+              tenantRepository.existsByUserIdAndTenantId(
                   testUserHolder.get().getId(), foreignTenant.getId()))
           .isFalse();
       String uri =

@@ -14,7 +14,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Filters;
@@ -22,6 +21,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.MarkingDefinitionFixture;
@@ -64,7 +64,7 @@ class MarkingDefinitionApiTest extends IntegrationTest {
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private TenantGroupComposer tenantGroupComposer;
-  @Autowired private TenantMembershipCacheManager tenantMembershipCacheManager;
+  @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
 
   @Nested
@@ -1268,7 +1268,10 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       // different tenant the caller holds no membership in. Creating a tenant enrols its creator,
       // so the membership that creation granted is undone and its absence asserted; without that,
       // the 403 below would be the capability refusal (empty body) and the case would never reach
-      // the membership check it is named after.
+      // the membership check it is named after. The premise is asserted through the uncached
+      // repository method, not TenantMembershipCacheManager.existsByUserIdAndTenantId: that method
+      // is @Cacheable and would populate the exact cache entry TenantInterceptor reads next, so the
+      // request below would read an entry this assertion wrote, not one it only observed.
       tenantIsolationTestHelper.createTenantWithCapabilities(
           "marking-options-authz-home", Set.of(Capability.ACCESS_MARKING_DEFINITION));
       Tenant foreignTenant =
@@ -1276,7 +1279,7 @@ class MarkingDefinitionApiTest extends IntegrationTest {
               "marking-options-authz-foreign-" + UUID.randomUUID());
       tenantIsolationTestHelper.detachCurrentUserFromTenant(foreignTenant.getId());
       assertThat(
-              tenantMembershipCacheManager.existsByUserIdAndTenantId(
+              tenantRepository.existsByUserIdAndTenantId(
                   testUserHolder.get().getId(), foreignTenant.getId()))
           .isFalse();
 
